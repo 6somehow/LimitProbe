@@ -1,0 +1,181 @@
+[
+  {
+    "schema_version": "0.1.0",
+    "finding_id": "F01",
+    "artifact_id": "flexprefill",
+    "category": "undocumented",
+    "level": "L2",
+    "limitation_ids": [
+      "CL03"
+    ],
+    "verification_ids": [
+      "V03"
+    ],
+    "scope_status": "scope_edge",
+    "evaluated_in_paper": false,
+    "effect_type": "reject",
+    "summary": "Prefill on top of an existing KV cache (multi-turn, prefix reuse) is rejected by an assertion.",
+    "witness_hint": {
+      "batch_size": 1,
+      "q_len": 4096,
+      "k_len": 8192,
+      "head_dim": 128,
+      "block_size": 128
+    },
+    "confidence": "mechanical",
+    "priority": 1,
+    "rationale": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "finding_id": "F02",
+    "artifact_id": "flexprefill",
+    "category": "undocumented",
+    "level": "L2",
+    "limitation_ids": [
+      "CL10"
+    ],
+    "verification_ids": [
+      "V10"
+    ],
+    "scope_status": "scope_edge",
+    "evaluated_in_paper": false,
+    "effect_type": "accuracy",
+    "summary": "Block budget uses a hard-coded 128; with block_size 32/64 the gamma-coverage rule may be violated.",
+    "witness_hint": {
+      "q_len": 8192,
+      "block_size": 64,
+      "gamma": 0.9
+    },
+    "confidence": "llm_assisted",
+    "priority": 1,
+    "rationale": "Candidate from manual reading; confirm by comparing achieved coverage vs gamma on CPU."
+  },
+  {
+    "schema_version": "0.1.0",
+    "finding_id": "F03",
+    "artifact_id": "flexprefill",
+    "category": "undocumented",
+    "level": "L2",
+    "limitation_ids": [
+      "CL11"
+    ],
+    "verification_ids": [
+      "V11"
+    ],
+    "scope_status": "scope_edge",
+    "evaluated_in_paper": false,
+    "effect_type": "state",
+    "summary": "Module-level causal_mask cache can mismatch device or block size across calls.",
+    "witness_hint": {
+      "call_1": {
+        "device": "cuda:0",
+        "block_size": 64
+      },
+      "call_2": {
+        "device": "cuda:1",
+        "block_size": 128
+      }
+    },
+    "confidence": "llm_assisted",
+    "priority": 1,
+    "rationale": "Candidate; device case needs 2 GPUs, block-size case can run on CPU with mocks."
+  },
+  {
+    "schema_version": "0.1.0",
+    "finding_id": "F04",
+    "artifact_id": "flexprefill",
+    "category": "undocumented",
+    "level": "L2",
+    "limitation_ids": [
+      "CL04"
+    ],
+    "verification_ids": [
+      "V04"
+    ],
+    "scope_status": "scope_edge",
+    "evaluated_in_paper": false,
+    "effect_type": "reject",
+    "summary": "Models with head_dim outside {16, 32, 64, 128} are rejected; the paper does not say so.",
+    "witness_hint": {
+      "q_len": 4096,
+      "head_dim": 96
+    },
+    "confidence": "mechanical",
+    "priority": 2,
+    "rationale": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "finding_id": "F05",
+    "artifact_id": "flexprefill",
+    "category": "documented_elsewhere",
+    "level": "L2",
+    "limitation_ids": [
+      "CL07"
+    ],
+    "verification_ids": [
+      "V07"
+    ],
+    "scope_status": "scope_edge",
+    "evaluated_in_paper": false,
+    "effect_type": "reject",
+    "summary": "Sparse path requires bfloat16; README only says 'tested with'.",
+    "witness_hint": {
+      "q_len": 4096,
+      "dtype": "float16"
+    },
+    "confidence": "mechanical",
+    "priority": 2,
+    "rationale": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "finding_id": "F06",
+    "artifact_id": "flexprefill",
+    "category": "undocumented",
+    "level": "L2",
+    "limitation_ids": [
+      "CL05"
+    ],
+    "verification_ids": [
+      "V05"
+    ],
+    "scope_status": "out_of_scope",
+    "evaluated_in_paper": false,
+    "effect_type": "reject",
+    "summary": "block_size=16 passes the entry check and the docstring but fails inside the kernel.",
+    "witness_hint": {
+      "q_len": 4096,
+      "block_size": 16,
+      "head_dim": 128
+    },
+    "confidence": "mechanical",
+    "priority": 3,
+    "rationale": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "finding_id": "F07",
+    "artifact_id": "flexprefill",
+    "category": "documented_elsewhere",
+    "level": "L2",
+    "limitation_ids": [
+      "CL01"
+    ],
+    "verification_ids": [
+      "V01"
+    ],
+    "scope_status": "scope_edge",
+    "evaluated_in_paper": false,
+    "effect_type": "reject",
+    "summary": "Batch size must be 1 (README only).",
+    "witness_hint": {
+      "batch_size": 2,
+      "q_len": 4096
+    },
+    "confidence": "mechanical",
+    "priority": 3,
+    "rationale": null
+  }
+]

@@ -1,0 +1,192 @@
+{
+  "$defs": {
+    "CodeLocation": {
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "description": "Path relative to the repo root.",
+          "title": "File",
+          "type": "string"
+        },
+        "line_start": {
+          "title": "Line Start",
+          "type": "integer"
+        },
+        "line_end": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Line End"
+        },
+        "function": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Qualified name, e.g. module.func.",
+          "title": "Function"
+        },
+        "snippet": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Source text of the statement.",
+          "title": "Snippet"
+        }
+      },
+      "required": [
+        "file",
+        "line_start"
+      ],
+      "title": "CodeLocation",
+      "type": "object"
+    },
+    "Condition": {
+      "additionalProperties": false,
+      "properties": {
+        "expr": {
+          "description": "Python boolean expression over code-level names.",
+          "title": "Expr",
+          "type": "string"
+        },
+        "params": {
+          "description": "Code-level names it depends on.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Params",
+          "type": "array"
+        },
+        "path_prefix": {
+          "description": "Enclosing branch conditions (already negated where needed), outermost first.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Path Prefix",
+          "type": "array"
+        }
+      },
+      "required": [
+        "expr"
+      ],
+      "title": "Condition",
+      "type": "object"
+    },
+    "Outcome": {
+      "enum": [
+        "mechanism",
+        "mechanism_variant",
+        "fallback",
+        "reject",
+        "env_dependent",
+        "state_dependent",
+        "suspicious"
+      ],
+      "title": "Outcome",
+      "type": "string"
+    },
+    "Provenance": {
+      "enum": [
+        "ast",
+        "llm",
+        "manual"
+      ],
+      "title": "Provenance",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "One row of the region table: under `condition`, the code reaches `outcome`.",
+  "properties": {
+    "schema_version": {
+      "default": "0.1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "region_id": {
+      "title": "Region Id",
+      "type": "string"
+    },
+    "artifact_id": {
+      "title": "Artifact Id",
+      "type": "string"
+    },
+    "entry_point": {
+      "title": "Entry Point",
+      "type": "string"
+    },
+    "condition": {
+      "$ref": "#/$defs/Condition"
+    },
+    "outcome": {
+      "$ref": "#/$defs/Outcome"
+    },
+    "outcome_detail": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "e.g. 'returns flash_attn_func(...)'.",
+      "title": "Outcome Detail"
+    },
+    "location": {
+      "$ref": "#/$defs/CodeLocation"
+    },
+    "call_chain": {
+      "description": "Entry -> ... -> function.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Call Chain",
+      "type": "array"
+    },
+    "provenance": {
+      "$ref": "#/$defs/Provenance"
+    },
+    "notes": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Notes"
+    }
+  },
+  "required": [
+    "region_id",
+    "artifact_id",
+    "entry_point",
+    "condition",
+    "outcome",
+    "location",
+    "provenance"
+  ],
+  "title": "Region",
+  "type": "object"
+}

@@ -1,0 +1,686 @@
+[
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-X002",
+    "artifact_id": "infinigen",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not (src.device.device_type != DeviceType.MIXED)",
+    "condition": {
+      "expr": "not (src.device.device_type != DeviceType.MIXED)",
+      "params": [
+        "DeviceType",
+        "src"
+      ],
+      "path_prefix": [
+        "isinstance(k_cache, TorchTensor)",
+        "not (attn_sparsity >= 1.0)",
+        "k.is_cuda",
+        "dst.device.device_type == DeviceType.MIXED"
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "AssertionError",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+        "line_start": 823,
+        "line_end": 823,
+        "function": "speedup/flexgen/infinigen/pytorch_backend.py::general_copy",
+        "snippet": "assert src.device.device_type != DeviceType.MIXED"
+      }
+    ],
+    "region_ids": [
+      "X002"
+    ],
+    "provenance": "ast",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-X003",
+    "artifact_id": "infinigen",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not (all((x.step is None for x in indices)))",
+    "condition": {
+      "expr": "not (all((x.step is None for x in indices)))",
+      "params": [
+        "all",
+        "indices",
+        "x"
+      ],
+      "path_prefix": [
+        "isinstance(k_cache, TorchTensor)",
+        "not (attn_sparsity >= 1.0)",
+        "k.is_cuda",
+        "dst.device.device_type == DeviceType.MIXED",
+        "src.device.device_type != DeviceType.MIXED"
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "AssertionError",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+        "line_start": 881,
+        "line_end": 881,
+        "function": "speedup/flexgen/infinigen/pytorch_backend.py::cut_indices",
+        "snippet": "assert all((x.step is None for x in indices))"
+      }
+    ],
+    "region_ids": [
+      "X003"
+    ],
+    "provenance": "ast",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-X004",
+    "artifact_id": "infinigen",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not (dst.device.device_type != DeviceType.MIXED)",
+    "condition": {
+      "expr": "not (dst.device.device_type != DeviceType.MIXED)",
+      "params": [
+        "DeviceType",
+        "dst"
+      ],
+      "path_prefix": [
+        "isinstance(k_cache, TorchTensor)",
+        "not (attn_sparsity >= 1.0)",
+        "k.is_cuda",
+        "not (dst.device.device_type == DeviceType.MIXED)",
+        "src.device.device_type == DeviceType.MIXED"
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "AssertionError",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+        "line_start": 837,
+        "line_end": 837,
+        "function": "speedup/flexgen/infinigen/pytorch_backend.py::general_copy",
+        "snippet": "assert dst.device.device_type != DeviceType.MIXED"
+      }
+    ],
+    "region_ids": [
+      "X004"
+    ],
+    "provenance": "ast",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-X005",
+    "artifact_id": "infinigen",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not (attn_sparsity >= 1.0)",
+    "condition": {
+      "expr": "not (attn_sparsity >= 1.0)",
+      "params": [
+        "attn_sparsity"
+      ],
+      "path_prefix": [
+        "not (isinstance(k_cache, TorchTensor))"
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "AssertionError",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+        "line_start": 464,
+        "line_end": 464,
+        "function": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha_gen",
+        "snippet": "assert attn_sparsity >= 1.0"
+      }
+    ],
+    "region_ids": [
+      "X005"
+    ],
+    "provenance": "ast",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B001",
+    "artifact_id": "infinigen",
+    "origin": "code",
+    "level": null,
+    "condition_text": "self.layer_id > 1",
+    "condition": {
+      "expr": "self.layer_id > 1",
+      "params": [
+        "self"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "path_change",
+    "effect_text": "partial_weight_ratio is only set for layers with layer_id > 1; layer 0 and 1 get None, so the partial-weight speculation path is disabled for the first two layers.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "speedup/flexgen/infinigen/flex_opt.py",
+        "line_start": 287,
+        "line_end": null,
+        "function": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention.__init__",
+        "snippet": "if self.layer_id > 1:"
+      }
+    ],
+    "region_ids": [
+      "B001"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B002",
+    "artifact_id": "infinigen",
+    "origin": "code",
+    "level": null,
+    "condition_text": "self.policy.attn_sparsity >= 1.0",
+    "condition": {
+      "expr": "self.policy.attn_sparsity >= 1.0",
+      "params": [
+        "self"
+      ],
+      "path_prefix": [
+        "path == 0"
+      ]
+    },
+    "effect_type": "path_change",
+    "effect_text": "When sparsity >= 1.0 the full V cache is copied; otherwise V is deferred (v_home, False) for later selection, changing the data movement path.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "speedup/flexgen/infinigen/flex_opt.py",
+        "line_start": 389,
+        "line_end": null,
+        "function": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention.load_cache",
+        "snippet": "if self.policy.attn_sparsity >= 1.0:"
+      }
+    ],
+    "region_ids": [
+      "B002"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B003",
+    "artifact_id": "infinigen",
+    "origin": "code",
+    "level": null,
+    "condition_text": "self.policy.attn_sparsity >= 1.0",
+    "condition": {
+      "expr": "self.policy.attn_sparsity >= 1.0",
+      "params": [
+        "self"
+      ],
+      "path_prefix": [
+        "path == 2"
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "Path 2 (split GPU/CPU attention) asserts that sparsity >= 1.0, so sparse attention with mixed cache placement is rejected.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "speedup/flexgen/infinigen/flex_opt.py",
+        "line_start": 426,
+        "line_end": null,
+        "function": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention.load_cache",
+        "snippet": "assert self.policy.attn_sparsity >= 1.0"
+      }
+    ],
+    "region_ids": [
+      "B003"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B004",
+    "artifact_id": "infinigen",
+    "origin": "code",
+    "level": null,
+    "condition_text": "k_home.device.device_type == DeviceType.MIXED and k_home.data[0][0] is not None",
+    "condition": {
+      "expr": "k_home.device.device_type == DeviceType.MIXED and k_home.data[0][0] is not None",
+      "params": [
+        "DeviceType",
+        "k_home"
+      ],
+      "path_prefix": [
+        "self.policy.cpu_cache_compute"
+      ]
+    },
+    "effect_type": "state",
+    "effect_text": "Prefetch path 2 requires MIXED device with populated GPU portion; otherwise path 1.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "speedup/flexgen/infinigen/flex_opt.py",
+        "line_start": 442,
+        "line_end": null,
+        "function": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention.prefetch_cache",
+        "snippet": "if (k_home.device.device_type == DeviceType.MIXED and"
+      }
+    ],
+    "region_ids": [
+      "B004"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B005",
+    "artifact_id": "infinigen",
+    "origin": "code",
+    "level": null,
+    "condition_text": "path == 1 or path == 2",
+    "condition": {
+      "expr": "path == 1 or path == 2",
+      "params": [
+        "path"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "reject",
+    "effect_text": "Prefetching is not implemented for CPU-compute paths 1 and 2; raises ValueError.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "speedup/flexgen/infinigen/flex_opt.py",
+        "line_start": 466,
+        "line_end": null,
+        "function": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention.prefetch_cache",
+        "snippet": "elif path == 1 or path == 2:"
+      }
+    ],
+    "region_ids": [
+      "B005"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B006",
+    "artifact_id": "infinigen",
+    "origin": "code",
+    "level": null,
+    "condition_text": "self.enable_prefetching",
+    "condition": {
+      "expr": "self.enable_prefetching",
+      "params": [
+        "self"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "path_change",
+    "effect_text": "When prefetching is enabled, mha_gen is called with p_w_q, partial_k_cache, speculation_stream, alpha and max_num_kv; otherwise those are passed as None, disabling the speculation/prefetch mechanism.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "speedup/flexgen/infinigen/flex_opt.py",
+        "line_start": 528,
+        "line_end": null,
+        "function": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention.forward",
+        "snippet": "if self.enable_prefetching:"
+      }
+    ],
+    "region_ids": [
+      "B006"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B007",
+    "artifact_id": "infinigen",
+    "origin": "code",
+    "level": null,
+    "condition_text": "prev_partial_cache_read_buf is not None and self.layer_id > 1",
+    "condition": {
+      "expr": "prev_partial_cache_read_buf is not None and self.layer_id > 1",
+      "params": [
+        "prev_partial_cache_read_buf",
+        "self"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "path_change",
+    "effect_text": "Partial cache accumulation for the next layer only happens for layer_id > 1; earlier layers skip it.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "speedup/flexgen/infinigen/flex_opt.py",
+        "line_start": 541,
+        "line_end": null,
+        "function": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention.forward",
+        "snippet": "if (prev_partial_cache_read_buf is not None) and (self.layer_id > 1):"
+      }
+    ],
+    "region_ids": [
+      "B007"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B008",
+    "artifact_id": "infinigen",
+    "origin": "code",
+    "level": null,
+    "condition_text": "(i == 0) or (i == (self.config.num_hidden_layers - 1))",
+    "condition": {
+      "expr": "(i == 0) or (i == (self.config.num_hidden_layers - 1))",
+      "params": [
+        "i",
+        "self"
+      ],
+      "path_prefix": [
+        "policy.sep_layer"
+      ]
+    },
+    "effect_type": "path_change",
+    "effect_text": "When sep_layer is set, the first and last layers are constructed as SelfAttention with the flag False (no InfiniGen KV selection), while all middle layers get True. So the InfiniGen mechanism is only applied to interior layers; boundary layers run the plain attention path.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "speedup/flexgen/infinigen/flex_opt.py",
+        "line_start": 690,
+        "line_end": null,
+        "function": "speedup/flexgen/infinigen/flex_opt.py::OptLM.__init__",
+        "snippet": "if (i == 0) or (i == (self.config.num_hidden_layers - 1)):"
+      }
+    ],
+    "region_ids": [
+      "B008"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B009",
+    "artifact_id": "infinigen",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not (self.policy.act_gpu_percent == 100 or self.policy.act_cpu_percent == 100 or self.policy.act_disk_percent == 100)",
+    "condition": {
+      "expr": "not (self.policy.act_gpu_percent == 100 or self.policy.act_cpu_percent == 100 or self.policy.act_disk_percent == 100)",
+      "params": [
+        "self"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "reject",
+    "effect_text": "Any policy whose activation percentages are not a single 100% tier is rejected at construction time.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "speedup/flexgen/infinigen/flex_opt.py",
+        "line_start": 710,
+        "line_end": null,
+        "function": "speedup/flexgen/infinigen/flex_opt.py::OptLM.__init__",
+        "snippet": "raise NotImplementedError()"
+      }
+    ],
+    "region_ids": [
+      "B009"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B010",
+    "artifact_id": "infinigen",
+    "origin": "code",
+    "level": null,
+    "condition_text": "j not in self.attn_layer[2:]",
+    "condition": {
+      "expr": "j not in self.attn_layer[2:]",
+      "params": [
+        "j",
+        "self"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "path_change",
+    "effect_text": "Cache loading is skipped for all attention layers except the first two (attn_layer[0], attn_layer[1]); those layers' KV caches are not loaded from cache_home, so the InfiniGen cache-load path only runs for the first two attention layers.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "speedup/flexgen/infinigen/flex_opt.py",
+        "line_start": 799,
+        "line_end": null,
+        "function": "speedup/flexgen/infinigen/flex_opt.py::OptLM.load_cache",
+        "snippet": "if j not in self.attn_layer[2:]:"
+      }
+    ],
+    "region_ids": [
+      "B010"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B011",
+    "artifact_id": "infinigen",
+    "origin": "code",
+    "level": null,
+    "condition_text": "args.compress_cache and args.attn_sparsity < 1.0",
+    "condition": {
+      "expr": "args.compress_cache and args.attn_sparsity < 1.0",
+      "params": [
+        "args"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "reject",
+    "effect_text": "Combining cache compression with attention sparsity (the InfiniGen KV selection path) is not implemented; the run aborts.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "speedup/flexgen/infinigen/flex_opt.py",
+        "line_start": 1359,
+        "line_end": null,
+        "function": "speedup/flexgen/infinigen/flex_opt.py::run_flexgen",
+        "snippet": "assert not (args.compress_cache and args.attn_sparsity < 1.0), \"Not implemented\""
+      }
+    ],
+    "region_ids": [
+      "B011"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B012",
+    "artifact_id": "infinigen",
+    "origin": "code",
+    "level": null,
+    "condition_text": "warmup or partial_weight_ratio is None",
+    "condition": {
+      "expr": "warmup or partial_weight_ratio is None",
+      "params": [
+        "partial_weight_ratio",
+        "warmup"
+      ],
+      "path_prefix": [
+        "def mha"
+      ]
+    },
+    "effect_type": "path_change",
+    "effect_text": "In TorchDevice.mha, the partial-weight index (which heads/rows of the query projection are used for the InfiniGen speculation) is only computed when warmup is False and partial_weight_ratio is not None. Otherwise partial_weight_index stays None (line 325) and is returned as None (line 379), so mha_gen receives p_w_q=None and the KV speculation is silently skipped, running dense attention instead.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+        "line_start": 326,
+        "line_end": null,
+        "function": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha",
+        "snippet": "if (not warmup) and (partial_weight_ratio is not None):"
+      }
+    ],
+    "region_ids": [
+      "B012"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B013",
+    "artifact_id": "infinigen",
+    "origin": "code",
+    "level": null,
+    "condition_text": "p_w_q is None",
+    "condition": {
+      "expr": "p_w_q is None",
+      "params": [
+        "p_w_q"
+      ],
+      "path_prefix": [
+        "def mha_gen"
+      ]
+    },
+    "effect_type": "path_change",
+    "effect_text": "In TorchDevice.mha_gen, the InfiniGen KV speculation (speculate_attention) only runs when the caller passes a partial-weight query tensor p_w_q. When p_w_q is None, prefetch_idx stays None (line 400) and the whole dynamic KV selection / prefetch mechanism is skipped, so the run degrades to plain dense attention over the full KV cache.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+        "line_start": 401,
+        "line_end": null,
+        "function": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha_gen",
+        "snippet": "if p_w_q is not None:"
+      }
+    ],
+    "region_ids": [
+      "B013"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B014",
+    "artifact_id": "infinigen",
+    "origin": "code",
+    "level": null,
+    "condition_text": "attn_sparsity >= 1.0",
+    "condition": {
+      "expr": "attn_sparsity >= 1.0",
+      "params": [
+        "attn_sparsity"
+      ],
+      "path_prefix": [
+        "isinstance(k_cache, TorchTensor)"
+      ]
+    },
+    "effect_type": "path_change",
+    "effect_text": "Caller-supplied attn_sparsity selects dense attention (decompress full k/v cache and dense bmm) versus sparse attention (top-k selection in _sparse_attention_value).",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+        "line_start": 422,
+        "line_end": null,
+        "function": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha_gen",
+        "snippet": "if attn_sparsity >= 1.0:  # Dense attention"
+      }
+    ],
+    "region_ids": [
+      "B014"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B015",
+    "artifact_id": "infinigen",
+    "origin": "code",
+    "level": null,
+    "condition_text": "comp_config.group_dim == 0",
+    "condition": {
+      "expr": "comp_config.group_dim == 0",
+      "params": [
+        "comp_config"
+      ],
+      "path_prefix": [
+        "compress_cache"
+      ]
+    },
+    "effect_type": "path_change",
+    "effect_text": "Caller-supplied comp_config.group_dim decides whether k_new/v_new are re-sliced to a group-aligned boundary before compression.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+        "line_start": 479,
+        "line_end": null,
+        "function": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha_gen",
+        "snippet": "if comp_config.group_dim == 0:"
+      }
+    ],
+    "region_ids": [
+      "B015"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B016",
+    "artifact_id": "infinigen",
+    "origin": "code",
+    "level": null,
+    "condition_text": "policy.cache_disk_percent == 0",
+    "condition": {
+      "expr": "policy.cache_disk_percent == 0",
+      "params": [
+        "policy"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "path_change",
+    "effect_text": "When the configured disk cache percent is zero, the KV cache is split only between GPU and CPU (len_disk=0, len_cpu=shape-len_gpu), so no disk segment is allocated; otherwise the split uses cache_gpu_percent/cache_cpu_percent and the remainder goes to disk. The caller's policy config selects which cache layout the mechanism uses.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+        "line_start": 767,
+        "line_end": null,
+        "function": "speedup/flexgen/infinigen/pytorch_backend.py::TorchMixedDevice.init_cache_one_gpu_batch",
+        "snippet": "if policy.cache_disk_percent == 0:"
+      }
+    ],
+    "region_ids": [
+      "B016"
+    ],
+    "provenance": "llm",
+    "notes": null
+  }
+]
