@@ -85,11 +85,14 @@
 
 ## M5 步骤 4 整合
 
-- [ ] 读入论文侧 Limitation + 3a、代码侧 Limitation + 3b
-- [ ] 去重合并（同一 Region 或等价条件）
-- [ ] 按 `docs/03_codeside_spec.md` 的决策表分类，设置 L2、priority、confidence
-- [ ] witness_hint：在 scope ∩ 区域条件里求具体值（边界两侧各一个点）
-- [ ] 输出 Finding，交给 Shanghao
+- [x] 读入论文侧 Limitation + 3a（Zhaopeng 交接包）、代码侧 Limitation + 3b（`codeside/integrate.py`）
+- [x] 去重合并：代码侧同函数等价条件机械合并；论文侧之间、两侧之间按规则选候选对，LLM 判断是否同一件事后合并（`codeside/step4_llm.py`）
+- [x] 分类改为 schema v0.2.0 的 7 类，“算不算写了”统一为只算用户会读到的地方；priority 改为“后果 × 能触发”；review 字段先用盲审填
+- [x] witness_hint：在 scope ∩ 区域条件里求具体值（边界两侧各一个点，`codeside/witness.py`，格式 `witness-v2`：加别名、论文侧由 LLM 写条件并用代码核对）
+- [x] 输出 Finding（`results/step4/`），交给 Shanghao 的单文件 `results/step4/limitations_for_tests.json`
+- [ ] 团队确认 schema v0.2.0（7 类、review 字段）、“算不算写了”规则、priority 规则；Shanghao 确认 witness-v2 格式
+- [ ] 人工筛 `results/step4/review_queue.json`，挑出交给测试的 Finding
+- [ ] 路径前缀不区分调用链上的各层函数，别名只能在单层时用（要在步骤 2 的 path_prefix 里记录所在函数）
 
 验收：pilot 上重新生成的 Finding 与评审后的 gold 一致；Shanghao 能直接用 witness_hint 写测试。
 

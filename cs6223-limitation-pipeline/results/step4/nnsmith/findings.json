@@ -1,0 +1,2015 @@
+[
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F001",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B006"
+  ],
+  "verification_ids": [
+   "V006"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When gres_config not in (\"3\", \"4\", \"5\"): An unrecognized NNSMITH_GRES environment value causes a ValueError, rejecting the input. (nnsmith/abstract/op.py:1563)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "trigger_only",
+   "condition": "gres_config not in (\"3\", \"4\", \"5\")",
+   "path_prefix": [
+    "gres_config not in (\"3\", \"4\", \"5\")"
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "gres_config": {
+     "not_in": [
+      "3",
+      "4",
+      "5"
+     ]
+    }
+   },
+   "note": "the condition holds on every point that reaches it; no contrast point exists",
+   "atoms": {
+    "gres_config": {
+     "kind": "category",
+     "sort": "str"
+    }
+   },
+   "aliases_not_applied": {
+    "ret": "[]",
+    "inp": "input_shapes[0]",
+    "gres_config": "os.getenv('NNSMITH_GRES', '4')",
+    "ub": "min(src_len, dst_len)"
+   },
+   "location": "nnsmith/abstract/op.py:1563",
+   "function": "nnsmith/abstract/op.py::Reshape.requires"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 2), not human: Rejecting an invalid value of an internal env knob is config validation, not a limit of what the mechanism supports."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F002",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B008"
+  ],
+  "verification_ids": [
+   "V008"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When not check_sat(): If the requested output rank cannot be satisfied by the rank-increment loop (e.g. out_abs_tensor ndims inconsistent with the max reachable rank), the loop never terminates, effectively rejecting/hanging on that output shape. (nnsmith/abstract/op.py:2083)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "not check_sat()",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "check_sat()": false
+   },
+   "contrast": {
+    "check_sat()": true
+   },
+   "atoms": {
+    "check_sat()": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "location": "nnsmith/abstract/op.py:2083",
+   "function": "nnsmith/abstract/op.py::MatMul.deduct_inp_ranks_and_dtype"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F003",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B010"
+  ],
+  "verification_ids": [
+   "V010"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When isinstance(e, InternalError): InternalError from make_testcase is propagated, aborting the fuzzing loop, while other exceptions are swallowed and the loop continues. (nnsmith/cli/fuzz.py:179)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "isinstance(e, InternalError)",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "isinstance(e, InternalError)": true
+   },
+   "contrast": {
+    "isinstance(e, InternalError)": false
+   },
+   "atoms": {
+    "isinstance(e, InternalError)": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "location": "nnsmith/cli/fuzz.py:179",
+   "function": "nnsmith/cli/fuzz.py::FuzzingLoop.run"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: found in code_comment; 3b found, but only a code comment (rule: does not count as stated); priority 1: undisclosed, reject effect, witness reaches it",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 3), not human: Re-raising internal errors while logging other generator failures is error-handling plumbing."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F004",
+  "artifact_id": "nnsmith",
+  "category": "contradicts_docs",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B015"
+  ],
+  "verification_ids": [
+   "V015"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When self.check_sat() != z3.sat: After adding the memory-limit constraint, an unsatisfiable (or unknown) solver result aborts generation via assertion. (nnsmith/graph_gen.py:260)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "self.check_sat() != z3.sat",
+   "path_prefix": [
+    "self.limnf"
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "self.check_sat()": 1,
+    "z3.sat": 2,
+    "self.limnf": true
+   },
+   "contrast": {
+    "self.check_sat()": 2,
+    "z3.sat": 2,
+    "self.limnf": true
+   },
+   "atoms": {
+    "self.check_sat()": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "self.limnf": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "z3.sat": {
+     "kind": "derived",
+     "sort": "int"
+    }
+   },
+   "aliases_not_applied": {
+    "init_time": "time.time()",
+    "node_t": "self.pick_next_op_type()"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "nnsmith/graph_gen.py:260",
+   "function": "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: contradicted in paper; priority 1: contradicts_docs, reject effect, witness reaches it",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F005",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B016"
+  ],
+  "verification_ids": [
+   "V016"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When isinstance(op, Expand) and oshape.ndims < op.expand_last_dim: Placeholder shapes with fewer dims than the Expand op's expand_last_dim are skipped as backward-insertion candidates, excluding them from consideration. (nnsmith/graph_gen.py:524)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "isinstance(op, Expand) and oshape.ndims < op.expand_last_dim",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "isinstance(op, Expand)": true,
+    "oshape.ndims": 1,
+    "op.expand_last_dim": 2
+   },
+   "contrast": {
+    "isinstance(op, Expand)": true,
+    "oshape.ndims": 2,
+    "op.expand_last_dim": 2
+   },
+   "atoms": {
+    "isinstance(op, Expand)": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "op.expand_last_dim": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "oshape.ndims": {
+     "kind": "derived",
+     "sort": "int"
+    }
+   },
+   "location": "nnsmith/graph_gen.py:524",
+   "function": "nnsmith/graph_gen.py::SimpleGenerator.try_backward_insert"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 2), not human: Skipping placeholders whose rank is too low for Expand is an operator-specific shape-validity invariant, not a user-facing limitation."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F006",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B028",
+   "CL-B029",
+   "nnsmith-gap-M08-B06",
+   "nnsmith-gap-M08-B08"
+  ],
+  "verification_ids": [
+   "V028",
+   "V029"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When p.grad is not None and torch.any(p.grad != 0): If all parameter gradients are zero, ConstraintCheck.true(nonzero, ...) raises, aborting the backward step ('Gradients are all zero. Cannot make progress.'). (nnsmith/materialize/torch/symbolnet.py:188)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "p.grad is not None and torch.any(p.grad != 0)",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "p.grad is None": false,
+    "torch.any(p.grad != 0)": true
+   },
+   "contrast": {
+    "p.grad is None": false,
+    "torch.any(p.grad != 0)": false
+   },
+   "atoms": {
+    "p.grad is None": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "torch.any(p.grad != 0)": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "location": "nnsmith/materialize/torch/symbolnet.py:188",
+   "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.backward"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; merged (LLM: same issue): CL-B029, nnsmith-gap-M08-B06, nnsmith-gap-M08-B08; paper side also reports: impl_deviates; priority 1: undisclosed, reject effect, witness reaches it; related (candidate pair, judged different): nnsmith-F024, nnsmith-F025",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 1), not human: Zero gradients raise ConstraintError, grad_input_gen breaks and returns None, so for such models the gradient search gives up and make_oracle ends up using random inputs."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F007",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B034"
+  ],
+  "verification_ids": [
+   "V034"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When loss_fn.dispatch(type(op)) is not None: If an op produces NaN/Inf but has no registered loss function, ConstraintCheck.true at line 403 fails with 'op=... has no torch_loss but produces NaN or INF!', aborting the search. (nnsmith/materialize/torch/symbolnet.py:385)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "loss_fn.dispatch(type(op)) is not None",
+   "path_prefix": [
+    "self.check_intermediate_numeric or (self.use_gradient and not self.stop_updating_loss)",
+    "self.invalid_found_last and (self.use_gradient and not self.stop_updating_loss)"
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "loss_fn.dispatch(type(op)) is None": false,
+    "self.check_intermediate_numeric": false,
+    "self.use_gradient": true,
+    "self.stop_updating_loss": false,
+    "self.invalid_found_last": true
+   },
+   "contrast": {
+    "loss_fn.dispatch(type(op)) is None": true,
+    "self.check_intermediate_numeric": false,
+    "self.use_gradient": true,
+    "self.stop_updating_loss": false,
+    "self.invalid_found_last": true
+   },
+   "atoms": {
+    "loss_fn.dispatch(type(op)) is None": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "self.check_intermediate_numeric": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "self.invalid_found_last": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "self.stop_updating_loss": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "self.use_gradient": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "aliases_not_applied": {
+    "tensor_map": "{}",
+    "input_tensors": "[tensor_map[idx] for idx in inps]"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "nnsmith/materialize/torch/symbolnet.py:385",
+   "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.forward"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 1), not human: When gradient search is running and an op with no registered loss function produces NaN/Inf, a ConstraintError ends the gradient search, so such ops cannot be repaired."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F008",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B036"
+  ],
+  "verification_ids": [
+   "V036"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When self.loss is not None: If two vulnerable ops both produce NaN/Inf in the same forward pass, the second one trips this check and raises ConstraintError, which aborts the gradient search (caught in grad_input_gen, line 268 -> break) instead of optimising for either loss. (nnsmith/materialize/torch/symbolnet.py:421)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "self.loss is not None",
+   "path_prefix": [
+    "class SymbolNet",
+    "def forward",
+    "if self.check_intermediate_numeric or (self.use_gradient and not self.stop_updating_loss)",
+    "if self.invalid_found_last and (self.use_gradient and not self.stop_updating_loss)"
+   ],
+   "dropped_prefix": [
+    "class SymbolNet",
+    "def forward",
+    "if self.check_intermediate_numeric or (self.use_gradient and not self.stop_updating_loss)",
+    "if self.invalid_found_last and (self.use_gradient and not self.stop_updating_loss)"
+   ],
+   "trigger": {
+    "self.loss is None": false
+   },
+   "contrast": {
+    "self.loss is None": true
+   },
+   "atoms": {
+    "self.loss is None": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "aliases_not_applied": {
+    "tensor_map": "{}",
+    "input_tensors": "[tensor_map[idx] for idx in inps]",
+    "msg": "f'loss_{loss_suf}: {l.min().data:.3f} ~ {l.max().data:.3f} ~ {torch.sum((l > 0) * l).item()}'",
+    "loss_name": "f'{op}_{loss_suf}'"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "nnsmith/materialize/torch/symbolnet.py:421",
+   "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.forward"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F009",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B001"
+  ],
+  "verification_ids": [
+   "V001"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When carry and max(left_size, right_size) >= ARITH_MAX_WIDTH: For addition, the extra carry bit is only prepended when the wider operand is strictly below ARITH_MAX_WIDTH; at the maximum width nnsmith_add silently omits the carry extension. (nnsmith/abstract/arith.py:74)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "carry and max(left_size, right_size) >= ARITH_MAX_WIDTH",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "carry": true,
+    "left_size": 1,
+    "right_size": 2,
+    "ARITH_MAX_WIDTH": 2
+   },
+   "contrast": {
+    "carry": true,
+    "left_size": 1,
+    "right_size": 2,
+    "ARITH_MAX_WIDTH": 3
+   },
+   "atoms": {
+    "ARITH_MAX_WIDTH": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "carry": {
+     "kind": "input",
+     "sort": "bool"
+    },
+    "left_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "right_size": {
+     "kind": "input",
+     "sort": "int"
+    }
+   },
+   "location": "nnsmith/abstract/arith.py:74",
+   "function": "nnsmith/abstract/arith.py::align_bvs"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 1), not human: Internal carry-bit extension in the z3 helper."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F010",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B002"
+  ],
+  "verification_ids": [
+   "V002"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When mult and (right.size() + left.size()) >= ARITH_MAX_WIDTH: For multiplication, when the combined width already reaches ARITH_MAX_WIDTH, align_bvs returns the operands without zero-extension, so nnsmith_mul silently skips the widening that it performs for narrower operands. (nnsmith/abstract/arith.py:79)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "mult and (right.size() + left.size()) >= ARITH_MAX_WIDTH",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "mult": true,
+    "right.size()": 1,
+    "left.size()": 1,
+    "ARITH_MAX_WIDTH": 2
+   },
+   "contrast": {
+    "mult": true,
+    "right.size()": 1,
+    "left.size()": 1,
+    "ARITH_MAX_WIDTH": 3
+   },
+   "atoms": {
+    "ARITH_MAX_WIDTH": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "left.size()": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "mult": {
+     "kind": "input",
+     "sort": "bool"
+    },
+    "right.size()": {
+     "kind": "derived",
+     "sort": "int"
+    }
+   },
+   "location": "nnsmith/abstract/arith.py:79",
+   "function": "nnsmith/abstract/arith.py::align_bvs"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 1), not human: Internal bit-width cap in the z3 multiplication helper."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F011",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B003"
+  ],
+  "verification_ids": [
+   "V003"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When FLOPS_LIM == \"off\": Setting NNSMITH_FLOPS_LIM=off sets FLOPS_LIM to None, disabling the FLOPs constraint entirely, which changes the search/acceptance behavior of the generator. (nnsmith/abstract/op.py:25)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "FLOPS_LIM == \"off\"",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "FLOPS_LIM": "off"
+   },
+   "contrast": {
+    "FLOPS_LIM": {
+     "not_in": [
+      "off"
+     ]
+    }
+   },
+   "atoms": {
+    "FLOPS_LIM": {
+     "kind": "category",
+     "sort": "str"
+    }
+   },
+   "location": "nnsmith/abstract/op.py:25",
+   "function": "nnsmith/abstract/op.py::<module>"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F012",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B004"
+  ],
+  "verification_ids": [
+   "V004"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When Z3_CONS_FLOPS: A module-level flag decides whether the FLOPS upper-bound constraint is added to the Pool2d requirements; when enabled, the solver rejects parameter/shape combinations exceeding FLOPS_LIM, changing which models are generated. (nnsmith/abstract/op.py:910)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "Z3_CONS_FLOPS",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "Z3_CONS_FLOPS": true
+   },
+   "contrast": {
+    "Z3_CONS_FLOPS": false
+   },
+   "atoms": {
+    "Z3_CONS_FLOPS": {
+     "kind": "input",
+     "sort": "bool"
+    }
+   },
+   "location": "nnsmith/abstract/op.py:910",
+   "function": "nnsmith/abstract/op.py::Pool2d.requires"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 1), not human: NNSMITH_Z3_CONS_FLOPS=off removes the FLOPS bound from the solver constraints (and other values fail an assert at import), an env-driven switch in how FLOPS are limited."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F013",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B005"
+  ],
+  "verification_ids": [
+   "V005"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When gres_config != \"4\": The environment variable NNSMITH_GRES selects the reshape grouping strategy: \"5\" = one group (flatten), \"3\" = min(src_len, dst_len) groups, \"4\" (default) = random number of groups weighted by 2**i. Any other value raises ValueError, rejecting the model. The chosen grouping changes the generated reshape constraints and hence the accepted graphs. (nnsmith/abstract/op.py:1...",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "gres_config != \"4\"",
+   "path_prefix": [
+    "class Reshape",
+    "def requires"
+   ],
+   "dropped_prefix": [
+    "class Reshape",
+    "def requires"
+   ],
+   "trigger": {
+    "gres_config": {
+     "not_in": [
+      "4"
+     ]
+    }
+   },
+   "contrast": {
+    "gres_config": "4"
+   },
+   "atoms": {
+    "gres_config": {
+     "kind": "category",
+     "sort": "str"
+    }
+   },
+   "aliases_not_applied": {
+    "ret": "[]",
+    "inp": "input_shapes[0]"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "nnsmith/abstract/op.py:1552",
+   "function": "nnsmith/abstract/op.py::Reshape.requires"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F014",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B007"
+  ],
+  "verification_ids": [
+   "V007"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When os.getenv(\"NNSMITH_CONS_RESHAPE\", \"off\") != \"off\": The environment variable NNSMITH_CONS_RESHAPE toggles whether additional dimension-limit constraints (__DIM_LIMIT__=4096, halving per dim) are added to the Reshape constraints, changing the generated constraint set. (nnsmith/abstract/op.py:1587)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "os.getenv(\"NNSMITH_CONS_RESHAPE\", \"off\") != \"off\"",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "os.getenv('NNSMITH_CONS_RESHAPE', 'off')": {
+     "not_in": [
+      "off"
+     ]
+    }
+   },
+   "contrast": {
+    "os.getenv('NNSMITH_CONS_RESHAPE', 'off')": "off"
+   },
+   "atoms": {
+    "os.getenv('NNSMITH_CONS_RESHAPE', 'off')": {
+     "kind": "category",
+     "sort": "str"
+    }
+   },
+   "location": "nnsmith/abstract/op.py:1587",
+   "function": "nnsmith/abstract/op.py::Reshape.requires"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 1), not human: The NNSMITH_CONS_RESHAPE env var adds per-dimension upper bounds to Reshape target shapes, changing which shapes the generator can produce."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F015",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B009"
+  ],
+  "verification_ids": [
+   "V009"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When not self.crash_safe and self.test_timeout is not None: Setting fuzz.test_timeout without crash_safe silently changes execution to the crash-safe path (warning only), altering how testcases are validated. (nnsmith/cli/fuzz.py:60)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "not self.crash_safe and self.test_timeout is not None",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "self.crash_safe": false,
+    "self.test_timeout is None": false
+   },
+   "contrast": {
+    "self.crash_safe": true,
+    "self.test_timeout is None": false
+   },
+   "atoms": {
+    "self.crash_safe": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "self.test_timeout is None": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "location": "nnsmith/cli/fuzz.py:60",
+   "function": "nnsmith/cli/fuzz.py::FuzzingLoop.__init__"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F016",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B011"
+  ],
+  "verification_ids": [
+   "V011"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When cfg[\"backend\"][\"type\"] is not None: A caller-supplied backend type decides whether a BackendFactory is constructed; the factory is then passed to auto_opset, changing which operators are considered available for model generation. (nnsmith/cli/model_gen.py:31)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "cfg[\"backend\"][\"type\"] is not None",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "cfg['backend']['type'] is None": false
+   },
+   "contrast": {
+    "cfg['backend']['type'] is None": true
+   },
+   "atoms": {
+    "cfg['backend']['type'] is None": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "location": "nnsmith/cli/model_gen.py:31",
+   "function": "nnsmith/cli/model_gen.py::main"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F017",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B013"
+  ],
+  "verification_ids": [
+   "V013"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When NNSMITH_LIMNF_V == \"0\": Branches the memory-limit constraint: v0 adds nnsmith_le(self.n_floats, self.limit_float); v1 adds the accumulated self.n_floats_cons instead. (nnsmith/graph_gen.py:256)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "NNSMITH_LIMNF_V == \"0\"",
+   "path_prefix": [
+    "self.limnf"
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "NNSMITH_LIMNF_V": "0",
+    "self.limnf": true
+   },
+   "contrast": {
+    "NNSMITH_LIMNF_V": {
+     "not_in": [
+      "0"
+     ]
+    },
+    "self.limnf": true
+   },
+   "atoms": {
+    "NNSMITH_LIMNF_V": {
+     "kind": "category",
+     "sort": "str"
+    },
+    "self.limnf": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "aliases_not_applied": {
+    "init_time": "time.time()",
+    "node_t": "self.pick_next_op_type()"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "nnsmith/graph_gen.py:256",
+   "function": "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 1), not human: The NNSMITH_LIMNF_V env var switches between one total float-count limit and per-node limits on tensor size."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F018",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B014"
+  ],
+  "verification_ids": [
+   "V014"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When NNSMITH_LIMNF_V == \"1\": With NNSMITH_LIMNF_V=1 the per-op float-count constraints accumulated in `self.n_floats_cons` are added to the solver instead of the single aggregate constraint, so the same seed yields different accepted graphs depending on the environment variable. (nnsmith/graph_gen.py:259)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "NNSMITH_LIMNF_V == \"1\"",
+   "path_prefix": [
+    "class SimpleGenerator",
+    "def abstract_gen",
+    "if self.limnf"
+   ],
+   "dropped_prefix": [
+    "class SimpleGenerator",
+    "def abstract_gen",
+    "if self.limnf"
+   ],
+   "trigger": {
+    "NNSMITH_LIMNF_V": "1"
+   },
+   "contrast": {
+    "NNSMITH_LIMNF_V": {
+     "not_in": [
+      "1"
+     ]
+    }
+   },
+   "atoms": {
+    "NNSMITH_LIMNF_V": {
+     "kind": "category",
+     "sort": "str"
+    }
+   },
+   "aliases_not_applied": {
+    "init_time": "time.time()",
+    "node_t": "self.pick_next_op_type()"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "nnsmith/graph_gen.py:259",
+   "function": "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F019",
+  "artifact_id": "nnsmith",
+  "category": "stated_differently",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B017"
+  ],
+  "verification_ids": [
+   "V017"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When random.uniform(0, 1) < self.forward_prob: A caller-configured forward_prob attribute decides whether the node is inserted by forward insertion (try_forward_insert) or backward insertion (try_backward_insert), selecting between two different graph-construction algorithms. (nnsmith/graph_gen.py:556)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "random.uniform(0, 1) < self.forward_prob",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "random.uniform(0, 1)": 1,
+    "self.forward_prob": 2
+   },
+   "contrast": {
+    "random.uniform(0, 1)": 1,
+    "self.forward_prob": 1
+   },
+   "atoms": {
+    "random.uniform(0, 1)": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "self.forward_prob": {
+     "kind": "derived",
+     "sort": "int"
+    }
+   },
+   "location": "nnsmith/graph_gen.py:556",
+   "function": "nnsmith/graph_gen.py::SimpleGenerator.try_insert_node_type"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: boundary_mismatch in paper; 3b boundary_mismatch; priority 2: stated_differently",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 2), not human: forward_prob is just the probability of mixing forward and backward insertion, both part of the normal mechanism; it is a tuning knob."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F020",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B019"
+  ],
+  "verification_ids": [
+   "V019"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When idx in disable: For each reshape group, one randomly chosen destination dimension is disabled from binning, so that dimension is left unconstrained by the guidance. (nnsmith/graph_gen.py:944)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "idx in disable",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "idx in disable": true
+   },
+   "contrast": {
+    "idx in disable": false
+   },
+   "atoms": {
+    "idx in disable": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "location": "nnsmith/graph_gen.py:944",
+   "function": "nnsmith/graph_gen.py::__GROUP_RESHAPE"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F021",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B025"
+  ],
+  "verification_ids": [
+   "V025"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When self.sat_inputs is None: When no satisfying inputs were found (sat_inputs is None), make_oracle silently uses random inputs via get_random_inps() rather than the search result, changing which inputs the oracle is built from. (nnsmith/materialize/torch/__init__.py:47)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "self.sat_inputs is None",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "self.sat_inputs is None": true
+   },
+   "contrast": {
+    "self.sat_inputs is None": false
+   },
+   "atoms": {
+    "self.sat_inputs is None": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "location": "nnsmith/materialize/torch/__init__.py:47",
+   "function": "nnsmith/materialize/torch/__init__.py::TorchModel.make_oracle"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: found in code_comment; 3b found, but only a code comment (rule: does not count as stated); priority 2: undisclosed, path_change effect",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 2), not human: When the value search finds no satisfying inputs, the oracle silently uses random inputs that may produce NaN/Inf."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F022",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B026"
+  ],
+  "verification_ids": [
+   "V026"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When all([DType.is_float(v.dtype) for _, v in self.net.input_like.items()]): Whether all model inputs are float dtypes decides if a differentiability probe is run; otherwise self.differentiable is forced False, which later routes search_one to SamplingSearch instead of GradSearch. (nnsmith/materialize/torch/input_gen.py:93)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "all([DType.is_float(v.dtype) for _, v in self.net.input_like.items()])",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "all([DType.is_float(v.dtype) for _, v in self.net.input_like.items()])": true
+   },
+   "contrast": {
+    "all([DType.is_float(v.dtype) for _, v in self.net.input_like.items()])": false
+   },
+   "atoms": {
+    "all([DType.is_float(v.dtype) for _, v in self.net.input_like.items()])": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "location": "nnsmith/materialize/torch/input_gen.py:93",
+   "function": "nnsmith/materialize/torch/input_gen.py::PracticalHybridSearch.__init__"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: found in code_comment; 3b found, but only a code comment (rule: does not count as stated); priority 2: undisclosed, path_change effect",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F023",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B027"
+  ],
+  "verification_ids": [
+   "V027"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When self.differentiable is False: The variant is decided by a single probe forward pass on random inputs: `self.net.differentiable` is set by SymbolNet.forward (it becomes False as soon as any op is non-differentiable or a numeric check fails). If that one random probe happens to hit a non-differentiable path, `search_one` (line 107) silently falls back to `SamplingSearch.search_one` for all s...",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "self.differentiable is False",
+   "path_prefix": [
+    "class PracticalHybridSearch",
+    "def __init__"
+   ],
+   "dropped_prefix": [
+    "class PracticalHybridSearch",
+    "def __init__"
+   ],
+   "trigger": {
+    "self.differentiable": false
+   },
+   "contrast": {
+    "self.differentiable": true
+   },
+   "atoms": {
+    "self.differentiable": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "aliases_not_applied": {
+    "diff_test_inp": "self.net.get_random_inps(use_cuda=self.use_cuda)"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "nnsmith/materialize/torch/input_gen.py:98",
+   "function": "nnsmith/materialize/torch/input_gen.py::PracticalHybridSearch.__init__"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F024",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B030",
+   "nnsmith-gap-M08-B10"
+  ],
+  "verification_ids": [
+   "V030"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "When max_time is None: The gradient-based input search budget is taken from the environment (NNSMITH_GRAD_TIME, default 0.5 s). The `while time.time() - st < max_time` loop at line 257 can therefore exit before any satisfying input is found, in which case `grad_input_gen` returns None (line 293) and the caller falls back to random sampling. (nnsmith/materialize/torch/symbolnet.py:234)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "max_time is None",
+   "path_prefix": [
+    "class SymbolNet",
+    "def grad_input_gen"
+   ],
+   "dropped_prefix": [
+    "class SymbolNet",
+    "def grad_input_gen"
+   ],
+   "trigger": {
+    "max_time is None": true
+   },
+   "contrast": {
+    "max_time is None": false
+   },
+   "atoms": {
+    "max_time is None": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "location": "nnsmith/materialize/torch/symbolnet.py:234",
+   "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.grad_input_gen"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; merged (LLM: same issue): nnsmith-gap-M08-B10; paper side also reports: impl_deviates; priority 2: impl_deviates; related (candidate pair, judged different): nnsmith-F006, nnsmith-F025",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F025",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B031"
+  ],
+  "verification_ids": [
+   "V031"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When tensor.data.dtype.is_floating_point: Only floating-point input tensors are wrapped as trainable Parameters; integer tensors are passed through untrained, so gradient-based input search only optimizes float inputs. (nnsmith/materialize/torch/symbolnet.py:238)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "tensor.data.dtype.is_floating_point",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "tensor.data.dtype.is_floating_point": true
+   },
+   "contrast": {
+    "tensor.data.dtype.is_floating_point": false
+   },
+   "atoms": {
+    "tensor.data.dtype.is_floating_point": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "location": "nnsmith/materialize/torch/symbolnet.py:238",
+   "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.grad_input_gen"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect; related (candidate pair, judged different): nnsmith-F006, nnsmith-F024",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 2), not human: Gradient-guided value search optimizes only floating-point inputs; integer inputs are never searched."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F026",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B032"
+  ],
+  "verification_ids": [
+   "V032"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When output_tensors[i].grad_fn is None: `differentiable` is reset to True at the start of every forward (line 313) and AND-ed with each op output's grad_fn. PracticalHybridSearch.__init__ reads this flag after one probe forward, so a single non-differentiable op (or a non-float input) permanently disables the gradient search for the whole model. (nnsmith/materialize/torch/symbolnet.py:358)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "output_tensors[i].grad_fn is None",
+   "path_prefix": [
+    "class SymbolNet",
+    "def forward"
+   ],
+   "dropped_prefix": [
+    "class SymbolNet",
+    "def forward"
+   ],
+   "trigger": {
+    "output_tensors[i].grad_fn is None": true
+   },
+   "contrast": {
+    "output_tensors[i].grad_fn is None": false
+   },
+   "atoms": {
+    "output_tensors[i].grad_fn is None": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "aliases_not_applied": {
+    "tensor_map": "{}",
+    "input_tensors": "[tensor_map[idx] for idx in inps]"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "nnsmith/materialize/torch/symbolnet.py:358",
+   "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.forward"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F027",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B035"
+  ],
+  "verification_ids": [
+   "V035"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When vul_op_loss is None: When an op produces NaN/Inf but has no registered loss function (`loss_fn.dispatch(type(op)) is None`), the constraint check raises ConstraintError, which `grad_input_gen` catches at line 268 and turns into `break` (line 286) — the gradient search aborts and returns None, so the caller silently falls back to random sampling for that model. (nnsmith/materialize/torch/sy...",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "vul_op_loss is None",
+   "path_prefix": [
+    "class SymbolNet",
+    "def forward",
+    "if self.check_intermediate_numeric or (self.use_gradient and not self.stop_updating_loss)",
+    "if self.invalid_found_last and (self.use_gradient and not self.stop_updating_loss)"
+   ],
+   "dropped_prefix": [
+    "class SymbolNet",
+    "def forward",
+    "if self.check_intermediate_numeric or (self.use_gradient and not self.stop_updating_loss)",
+    "if self.invalid_found_last and (self.use_gradient and not self.stop_updating_loss)"
+   ],
+   "trigger": {
+    "vul_op_loss is None": true
+   },
+   "contrast": {
+    "vul_op_loss is None": false
+   },
+   "atoms": {
+    "vul_op_loss is None": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "aliases_not_applied": {
+    "tensor_map": "{}",
+    "input_tensors": "[tensor_map[idx] for idx in inps]"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "nnsmith/materialize/torch/symbolnet.py:403",
+   "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.forward"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F028",
+  "artifact_id": "nnsmith",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "nnsmith-gap-M12-B03"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "artifact 路径不存在 pad 的 0 箱/负箱特化",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "self.extra_attrs[\"type\"] in (\"ConstPad\", \"ReplicatePad\", \"ReflectPad\")",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "self.extra_attrs['type']": "ConstPad"
+   },
+   "contrast": {
+    "self.extra_attrs['type']": {
+     "not_in": [
+      "ConstPad",
+      "ReflectPad",
+      "ReplicatePad"
+     ]
+    }
+   },
+   "atoms": {
+    "self.extra_attrs['type']": {
+     "kind": "category",
+     "sort": "str"
+    }
+   },
+   "code_locations": [
+    "nnsmith/abstract/op.py:1053-1080",
+    "nnsmith/graph_gen.py:50-70"
+   ],
+   "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "location": "nnsmith/abstract/op.py:1053-1080",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates; related (candidate pair, judged different): nnsmith-F029",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F029",
+  "artifact_id": "nnsmith",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "nnsmith-gap-M12-B02"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "artifact 路径不存在 Conv2d padding 的 0 箱特化",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "nnsmith/abstract/op.py:1332-1360",
+    "nnsmith/graph_gen.py:50-70"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The Conv2d padding 0-bin specialization described in the paper is entirely absent from the pinned op.py/graph_gen.py path, so the gap manifests on every concretization of an NCHWConv2d regardless of input values.",
+   "location": "nnsmith/abstract/op.py:1332-1360",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates; related (candidate pair, judged different): nnsmith-F028",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F030",
+  "artifact_id": "nnsmith",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "nnsmith-gap-M05-B08-R02"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求每轮随机选一半；代码仅首轮随机，后续轮固定丢弃后半段",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "len(cur_cons) > 0 and self.check_sat(*cur_cons) != z3.sat",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "len(cur_cons)": 1,
+    "self.check_sat(*cur_cons)": 1,
+    "z3.sat": 2
+   },
+   "contrast": {
+    "len(cur_cons)": 1,
+    "self.check_sat(*cur_cons)": 2,
+    "z3.sat": 2
+   },
+   "atoms": {
+    "len(cur_cons)": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "self.check_sat(*cur_cons)": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "z3.sat": {
+     "kind": "derived",
+     "sort": "int"
+    }
+   },
+   "code_locations": [
+    "nnsmith/graph_gen.py:1029-1058"
+   ],
+   "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "location": "nnsmith/graph_gen.py:1029-1058",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates; related (candidate pair, judged different): nnsmith-F035, nnsmith-F036, nnsmith-F037",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F031",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B012"
+  ],
+  "verification_ids": [
+   "V012"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When int(os.getenv(\"NNSMITH_BITS\", 30)) != 30: The number of bits used to split the integer-domain symbols into groups is read from NNSMITH_BITS (default 30). A smaller value makes `random_group` produce more, smaller groups, i.e. a different (coarser) integer encoding of the same abstract graph, changing which graphs the solver accepts. (nnsmith/graph_gen.py:190)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "int(os.getenv(\"NNSMITH_BITS\", 30)) != 30",
+   "path_prefix": [
+    "class SimpleGenerator",
+    "def new_syms"
+   ],
+   "dropped_prefix": [
+    "class SimpleGenerator",
+    "def new_syms"
+   ],
+   "trigger": {
+    "int(os.getenv('NNSMITH_BITS', 30))": 31
+   },
+   "contrast": {
+    "int(os.getenv('NNSMITH_BITS', 30))": 30
+   },
+   "atoms": {
+    "int(os.getenv('NNSMITH_BITS', 30))": {
+     "kind": "derived",
+     "sort": "int"
+    }
+   },
+   "aliases_not_applied": {
+    "bv_sizes": "list(map(len, random_group(int(os.getenv('NNSMITH_BITS', 30)), len(names))))"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "nnsmith/graph_gen.py:190",
+   "function": "nnsmith/graph_gen.py::SimpleGenerator.new_syms"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: reviewed as wrong",
+  "review": "wrong",
+  "review_note": "blind review by an LLM subagent (round 1), not human: NNSMITH_BITS is only read when use_bitvec is True, which is hard-coded False, so this code is dead."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F032",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B018"
+  ],
+  "verification_ids": [
+   "V018"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "When os.getenv(\"NNSMITH_LB\", \"off\") == \"off\": The upper-bound constraint on slice start/end parameters is only added when the NNSMITH_LB environment variable is unset or 'off'; setting NNSMITH_LB to any other value silently drops the upper bound, changing the generated slice parameter ranges. (nnsmith/graph_gen.py:834)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "os.getenv(\"NNSMITH_LB\", \"off\") == \"off\"",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "os.getenv('NNSMITH_LB', 'off')": "off"
+   },
+   "contrast": {
+    "os.getenv('NNSMITH_LB', 'off')": {
+     "not_in": [
+      "off"
+     ]
+    }
+   },
+   "atoms": {
+    "os.getenv('NNSMITH_LB', 'off')": {
+     "kind": "category",
+     "sort": "str"
+    }
+   },
+   "location": "nnsmith/graph_gen.py:834",
+   "function": "nnsmith/graph_gen.py::range_constrain"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: reviewed as wrong",
+  "review": "wrong",
+  "review_note": "blind review by an LLM subagent (round 1), not human: range_constrain is only called from GuidedGen, which is never instantiated, so the NNSMITH_LB switch has no effect in practice."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F033",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B020"
+  ],
+  "verification_ids": [
+   "V020"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When os.getenv(\"NNSMITH_G_CONFIG\", \"1\") != \"1\": The environment variable NNSMITH_G_CONFIG selects which parameter-guidance table GuidedGen uses: \"0\" = PARAM_CONFIG0 (no parameter guidance at all, only input-shape guidance), \"1\" = PARAM_CONFIG1, \"2\" = PARAM_CONFIG2 (pads get symmetric bins). This changes the constraints added in `extra_constraints`/`post_process`, i.e. which models are generated...",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "os.getenv(\"NNSMITH_G_CONFIG\", \"1\") != \"1\"",
+   "path_prefix": [
+    "class GuidedGen",
+    "def __init__"
+   ],
+   "dropped_prefix": [
+    "class GuidedGen",
+    "def __init__"
+   ],
+   "trigger": {
+    "os.getenv('NNSMITH_G_CONFIG', '1')": {
+     "not_in": [
+      "1"
+     ]
+    }
+   },
+   "contrast": {
+    "os.getenv('NNSMITH_G_CONFIG', '1')": "1"
+   },
+   "atoms": {
+    "os.getenv('NNSMITH_G_CONFIG', '1')": {
+     "kind": "category",
+     "sort": "str"
+    }
+   },
+   "location": "nnsmith/graph_gen.py:984",
+   "function": "nnsmith/graph_gen.py::GuidedGen.__init__"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: reviewed as wrong",
+  "review": "wrong",
+  "review_note": "blind review by an LLM subagent (round 3), not human: GuidedGen is never instantiated, so the NNSMITH_G_CONFIG selection is dead code."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F034",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B021"
+  ],
+  "verification_ids": [
+   "V021"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When config is None: If the op class has no entry in param_config, extra_constraints returns an empty list, so no guidance is applied for that op (silently unguided). (nnsmith/graph_gen.py:1016)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "config is None",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "config is None": true
+   },
+   "contrast": {
+    "config is None": false
+   },
+   "atoms": {
+    "config is None": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "location": "nnsmith/graph_gen.py:1016",
+   "function": "nnsmith/graph_gen.py::GuidedGen.extra_constraints"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: reviewed as wrong",
+  "review": "wrong",
+  "review_note": "blind review by an LLM subagent (round 3), not human: GuidedGen is never instantiated anywhere in the repo, so this branch is dead."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F035",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B022"
+  ],
+  "verification_ids": [
+   "V022"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When len(cons) == 0 or random.uniform(0, 1) > self.constrain_prob: Guidance constraints for a node are randomly skipped based on constrain_prob, so the mechanism probabilistically falls back to unguided generation for that node. (nnsmith/graph_gen.py:1044)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "len(cons) == 0 or random.uniform(0, 1) > self.constrain_prob",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "len(cons)": 1,
+    "random.uniform(0, 1)": 2,
+    "self.constrain_prob": 1
+   },
+   "contrast": {
+    "len(cons)": 1,
+    "random.uniform(0, 1)": 2,
+    "self.constrain_prob": 2
+   },
+   "atoms": {
+    "len(cons)": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "random.uniform(0, 1)": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "self.constrain_prob": {
+     "kind": "derived",
+     "sort": "int"
+    }
+   },
+   "location": "nnsmith/graph_gen.py:1044",
+   "function": "nnsmith/graph_gen.py::GuidedGen.post_process"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: reviewed as wrong; related (candidate pair, judged different): nnsmith-F030",
+  "review": "wrong",
+  "review_note": "blind review by an LLM subagent (round 1), not human: GuidedGen.post_process is never reached because GuidedGen is never instantiated."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F036",
+  "artifact_id": "nnsmith",
+  "category": "paper_stated",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B023"
+  ],
+  "verification_ids": [
+   "V023"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When self.check_sat(*cur_cons) != z3.sat: If the collected guidance constraints are unsatisfiable, the code halves the constraint list repeatedly (line 1053) and finally adds whatever remains (possibly empty), silently dropping guidance rather than rejecting the input. (nnsmith/graph_gen.py:1052)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "self.check_sat(*cur_cons) != z3.sat",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "self.check_sat(*cur_cons)": 1,
+    "z3.sat": 2
+   },
+   "contrast": {
+    "self.check_sat(*cur_cons)": 2,
+    "z3.sat": 2
+   },
+   "atoms": {
+    "self.check_sat(*cur_cons)": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "z3.sat": {
+     "kind": "derived",
+     "sort": "int"
+    }
+   },
+   "location": "nnsmith/graph_gen.py:1052",
+   "function": "nnsmith/graph_gen.py::GuidedGen.post_process"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: found in paper; priority 3: reviewed as wrong; related (candidate pair, judged different): nnsmith-F030",
+  "review": "wrong",
+  "review_note": "blind review by an LLM subagent (round 1), not human: GuidedGen is never instantiated anywhere (random_model_gen uses PureSymbolGen), so this post_process back-off is dead code."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F037",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B024"
+  ],
+  "verification_ids": [
+   "V024"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When len(cur_cons) == 0: When all guidance constraints are dropped due to unsat, the loop breaks and self.solver.add(cur_cons) adds an empty list, so generation proceeds with no guidance applied. (nnsmith/graph_gen.py:1054)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "len(cur_cons) == 0",
+   "path_prefix": [
+    "self.check_sat(*cur_cons) != z3.sat"
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "len(cur_cons)": 0,
+    "self.check_sat(*cur_cons)": 2,
+    "z3.sat": 1
+   },
+   "contrast": {
+    "len(cur_cons)": 1,
+    "self.check_sat(*cur_cons)": 2,
+    "z3.sat": 1
+   },
+   "atoms": {
+    "len(cur_cons)": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "self.check_sat(*cur_cons)": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "z3.sat": {
+     "kind": "derived",
+     "sort": "int"
+    }
+   },
+   "aliases_not_applied": {
+    "graph": "self.abstract_graph",
+    "shuffled_nids": "list(graph.nodes)",
+    "all_cons": "[]",
+    "shuffled": "list(range(len(all_cons)))",
+    "op": "graph.nodes[node_id]['op']",
+    "itensor_idx": "graph.nodes[node_id]['itensor_idx']",
+    "itensors": "[self.tensor_dataflow[i].type for i in itensor_idx]"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "nnsmith/graph_gen.py:1054",
+   "function": "nnsmith/graph_gen.py::GuidedGen.post_process"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: reviewed as wrong; related (candidate pair, judged different): nnsmith-F030",
+  "review": "wrong",
+  "review_note": "blind review by an LLM subagent (round 3), not human: GuidedGen.post_process is never reached because GuidedGen is never instantiated."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F038",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B033"
+  ],
+  "verification_ids": [
+   "V033"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When self.check_intermediate_numeric or (self.use_gradient and not self.stop_updating_loss): Constructor/config attributes check_intermediate_numeric, use_gradient and stop_updating_loss decide whether the numeric-validity check and loss-based input search run at all; when false, the whole NaN/Inf detection and loss-update mechanism is skipped. (nnsmith/materialize/torch/symbolnet.py:382)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "self.check_intermediate_numeric or (self.use_gradient and not self.stop_updating_loss)",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "self.check_intermediate_numeric": false,
+    "self.use_gradient": true,
+    "self.stop_updating_loss": false
+   },
+   "contrast": {
+    "self.check_intermediate_numeric": false,
+    "self.use_gradient": false,
+    "self.stop_updating_loss": false
+   },
+   "atoms": {
+    "self.check_intermediate_numeric": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "self.stop_updating_loss": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "self.use_gradient": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "location": "nnsmith/materialize/torch/symbolnet.py:382",
+   "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.forward"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: reviewed as wrong",
+  "review": "wrong",
+  "review_note": "blind review by an LLM subagent (round 1), not human: The real condition is check_intermediate_numeric or (use_gradient and not stop_updating_loss), and invalid_found_last is reset to False at the start of every forward, so the claimed dependence on earlier state does not exist."
+ }
+]

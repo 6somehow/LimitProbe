@@ -9,10 +9,13 @@ NUS CS6223 课程项目。给定系统研究论文 + 代码仓库，论文侧和
 - 步骤 2：代码侧找 limitation（区域表），**两条路线都做并对比**（`docs/06_two_routes.md`）：
   路线 A 静态分析 `codeside/extractor.py`；路线 B 静态 + LLM `codeside/hybrid_extractor.py`；B-agent 自由探索 `codeside/agent_extractor.py`；B-sweep 分块通读 `codeside/sweep_extractor.py` + 复核 `codeside/relevance_filter.py`；对照组纯 LLM `codeside/llm_extractor.py`
 - 步骤 3b：代码 → 论文验证——`codeside/verify3b.py`，说明和结果见 `docs/06_3b_eval.md`；B → 3b 端到端见 `docs/07_pipeline_b_3b.md`
-- 步骤 4：整合成 Finding——待实现
+- 步骤 4：整合成 Finding（去重、分类、priority、witness_hint）——`codeside/integrate.py` + `codeside/step4_llm.py` + `codeside/witness.py`，说明和结果见 `docs/09_step4_findings.md`
 - 共享 schema——`schema/models.py`
 
-队友：Zhaopeng（论文侧：步骤 1、3a、agent 编排、baseline），Shanghao（步骤 5–6：测试生成与执行）。
+队友：Zhaopeng（论文侧：步骤 1、3a、agent 编排、baseline；代码在 `paperside/`），Shanghao（步骤 5–6：测试生成与执行）。
+
+**整条 pipeline 的入口**：`python -m pipeline run <id>`（`pipeline/run.py`，说明见 `docs/10_pipeline.md`）。
+它依次跑代码侧、论文侧（调用 `paperside/` 的脚本）、3b、步骤 4，输出 `results/step4/<id>/limitations_for_tests.json`；已有输出的步骤会跳过。
 
 ## 下一步做什么
 
@@ -28,6 +31,8 @@ NUS CS6223 课程项目。给定系统研究论文 + 代码仓库，论文侧和
 ```
 schema/            共享 schema（pydantic）与导出的 JSON Schema
 codeside/          extractor.py（步骤 2）、evaluate.py、cli.py
+pipeline/          一条命令跑完整条 pipeline（两侧 + 整合）
+paperside/         Zhaopeng 的论文侧（步骤 1、3a），不要改他的代码
 data/<artifact>/   artifact.json、gold_*.json（人工）、draft_*.json（草稿）、paper_side_stub.json
 docs/              总览、相关工作、schema 说明、方法规格、pilot 分析、prompt 模板
 tests/             pytest；fixtures/ 放最小用例
@@ -39,6 +44,8 @@ out/               生成结果（不提交）
 ## 常用命令
 
 ```bash
+python -m pipeline status                       # 每篇论文各步骤是否完成
+python -m pipeline run <id> --pdf P --run-paper-side   # 新论文：跑完整条 pipeline（先 init，见 docs/10_pipeline.md）
 pip install -e ".[dev]"            # 依赖：pydantic；测试：pytest；可选：z3-solver
 scripts/fetch_pilot.sh             # 克隆 FlexPrefill @ a24b27b
 scripts/fetch_dataset.sh           # 按 data/*/artifact.json 克隆四篇 + pilot 到固定 commit
@@ -64,6 +71,8 @@ python -m codeside.verify3b --limitations data/pilot_flexprefill/gold_code_limit
   --repo third_party/FlexPrefill --paper-side data/pilot_flexprefill/paper_side_stub.json \
   --model x-test-2 --repeats 3 --out out/3b/flexprefill.json   # 需要 .[verify] + .env
 python scripts/eval_3b.py          # 3b 的已知答案测试
+python scripts/run_pipeline.py --out-dir out/pipeline_ps --seed-cache out/pipeline   # B → 3b（论文侧用交接包）
+python scripts/run_step4.py        # 步骤 4：Finding + witness_hint，写到 results/step4/（调模型，有缓存；--no-llm 不调）
 python -m codeside.cli validate data/*/*.json
 python -m schema.export_json_schema
 ```
@@ -81,13 +90,14 @@ python -m schema.export_json_schema
 
 ## 当前状态（交接时）
 
-- schema v0.1.0；21 个测试全部通过。
+- schema v0.2.0（草稿，待三人确认：Finding 7 类 + review 字段）；132 个测试全部通过。
 - 路线 B（静态 + LLM）已在 pilot 和四篇上各入口运行 3 次（`x-test-2`，prompt `hybrid-v3`，只新增、不删除 A 的结果），结果在 `out/routes/`。
 - pilot 上路线 A：recall 16/16、extra 10、cond_exact 13/13。
 - 抽取器支持类方法（`file::Class.method`）、`self.method()`、一层嵌套函数（`file::outer.inner`）、`--package-root`。
 - 四篇开发集已固定版本并完成首次运行，暴露的缺口列在 `docs/05_dataset.md` 和 TASKS.md M2。
 - 抽取器 v0 在 pilot 上 recall 16/16，多余预测 10 条（6 条不可达路径、2 条冗余、2 条内部不变量），对应 TASKS.md M2。
-- 论文侧数据目前是 stub（`paper_side_stub.json`），等 Zhaopeng 的步骤 1 输出替换。
+- 论文侧已交付：`paperside/handoffs/paper-side-v1/<论文>/paper_side.json`；`run_pipeline.py` 默认使用它（只有 FlexPrefill 有一个参数映射 `tau`，其余 scope 全是 unknown）。
+- 步骤 4 已实现，五篇 289 条 Finding 在 `results/step4/`；交给 Shanghao 的单文件是 `results/step4/limitations_for_tests.json`，说明是 `results/step4/HANDOFF.md`（`scripts/make_handoff_doc.py` 生成）。
 - 3b 已实现，pilot 论文层 13 条全部 not_found；与未评审草稿 result 一致 8/13，见 `docs/06_3b_eval.md`。
 - 论文附录 F.2 比较了 block_size 64 和 128，stub 的 S2 只写 128，会让 F02 的 scope 判断出错，需要 Zhaopeng 处理。
 - F02（硬编码 `// 128`）和 F03（模块级 causal_mask 缓存）是候选 finding，尚未执行确认。
