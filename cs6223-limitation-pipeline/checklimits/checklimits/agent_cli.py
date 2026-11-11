@@ -152,8 +152,8 @@ class Issue:
 
 
 def _inputs_keys(driver_src: str) -> tuple[set[str], set[str]]:
-    """Names read from the `inputs` argument: (required: inputs["x"] / inputs.get("x"),
-    defaulted: inputs.get("x", default)). A defaulted key is a free parameter hidden in the driver."""
+    """Names read from the `inputs` argument: (required: inputs["x"], defaulted: inputs.get("x"[, default])).
+    A key read with .get() is optional; its absence silently picks a value, a free parameter hidden in the driver."""
     required: set[str] = set()
     defaulted: set[str] = set()
     for n in ast.walk(ast.parse(driver_src)):
@@ -163,7 +163,7 @@ def _inputs_keys(driver_src: str) -> tuple[set[str], set[str]]:
         if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr == "get" \
                 and isinstance(n.func.value, ast.Name) and n.func.value.id == "inputs" and n.args \
                 and isinstance(n.args[0], ast.Constant) and isinstance(n.args[0].value, str):
-            (defaulted if len(n.args) > 1 else required).add(n.args[0].value)
+            defaulted.add(n.args[0].value)      # .get() never raises: the key is optional, its absence is a hidden default
     return required, defaulted
 
 
@@ -239,10 +239,11 @@ def lint_attempt(attempt: Path, pipeline_root: Path = PIPELINE_ROOT) -> list[Iss
     # T3: provenance and free parameters
     hint = task.trigger
     sc = d.scale
+    free_values = {fp.name: fp.value for fp in d.free_parameters}
     if task.witness_type == "input_value" and hint:
         for k in sorted(task.witness.input_keys & set(hint)):
             hv = hint[k]
-            got = d.positive_input.get(k)
+            got = d.positive_input.get(k, free_values.get(k))
             scaled_ok = sc and k in sc.scaled and isinstance(hv, (int, float)) and got == int(hv * sc.factor)
             if got != hv and not scaled_ok:
                 (warn if got is not None else err)(

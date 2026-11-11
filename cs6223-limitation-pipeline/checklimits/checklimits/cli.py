@@ -62,7 +62,8 @@ def cmd_agent(a: argparse.Namespace) -> int:
     from .harness import RunOptions
 
     budget = Budget(wall_s=a.wall_s, tool_calls=a.tool_calls, tokens=a.tokens, sessions=a.sessions)
-    res = run_agent(a.finding, a.run_id, budget, RunOptions.fast() if a.fast else RunOptions(), a.target_level)
+    res = run_agent(a.finding, a.run_id, budget, RunOptions.fast() if a.fast else RunOptions(), a.target_level,
+                    a.findings_file)
     print(json.dumps(res, indent=1, default=str))
     return 0
 
@@ -116,6 +117,7 @@ def main(argv: list[str] | None = None) -> int:
     ag.add_argument("--tokens", type=int, default=4_000_000)
     ag.add_argument("--sessions", type=int, default=2)
     ag.add_argument("--target-level", default="L3")
+    ag.add_argument("--findings-file", help="use the step 4 hand-off instead of the pilot data")
     ag.add_argument("--fast", action="store_true", help="authoritative run without optional defeaters (debugging)")
     ag.set_defaults(fn=cmd_agent)
     b = sub.add_parser("bench", help="fault-injection benchmark (writes results/bench/)")

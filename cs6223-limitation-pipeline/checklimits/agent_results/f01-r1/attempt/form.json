@@ -1,0 +1,63 @@
+{
+  "test_id": "A-F01",
+  "finding_id": "F01",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {"name": "num_q_heads", "value": 1, "why": "head count is absent from the witness hint; the target assertion compares only the sequence lengths q.shape[1] and k.shape[1], so the head count cannot change the decision"},
+      {"name": "num_kv_heads", "value": 1, "why": "head count is absent from the witness hint; the target assertion reads q.shape[1] and k.shape[1] only, never the head dimensions"},
+      {"name": "gamma", "value": 0.5, "why": "required positional argument not in the witness hint; the target assertion is evaluated before gamma is used, so its value cannot change the target decision"},
+      {"name": "dtype", "value": "float32", "why": "CPU test tensors; the target assertion depends only on tensor shapes, not on the element dtype"},
+      {"name": "softmax_scale", "value": null, "why": "left at the repository default (null); it is only read below the target line, after the assertion has already decided"},
+      {"name": "seed", "value": 0, "why": "fixes the random tensor contents for deterministic repeats; the target depends only on shapes"}
+    ],
+    "positive_input": {
+      "batch_size": 1,
+      "block_size": 128,
+      "head_dim": 128,
+      "k_len": 8192,
+      "q_len": 4096
+    },
+    "negative_input": {
+      "batch_size": 1,
+      "block_size": 128,
+      "head_dim": 128,
+      "k_len": 8192,
+      "q_len": 8192
+    },
+    "boundary_variable": "q_len",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "exception",
+      "spec": "AssertionError raised at flex_prefill/ops/flex_prefill_attention.py:1836",
+      "signal_location": "flex_prefill/ops/flex_prefill_attention.py:1836"
+    },
+    "expected": {
+      "positive": "AssertionError at flex_prefill/ops/flex_prefill_attention.py:1836",
+      "negative": "no exception at flex_prefill/ops/flex_prefill_attention.py:1836"
+    }
+  },
+  "execution": {
+    "entry_called": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": ["false", "true"],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "AssertionError at flex_prefill/ops/flex_prefill_attention.py:1836",
+    "negative_observed": "no exception at flex_prefill/ops/flex_prefill_attention.py:1836"
+  },
+  "evidence": {}
+}
