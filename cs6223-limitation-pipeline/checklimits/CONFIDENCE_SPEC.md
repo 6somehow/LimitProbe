@@ -184,3 +184,17 @@ profile 默认值：`n_min=4`、`kill_lb=0.5`、`n_rep=5`、`mod_max=0.05`、`pr
 1. **harness 缺陷（已修）。** `att-fake-einops` 第一次运行得到 L3：fake 模块只在 import 阶段被访问，而 child 在每个 case 开始时清空了记录，D6 误判为 `direct`。现在 import 阶段的记录会保留。已加回归测试（去掉修复后该测试失败）。
 2. **集合型守卫的 D3。** F04 的 `head_dim in {16,32,64,128}` 只用一个反例（128），把 16、32、64 改成别的数的变异体全部存活，D3 被推翻，档位 L1。`next_steps` 现在会列出存活变异体，并建议"为每个成员各加一个输入"。agent 目前只能给一个反例，这是 agent 层要解决的设计问题。
 3. **待决定：`no` 判定在 D3 被推翻时是否应改为 `inconclusive`。** 已批准的规则是"最高 L1"。基准里 `no` + D3 被推翻共 6 个：3 个对（relax-snip）、3 个错（otherexc-snip），等于抛硬币。变异测试的逻辑是：oracle 连目标处的变化都看不见，就不能用它证明"没有效果"。原 SCORECARD 的 G5 就是这么要求的。改成强制 `inconclusive` 会把这 6 个都变成弃权。因为这条改动是看了基准之后提的，需要你确认，不然有按基准调规则的嫌疑。
+
+
+## 13. 效果类型（2026-11-11 晚）
+
+D1 到 D14 对三类效果通用，只有"什么算效果"不同（`runner.outcome_support`、`runner.to_observation`）：
+
+| `Region.outcome` | 效果 | 要求 |
+|---|---|---|
+| `reject` | 目标位置抛异常（类型来自 oracle 的 spec） | 任意目标语句 |
+| `fallback`、`mechanism_variant` | 目标处的分支判定走进分支体 | 目标是 `if` 或 `while` |
+| `state_dependent` | 同上，但只看最后一次驱动调用；之前的 `positive_prelude` / `negative_prelude` 调用先改变状态 | 目标是 `if` 或 `while` |
+| 其他 | 不判断，`not_run` | |
+
+已知缺口（有测试覆盖，规则没有为它们放宽）：状态的相邻点无法探测，D5 最高 residual；`x is None` 一类守卫变异体不足 4 个，D3 最高 residual；检查调用之前的 prelude 要跑过目标之后的替身，D6 最高 residual。所以 `state_dependent` 在当前规则下最高 L1。要改善需要：更多变异算子（`is` 与 `is not`、`and` 与 `or`），或者对状态的邻点探测，这些都是新的设计决定。
