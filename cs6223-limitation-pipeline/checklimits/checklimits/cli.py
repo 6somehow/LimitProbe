@@ -68,6 +68,20 @@ def cmd_agent(a: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_batch(a: argparse.Namespace) -> int:
+    from .agent_batch import run_batch, select
+    from .agent_loop import Budget
+
+    if a.list:
+        chosen, skipped = select(a.findings_file)
+        print(json.dumps({"selected": chosen, "n_skipped": len(skipped), "skipped": skipped}, indent=1))
+        return 0
+    res = run_batch(a.findings_file, a.batch_id, a.only, a.skip, a.workers,
+                    Budget(a.wall_s, a.tool_calls, a.tokens, a.sessions))
+    print(json.dumps({k: v for k, v in res.items() if k != "results"}, indent=1))
+    return 0
+
+
 def cmd_bench(a: argparse.Namespace) -> int:
     from .bench import run_bench
     from .harness import RunOptions
@@ -120,6 +134,18 @@ def main(argv: list[str] | None = None) -> int:
     ag.add_argument("--findings-file", help="use the step 4 hand-off instead of the pilot data")
     ag.add_argument("--fast", action="store_true", help="authoritative run without optional defeaters (debugging)")
     ag.set_defaults(fn=cmd_agent)
+    ba = sub.add_parser("batch", help="run the agent over every step 4 Finding the harness can judge")
+    ba.add_argument("--findings-file", default="results/step4/flexprefill/limitations_for_tests.json")
+    ba.add_argument("--batch-id", default="batch1")
+    ba.add_argument("--only", action="append")
+    ba.add_argument("--skip", action="append")
+    ba.add_argument("--workers", type=int, default=3)
+    ba.add_argument("--wall-s", type=int, default=1800)
+    ba.add_argument("--tool-calls", type=int, default=250)
+    ba.add_argument("--tokens", type=int, default=4_000_000)
+    ba.add_argument("--sessions", type=int, default=2)
+    ba.add_argument("--list", action="store_true", help="only list what would run and why the rest is skipped")
+    ba.set_defaults(fn=cmd_batch)
     b = sub.add_parser("bench", help="fault-injection benchmark (writes results/bench/)")
     b.add_argument("--case", action="append", help="case id (repeatable); default: all")
     b.add_argument("--out")
