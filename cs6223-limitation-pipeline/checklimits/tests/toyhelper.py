@@ -61,7 +61,7 @@ def target_line(src):
 
 
 def build(tmp: Path, with_ext=True, form_overrides=None, driver_src=DRIVER, manifest_overrides=None,
-          pos=None, neg=None):
+          pos=None, neg=None, scale=None, mocks_override=None):
     repo = tmp / "repo"
     (repo / "toypkg").mkdir(parents=True)
     src = CORE_WITH_EXT if with_ext else CORE_PLAIN
@@ -92,7 +92,7 @@ def build(tmp: Path, with_ext=True, form_overrides=None, driver_src=DRIVER, mani
     att = tmp / "attempt"
     att.mkdir()
     (att / "driver.py").write_text(driver_src)
-    mocks = ([{"symbol": "extlib_before", "kind": "fake_module", "reason": "touched before the target", "behavior": "return_none"},
+    mocks = mocks_override if mocks_override is not None else ([{"symbol": "extlib_before", "kind": "fake_module", "reason": "touched before the target", "behavior": "return_none"},
               {"symbol": "extlib_after", "kind": "fake_module", "reason": "touched after the target", "behavior": "return_none"}]
              if with_ext else [])
     form = {
@@ -109,6 +109,8 @@ def build(tmp: Path, with_ext=True, form_overrides=None, driver_src=DRIVER, mani
                    "condition_true_on_positive": True, "condition_false_on_negative": True,
                    "positive_observed": f"AssertionError at {loc}", "negative_observed": f"no exception at {loc}"},
     }
+    if scale:
+        form["design"]["scale"] = scale
     for k, v in (form_overrides or {}).items():
         form[k] = v
     manifest = {"test_id": "T1", "finding_id": "F1", "artifact_id": "toy", "region_id": "R1", "repo_dir": "repo",

@@ -173,3 +173,61 @@ def test_unsupported_outcome_is_not_run(tmp_path):
     (b["root"] / "data" / "gold_regions.json").write_text(json.dumps(reg))
     r = harness.run_attempt(b["attempt"], pipeline_root=b["root"], probe=False)["report"]
     assert (r.verdict, r.exec_result) == ("inconclusive", "not_run")
+
+
+def test_settrace_backend_gives_the_same_report(tmp_path):
+    b = build(tmp_path, with_ext=False, manifest_overrides={"env": {"CHECKLIMITS_TRACER": "settrace"}})
+    r = harness.run_attempt(b["attempt"], pipeline_root=b["root"], probe=False)["report"]
+    assert (r.verdict, r.final_verdict) == ("yes", "yes")
+    assert [h.outcome for h in r.positive.target_hits] == ["false"] and [h.outcome for h in r.negative.target_hits] == ["true"]
+    assert r.positive.exception.raised_at == b["loc"] and r.fidelity.entry_index == 0
+    assert r.audit.rate == 1.0
+
+
+def test_information_confidence_follows_mock_access_order(tmp_path):
+    _, r, _ = run(tmp_path, with_ext=True)  # extlib_before (stub) is touched before the target, extlib_after after it
+    by = {(i.run, i.statement.split(":")[1].split()[0]): i for i in r.information}
+    pos = next(i for i in r.information if i.run == "positive")
+    assert pos.depends_on_mocks == ["extlib_before"] and pos.confidence == pytest.approx(0.3)
+    after = next(i for i in r.information if "continued past" in i.statement or "failed after" in i.statement)
+    assert sorted(after.depends_on_mocks) == ["extlib_after", "extlib_before"]
+    assert after.confidence == pytest.approx(0.3 * 0.3)
+
+
+def test_no_mock_means_full_confidence(tmp_path):
+    _, r, _ = run(tmp_path, with_ext=False)
+    assert [i.confidence for i in r.information] == [1.0, 1.0, 1.0]
+
+
+def test_sim_mock_is_recorded_and_weighted(tmp_path):
+    sim = "def fake_after(*a, **k):\n    return 'sim-ran'\n"
+    drv = DRIVER
+    mocks = [{"symbol": "toypkg.core.check", "kind": "patch", "behavior": "sim", "impl": "sim.py::fake_after",
+              "sim_class": "independent_native", "reason": "t"}]
+    b = build(tmp_path, with_ext=False, mocks_override=mocks, pos={"n": 2, "direct": False}, neg={"n": 1})
+    (b["attempt"] / "sim.py").write_text(sim)
+    r = harness.run_attempt(b["attempt"], pipeline_root=b["root"], probe=False)["report"]
+    # check() is replaced by the sim and sits in the call chain, so it is on the path and the target is never reached
+    assert r.fidelity.mocks[0].on_path and not r.positive.target_reached
+    assert r.negative.returned == "'sim-ran'"
+
+
+def test_scale_check_runs_positive_at_full_scale(tmp_path):
+    scale = {"factor": 0.5, "scaled": ["m"], "reason": "t", "invariance_argument": "guard reads n only"}
+    # witness_hint is {"n": 2, "m": 1}; the scaled run uses m=0
+    b = build(tmp_path, with_ext=False, scale=scale, pos={"n": 2, "m": 0}, neg={"n": 1, "m": 0})
+    r = harness.run_attempt(b["attempt"], pipeline_root=b["root"], probe=False)["report"]
+    assert any("scale check" in n and "AssertionError" in n for n in r.notes)
+    assert not any(n.startswith("T3") for n in r.notes)
+    assert r.information[0].confidence == 1.0       # positive confirmed at full scale
+    assert r.information[1].scale_weight == 0.9      # negative: invariance argued only
+    assert r.information[1].confidence == pytest.approx(0.9)
+
+
+def test_scale_check_disagreement_lowers_confidence(tmp_path):
+    # the guard depends on the scaled value: at full scale m=1 the positive input no longer triggers it
+    drv = DRIVER.replace("    return entry(inputs[\"n\"], inputs[\"m\"])", "    return entry(inputs[\"n\"] if inputs[\"m\"] == 0 else 1, inputs[\"m\"])")
+    scale = {"factor": 0.5, "scaled": ["m"], "reason": "t", "invariance_argument": "wrongly assumed"}
+    b = build(tmp_path, with_ext=False, scale=scale, pos={"n": 2, "m": 0}, neg={"n": 1, "m": 0}, driver_src=drv)
+    r = harness.run_attempt(b["attempt"], pipeline_root=b["root"], probe=False)["report"]
+    assert r.information[0].scale_weight == 0.6
