@@ -26,6 +26,13 @@ PIPELINE_ROOT = Path(__file__).resolve().parents[2]  # .../cs6223-limitation-pip
 PROJECT_ROOT = Path(__file__).resolve().parents[1]  # .../cs6223-limitation-pipeline/checklimits
 
 
+def scratch_root() -> Path:
+    """Temporary working area for child processes, mutants and replays (git-ignored). Sandboxed agent runs
+    point it into their own run directory with CHECKLIMITS_SCRATCH."""
+    import os
+    return Path(os.environ.get("CHECKLIMITS_SCRATCH") or (PROJECT_ROOT / "scratch"))
+
+
 class _R(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -72,6 +79,11 @@ class Design(_R):
     positive_input: dict[str, Any]
     negative_input: dict[str, Any]
     boundary_variable: str
+    extra_negatives: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="more inputs that must show NO effect (full design inputs, like negative_input). They do not "
+                    "change the verdict; they let the mutation check tell guards apart whose members one negative "
+                    "cannot separate (e.g. one input per member of a set-membership guard)")
     condition_predicate_file: Optional[str] = None
     oracle: OracleDecl
     expected: Expected
@@ -390,6 +402,7 @@ class ExecutionReport(_R):
     oracle: OracleRecord
     positive: Observation
     negative: Observation
+    extra_negatives: list[Observation] = Field(default_factory=list)
     checks: Checks
     fidelity: Fidelity
     audit: AuditResult

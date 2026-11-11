@@ -199,7 +199,7 @@ def prepare(case: Case, work: Path) -> Path:
     root.mkdir(parents=True)
     att = root / "attempt"
     shutil.copytree(PROJECT_ROOT / "attempts" / "flexprefill" / case.finding, att,
-                    ignore=shutil.ignore_patterns("oracle.lock.json", "__pycache__"))
+                    ignore=shutil.ignore_patterns("__pycache__"))
     manifest = json.loads((att / "manifest.json").read_text())
     manifest["test_id"] = f"B-{case.id}"
     if case.repo_edit is not None:
@@ -238,7 +238,7 @@ def run_case(case: Case, work: Path, options: RunOptions) -> dict[str, Any]:
             "tags": case.tags}
     try:
         att = prepare(case, work)
-        r = run_attempt(att, options=options)["report"]
+        r = run_attempt(att, options=options, locks_dir=work / case.id / "locks")["report"]
         out = {**base, "verdict": r.verdict, "final_verdict": r.final_verdict, "level": r.confidence.level,
                "level_note": r.confidence.level_note, "defeaters": {d.id: d.status for d in r.confidence.defeaters},
                "next_steps": r.confidence.next_steps, "form_integrity": r.audit.rate,
