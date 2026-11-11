@@ -20,7 +20,7 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-SCHEMA_VERSION = "0.1.0"
+SCHEMA_VERSION = "0.2.0"
 
 
 class _Record(BaseModel):
@@ -288,11 +288,25 @@ class Verification(_Record):
 # Step 4 (integration, Wanting)
 # --------------------------------------------------------------------------- #
 class FindingCategory(str, Enum):
-    confirmed = "confirmed"  # paper states it and code has it, same boundary
-    boundary_mismatch = "boundary_mismatch"
-    paper_only = "paper_only"  # stated in paper, nothing in code (perf/algorithmic, or stale paper)
-    undocumented = "undocumented"  # in code, not in paper  <- core finding
-    documented_elsewhere = "documented_elsewhere"  # in code, not in paper, but in README/docstring
+    """v0.2.0. Documentation rule: only the paper (incl. appendix), the README and docstrings of public
+    functions count as stated; code comments (TODO/FIXME included) and version-only notes do not."""
+
+    # code side (from 3b)
+    undisclosed = "undisclosed"  # code has it, nothing a user reads states it  <- core finding
+    contradicts_docs = "contradicts_docs"  # a doc states the opposite of what the code does
+    stated_differently = "stated_differently"  # a doc states it, with another boundary or a weaker form
+    docs_only = "docs_only"  # README / public docstring states it, the paper does not
+    paper_stated = "paper_stated"  # the paper states it with the same boundary as the code
+    # paper side (from 3a)
+    impl_deviates = "impl_deviates"  # the paper describes it, the code implements it differently
+    not_implemented = "not_implemented"  # the paper describes it, the code has nothing for it
+
+
+class ReviewStatus(str, Enum):
+    unreviewed = "unreviewed"
+    worth_testing = "worth_testing"  # real and worth a test
+    real_but_minor = "real_but_minor"  # real, but not worth a test (env detail, internal invariant, ...)
+    wrong = "wrong"  # misread code or not a limitation
 
 
 class Finding(_Record):
@@ -313,6 +327,8 @@ class Finding(_Record):
     confidence: Confidence
     priority: int = Field(2, ge=1, le=3, description="1 = highest.")
     rationale: Optional[str] = None
+    review: ReviewStatus = ReviewStatus.unreviewed
+    review_note: Optional[str] = Field(None, description="Who reviewed (human:<name> / llm:<model>) and why.")
 
 
 # --------------------------------------------------------------------------- #
