@@ -57,7 +57,7 @@ def main(argv: list[str]) -> int:
 
     from . import fakes
     from .models import MockDecl
-    from .tracer import Tracer, TargetSpec, classify_target, parse_chain, summarize
+    from .tracer import TargetSpec, classify_target, make_tracer, parse_chain, summarize
 
     result: dict = {"status": "ok", "exception": None, "returned": None, "trace": None,
                     "mock_events": [], "wall_s": 0.0}
@@ -67,7 +67,7 @@ def main(argv: list[str]) -> int:
     try:
         decls = [MockDecl.model_validate(m) for m in spec.get("mocks", [])]
         fakes.install_import_time(decls, recorder)
-        fakes.install_patches(decls, recorder)
+        fakes.install_patches(decls, recorder, attempt)
 
         predicate = None
         if spec.get("predicate_file"):
@@ -81,7 +81,7 @@ def main(argv: list[str]) -> int:
             kind, body = classify_target(repo, t["file"], t["line"])
             target = TargetSpec(t["file"], t["line"], t["function"], kind, body,
                                 spec.get("cond_expr"), predicate)
-            tracer = Tracer(repo, parse_chain(spec["chain"]), target)
+            tracer = make_tracer(repo, parse_chain(spec["chain"]), target)
     except BaseException as e:  # noqa: BLE001
         result["status"] = "load_error"
         result["exception"] = _exc_info(e, repo)

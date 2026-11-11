@@ -96,7 +96,7 @@ def run_attempt(attempt_dir: Path, pipeline_root: Path = PIPELINE_ROOT, probe: b
         inputs = {**free, **design_inputs}
         spec = runner.build_spec(manifest, attempt_dir, pipeline_root, region, inputs, mocks, pred_file, trace)
         spec["seed"] = manifest.seed
-        raw = runner.run_child(spec, manifest.timeout_s, manifest.env)
+        raw = runner.run_child(spec, manifest.timeout_s, manifest.env, python=manifest.python)
         return raw, runner.to_observation(raw, role, inputs, region, exp_type)
 
     raw_p, pos = case("positive", form.design.positive_input, True)
@@ -107,10 +107,26 @@ def run_attempt(attempt_dir: Path, pipeline_root: Path = PIPELINE_ROOT, probe: b
                     case("negative", form.design.negative_input, False)[0]]
 
     hint = task.finding.witness_hint or {}
+    sc = form.design.scale
     if task.witness_type == "input_value":
         for k, hv in hint.items():
-            if form.design.positive_input.get(k) != hv:
-                notes.append(f"T3: positive_input[{k!r}]={form.design.positive_input.get(k)!r} differs from witness_hint {hv!r}")
+            got = form.design.positive_input.get(k)
+            if sc and k in sc.scaled and isinstance(hv, (int, float)) and got == int(hv * sc.factor):
+                continue  # declared scale-down
+            if got != hv:
+                notes.append(f"T3: positive_input[{k!r}]={got!r} differs from witness_hint {hv!r}")
+        if sc:
+            notes.append(f"scaled down by {sc.factor} for {sc.scaled}: {sc.reason}")
+    # scale check: the positive run stops at the target, so it is cheap to repeat at full witness scale
+    scale_pos_verified = None
+    scale_obs = None
+    if sc:
+        full = dict(form.design.positive_input)
+        for k in sc.scaled:
+            if k in hint:
+                full[k] = hint[k]
+        _, scale_obs = case("positive", full, True)
+        scale_pos_verified = bool(scale_obs.effect) == bool(pos.effect) and scale_obs.effect is not None
     supported = region.outcome == "reject"
     v = verdict.decide(pos, neg, supported)
 
@@ -141,6 +157,10 @@ def run_attempt(attempt_dir: Path, pipeline_root: Path = PIPELINE_ROOT, probe: b
         notes.append(f"entry observed first: {pos.entry_first_started!r}; form declares {declared_entry!r}")
     if sorted(form.execution.repo_files_modified) != sorted(ad.files_changed):
         notes.append(f"form.repo_files_modified={form.execution.repo_files_modified} but git shows {ad.files_changed}")
+
+    info = fidelity.info_items(pos, neg, raw_p, raw_n, mocks, loc, sc is not None, scale_pos_verified)
+    if scale_obs is not None:
+        notes.append("scale check (positive at full witness scale): " + scale_obs.observed_text)
 
     # audit
     au = audit_mod.audit(form, pos, neg)
@@ -189,7 +209,7 @@ def run_attempt(attempt_dir: Path, pipeline_root: Path = PIPELINE_ROOT, probe: b
         test_id=manifest.test_id, finding_id=manifest.finding_id, artifact_id=manifest.artifact_id,
         region_id=region.region_id, verdict=v.verdict, final_verdict=final_verdict, exec_result=exec_result,
         verdict_reason=v.reason, strategy=form.strategy, oracle=orec, positive=pos, negative=neg, checks=checks,
-        fidelity=fid, audit=au, evidence=ev, scorecard=card, finding_confidence=task.finding.confidence,
+        fidelity=fid, audit=au, information=info, evidence=ev, scorecard=card, finding_confidence=task.finding.confidence,
         env=Env(executable_on="cpu_mock" if mocks else "cpu", python=platform.python_version(),
                 packages=_pkg_versions(), repo_commit=manifest.repo_commit),
         cost=Cost(wall_seconds=round(time.monotonic() - t_start, 1)), notes=notes)

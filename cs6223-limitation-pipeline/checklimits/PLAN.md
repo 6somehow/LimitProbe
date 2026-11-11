@@ -145,3 +145,16 @@ cs6223-limitation-pipeline/checklimits/
 2. artifact 特有依赖用 `pip install --target .deps/<artifact>`（§4 第 7 项）可以吗？
 3. 中继注入密钥的方案（§4 第 1 项）可以吗？
 4. 允许移动 `shanghao_exec_report_draft.py` 进 `checklimits/` 吗？
+
+
+## 11. 决定记录（2026-11-11 晚，Shanghao 对 P0/P1 报告的回复）
+
+| # | 事项 | 决定 | 落实 |
+|---|---|---|---|
+| 1 | 没有 GPU 时下游怎么办 | 尽量用过程模拟（torch 原生函数、triton-cpu 一类），**必须缩小规模**；目的是模拟行为来判断 limitation 是否存在，不要求与 GPU 逐位一致 | 已做：F07/F01 反例改为跑完整稀疏路径（真实 `get_active_blocks` + 两个 CPU 替身），规模缩到 1/8，见 `ENV.md` |
+| 2 | 反例在目标行之后崩溃 | 把下游 mock 掉，让反例正常返回。原则：尽量用 mock 和 simulator 获取更多信息和结论，并对"经过替身得到的信息"按过程分析打置信度 | 已做：`ExecutionReport.information` 里每条信息记录依赖的替身、规模权重和置信度（`fidelity.SIM_WEIGHT`，初始值待校准） |
+| 3 | 相邻点的判定 | 由 agent 视情况决定 | P2 的 agent 指令里写明；harness 现有的启发式只作兜底 |
+| 4 | 另建 Python 3.11 环境 | 允许，用 pip venv，放在项目临时存储目录，后续可删 | `checklimits/scratch/venv311/`，`scripts/make_venv311.sh` |
+| 5 | opencode 安装与 U1 到 U3 | 同意 | 未开始，等 P2 的启动 prompt |
+| 6 | 预算上限 | 可以放得更宽 | 未定具体数值，P2 再定 |
+| 7 | `TestCase.inputs` 格式（`role` 键）与 `result_notes` | 确认 | 保持现状 |

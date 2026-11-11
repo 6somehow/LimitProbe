@@ -54,3 +54,24 @@
 ## 中继
 
 出站只绑定 eth0 的源地址时连接超时（默认路由走 eth1，源地址为 eth0 的包被丢弃）。需要 `SO_BINDTODEVICE`（这台机器上不需要 root）。已在 `relay.py` 里实现，实测：只绑地址超时 10 秒，绑设备 0.04 秒连上。
+
+## Python 3.11 venv（仓库固定版本，2026-11-11 晚）
+
+F07/F01 的反例要继续跑完下游代码，需要仓库固定的 triton 3.0.0（`block pointer` API 在 triton 3.9 里已删除，3.9 的解释器直接报 `NotImplementedError`）。这些版本没有 3.14 的 wheel，所以建了一个临时 venv：
+
+- 位置 `checklimits/scratch/venv311/`（git 忽略，随时可删），脚本 `scripts/make_venv311.sh`。
+- 解释器来自 conda 环境 `ravel` 的 Python 3.11.16，只用它创建 venv，不修改该环境。
+- 包：torch 2.4.0+cpu、numpy 1.26.4、triton 3.0.0、transformers 4.44.0、einops 0.8.0、pydantic 2.14.3（child 进程要 import `checklimits.models`）。
+- attempt 的 `manifest.json` 用 `"python": "scratch/venv311/bin/python"` 指定它。`findlimit`（3.14）仍然是 harness 的解释器。
+- 3.11 没有 `sys.monitoring`，child 自动改用 `sys.settrace` 后端（`tracer.SettraceTracer`）。两个后端跑同一套测试，结果一致。
+
+### 试过但不可用：`TRITON_INTERPRET=1`
+
+在 venv 里用 triton 自带的 CPU 解释器直接跑真实 kernel（q_len=512）：`get_active_blocks` 和 `triton_block_wise_attention` 能返回（computational ratio 0.625），但进程在退出前后随机以 `corrupted size vs. prev_size` / `double free` 中止（4 次里 4 次非零退出，faulthandler 指向 `triton_block_wise_attention` 里的解释器调用）。堆损坏不能作为证据来源，所以改用 CPU 替身：
+
+| 被替换的符号 | 替身 | 类别 | 权重 |
+|---|---|---|---|
+| `triton_bnhd_pool` | `sim.py::bnhd_pool`，纯 torch 的 avg pool，末块按真实长度做除数 | independent_native | 0.75 |
+| `triton_block_wise_attention` | `sim.py::block_wise_attention`，把 `list[list[Tensor]]` 转成 tensor 后调用仓库自带的 `torch_block_wise_attention` | repo_reference | 0.9 |
+
+`get_active_blocks`（纯 torch）用真实代码跑。两个替身都在目标行之后才被调用，所以都不在路径上（`s_mock = 1 − 0.05×2 = 0.9`）。规模缩小到 1/8（F07：q_len 512；F01：q_len 512 / k_len 1024 对 512），表单的 `design.scale` 里写明理由和不变性论证。正例在目标行就停止，所以 harness 额外在完整 witness 规模（4096 / 8192）重跑一次正例作为规模检查。

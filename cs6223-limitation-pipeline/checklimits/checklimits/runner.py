@@ -38,8 +38,15 @@ def clean_env(extra: dict[str, str] | None = None) -> dict[str, str]:
     return env
 
 
+def resolve_python(python: Optional[str]) -> str:
+    if not python:
+        return sys.executable
+    p = Path(python)
+    return str(p if p.is_absolute() else (PROJECT_ROOT / p))  # no resolve(): a venv python is a symlink
+
+
 def run_child(spec: dict[str, Any], timeout_s: int, env_extra: dict[str, str] | None = None,
-              scratch_root: Path | None = None) -> dict[str, Any]:
+              scratch_root: Path | None = None, python: Optional[str] = None) -> dict[str, Any]:
     """Run checklimits.child with `spec`; returns the child's JSON plus parent-side fields."""
     scratch_root = scratch_root or (PROJECT_ROOT / "scratch")
     scratch_root.mkdir(parents=True, exist_ok=True)
@@ -48,7 +55,7 @@ def run_child(spec: dict[str, Any], timeout_s: int, env_extra: dict[str, str] | 
         spec = dict(spec, out=str(td_path / "result.json"))
         (td_path / "spec.json").write_text(json.dumps(spec))
         proc = subprocess.Popen(
-            [sys.executable, "-m", "checklimits.child", str(td_path / "spec.json")],
+            [resolve_python(python), "-m", "checklimits.child", str(td_path / "spec.json")],
             cwd=td, env=clean_env(env_extra), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             text=True, start_new_session=True)
         timed_out = False
@@ -111,6 +118,7 @@ def to_observation(raw: dict[str, Any], role: str, inputs: dict[str, Any], regio
     reached = bool(hits)
     status = raw["status"]
     obs = Observation(role=role, inputs=inputs, status=status, exception=exc, target_reached=reached,
+                      returned=raw.get("returned"),
                       target_hits=hits, stdout_tail=(raw.get("stdout") or "")[-300:], wall_s=raw.get("wall_s", 0.0))
     starts = (trace or {}).get("starts", [])
     if starts:

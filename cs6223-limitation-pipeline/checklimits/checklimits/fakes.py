@@ -10,17 +10,20 @@ Mock kinds (see models.MockDecl):
   patch        module attribute replaced by a RecordingFake after the module is imported
   env_var      environment variable set; recorded as one access at install time
 
-Behaviors (closed vocabulary): return_first_arg, return_none, record_only (returns a child fake).
+Behaviors (closed vocabulary): return_first_arg, return_none, record_only (returns a child fake),
+sim (a patch that runs a real implementation from the attempt directory, recorded like any fake).
 Limit: a RecordingModule has no real __spec__ or version, so libraries that probe it at
 import time (e.g. transformers probing triton) may fail. Use `patch` for those cases.
 """
 from __future__ import annotations
 
 import importlib
+import importlib.util
 import itertools
 import os
 import sys
 import types
+from pathlib import Path
 from typing import Any
 
 _counter = itertools.count(1)
@@ -142,8 +145,34 @@ def _resolve(symbol: str) -> tuple[Any, str]:
     raise ImportError(f"cannot resolve {symbol}")
 
 
-def install_patches(decls: list[Any], recorder: Recorder) -> None:
+class RecordingCallable:
+    """Runs `fn`, recording every call with a sequence number (behavior "sim")."""
+
+    def __init__(self, symbol: str, recorder: Recorder, fn: Any) -> None:
+        self._symbol, self._rec, self._fn = symbol, recorder, fn
+        self.__name__ = getattr(fn, "__name__", symbol)
+
+    def __call__(self, *args: Any, **kwargs: Any):
+        self._rec.record(self._symbol, "call")
+        return self._fn(*args, **kwargs)
+
+
+def load_impl(impl: str, attempt_dir: Path) -> Any:
+    file, _, func = impl.partition("::")
+    spec = importlib.util.spec_from_file_location(f"_checklimits_sim_{Path(file).stem}", attempt_dir / file)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = mod
+    spec.loader.exec_module(mod)
+    return getattr(mod, func)
+
+
+def install_patches(decls: list[Any], recorder: Recorder, attempt_dir: Path | None = None) -> None:
     for d in decls:
         if d.kind == "patch":
             owner, attr = _resolve(d.symbol)
-            setattr(owner, attr, RecordingFake(d.symbol, recorder, d.behavior))
+            if d.behavior == "sim":
+                if not d.impl or attempt_dir is None:
+                    raise ValueError(f"mock {d.symbol}: behavior 'sim' needs impl and an attempt directory")
+                setattr(owner, attr, RecordingCallable(d.symbol, recorder, load_impl(d.impl, attempt_dir)))
+            else:
+                setattr(owner, attr, RecordingFake(d.symbol, recorder, d.behavior))
