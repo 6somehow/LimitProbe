@@ -79,9 +79,11 @@ def test_on_path_rules():
     assert recs["after"].on_path
 
 
-def test_fidelity_formulas():
-    assert fidelity.s_mod(0, 100) == 1.0 and fidelity.s_mod(5, 100) == 0.0
-    assert abs(fidelity.s_mock(1, 2) - 0.5) < 1e-9 and fidelity.s_mock(3, 0) == 0.0
-    assert fidelity.s_entry(None, 3) == 0.25 and fidelity.s_entry(0, 1) == 1.0
-    assert fidelity.s_entry(0, 3) == 1.0 and fidelity.s_entry(2, 3) == 0.0
+def test_entry_index_and_evidence_state():
     assert fidelity.entry_index(["a::f", "a::g"], "a::g") == 1 and fidelity.entry_index(["a::f"], "b::h") is None
+    assert fidelity.entry_index(["a::f"], None) is None
+    mk = lambda c: MockDecl(symbol="s", kind="fake_module", reason="r", sim_class=c)
+    assert fidelity.evidence_state([]) == "direct"
+    assert fidelity.evidence_state([mk("repo_reference")]) == "simulated:reference"
+    assert fidelity.evidence_state([mk("repo_reference"), mk("independent_native")]) == "simulated:fake"
+    assert fidelity.evidence_state([mk("independent_native"), mk("stub")]) == "simulated:stub"

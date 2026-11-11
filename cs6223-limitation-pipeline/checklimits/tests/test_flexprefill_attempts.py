@@ -27,21 +27,25 @@ def test_attempt_confirms_finding(fid, tmp_path):
     assert r.positive.target_reached and r.positive.exception.type == "AssertionError"
     assert r.positive.exception.raised_at == loc
     assert [h.outcome for h in r.positive.target_hits] == ["false"] and [h.outcome for h in r.negative.target_hits] == ["true"]
-    # the negative now runs the whole sparse path (real get_active_blocks + CPU stand-ins) and returns
+    # the negative runs the whole sparse path (real get_active_blocks + CPU stand-ins) and returns
     assert r.negative.effect is False and r.negative.exception is None
     assert r.negative.returned.startswith("Tensor(1, 512, 2, 128)")
-    # two stand-ins, both used only after the target
-    assert {m.symbol.rsplit(".", 1)[1]: m.on_path for m in r.fidelity.mocks} == {
-        "triton_bnhd_pool": False, "triton_block_wise_attention": False}
-    assert r.fidelity.s_mock == pytest.approx(0.9) and r.fidelity.probe_effect_free
+    assert {m.symbol.rsplit(".", 1)[1]: (m.on_path, m.sim_class) for m in r.fidelity.mocks} == {
+        "triton_bnhd_pool": (False, "independent_native"), "triton_block_wise_attention": (False, "repo_reference")}
     assert r.audit.rate == 1.0 and r.fidelity.ast_diff.statements_changed == 0 and r.fidelity.ast_diff.git_status_clean
     assert r.oracle.verified_tier == "O4" and r.oracle.revisions_after_first_run == 0
-    # information confidence: positive confirmed at full witness scale and independent of stand-ins
-    pos, passed, after = r.information
-    assert pos.confidence == 1.0 and not pos.depends_on_mocks
-    assert passed.confidence == pytest.approx(0.9) and not passed.depends_on_mocks
-    assert after.confidence == pytest.approx(0.9 * 0.75 * 0.9, abs=1e-3) and len(after.depends_on_mocks) == 2
-    assert any("scale check" in n and "AssertionError" in n for n in r.notes)
-    assert not any(n.startswith("T3") for n in r.notes)
+    # observations: the verdict rests on direct evidence; the downstream behaviour is supplementary and simulated
+    bearing = [i for i in r.information if i.verdict_bearing]
+    assert len(bearing) == 2 and {i.evidence_state for i in bearing} == {"direct"}
+    extra = [i for i in r.information if not i.verdict_bearing]
+    assert len(extra) == 1 and extra[0].evidence_state == "simulated:fake" and len(extra[0].depends_on_mocks) == 2
+    # every defeater has been measured and eliminated
+    c = r.confidence
+    assert {d.id: d.status for d in c.defeaters} == {f"D{i}": "eliminated" for i in range(1, 15)}
+    assert c.level == "L3" and not c.calibrated and c.next_steps == []
+    mu = r.checks.mutation
+    assert mu.generated >= 4 and mu.killed == mu.generated and mu.wilson_lower >= 0.5
+    assert r.checks.bva.adjacent and r.checks.bva.full_scale_positive and r.checks.bva.full_scale_negative is False
+    assert r.checks.repeat.runs == 5 and r.checks.repeat.identical and r.checks.replay.ok
     out = harness.write_outputs(res, tmp_path)
     json.loads(out["report"].read_text())

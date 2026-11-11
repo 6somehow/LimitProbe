@@ -7,9 +7,13 @@ CORE_WITH_EXT = '''import extlib_before
 import extlib_after
 
 
+def pre(n):
+    return n + 1
+
+
 def check(n, m):
     extlib_before.touch()
-    base = n + 1
+    base = pre(n)
     assert n == 1, "n must be 1"
     extlib_after.touch()
     if m > 3:
@@ -21,8 +25,12 @@ def entry(n, m):
     return check(n, m)
 '''
 
-CORE_PLAIN = '''def check(n, m):
-    base = n + 1
+CORE_PLAIN = '''def pre(n):
+    return n + 1
+
+
+def check(n, m):
+    base = pre(n)
     assert n == 1, "n must be 1"
     if m > 3:
         return "big"
@@ -43,11 +51,12 @@ def run(inputs):
         time.sleep(inputs["sleep"])
     if inputs.get("leak_probe"):
         return len([k for k in os.environ if k.startswith(("SOCLAAS_", "OPENAI_")) or k.lower().endswith("_proxy")])
-    if inputs.get("probe_sensitive") and sys.monitoring.get_tool(2) is not None:
-        raise RuntimeError("tracer visible")
     if inputs.get("direct"):
         return check(inputs["n"], inputs["m"])
-    return entry(inputs["n"], inputs["m"])
+    out = entry(inputs["n"], inputs["m"])
+    if inputs.get("probe_sensitive") and sys.monitoring.get_tool(2) is not None:
+        return out + "-seen-by-tracer"   # behaves differently when a monitoring tool is registered
+    return out
 '''
 
 
@@ -61,7 +70,7 @@ def target_line(src):
 
 
 def build(tmp: Path, with_ext=True, form_overrides=None, driver_src=DRIVER, manifest_overrides=None,
-          pos=None, neg=None, scale=None, mocks_override=None):
+          pos=None, neg=None, scale=None, mocks_override=None, entry_reason=None):
     repo = tmp / "repo"
     (repo / "toypkg").mkdir(parents=True)
     src = CORE_WITH_EXT if with_ext else CORE_PLAIN
@@ -103,7 +112,8 @@ def build(tmp: Path, with_ext=True, form_overrides=None, driver_src=DRIVER, mani
                    "oracle": {"tier": "O4", "type": "exception", "spec": f"AssertionError raised at {loc}",
                               "signal_location": loc},
                    "expected": {"positive": f"AssertionError at {loc}", "negative": f"no exception at {loc}"}},
-        "execution": {"entry_called": "toypkg/core.py::entry", "call_chain_index": 0, "repo_files_modified": [],
+        "execution": {"entry_called": "toypkg/core.py::entry", "entry_reason": entry_reason, "call_chain_index": 0,
+                      "repo_files_modified": [],
                       "mocks": mocks, "hooks": [], "replay_commands": []},
         "claims": {"target_reached": True, "decision_outcomes_seen": ["false", "true"],
                    "condition_true_on_positive": True, "condition_false_on_negative": True,
