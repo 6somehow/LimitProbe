@@ -115,7 +115,22 @@ def entry(n, m):
     return check(n, m)
 '''
 
-KINDS = {   # kind -> (source, text that starts the target line, outcome, condition expr, snippet)
+CORE_NESTED = '''def make():
+    def check(n, m):
+        base = n + 1
+        assert n == 1, "n must be 1"
+        return "ok"
+    return check
+
+
+def entry(n, m):
+    return make()(n, m)
+'''
+
+FUNC = {"nested": "make.check"}     # Region.location.function, when it is not simply `check`
+
+KINDS = {
+    "nested": (CORE_NESTED, "assert n == 1", "reject", "n != 1", 'assert n == 1, "n must be 1"'),   # kind -> (source, text that starts the target line, outcome, condition expr, snippet)
     "reject": (None, "assert n == 1", "reject", "n != 1", 'assert n == 1, "n must be 1"'),
     "multiline": (CORE_MULTILINE, "assert (", "reject", "n != 1 or m < 0", "assert n == 1 and m >= 0"),
     "branch": (CORE_BRANCH, "if n > 3:", "fallback", "n > 3", "if n > 3:"),
@@ -151,9 +166,9 @@ def build(tmp: Path, with_ext=True, form_overrides=None, driver_src=DRIVER, mani
     data.mkdir()
     region = {"schema_version": "0.1.0", "region_id": "R1", "artifact_id": "toy", "entry_point": "toypkg/core.py::entry",
               "condition": {"expr": cond_expr, "params": ["n"], "path_prefix": []}, "outcome": outcome,
-              "location": {"file": "toypkg/core.py", "line_start": line, "function": "toypkg/core.py::check",
+              "location": {"file": "toypkg/core.py", "line_start": line, "function": "toypkg/core.py::" + FUNC.get(kind, "check"),
                            "snippet": snippet},
-              "call_chain": ["toypkg/core.py::entry", "toypkg/core.py::check"], "provenance": "manual"}
+              "call_chain": ["toypkg/core.py::entry", "toypkg/core.py::" + FUNC.get(kind, "check")], "provenance": "manual"}
     lim = {"schema_version": "0.1.0", "limitation_id": "CL1", "artifact_id": "toy", "origin": "code",
            "condition_text": "n != 1", "effect_type": "reject", "effect_text": "assert", "region_ids": ["R1"],
            "provenance": "manual"}
@@ -187,7 +202,7 @@ def build(tmp: Path, with_ext=True, form_overrides=None, driver_src=DRIVER, mani
     }
     if scale:
         form["design"]["scale"] = scale
-    if kind not in ("reject", "multiline"):
+    if kind not in ("reject", "multiline", "nested"):
         form["design"]["oracle"].update(type="path_hook", spec=f"branch taken at {loc}", signal_location=loc)
         form["design"]["expected"] = {"positive": f"branch taken at {loc}", "negative": f"branch not taken at {loc}"}
         form["claims"]["positive_observed"] = f"branch taken at {loc}"
