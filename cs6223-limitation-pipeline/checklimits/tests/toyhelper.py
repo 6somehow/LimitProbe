@@ -25,6 +25,9 @@ def entry(n, m):
     return check(n, m)
 '''
 
+CORE_IMPORT_TOUCH = CORE_WITH_EXT.replace("    extlib_before.touch()\n", "").replace(
+    "import extlib_after\n", "import extlib_after\n\n_CFG = extlib_before.CONFIG   # touched at import time only\n")
+
 CORE_PLAIN = '''def pre(n):
     return n + 1
 
@@ -73,7 +76,7 @@ def build(tmp: Path, with_ext=True, form_overrides=None, driver_src=DRIVER, mani
           pos=None, neg=None, scale=None, mocks_override=None, entry_reason=None):
     repo = tmp / "repo"
     (repo / "toypkg").mkdir(parents=True)
-    src = CORE_WITH_EXT if with_ext else CORE_PLAIN
+    src = CORE_IMPORT_TOUCH if with_ext == "import" else CORE_WITH_EXT if with_ext else CORE_PLAIN
     (repo / "toypkg" / "__init__.py").write_text("")
     (repo / "toypkg" / "core.py").write_text(src)
     git(repo, "init", "-q")

@@ -268,13 +268,25 @@ def decide_level(defs: list[DefeaterResult], verdict: Verdict, outcome_supported
     return level, verdict, note
 
 
-def next_steps(defs: list[DefeaterResult]) -> list[str]:
-    return [f"{d.id} ({d.status}): {REMEDY[d.id]}" for d in defs
-            if d.status in ("open", "residual", "refuted") and d.id != "D13"]
+def next_steps(defs: list[DefeaterResult], mutation: Optional[MutationResult] = None) -> list[str]:
+    out = []
+    for d in defs:
+        if d.status not in ("open", "residual", "refuted") or d.id == "D13":
+            continue
+        text = REMEDY[d.id]
+        if d.id == "D3" and mutation is not None:
+            alive = [f"{m.operator} (`{m.mutated}`)" for m in mutation.mutants if not m.killed]
+            if alive:
+                text = (f"{len(alive)} mutant(s) survived because no input separates them from the original: "
+                        + "; ".join(alive[:6]) + (" ..." if len(alive) > 6 else "")
+                        + ". Add inputs that distinguish them (for a set-membership guard, one input per member), "
+                          "or strengthen the oracle if it cannot see the effect")
+        out.append(f"{d.id} ({d.status}): {text}")
+    return out
 
 
 def build(m: Measurements, p: Profile) -> tuple[Confidence, Verdict]:
     defs = evaluate_defeaters(m, p)
     level, final, note = decide_level(defs, m.verdict, m.outcome_supported)
     return Confidence(profile=p, defeaters=defs, level=level, level_note=note, calibrated=False,
-                      next_steps=next_steps(defs)), final
+                      next_steps=next_steps(defs, m.mutation)), final

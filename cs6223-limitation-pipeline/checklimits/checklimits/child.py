@@ -85,8 +85,11 @@ def main(argv: list[str]) -> int:
         out.write_text(json.dumps({c["id"]: err for c in cases}))
         return 0
 
+    # Accesses made while the repository and the driver were imported happen before any target hit;
+    # every case keeps them, only the events of earlier cases are dropped.
+    setup_events = list(recorder.events)
     for c in cases:
-        recorder.events = []
+        recorder.events = list(setup_events)
         res: dict = {"status": "ok", "exception": None, "returned": None, "trace": None}
         tracer = None
         if spec.get("trace", True):

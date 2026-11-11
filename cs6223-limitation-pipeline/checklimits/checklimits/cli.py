@@ -37,6 +37,17 @@ def cmd_run(a: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_bench(a: argparse.Namespace) -> int:
+    from .bench import run_bench
+    from .harness import RunOptions
+
+    opts = RunOptions.fast() if a.fast else RunOptions(repeats=a.repeats)
+    out = Path(a.out) if a.out else PROJECT_ROOT / "results" / "bench"
+    res = run_bench(a.case or None, out, opts, workers=a.workers)
+    print((out / "BENCH.md").read_text())
+    return 1 if res["summary"]["false_positives"] else 0
+
+
 def cmd_relay(a: argparse.Namespace) -> int:
     from .relay import main as relay_main
     return relay_main(["--port", str(a.port)] + (["--log", a.log] if a.log else []))
@@ -51,6 +62,13 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--fast", action="store_true", help="main pair only; every optional defeater stays open")
     r.add_argument("--repeats", type=int, help="independent runs for D8 (default: profile n_rep)")
     r.set_defaults(fn=cmd_run)
+    b = sub.add_parser("bench", help="fault-injection benchmark (writes results/bench/)")
+    b.add_argument("--case", action="append", help="case id (repeatable); default: all")
+    b.add_argument("--out")
+    b.add_argument("--fast", action="store_true")
+    b.add_argument("--repeats", type=int)
+    b.add_argument("--workers", type=int, default=3)
+    b.set_defaults(fn=cmd_bench)
     rl = sub.add_parser("relay", help="start the SoCLaaS relay (needs SOCLAAS_* in the environment)")
     rl.add_argument("--port", type=int, default=8787)
     rl.add_argument("--log")

@@ -148,3 +148,39 @@ profile 默认值：`n_min=4`、`kill_lb=0.5`、`n_rep=5`、`mod_max=0.05`、`pr
 3. D3 的变异只作用于 assert、raise、if、while；邻点探测只对整数边界变量有效。
 4. 对 assert 目标，探针提前停止，变异的"杀死"是目标处的强变异：判定从 `yes` 变成别的就算杀死，包括变异体导致崩溃。等价变异体没有剔除，所以用 Wilson 下界而不是要求 100%。
 5. 堆损坏、线程和非确定性库的行为：D8 只能比较观察到的轨迹，不能证明不存在非确定性；报告里给出 Rule of three 上界（5 次运行时 0.6，即证据很弱）。要把上界压到 0.1 需要 30 次运行，由 profile 的 `n_rep` 控制。
+
+
+## 12. 故障注入基准 v0（`results/bench/`，2026-11-11）
+
+`python -m checklimits bench` 对 FlexPrefill 的三条 finding（F07、F01、F04）各造 9 个变体，另有 4 个降低 attempt 质量的变体，共 31 个 case。变体写进克隆仓库的一次新 commit，该 commit 作为被测系统。每个 case 带真值 `claim_true`（"witness 输入在该行被拒绝，相邻输入不被拒绝"在变体里是否成立）。判定为 `yes`/`no` 的叫"决定"，`inconclusive` 叫"弃权"。
+
+| 变体 | 真值 | 考察什么 |
+|---|---|---|
+| orig | 真 | 对照 |
+| delete-stale / relax-stale | 假 | Region 没跟着变体更新，应当被 D12 拦住 |
+| delete-snip / relax-snip | 假 | Region 的 snippet 已更新，但条件仍是原 finding 的说法（抽取器读错条件）。应判 `no` |
+| invert-snip | 假 | 边界方向反了，不应判 `yes` |
+| otherexc-snip | 真 | 同样拒绝，但抛的是 `ValueError`。oracle 只认 `AssertionError`，已知会判 `no`（假阴性） |
+| shifted / collide | 真 | 位置失效，应弃权 |
+| att-fake-einops / att-no-location | 真 | 判定应仍为 `yes`，档位应降到 L1 以下 |
+| att-scale-dependent | 真 | 缩放后行为不同，应弃权 |
+| att-false-claims | 真 | 表单诚实度应下降（`form_integrity`），判定不受影响 |
+
+结果（137 项单元测试之外的一次完整运行，每例约 36 秒，3 个并行）：
+
+| 档位 | case | 决定 | 正确 | 准确率 | Wilson 下界 |
+|---|---|---|---|---|---|
+| L3 | 3 | 3 | 3 | 1.0 | 0.44 |
+| L1 | 12 | 12 | 9 | 0.75 | 0.47 |
+| invalid | 10 | 0 | 0 | | |
+| n/a | 6 | 0 | 0 | | |
+
+- **假阳性 0 个。** 16 个弃权全部落在 `invalid`（D12 或 D2 被推翻）或 `n/a`。
+- 三个假阴性（`*-otherexc-snip`）全部在 L1，且 D3 为 `refuted`（变异体存活，oracle 看不见效果）。同样 D3 被推翻的 `relax-snip` 却判对了。
+- 样本太小（15 个决定），Wilson 区间很宽。这是对规则的冒烟测试，不是校准；`calibrated` 仍为 false。
+
+### 基准发现的问题
+
+1. **harness 缺陷（已修）。** `att-fake-einops` 第一次运行得到 L3：fake 模块只在 import 阶段被访问，而 child 在每个 case 开始时清空了记录，D6 误判为 `direct`。现在 import 阶段的记录会保留。已加回归测试（去掉修复后该测试失败）。
+2. **集合型守卫的 D3。** F04 的 `head_dim in {16,32,64,128}` 只用一个反例（128），把 16、32、64 改成别的数的变异体全部存活，D3 被推翻，档位 L1。`next_steps` 现在会列出存活变异体，并建议"为每个成员各加一个输入"。agent 目前只能给一个反例，这是 agent 层要解决的设计问题。
+3. **待决定：`no` 判定在 D3 被推翻时是否应改为 `inconclusive`。** 已批准的规则是"最高 L1"。基准里 `no` + D3 被推翻共 6 个：3 个对（relax-snip）、3 个错（otherexc-snip），等于抛硬币。变异测试的逻辑是：oracle 连目标处的变化都看不见，就不能用它证明"没有效果"。原 SCORECARD 的 G5 就是这么要求的。改成强制 `inconclusive` 会把这 6 个都变成弃权。因为这条改动是看了基准之后提的，需要你确认，不然有按基准调规则的嫌疑。

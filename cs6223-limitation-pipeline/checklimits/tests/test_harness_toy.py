@@ -74,6 +74,16 @@ def test_stub_before_target_makes_verdict_bearing_observation_simulated(tmp_path
     assert sorted(after.depends_on_mocks) == ["extlib_after", "extlib_before"]
 
 
+def test_stand_in_touched_only_at_import_time_still_precedes_the_target(tmp_path):
+    # regression (found by the fault-injection benchmark): events recorded while the repo was imported
+    # were dropped, so a stub used only at import time looked like it was not on the path
+    _, r, _ = go(tmp_path, with_ext="import")
+    by = {m.symbol: m for m in r.fidelity.mocks}
+    assert by["extlib_before"].on_path and by["extlib_before"].accesses_before_target >= 1
+    bearing = [i for i in r.information if i.verdict_bearing]
+    assert {i.evidence_state for i in bearing} == {"simulated:stub"} and st(r)["D6"] == "refuted"
+
+
 def test_no_stand_in_means_direct_evidence(tmp_path):
     _, r, _ = go(tmp_path, with_ext=False)
     assert [i.evidence_state for i in r.information] == ["direct", "direct", "direct"]
