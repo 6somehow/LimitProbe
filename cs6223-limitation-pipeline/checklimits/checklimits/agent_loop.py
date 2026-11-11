@@ -48,7 +48,7 @@ LEVEL_RANK = {"n/a": -2, "invalid": -1, "L0": 0, "L1": 1, "L2": 2, "L3": 3}
 class Budget:
     wall_s: int = 1800          # per agent session
     tool_calls: int = 250
-    tokens: int = 1_500_000
+    tokens: int = 4_000_000
     sessions: int = 2           # outer iterations: first session + feedback sessions
 
 

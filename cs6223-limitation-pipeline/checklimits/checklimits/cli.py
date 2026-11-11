@@ -39,13 +39,13 @@ def cmd_run(a: argparse.Namespace) -> int:
 
 def cmd_task(a: argparse.Namespace) -> int:
     from .agent_cli import task_text
-    print(task_text(a.finding, a.data_dir))
+    print(task_text(a.finding, a.data_dir, findings_file=a.findings_file))
     return 0
 
 
 def cmd_init(a: argparse.Namespace) -> int:
     from .agent_cli import init_attempt
-    files = init_attempt(a.finding, Path(a.out), a.data_dir, a.test_id, a.python)
+    files = init_attempt(a.finding, Path(a.out), a.data_dir, a.test_id, a.python, a.findings_file)
     print("created:\n" + "\n".join(f"  {f}" for f in files))
     return 0
 
@@ -95,11 +95,13 @@ def main(argv: list[str] | None = None) -> int:
     t = sub.add_parser("task", help="print the task description for a finding (for the code agent)")
     t.add_argument("finding")
     t.add_argument("--data-dir", default="data/pilot_flexprefill")
+    t.add_argument("--findings-file", help="step 4 hand-off, e.g. results/step4/flexprefill/limitations_for_tests.json")
     t.set_defaults(fn=cmd_task)
     i = sub.add_parser("init", help="create an attempt package skeleton for a finding")
     i.add_argument("finding")
     i.add_argument("--out", required=True)
     i.add_argument("--data-dir", default="data/pilot_flexprefill")
+    i.add_argument("--findings-file", help="step 4 hand-off, e.g. results/step4/flexprefill/limitations_for_tests.json")
     i.add_argument("--test-id")
     i.add_argument("--python", help="interpreter for the code under test (default: scratch/venv311 if present)")
     i.set_defaults(fn=cmd_init)
@@ -111,7 +113,7 @@ def main(argv: list[str] | None = None) -> int:
     ag.add_argument("--run-id", required=True)
     ag.add_argument("--wall-s", type=int, default=1800)
     ag.add_argument("--tool-calls", type=int, default=250)
-    ag.add_argument("--tokens", type=int, default=1_500_000)
+    ag.add_argument("--tokens", type=int, default=4_000_000)
     ag.add_argument("--sessions", type=int, default=2)
     ag.add_argument("--target-level", default="L3")
     ag.add_argument("--fast", action="store_true", help="authoritative run without optional defeaters (debugging)")

@@ -95,7 +95,7 @@ def build(tmp: Path, with_ext=True, form_overrides=None, driver_src=DRIVER, mani
     lim = {"schema_version": "0.1.0", "limitation_id": "CL1", "artifact_id": "toy", "origin": "code",
            "condition_text": "n != 1", "effect_type": "reject", "effect_text": "assert", "region_ids": ["R1"],
            "provenance": "manual"}
-    fnd = {"schema_version": "0.1.0", "finding_id": "F1", "artifact_id": "toy", "category": "undocumented",
+    fnd = {"schema_version": "0.1.0", "finding_id": "F1", "artifact_id": "toy", "category": "undisclosed",
            "level": "L2", "limitation_ids": ["CL1"], "scope_status": "scope_edge", "effect_type": "reject",
            "summary": "n must be 1", "witness_hint": {"n": 2, "m": 1}, "confidence": "mechanical"}
     (data / "gold_regions.json").write_text(json.dumps([region]))

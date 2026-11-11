@@ -35,9 +35,10 @@ def _venv_python() -> Optional[str]:
 
 
 # --------------------------------------------------------------------------- task
-def task_text(finding_id: str, data_dir_rel: str = DEFAULT_DATA, context: int = 12) -> str:
+def task_text(finding_id: str, data_dir_rel: str = DEFAULT_DATA, context: int = 12,
+              findings_file: Optional[str] = None) -> str:
     data_dir = PIPELINE_ROOT / data_dir_rel
-    t = load_task(finding_id, data_dir)
+    t = load_task(finding_id, data_dir, PIPELINE_ROOT / findings_file if findings_file else None)
     art = _artifact(data_dir)
     f = t.finding
     repo_rel = _repo_dir_for(art)
@@ -45,8 +46,17 @@ def task_text(finding_id: str, data_dir_rel: str = DEFAULT_DATA, context: int = 
          f"**Claim to test.** {f.summary}", "",
          f"- category: {f.category}, level: {f.level}, effect type: {f.effect_type}, scope: {f.scope_status}",
          f"- upstream confidence (reported separately, not yours to change): {f.confidence}",
-         f"- witness type: `{t.witness_type}`; witness_hint: `{json.dumps(f.witness_hint)}`",
-         f"- inputs derived from the witness: `{json.dumps(t.inputs)}`", ""]
+         f"- witness type: `{t.witness_type}`, format `{t.witness.format}`, status `{t.witness.status}`"]
+    if t.witness.format == "witness-v2":
+        L += [f"- **trigger** (should take the restricted branch): `{json.dumps(t.witness.trigger)}`",
+              f"- **contrast** (nearest point that should not): `{json.dumps(t.witness.contrast)}`",
+              f"- names you can pass as inputs: {sorted(t.witness.input_keys)}; aliases: {t.witness.aliases}; "
+              "other names in the pair are derived values you must construct (e.g. `q.shape[1]`)",
+              "- the solver picks small boundary values; you may scale the realistic sizes up but then the pair must "
+              "keep the same truth value of the condition (declare `design.scale` if you change sizes)"]
+    else:
+        L += [f"- witness_hint: `{json.dumps(f.witness_hint)}`", f"- inputs derived from the witness: `{json.dumps(t.inputs)}`"]
+    L += [""]
     for lim in t.limitations:
         L += [f"**Limitation {lim.limitation_id}.** condition: {lim.condition_text} -> effect: {lim.effect_text}", ""]
     for r in t.regions:
@@ -78,9 +88,9 @@ def task_text(finding_id: str, data_dir_rel: str = DEFAULT_DATA, context: int = 
 
 # --------------------------------------------------------------------------- init
 def init_attempt(finding_id: str, out: Path, data_dir_rel: str = DEFAULT_DATA, test_id: Optional[str] = None,
-                 python: Optional[str] = None) -> list[Path]:
+                 python: Optional[str] = None, findings_file: Optional[str] = None) -> list[Path]:
     data_dir = PIPELINE_ROOT / data_dir_rel
-    t = load_task(finding_id, data_dir)
+    t = load_task(finding_id, data_dir, PIPELINE_ROOT / findings_file if findings_file else None)
     if not t.regions:
         raise SystemExit(f"{finding_id} has no linked Region: nothing to test")
     r = t.regions[0]
@@ -90,8 +100,16 @@ def init_attempt(finding_id: str, out: Path, data_dir_rel: str = DEFAULT_DATA, t
     manifest = AttemptManifest(
         test_id=test_id or f"A-{finding_id}", finding_id=finding_id, artifact_id=art["artifact_id"],
         region_id=r.region_id, repo_dir=_repo_dir_for(art), repo_commit=art["commit"], data_dir=data_dir_rel,
-        python=python or _venv_python())
-    witness = dict(t.inputs[0]) if t.witness_type == "input_value" else {}
+        findings_file=findings_file, python=python or _venv_python())
+    w = t.witness
+    keys = sorted(w.input_keys & set(w.trigger or {}))
+    witness = {k: w.trigger[k] for k in keys} if t.witness_type == "input_value" and w.trigger else {}
+    negative = dict(witness)
+    boundary = "TODO"
+    if w.contrast:
+        negative = {k: w.contrast.get(k, v) for k, v in witness.items()}
+        differ = [k for k in witness if witness[k] != negative[k]]
+        boundary = differ[0] if len(differ) == 1 else "TODO"
     reject = r.outcome == "reject"
     form = {
         "test_id": manifest.test_id, "finding_id": finding_id, "strategy": "S0",
@@ -99,8 +117,8 @@ def init_attempt(finding_id: str, out: Path, data_dir_rel: str = DEFAULT_DATA, t
             "witness_source": "witness_hint",
             "free_parameters": [],
             "positive_input": witness,
-            "negative_input": dict(witness),
-            "boundary_variable": "TODO",
+            "negative_input": negative,
+            "boundary_variable": boundary,
             "scale": None, "condition_predicate_file": None,
             "oracle": {"tier": "O4" if reject else "O3", "type": "exception" if reject else "path_hook",
                        "spec": f"TODO: <ExceptionType> raised at {loc}", "signal_location": loc},
@@ -164,7 +182,8 @@ def lint_attempt(attempt: Path, pipeline_root: Path = PIPELINE_ROOT) -> list[Iss
     if (form.test_id, form.finding_id) != (manifest.test_id, manifest.finding_id):
         err("L003", "form.json and manifest.json disagree on test_id / finding_id")
     try:
-        task = load_task(manifest.finding_id, pipeline_root / manifest.data_dir)
+        ff = pipeline_root / manifest.findings_file if manifest.findings_file else None
+        task = load_task(manifest.finding_id, pipeline_root / manifest.data_dir, ff)
         region = task.region(manifest.region_id)
     except Exception as e:
         return issues + [Issue("error", "L004", f"finding/region lookup failed: {e}")]
@@ -218,15 +237,16 @@ def lint_attempt(attempt: Path, pipeline_root: Path = PIPELINE_ROOT) -> list[Iss
     if diff and d.boundary_variable not in diff:
         err("L010", f"boundary_variable {d.boundary_variable!r} is not the differing factor {diff}")
     # T3: provenance and free parameters
-    hint = task.finding.witness_hint or {}
+    hint = task.trigger
     sc = d.scale
-    if task.witness_type == "input_value":
-        for k, hv in hint.items():
+    if task.witness_type == "input_value" and hint:
+        for k in sorted(task.witness.input_keys & set(hint)):
+            hv = hint[k]
             got = d.positive_input.get(k)
             scaled_ok = sc and k in sc.scaled and isinstance(hv, (int, float)) and got == int(hv * sc.factor)
             if got != hv and not scaled_ok:
                 (warn if got is not None else err)(
-                    "L011", f"witness_hint[{k!r}]={hv!r} but positive_input[{k!r}]={got!r}: use the witness value, "
+                    "L011", f"witness trigger[{k!r}]={hv!r} but positive_input[{k!r}]={got!r}: use the witness value, "
                             "or declare a scale (design.scale)")
     declared = set(d.positive_input) | set(d.negative_input) | {fp.name for fp in d.free_parameters}
     for k in sorted(keys - declared):
