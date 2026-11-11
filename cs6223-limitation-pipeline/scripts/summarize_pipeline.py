@@ -2,8 +2,8 @@
 """Summarise out/pipeline/: 3b results per artifact, split by where the limitation came from.
 
 Route A limitations have region ids without the B prefix; route B's additions are B###.
-With --labels (a JSON {"file:line": "useful" | "real_not_useful" | "wrong"}), the blind-review label is
-shown next to each candidate, so candidates can be read with their quality in mind.
+With --labels (results/review/blind_review_labels.json, or an older flat {"file:line": label} JSON), the
+blind-review label is shown next to each candidate, so candidates can be read with their quality in mind.
 """
 import argparse
 import json
@@ -16,12 +16,14 @@ ROOT = Path(__file__).resolve().parents[1]
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--labels")
+    ap.add_argument("--dir", default="out/pipeline")
     a = ap.parse_args()
-    labels = json.loads(Path(a.labels).read_text()) if a.labels else {}
+    raw = json.loads(Path(a.labels).read_text()) if a.labels else {}
+    labels = {f"{r['file']}:{r['line']}": r["label"] for r in raw["labels"]} if "labels" in raw else raw
     print("| artifact | source | limitations | paper silent (not_found) | written somewhere | needs review |")
     print("|---|---|---|---|---|---|")
     cands = []
-    for d in sorted((ROOT / "out/pipeline").iterdir()):
+    for d in sorted((ROOT / a.dir).iterdir()):
         ver, lim = d / "3b.json", d / "limitations.json"
         if not ver.is_file():
             continue
@@ -44,7 +46,7 @@ def main() -> None:
         for src, c in rows.items():
             if c["n"]:
                 print(f"| {d.name} | {src} | {c['n']} | {c['silent']} | {c['written']} | {c['review']} |")
-    out = ROOT / "out/pipeline/candidates.json"
+    out = ROOT / a.dir / "candidates.json"
     out.write_text(json.dumps(cands, indent=1, ensure_ascii=False))
     print(f"\nresults: {dict(Counter(c['result'] for c in cands))}")
     print(f"labels of candidates: {dict(Counter((c['source'], c['label'], c['result'] == 'not_found') for c in cands))}")

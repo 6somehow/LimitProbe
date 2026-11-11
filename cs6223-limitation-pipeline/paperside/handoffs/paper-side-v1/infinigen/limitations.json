@@ -1,0 +1,499 @@
+[
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "infinigen-gap-M01-B03",
+    "artifact_id": "infinigen",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: speedup/flexgen/infinigen/flex_opt.py::run_flexgen 的 warmup generate → compute_layer → mha(warmup=True) → skew，并回写weight_home. Paper precondition: SVD of the layer's query matrix has been computed.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "同上：A为排序重排后的V，非论文所述A=V",
+    "paper_evidence": [
+      {
+        "quote": "We then set A to orthogonal\nmatrix V",
+        "source": "paper",
+        "locator": "PDF p.9"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "speedup/flexgen/infinigen/flex_opt.py",
+        "line_start": 513,
+        "line_end": 524,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "speedup/infinigen/infinigen/skewing_controller.py",
+        "line_start": 48,
+        "line_end": 84,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M01-B03; external repo refs stay in code_evidence_registry.json. Equivalence: 正交性保留，等价性仅限QK^T不变；偏斜列选择与论文不同; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "infinigen-gap-M02-B01",
+    "artifact_id": "infinigen",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: speedup实验路径：speedup/scripts/figure17b/run.sh 符号链接替换 flex_opt.py/pytorch_backend.py 后运行 python -m flexgen.flex_opt（--partial-weight-ratio 0.1..1.0）；accuracy/setup路径(modeling_opt_ours_setup.py/modeling_llama_ours_setup.py 214-224)作等价对照. Paper precondition: Prefill stage; skewed query and key matrices are available.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "实验路径缺少K的逐元素绝对值",
+    "paper_evidence": [
+      {
+        "quote": "we first take the element-wise absolute values of the\nskewed query and key matrices",
+        "source": "paper",
+        "locator": "PDF p.9"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "speedup/infinigen/infinigen/partial_weight_generation_controller.py",
+        "line_start": 5,
+        "line_end": 39,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+        "line_start": 320,
+        "line_end": 335,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "speedup/scripts/figure17b/run.sh",
+        "line_start": 1,
+        "line_end": 12,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M02-B01; external repo refs stay in code_evidence_registry.json. Equivalence: accuracy/setup路径含K的abs，但不在speedup实验路径; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "infinigen-gap-M02-B02",
+    "artifact_id": "infinigen",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: speedup实验路径：speedup/scripts/figure17b/run.sh 符号链接替换 flex_opt.py/pytorch_backend.py 后运行 python -m flexgen.flex_opt（--partial-weight-ratio 0.1..1.0）；accuracy/setup路径(modeling_opt_ours_setup.py/modeling_llama_ours_setup.py 214-224)作等价对照. Paper precondition: After taking element-wise absolute values.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "实验路径缺少论文指定的相加步骤",
+    "paper_evidence": [
+      {
+        "quote": "then add these two matrices\ntogether",
+        "source": "paper",
+        "locator": "PDF p.9"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "speedup/infinigen/infinigen/partial_weight_generation_controller.py",
+        "line_start": 5,
+        "line_end": 39,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "accuracy/src/modeling_opt_ours_setup.py",
+        "line_start": 218,
+        "line_end": 230,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "speedup/scripts/figure17b/run.sh",
+        "line_start": 1,
+        "line_end": 12,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=absent; behavior=M02-B02; external repo refs stay in code_evidence_registry.json. Equivalence: accuracy/setup路径的并集掩码是等价替代，但不在speedup实验路径; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "infinigen-gap-M02-B03",
+    "artifact_id": "infinigen",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: speedup实验路径：speedup/scripts/figure17b/run.sh 符号链接替换 flex_opt.py/pytorch_backend.py 后运行 python -m flexgen.flex_opt（--partial-weight-ratio 0.1..1.0）；accuracy/setup路径(modeling_opt_ours_setup.py/modeling_llama_ours_setup.py 214-224)作等价对照. Paper precondition: After adding the absolute-valued query and key matrices.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "求和对象缺少K_abs项",
+    "paper_evidence": [
+      {
+        "quote": "We then sum\nthe elements in each column",
+        "source": "paper",
+        "locator": "PDF p.9"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "speedup/infinigen/infinigen/partial_weight_generation_controller.py",
+        "line_start": 5,
+        "line_end": 39,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "accuracy/src/modeling_opt_ours_setup.py",
+        "line_start": 218,
+        "line_end": 230,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "speedup/scripts/figure17b/run.sh",
+        "line_start": 1,
+        "line_end": 12,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M02-B03; external repo refs stay in code_evidence_registry.json. Equivalence: accuracy路径以两次独立列和+并集替代，speedup路径无此替代; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "infinigen-gap-M02-B05",
+    "artifact_id": "infinigen",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: speedup实验路径：speedup/scripts/figure17b/run.sh 符号链接替换 flex_opt.py/pytorch_backend.py 后运行 python -m flexgen.flex_opt（--partial-weight-ratio 0.1..1.0）；accuracy/setup路径(modeling_opt_ours_setup.py/modeling_llama_ours_setup.py 214-224)作等价对照. Paper precondition: Combined absolute-sum matrix is used.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "单次topk未容纳K离群列",
+    "paper_evidence": [
+      {
+        "quote": "perform top-k operation only once while accommodating the\noutlier columns of both query and key matrices",
+        "source": "paper",
+        "locator": "PDF p.9"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "speedup/infinigen/infinigen/partial_weight_generation_controller.py",
+        "line_start": 5,
+        "line_end": 39,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "accuracy/src/modeling_opt_ours_setup.py",
+        "line_start": 218,
+        "line_end": 230,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "speedup/scripts/figure17b/run.sh",
+        "line_start": 1,
+        "line_end": 12,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M02-B05; external repo refs stay in code_evidence_registry.json. Equivalence: accuracy路径以两次topk+并集覆盖两者，但非speedup实验路径; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "infinigen-gap-M05-B01-R02",
+    "artifact_id": "infinigen",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: speedup/flexgen/infinigen 的 FlexGen+OPT 加速路径：flex_opt.py 参数(--alpha/--max-num-kv) → SelfAttention.forward → mha_gen → speculate_attention → prefetch_cache/select_kv；accuracy/ 下 Llama-2 为独立实现，不在本 artifact 判定内. Paper precondition: 该头的阈值已计算完成。",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "预取集合由 top-k(均值) 决定，而非严格 >max−alpha 的令牌集合",
+    "paper_evidence": [
+      {
+        "quote": "We select only the tokens with\nan attention score greater than the maximum score subtracted\nby alpha",
+        "source": "paper",
+        "locator": "PDF p.9"
+      },
+      {
+        "quote": "InfiniGen only prefetches the keys and\nvalues of the tokens with an attention score larger than the\nhighest attention score minus alpha",
+        "source": "paper",
+        "locator": "PDF p.10"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "speedup/infinigen/infinigen/kv_selection_controller.py",
+        "line_start": 28,
+        "line_end": 63,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "speedup/flexgen/infinigen/flex_opt.py",
+        "line_start": 430,
+        "line_end": 465,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M05-B01-R02; external repo refs stay in code_evidence_registry.json. Equivalence: 同上，仅边界情形等价; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "infinigen-gap-M05-B03",
+    "artifact_id": "infinigen",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: speedup/flexgen/infinigen 的 FlexGen+OPT 加速路径：flex_opt.py 参数(--alpha/--max-num-kv) → SelfAttention.forward → mha_gen → speculate_attention → prefetch_cache/select_kv；accuracy/ 下 Llama-2 为独立实现，不在本 artifact 判定内. Paper precondition: A layer has more candidate tokens than 20% of the total KV cache.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "实验路径以绝对令牌数封顶，未实现 20% 比例上限",
+    "paper_evidence": [
+      {
+        "quote": "For each layer, we allow sending up to 20% of\nthe total KV cache to the GPU if it contains more candidates.",
+        "source": "paper",
+        "locator": "PDF p.10"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "speedup/infinigen/infinigen/kv_selection_controller.py",
+        "line_start": 28,
+        "line_end": 63,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "speedup/flexgen/infinigen/flex_opt.py",
+        "line_start": 1445,
+        "line_end": 1447,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M05-B03; external repo refs stay in code_evidence_registry.json. Equivalence: 同上，仅特定序列长度下数值近似; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "infinigen-gap-M07-B03-R01",
+    "artifact_id": "infinigen",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: accuracy/perplexity/table2.sh 实验路径（opt.py/llama.py + modeling_*_ours.py，capacity=0.8/1.0，evict∈{fifo,lru,counter}）；speedup/ 路径未确认. Paper precondition: A victim KV entry has been selected for eviction.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "同上：无覆盖写步骤",
+    "paper_evidence": [
+      {
+        "quote": "the manager overwrites\nthe selected victim with the newly generated key and value",
+        "source": "paper",
+        "locator": "PDF p.10"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "accuracy/perplexity/table2.sh",
+        "line_start": 27,
+        "line_end": 45,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "accuracy/src/modeling_opt_ours.py",
+        "line_start": 259,
+        "line_end": 269,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M07-B03-R01; external repo refs stay in code_evidence_registry.json. Equivalence: 同上：掩码可能等效，未验证; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "infinigen-gap-M07-B03-R02",
+    "artifact_id": "infinigen",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: accuracy/perplexity/table2.sh 实验路径（opt.py/llama.py + modeling_*_ours.py，capacity=0.8/1.0，evict∈{fifo,lru,counter}）；speedup/ 路径未确认. Paper precondition: A victim KV entry has been overwritten with the newly generated key and value.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "同上：缺更新步骤",
+    "paper_evidence": [
+      {
+        "quote": "KV entry for eviction. Subsequently, the manager overwrites\nthe selected victim with the newly generated key and value,\nalong with updating the corresponding partial key cache re-\nsiding in the GPU. It is noted that the order of KV entries can",
+        "source": "paper",
+        "locator": "PDF p.10, text lines 31-34"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "accuracy/perplexity/table2.sh",
+        "line_start": 27,
+        "line_end": 45,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "accuracy/src/modeling_opt_ours.py",
+        "line_start": 259,
+        "line_end": 269,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M07-B03-R02; external repo refs stay in code_evidence_registry.json. Equivalence: 同上：可能等效，未验证; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "infinigen-gap-M07-B07",
+    "artifact_id": "infinigen",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: accuracy/perplexity/table2.sh 实验路径（opt.py/llama.py + modeling_*_ours.py，capacity=0.8/1.0，evict∈{fifo,lru,counter}）；speedup/ 路径未确认. Paper precondition: Any counter becomes saturated.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "同上：无饱和减半",
+    "paper_evidence": [
+      {
+        "quote": "If any counter becomes saturated, all the counter values\nare reduced by half.",
+        "source": "paper",
+        "locator": "PDF p.10"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "accuracy/perplexity/table2.sh",
+        "line_start": 27,
+        "line_end": 45,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "accuracy/src/modeling_opt_ours.py",
+        "line_start": 224,
+        "line_end": 228,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=absent; behavior=M07-B07; external repo refs stay in code_evidence_registry.json. Equivalence: 同上; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "infinigen-gap-M08-B04",
+    "artifact_id": "infinigen",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: speedup/flexgen/infinigen/flex_opt.py + pytorch_backend.py 的Infinigen执行路径（FlexGen OPT offloading运行时，含prefetch_cache与KV池拷贝），依赖speedup/infinigen/infinigen/*控制器. Paper precondition: CPU memory pressure exists.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "同上：无CPU内存压力下的池管理控制流",
+    "paper_evidence": [
+      {
+        "quote": "weights. We explain each operation in Section 4.3. The sec-\nond component is the Pool Manager. It manages the KV cache\npool on CPU memory under CPU memory pressure, which\nwe discuss in Section 4.4.",
+        "source": "paper",
+        "locator": "PDF p.7, text lines 112-115"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "speedup/flexgen/infinigen/flex_opt.py",
+        "line_start": 430,
+        "line_end": 430,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+        "line_start": 291,
+        "line_end": 300,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=absent; behavior=M08-B04; external repo refs stay in code_evidence_registry.json. Equivalence: 调度层仅按索引拷贝，无池管理器等价物; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "infinigen-gap-M08-A01",
+    "artifact_id": "infinigen",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: speedup/flexgen/infinigen/flex_opt.py + pytorch_backend.py 的Infinigen执行路径（FlexGen OPT offloading运行时，含prefetch_cache与KV池拷贝），依赖speedup/infinigen/infinigen/*控制器. Paper precondition: 系统按图6所示概览组织。",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "控制平面组件集合不完整（缺Pool Manager）",
+    "paper_evidence": [
+      {
+        "quote": "GPU\nMemory\nCPU Memory",
+        "source": "paper",
+        "locator": "PDF p.7"
+      },
+      {
+        "quote": "Modified\nQK \nWeights",
+        "source": "paper",
+        "locator": "PDF p.7"
+      },
+      {
+        "quote": "Other\nModel\nWeights",
+        "source": "paper",
+        "locator": "PDF p.7"
+      },
+      {
+        "quote": "Partial\nWeight\nand \nCache",
+        "source": "paper",
+        "locator": "PDF p.7"
+      },
+      {
+        "quote": "KV Cache Pool",
+        "source": "paper",
+        "locator": "PDF p.7"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "speedup/flexgen/infinigen/flex_opt.py",
+        "line_start": 282,
+        "line_end": 282,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "speedup/flexgen/infinigen/flex_opt.py",
+        "line_start": 430,
+        "line_end": 430,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M08-A01; external repo refs stay in code_evidence_registry.json. Equivalence: 调度层无池管理器等价物; effect_status=not_established"
+  }
+]

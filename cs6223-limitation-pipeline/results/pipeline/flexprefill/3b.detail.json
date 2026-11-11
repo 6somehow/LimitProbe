@@ -6,7 +6,7 @@
     "max_tokens": 6000,
     "reasoning_effort": "none",
     "prompt_version": "3b-v3",
-    "cache_hits": 570,
+    "cache_hits": 569,
     "skill": "consensus",
     "repeats": 3
   },
@@ -218,23 +218,24 @@
           "D0150",
           "D0187",
           "D0009",
-          "D0067",
-          "D0062"
+          "D0026",
+          "D0062",
+          "D0067"
         ],
         "candidate_ids": [
           "D0130",
           "D0150",
           "D0187",
           "D0009",
-          "D0067",
           "D0143",
           "D0206",
+          "D0067",
           "D0167",
           "D0200",
-          "D0077",
           "D0123",
           "D0142",
           "D0026",
+          "D0077",
           "D0205",
           "D0062"
         ]
@@ -242,14 +243,14 @@
       "paper_agreement": 1.0,
       "elsewhere_agreement": 0.6666666666666666,
       "scope": {
-        "scope_status": "out_of_scope",
-        "evaluated_in_paper": false,
-        "bound_params": [
+        "scope_status": "unknown",
+        "evaluated_in_paper": null,
+        "bound_params": [],
+        "unbound_names": [
           "q_len"
         ],
-        "unbound_names": [],
         "dropped_prefix": [],
-        "reason": "condition has no solution inside the scope"
+        "reason": "no Binding connects this condition to a scope item"
       },
       "needs_review": true,
       "per_run": [
@@ -273,9 +274,9 @@
         }
       ],
       "per_run_elsewhere": [
+        "not_found",
         "found",
-        "found",
-        "not_found"
+        "found"
       ],
       "gate_failures": []
     },
@@ -487,56 +488,55 @@
             "locator": "flex_prefill/ops/flex_prefill_attention.py:850 (triton_block_wise_decode_attention)"
           }
         ],
-        "boundary_in_doc": "only support 16, 32, 64 and 128",
-        "rationale": "The docstring for the block-wise sparse attention kernel states block_size only supports 16, 32, 64, and 128, matching the code's assertion that rejects other values.",
+        "boundary_in_doc": "block_size only supports 16, 32, 64 and 128",
+        "rationale": "Two docstrings state the block_size restriction to exactly {16, 32, 64, 128}, matching the code's assertion condition. The effect is stated as a support restriction rather than an AssertionError, but the boundary and condition match.",
         "gate_failures": [],
         "related_ids": [
           "D0162",
           "D0164",
           "D0096",
+          "D0079",
           "D0145",
           "D0085",
           "D0126",
           "D0182",
-          "D0079",
+          "D0019",
           "D0099",
           "D0143",
           "D0138",
-          "D0071",
-          "D0167",
-          "D0200"
+          "D0071"
         ],
         "candidate_ids": [
           "D0162",
           "D0164",
           "D0096",
+          "D0079",
           "D0145",
           "D0085",
           "D0126",
           "D0182",
-          "D0079",
-          "D0099",
           "D0072",
+          "D0019",
+          "D0099",
           "D0143",
           "D0138",
           "D0071",
-          "D0167",
-          "D0200"
+          "D0075"
         ]
       },
       "paper_agreement": 1.0,
       "elsewhere_agreement": 1.0,
       "scope": {
-        "scope_status": "out_of_scope",
-        "evaluated_in_paper": false,
-        "bound_params": [
+        "scope_status": "unknown",
+        "evaluated_in_paper": null,
+        "bound_params": [],
+        "unbound_names": [
           "block_size"
         ],
-        "unbound_names": [],
         "dropped_prefix": [
           "q.shape[1] == k.shape[1]"
         ],
-        "reason": "condition has no solution inside the scope"
+        "reason": "no Binding connects this condition to a scope item"
       },
       "needs_review": false,
       "per_run": [
@@ -585,7 +585,7 @@
         "result": "not_found",
         "evidence": [],
         "boundary_in_doc": null,
-        "rationale": "No passage states the condition q_len <= max(2 * block_size, ceil(min_budget / block_size) * block_size) or the fallback effect. Related passages only give example config values (block_size 128, min_budget 512) or describe supported block sizes, not this q_len threshold.",
+        "rationale": "No passage states the q_len <= max(2*block_size, ceil(min_budget/block_size)*block_size) condition or the fallback to flash_attn_func/triton_flash_attention. Related passages only give config values, function signatures, or block-size support notes.",
         "gate_failures": [],
         "related_ids": [
           "D0027",
@@ -598,39 +598,38 @@
           "D0176",
           "D0027",
           "D0034",
-          "D0145",
           "D0096",
+          "D0145",
+          "D0143",
           "D0085",
           "D0126",
           "D0182",
-          "D0143",
           "D0167",
           "D0200",
           "D0021",
           "D0099",
           "D0058",
           "D0072",
-          "D0079"
+          "D0160"
         ]
       },
       "paper_agreement": 1.0,
       "elsewhere_agreement": 1.0,
       "scope": {
-        "scope_status": "out_of_scope",
-        "evaluated_in_paper": false,
-        "bound_params": [
+        "scope_status": "unknown",
+        "evaluated_in_paper": null,
+        "bound_params": [],
+        "unbound_names": [
           "block_size",
+          "math",
+          "max",
           "min_budget",
           "q_len"
-        ],
-        "unbound_names": [
-          "math",
-          "max"
         ],
         "dropped_prefix": [
           "q.shape[1] == k.shape[1]"
         ],
-        "reason": "condition has no solution inside the scope"
+        "reason": "no Binding connects this condition to a scope item"
       },
       "needs_review": false,
       "per_run": [
@@ -769,20 +768,15 @@
         "result": "not_found",
         "evidence": [],
         "boundary_in_doc": null,
-        "rationale": "No passage states that the code hard-codes 128 in the vertical block computation while block_size is a parameter, nor any restriction tied to block_size != 128. The README passages only show block_size = 128 as a config value, which is not documentation of behavior for other values.",
+        "rationale": "No passage states that block_size must equal 128 or that a hard-coded 128 is used in score_cover_topk. The README configs merely show block_size: 128 as the value used in examples, which is not documentation of a restriction for other values.",
         "gate_failures": [],
         "related_ids": [
           "D0027",
           "D0034",
           "D0071",
-          "D0079",
           "D0096",
-          "D0143",
-          "D0145",
-          "D0085",
-          "D0126",
-          "D0182",
-          "D0099"
+          "D0162",
+          "D0143"
         ],
         "candidate_ids": [
           "D0168",
@@ -796,28 +790,28 @@
           "D0034",
           "D0099",
           "D0143",
+          "D0138",
+          "D0071",
           "D0096",
           "D0167",
           "D0200",
-          "D0138",
-          "D0071",
-          "D0079"
+          "D0162"
         ]
       },
       "paper_agreement": 1.0,
       "elsewhere_agreement": 1.0,
       "scope": {
-        "scope_status": "out_of_scope",
-        "evaluated_in_paper": false,
-        "bound_params": [
+        "scope_status": "unknown",
+        "evaluated_in_paper": null,
+        "bound_params": [],
+        "unbound_names": [
           "block_size"
         ],
-        "unbound_names": [],
         "dropped_prefix": [
           "q.shape[1] == k.shape[1]",
           "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))"
         ],
-        "reason": "condition has no solution inside the scope"
+        "reason": "no Binding connects this condition to a scope item"
       },
       "needs_review": false,
       "per_run": [
@@ -834,7 +828,7 @@
           "consensus": "not_found"
         },
         {
-          "sweep": "not_found",
+          "sweep": "boundary_mismatch",
           "retrieve": "not_found",
           "fullpaper": "not_found",
           "consensus": "not_found"
@@ -1037,7 +1031,7 @@
         "result": "not_found",
         "evidence": [],
         "boundary_in_doc": null,
-        "rationale": "The cited passage [P0023] describes comparing DJS to threshold τ and the effect of computing ā for all queries vs. falling back to a conservative subset, which is a different condition (DJS < τ) and different effect than the code's kl_div < tau branch storing a per-element block_sparse_mask. It does not document the code's condition/effect pair.",
+        "rationale": "no skill found a documenting passage",
         "gate_failures": [],
         "related_ids": [],
         "candidate_ids": []
@@ -1047,7 +1041,7 @@
         "result": "not_found",
         "evidence": [],
         "boundary_in_doc": null,
-        "rationale": "The passages only show example configurations using tau = 0.1 (e.g. 'tau = 0.1') and code comments about building the block sparse mask; none state the condition kl_div < tau or the per-element branch effect, nor any restriction on batch size, q_len, head_dim, or block_size.",
+        "rationale": "The passages mention tau only as a configuration value (e.g. tau = 0.1) or describe it as a 'query aware head threshold', but none state the condition kl_div < tau or the per-element block_sparse_mask branch effect, nor any restriction on batch size, q_len, head_dim, or block_size.",
         "gate_failures": [],
         "related_ids": [
           "D0019",
@@ -1055,6 +1049,7 @@
           "D0027",
           "D0034",
           "D0057",
+          "D0077",
           "D0170",
           "D0171",
           "D0172",
@@ -1070,18 +1065,18 @@
           "D0021",
           "D0027",
           "D0034",
-          "D0122",
           "D0175",
+          "D0122",
+          "D0016",
+          "D0015",
           "D0057",
           "D0071",
-          "D0138",
-          "D0073",
-          "D0074",
-          "D0016",
-          "D0006"
+          "D0006",
+          "D0077",
+          "D0023"
         ]
       },
-      "paper_agreement": 0.6666666666666666,
+      "paper_agreement": 1.0,
       "elsewhere_agreement": 1.0,
       "scope": {
         "scope_status": "in_scope",
@@ -1098,19 +1093,19 @@
         ],
         "reason": "condition has a solution inside the scope"
       },
-      "needs_review": true,
+      "needs_review": false,
       "per_run": [
         {
-          "sweep": "found",
+          "sweep": "not_found",
           "retrieve": "not_found",
           "fullpaper": "not_found",
           "consensus": "not_found"
         },
         {
-          "sweep": "found",
+          "sweep": "not_found",
           "retrieve": "not_found",
           "fullpaper": "not_found",
-          "consensus": "boundary_mismatch"
+          "consensus": "not_found"
         },
         {
           "sweep": "found",
@@ -1243,13 +1238,11 @@
         "result": "not_found",
         "evidence": [],
         "boundary_in_doc": null,
-        "rationale": "No passage states that q_len must equal k_len or that a mismatch triggers an AssertionError. D0077 describes q_len and kv_len as separate shapes and only notes flash decoding when query length is 1, which does not document the equality restriction.",
+        "rationale": "The docstring D0077 describes q_len and kv_len as separate shapes and only mentions the q_len==1 flash decoding case, but never states that q_len must equal k_len or that a mismatch triggers an AssertionError. D0067 discusses equal prompt lengths in a different module, not this restriction.",
         "gate_failures": [],
         "related_ids": [
           "D0077",
-          "D0067",
-          "D0205",
-          "D0206"
+          "D0067"
         ],
         "candidate_ids": [
           "D0123",
@@ -1272,13 +1265,12 @@
       "paper_agreement": 1.0,
       "elsewhere_agreement": 1.0,
       "scope": {
-        "scope_status": "scope_edge",
+        "scope_status": "unknown",
         "evaluated_in_paper": null,
-        "bound_params": [
-          "q_len"
-        ],
+        "bound_params": [],
         "unbound_names": [
-          "k_len"
+          "k_len",
+          "q_len"
         ],
         "dropped_prefix": [
           "q.shape[1] == k.shape[1]",
@@ -1286,7 +1278,7 @@
           "q.shape[1] > 1",
           "q.dtype == torch.bfloat16"
         ],
-        "reason": "only meets scope inferred from the evaluation"
+        "reason": "no Binding connects this condition to a scope item"
       },
       "needs_review": false,
       "per_run": [
@@ -1434,56 +1426,56 @@
           }
         ],
         "boundary_in_doc": "block_size only support 16, 32, 64 and 128",
-        "rationale": "The docstrings state a block_size restriction but include 16 as supported, whereas the code rejects block_size 16 (only {32, 64, 128} allowed), so the documented boundary differs from the code's.",
+        "rationale": "The docstrings state a block_size restriction but include 16 as supported, whereas the code rejects block_size 16 (only {32, 64, 128} allowed). The boundary differs, so it is a boundary mismatch.",
         "gate_failures": [],
         "related_ids": [
           "D0162",
           "D0164",
           "D0079",
+          "D0071",
           "D0145",
           "D0085",
           "D0126",
           "D0182",
-          "D0071",
           "D0120",
-          "D0099",
-          "D0143",
-          "D0095"
+          "D0095",
+          "D0117",
+          "D0019"
         ],
         "candidate_ids": [
           "D0162",
-          "D0079",
           "D0164",
-          "D0145",
+          "D0079",
           "D0072",
+          "D0145",
+          "D0120",
+          "D0095",
+          "D0117",
+          "D0071",
           "D0085",
           "D0126",
           "D0182",
-          "D0071",
+          "D0019",
           "D0075",
-          "D0076",
-          "D0120",
-          "D0099",
-          "D0143",
-          "D0095"
+          "D0076"
         ]
       },
       "paper_agreement": 1.0,
       "elsewhere_agreement": 1.0,
       "scope": {
-        "scope_status": "out_of_scope",
-        "evaluated_in_paper": false,
-        "bound_params": [
+        "scope_status": "unknown",
+        "evaluated_in_paper": null,
+        "bound_params": [],
+        "unbound_names": [
           "block_size"
         ],
-        "unbound_names": [],
         "dropped_prefix": [
           "q.shape[1] == k.shape[1]",
           "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
           "q.shape[1] > 1",
           "q.dtype == torch.bfloat16"
         ],
-        "reason": "condition has no solution inside the scope"
+        "reason": "no Binding connects this condition to a scope item"
       },
       "needs_review": false,
       "per_run": [
@@ -1532,7 +1524,7 @@
         "result": "not_found",
         "evidence": [],
         "boundary_in_doc": null,
-        "rationale": "The docstrings (D0072, D0075, D0076) state block_size 'only support 16, 32, 64 and 128', which is a broader set than the code's {32, 64} restriction for 128 < head_dim <= 256, but they do not mention the head_dim-dependent condition or the {32, 64} boundary. No passage states the specific condition (head_dim > 128) with the {32, 64} effect.",
+        "rationale": "The docstrings (D0072, D0075, D0076) state block_size 'only support 16, 32, 64 and 128' generally, but none mention the head_dim-dependent restriction that block_size must be in {32, 64} when 128 < head_dim <= 256. D0079 mentions head_dim and block_size exceeding 64 but does not state this restriction.",
         "gate_failures": [],
         "related_ids": [
           "D0072",
@@ -1544,39 +1536,39 @@
         ],
         "candidate_ids": [
           "D0155",
-          "D0079",
           "D0162",
+          "D0079",
           "D0164",
+          "D0072",
           "D0145",
+          "D0071",
           "D0085",
           "D0126",
           "D0182",
-          "D0072",
-          "D0071",
-          "D0099",
-          "D0143",
+          "D0019",
           "D0075",
           "D0076",
           "D0138",
-          "D0019"
+          "D0099",
+          "D0143"
         ]
       },
       "paper_agreement": 1.0,
       "elsewhere_agreement": 1.0,
       "scope": {
-        "scope_status": "out_of_scope",
-        "evaluated_in_paper": false,
-        "bound_params": [
+        "scope_status": "unknown",
+        "evaluated_in_paper": null,
+        "bound_params": [],
+        "unbound_names": [
           "block_size"
         ],
-        "unbound_names": [],
         "dropped_prefix": [
           "q.shape[1] == k.shape[1]",
           "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
           "q.shape[1] > 1",
           "q.dtype == torch.bfloat16"
         ],
-        "reason": "condition has no solution inside the scope"
+        "reason": "no Binding connects this condition to a scope item"
       },
       "needs_review": false,
       "per_run": [
@@ -2213,22 +2205,13 @@
         "result": "not_found",
         "evidence": [],
         "boundary_in_doc": null,
-        "rationale": "No passage states that q_len must equal 1 (or that non-decode q_len triggers an assertion). The related passages discuss shapes, seq_len thresholds, and normal attention but never mention this restriction or its AssertionError effect.",
+        "rationale": "No passage states that q_len must equal 1 or that non-decode (q_len != 1) inputs trigger an assertion. The passages discuss shapes, seq_len thresholds, and FP8 KV cache, but none document this condition or effect.",
         "gate_failures": [],
         "related_ids": [
           "D0205",
           "D0206",
-          "D0067",
-          "D0143",
-          "D0123",
-          "D0142",
-          "D0178",
-          "D0167",
-          "D0200",
-          "D0165",
-          "D0166",
-          "D0198",
-          "D0199"
+          "D0001",
+          "D0062"
         ],
         "candidate_ids": [
           "D0143",
@@ -2238,31 +2221,31 @@
           "D0206",
           "D0178",
           "D0082",
-          "D0067",
           "D0167",
           "D0200",
           "D0001",
           "D0165",
           "D0166",
           "D0198",
-          "D0199"
+          "D0199",
+          "D0062"
         ]
       },
       "paper_agreement": 1.0,
       "elsewhere_agreement": 1.0,
       "scope": {
-        "scope_status": "scope_edge",
+        "scope_status": "unknown",
         "evaluated_in_paper": null,
-        "bound_params": [
+        "bound_params": [],
+        "unbound_names": [
           "q_len"
         ],
-        "unbound_names": [],
         "dropped_prefix": [
           "q.shape[1] == k.shape[1]",
           "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
           "not (q.shape[1] > 1)"
         ],
-        "reason": "only meets scope inferred from the evaluation"
+        "reason": "no Binding connects this condition to a scope item"
       },
       "needs_review": false,
       "per_run": [
@@ -2510,20 +2493,18 @@
           }
         ],
         "boundary_in_doc": "block_size only support 16, 32, 64 and 128",
-        "rationale": "Two docstrings explicitly state the block_size restriction to {16, 32, 64, 128}, matching the code's assert and error message.",
+        "rationale": "Three docstrings state the same restriction with the same set {16, 32, 64, 128} and the same effect (only these block sizes are supported), matching the code's assert.",
         "gate_failures": [],
         "related_ids": [
           "D0162",
           "D0164",
           "D0096",
           "D0079",
-          "D0071",
           "D0145",
           "D0085",
           "D0126",
           "D0182",
-          "D0099",
-          "D0143"
+          "D0099"
         ],
         "candidate_ids": [
           "D0135",
@@ -2531,36 +2512,36 @@
           "D0162",
           "D0164",
           "D0096",
-          "D0145",
           "D0079",
+          "D0145",
+          "D0072",
           "D0085",
           "D0126",
           "D0182",
-          "D0072",
-          "D0099",
-          "D0143",
-          "D0138",
           "D0019",
+          "D0075",
+          "D0076",
+          "D0138",
           "D0071",
-          "D0075"
+          "D0099"
         ]
       },
       "paper_agreement": 1.0,
       "elsewhere_agreement": 1.0,
       "scope": {
-        "scope_status": "out_of_scope",
-        "evaluated_in_paper": false,
-        "bound_params": [
+        "scope_status": "unknown",
+        "evaluated_in_paper": null,
+        "bound_params": [],
+        "unbound_names": [
           "block_size"
         ],
-        "unbound_names": [],
         "dropped_prefix": [
           "q.shape[1] == k.shape[1]",
           "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
           "not (q.shape[1] > 1)",
           "q.dtype == torch.bfloat16"
         ],
-        "reason": "condition has no solution inside the scope"
+        "reason": "no Binding connects this condition to a scope item"
       },
       "needs_review": false,
       "per_run": [
@@ -2609,17 +2590,18 @@
         "result": "not_found",
         "evidence": [],
         "boundary_in_doc": null,
-        "rationale": "No passage states the assertion that num_blocks must be <= cdiv(k_len, block_size) or that violating it raises an AssertionError. D0072 mentions block_size supports 16/32/64/128 but says nothing about the num_blocks bound.",
+        "rationale": "No passage states the assertion that num_blocks must be <= triton.cdiv(k_len, block_size) or any equivalent bound on the number of activated blocks relative to sequence length. D0072 describes block_idx shape and supported block sizes but does not state this restriction or the AssertionError effect.",
         "gate_failures": [],
         "related_ids": [
           "D0072",
-          "D0071",
-          "D0145",
+          "D0138",
           "D0143",
           "D0165",
           "D0166",
+          "D0167",
           "D0198",
-          "D0199"
+          "D0199",
+          "D0200"
         ],
         "candidate_ids": [
           "D0135",
@@ -2633,12 +2615,12 @@
           "D0167",
           "D0200",
           "D0058",
-          "D0124",
-          "D0071",
-          "D0072",
           "D0123",
           "D0142",
-          "D0145"
+          "D0071",
+          "D0072",
+          "D0124",
+          "D0138"
         ]
       },
       "paper_agreement": 1.0,
@@ -2646,10 +2628,9 @@
       "scope": {
         "scope_status": "unknown",
         "evaluated_in_paper": null,
-        "bound_params": [
-          "block_size"
-        ],
+        "bound_params": [],
         "unbound_names": [
+          "block_size",
           "k_len",
           "num_blocks",
           "triton"
@@ -2660,7 +2641,7 @@
           "not (q.shape[1] > 1)",
           "q.dtype == torch.bfloat16"
         ],
-        "reason": "cannot translate: call triton.cdiv"
+        "reason": "no Binding connects this condition to a scope item"
       },
       "needs_review": false,
       "per_run": [
@@ -3711,14 +3692,14 @@
         ],
         "candidate_ids": [
           "D0079",
+          "D0162",
           "D0123",
           "D0142",
-          "D0162",
           "D0072",
           "D0178",
           "D0164",
-          "D0071",
           "D0120",
+          "D0071",
           "D0075",
           "D0076",
           "D0077",
@@ -3877,15 +3858,12 @@
         "result": "not_found",
         "evidence": [],
         "boundary_in_doc": null,
-        "rationale": "No passage states that q_len must equal k_len or that cross-length attention is rejected. D0077 describes q_len and kv_len as separate shapes and even mentions a query-length-1 flash decoding path, but does not state the equality restriction or rejection effect.",
+        "rationale": "No passage states that q_len must equal k_len or that differing query/key lengths are rejected. D0077 actually describes separate q_len and kv_len shapes and mentions flash decoding for query length 1, which does not document the code's equality assertion.",
         "gate_failures": [],
         "related_ids": [
           "D0077",
           "D0067",
-          "D0065",
-          "D0178",
-          "D0123",
-          "D0142"
+          "D0065"
         ],
         "candidate_ids": [
           "D0206",
@@ -3895,11 +3873,11 @@
           "D0200",
           "D0205",
           "D0178",
-          "D0067",
           "D0165",
           "D0166",
           "D0198",
           "D0199",
+          "D0067",
           "D0143",
           "D0077",
           "D0065"
@@ -3908,16 +3886,15 @@
       "paper_agreement": 1.0,
       "elsewhere_agreement": 1.0,
       "scope": {
-        "scope_status": "scope_edge",
+        "scope_status": "unknown",
         "evaluated_in_paper": null,
-        "bound_params": [
+        "bound_params": [],
+        "unbound_names": [
+          "k_len",
           "q_len"
         ],
-        "unbound_names": [
-          "k_len"
-        ],
         "dropped_prefix": [],
-        "reason": "only meets scope inferred from the evaluation"
+        "reason": "no Binding connects this condition to a scope item"
       },
       "needs_review": false,
       "per_run": [
@@ -4065,46 +4042,54 @@
             "locator": "flex_prefill/ops/flex_prefill_attention.py:850 (triton_block_wise_decode_attention)"
           }
         ],
-        "boundary_in_doc": "block_size only supports 16, 32, 64 and 128",
-        "rationale": "Passage D0072 states the block_size parameter only supports 16, 32, 64 and 128, matching the code's fixed set and rejection of other values.",
+        "boundary_in_doc": "block_size only support 16, 32, 64 and 128",
+        "rationale": "The docstrings for the block-wise attention functions state that block_size only supports 16, 32, 64, and 128, matching the code's assertion set and rejection of other values.",
         "gate_failures": [],
         "related_ids": [
           "D0162",
           "D0164",
           "D0096",
+          "D0145",
+          "D0085",
+          "D0126",
+          "D0182",
           "D0079",
-          "D0071"
+          "D0071",
+          "D0099",
+          "D0138",
+          "D0143",
+          "D0204"
         ],
         "candidate_ids": [
           "D0204",
           "D0162",
           "D0164",
-          "D0145",
           "D0096",
+          "D0145",
           "D0085",
           "D0126",
           "D0182",
           "D0079",
-          "D0099",
-          "D0143",
           "D0071",
-          "D0072",
+          "D0099",
           "D0138",
-          "D0167",
-          "D0200"
+          "D0072",
+          "D0143",
+          "D0075",
+          "D0076"
         ]
       },
       "paper_agreement": 1.0,
       "elsewhere_agreement": 1.0,
       "scope": {
-        "scope_status": "out_of_scope",
-        "evaluated_in_paper": false,
-        "bound_params": [
+        "scope_status": "unknown",
+        "evaluated_in_paper": null,
+        "bound_params": [],
+        "unbound_names": [
           "block_size"
         ],
-        "unbound_names": [],
         "dropped_prefix": [],
-        "reason": "condition has no solution inside the scope"
+        "reason": "no Binding connects this condition to a scope item"
       },
       "needs_review": false,
       "per_run": [
@@ -4153,25 +4138,13 @@
         "result": "not_found",
         "evidence": [],
         "boundary_in_doc": null,
-        "rationale": "No passage states that short sequences (seq_len <= min(vertical_size, slash_size) * block_size) skip the sparse vertical/slash path and fall back to dense causal flash_attn_func. The closest passage, D0205, mentions a 16k threshold for using vertical slash but does not describe the fallback condition or effect.",
+        "rationale": "No passage states that short sequences (seq_len <= min(vertical_size, slash_size) * block_size) skip the sparse vertical/slash path and fall back to dense causal flash_attn_func. D0205 mentions a 16k seq_len bound for using vertical slash but does not describe the min(vertical_size, slash_size)*block_size threshold or the dense fallback effect.",
         "gate_failures": [],
         "related_ids": [
           "D0205",
-          "D0143",
-          "D0165",
-          "D0166",
-          "D0198",
-          "D0199",
-          "D0167",
-          "D0200",
-          "D0168",
-          "D0145",
-          "D0096",
-          "D0085",
-          "D0126",
-          "D0182",
           "D0204",
-          "D0178"
+          "D0168",
+          "D0171"
         ],
         "candidate_ids": [
           "D0204",
@@ -4179,35 +4152,34 @@
           "D0166",
           "D0198",
           "D0199",
-          "D0143",
+          "D0205",
           "D0167",
           "D0200",
-          "D0205",
+          "D0143",
           "D0168",
-          "D0145",
-          "D0096",
           "D0178",
-          "D0085",
-          "D0126",
-          "D0182"
+          "D0096",
+          "D0145",
+          "D0123",
+          "D0142",
+          "D0171"
         ]
       },
       "paper_agreement": 1.0,
       "elsewhere_agreement": 1.0,
       "scope": {
-        "scope_status": "in_scope",
+        "scope_status": "unknown",
         "evaluated_in_paper": null,
-        "bound_params": [
-          "block_size"
-        ],
+        "bound_params": [],
         "unbound_names": [
+          "block_size",
           "min",
           "seq_len",
           "slash_size",
           "vertical_size"
         ],
         "dropped_prefix": [],
-        "reason": "condition has a solution inside the scope"
+        "reason": "no Binding connects this condition to a scope item"
       },
       "needs_review": false,
       "per_run": [
@@ -4269,7 +4241,7 @@
           }
         ],
         "boundary_in_doc": "seq_len <= 16k (vertical slash) vs seq_len > 16k (block wise attention)",
-        "rationale": "The code comments state the same 16k boundary and the same kernel-selection effect: vertical/slash kernel for seq_len <= 16k and block-wise attention for seq_len > 16k.",
+        "rationale": "The code comments state the same 16k boundary and the same path change: vertical/slash kernel for seq_len <= 16k and block-wise attention for seq_len > 16k.",
         "gate_failures": [],
         "related_ids": [],
         "candidate_ids": [
@@ -4277,7 +4249,6 @@
           "D0206",
           "D0167",
           "D0200",
-          "D0067",
           "D0096",
           "D0123",
           "D0142",
@@ -4285,6 +4256,7 @@
           "D0166",
           "D0198",
           "D0199",
+          "D0067",
           "D0143",
           "D0162",
           "D0017"

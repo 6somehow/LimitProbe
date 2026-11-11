@@ -253,6 +253,8 @@ class ScopeChecker:
                 if item is None:
                     continue
                 v = config.get(_norm(item.param))
+                if not _num(v):  # EvalPoint configs may use the short name (e.g. `tau`, not the scope param)
+                    v = config.get(_norm(sym))
                 if _num(v):
                     env[sym] = v
             if not self._solve(trees, env):

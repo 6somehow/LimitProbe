@@ -1,0 +1,3865 @@
+[
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F001",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B002"
+  ],
+  "verification_ids": [
+   "V013"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When config_path is None and model_name not in MODEL2PATH: If no `config_path` is given, the model name must be a key of the hard-coded `MODEL2PATH` table; any other model (including a local path or a fine-tune) aborts with an AssertionError, so the mechanism is only usable for the enumerated model list unless the caller supplies a pattern file. (minference/minference_configuration.py:56)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "config_path is None and model_name not in MODEL2PATH",
+   "path_prefix": [
+    "def update_config_path(self, config_path: str, model_name: str)"
+   ],
+   "dropped_prefix": [
+    "def update_config_path(self, config_path: str, model_name: str)"
+   ],
+   "trigger": {
+    "config_path is None": true,
+    "model_name in MODEL2PATH": false
+   },
+   "contrast": {
+    "config_path is None": false,
+    "model_name in MODEL2PATH": false
+   },
+   "atoms": {
+    "config_path is None": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "model_name in MODEL2PATH": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "location": "minference/minference_configuration.py:56",
+   "function": "minference/minference_configuration.py::MInferenceConfig.update_config_path"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F002",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B003"
+  ],
+  "verification_ids": [
+   "V014"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "state",
+  "summary": "When ROPE_TYPE is not None: `ROPE_TYPE` is a module-level global computed once from the *first* attention module's `rotary_emb.forward` signature and then reused for every model/layer in the process (`if ROPE_TYPE is not None: return`). Loading a second model with a different RoPE signature in the same process keeps the first model's convention, and `get_cos_sin` then calls `self.rotary_emb` wi...",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "event_sequence",
+   "status": "solved",
+   "condition": "ROPE_TYPE is not None",
+   "path_prefix": [],
+   "sequence_note": "state-dependent: earlier calls must leave the program in the trigger state; the values below describe that state at the checked call",
+   "dropped_prefix": [],
+   "trigger": {
+    "ROPE_TYPE is None": false
+   },
+   "contrast": {
+    "ROPE_TYPE is None": true
+   },
+   "atoms": {
+    "ROPE_TYPE is None": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "location": "minference/modules/minference_forward.py:30",
+   "function": "minference/modules/minference_forward.py::set_rope_type"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, state effect, witness reaches it",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 3), not human: ROPE_TYPE caching only matters when mixing models with different RoPE signatures in one process; it is model-compat plumbing, not a limitation of the sparse mechanism."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F003",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X011"
+  ],
+  "verification_ids": [
+   "V010"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "state",
+  "summary": "When SEARCH_MASK is None  # first call only: module-level cache initialised on first call and reused (minference/modules/minference_forward.py:165)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "event_sequence",
+   "status": "solved",
+   "condition": "SEARCH_MASK is None  # first call only",
+   "path_prefix": [
+    "q_len != 1",
+    "self.is_search"
+   ],
+   "sequence_note": "state-dependent: earlier calls must leave the program in the trigger state; the values below describe that state at the checked call",
+   "dropped_prefix": [],
+   "trigger": {
+    "SEARCH_MASK is None": true,
+    "q_len": 2,
+    "self.is_search": true
+   },
+   "contrast": {
+    "SEARCH_MASK is None": false,
+    "q_len": 2,
+    "self.is_search": true
+   },
+   "atoms": {
+    "SEARCH_MASK is None": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "q_len": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "self.is_search": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "aliases_not_applied": {
+    "head_dim": "q.shape[-1]",
+    "qk_idxs": "[ii + q_len for ii in list(range(-last_q, 0, 1))]",
+    "vertical": "qk.sum(-2, keepdim=True)",
+    "vertical_topk": "torch.topk(-vertical, q_len - vertical_size, -1).indices",
+    "slash_topk": "slash",
+    "block_num": "(q_len - 1) // 32 + 1",
+    "block_topk": "torch.topk(-qk, block_num - block_num // topk_ratio, -1).indices",
+    "res2": "attn_weights_x[:, :, 2500:].sum(-1).mean(-1).squeeze().float().detach().cpu().numpy()"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "minference/modules/minference_forward.py:165-172",
+   "function": "minference/modules/minference_forward.py::search_pattern"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, state effect, witness reaches it; related (candidate pair, judged different): minference-F043, minference-F044, minference-F045, minference-F050, minference-F051, minference-F052, minference-F053, minference-F054, minference-F069, minference-F070, minference-F071, minference-F072",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F004",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B009"
+  ],
+  "verification_ids": [
+   "V020"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "state",
+  "summary": "When \"vs\" in self.__dict__: Static pattern reuses vertical_topk/slash cached in self.vs from an earlier call instead of recomputing them. (minference/modules/minference_forward.py:390)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "event_sequence",
+   "status": "solved",
+   "condition": "\"vs\" in self.__dict__",
+   "path_prefix": [
+    "self.config.to_dict().get(\"static_pattern\", False)"
+   ],
+   "sequence_note": "state-dependent: earlier calls must leave the program in the trigger state; the values below describe that state at the checked call",
+   "dropped_prefix": [],
+   "trigger": {
+    "'vs' in self.__dict__": true,
+    "self.config.to_dict().get('static_pattern', False)": true
+   },
+   "contrast": {
+    "'vs' in self.__dict__": false,
+    "self.config.to_dict().get('static_pattern', False)": true
+   },
+   "atoms": {
+    "'vs' in self.__dict__": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "self.config.to_dict().get('static_pattern', False)": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "location": "minference/modules/minference_forward.py:390",
+   "function": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.vertical_and_slash_kernel_static"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, state effect, witness reaches it",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F005",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B016"
+  ],
+  "verification_ids": [
+   "V027"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When ty not in {\"stream_llm\", \"vertical_and_slash\", \"block_sparse\"}: The implementation is chosen by the `ty` string read from the user-supplied pattern JSON (`config_path`). Any other value in that file (e.g. a typo, or a pattern produced by a different search version) raises an uncaught `KeyError` at prefill time rather than falling back. (minference/modules/minference_forward.py:441)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "ty not in {\"stream_llm\", \"vertical_and_slash\", \"block_sparse\"}",
+   "path_prefix": [
+    "def gather_last_q_vertical_slash_topk_v4(self, q, k, v, head_id)"
+   ],
+   "dropped_prefix": [
+    "def gather_last_q_vertical_slash_topk_v4(self, q, k, v, head_id)"
+   ],
+   "trigger": {
+    "ty": {
+     "not_in": [
+      "block_sparse",
+      "stream_llm",
+      "vertical_and_slash"
+     ]
+    }
+   },
+   "contrast": {
+    "ty": "block_sparse"
+   },
+   "atoms": {
+    "ty": {
+     "kind": "category",
+     "sort": "str"
+    }
+   },
+   "location": "minference/modules/minference_forward.py:441",
+   "function": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it; related (candidate pair, judged different): minference-F046",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F006",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X010"
+  ],
+  "verification_ids": [
+   "V009"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When True: raise ValueError(f'The cache structure has changed since version v4.36. If you are using {self.__class__.__name__} for a (minference/modules/minference_forward.py:484)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "trigger_only",
+   "condition": "True",
+   "path_prefix": [
+    "past_key_value is not None",
+    "self.layer_idx is None"
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "past_key_value is None": false,
+    "self.layer_idx is None": true
+   },
+   "note": "the condition holds on every point that reaches it; no contrast point exists",
+   "atoms": {
+    "past_key_value is None": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "self.layer_idx is None": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "location": "minference/modules/minference_forward.py:484-488",
+   "function": "minference/modules/minference_forward.py::minference_forward.forward"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F007",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B017"
+  ],
+  "verification_ids": [
+   "V028"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When self.is_search and os.path.exists(self.config_path) and self.layer_idx < len(config_list): With `is_search` enabled, if the output `config_path` already contains an entry for this layer, the forward pass hits a bare `assert False` and aborts — the search cannot be re-run into an existing file. Also, when `is_search` is true the sparse mechanism is never applied (`not self.is_search` in the...",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "self.is_search and os.path.exists(self.config_path) and self.layer_idx < len(config_list)",
+   "path_prefix": [
+    "def minference_forward()",
+    "def forward(self, hidden_states, attention_mask, position_ids, past_key_value, output_attentions, use_cache, **kwargs)"
+   ],
+   "dropped_prefix": [
+    "def minference_forward()",
+    "def forward(self, hidden_states, attention_mask, position_ids, past_key_value, output_attentions, use_cache, **kwargs)"
+   ],
+   "trigger": {
+    "self.is_search": true,
+    "os.path.exists(self.config_path)": true,
+    "self.layer_idx": 1,
+    "len(config_list)": 2
+   },
+   "contrast": {
+    "self.is_search": true,
+    "os.path.exists(self.config_path)": true,
+    "self.layer_idx": 2,
+    "len(config_list)": 2
+   },
+   "atoms": {
+    "len(config_list)": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "os.path.exists(self.config_path)": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "self.is_search": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "self.layer_idx": {
+     "kind": "derived",
+     "sort": "int"
+    }
+   },
+   "location": "minference/modules/minference_forward.py:504",
+   "function": "minference/modules/minference_forward.py::minference_forward.forward"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 1), not human: In search mode the code hits assert False when the config file already has an entry for the layer (true by default, since config_path comes from the shipped MODEL2PATH file), and search mode runs dense attention."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F008",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B021"
+  ],
+  "verification_ids": [
+   "V032"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "state",
+  "summary": "When key_states.shape[-2] != kv_seq_len: Whether SnapKV compression runs depends on `self.kv_seq_len` cached from earlier calls: on the first (prefill) call the KV is compressed and `self.kv_seq_len` registered; on later calls the else-branch just appends to the cache. So the same input produces different KV contents depending on call history, and the sparse pattern is then computed over the co...",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "event_sequence",
+   "status": "solved",
+   "condition": "key_states.shape[-2] != kv_seq_len",
+   "path_prefix": [
+    "def minference_with_snapkv_forward()",
+    "def forward(self, hidden_states, attention_mask, position_ids, past_key_value, output_attentions, use_cache, **kwargs)",
+    "if past_key_value is not None"
+   ],
+   "sequence_note": "state-dependent: earlier calls must leave the program in the trigger state; the values below describe that state at the checked call",
+   "dropped_prefix": [
+    "def minference_with_snapkv_forward()",
+    "def forward(self, hidden_states, attention_mask, position_ids, past_key_value, output_attentions, use_cache, **kwargs)",
+    "if past_key_value is not None"
+   ],
+   "trigger": {
+    "key_states.shape[-2]": 1,
+    "kv_seq_len": 2
+   },
+   "contrast": {
+    "key_states.shape[-2]": 2,
+    "kv_seq_len": 2
+   },
+   "atoms": {
+    "key_states.shape[-2]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "kv_seq_len": {
+     "kind": "input",
+     "sort": "int"
+    }
+   },
+   "aliases_not_applied": {
+    "bsz": "hidden_states.size()[0]",
+    "q_len": "hidden_states.size()[1]",
+    "cache_kwargs": "{'sin': sin, 'cos': cos}"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "minference/modules/minference_forward.py:681",
+   "function": "minference/modules/minference_forward.py::minference_with_snapkv_forward.forward"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, state effect, witness reaches it",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F009",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B022"
+  ],
+  "verification_ids": [
+   "V033"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When head_id not in self.best_pattern: The vLLM variant indexes `self.best_pattern[head_id]` directly (unlike the HF variant's `.get(..., default)`), so a pattern file whose per-layer dict lacks an entry for some head raises `KeyError` during prefill. `self.best_pattern` is rebuilt from the caller-supplied `pattern_config[layer_idx]` on every forward (line 790), so a short/mismatched pattern fi...",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "head_id not in self.best_pattern",
+   "path_prefix": [
+    "def gather_last_q_vertical_slash_topk_vllm(self, q, k, v, head_id)"
+   ],
+   "dropped_prefix": [
+    "def gather_last_q_vertical_slash_topk_vllm(self, q, k, v, head_id)"
+   ],
+   "trigger": {
+    "head_id in self.best_pattern": false
+   },
+   "contrast": {
+    "head_id in self.best_pattern": true
+   },
+   "atoms": {
+    "head_id in self.best_pattern": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "aliases_not_applied": {
+    "kv_seq_len": "k.size(2)",
+    "head_dim": "q.size(-1)",
+    "q_len": "q.shape[2]",
+    "bsz": "q.shape[0]",
+    "last_q": "min(64, q_len)",
+    "vertical": "qk.sum(-2, keepdim=True)",
+    "vertical_topk": "torch.topk(vertical, vertical_size, -1).indices",
+    "slash_topk": "slash"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "minference/modules/minference_forward.py:754",
+   "function": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_vllm"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F010",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X003"
+  ],
+  "verification_ids": [
+   "V003"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When not (Lq == Lk and Lk == Lv): AssertionError (minference/ops/block_sparse_flash_attention.py:126)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "not (Lq == Lk and Lk == Lv)",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "aliases": {
+    "Lq": "q.shape[-1]",
+    "Lk": "k.shape[-1]",
+    "Lv": "v.shape[-1]"
+   },
+   "trigger": {
+    "Lq": 2,
+    "Lk": 2,
+    "Lv": 1,
+    "q.shape[-1]": 2,
+    "k.shape[-1]": 2,
+    "v.shape[-1]": 1
+   },
+   "contrast": {
+    "Lq": 2,
+    "Lk": 2,
+    "Lv": 2,
+    "q.shape[-1]": 2,
+    "k.shape[-1]": 2,
+    "v.shape[-1]": 2
+   },
+   "atoms": {
+    "Lk": {
+     "kind": "local",
+     "sort": "int"
+    },
+    "Lq": {
+     "kind": "local",
+     "sort": "int"
+    },
+    "Lv": {
+     "kind": "local",
+     "sort": "int"
+    },
+    "k.shape[-1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "q.shape[-1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "v.shape[-1]": {
+     "kind": "derived",
+     "sort": "int"
+    }
+   },
+   "location": "minference/ops/block_sparse_flash_attention.py:126",
+   "function": "minference/ops/block_sparse_flash_attention.py::_triton_block_sparse_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F011",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X004"
+  ],
+  "verification_ids": [
+   "V004"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When not (Lk in {16, 32, 64, 128}): AssertionError (minference/ops/block_sparse_flash_attention.py:127)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "not (Lk in {16, 32, 64, 128})",
+   "path_prefix": [
+    "Lq == Lk and Lk == Lv"
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "Lk": 15,
+    "Lq": 15,
+    "Lv": 15
+   },
+   "contrast": {
+    "Lk": 16,
+    "Lq": 16,
+    "Lv": 16
+   },
+   "atoms": {
+    "Lk": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "Lq": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "Lv": {
+     "kind": "input",
+     "sort": "int"
+    }
+   },
+   "aliases_not_applied": {
+    "Lq": "q.shape[-1]",
+    "Lk": "k.shape[-1]",
+    "Lv": "v.shape[-1]"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "minference/ops/block_sparse_flash_attention.py:127",
+   "function": "minference/ops/block_sparse_flash_attention.py::_triton_block_sparse_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F012",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X001"
+  ],
+  "verification_ids": [
+   "V001"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When not (Lq == Lk and Lk == Lv): AssertionError (minference/ops/pit_sparse_flash_attention_v2.py:149)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "not (Lq == Lk and Lk == Lv)",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "aliases": {
+    "Lq": "q.shape[-1]",
+    "Lk": "k.shape[-1]",
+    "Lv": "v.shape[-1]"
+   },
+   "trigger": {
+    "Lq": 1,
+    "Lk": 2,
+    "Lv": 2,
+    "q.shape[-1]": 1,
+    "k.shape[-1]": 2,
+    "v.shape[-1]": 2
+   },
+   "contrast": {
+    "Lq": 2,
+    "Lk": 2,
+    "Lv": 2,
+    "q.shape[-1]": 2,
+    "k.shape[-1]": 2,
+    "v.shape[-1]": 2
+   },
+   "atoms": {
+    "Lk": {
+     "kind": "local",
+     "sort": "int"
+    },
+    "Lq": {
+     "kind": "local",
+     "sort": "int"
+    },
+    "Lv": {
+     "kind": "local",
+     "sort": "int"
+    },
+    "k.shape[-1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "q.shape[-1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "v.shape[-1]": {
+     "kind": "derived",
+     "sort": "int"
+    }
+   },
+   "location": "minference/ops/pit_sparse_flash_attention_v2.py:149",
+   "function": "minference/ops/pit_sparse_flash_attention_v2.py::_triton_mixed_sparse_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F013",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X002"
+  ],
+  "verification_ids": [
+   "V002"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When not (Lk in {16, 32, 64, 128}): AssertionError (minference/ops/pit_sparse_flash_attention_v2.py:150)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "not (Lk in {16, 32, 64, 128})",
+   "path_prefix": [
+    "Lq == Lk and Lk == Lv"
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "Lk": 15,
+    "Lq": 15,
+    "Lv": 15
+   },
+   "contrast": {
+    "Lk": 16,
+    "Lq": 16,
+    "Lv": 16
+   },
+   "atoms": {
+    "Lk": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "Lq": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "Lv": {
+     "kind": "input",
+     "sort": "int"
+    }
+   },
+   "aliases_not_applied": {
+    "Lq": "q.shape[-1]",
+    "Lk": "k.shape[-1]",
+    "Lv": "v.shape[-1]"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "minference/ops/pit_sparse_flash_attention_v2.py:150",
+   "function": "minference/ops/pit_sparse_flash_attention_v2.py::_triton_mixed_sparse_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F014",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B031"
+  ],
+  "verification_ids": [
+   "V042"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When Lk not in {16, 32, 64, 128}: Head dimension (q/k/v last dim) must be one of 16/32/64/128; other model head sizes abort the streaming attention forward. (minference/ops/streaming_kernel.py:414)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "Lk not in {16, 32, 64, 128}",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "aliases": {
+    "Lk": "k.shape[-1]"
+   },
+   "trigger": {
+    "Lk": 129,
+    "k.shape[-1]": 129
+   },
+   "contrast": {
+    "Lk": 128,
+    "k.shape[-1]": 128
+   },
+   "atoms": {
+    "Lk": {
+     "kind": "local",
+     "sort": "int"
+    },
+    "k.shape[-1]": {
+     "kind": "derived",
+     "sort": "int"
+    }
+   },
+   "location": "minference/ops/streaming_kernel.py:414",
+   "function": "minference/ops/streaming_kernel.py::_forward"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 1), not human: _forward asserts head_dim in {16,32,64,128}, and streaming_forward does not pad head_dim 256/512, so models with such head sizes are rejected on the A-shape/streaming path."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F015",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X007"
+  ],
+  "verification_ids": [
+   "V007"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When not (q.dim() == 4): AssertionError (minference/ops/streaming_kernel.py:605)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "not (q.dim() == 4)",
+   "path_prefix": [
+    "not (q_len == 1)",
+    "not (self.config.to_dict().get('dilated1', False))",
+    "not (self.config.to_dict().get('dilated2', False))",
+    "not (self.config.to_dict().get('dense', False))",
+    "self.config.to_dict().get('streaming', False)"
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "q.dim()": 3,
+    "q_len": 2,
+    "self.config.to_dict().get('dilated1', False)": false,
+    "self.config.to_dict().get('dilated2', False)": false,
+    "self.config.to_dict().get('dense', False)": false,
+    "self.config.to_dict().get('streaming', False)": true
+   },
+   "contrast": {
+    "q.dim()": 4,
+    "q_len": 2,
+    "self.config.to_dict().get('dilated1', False)": false,
+    "self.config.to_dict().get('dilated2', False)": false,
+    "self.config.to_dict().get('dense', False)": false,
+    "self.config.to_dict().get('streaming', False)": true
+   },
+   "atoms": {
+    "q.dim()": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "q_len": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "self.config.to_dict().get('dense', False)": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "self.config.to_dict().get('dilated1', False)": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "self.config.to_dict().get('dilated2', False)": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "self.config.to_dict().get('streaming', False)": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "location": "minference/ops/streaming_kernel.py:605",
+   "function": "minference/ops/streaming_kernel.py::streaming_forward"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it; related (candidate pair, judged different): minference-F049",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F016",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X008"
+  ],
+  "verification_ids": [
+   "V008"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When not (q.shape == k.shape == v.shape): AssertionError (minference/ops/streaming_kernel.py:606)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "not (q.shape == k.shape == v.shape)",
+   "path_prefix": [
+    "not (q_len == 1)",
+    "not (self.config.to_dict().get('dilated1', False))",
+    "not (self.config.to_dict().get('dilated2', False))",
+    "not (self.config.to_dict().get('dense', False))",
+    "self.config.to_dict().get('streaming', False)",
+    "q.dim() == 4"
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "q.shape": 2,
+    "k.shape": 2,
+    "v.shape": 1,
+    "q_len": 2,
+    "self.config.to_dict().get('dilated1', False)": false,
+    "self.config.to_dict().get('dilated2', False)": false,
+    "self.config.to_dict().get('dense', False)": false,
+    "self.config.to_dict().get('streaming', False)": true,
+    "q.dim()": 4
+   },
+   "contrast": {
+    "q.shape": 2,
+    "k.shape": 2,
+    "v.shape": 2,
+    "q_len": 2,
+    "self.config.to_dict().get('dilated1', False)": false,
+    "self.config.to_dict().get('dilated2', False)": false,
+    "self.config.to_dict().get('dense', False)": false,
+    "self.config.to_dict().get('streaming', False)": true,
+    "q.dim()": 4
+   },
+   "atoms": {
+    "k.shape": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "q.dim()": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "q.shape": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "q_len": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "self.config.to_dict().get('dense', False)": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "self.config.to_dict().get('dilated1', False)": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "self.config.to_dict().get('dilated2', False)": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "self.config.to_dict().get('streaming', False)": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "v.shape": {
+     "kind": "derived",
+     "sort": "int"
+    }
+   },
+   "location": "minference/ops/streaming_kernel.py:606",
+   "function": "minference/ops/streaming_kernel.py::streaming_forward"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it; related (candidate pair, judged different): minference-F049",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F017",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B035"
+  ],
+  "verification_ids": [
+   "V046"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When output_attentions: If the caller requests attention outputs, execution is aborted by the assertion. (minference/patch.py:207)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "output_attentions",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "output_attentions": true
+   },
+   "contrast": {
+    "output_attentions": false
+   },
+   "atoms": {
+    "output_attentions": {
+     "kind": "input",
+     "sort": "bool"
+    }
+   },
+   "location": "minference/patch.py:207",
+   "function": "minference/patch.py::huggingface_forward.hf_forward"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F018",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B038"
+  ],
+  "verification_ids": [
+   "V049"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When not isinstance(model, (LlamaForCausalLM, MistralForCausalLM, Qwen2ForCausalLM)) and model.__class__.__name__ not in {\"MiniCPMForCausalLM\", \"Phi3ForCausalLM\", \"ChatGLMForConditionalGeneration\"}: `patch_hf` dispatches on the concrete model class and raises `ValueError(\"Only supports llama, mistral and qwen2 models.\")` for anything else, so the mechanism cannot be applied to other architectur...",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "not isinstance(model, (LlamaForCausalLM, MistralForCausalLM, Qwen2ForCausalLM)) and model.__class__.__name__ not in {\"MiniCPMForCausalLM\", \"Phi3ForCausalLM\", \"ChatGLMForConditionalGeneration\"}",
+   "path_prefix": [
+    "def patch_hf(model, attn_type, attn_kwargs, base, distance_scale, **kwargs)"
+   ],
+   "dropped_prefix": [
+    "def patch_hf(model, attn_type, attn_kwargs, base, distance_scale, **kwargs)"
+   ],
+   "trigger": {
+    "isinstance(model, (LlamaForCausalLM, MistralForCausalLM, Qwen2ForCausalLM))": false,
+    "model.__class__.__name__": {
+     "not_in": [
+      "ChatGLMForConditionalGeneration",
+      "MiniCPMForCausalLM",
+      "Phi3ForCausalLM"
+     ]
+    }
+   },
+   "contrast": {
+    "isinstance(model, (LlamaForCausalLM, MistralForCausalLM, Qwen2ForCausalLM))": false,
+    "model.__class__.__name__": "MiniCPMForCausalLM"
+   },
+   "atoms": {
+    "isinstance(model, (LlamaForCausalLM, MistralForCausalLM, Qwen2ForCausalLM))": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "model.__class__.__name__": {
+     "kind": "category",
+     "sort": "str"
+    }
+   },
+   "aliases_not_applied": {
+    "forward": "huggingface_forward(ATTN_FORWRAD[attn_type](**attn_kwargs))",
+    "layer_outputs": "decoder_layer(hidden_states, attention_mask=attention_mask, position_ids=self.position_bias, past_key_value=past_key_values[i] if past_key_values is not None else None, output_attentions=output_attentions, use_cache=use_cache)",
+    "end_idx": "min(hidden_states.size(1), start_idx + 32000)",
+    "_cache": "layer_outputs[2 if output_attentions else 1]"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "minference/patch.py:1252",
+   "function": "minference/patch.py::patch_hf"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F019",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B039"
+  ],
+  "verification_ids": [
+   "V050"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When not (isinstance(model, LlamaForCausalLM) or isinstance(model, MistralForCausalLM) or isinstance(model, Qwen2ForCausalLM) or model.__class__.__name__ == \"MiniCPMForCausalLM\" or model.__class__.__name__ == \"Phi3ForCausalLM\" or model.__class__.__name__ == \"ChatGLMForConditionalGeneration\"): If the caller passes a model that is not one of the recognized classes, patch_hf raises ValueError and ...",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "not (isinstance(model, LlamaForCausalLM) or isinstance(model, MistralForCausalLM) or isinstance(model, Qwen2ForCausalLM) or model.__class__.__name__ == \"MiniCPMForCausalLM\" or model.__class__.__name__ == \"Phi3ForCausalLM\" or model.__class__.__name__ == \"ChatGLMForConditionalGeneration\")",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "isinstance(model, LlamaForCausalLM)": false,
+    "isinstance(model, MistralForCausalLM)": false,
+    "isinstance(model, Qwen2ForCausalLM)": false,
+    "model.__class__.__name__": {
+     "not_in": [
+      "ChatGLMForConditionalGeneration",
+      "MiniCPMForCausalLM",
+      "Phi3ForCausalLM"
+     ]
+    }
+   },
+   "contrast": {
+    "isinstance(model, LlamaForCausalLM)": false,
+    "isinstance(model, MistralForCausalLM)": false,
+    "isinstance(model, Qwen2ForCausalLM)": false,
+    "model.__class__.__name__": "MiniCPMForCausalLM"
+   },
+   "atoms": {
+    "isinstance(model, LlamaForCausalLM)": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "isinstance(model, MistralForCausalLM)": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "isinstance(model, Qwen2ForCausalLM)": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "model.__class__.__name__": {
+     "kind": "category",
+     "sort": "str"
+    }
+   },
+   "location": "minference/patch.py:1253",
+   "function": "minference/patch.py::patch_hf"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 1), not human: patch_hf is reached only for the inf_llm baseline (streaming2 is rejected by the config), while the MInference path goes through minference_patch, so this class whitelist limits baseline code, not the mechanism."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F020",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B001"
+  ],
+  "verification_ids": [
+   "V012"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When self.attn_type in self.STASTIC_ATTENTION_TYPES: For any `attn_type` in `STASTIC_ATTENTION_TYPES` (`minference_with_dense`, `static`, `dilated1`, `dilated2`, `streaming`, `inf_llm`, `hf`) the user-supplied `config_path` is silently discarded (`return \"\"`), so the searched per-head pattern is never used and a fixed/static pattern or a different attention implementation runs instead. (minfere...",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "self.attn_type in self.STASTIC_ATTENTION_TYPES",
+   "path_prefix": [
+    "def update_config_path(self, config_path: str, model_name: str)"
+   ],
+   "dropped_prefix": [
+    "def update_config_path(self, config_path: str, model_name: str)"
+   ],
+   "trigger": {
+    "self.attn_type in self.STASTIC_ATTENTION_TYPES": true
+   },
+   "contrast": {
+    "self.attn_type in self.STASTIC_ATTENTION_TYPES": false
+   },
+   "atoms": {
+    "self.attn_type in self.STASTIC_ATTENTION_TYPES": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "location": "minference/minference_configuration.py:52",
+   "function": "minference/minference_configuration.py::MInferenceConfig.update_config_path"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 3), not human: For non-minference attn_types (e.g. 'static'), the user's config_path is silently dropped, so the static variant always uses the hard-coded default pattern sizes."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F021",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B005"
+  ],
+  "verification_ids": [
+   "V016"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When not (self.config_path is not None and os.path.exists(self.config_path) and self.layer_idx < len(json.load(open(self.config_path)))): The searched per-head pattern is only loaded when `config_path` exists and has an entry for `self.layer_idx`; otherwise `self.best_pattern = {}` and every head uses the hard-coded default pattern (see line 430). A missing/typo'd `config_path` therefore silent...",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "not (self.config_path is not None and os.path.exists(self.config_path) and self.layer_idx < len(json.load(open(self.config_path))))",
+   "path_prefix": [
+    "def init_minference_parameters(self)"
+   ],
+   "dropped_prefix": [
+    "def init_minference_parameters(self)"
+   ],
+   "trigger": {
+    "self.config_path is None": false,
+    "os.path.exists(self.config_path)": true,
+    "self.layer_idx": 1,
+    "len(json.load(open(self.config_path)))": 1
+   },
+   "contrast": {
+    "self.config_path is None": false,
+    "os.path.exists(self.config_path)": true,
+    "self.layer_idx": 1,
+    "len(json.load(open(self.config_path)))": 2
+   },
+   "atoms": {
+    "len(json.load(open(self.config_path)))": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "os.path.exists(self.config_path)": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "self.config_path is None": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "self.layer_idx": {
+     "kind": "derived",
+     "sort": "int"
+    }
+   },
+   "aliases_not_applied": {
+    "config": "self.config.to_dict()"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "minference/modules/minference_forward.py:63",
+   "function": "minference/modules/minference_forward.py::init_minference_parameters"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 2), not human: With a missing config_path, or one that has too few layers, best_pattern is empty and every head silently uses the default vertical_and_slash (1000, 6096) pattern instead of the searched per-head pattern."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F022",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B007"
+  ],
+  "verification_ids": [
+   "V018"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When best_ty == \"stream_llm\": If streaming wins the search, it is overridden to vertical_and_slash, so the streaming variant is never actually selected. (minference/modules/minference_forward.py:192)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "best_ty == \"stream_llm\"",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "best_ty": "stream_llm"
+   },
+   "contrast": {
+    "best_ty": {
+     "not_in": [
+      "stream_llm"
+     ]
+    }
+   },
+   "atoms": {
+    "best_ty": {
+     "kind": "category",
+     "sort": "str"
+    }
+   },
+   "location": "minference/modules/minference_forward.py:192",
+   "function": "minference/modules/minference_forward.py::search_pattern"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect; related (candidate pair, judged different): minference-F043, minference-F044, minference-F045, minference-F050, minference-F051, minference-F052, minference-F053, minference-F054, minference-F069, minference-F070, minference-F071, minference-F072",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 2), not human: The offline pattern search can never assign the A-shape (stream_llm) pattern; it is always remapped to vertical_and_slash, so one of the paper's three patterns is effectively unused."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F023",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X005"
+  ],
+  "verification_ids": [
+   "V005"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When q_len == 1: returns via dense (minference/modules/minference_forward.py:418)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "q_len == 1",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "q_len": 1
+   },
+   "contrast": {
+    "q_len": 2
+   },
+   "atoms": {
+    "q_len": {
+     "kind": "input",
+     "sort": "int"
+    }
+   },
+   "location": "minference/modules/minference_forward.py:418-419",
+   "function": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F024",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B010"
+  ],
+  "verification_ids": [
+   "V021"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When self.config.to_dict().get(\"dilated1\", False): Config flag switches to the fixed 'dilated1' sparse pattern (8k local with stride 2) instead of the dynamic vertical/slash topk selection. (minference/modules/minference_forward.py:421)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "self.config.to_dict().get(\"dilated1\", False)",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "self.config.to_dict().get('dilated1', False)": true
+   },
+   "contrast": {
+    "self.config.to_dict().get('dilated1', False)": false
+   },
+   "atoms": {
+    "self.config.to_dict().get('dilated1', False)": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "location": "minference/modules/minference_forward.py:421",
+   "function": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 2), not human: dilated1 is a baseline attention type selected by attn_type, not a variant of the paper's mechanism."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F025",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B011"
+  ],
+  "verification_ids": [
+   "V022"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When self.config.to_dict().get(\"dilated2\", False): Config flag switches to the fixed 'dilated2' sparse pattern (2k dense local + 4k strided local) instead of dynamic selection. (minference/modules/minference_forward.py:423)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "self.config.to_dict().get(\"dilated2\", False)",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "self.config.to_dict().get('dilated2', False)": true
+   },
+   "contrast": {
+    "self.config.to_dict().get('dilated2', False)": false
+   },
+   "atoms": {
+    "self.config.to_dict().get('dilated2', False)": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "location": "minference/modules/minference_forward.py:423",
+   "function": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 2), not human: dilated2 is a baseline attention type selected by attn_type, not a variant of the paper's mechanism."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F026",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X006"
+  ],
+  "verification_ids": [
+   "V006"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When self.config.to_dict().get('dense', False): returns via dense (minference/modules/minference_forward.py:425)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "self.config.to_dict().get('dense', False)",
+   "path_prefix": [
+    "not (q_len == 1)",
+    "not (self.config.to_dict().get('dilated1', False))",
+    "not (self.config.to_dict().get('dilated2', False))"
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "self.config.to_dict().get('dense', False)": true,
+    "q_len": 2,
+    "self.config.to_dict().get('dilated1', False)": false,
+    "self.config.to_dict().get('dilated2', False)": false
+   },
+   "contrast": {
+    "self.config.to_dict().get('dense', False)": false,
+    "q_len": 2,
+    "self.config.to_dict().get('dilated1', False)": false,
+    "self.config.to_dict().get('dilated2', False)": false
+   },
+   "atoms": {
+    "q_len": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "self.config.to_dict().get('dense', False)": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "self.config.to_dict().get('dilated1', False)": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "self.config.to_dict().get('dilated2', False)": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "location": "minference/modules/minference_forward.py:425-426",
+   "function": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F027",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B012"
+  ],
+  "verification_ids": [
+   "V023"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When self.config.to_dict().get(\"streaming\", False): Config flag switches to streaming_forward with n_init/n_local from streaming_kwargs instead of the vertical/slash mechanism. (minference/modules/minference_forward.py:427)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "self.config.to_dict().get(\"streaming\", False)",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "self.config.to_dict().get('streaming', False)": true
+   },
+   "contrast": {
+    "self.config.to_dict().get('streaming', False)": false
+   },
+   "atoms": {
+    "self.config.to_dict().get('streaming', False)": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "location": "minference/modules/minference_forward.py:427",
+   "function": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 1), not human: The streaming flag is set only by attn_type='streaming', so this is the same config-driven variant switch already covered by minference-24."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F028",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B014"
+  ],
+  "verification_ids": [
+   "V025"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When self.config.to_dict().get(\"static_pattern\", False): Config flag switches to vertical_and_slash_kernel_static, which caches and reuses the first computed vertical/slash indices. (minference/modules/minference_forward.py:432)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "self.config.to_dict().get(\"static_pattern\", False)",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "self.config.to_dict().get('static_pattern', False)": true
+   },
+   "contrast": {
+    "self.config.to_dict().get('static_pattern', False)": false
+   },
+   "atoms": {
+    "self.config.to_dict().get('static_pattern', False)": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "location": "minference/modules/minference_forward.py:432",
+   "function": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect; related (candidate pair, judged different): minference-F046",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 3), not human: The static_pattern config (attn_type='static') switches to a kernel that computes the vertical/slash indices once and reuses them, instead of estimating them online."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F029",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B015"
+  ],
+  "verification_ids": [
+   "V026"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When self.config.to_dict().get(\"vs_only\", False): Config flag forces the vertical_and_slash_kernel regardless of the per-head pattern type ty. (minference/modules/minference_forward.py:434)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "self.config.to_dict().get(\"vs_only\", False)",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "self.config.to_dict().get('vs_only', False)": true
+   },
+   "contrast": {
+    "self.config.to_dict().get('vs_only', False)": false
+   },
+   "atoms": {
+    "self.config.to_dict().get('vs_only', False)": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "location": "minference/modules/minference_forward.py:434",
+   "function": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect; related (candidate pair, judged different): minference-F046",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 2), not human: vs_only is real but is not exposed through MInferenceConfig/attn_type and is never set by the package, so it is a hidden debug flag."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F030",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B018"
+  ],
+  "verification_ids": [
+   "V029"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When self.layer_idx >= self.starting_layer and not self.is_search: Layers below starting_layer (or in search mode) skip the sparse mechanism and use dense flash attention / gather_qkv. (minference/modules/minference_forward.py:521)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "self.layer_idx >= self.starting_layer and not self.is_search",
+   "path_prefix": [
+    "q_len != 1"
+   ],
+   "dropped_prefix": [],
+   "aliases": {
+    "q_len": "hidden_states.size()[1]"
+   },
+   "trigger": {
+    "self.layer_idx": 1,
+    "self.starting_layer": 1,
+    "self.is_search": false,
+    "q_len": 2,
+    "hidden_states.size()[1]": 2
+   },
+   "contrast": {
+    "self.layer_idx": 1,
+    "self.starting_layer": 2,
+    "self.is_search": false,
+    "q_len": 2,
+    "hidden_states.size()[1]": 2
+   },
+   "atoms": {
+    "hidden_states.size()[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "q_len": {
+     "kind": "local",
+     "sort": "int"
+    },
+    "self.is_search": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "self.layer_idx": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "self.starting_layer": {
+     "kind": "derived",
+     "sort": "int"
+    }
+   },
+   "location": "minference/modules/minference_forward.py:521",
+   "function": "minference/modules/minference_forward.py::minference_forward.forward"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 1), not human: Layers below the configurable starting_layer silently run dense flash attention (or gather_qkv) instead of sparse attention."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F031",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B020"
+  ],
+  "verification_ids": [
+   "V031"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When self.layer_idx >= self.starting_layer: Layers below starting_layer use dense flash_attn_func; only layers at/after starting_layer use the sparse gather_last_q_vertical_slash_topk_v4 path. starting_layer is a constructor/config attribute deciding which algorithm runs per layer. (minference/modules/minference_forward.py:613)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "self.layer_idx >= self.starting_layer",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "self.layer_idx": 1,
+    "self.starting_layer": 1
+   },
+   "contrast": {
+    "self.layer_idx": 1,
+    "self.starting_layer": 2
+   },
+   "atoms": {
+    "self.layer_idx": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "self.starting_layer": {
+     "kind": "derived",
+     "sort": "int"
+    }
+   },
+   "location": "minference/modules/minference_forward.py:613",
+   "function": "minference/modules/minference_forward.py::minference_kv_cache_cpu_forward.forward"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 3), not human: The starting_layer config makes layers below it use dense flash attention instead of the sparse vertical-slash path."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F032",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B023"
+  ],
+  "verification_ids": [
+   "V034"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When q_len == 1: In gather_last_q_vertical_slash_topk_vllm, a single query token bypasses the sparse pattern selection and runs dense flash attention. (minference/modules/minference_forward.py:756)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "q_len == 1",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "aliases": {
+    "q_len": "q.shape[2]"
+   },
+   "trigger": {
+    "q_len": 1,
+    "q.shape[2]": 1
+   },
+   "contrast": {
+    "q_len": 2,
+    "q.shape[2]": 2
+   },
+   "atoms": {
+    "q.shape[2]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "q_len": {
+     "kind": "local",
+     "sort": "int"
+    }
+   },
+   "location": "minference/modules/minference_forward.py:756",
+   "function": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_vllm"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 2), not human: In the vLLM path, decode steps (q_len==1) always use dense flash attention, so sparsity applies only to prefill."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F033",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B024"
+  ],
+  "verification_ids": [
+   "V035"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When kv_cache is None or prefill_meta.block_tables.numel() == 0: Only when there is no KV cache or empty block tables does the code run the MInference sparse prefill (minference_prefill_func); otherwise it falls to PagedAttention.forward_prefix, a different (dense/prefix) implementation. (minference/modules/minference_forward.py:864)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "kv_cache is None or prefill_meta.block_tables.numel() == 0",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "kv_cache is None": true,
+    "prefill_meta.block_tables.numel()": 1
+   },
+   "contrast": {
+    "kv_cache is None": false,
+    "prefill_meta.block_tables.numel()": 1
+   },
+   "atoms": {
+    "kv_cache is None": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "prefill_meta.block_tables.numel()": {
+     "kind": "derived",
+     "sort": "int"
+    }
+   },
+   "location": "minference/modules/minference_forward.py:864",
+   "function": "minference/modules/minference_forward.py::minference_vllm_forward.forward"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 2), not human: In the vLLM integration, prefill with prefix cache or chunked prefill (non-empty block tables) silently uses dense PagedAttention.forward_prefix instead of sparse attention."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F034",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B025"
+  ],
+  "verification_ids": [
+   "V036"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When q_len < self.max_capacity_prompt: When the prompt length is below max_capacity_prompt, update_kv returns the full key/value states unchanged, silently skipping the SnapKV compression (dense baseline) instead of applying the sparse selection. (minference/modules/snap_kv.py:321)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "q_len < self.max_capacity_prompt",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "aliases": {
+    "q_len": "query_states.shape[2]"
+   },
+   "trigger": {
+    "q_len": 1,
+    "self.max_capacity_prompt": 2,
+    "query_states.shape[2]": 1
+   },
+   "contrast": {
+    "q_len": 1,
+    "self.max_capacity_prompt": 1,
+    "query_states.shape[2]": 1
+   },
+   "atoms": {
+    "q_len": {
+     "kind": "local",
+     "sort": "int"
+    },
+    "query_states.shape[2]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "self.max_capacity_prompt": {
+     "kind": "derived",
+     "sort": "int"
+    }
+   },
+   "location": "minference/modules/snap_kv.py:321",
+   "function": "minference/modules/snap_kv.py::SnapKVCluster.update_kv"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 2), not human: Skipping compression for short prompts is normal SnapKV behaviour in an optional add-on, not a limit of MInference's sparse prefill."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F035",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B026"
+  ],
+  "verification_ids": [
+   "V037"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When self.pooling == \"avgpool\": The pooling attribute (set from config.pooling in init_snapkv) selects avg_pool1d vs max_pool1d for the attention-score smoothing that drives token selection, changing which KV entries are kept. (minference/modules/snap_kv.py:347)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "self.pooling == \"avgpool\"",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "self.pooling": "avgpool"
+   },
+   "contrast": {
+    "self.pooling": {
+     "not_in": [
+      "avgpool"
+     ]
+    }
+   },
+   "atoms": {
+    "self.pooling": {
+     "kind": "category",
+     "sort": "str"
+    }
+   },
+   "location": "minference/modules/snap_kv.py:347",
+   "function": "minference/modules/snap_kv.py::SnapKVCluster.update_kv"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F036",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B027"
+  ],
+  "verification_ids": [
+   "V038"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When q.dtype != torch.bfloat16: The Triton kernel's compute dtype is chosen from the input dtype: bfloat16 inputs use tl.bfloat16, but any other dtype (e.g. float32 or float16) is silently forced to tl.float16, so the kernel runs a different precision path than the caller's tensor dtype. (minference/ops/block_sparse_flash_attention.py:130)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "q.dtype != torch.bfloat16",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "q.dtype": {
+     "not_in": [
+      "torch.bfloat16"
+     ]
+    }
+   },
+   "contrast": {
+    "q.dtype": "torch.bfloat16"
+   },
+   "atoms": {
+    "q.dtype": {
+     "kind": "category",
+     "sort": "str"
+    }
+   },
+   "location": "minference/ops/block_sparse_flash_attention.py:130",
+   "function": "minference/ops/block_sparse_flash_attention.py::_triton_block_sparse_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 1), not human: Choosing the Triton compute dtype (non-bf16 cast to fp16 inside the kernel) is a kernel precision detail, not a limit of the sparse-attention mechanism."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F037",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B032"
+  ],
+  "verification_ids": [
+   "V043"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When head_dim not in [16, 32, 64, 128, 256, 512]: For head dimensions not in the hard-coded list, q/k/v are zero-padded to the next power of two before the streaming kernel runs, changing the computation path (and the padded dims are sliced off at line 633). (minference/ops/streaming_kernel.py:609)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "head_dim not in [16, 32, 64, 128, 256, 512]",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "aliases": {
+    "head_dim": "q.shape[-1]"
+   },
+   "trigger": {
+    "head_dim": 511,
+    "q.shape[-1]": 511
+   },
+   "contrast": {
+    "head_dim": 512,
+    "q.shape[-1]": 512
+   },
+   "atoms": {
+    "head_dim": {
+     "kind": "local",
+     "sort": "int"
+    },
+    "q.shape[-1]": {
+     "kind": "derived",
+     "sort": "int"
+    }
+   },
+   "location": "minference/ops/streaming_kernel.py:609",
+   "function": "minference/ops/streaming_kernel.py::streaming_forward"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect; related (candidate pair, judged different): minference-F049",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 1), not human: Zero-padding head_dim to a power of two gives the same result and is an internal kernel-compatibility detail."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F038",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B033"
+  ],
+  "verification_ids": [
+   "V044"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When k_len > n_local: The streaming (StreamingLLM) variant only keeps the `n_init` sink tokens when the KV length exceeds `n_local`; for shorter sequences it degenerates to plain sliding-window attention with no attention sinks, so the same head runs a different algorithm depending on the input length. `n_init`/`n_local` come from `config.streaming_kwargs`. (minference/ops/streaming_kernel.py:620)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "k_len > n_local",
+   "path_prefix": [
+    "def streaming_forward(q, k, v, n_init, n_local)"
+   ],
+   "dropped_prefix": [
+    "def streaming_forward(q, k, v, n_init, n_local)"
+   ],
+   "trigger": {
+    "k_len": 2,
+    "n_local": 1
+   },
+   "contrast": {
+    "k_len": 1,
+    "n_local": 1
+   },
+   "atoms": {
+    "k_len": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "n_local": {
+     "kind": "input",
+     "sort": "int"
+    }
+   },
+   "aliases_not_applied": {
+    "head_dim": "q.shape[-1]",
+    "q_len": "q.size(2)",
+    "k_len": "k.size(2)",
+    "attn": "TritonMultiStageDotProductionAttention(q.shape, q.dtype, q.device)",
+    "target_dim": "2 ** math.ceil(math.log2(head_dim)) - head_dim"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "minference/ops/streaming_kernel.py:620",
+   "function": "minference/ops/streaming_kernel.py::streaming_forward"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect; related (candidate pair, judged different): minference-F049",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 1), not human: When k_len <= n_local the sliding window already covers every key, so skipping the sink pass gives the same result; this is an implementation detail."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F039",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B034"
+  ],
+  "verification_ids": [
+   "V045"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When len_k <= n_local + n_init: The KV cache kept for subsequent decoding is either the full h_k/h_v or a concatenation of the first n_init keys and the last n_local keys, depending on caller-supplied n_local/n_init and the accumulated length. This changes what state later calls see. (minference/ops/streaming_kernel.py:701)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "len_k <= n_local + n_init",
+   "path_prefix": [
+    "use_cache"
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "len_k": 2,
+    "n_local": 1,
+    "n_init": 1,
+    "use_cache": true
+   },
+   "contrast": {
+    "len_k": 3,
+    "n_local": 1,
+    "n_init": 1,
+    "use_cache": true
+   },
+   "atoms": {
+    "len_k": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "n_init": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "n_local": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "use_cache": {
+     "kind": "input",
+     "sort": "bool"
+    }
+   },
+   "aliases_not_applied": {
+    "batch_size": "query.size(0)",
+    "len_q": "query.size(1)"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "minference/ops/streaming_kernel.py:701",
+   "function": "minference/ops/streaming_kernel.py::stream_llm_forward.forward"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 1), not human: Truncating the KV cache to sink plus local tokens belongs to the StreamingLLM baseline forward (stream_llm_forward), not to MInference."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F040",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B036"
+  ],
+  "verification_ids": [
+   "V047"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When config.kv_cache_cpu: Caller-supplied config flag switches to the KV-cache-on-CPU variant (minference_patch_kv_cache_cpu) instead of the standard minference_forward path. (minference/patch.py:835)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "config.kv_cache_cpu",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "config.kv_cache_cpu": true
+   },
+   "contrast": {
+    "config.kv_cache_cpu": false
+   },
+   "atoms": {
+    "config.kv_cache_cpu": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "location": "minference/patch.py:835",
+   "function": "minference/patch.py::minference_patch"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 2), not human: kv_cache_cpu only changes where the KV cache is placed (memory/device plumbing), not the sparse mechanism."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F041",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B037"
+  ],
+  "verification_ids": [
+   "V048"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When config.use_snapkv: Caller-supplied config flag switches to the SnapKV variant (minference_patch_with_snapkv) instead of the standard minference_forward path. (minference/patch.py:840)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "config.use_snapkv",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "config.use_snapkv": true
+   },
+   "contrast": {
+    "config.use_snapkv": false
+   },
+   "atoms": {
+    "config.use_snapkv": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "location": "minference/patch.py:840",
+   "function": "minference/patch.py::minference_patch"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 1), not human: The user config flag use_snapkv switches patching to a different forward (minference_with_snapkv_forward) that combines sparse prefill with SnapKV compression, which is a config-driven variant."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F042",
+  "artifact_id": "minference",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "minference-gap-M08-B06-R01"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求循环守卫 s_v≤k_s；代码用 while(1)+break，s 仅在 else 分支递增，终止由 s>=NNZ_S 决定",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "s_idx < end_m",
+   "path_prefix": [
+    "start_m < seqlen"
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "s_idx": 1,
+    "end_m": 2,
+    "start_m": 3,
+    "seqlen": 4
+   },
+   "contrast": {
+    "s_idx": 2,
+    "end_m": 2,
+    "start_m": 3,
+    "seqlen": 4
+   },
+   "atoms": {
+    "end_m": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "s_idx": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "seqlen": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "start_m": {
+     "kind": "input",
+     "sort": "int"
+    }
+   },
+   "code_locations": [
+    "csrc/vertical_slash_index.cu:27-99",
+    "csrc/kernels.cpp:7-18"
+   ],
+   "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "location": "csrc/vertical_slash_index.cu:27-99",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 2: impl_deviates",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F043",
+  "artifact_id": "minference",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "minference-gap-M02-A04",
+   "minference-gap-M03-B03-R01",
+   "minference-gap-M03-A01"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "实验配置未体现{(1024,4096)}，实际候选为(100,800)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "experiments/README.md:13-30",
+    "minference/modules/minference_forward.py:99-197"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The A-shape candidate set is hardcoded in search_pattern (vertical_size/slash_size derived from fixed values like 100/800), so the paper's {(1024,4096)} candidates are never used regardless of inputs.",
+   "location": "experiments/README.md:13-30",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; merged (LLM: same issue): minference-gap-M02-A04, minference-gap-M03-A01; priority 2: impl_deviates; related (candidate pair, judged different): minference-F003, minference-F022, minference-F044, minference-F045, minference-F050, minference-F051, minference-F053, minference-F054, minference-F059, minference-F066, minference-F069, minference-F070, minference-F071",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F044",
+  "artifact_id": "minference",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "minference-gap-M03-B03-R02",
+   "minference-gap-M03-A02"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "实验配置未体现论文候选集",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "experiments/README.md:13-30",
+    "minference/modules/minference_forward.py:99-197"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The search_pattern function hardcodes vertical/slash candidate sizes internally and the experiment config never passes the paper's candidate set {(30,2048),(100,1800),(500,1500),(3000,200)}, so the paper's candidate enumeration is absent on every search call.",
+   "location": "experiments/README.md:13-30",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; merged (LLM: same issue): minference-gap-M03-A02; priority 2: impl_deviates; related (candidate pair, judged different): minference-F003, minference-F022, minference-F043, minference-F045, minference-F050, minference-F051, minference-F053, minference-F054, minference-F059, minference-F066, minference-F069, minference-F070, minference-F071",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F045",
+  "artifact_id": "minference",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "minference-gap-M03-B03-R03",
+   "minference-gap-M03-A03"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "配置层未体现{100}",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "experiments/README.md:13-30",
+    "minference/modules/minference_forward.py:99-197"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The paper's Block-Sparse {100} candidate setting is never represented in the config/experiment layer, so the gap appears on every search-pattern invocation regardless of input values.",
+   "location": "experiments/README.md:13-30",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; merged (LLM: same issue): minference-gap-M03-A03; priority 2: impl_deviates; related (candidate pair, judged different): minference-F003, minference-F022, minference-F043, minference-F044, minference-F050, minference-F051, minference-F053, minference-F054, minference-F059, minference-F066, minference-F069, minference-F070, minference-F071",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F046",
+  "artifact_id": "minference",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "minference-gap-M13-B01"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文Table4/Fig5报告static变体结果；评估入口未暴露static选项，且底层static实现本身只覆盖VS。",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "attn_type == \"minference\"",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "attn_type": "minference"
+   },
+   "contrast": {
+    "attn_type": {
+     "not_in": [
+      "minference"
+     ]
+    }
+   },
+   "atoms": {
+    "attn_type": {
+     "kind": "category",
+     "sort": "str"
+    }
+   },
+   "code_locations": [
+    "experiments/infinite_bench/args.py:63-78",
+    "experiments/ppl/run_ppl.sh:7-12",
+    "minference/models_patch.py:46-64",
+    "minference/modules/minference_forward.py:430-442"
+   ],
+   "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "location": "experiments/infinite_bench/args.py:63-78",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates; related (candidate pair, judged different): minference-F005, minference-F028, minference-F029, minference-F047, minference-F048, minference-F060, minference-F067, minference-F068",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F047",
+  "artifact_id": "minference",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "minference-gap-M13-B02"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "评估入口无'only A-shape'变体选择，无法复现Table4的该变体。",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "attn_type == 'minference'",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "attn_type": "minference"
+   },
+   "contrast": {
+    "attn_type": {
+     "not_in": [
+      "minference"
+     ]
+    }
+   },
+   "atoms": {
+    "attn_type": {
+     "kind": "category",
+     "sort": "str"
+    }
+   },
+   "code_locations": [
+    "experiments/infinite_bench/args.py:63-78",
+    "experiments/ppl/run_ppl.sh:7-12"
+   ],
+   "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "location": "experiments/infinite_bench/args.py:63-78",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates; related (candidate pair, judged different): minference-F046, minference-F048, minference-F067, minference-F068",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F048",
+  "artifact_id": "minference",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "minference-gap-M13-B03"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "无变体入口，无法复现Table4的only block-sparse行。",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "attn_type == \"minference\"",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "attn_type": "minference"
+   },
+   "contrast": {
+    "attn_type": {
+     "not_in": [
+      "minference"
+     ]
+    }
+   },
+   "atoms": {
+    "attn_type": {
+     "kind": "category",
+     "sort": "str"
+    }
+   },
+   "code_locations": [
+    "experiments/infinite_bench/args.py:63-78",
+    "experiments/ppl/run_ppl.sh:7-12"
+   ],
+   "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "location": "experiments/infinite_bench/args.py:63-78",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates; related (candidate pair, judged different): minference-F046, minference-F047, minference-F067, minference-F068",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F049",
+  "artifact_id": "minference",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "minference-gap-M07-B02"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文 1k 全局/4k 局部；代码 128 全局/3968 局部，两参数均不符。",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "n_init == 128 and n_local == 3968",
+   "path_prefix": [
+    "self.config.attn_type == \"streaming\""
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "n_init": 128,
+    "n_local": 3968,
+    "self.config.attn_type": "streaming"
+   },
+   "contrast": {
+    "n_init": 129,
+    "n_local": 3968,
+    "self.config.attn_type": "streaming"
+   },
+   "atoms": {
+    "n_init": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "n_local": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "self.config.attn_type": {
+     "kind": "category",
+     "sort": "str"
+    }
+   },
+   "code_locations": [
+    "minference/models_patch.py:66-73",
+    "minference/ops/streaming_kernel.py:598-633"
+   ],
+   "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "location": "minference/models_patch.py:66-73",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates; related (candidate pair, judged different): minference-F015, minference-F016, minference-F037, minference-F038",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F050",
+  "artifact_id": "minference",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "minference-gap-M02-B01-R01"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求遍历调用方给定的初始化搜索空间 σ；代码遍历写死的候选表，σ 输入不存在（artifact 范围：无 σ 输入，候选表硬编码）",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "minference/modules/minference_forward.py:99-197",
+    "experiments/README.md:13-30"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. search_pattern always iterates a hardcoded candidate table and never accepts or uses a caller-provided sigma, so the paper's sigma-based loop is never realized on any call.",
+   "location": "minference/modules/minference_forward.py:99-197",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 2: impl_deviates; related (candidate pair, judged different): minference-F003, minference-F022, minference-F043, minference-F044, minference-F045, minference-F051, minference-F053, minference-F054, minference-F059, minference-F069, minference-F070, minference-F071",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F051",
+  "artifact_id": "minference",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "minference-gap-M02-B04",
+   "minference-gap-M02-B05-R01"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求 dense 注意力输出 y（含 V）；代码只算注意力权重矩阵，未形成输出",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "no_condition",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "minference/modules/minference_forward.py:99-197",
+    "minference/modules/minference_forward.py:199-246"
+   ],
+   "note": "LLM gave no usable condition: names not in the cited code: is_search",
+   "location": "minference/modules/minference_forward.py:99-197",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; merged (LLM: same issue): minference-gap-M02-B05-R01; priority 2: impl_deviates; related (candidate pair, judged different): minference-F003, minference-F022, minference-F043, minference-F044, minference-F045, minference-F050, minference-F052, minference-F053, minference-F054, minference-F059, minference-F069, minference-F070, minference-F071, minference-F072",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F052",
+  "artifact_id": "minference",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "minference-gap-M02-B05-R02"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求最小化与 dense 输出的偏差；代码最大化权重保留分数，方向与参照对象均不同",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "no_condition",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "minference/modules/minference_forward.py:99-197",
+    "minference/modules/minference_forward.py:199-246"
+   ],
+   "note": "LLM gave no usable condition: names not in the cited code: is_search",
+   "location": "minference/modules/minference_forward.py:99-197",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 2: impl_deviates; related (candidate pair, judged different): minference-F003, minference-F022, minference-F051, minference-F054, minference-F059, minference-F072",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F053",
+  "artifact_id": "minference",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "minference-gap-M02-A01"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求六类输入；代码签名缺 V、patterns、ρ、t、σ",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "minference/modules/minference_forward.py:99-197",
+    "experiments/README.md:13-30"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. search_pattern is always called with only (q, k, head) and never receives V, patterns, rho, t, or sigma, so the paper's six-input Algorithm 1 precondition can never be satisfied regardless of input values.",
+   "location": "minference/modules/minference_forward.py:99-197",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 2: impl_deviates; related (candidate pair, judged different): minference-F003, minference-F022, minference-F043, minference-F044, minference-F045, minference-F050, minference-F051, minference-F054, minference-F059, minference-F069, minference-F070, minference-F071",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F054",
+  "artifact_id": "minference",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "minference-gap-M02-A02"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求空集初始化；代码以数值 0 与空字符串初始化，且该初值使负分候选永不被选",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "minference/modules/minference_forward.py:99-197",
+    "experiments/README.md:13-30"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The search_pattern function always initializes its best-score tracking with numeric 0 / empty string rather than the paper's empty set, so negative-scoring candidates are never selected regardless of inputs.",
+   "location": "minference/modules/minference_forward.py:99-197",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 2: impl_deviates; related (candidate pair, judged different): minference-F003, minference-F022, minference-F043, minference-F044, minference-F045, minference-F050, minference-F051, minference-F052, minference-F053, minference-F059, minference-F069, minference-F070, minference-F071, minference-F072",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F055",
+  "artifact_id": "minference",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "minference-gap-M04-B04-R01"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求最小化 t_sparse(M)+t_overhead(M)；artifact 执行路径未实现该时间目标。",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "minference/modules/minference_forward.py:199-246",
+    "minference/ops/pit_sparse_flash_attention_v2.py:173-206",
+    "minference/ops/block_sparse_flash_attention.py:80-111"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The artifact's search_pattern_v2 selects patterns by output-difference count against a dense reference rather than minimizing t_sparse(M)+t_overhead(M), so the paper's time objective is never implemented on any call.",
+   "location": "minference/modules/minference_forward.py:199-246",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates; related (candidate pair, judged different): minference-F065, minference-F073",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F056",
+  "artifact_id": "minference",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "minference-gap-M06-B03"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求块级 logits 先 softmax（并除 √d）得 Â；代码省略 softmax 与缩放，仅用因果掩码后的原始点积排序（artifact 范围：无 softmax/√d 的块级注意力矩阵）",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "minference/ops/block_sparse_flash_attention.py:150-165",
+    "minference/ops/block_sparse_flash_attention.py:78-111"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The block index is always built from raw pooled dot products without softmax or 1/sqrt(d) scaling, so the paper's softmax-scaled block logits are never computed on any call.",
+   "location": "minference/ops/block_sparse_flash_attention.py:150-165",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 2: impl_deviates; related (candidate pair, judged different): minference-F063",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F057",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B004"
+  ],
+  "verification_ids": [
+   "V015"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "When \"seq_len\" in inspect.signature(self.rotary_emb.forward).parameters: ROPE_TYPE is chosen by introspecting the installed transformers rotary embedding signature, so behavior depends on the transformers version. (minference/modules/minference_forward.py:34)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "\"seq_len\" in inspect.signature(self.rotary_emb.forward).parameters",
+   "path_prefix": [
+    "ROPE_TYPE is None"
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "'seq_len' in inspect.signature(self.rotary_emb.forward).parameters": true,
+    "ROPE_TYPE is None": true
+   },
+   "contrast": {
+    "'seq_len' in inspect.signature(self.rotary_emb.forward).parameters": false,
+    "ROPE_TYPE is None": true
+   },
+   "atoms": {
+    "'seq_len' in inspect.signature(self.rotary_emb.forward).parameters": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "ROPE_TYPE is None": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "location": "minference/modules/minference_forward.py:34",
+   "function": "minference/modules/minference_forward.py::set_rope_type"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: undisclosed, other effect",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 1), not human: Detecting the RoPE call signature only adapts to the model's rotary-embedding API and does not change the sparse mechanism."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F058",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B006"
+  ],
+  "verification_ids": [
+   "V017"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "state",
+  "summary": "When \"apply_rotary_pos_emb\" not in self.__dict__: `apply_rotary_pos_emb` is rebound as a module-level global from the *first* attention module's `rotary_emb.__class__.__module__` (`getattr(import_module(model_path), \"apply_rotary_pos_emb\")`), and the guard `if \"apply_rotary_pos_emb\" not in self.__dict__` is always true because the attribute is never set on `self` (only `self.apply_rotary_pos_em...",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "event_sequence",
+   "status": "solved",
+   "condition": "\"apply_rotary_pos_emb\" not in self.__dict__",
+   "path_prefix": [
+    "def init_minference_parameters(self)"
+   ],
+   "sequence_note": "state-dependent: earlier calls must leave the program in the trigger state; the values below describe that state at the checked call",
+   "dropped_prefix": [
+    "def init_minference_parameters(self)"
+   ],
+   "trigger": {
+    "'apply_rotary_pos_emb' in self.__dict__": false
+   },
+   "contrast": {
+    "'apply_rotary_pos_emb' in self.__dict__": true
+   },
+   "atoms": {
+    "'apply_rotary_pos_emb' in self.__dict__": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "aliases_not_applied": {
+    "config": "self.config.to_dict()"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "minference/modules/minference_forward.py:74",
+   "function": "minference/modules/minference_forward.py::init_minference_parameters"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: reviewed as wrong",
+  "review": "wrong",
+  "review_note": "blind review by an LLM subagent (round 3), not human: The check is not always true: the branch sets self.apply_rotary_pos_emb = True, so it runs once per module, and cross-model global overwrite is an internal multi-model detail."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F059",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B008"
+  ],
+  "verification_ids": [
+   "V019"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "When best_ty == \"block_sparse\": If block_sparse wins, it is replaced by hard-coded vertical_and_slash with best_v=1000, best_s=6096, ignoring the searched parameters. (minference/modules/minference_forward.py:194)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "best_ty == \"block_sparse\"",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "best_ty": "block_sparse"
+   },
+   "contrast": {
+    "best_ty": {
+     "not_in": [
+      "block_sparse"
+     ]
+    }
+   },
+   "atoms": {
+    "best_ty": {
+     "kind": "category",
+     "sort": "str"
+    }
+   },
+   "location": "minference/modules/minference_forward.py:194",
+   "function": "minference/modules/minference_forward.py::search_pattern"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: undisclosed, other effect; related (candidate pair, judged different): minference-F043, minference-F044, minference-F045, minference-F050, minference-F051, minference-F052, minference-F053, minference-F054, minference-F069, minference-F070, minference-F071, minference-F072",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 1), not human: The offline pattern search replaces a winning block_sparse (and stream_llm) result with vertical_and_slash 1000/6096, so searched configs can never contain those patterns."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F060",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B013"
+  ],
+  "verification_ids": [
+   "V024"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "When head_id not in self.best_pattern: When the per-layer pattern file (`config_path`) is missing, unreadable, or has fewer entries than `self.layer_idx`, `init_minference_parameters` sets `self.best_pattern = {}` and every head silently falls back to the hard-coded tuple `(\"vertical_and_slash\", 1000, 6096, 1)` — i.e. vertical=1000, slash=6096 regardless of the actual head. The `ty` element is ...",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "head_id not in self.best_pattern",
+   "path_prefix": [
+    "def gather_last_q_vertical_slash_topk_v4(self, q, k, v, head_id)"
+   ],
+   "dropped_prefix": [
+    "def gather_last_q_vertical_slash_topk_v4(self, q, k, v, head_id)"
+   ],
+   "trigger": {
+    "head_id in self.best_pattern": false
+   },
+   "contrast": {
+    "head_id in self.best_pattern": true
+   },
+   "atoms": {
+    "head_id in self.best_pattern": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "location": "minference/modules/minference_forward.py:430",
+   "function": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: undisclosed, other effect; related (candidate pair, judged different): minference-F046",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 3), not human: Heads missing from the pattern config (or a missing/empty config_path) silently get a fixed default vertical_and_slash (1000, 6096) pattern; the 'whole sequence' claim only holds for q_len <= 6096."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F061",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B019"
+  ],
+  "verification_ids": [
+   "V030"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "When is_flash_attn_2_available(): When the sparse path is not taken, availability of flash-attn 2 decides between flash_attn_func and gather_qkv. (minference/modules/minference_forward.py:523)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "is_flash_attn_2_available()",
+   "path_prefix": [
+    "q_len != 1",
+    "not (self.layer_idx >= self.starting_layer and not self.is_search)"
+   ],
+   "dropped_prefix": [],
+   "aliases": {
+    "q_len": "hidden_states.size()[1]"
+   },
+   "trigger": {
+    "is_flash_attn_2_available()": true,
+    "q_len": 2,
+    "self.layer_idx": 1,
+    "self.starting_layer": 2,
+    "self.is_search": false,
+    "hidden_states.size()[1]": 2
+   },
+   "contrast": {
+    "is_flash_attn_2_available()": false,
+    "q_len": 2,
+    "self.layer_idx": 1,
+    "self.starting_layer": 2,
+    "self.is_search": false,
+    "hidden_states.size()[1]": 2
+   },
+   "atoms": {
+    "hidden_states.size()[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "is_flash_attn_2_available()": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "q_len": {
+     "kind": "local",
+     "sort": "int"
+    },
+    "self.is_search": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "self.layer_idx": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "self.starting_layer": {
+     "kind": "derived",
+     "sort": "int"
+    }
+   },
+   "location": "minference/modules/minference_forward.py:523",
+   "function": "minference/modules/minference_forward.py::minference_forward.forward"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: undisclosed, other effect",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F062",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X012"
+  ],
+  "verification_ids": [
+   "V011"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "When not (is_flash_attn_2_available()): attn_output = gather_qkv(q, k, v, attention_mask) (minference/modules/minference_forward.py:526)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "not (is_flash_attn_2_available())",
+   "path_prefix": [
+    "q_len != 1",
+    "not (self.layer_idx >= self.starting_layer and (not self.is_search))"
+   ],
+   "dropped_prefix": [],
+   "aliases": {
+    "q_len": "hidden_states.size()[1]"
+   },
+   "trigger": {
+    "is_flash_attn_2_available()": false,
+    "q_len": 2,
+    "self.layer_idx": 1,
+    "self.starting_layer": 2,
+    "self.is_search": false,
+    "hidden_states.size()[1]": 2
+   },
+   "contrast": {
+    "is_flash_attn_2_available()": true,
+    "q_len": 2,
+    "self.layer_idx": 1,
+    "self.starting_layer": 2,
+    "self.is_search": false,
+    "hidden_states.size()[1]": 2
+   },
+   "atoms": {
+    "hidden_states.size()[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "is_flash_attn_2_available()": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "q_len": {
+     "kind": "local",
+     "sort": "int"
+    },
+    "self.is_search": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "self.layer_idx": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "self.starting_layer": {
+     "kind": "derived",
+     "sort": "int"
+    }
+   },
+   "location": "minference/modules/minference_forward.py:526",
+   "function": "minference/modules/minference_forward.py::minference_forward.forward"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: undisclosed, other effect",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F063",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B028"
+  ],
+  "verification_ids": [
+   "V039"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "When top_k > context_size // block_size_N: The requested `top_k` (derived from the searched `slash_size`/`vertical_size` in `block_sparse_kernel`) is silently clamped to `context_size // block_size_N`, so for short sequences the block-sparse pattern is denser/different than the searched budget; also `_build_block_index` is called with `block_size_N` for both the M and N block sizes (line 183), ...",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "top_k > context_size // block_size_N",
+   "path_prefix": [
+    "def _build_block_index(query, key, top_k, block_size_M=64, block_size_N=64)"
+   ],
+   "dropped_prefix": [
+    "def _build_block_index(query, key, top_k, block_size_M=64, block_size_N=64)"
+   ],
+   "trigger": {
+    "top_k": 4,
+    "context_size": 4,
+    "block_size_N": 2
+   },
+   "contrast": {
+    "top_k": 4,
+    "context_size": 4,
+    "block_size_N": 1
+   },
+   "atoms": {
+    "block_size_N": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "context_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "top_k": {
+     "kind": "input",
+     "sort": "int"
+    }
+   },
+   "aliases_not_applied": {
+    "batch_size": "query.shape[0]",
+    "num_heads": "query.shape[1]",
+    "context_size": "query.shape[2]",
+    "head_dim": "query.shape[3]",
+    "query_pool": "query.reshape((batch_size, num_heads, -1, block_size_M, head_dim)).mean(dim=-2)",
+    "key_pool": "key.reshape((batch_size, num_heads, -1, block_size_N, head_dim)).mean(dim=-2)",
+    "arange_M": "torch.arange(query_pool.shape[-2], dtype=torch.int32, device=query.device) * block_size_M",
+    "arange_N": "torch.arange(key_pool.shape[-2], dtype=torch.int32, device=key.device) * block_size_N"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "minference/ops/block_sparse_flash_attention.py:164",
+   "function": "minference/ops/block_sparse_flash_attention.py::_build_block_index"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: undisclosed, other effect; related (candidate pair, judged different): minference-F056",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 3), not human: Clamping top_k to the number of key blocks that exist is a trivial bound, and block_size_M/N are equal by default, so the mix-up is an internal detail."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F064",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B029"
+  ],
+  "verification_ids": [
+   "V040"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "When q.dtype != torch.bfloat16: Any query dtype other than bfloat16 (float32, float64, float16 is fine) is silently treated as float16 in the Triton kernel, so a float32 model runs the sparse kernel in half precision without any check or cast of the inputs. (minference/ops/pit_sparse_flash_attention.py:150)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "q.dtype != torch.bfloat16",
+   "path_prefix": [
+    "def triton_sparse_forward(q, k, v, seqlens, col_count, col_index, sm_scale, block_size_M=64, block_size_N=64)"
+   ],
+   "dropped_prefix": [
+    "def triton_sparse_forward(q, k, v, seqlens, col_count, col_index, sm_scale, block_size_M=64, block_size_N=64)"
+   ],
+   "trigger": {
+    "q.dtype": {
+     "not_in": [
+      "torch.bfloat16"
+     ]
+    }
+   },
+   "contrast": {
+    "q.dtype": "torch.bfloat16"
+   },
+   "atoms": {
+    "q.dtype": {
+     "kind": "category",
+     "sort": "str"
+    }
+   },
+   "aliases_not_applied": {
+    "Lq": "q.shape[-1]",
+    "Lk": "k.shape[-1]",
+    "Lv": "v.shape[-1]",
+    "o": "torch.zeros_like(q)",
+    "grid": "(triton.cdiv(q.shape[2], block_size_M), q.shape[0] * q.shape[1], 1)",
+    "num_warps": "4 if Lk <= 64 or block_size_M <= 64 else 8"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "minference/ops/pit_sparse_flash_attention.py:150",
+   "function": "minference/ops/pit_sparse_flash_attention.py::triton_sparse_forward"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: undisclosed, other effect",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F065",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B030"
+  ],
+  "verification_ids": [
+   "V041"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When head_dim not in [16, 32, 64, 128, 256, 512]: For head dims outside the power-of-two list (e.g. 96, 80, 160) the q/k/v are zero-padded up to the next power of two and the kernel runs on the padded tensors; the result is then sliced back with `out[..., :context_size, :head_dim]`. The padded dims contribute zeros to the dot product, so the softmax scale `head_dim ** -0.5` is still correct, bu...",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "head_dim not in [16, 32, 64, 128, 256, 512]",
+   "path_prefix": [
+    "def vertical_slash_sparse_attention(query, key, value, v_idx, s_idx, block_size_M=64, block_size_N=64)"
+   ],
+   "dropped_prefix": [
+    "def vertical_slash_sparse_attention(query, key, value, v_idx, s_idx, block_size_M=64, block_size_N=64)"
+   ],
+   "trigger": {
+    "head_dim": 63
+   },
+   "contrast": {
+    "head_dim": 64
+   },
+   "atoms": {
+    "head_dim": {
+     "kind": "input",
+     "sort": "int"
+    }
+   },
+   "aliases_not_applied": {
+    "batch_size": "query.shape[0]",
+    "num_heads": "query.shape[1]",
+    "context_size": "query.shape[2]",
+    "head_dim": "query.shape[3]",
+    "pad": "block_size_M - (context_size & block_size_M - 1)"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "minference/ops/pit_sparse_flash_attention_v2.py:188",
+   "function": "minference/ops/pit_sparse_flash_attention_v2.py::vertical_slash_sparse_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: reviewed as wrong; related (candidate pair, judged different): minference-F055, minference-F073",
+  "review": "wrong",
+  "review_note": "blind review by an LLM subagent (round 3), not human: Zero-padding the head dim adds nothing to q.k dot products and sm_scale uses the original head_dim, so the softmax is unchanged, contrary to the claim."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F066",
+  "artifact_id": "minference",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "minference-gap-M03-B02"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "实验入口未暴露或设定步长50",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "is_search",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "is_search": true
+   },
+   "contrast": {
+    "is_search": false
+   },
+   "atoms": {
+    "is_search": {
+     "kind": "input",
+     "sort": "bool"
+    }
+   },
+   "code_locations": [
+    "experiments/README.md:13-30",
+    "experiments/infinite_bench/args.py:60-81"
+   ],
+   "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "location": "experiments/README.md:13-30",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; priority 3: not_implemented, other effect; related (candidate pair, judged different): minference-F043, minference-F044, minference-F045",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F067",
+  "artifact_id": "minference",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "minference-gap-M13-B05",
+   "minference-gap-M13-B06",
+   "minference-gap-M13-B08"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "无变体配置，无法复现Table7的only vertical行。",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "experiments/infinite_bench/args.py:63-78",
+    "experiments/ppl/run_ppl.sh:7-12"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The ablation variant 'Ours w/ only vertical' has no corresponding attn_type choice or configuration in args.py/run_ppl.sh, so the Table 7 only-vertical row cannot be reproduced on any call.",
+   "location": "experiments/infinite_bench/args.py:63-78",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; merged (LLM: same issue): minference-gap-M13-B06, minference-gap-M13-B08; priority 3: not_implemented, other effect; related (candidate pair, judged different): minference-F046, minference-F047, minference-F048, minference-F068",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F068",
+  "artifact_id": "minference",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "minference-gap-M13-B07"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "无换算配置入口。",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "attn_type in (\"minference\", \"minference_with_dense\")",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "attn_type": "minference"
+   },
+   "contrast": {
+    "attn_type": {
+     "not_in": [
+      "minference",
+      "minference_with_dense"
+     ]
+    }
+   },
+   "atoms": {
+    "attn_type": {
+     "kind": "category",
+     "sort": "str"
+    }
+   },
+   "code_locations": [
+    "experiments/infinite_bench/args.py:63-78",
+    "experiments/ppl/run_ppl.sh:7-12"
+   ],
+   "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "location": "experiments/infinite_bench/args.py:63-78",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; priority 3: not_implemented, other effect; related (candidate pair, judged different): minference-F046, minference-F047, minference-F048, minference-F067",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F069",
+  "artifact_id": "minference",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "minference-gap-M02-B01-R02",
+   "minference-gap-M02-B06",
+   "minference-gap-M02-A03"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求每候选计算真实 kernel FLOPs；代码不计算任何 FLOPs",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "trigger_only",
+   "condition": "True",
+   "path_prefix": [
+    "is_search"
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "is_search": true
+   },
+   "note": "the condition holds on every point that reaches it; no contrast point exists",
+   "atoms": {
+    "is_search": {
+     "kind": "input",
+     "sort": "bool"
+    }
+   },
+   "code_locations": [
+    "minference/modules/minference_forward.py:99-197",
+    "experiments/README.md:13-30"
+   ],
+   "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "location": "minference/modules/minference_forward.py:99-197",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; merged (LLM: same issue): minference-gap-M02-B06, minference-gap-M02-A03; priority 3: not_implemented, other effect; related (candidate pair, judged different): minference-F003, minference-F022, minference-F043, minference-F044, minference-F045, minference-F050, minference-F051, minference-F053, minference-F054, minference-F059, minference-F070, minference-F071",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F070",
+  "artifact_id": "minference",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "minference-gap-M02-B02"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求以目标 FLOPs 为停止条件的迭代调整；代码无该循环与调整算子",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "minference/modules/minference_forward.py:99-197",
+    "experiments/README.md:13-30"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The paper's iterative FLOPs-target adjustment loop (while |ti−t|>ε) is entirely absent from search_pattern, so the code never performs the described iterative adjustment on any call.",
+   "location": "minference/modules/minference_forward.py:99-197",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 3: not_implemented, other effect; related (candidate pair, judged different): minference-F003, minference-F022, minference-F043, minference-F044, minference-F045, minference-F050, minference-F051, minference-F053, minference-F054, minference-F059, minference-F069, minference-F071",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F071",
+  "artifact_id": "minference",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "minference-gap-M02-B03"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求累积 FLOPs 对齐后的候选到 ρ；代码无该累积步骤",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "minference/modules/minference_forward.py:99-197",
+    "experiments/README.md:13-30"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The search_pattern function never accumulates FLOPs-aligned candidates into rho after the while loop, so the missing accumulation step occurs on every invocation of the offline search path.",
+   "location": "minference/modules/minference_forward.py:99-197",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 3: not_implemented, other effect; related (candidate pair, judged different): minference-F003, minference-F022, minference-F043, minference-F044, minference-F045, minference-F050, minference-F051, minference-F053, minference-F054, minference-F059, minference-F069, minference-F070",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F072",
+  "artifact_id": "minference",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "minference-gap-M02-B07"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求 FlashAttention 与 V 信息参与选择；代码为稠密权重计算且完全不含 V",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "no_condition",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "minference/modules/minference_forward.py:99-197",
+    "minference/modules/minference_forward.py:199-246"
+   ],
+   "note": "LLM gave no usable condition: names not in the cited code: is_search",
+   "location": "minference/modules/minference_forward.py:99-197",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 3: not_implemented, other effect; related (candidate pair, judged different): minference-F003, minference-F022, minference-F051, minference-F052, minference-F054, minference-F059",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F073",
+  "artifact_id": "minference",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "minference-gap-M04-B04-R02"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求分别定义 t_sparse 与 t_overhead；artifact 路径无对应实现。",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "minference/modules/minference_forward.py:199-246",
+    "minference/ops/pit_sparse_flash_attention_v2.py:173-206"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The artifact's forward path never measures or exposes separate t_sparse and t_overhead timing components, so the paper's two-component timing definition is absent on every call.",
+   "location": "minference/modules/minference_forward.py:199-246",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; priority 3: not_implemented, other effect; related (candidate pair, judged different): minference-F055, minference-F065",
+  "review": "unreviewed",
+  "review_note": null
+ }
+]

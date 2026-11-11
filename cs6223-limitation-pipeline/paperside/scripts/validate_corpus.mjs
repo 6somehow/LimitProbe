@@ -27,7 +27,7 @@ for(const pid of papers){
   if(n.includes('snapshot')||n==='input.json')continue;
   let x;try{x=read(name);}catch{continue;}
   if(Array.isArray(x.choices)&&x.usage)tokens+=x.usage.total_tokens||0;
-  if(n==='summary.json'&&fs.existsSync(path.join(path.dirname(name),'system-prompt.json'))){tokens+=x.total_tokens||0;toolCalls+=x.tool_calls||0;if(x.error||x.validation_error)failures.push({stage:path.relative(work,path.dirname(name)),error:x.error||x.validation_error});}
+  if(n==='summary.json'&&fs.existsSync(path.join(path.dirname(name),'system-prompt.json'))){if(!x.usage_included_in_raw_response)tokens+=x.total_tokens||0;toolCalls+=x.tool_calls||0;if(x.error||x.validation_error)failures.push({stage:path.relative(work,path.dirname(name)),error:x.error||x.validation_error});}
  }
  const result={paper:pid,mechanisms:inventory.length,behaviors,completed,pending,counts,verified_source_records:sourceReads,requests,returned_tokens:tokens,tool_calls:toolCalls,rejected_stages:failures,target_execution:'not_run',semantic_truth:'pending independent review'};results.push(result);console.log(JSON.stringify(result));
 }
