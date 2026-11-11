@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import ast
 import builtins
+import collections
 import os
 import sys
 from dataclasses import dataclass, field
@@ -123,6 +124,7 @@ class _TracerBase:
         self.chain = chain
         self.target = target
         self.stop_after_target = stop_after_target
+        self.call_index = 0   # which driver call is running (preludes are calls 0..n-1, the checked call is last)
         self.scope_names = {(str((self.repo_root / c.file).resolve()), c.qualname) for c in chain}
         self.target_file_abs = str((self.repo_root / target.file).resolve())
         self.scope_names.add((self.target_file_abs, target.function))
@@ -146,12 +148,13 @@ class _TracerBase:
             self._info_cache[code] = info
         return info
 
-    def _eval_condition(self, hit: dict, f_locals) -> None:
-        loc = dict(f_locals)
+    def _eval_condition(self, hit: dict, f_locals, f_globals=None) -> None:
+        # names resolve in the frame's locals first, then in the module globals (a `global x` cache is read there)
+        loc = collections.ChainMap(dict(f_locals), f_globals if f_globals is not None else {})
         t = self.target
         try:
             if t.predicate is not None:
-                hit["condition_value"] = bool(t.predicate(loc))
+                hit["condition_value"] = bool(t.predicate(dict(loc)))
             elif t.cond_expr:
                 hit["condition_value"] = bool(eval(t.cond_expr, {"__builtins__": _SAFE_BUILTINS}, loc))  # noqa: S307
         except Exception as e:  # not evaluable on these locals
@@ -180,9 +183,9 @@ class _TracerBase:
         self.lines.setdefault(getattr(code, "co_qualname", code.co_name), set()).add(line)
         if info.has_target and line == self.target.line:
             hit = {"seq": fakes.next_seq(), "outcome": None, "condition_value": None, "condition_error": None,
-                   "locals": {}}
+                   "locals": {}, "call": self.call_index}
             f_locals = frame.f_locals
-            self._eval_condition(hit, f_locals)
+            self._eval_condition(hit, f_locals, frame.f_globals)
             for i, (k, v) in enumerate(f_locals.items()):
                 if i >= 40:
                     break

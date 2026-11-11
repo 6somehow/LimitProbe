@@ -79,6 +79,10 @@ class Design(_R):
     positive_input: dict[str, Any]
     negative_input: dict[str, Any]
     boundary_variable: str
+    positive_prelude: list[dict[str, Any]] = Field(
+        default_factory=list, description="state_dependent findings: inputs of the calls made BEFORE the checked "
+                                          "positive call, in order, in the same process")
+    negative_prelude: list[dict[str, Any]] = Field(default_factory=list, description="same, before the negative call")
     extra_negatives: list[dict[str, Any]] = Field(
         default_factory=list,
         description="more inputs that must show NO effect (full design inputs, like negative_input). They do not "
@@ -190,6 +194,7 @@ class ExceptionInfo(_R):
 
 class TargetHit(_R):
     seq: int
+    call: int = 0
     outcome: Optional[Literal["true", "false", "error"]] = None
     condition_value: Optional[bool] = None
     condition_error: Optional[str] = None
@@ -216,6 +221,7 @@ class Observation(_R):
     post_target_exception: Optional[ExceptionInfo] = Field(
         None, description="exception raised after the target line passed (does not count as the effect)")
     entry_first_started: Optional[str] = None
+    target_kind: Optional[str] = Field(None, description="assert | if | while | other: what the statement at Region.location is")
     observed_text: str = ""
     coverage: Optional[CoverageScope] = None
     stdout_tail: str = ""

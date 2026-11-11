@@ -7,7 +7,8 @@ Order of work: install import-time mocks -> import modules that need patching ->
 patches -> load the attempt's driver -> for each case: start a fresh tracer (unless
 trace=false), call driver.run(inputs), stop the tracer -> write the results.
 
-spec["cases"] is a list of {"id", "inputs"}; one process runs them in order, so the expensive
+spec["cases"] is a list of {"id", "inputs", "prelude"?}; "prelude" is a list of input dicts for earlier driver
+calls in the same process (state-dependent findings); only the last call is the checked one. One process runs them in order, so the expensive
 imports (torch, ...) happen once. With spec["stop_after_target"] the tracer stops each case
 right after the target decision (probe runs; see tracer.StopProbe).
 """
@@ -93,11 +94,28 @@ def main(argv: list[str]) -> int:
         res: dict = {"status": "ok", "exception": None, "returned": None, "trace": None}
         tracer = None
         if spec.get("trace", True):
-            tracer = make_tracer(repo, parse_chain(spec["chain"]), target, bool(spec.get("stop_after_target")))
+            tracer = make_tracer(repo, parse_chain(spec["chain"]), target, False)
         t0 = time.monotonic()
+        prelude = c.get("prelude") or []
+        res["final_call"] = len(prelude)
+        res["target_kind"] = target.kind
         try:
             if tracer:
                 tracer.start()
+                tracer.stop_after_target = False
+            for i, pin in enumerate(prelude):      # earlier calls that leave the state the checked call depends on
+                if tracer:
+                    tracer.call_index = i
+                try:
+                    run(pin)
+                except StopProbe:
+                    raise
+                except BaseException:
+                    res["prelude_failed"] = i
+                    raise
+            if tracer:
+                tracer.call_index = len(prelude)
+                tracer.stop_after_target = bool(spec.get("stop_after_target"))
             res["returned"] = summarize(run(c["inputs"]))
         except StopProbe:
             res["status"] = "probe_stop"

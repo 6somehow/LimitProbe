@@ -226,7 +226,9 @@ def info_items(pos: Observation, neg: Observation, raw_pos: dict, raw_neg: dict,
                target_loc: str) -> list[InfoItem]:
     """Observations with the stand-ins in their causal past (CONFIDENCE_SPEC.md section 5)."""
     def first_hit(raw: dict) -> Optional[int]:
-        return min((h["seq"] for h in (raw.get("trace") or {}).get("target_hits", [])), default=None)
+        # the checked call only: stand-ins touched while earlier (prelude) calls built the state are in its past too
+        return min((h["seq"] for h in (raw.get("trace") or {}).get("target_hits", [])
+                    if h.get("call", 0) == raw.get("final_call", 0)), default=None)
 
     def item(stmt, run, bearing, touched, basis):
         return InfoItem(statement=stmt, run=run, verdict_bearing=bearing,
@@ -236,12 +238,17 @@ def info_items(pos: Observation, neg: Observation, raw_pos: dict, raw_neg: dict,
     items: list[InfoItem] = []
     t = first_hit(raw_pos)
     touched = mocks_touched(decls, raw_pos["mock_events"], t)
-    items.append(item(f"positive: {pos.exception.type} raised at {target_loc}" if pos.effect and pos.exception
-                      else "positive: no exception at the target", "positive", True, touched,
+    branch = pos.observed_text.startswith("branch") or neg.observed_text.startswith("branch")
+    pos_stmt = (f"positive: {pos.observed_text}" if branch else
+                f"positive: {pos.exception.type} raised at {target_loc}" if pos.effect and pos.exception
+                else "positive: no exception at the target")
+    items.append(item(pos_stmt, "positive", True, touched,
                       "decided at the target line; stand-ins touched before it: " + (", ".join(d.symbol for d in touched) or "none")))
     t = first_hit(raw_neg)
     touched = mocks_touched(decls, raw_neg["mock_events"], t)
-    items.append(item(f"negative: target decision passed at {target_loc}" if neg.target_reached else "negative: target not reached",
+    neg_stmt = (f"negative: {neg.observed_text}" if branch else
+                f"negative: target decision passed at {target_loc}" if neg.target_reached else "negative: target not reached")
+    items.append(item(neg_stmt,
                       "negative", True, touched,
                       "decided at the target line; stand-ins touched before it: " + (", ".join(d.symbol for d in touched) or "none")))
     if neg.target_reached:
