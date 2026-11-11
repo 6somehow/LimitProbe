@@ -56,6 +56,11 @@ class StopProbe(BaseException):
     running the code below it. They are never used for the verdict itself."""
 
 
+def norm_qual(q: str) -> str:
+    """co_qualname of a nested function is 'outer.<locals>.inner'; the Region says 'outer.inner'."""
+    return q.replace(".<locals>", "")
+
+
 @dataclass
 class ChainFn:
     file: str  # repo-relative
@@ -139,9 +144,9 @@ class _TracerBase:
         self.target = target
         self.stop_after_target = stop_after_target
         self.call_index = 0   # which driver call is running (preludes are calls 0..n-1, the checked call is last)
-        self.scope_names = {(str((self.repo_root / c.file).resolve()), c.qualname) for c in chain}
+        self.scope_names = {(str((self.repo_root / c.file).resolve()), norm_qual(c.qualname)) for c in chain}
         self.target_file_abs = str((self.repo_root / target.file).resolve())
-        self.scope_names.add((self.target_file_abs, target.function))
+        self.scope_names.add((self.target_file_abs, norm_qual(target.function)))
         self.hits: list[dict] = []
         self.starts: list[dict] = []
         self.lines: dict[str, set[int]] = {}
@@ -156,9 +161,9 @@ class _TracerBase:
                 fn = os.path.realpath(code.co_filename)
             except Exception:
                 fn = code.co_filename
-            qn = getattr(code, "co_qualname", code.co_name)  # co_qualname exists from 3.11
+            qn = norm_qual(getattr(code, "co_qualname", code.co_name))  # co_qualname exists from 3.11
             in_scope = (fn, qn) in self.scope_names
-            info = _Info(in_scope, in_scope and fn == self.target_file_abs and qn == self.target.function)
+            info = _Info(in_scope, in_scope and fn == self.target_file_abs and qn == norm_qual(self.target.function))
             self._info_cache[code] = info
         return info
 
@@ -181,7 +186,7 @@ class _TracerBase:
 
     # -- shared handlers (frame is the monitored frame) ---------------------
     def handle_start(self, code) -> None:
-        self.starts.append({"seq": fakes.next_seq(), "fn": getattr(code, "co_qualname", code.co_name),
+        self.starts.append({"seq": fakes.next_seq(), "fn": norm_qual(getattr(code, "co_qualname", code.co_name)),
                             "file": os.path.realpath(code.co_filename)})
 
     def _in_target_span(self, line: int) -> bool:
@@ -194,7 +199,7 @@ class _TracerBase:
         pend = self._pending.get(fid)
         if pend is not None and pend.code is code and self._in_target_span(line):
             # still evaluating the multi-line statement / condition: not the next statement yet
-            self.lines.setdefault(getattr(code, "co_qualname", code.co_name), set()).add(line)
+            self.lines.setdefault(norm_qual(getattr(code, "co_qualname", code.co_name)), set()).add(line)
             return
         pend = self._pending.pop(fid, None)
         if pend is not None and pend.code is code:
@@ -203,7 +208,7 @@ class _TracerBase:
                 self._resolve(pend, "true")
             elif t.kind in ("if", "while"):
                 self._resolve(pend, "true" if t.body[0] <= line <= t.body[1] else "false")
-        self.lines.setdefault(getattr(code, "co_qualname", code.co_name), set()).add(line)
+        self.lines.setdefault(norm_qual(getattr(code, "co_qualname", code.co_name)), set()).add(line)
         # The first LINE event inside the statement's span starts a hit. For a multi-line `assert (` or `if (` the
         # interpreter may report the first line of the condition instead of the keyword line (3.12+ does).
         if info.has_target and self._in_target_span(line):

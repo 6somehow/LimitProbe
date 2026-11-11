@@ -65,6 +65,7 @@ def shallow_dump(st: ast.stmt) -> str:
 
 
 def functions_by_qualname(tree: ast.AST) -> dict[str, ast.FunctionDef | ast.AsyncFunctionDef]:
+    """Functions by dotted name. Nested functions are keyed 'outer.inner' (no '<locals>'), the way Regions name them."""
     out: dict[str, Any] = {}
 
     def visit(node: ast.AST, prefix: str) -> None:
@@ -72,7 +73,7 @@ def functions_by_qualname(tree: ast.AST) -> dict[str, ast.FunctionDef | ast.Asyn
             if isinstance(ch, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 q = prefix + ch.name
                 out[q] = ch
-                visit(ch, q + ".<locals>.")
+                visit(ch, q + ".")
             elif isinstance(ch, ast.ClassDef):
                 visit(ch, prefix + ch.name + ".")
             else:
