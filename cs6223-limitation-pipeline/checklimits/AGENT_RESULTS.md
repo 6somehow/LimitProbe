@@ -13,6 +13,28 @@
 
 手写版的判定与档位：F07、F01、F04 都是 yes / L3。**三条的判定与手写版一致**，档位相同。每次运行都没有触发 oracle 锁篡改检测（`lock_tampered=false`）。
 
+### 第二批：新的效果类型（fallback、state_dependent）
+
+harness 现在能判断三类效果：`reject`（目标位置抛异常）、`fallback` / `mechanism_variant`（目标处的 `if` / `while` 判定被执行，即走进分支）、`state_dependent`（同样的分支判定，但检查的是最后一次调用，之前由 prelude 调用改变状态）。目标不是 `if` / `while` 时返回 `not_run` 并给出原因。
+
+| run | finding | 效果类型 | 判定 | 档位 | 表单一致率 | 工具调用 | 用时 | 未消除的 defeater |
+|---|---|---|---|---|---|---|---|---|
+| s4-f053-r1 | flexprefill-F053 `if q_len == 1:` (1825) | fallback | yes | L3 | 1.0 | 41 | 275 s | 无 |
+| s4-f026-r1 | flexprefill-F026 `if q_len <= max(2*block_size, ...)` (1842) | fallback | yes | L3 | 1.0 | 54 | 639 s | 无 |
+| s4-f012-r1 | flexprefill-F012 `if causal_mask is None:` (1695，`global` 缓存) | state_dependent | yes | **L1** | 1.0 | 35（两个 session） | 428 s | D3、D5、D6 为 residual |
+
+F012 停在 L1，有三个结构性原因，agent 在最终总结里都说对了：
+
+- **D3（变异）**：`x is None` 守卫只有一个变异体（取反），少于 `n_min=4`，所以 D3 无法消除，L2、L3 都到不了。
+- **D5（相邻点）**：边界因素是程序状态（prelude），harness 无法探测状态的邻点。
+- **D6（替身）**：检查调用之前的 prelude 调用必然跑过目标之后的 CPU 替身，所以反例观察是 `simulated:fake`（因果前缀分析给出的结果，规则按预期工作）。
+
+这是第一次真实地走到"反馈回环第二个 session"：agent 收到 `next_steps` 后重跑，确认三项都不是它能修的，没有改报告，并说明了原因。
+
+两点实现说明：
+1. `state_dependent` 的"效果"按 SCORECARD §3.5 应是"第二次调用的结果与单独调用不同"。实现的是更窄的版本：**目标处分支判定在最后一次调用里与单独调用不同**。目标不是分支的状态类 finding 目前是 `not_run`。
+2. Region 条件现在在局部变量之外也在模块全局里求值，F012 的 `causal_mask` 是 `global` 变量，否则条件无法求值，D2 会一直是 open。
+
 ## 设计与手写版对比
 
 | | 手写 | agent |
