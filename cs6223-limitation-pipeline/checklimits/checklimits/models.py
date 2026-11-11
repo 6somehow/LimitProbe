@@ -221,6 +221,7 @@ class Observation(_R):
     post_target_exception: Optional[ExceptionInfo] = Field(
         None, description="exception raised after the target line passed (does not count as the effect)")
     entry_first_started: Optional[str] = None
+    target_span: Optional[list[int]] = Field(None, description="[first, last] line of the target statement or header")
     target_kind: Optional[str] = Field(None, description="assert | if | while | other: what the statement at Region.location is")
     observed_text: str = ""
     coverage: Optional[CoverageScope] = None

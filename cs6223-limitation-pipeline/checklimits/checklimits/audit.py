@@ -46,6 +46,18 @@ def _line_of(raised_at: Optional[str]) -> Optional[int]:
     return None
 
 
+def _hits_line(obs: Observation, claimed: Optional[int]) -> bool:
+    """Did the exception come from line `claimed`? A multi-line statement raises on a line inside it, and naming
+    the statement's first line is also right."""
+    actual = _line_of(obs.exception.raised_at) if obs.exception else None
+    if actual is None:
+        return False
+    if actual == claimed:
+        return True
+    sp = obs.target_span
+    return bool(sp and claimed == sp[0] and sp[0] <= actual <= sp[1])
+
+
 def observed_matches(claim: str, obs: Observation) -> bool:
     kind, ctype, cline = parse_observed(claim)
     exc = obs.exception
@@ -54,14 +66,14 @@ def observed_matches(claim: str, obs: Observation) -> bool:
             return False
         return (kind == "branch_taken") == bool(obs.effect)
     if kind == "exc":
-        return bool(obs.effect) and exc is not None and exc.type == ctype and _line_of(exc.raised_at) == cline
+        return bool(obs.effect) and exc is not None and exc.type == ctype and _hits_line(obs, cline)
     if kind == "none":
         if obs.effect:
             return False
         if cline is None:
             return exc is None
         # location-scoped: no exception raised at that line (later failures elsewhere are allowed)
-        return exc is None or _line_of(exc.raised_at) != cline
+        return exc is None or not _hits_line(obs, cline)
     return False
 
 

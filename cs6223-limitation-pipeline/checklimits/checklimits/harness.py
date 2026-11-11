@@ -138,6 +138,8 @@ class _Ctx:
         self.mocks = self.form.execution.mocks
         self.pred_file = self.form.design.condition_predicate_file
         self.exp_type = verdict.expected_exception_type(self.form.design.oracle)
+        from .tracer import target_span
+        self.span = target_span(self.repo, self.region.location.file, self.region.location.line_start)
         self.free = {fp.name: fp.value for fp in self.form.design.free_parameters}  # disclosed free parameters (T3)
         if self.form.test_id != self.manifest.test_id or self.form.finding_id != self.manifest.finding_id:
             raise ValueError("form.json and manifest.json disagree on test_id / finding_id")
@@ -157,7 +159,7 @@ class _Ctx:
         spec["seed"] = self.manifest.seed
         spec["prelude"] = self.prelude_for(role)
         raw = runner.run_child(spec, self.manifest.timeout_s, self.manifest.env, python=self.manifest.python)
-        return raw, runner.to_observation(raw, role, inputs, self.region, self.exp_type)
+        return raw, runner.to_observation(raw, role, inputs, self.region, self.exp_type, self.span)
 
     def run_many(self, cases: list[tuple[str, dict[str, Any]]], *, repo: Optional[Path] = None
                  ) -> dict[str, Observation]:
@@ -168,7 +170,7 @@ class _Ctx:
         cs = [{"id": label, "inputs": {**self.free, **inp}, "prelude": self.prelude_for(label)} for label, inp in cases]
         raws = runner.run_cases(spec, cs, self.manifest.timeout_s, self.manifest.env, python=self.manifest.python)
         return {label: runner.to_observation(raws[label], "negative" if label.startswith("neg") else "positive",
-                                             {**self.free, **inp}, self.region, self.exp_type)
+                                             {**self.free, **inp}, self.region, self.exp_type, self.span)
                 for label, inp in cases}
 
 

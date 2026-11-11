@@ -62,7 +62,7 @@ def main(argv: list[str]) -> int:
 
     from . import fakes
     from .models import MockDecl
-    from .tracer import StopProbe, TargetSpec, classify_target, make_tracer, parse_chain, summarize
+    from .tracer import StopProbe, TargetSpec, classify_target, make_tracer, parse_chain, summarize, target_span
 
     cases = spec.get("cases") or [{"id": "main", "inputs": spec["inputs"]}]
     results: dict[str, dict] = {}
@@ -79,7 +79,8 @@ def main(argv: list[str]) -> int:
         run = getattr(driver, spec["driver_fn"])
         t = spec["target"]
         kind, body = classify_target(repo, t["file"], t["line"])
-        target = TargetSpec(t["file"], t["line"], t["function"], kind, body, spec.get("cond_expr"), predicate)
+        target = TargetSpec(t["file"], t["line"], t["function"], kind, body, spec.get("cond_expr"), predicate,
+                            end_line=target_span(repo, t["file"], t["line"])[1])
     except BaseException as e:  # noqa: BLE001
         err = {"status": "load_error", "exception": _exc_info(e, repo), "returned": None, "trace": None,
                "mock_events": [], "wall_s": round(time.monotonic() - t_setup, 3)}

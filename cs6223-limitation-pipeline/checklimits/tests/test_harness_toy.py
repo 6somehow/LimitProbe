@@ -118,7 +118,8 @@ def test_modified_target_is_invalid(tmp_path):
     r = harness.run_attempt(b["attempt"], pipeline_root=b["root"], options=FAST)["report"]
     ad = r.fidelity.ast_diff
     assert not ad.target_statement_intact and not ad.git_status_clean and ad.files_changed == ["toypkg/core.py"]
-    assert st(r)["D11"] == "refuted" and st(r)["D12"] == "refuted"
+    # D11 sees the edited message (full statement); D12 compares the decision only, which did not change
+    assert st(r)["D11"] == "refuted" and st(r)["D12"] == "eliminated"
     assert (r.confidence.level, r.verdict, r.final_verdict) == ("invalid", "yes", "inconclusive")
     assert r.exec_result == "test_error" and any("repo_files_modified" in n for n in r.notes)
 
