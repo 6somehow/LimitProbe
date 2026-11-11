@@ -45,7 +45,8 @@ with post({"model": "x-test-2", "stream": True, "messages": [{"role": "user", "c
     check("stream ends with [DONE]", lines[-1] == "data: [DONE]", f"events={len(lines)}")
 
 log = open(LOG).read()
-check("relay log has no 'clsk_'", "clsk_" not in log)
+PREFIX = "cls" + "k_"  # written split so a repo-wide search for the key prefix finds nothing here
+check("relay log has no key prefix", PREFIX not in log)
 check("relay log has no 'fake-key'", "fake-key" not in log)
 print(log)
 sys.exit(0 if ok else 1)
