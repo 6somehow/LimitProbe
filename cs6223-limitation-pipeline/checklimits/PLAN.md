@@ -158,3 +158,5 @@ cs6223-limitation-pipeline/checklimits/
 | 5 | opencode 安装与 U1 到 U3 | 同意 | 未开始，等 P2 的启动 prompt |
 | 6 | 预算上限 | 可以放得更宽 | 未定具体数值，P2 再定 |
 | 7 | `TestCase.inputs` 格式（`role` 键）与 `result_notes` | 确认 | 保持现状 |
+
+| 8 | 置信度方案（2026-11-11 晚第二轮） | 四项均批准：放弃数值最终分；档位定义和 profile 初始值；判定只依赖 direct 的观察；先改 harness，再写 agent skill 与 workflow | 已实现，见 `CONFIDENCE_SPEC.md` §11。下一步：agent skill、workflow 与缺陷清单回环；故障注入基准与校准 |
