@@ -75,3 +75,17 @@ F07/F01 的反例要继续跑完下游代码，需要仓库固定的 triton 3.0.
 | `triton_block_wise_attention` | `sim.py::block_wise_attention`，把 `list[list[Tensor]]` 转成 tensor 后调用仓库自带的 `torch_block_wise_attention` | repo_reference | 0.9 |
 
 `get_active_blocks`（纯 torch）用真实代码跑。两个替身都在目标行之后才被调用，所以都不在路径上（`s_mock = 1 − 0.05×2 = 0.9`）。规模缩小到 1/8（F07：q_len 512；F01：q_len 512 / k_len 1024 对 512），表单的 `design.scale` 里写明理由和不变性论证。正例在目标行就停止，所以 harness 额外在完整 witness 规模（4096 / 8192）重跑一次正例作为规模检查。
+
+## 缺陷清单所需的 harness 服务（2026-11-11）
+
+| 服务 | 做什么 | 子进程数（F07，`n_rep=5`） |
+|---|---|---|
+| 主运行 | 正例、反例各一个进程，带 tracer | 2 |
+| 无 tracer 运行 | D7 | 2 |
+| 重复 | D8，另外 4 轮正反例 | 8 |
+| 边界探针 | D5、D10，一个进程内跑 4 个输入，到目标判定即停 | 1 |
+| 变异 | D3，每个变异体一个进程（正反例各一个输入） | 5 |
+| 重放 | D9，全新检出加全新 attempt 拷贝 | 2 |
+
+F07 完整运行约 31 秒（venv 里的 torch 2.4.0 import 约 1 秒）。`--fast` 只跑主运行，其余 defeater 保持 `open`。
+`git clone --local` 在跨文件系统时会因硬链接失败，重放改用 `--no-hardlinks`（单元测试里发现）。

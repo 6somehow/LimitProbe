@@ -1,6 +1,6 @@
 # 置信度细则（提案 v0，待确认）
 
-状态：提案，2026-11-11。取代 `SCORECARD.md` §3 到 §5 的"加权几何平均"。未获确认前，代码仍按 `SCORECARD.md` 运行。
+状态：**已确认并实现**（Shanghao 2026-11-11 批准 §10 的四项）。取代 `SCORECARD.md` §3 到 §5 的"加权几何平均"。实现与提案的差异见 §11。
 起因：Shanghao 的三点要求。(1) 主项目是 agent，不是某个 paper 的 case。(2) 置信度要有严格明确的细则，参考软件测试已有的概念和方法，不重复造轮子。(3) 在细则固定的前提下，用更好的 agent skill、harness、workflow 去拿到更高的置信度。
 
 ## 1. 现有评分表的问题
@@ -119,3 +119,32 @@ workflow 因此分为：**计划 → 登记（oracle、预期、替身声明）�
 2. §6 的档位定义和 profile 初始值是否可接受。
 3. 判定只依赖 `direct` 的观察（§5）。这会让 F07、F01 的反例"正常返回"降为补充信息。
 4. 下一步的顺序：先实现 §9（改 scoring、加 bva、mutate、replay），再写 agent skill 和 workflow；还是先写 agent 部分。建议前者，因为 agent 的修复回环需要 harness 给出缺陷清单。
+
+
+## 11. 实现与提案的差异（2026-11-11）
+
+代码：`confidence.py`（规则）、`profile.py`（参数和出处）、`stats.py`（Wilson、Rule of three）、`mutate.py`、`bva.py`、`harness.py`（各服务的调度）。
+
+| 项 | 提案 | 实现 |
+|---|---|---|
+| 档位 | invalid、L1 到 L3 | 另加 **L0**：没有致命 defeater 被推翻，但有致命项仍 `open`（例如没做探针影响检查）。判定为 `inconclusive` 时档位为 `n/a` |
+| D14 | 无 | 新增"是否经过官方入口"（T4 集成层级）。入口在 `call_chain[0]` 为 `eliminated`；更深但写了 `execution.entry_reason` 为 `residual`；没写原因为 `refuted`。归入"重要" |
+| D2 | 谓词无法求值时交给人复核 | agent 写的谓词与 Region 条件成立：`residual`（翻译是否忠实没有验证），因此最高 L1。条件完全无法求值且没有谓词：`open` |
+| D4 | 低于 specified 的登记 | 验证后的 tier 为 O1/O2 或没登记：`refuted`；O3 或事后改过 oracle：`residual`；O4、登记在首次运行前、0 次修改：`eliminated`。登记的哈希只覆盖 **oracle、预期结果和条件谓词**（SCORECARD T1 的原话），不覆盖输入、替身和规模 |
+| D5 | harness 二分找 ON/OFF 点 | 实现为**邻点探测**：在完整 witness 规模下，对反例的边界变量取 ±`probe_step`，至少一侧有效果则反例与效果区相邻。两侧都有效果说明无效果区是一个点（`!=` 型守卫）。边界变量不是整数或差异不止一个因素时记为 `residual`。判定为 `no` 时只要求差异为一个因素 |
+| D6 | direct 与三种 simulated | 判定依赖的观察全部 direct：`eliminated`；含 reference 或 fake：`residual`（最高 L2）；含 stub：`refuted`（最高 L1） |
+| D8 | 轨迹哈希相同 | 规范化哈希覆盖状态、异常类型和位置、返回值摘要、目标行命中的局部变量摘要、调用链函数启动顺序、执行行集合；不含序号和耗时 |
+| D9 | 重放 agent 的命令 | harness 在**全新检出的固定 commit** 和**全新的 attempt 拷贝**里重放**自己的调用**，不执行 agent 写在 `replay_commands` 里的 shell 字符串（否则 attempt 能让 harness 运行任意命令）。`replay_commands` 只作记录 |
+| D10 | 完整规模二分 | 完整规模下的正例、反例各跑一次探针（到目标判定即停），两者的效果必须与缩放后的运行一致 |
+| 探针运行 | 无 | D5、D3、D10 用"到目标判定即停"的探针（`tracer.StopProbe`）。探针不进入判定，也不运行目标之后的代码 |
+| 数值诊断读数 | 可保留 | 没有保留。`Scorecard`、`EvidenceRecord`、`scoring.py`、`s_mod` 等全部移除；`scoring_prototype.py` 作为历史文件留在原处 |
+
+profile 默认值：`n_min=4`、`kill_lb=0.5`、`n_rep=5`、`mod_max=0.05`、`probe_step=1`，出处全部写在 `profile.py`，报告里带上使用的 profile。
+
+### 已知限制
+
+1. **L3 现在只表示"我们能想到的 14 个 defeater 都被测量并消除"，不表示判定一定正确。** 在没有故障注入基准之前，报告里 `calibrated=false`。
+2. 效果判定只实现了 `reject`（目标位置抛异常）。`fallback`、`mechanism_variant`、`state_dependent` 等返回 `not_run`。
+3. D3 的变异只作用于 assert、raise、if、while；邻点探测只对整数边界变量有效。
+4. 对 assert 目标，探针提前停止，变异的"杀死"是目标处的强变异：判定从 `yes` 变成别的就算杀死，包括变异体导致崩溃。等价变异体没有剔除，所以用 Wilson 下界而不是要求 100%。
+5. 堆损坏、线程和非确定性库的行为：D8 只能比较观察到的轨迹，不能证明不存在非确定性；报告里给出 Rule of three 上界（5 次运行时 0.6，即证据很弱）。要把上界压到 0.1 需要 30 次运行，由 profile 的 `n_rep` 控制。
