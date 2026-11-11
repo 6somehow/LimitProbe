@@ -1,0 +1,87 @@
+{
+  "test_id": "T01",
+  "finding_id": "F01",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "num_heads",
+        "value": 2,
+        "why": "witness_hint does not give a head count; the target assert at :1836 runs before any head-dependent code, so the smallest value that keeps tensors small is used"
+      },
+      {
+        "name": "dtype",
+        "value": "bfloat16",
+        "why": "README says the sparse path was tested with bfloat16"
+      },
+      {
+        "name": "gamma",
+        "value": 0.9,
+        "why": "required positional argument; 0.9 is the value in the module's __main__ example"
+      },
+      {
+        "name": "tau",
+        "value": 0.1,
+        "why": "same example"
+      },
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "T6: fixed random seed"
+      }
+    ],
+    "positive_input": {
+      "batch_size": 1,
+      "q_len": 4096,
+      "k_len": 8192,
+      "head_dim": 128,
+      "block_size": 128
+    },
+    "negative_input": {
+      "batch_size": 1,
+      "q_len": 4096,
+      "k_len": 4096,
+      "head_dim": 128,
+      "block_size": 128
+    },
+    "boundary_variable": "k_len",
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "exception",
+      "spec": "AssertionError raised at flex_prefill/ops/flex_prefill_attention.py:1836",
+      "signal_location": "flex_prefill/ops/flex_prefill_attention.py:1836"
+    },
+    "expected": {
+      "positive": "AssertionError at flex_prefill/ops/flex_prefill_attention.py:1836",
+      "negative": "no exception at flex_prefill/ops/flex_prefill_attention.py:1836"
+    }
+  },
+  "execution": {
+    "entry_called": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention",
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "cd cs6223-limitation-pipeline/checklimits && python -m checklimits run --attempt attempts/flexprefill/F01"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "false",
+      "true"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "AssertionError at flex_prefill/ops/flex_prefill_attention.py:1836",
+    "negative_observed": "no exception at flex_prefill/ops/flex_prefill_attention.py:1836"
+  },
+  "evidence": {
+    "trace_file": "runs/flexprefill/T01.raw.json",
+    "stdout_file": null,
+    "diff_file": null
+  }
+}
