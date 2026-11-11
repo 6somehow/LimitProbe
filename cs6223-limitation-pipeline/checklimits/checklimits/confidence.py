@@ -82,6 +82,7 @@ class Measurements:
     # D5
     differing_factors: list[str] = field(default_factory=list)
     controls_differ: bool = False
+    extra_negatives_clean: Optional[bool] = None   # None: none given; False: one of them showed the effect
     bva: Optional[BvaResult] = None
     # D6
     info: list[InfoItem] = field(default_factory=list)
@@ -161,7 +162,10 @@ def evaluate_defeaters(m: Measurements, p: Profile) -> list[DefeaterResult]:
         out.append(_d("D4", "residual", why, revisions=m.oracle_revisions))
 
     single = len(m.differing_factors) == 1
-    if not single:
+    if m.extra_negatives_clean is False:
+        out.append(_d("D5", "refuted", "an extra negative input shows the effect (or never reached the target): "
+                      "the no-effect region is not what the pair suggests"))
+    elif not single:
         out.append(_d("D5", "refuted", f"positive and negative differ in {m.differing_factors}, not in exactly one factor"))
     elif m.verdict == "yes" and not m.controls_differ:
         out.append(_d("D5", "refuted", "positive and negative behave the same"))
