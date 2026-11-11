@@ -55,8 +55,17 @@ class Expected(_R):
     negative: str
 
 
+class ScaleDecl(_R):
+    """The test runs smaller than the witness; only the control flow is being simulated."""
+    factor: float = Field(description="run value / witness value, e.g. 0.125")
+    scaled: list[str] = Field(description="input names that were scaled")
+    reason: str
+    invariance_argument: str = Field(description="why the target decision does not depend on the scale")
+
+
 class Design(_R):
     witness_source: str
+    scale: Optional[ScaleDecl] = None
     free_parameters: list[FreeParameter] = Field(default_factory=list)
     positive_input: dict[str, Any]
     negative_input: dict[str, Any]
@@ -66,13 +75,26 @@ class Design(_R):
     expected: Expected
 
 
+SimClass = Literal["repo_reference", "independent_native", "stub"]
+
+
 class MockDecl(_R):
-    """An external stand-in. `behavior` is a closed vocabulary (see fakes.py)."""
+    """An external stand-in. `behavior` is a closed vocabulary (see fakes.py).
+
+    behavior "sim" runs a real implementation instead of returning a canned value:
+      impl: "<file in the attempt dir>::<function>"; the function receives the same arguments as the
+            replaced symbol. sim_class says what it is: "repo_reference" (it calls a reference
+            implementation shipped in the repository), "independent_native" (written by us in plain
+            torch), or "stub" (canned value).
+    sim_class sets how much the harness trusts what the stand-in computed (see fidelity.SIM_WEIGHT).
+    """
     symbol: str = Field(description="dotted path; for env_var kind, the variable name")
     kind: Literal["fake_module", "patch", "env_var"]
     reason: str
-    behavior: Literal["return_first_arg", "return_none", "record_only"] = "return_first_arg"
+    behavior: Literal["return_first_arg", "return_none", "record_only", "sim"] = "return_first_arg"
     value: Optional[str] = Field(None, description="env_var only")
+    impl: Optional[str] = None
+    sim_class: SimClass = "stub"
 
 
 class HookDecl(_R):
@@ -131,6 +153,9 @@ class AttemptManifest(_R):
     driver_fn: str = "run"
     timeout_s: int = 300
     seed: int = 0
+    python: Optional[str] = Field(
+        None, description="interpreter for the child process, relative to checklimits/ or absolute; "
+                          "default: the harness interpreter")
     env: dict[str, str] = Field(default_factory=dict, description="extra environment for the child")
 
 
@@ -168,6 +193,7 @@ class Observation(_R):
     target_hits: list[TargetHit] = Field(default_factory=list)
     effect: Optional[bool] = Field(None, description="Region.outcome effect observed; None = cannot tell")
     effect_note: str = ""
+    returned: Optional[str] = Field(None, description="summary of the return value, if the run returned")
     post_target_exception: Optional[ExceptionInfo] = Field(
         None, description="exception raised after the target line passed (does not count as the effect)")
     entry_first_started: Optional[str] = None
@@ -217,6 +243,20 @@ class MutationResult(_R):
 
 class ReplayResult(_R):
     ok: bool
+
+
+class InfoItem(_R):
+    """One piece of information the run produced, with the confidence the harness gives it.
+
+    confidence = product of SIM_WEIGHT[sim_class] over every mock touched before the information
+    was produced, times the scale weight. 1.0 means no stand-in sits between the repository code
+    and the observation. The weights are initial values (see fidelity.py), not calibrated."""
+    statement: str
+    run: Literal["positive", "negative"]
+    depends_on_mocks: list[str] = Field(default_factory=list)
+    scale_weight: float = 1.0
+    confidence: float
+    basis: str
 
 
 class Checks(_R):
@@ -326,6 +366,7 @@ class ExecutionReport(_R):
     checks: Checks
     fidelity: Fidelity
     audit: AuditResult
+    information: list[InfoItem] = Field(default_factory=list)
     evidence: EvidenceRecord
     scorecard: Scorecard
     finding_confidence: Optional[str] = Field(None, description="upstream Finding.confidence, reported separately")
@@ -338,11 +379,12 @@ class ExecutionReport(_R):
 # helpers
 # --------------------------------------------------------------------------- #
 def design_sha256(form: AgentForm, predicate_bytes: bytes | None = None) -> str:
-    """Hash of everything the agent must commit to before the first run (T1)."""
+    """Hash of what T1 asks the agent to commit to before the first run: the oracle, the expected
+    results for the positive and negative input, and the condition predicate (if any). Inputs, mocks
+    and scale are not part of it: changing them after a run does not change what counts as the effect."""
     payload = {
-        "design": form.design.model_dump(mode="json"),
-        "mocks": [m.model_dump(mode="json") for m in form.execution.mocks],
-        "entry": form.execution.entry_called,
+        "oracle": form.design.oracle.model_dump(mode="json"),
+        "expected": form.design.expected.model_dump(mode="json"),
     }
     h = hashlib.sha256(json.dumps(payload, sort_keys=True).encode())
     if predicate_bytes:

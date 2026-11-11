@@ -18,7 +18,7 @@ import subprocess
 from pathlib import Path
 from typing import Any, Iterator, Optional
 
-from .models import AstDiff, CoverageScope, MockDecl, MockRecord
+from .models import AstDiff, CoverageScope, InfoItem, MockDecl, MockRecord, Observation
 
 _COMPOUND = ("body", "orelse", "finalbody", "handlers", "cases")
 _LOG_ROOTS = {"print", "logging", "logger", "log", "warnings"}
@@ -208,3 +208,77 @@ def s_entry(index: Optional[int], chain_len: int) -> float:
     if chain_len <= 1:
         return 1.0
     return 1 - index / (chain_len - 1)
+
+
+# How far the harness trusts what a stand-in computed. Initial values, not calibrated:
+#   repo_reference      the stand-in calls a reference implementation shipped in the repository
+#   independent_native  plain torch re-implementation written for the test
+#   stub                canned value (fake module, return_none, return_first_arg)
+SIM_WEIGHT = {"repo_reference": 0.9, "independent_native": 0.75, "stub": 0.3}
+SCALE_UNVERIFIED = 0.9  # scaled-down run, invariance argued but not checked
+SCALE_REFUTED = 0.6     # scaled-down run, full-scale check disagreed
+
+
+def mocks_touched(decls: list[MockDecl], events: list[dict], before_seq: Optional[int]) -> list[MockDecl]:
+    """Mocks accessed (strictly before `before_seq`, or at all if None) in one run."""
+    out = []
+    for d in decls:
+        for e in events:
+            if (e["symbol"] == d.symbol or e["symbol"].startswith(d.symbol + ".")) and (
+                    before_seq is None or e["seq"] < before_seq):
+                out.append(d)
+                break
+    return out
+
+
+def _confidence(touched: list[MockDecl], scale_weight: float) -> float:
+    c = scale_weight
+    for d in touched:
+        c *= SIM_WEIGHT[d.sim_class]
+    return round(c, 3)
+
+
+def info_items(pos: Observation, neg: Observation, raw_pos: dict, raw_neg: dict, decls: list[MockDecl],
+               target_loc: str, scale_declared: bool, scale_pos_verified: Optional[bool]) -> list[InfoItem]:
+    """Information produced by the runs, each with the mocks it depends on and a confidence."""
+    def first_hit(raw: dict) -> Optional[int]:
+        return min((h["seq"] for h in (raw.get("trace") or {}).get("target_hits", [])), default=None)
+
+    items: list[InfoItem] = []
+    if scale_declared:
+        sw_pos = 1.0 if scale_pos_verified else (SCALE_REFUTED if scale_pos_verified is False else SCALE_UNVERIFIED)
+        sw_neg = SCALE_UNVERIFIED
+    else:
+        sw_pos = sw_neg = 1.0
+    sw_basis = ("" if not scale_declared else
+                "; scale: positive confirmed at full scale" if scale_pos_verified else
+                "; scale: invariance argued, not checked")
+
+    # 1. positive effect at the target: only mocks touched before the target can matter
+    t = first_hit(raw_pos)
+    touched = mocks_touched(decls, raw_pos["mock_events"], t)
+    stmt = (f"positive: {pos.exception.type} raised at {target_loc}" if pos.effect and pos.exception
+            else "positive: no exception at the target")
+    items.append(InfoItem(statement=stmt, run="positive", depends_on_mocks=[d.symbol for d in touched],
+                          scale_weight=sw_pos, confidence=_confidence(touched, sw_pos),
+                          basis="decided at the target line, before downstream stand-ins run" + sw_basis))
+    # 2. negative: the target decision passed
+    t = first_hit(raw_neg)
+    touched = mocks_touched(decls, raw_neg["mock_events"], t)
+    items.append(InfoItem(statement=f"negative: target decision passed at {target_loc}" if neg.target_reached
+                          else "negative: target not reached",
+                          run="negative", depends_on_mocks=[d.symbol for d in touched], scale_weight=sw_neg,
+                          confidence=_confidence(touched, sw_neg),
+                          basis="decided at the target line" + ("; scale invariance argued" if scale_declared else "")))
+    # 3. negative: what happened after the target (every stand-in touched may matter)
+    if neg.target_reached:
+        touched = mocks_touched(decls, raw_neg["mock_events"], None)
+        if neg.post_target_exception is not None:
+            what = f"negative: failed after the target with {neg.post_target_exception.type} at {neg.post_target_exception.raised_at}"
+        else:
+            what = f"negative: continued past the target and returned {neg.returned}"
+        items.append(InfoItem(statement=what, run="negative", depends_on_mocks=[d.symbol for d in touched],
+                              scale_weight=sw_neg, confidence=_confidence(touched, sw_neg),
+                              basis="downstream behaviour; depends on every stand-in that ran: "
+                                    + (", ".join(f"{d.symbol} ({d.sim_class})" for d in touched) or "none")))
+    return items
