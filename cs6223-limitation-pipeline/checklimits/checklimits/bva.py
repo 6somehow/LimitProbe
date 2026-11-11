@@ -40,7 +40,11 @@ def plan(form: AgentForm, hint: Optional[dict[str, Any]], probe_step: int
     cases = [("pos_full", pos_full), ("neg_full", neg_full)]
     diff = sorted(k for k in set(d.positive_input) | set(d.negative_input)
                   if d.positive_input.get(k) != d.negative_input.get(k))
+    if d.positive_prelude != d.negative_prelude:
+        diff = sorted(set(diff) | {"prelude"})
     b = d.boundary_variable
+    if b == "prelude":
+        return cases, None, "the boundary variable is the prelude (program state): adjacency cannot be probed"
     if diff != [b]:
         return cases, None, f"inputs differ in {diff}, not only in the boundary variable {b!r}"
     v = neg_full.get(b)

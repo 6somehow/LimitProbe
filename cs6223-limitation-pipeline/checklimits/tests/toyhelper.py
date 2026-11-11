@@ -63,41 +63,81 @@ def run(inputs):
 '''
 
 
+CORE_BRANCH = '''def pre(n):
+    return n + 1
+
+
+def check(n, m):
+    base = pre(n)
+    if n > 3:
+        return "fallback"
+    return "main"
+
+
+def entry(n, m):
+    return check(n, m)
+'''
+
+CORE_STATE = '''_STATE = {}
+
+
+def check(n, m):
+    cache = _STATE.get("v")
+    if cache is None:
+        _STATE["v"] = n
+        return "initialised"
+    return "reused"
+
+
+def entry(n, m):
+    return check(n, m)
+'''
+
+KINDS = {   # kind -> (source, text that starts the target line, outcome, condition expr, snippet)
+    "reject": (None, "assert n == 1", "reject", "n != 1", 'assert n == 1, "n must be 1"'),
+    "branch": (CORE_BRANCH, "if n > 3:", "fallback", "n > 3", "if n > 3:"),
+    "state": (CORE_STATE, "if cache is None:", "state_dependent", "cache is None", "if cache is None:"),
+}
+
+
 def git(repo, *a):
     subprocess.run(["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@t", *a],
                    check=True, capture_output=True)
 
 
-def target_line(src):
-    return next(i for i, l in enumerate(src.splitlines(), 1) if l.strip().startswith("assert n == 1"))
+def target_line(src, marker="assert n == 1"):
+    return next(i for i, l in enumerate(src.splitlines(), 1) if l.strip().startswith(marker))
 
 
 def build(tmp: Path, with_ext=True, form_overrides=None, driver_src=DRIVER, manifest_overrides=None,
-          pos=None, neg=None, scale=None, mocks_override=None, entry_reason=None):
+          pos=None, neg=None, scale=None, mocks_override=None, entry_reason=None, kind="reject",
+          design_extra=None, witness=None):
     repo = tmp / "repo"
     (repo / "toypkg").mkdir(parents=True)
-    src = CORE_IMPORT_TOUCH if with_ext == "import" else CORE_WITH_EXT if with_ext else CORE_PLAIN
+    ksrc, marker, outcome, cond_expr, snippet = KINDS[kind]
+    src = ksrc or (CORE_IMPORT_TOUCH if with_ext == "import" else CORE_WITH_EXT if with_ext else CORE_PLAIN)
     (repo / "toypkg" / "__init__.py").write_text("")
     (repo / "toypkg" / "core.py").write_text(src)
     git(repo, "init", "-q")
     git(repo, "add", "-A")
     git(repo, "commit", "-q", "-m", "init")
     commit = subprocess.run(["git", "-C", str(repo), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
-    line = target_line(src)
+    line = target_line(src, marker)
     loc = f"toypkg/core.py:{line}"
     data = tmp / "data"
     data.mkdir()
     region = {"schema_version": "0.1.0", "region_id": "R1", "artifact_id": "toy", "entry_point": "toypkg/core.py::entry",
-              "condition": {"expr": "n != 1", "params": ["n"], "path_prefix": []}, "outcome": "reject",
+              "condition": {"expr": cond_expr, "params": ["n"], "path_prefix": []}, "outcome": outcome,
               "location": {"file": "toypkg/core.py", "line_start": line, "function": "toypkg/core.py::check",
-                           "snippet": 'assert n == 1, "n must be 1"'},
+                           "snippet": snippet},
               "call_chain": ["toypkg/core.py::entry", "toypkg/core.py::check"], "provenance": "manual"}
     lim = {"schema_version": "0.1.0", "limitation_id": "CL1", "artifact_id": "toy", "origin": "code",
            "condition_text": "n != 1", "effect_type": "reject", "effect_text": "assert", "region_ids": ["R1"],
            "provenance": "manual"}
     fnd = {"schema_version": "0.1.0", "finding_id": "F1", "artifact_id": "toy", "category": "undisclosed",
            "level": "L2", "limitation_ids": ["CL1"], "scope_status": "scope_edge", "effect_type": "reject",
-           "summary": "n must be 1", "witness_hint": {"n": 2, "m": 1}, "confidence": "mechanical"}
+           "summary": "n must be 1", "witness_hint": witness or ({"n": 4, "m": 1} if kind == "branch" else {"n": 1} if kind == "state" else {"n": 2, "m": 1}),
+           "confidence": "mechanical"}
     (data / "gold_regions.json").write_text(json.dumps([region]))
     (data / "gold_code_limitations.json").write_text(json.dumps([lim]))
     (data / "draft_findings.json").write_text(json.dumps([fnd]))
@@ -109,7 +149,7 @@ def build(tmp: Path, with_ext=True, form_overrides=None, driver_src=DRIVER, mani
              if with_ext else [])
     form = {
         "test_id": "T1", "finding_id": "F1", "strategy": "S1" if with_ext else "S0",
-        "design": {"witness_source": "witness_hint", "free_parameters": [{"name": "m", "value": 1, "why": "unused"}],
+        "design": {"witness_source": "witness_hint", "free_parameters": [{"name": "m", "value": 1, "why": "unused by the toy guard"}],
                    "positive_input": pos or {"n": 2}, "negative_input": neg or {"n": 1}, "boundary_variable": "n",
                    "condition_predicate_file": None,
                    "oracle": {"tier": "O4", "type": "exception", "spec": f"AssertionError raised at {loc}",
@@ -124,6 +164,16 @@ def build(tmp: Path, with_ext=True, form_overrides=None, driver_src=DRIVER, mani
     }
     if scale:
         form["design"]["scale"] = scale
+    if kind != "reject":
+        form["design"]["oracle"].update(type="path_hook", spec=f"branch taken at {loc}", signal_location=loc)
+        form["design"]["expected"] = {"positive": f"branch taken at {loc}", "negative": f"branch not taken at {loc}"}
+        form["claims"]["positive_observed"] = f"branch taken at {loc}"
+        form["claims"]["negative_observed"] = f"branch not taken at {loc}"
+        if pos is None:
+            form["design"]["positive_input"] = {"n": 4} if kind == "branch" else {"n": 1}
+        if neg is None:
+            form["design"]["negative_input"] = {"n": 3} if kind == "branch" else {"n": 1}
+    form["design"].update(design_extra or {})
     for k, v in (form_overrides or {}).items():
         form[k] = v
     manifest = {"test_id": "T1", "finding_id": "F1", "artifact_id": "toy", "region_id": "R1", "repo_dir": "repo",

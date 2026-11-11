@@ -19,11 +19,15 @@ from typing import Optional
 from .models import AgentForm, AuditItem, AuditResult, Observation
 
 _EXC = re.compile(r"^\s*([A-Za-z_]\w*)\s+(?:raised\s+)?at\s+\S*?:(\d+)", re.I)
+_BRANCH = re.compile(r"^\s*branch\s+(not\s+taken|taken)\b(?:.*?at\s+\S*?:(\d+))?", re.I)
 _NOEXC = re.compile(r"^\s*no\s+(?:exception|error|assertion)\b(?:.*?at\s+\S*?:(\d+))?", re.I)
 
 
 def parse_observed(text: str) -> tuple[str, Optional[str], Optional[int]]:
     """('exc', type, line) | ('none', None, line or None) | ('unparsed', None, None)"""
+    m = _BRANCH.match(text)
+    if m:
+        return ("branch_not_taken" if "not" in m.group(1).lower() else "branch_taken"), None, int(m.group(2)) if m.group(2) else None
     m = _NOEXC.match(text)
     if m:
         return "none", None, int(m.group(1)) if m.group(1) else None
@@ -45,6 +49,10 @@ def _line_of(raised_at: Optional[str]) -> Optional[int]:
 def observed_matches(claim: str, obs: Observation) -> bool:
     kind, ctype, cline = parse_observed(claim)
     exc = obs.exception
+    if kind in ("branch_taken", "branch_not_taken"):
+        if obs.effect is None or not obs.observed_text.lower().startswith("branch"):
+            return False
+        return (kind == "branch_taken") == bool(obs.effect)
     if kind == "exc":
         return bool(obs.effect) and exc is not None and exc.type == ctype and _line_of(exc.raised_at) == cline
     if kind == "none":

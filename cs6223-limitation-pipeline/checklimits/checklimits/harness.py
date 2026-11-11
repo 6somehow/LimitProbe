@@ -142,12 +142,20 @@ class _Ctx:
         if self.form.test_id != self.manifest.test_id or self.form.finding_id != self.manifest.finding_id:
             raise ValueError("form.json and manifest.json disagree on test_id / finding_id")
 
+    def prelude_for(self, role_or_label: str) -> list[dict[str, Any]]:
+        """Calls made before the checked call (state_dependent findings). Positive labels use the positive prelude,
+        everything else (negative, extra negatives, neighbours) the negative one."""
+        d = self.form.design
+        pre = d.positive_prelude if role_or_label.startswith("pos") else d.negative_prelude
+        return [{**self.free, **p} for p in pre]
+
     def run(self, role: str, design_inputs: dict[str, Any], *, trace: bool = True, stop: bool = False,
             repo: Optional[Path] = None, attempt_dir: Optional[Path] = None) -> tuple[dict, Observation]:
         inputs = {**self.free, **design_inputs}
         spec = runner.build_spec(self.manifest, attempt_dir or self.attempt_dir, self.pipeline_root, self.region,
                                  inputs, self.mocks, self.pred_file, trace, repo_dir=repo, stop_after_target=stop)
         spec["seed"] = self.manifest.seed
+        spec["prelude"] = self.prelude_for(role)
         raw = runner.run_child(spec, self.manifest.timeout_s, self.manifest.env, python=self.manifest.python)
         return raw, runner.to_observation(raw, role, inputs, self.region, self.exp_type)
 
@@ -157,7 +165,7 @@ class _Ctx:
         spec = runner.build_spec(self.manifest, self.attempt_dir, self.pipeline_root, self.region,
                                  {}, self.mocks, self.pred_file, True, repo_dir=repo, stop_after_target=True)
         spec["seed"] = self.manifest.seed
-        cs = [{"id": label, "inputs": {**self.free, **inp}} for label, inp in cases]
+        cs = [{"id": label, "inputs": {**self.free, **inp}, "prelude": self.prelude_for(label)} for label, inp in cases]
         raws = runner.run_cases(spec, cs, self.manifest.timeout_s, self.manifest.env, python=self.manifest.python)
         return {label: runner.to_observation(raws[label], "negative" if label.startswith("neg") else "positive",
                                              {**self.free, **inp}, self.region, self.exp_type)
@@ -250,7 +258,9 @@ def run_attempt(attempt_dir: Path, pipeline_root: Path = PIPELINE_ROOT, options:
     # main pair (traced)
     raw_p, pos = ctx.run("positive", form.design.positive_input)
     raw_n, neg = ctx.run("negative", form.design.negative_input)
-    supported = region.outcome == "reject"
+    supported, support_note = runner.outcome_support(region, ctx.repo)
+    if not supported:
+        pos.effect_note = neg.effect_note = support_note
     v = verdict.decide(pos, neg, supported)
 
     # extra negatives: more inputs that must show no effect
@@ -287,7 +297,8 @@ def run_attempt(attempt_dir: Path, pipeline_root: Path = PIPELINE_ROOT, options:
     ad = fidelity.ast_diff(ctx.repo, manifest.repo_commit, chain, region.location.file,
                            region.location.line_start, region.location.snippet,
                            (region.location.function or "").partition("::")[2])
-    first_hit = lambda raw: min((h["seq"] for h in (raw.get("trace") or {}).get("target_hits", [])), default=None)
+    first_hit = lambda raw: min((h["seq"] for h in (raw.get("trace") or {}).get("target_hits", [])
+                                if h.get("call", 0) == raw.get("final_call", 0)), default=None)
     mock_recs = fidelity.mock_records(
         ctx.mocks, [(raw_p["mock_events"], first_hit(raw_p)), (raw_n["mock_events"], first_hit(raw_n))], chain)
     entry_idx = fidelity.entry_index(chain, pos.entry_first_started)
@@ -315,6 +326,8 @@ def run_attempt(attempt_dir: Path, pipeline_root: Path = PIPELINE_ROOT, options:
     info = fidelity.info_items(pos, neg, raw_p, raw_n, ctx.mocks, ctx.loc)
     au = audit_mod.audit(form, pos, neg)
     factors = differing_factors(form.design.positive_input, form.design.negative_input)
+    if form.design.positive_prelude != form.design.negative_prelude:
+        factors = sorted(set(factors) | {"prelude"})
     controls_differ = pos.effect is not None and neg.effect is not None and pos.effect != neg.effect
 
     # D5, D10: boundary probes at full scale

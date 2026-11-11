@@ -30,6 +30,29 @@ Do not edit anything under `checklimits/` except your own attempt directory.
 * optional `sim.py`: CPU implementations for GPU-only calls that run AFTER the target statement.
 * optional `condition.py`: `def predicate(locals) -> bool`, only if the Region condition cannot be evaluated.
 
+## What counts as "the effect" depends on the Region's outcome
+
+| outcome in the task | effect the harness looks for | oracle you declare | observed text |
+|---|---|---|---|
+| `reject` | an exception raised AT the target line | `type: exception`, `spec: "<ExceptionClass> raised at <file>:<line>"` | `AssertionError at <file>:<line>` / `no exception at <file>:<line>` |
+| `fallback`, `mechanism_variant` | the branch decision at the target line is TAKEN (the `if`/`while` body runs) | `type: path_hook`, `spec: "branch taken at <file>:<line>"`, `signal_location` = the line, tier O4 | `branch taken at <file>:<line>` / `branch not taken at <file>:<line>` |
+| `state_dependent` | the same branch decision, in the LAST driver call, after earlier calls changed the program state | same as above, plus preludes (below) | same as above |
+| anything else | not judged yet: the harness answers `not_run` | | |
+
+A branch effect needs the target to be an `if` or `while` statement. The Region condition says when the branch
+is taken; at the target line it must be TRUE on the positive input and FALSE on the negative one, exactly as for
+`reject`. What happens after the decision does not matter for the verdict (the harness stops at the decision in
+its probe runs), but your negative run may need stand-ins below the target as before.
+
+**state_dependent.** The driver is called once per input. To put the program in a state, list the earlier calls in
+`design.positive_prelude` / `design.negative_prelude` (each entry is a full input dict, run in order, in the same
+process, before the checked call). Positive and negative then use the SAME final input and differ only in the
+prelude; set `boundary_variable` to `"prelude"`. State findings usually have the state in a module-level variable,
+so the positive case is a fresh process (no prelude) and the negative case makes one earlier call. Positive and
+negative must still differ in exactly one thing. The harness cannot probe the neighbours of a state, so D5 stays
+"residual" and the level is at most L2; guards such as `x is None` have only one or two mutants, so D3 is at most
+"residual" (fewer than 4 mutants) and the level is at most L1. Say so in your summary instead of trying to hide it.
+
 ## The test you must design (T1 to T9) and the doubt each rule removes
 
 The harness lists 14 ways its verdict could be wrong ("defeaters", D1 to D14). A level is only as high as

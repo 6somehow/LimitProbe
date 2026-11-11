@@ -1,7 +1,9 @@
 """Verdict table of SCORECARD section 3.5 and oracle checks.
 
-Effect (for Region.outcome == "reject"): an exception raised at Region.location. Only
-"reject" is implemented in P1; other outcomes return inconclusive / not_run.
+Effect, by Region.outcome (runner.outcome_support / runner.to_observation):
+  reject                                         an exception raised at Region.location
+  fallback, mechanism_variant, state_dependent   the branch decision at Region.location is taken
+Other outcomes return inconclusive / not_run.
 
   positive effect | negative effect | verdict
   yes             | no              | yes            (confirmed)

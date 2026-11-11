@@ -111,6 +111,7 @@ def init_attempt(finding_id: str, out: Path, data_dir_rel: str = DEFAULT_DATA, t
         differ = [k for k in witness if witness[k] != negative[k]]
         boundary = differ[0] if len(differ) == 1 else "TODO"
     reject = r.outcome == "reject"
+    branch = r.outcome in ("fallback", "mechanism_variant", "state_dependent")
     form = {
         "test_id": manifest.test_id, "finding_id": finding_id, "strategy": "S0",
         "design": {
@@ -120,9 +121,11 @@ def init_attempt(finding_id: str, out: Path, data_dir_rel: str = DEFAULT_DATA, t
             "negative_input": negative,
             "boundary_variable": boundary,
             "scale": None, "condition_predicate_file": None,
-            "oracle": {"tier": "O4" if reject else "O3", "type": "exception" if reject else "path_hook",
-                       "spec": f"TODO: <ExceptionType> raised at {loc}", "signal_location": loc},
-            "expected": {"positive": f"TODO: <ExceptionType> at {loc}", "negative": f"no exception at {loc}"},
+            "oracle": {"tier": "O4" if (reject or branch) else "O3", "type": "exception" if reject else "path_hook",
+                       "spec": (f"TODO: <ExceptionType> raised at {loc}" if reject else f"TODO: branch taken at {loc}"),
+                       "signal_location": loc},
+            "expected": ({"positive": f"TODO: <ExceptionType> at {loc}", "negative": f"no exception at {loc}"} if reject else
+                         {"positive": f"TODO: branch taken at {loc}", "negative": f"branch not taken at {loc}"}),
         },
         "execution": {"entry_called": r.call_chain[0] if r.call_chain else r.entry_point, "entry_reason": None,
                       "call_chain_index": 0, "repo_files_modified": [], "mocks": [], "hooks": [],
@@ -230,6 +233,8 @@ def lint_attempt(attempt: Path, pipeline_root: Path = PIPELINE_ROOT) -> list[Iss
         err("L008", "form.json still contains TODO placeholders")
     # T2: control pair
     diff = sorted(k for k in set(d.positive_input) | set(d.negative_input) if d.positive_input.get(k) != d.negative_input.get(k))
+    if d.positive_prelude != d.negative_prelude:
+        diff = sorted(set(diff) | {"prelude"})
     if not diff:
         err("L009", "positive_input and negative_input are identical (T2: they must differ in exactly one factor)")
     elif len(diff) > 1:
@@ -298,6 +303,11 @@ def lint_attempt(attempt: Path, pipeline_root: Path = PIPELINE_ROOT) -> list[Iss
         err("L019", f"condition_predicate_file {d.condition_predicate_file} not found")
     if not form.execution.replay_commands:
         warn("L020", "replay_commands is empty (T8)")
+    if region.outcome == "state_dependent" and not (d.positive_prelude or d.negative_prelude):
+        warn("L021", "the Region is state_dependent but neither positive_prelude nor negative_prelude is set: both runs "
+                     "start from the same fresh state, so the decision cannot differ")
+    if region.outcome not in ("reject", "fallback", "mechanism_variant", "state_dependent"):
+        warn("L021", f"outcome {region.outcome!r} has no effect check yet: the harness will answer not_run")
     return issues
 
 
