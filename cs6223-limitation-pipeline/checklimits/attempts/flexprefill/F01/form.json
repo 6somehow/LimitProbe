@@ -1,7 +1,7 @@
 {
   "test_id": "T01",
   "finding_id": "F01",
-  "strategy": "S0",
+  "strategy": "S1",
   "design": {
     "witness_source": "witness_hint",
     "free_parameters": [
@@ -33,15 +33,15 @@
     ],
     "positive_input": {
       "batch_size": 1,
-      "q_len": 4096,
-      "k_len": 8192,
+      "q_len": 512,
+      "k_len": 1024,
       "head_dim": 128,
       "block_size": 128
     },
     "negative_input": {
       "batch_size": 1,
-      "q_len": 4096,
-      "k_len": 4096,
+      "q_len": 512,
+      "k_len": 512,
       "head_dim": 128,
       "block_size": 128
     },
@@ -56,15 +56,42 @@
     "expected": {
       "positive": "AssertionError at flex_prefill/ops/flex_prefill_attention.py:1836",
       "negative": "no exception at flex_prefill/ops/flex_prefill_attention.py:1836"
+    },
+    "scale": {
+      "factor": 0.125,
+      "scaled": [
+        "q_len",
+        "k_len"
+      ],
+      "reason": "no GPU: the downstream kernels are simulated on CPU, so the run is shrunk; only the control flow is judged, not the numerics",
+      "invariance_argument": "the target is a guard at the top of flex_prefill_attention that reads only batch_size and the q/k shapes; its truth value depends on q_len != k_len, not on how large the sequence is"
     }
   },
   "execution": {
     "entry_called": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention",
     "call_chain_index": 0,
     "repo_files_modified": [],
-    "mocks": [],
+    "mocks": [
+      {
+        "symbol": "flex_prefill.ops.flex_prefill_attention.triton_bnhd_pool",
+        "kind": "patch",
+        "behavior": "sim",
+        "impl": "sim.py::bnhd_pool",
+        "sim_class": "independent_native",
+        "reason": "Triton kernel used by get_active_blocks (after the target); no GPU. Plain-torch avg pool."
+      },
+      {
+        "symbol": "flex_prefill.ops.flex_prefill_attention.triton_block_wise_attention",
+        "kind": "patch",
+        "behavior": "sim",
+        "impl": "sim.py::block_wise_attention",
+        "sim_class": "repo_reference",
+        "reason": "Triton kernel launcher (after the target); no GPU. Calls the repository's own torch_block_wise_attention."
+      }
+    ],
     "hooks": [],
     "replay_commands": [
+      "cd cs6223-limitation-pipeline/checklimits && bash scripts/make_venv311.sh",
       "cd cs6223-limitation-pipeline/checklimits && python -m checklimits run --attempt attempts/flexprefill/F01"
     ]
   },
