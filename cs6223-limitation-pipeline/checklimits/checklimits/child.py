@@ -1,11 +1,15 @@
-"""Child process: runs one attempt case (positive or negative) and writes a JSON result.
+"""Child process: runs attempt cases and writes a JSON result.
 
 Started by runner.py as `python -m checklimits.child <spec.json>`. The parent supplies a
 cleaned environment (no SOCLAAS_*, proxy or OpenAI variables) and a timeout.
 
 Order of work: install import-time mocks -> import modules that need patching -> install
-patches -> load the attempt's driver -> start the tracer (unless trace=false) -> call
-driver.run(inputs) -> stop the tracer -> write the result.
+patches -> load the attempt's driver -> for each case: start a fresh tracer (unless
+trace=false), call driver.run(inputs), stop the tracer -> write the results.
+
+spec["cases"] is a list of {"id", "inputs"}; one process runs them in order, so the expensive
+imports (torch, ...) happen once. With spec["stop_after_target"] the tracer stops each case
+right after the target decision (probe runs; see tracer.StopProbe).
 """
 from __future__ import annotations
 
@@ -57,60 +61,60 @@ def main(argv: list[str]) -> int:
 
     from . import fakes
     from .models import MockDecl
-    from .tracer import TargetSpec, classify_target, make_tracer, parse_chain, summarize
+    from .tracer import StopProbe, TargetSpec, classify_target, make_tracer, parse_chain, summarize
 
-    result: dict = {"status": "ok", "exception": None, "returned": None, "trace": None,
-                    "mock_events": [], "wall_s": 0.0}
+    cases = spec.get("cases") or [{"id": "main", "inputs": spec["inputs"]}]
+    results: dict[str, dict] = {}
     recorder = fakes.Recorder()
-    tracer = None
-    t0 = time.monotonic()
+    t_setup = time.monotonic()
     try:
         decls = [MockDecl.model_validate(m) for m in spec.get("mocks", [])]
         fakes.install_import_time(decls, recorder)
         fakes.install_patches(decls, recorder, attempt)
-
         predicate = None
         if spec.get("predicate_file"):
-            pmod = _load_module(Path(spec["predicate_file"]), "_checklimits_predicate")
-            predicate = pmod.predicate
+            predicate = _load_module(Path(spec["predicate_file"]), "_checklimits_predicate").predicate
         driver = _load_module(attempt / spec["driver"], "_checklimits_driver")
         run = getattr(driver, spec["driver_fn"])
-
-        if spec.get("trace", True):
-            t = spec["target"]
-            kind, body = classify_target(repo, t["file"], t["line"])
-            target = TargetSpec(t["file"], t["line"], t["function"], kind, body,
-                                spec.get("cond_expr"), predicate)
-            tracer = make_tracer(repo, parse_chain(spec["chain"]), target)
+        t = spec["target"]
+        kind, body = classify_target(repo, t["file"], t["line"])
+        target = TargetSpec(t["file"], t["line"], t["function"], kind, body, spec.get("cond_expr"), predicate)
     except BaseException as e:  # noqa: BLE001
-        result["status"] = "load_error"
-        result["exception"] = _exc_info(e, repo)
-        result["wall_s"] = round(time.monotonic() - t0, 3)
-        out.write_text(json.dumps(result))
+        err = {"status": "load_error", "exception": _exc_info(e, repo), "returned": None, "trace": None,
+               "mock_events": [], "wall_s": round(time.monotonic() - t_setup, 3)}
+        out.write_text(json.dumps({c["id"]: err for c in cases}))
         return 0
 
-    try:
+    for c in cases:
+        recorder.events = []
+        res: dict = {"status": "ok", "exception": None, "returned": None, "trace": None}
+        tracer = None
+        if spec.get("trace", True):
+            tracer = make_tracer(repo, parse_chain(spec["chain"]), target, bool(spec.get("stop_after_target")))
+        t0 = time.monotonic()
+        try:
+            if tracer:
+                tracer.start()
+            res["returned"] = summarize(run(c["inputs"]))
+        except StopProbe:
+            res["status"] = "probe_stop"
+        except BaseException as e:  # noqa: BLE001  (SystemExit and KeyboardInterrupt are results too)
+            res["status"] = "exception"
+            res["exception"] = _exc_info(e, repo)
+        finally:
+            if tracer:
+                tracer.stop()
+        res["wall_s"] = round(time.monotonic() - t0, 3)
         if tracer:
-            tracer.start()
-        ret = run(spec["inputs"])
-        result["returned"] = summarize(ret)
-    except BaseException as e:  # noqa: BLE001  (SystemExit and KeyboardInterrupt are results too)
-        result["status"] = "exception"
-        result["exception"] = _exc_info(e, repo)
-    finally:
-        if tracer:
-            tracer.stop()
-    result["wall_s"] = round(time.monotonic() - t0, 3)
-    if tracer:
-        result["trace"] = tracer.result()
-        # make the repo-relative function files of 'starts' comparable in the parent
-        for s in result["trace"]["starts"]:
-            try:
-                s["file"] = str(Path(s["file"]).relative_to(repo))
-            except ValueError:
-                pass
-    result["mock_events"] = recorder.events
-    out.write_text(json.dumps(result, default=str))
+            res["trace"] = tracer.result()
+            for s in res["trace"]["starts"]:  # repo-relative, comparable in the parent
+                try:
+                    s["file"] = str(Path(s["file"]).relative_to(repo))
+                except ValueError:
+                    pass
+        res["mock_events"] = recorder.events
+        results[c["id"]] = res
+    out.write_text(json.dumps(results, default=str))
     return 0
 
 

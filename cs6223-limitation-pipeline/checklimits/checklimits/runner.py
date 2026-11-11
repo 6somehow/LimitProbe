@@ -45,14 +45,18 @@ def resolve_python(python: Optional[str]) -> str:
     return str(p if p.is_absolute() else (PROJECT_ROOT / p))  # no resolve(): a venv python is a symlink
 
 
-def run_child(spec: dict[str, Any], timeout_s: int, env_extra: dict[str, str] | None = None,
-              scratch_root: Path | None = None, python: Optional[str] = None) -> dict[str, Any]:
-    """Run checklimits.child with `spec`; returns the child's JSON plus parent-side fields."""
+def run_cases(spec: dict[str, Any], cases: list[dict[str, Any]], timeout_s: int,
+              env_extra: dict[str, str] | None = None, scratch_root: Path | None = None,
+              python: Optional[str] = None) -> dict[str, dict[str, Any]]:
+    """Run `cases` ([{"id", "inputs"}]) in ONE child process; returns {id: raw result}.
+
+    A timeout or a hard crash of the child gives every case that has no result a
+    status of "timeout" / "crash"."""
     scratch_root = scratch_root or (PROJECT_ROOT / "scratch")
     scratch_root.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(dir=scratch_root, prefix="case_") as td:
         td_path = Path(td)
-        spec = dict(spec, out=str(td_path / "result.json"))
+        spec = dict(spec, out=str(td_path / "result.json"), cases=cases)
         (td_path / "spec.json").write_text(json.dumps(spec))
         proc = subprocess.Popen(
             [resolve_python(python), "-m", "checklimits.child", str(td_path / "spec.json")],
@@ -66,24 +70,31 @@ def run_child(spec: dict[str, Any], timeout_s: int, env_extra: dict[str, str] | 
             os.killpg(proc.pid, signal.SIGKILL)
             stdout, stderr = proc.communicate()
         out = td_path / "result.json"
-        if out.exists():
-            raw = json.loads(out.read_text())
-        else:
-            raw = {"status": "timeout" if timed_out else "crash", "exception": None, "returned": None,
-                   "trace": None, "mock_events": [], "wall_s": float(timeout_s) if timed_out else 0.0}
-        if timed_out:
-            raw["status"] = "timeout"
-        raw["exit_code"] = proc.returncode
-        raw["stdout"] = stdout[-2000:]
-        raw["stderr"] = stderr[-2000:]
-        return raw
+        results = json.loads(out.read_text()) if out.exists() else {}
+        for c in cases:
+            raw = results.get(c["id"]) or {
+                "status": "timeout" if timed_out else "crash", "exception": None, "returned": None,
+                "trace": None, "mock_events": [], "wall_s": float(timeout_s) if timed_out else 0.0}
+            raw["exit_code"] = proc.returncode
+            raw["stdout"] = stdout[-2000:]
+            raw["stderr"] = stderr[-2000:]
+            results[c["id"]] = raw
+        return results
+
+
+def run_child(spec: dict[str, Any], timeout_s: int, env_extra: dict[str, str] | None = None,
+              scratch_root: Path | None = None, python: Optional[str] = None) -> dict[str, Any]:
+    """Single-case convenience wrapper around run_cases."""
+    return run_cases(spec, [{"id": "main", "inputs": spec["inputs"]}], timeout_s, env_extra, scratch_root,
+                     python)["main"]
 
 
 def build_spec(manifest: AttemptManifest, attempt_dir: Path, pipeline_root: Path, region: Any,
                inputs: dict[str, Any], mocks: list[MockDecl], predicate_file: Optional[str],
-               trace: bool) -> dict[str, Any]:
+               trace: bool, repo_dir: Optional[Path] = None, stop_after_target: bool = False) -> dict[str, Any]:
     return {
-        "repo_dir": str((pipeline_root / manifest.repo_dir).resolve()),
+        "repo_dir": str((repo_dir or (pipeline_root / manifest.repo_dir)).resolve()),
+        "stop_after_target": stop_after_target,
         "attempt_dir": str(attempt_dir.resolve()),
         "driver": manifest.driver,
         "driver_fn": manifest.driver_fn,
@@ -139,7 +150,8 @@ def to_observation(raw: dict[str, Any], role: str, inputs: dict[str, Any], regio
             obs.post_target_exception = exc
             obs.effect_note = f"target passed; later {exc.type} at {exc.raised_at}"
         else:
-            obs.effect_note = "target passed; run returned normally"
+            obs.effect_note = "target passed; run stopped by the probe" if status == "probe_stop" \
+                else "target passed; run returned normally"
     elif exc is not None:
         obs.effect = None
         obs.effect_note = f"{exc.type} at {exc.raised_at} before the target was reached"

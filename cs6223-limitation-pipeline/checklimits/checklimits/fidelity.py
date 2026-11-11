@@ -7,6 +7,7 @@
     number of the first target hit. A mock is on the path if it was touched before the
     target line ran, or if it replaces a function that belongs to the call chain.
   * entry depth: the call-chain function that started first in the traced run.
+  * causal prefix: for each observation, which stand-ins were touched before it was produced.
   * probe effect: the traced run and an untraced run must show the same observable result.
 """
 from __future__ import annotations
@@ -90,7 +91,7 @@ def _file_at_commit(repo: Path, commit: str, rel: str) -> str:
 
 
 def ast_diff(repo: Path, commit: str, chain: list[str], target_file: str, target_line: int,
-             snippet: Optional[str]) -> AstDiff:
+             snippet: Optional[str], target_function: str = "") -> AstDiff:
     status = _git(repo, "status", "--porcelain").splitlines()
     changed_tracked = [l for l in _git(repo, "diff", "--name-only", commit).splitlines() if l]
     changed_untracked = [l[3:] for l in status if l.startswith("??")]
@@ -121,8 +122,15 @@ def ast_diff(repo: Path, commit: str, chain: list[str], target_file: str, target
                 return ast.dump(n)  # full dump: header and predicate
         return None
 
+    def stmts_of_function(tree: ast.AST) -> set[str]:
+        fn = functions_by_qualname(tree).get(target_function)
+        return {ast.dump(s) for s in iter_stmts(fn.body)} if fn is not None else set()
+
+    # The target statement is intact if the committed statement still exists, unchanged, in the same
+    # function. Matching by content (not by line) keeps a harmless insertion above it from looking like
+    # an edit of the target; the moved line number is caught separately by the snippet check (D12).
     old_t = stmt_at(ast.parse(_file_at_commit(repo, commit, target_file)))
-    new_t = stmt_at(ast.parse((repo / target_file).read_text()))
+    new_t = old_t if old_t is not None and old_t in stmts_of_function(ast.parse((repo / target_file).read_text())) else None
     src_lines = (repo / target_file).read_text().splitlines()
     line_txt = src_lines[target_line - 1].strip() if 0 < target_line <= len(src_lines) else ""
     return AstDiff(
@@ -174,7 +182,7 @@ def mock_records(decls: list[MockDecl], runs: list[tuple[list[dict], Optional[in
             total += len(mine)
             before += sum(1 for e in mine if target_seq is None or e["seq"] < target_seq)
         on_path = before > 0 or d.symbol in chain_symbols
-        out.append(MockRecord(symbol=d.symbol, kind=d.kind, on_path=on_path, accesses_before_target=before,
+        out.append(MockRecord(symbol=d.symbol, kind=d.kind, sim_class=d.sim_class, on_path=on_path, accesses_before_target=before,
                               accesses_total=total, reason=d.reason))
     return out
 
@@ -193,30 +201,8 @@ def probe_effect(traced: list[dict], untraced: list[dict]) -> tuple[bool, str]:
     return True, "traced and untraced runs show the same observable result"
 
 
-def s_mod(changed: int, total: int) -> float:
-    ratio = changed / total if total else 0.0
-    return max(0.0, 1 - ratio / 0.05)
-
-
-def s_mock(on_path: int, off_path: int) -> float:
-    return max(0.0, 1 - 0.4 * on_path - 0.05 * off_path)
-
-
-def s_entry(index: Optional[int], chain_len: int) -> float:
-    if index is None:
-        return 0.25
-    if chain_len <= 1:
-        return 1.0
-    return 1 - index / (chain_len - 1)
-
-
-# How far the harness trusts what a stand-in computed. Initial values, not calibrated:
-#   repo_reference      the stand-in calls a reference implementation shipped in the repository
-#   independent_native  plain torch re-implementation written for the test
-#   stub                canned value (fake module, return_none, return_first_arg)
-SIM_WEIGHT = {"repo_reference": 0.9, "independent_native": 0.75, "stub": 0.3}
-SCALE_UNVERIFIED = 0.9  # scaled-down run, invariance argued but not checked
-SCALE_REFUTED = 0.6     # scaled-down run, full-scale check disagreed
+_STATE_OF_CLASS = {"repo_reference": "simulated:reference", "independent_native": "simulated:fake", "stub": "simulated:stub"}
+_RANK = {"direct": 0, "simulated:reference": 1, "simulated:fake": 2, "simulated:stub": 3}
 
 
 def mocks_touched(decls: list[MockDecl], events: list[dict], before_seq: Optional[int]) -> list[MockDecl]:
@@ -231,54 +217,39 @@ def mocks_touched(decls: list[MockDecl], events: list[dict], before_seq: Optiona
     return out
 
 
-def _confidence(touched: list[MockDecl], scale_weight: float) -> float:
-    c = scale_weight
-    for d in touched:
-        c *= SIM_WEIGHT[d.sim_class]
-    return round(c, 3)
+def evidence_state(touched: list[MockDecl]) -> str:
+    states = [_STATE_OF_CLASS[d.sim_class] for d in touched]
+    return max(states, key=lambda s: _RANK[s], default="direct")
 
 
 def info_items(pos: Observation, neg: Observation, raw_pos: dict, raw_neg: dict, decls: list[MockDecl],
-               target_loc: str, scale_declared: bool, scale_pos_verified: Optional[bool]) -> list[InfoItem]:
-    """Information produced by the runs, each with the mocks it depends on and a confidence."""
+               target_loc: str) -> list[InfoItem]:
+    """Observations with the stand-ins in their causal past (CONFIDENCE_SPEC.md section 5)."""
     def first_hit(raw: dict) -> Optional[int]:
         return min((h["seq"] for h in (raw.get("trace") or {}).get("target_hits", [])), default=None)
 
-    items: list[InfoItem] = []
-    if scale_declared:
-        sw_pos = 1.0 if scale_pos_verified else (SCALE_REFUTED if scale_pos_verified is False else SCALE_UNVERIFIED)
-        sw_neg = SCALE_UNVERIFIED
-    else:
-        sw_pos = sw_neg = 1.0
-    sw_basis = ("" if not scale_declared else
-                "; scale: positive confirmed at full scale" if scale_pos_verified else
-                "; scale: invariance argued, not checked")
+    def item(stmt, run, bearing, touched, basis):
+        return InfoItem(statement=stmt, run=run, verdict_bearing=bearing,
+                        depends_on_mocks=[d.symbol for d in touched], evidence_state=evidence_state(touched),
+                        basis=basis)
 
-    # 1. positive effect at the target: only mocks touched before the target can matter
+    items: list[InfoItem] = []
     t = first_hit(raw_pos)
     touched = mocks_touched(decls, raw_pos["mock_events"], t)
-    stmt = (f"positive: {pos.exception.type} raised at {target_loc}" if pos.effect and pos.exception
-            else "positive: no exception at the target")
-    items.append(InfoItem(statement=stmt, run="positive", depends_on_mocks=[d.symbol for d in touched],
-                          scale_weight=sw_pos, confidence=_confidence(touched, sw_pos),
-                          basis="decided at the target line, before downstream stand-ins run" + sw_basis))
-    # 2. negative: the target decision passed
+    items.append(item(f"positive: {pos.exception.type} raised at {target_loc}" if pos.effect and pos.exception
+                      else "positive: no exception at the target", "positive", True, touched,
+                      "decided at the target line; stand-ins touched before it: " + (", ".join(d.symbol for d in touched) or "none")))
     t = first_hit(raw_neg)
     touched = mocks_touched(decls, raw_neg["mock_events"], t)
-    items.append(InfoItem(statement=f"negative: target decision passed at {target_loc}" if neg.target_reached
-                          else "negative: target not reached",
-                          run="negative", depends_on_mocks=[d.symbol for d in touched], scale_weight=sw_neg,
-                          confidence=_confidence(touched, sw_neg),
-                          basis="decided at the target line" + ("; scale invariance argued" if scale_declared else "")))
-    # 3. negative: what happened after the target (every stand-in touched may matter)
+    items.append(item(f"negative: target decision passed at {target_loc}" if neg.target_reached else "negative: target not reached",
+                      "negative", True, touched,
+                      "decided at the target line; stand-ins touched before it: " + (", ".join(d.symbol for d in touched) or "none")))
     if neg.target_reached:
         touched = mocks_touched(decls, raw_neg["mock_events"], None)
-        if neg.post_target_exception is not None:
-            what = f"negative: failed after the target with {neg.post_target_exception.type} at {neg.post_target_exception.raised_at}"
-        else:
-            what = f"negative: continued past the target and returned {neg.returned}"
-        items.append(InfoItem(statement=what, run="negative", depends_on_mocks=[d.symbol for d in touched],
-                              scale_weight=sw_neg, confidence=_confidence(touched, sw_neg),
-                              basis="downstream behaviour; depends on every stand-in that ran: "
-                                    + (", ".join(f"{d.symbol} ({d.sim_class})" for d in touched) or "none")))
+        what = (f"negative: failed after the target with {neg.post_target_exception.type} at {neg.post_target_exception.raised_at}"
+                if neg.post_target_exception is not None
+                else f"negative: continued past the target and returned {neg.returned}")
+        items.append(item(what, "negative", False, touched,
+                          "downstream behaviour; stand-ins that ran: "
+                          + (", ".join(f"{d.symbol} ({d.sim_class})" for d in touched) or "none")))
     return items

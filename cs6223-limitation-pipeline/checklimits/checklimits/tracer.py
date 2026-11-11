@@ -49,6 +49,12 @@ _SAFE_BUILTINS = {n: getattr(builtins, n)
                             "sum", "range", "set", "tuple", "list", "dict", "str", "sorted", "round")}
 
 
+class StopProbe(BaseException):
+    """Raised by the tracer right after the target decision is known, in probe runs only
+    (stop_after_target). Probe runs ask 'what does the target do for this input?' without
+    running the code below it. They are never used for the verdict itself."""
+
+
 @dataclass
 class ChainFn:
     file: str  # repo-relative
@@ -111,10 +117,12 @@ class _Info:
 class _TracerBase:
     """Back-end independent bookkeeping. Subclasses call the handle_* methods."""
 
-    def __init__(self, repo_root: Path, chain: list[ChainFn], target: TargetSpec) -> None:
+    def __init__(self, repo_root: Path, chain: list[ChainFn], target: TargetSpec,
+                 stop_after_target: bool = False) -> None:
         self.repo_root = repo_root.resolve()
         self.chain = chain
         self.target = target
+        self.stop_after_target = stop_after_target
         self.scope_names = {(str((self.repo_root / c.file).resolve()), c.qualname) for c in chain}
         self.target_file_abs = str((self.repo_root / target.file).resolve())
         self.scope_names.add((self.target_file_abs, target.function))
@@ -149,8 +157,10 @@ class _TracerBase:
         except Exception as e:  # not evaluable on these locals
             hit["condition_error"] = f"{type(e).__name__}: {e}"[:160]
 
-    def _resolve(self, pend: _Pending, outcome: str) -> None:
+    def _resolve(self, pend: _Pending, outcome: str, may_stop: bool = True) -> None:
         pend.hit["outcome"] = outcome
+        if self.stop_after_target and may_stop and outcome in ("true", "false"):
+            raise StopProbe()
 
     # -- shared handlers (frame is the monitored frame) ---------------------
     def handle_start(self, code) -> None:
@@ -191,9 +201,9 @@ class _TracerBase:
         if pend is not None:
             at_target = frame.f_lineno == self.target.line
             if at_target and self.target.kind == "assert" and isinstance(exc, AssertionError):
-                self._resolve(pend, "false")
+                self._resolve(pend, "false", may_stop=False)
             else:
-                self._resolve(pend, "error")
+                self._resolve(pend, "error", may_stop=False)
 
     # -- output ------------------------------------------------------------
     def result(self) -> dict[str, Any]:
@@ -282,10 +292,11 @@ class SettraceTracer(_TracerBase):
 Tracer = MonitoringTracer if hasattr(sys, "monitoring") else None
 
 
-def make_tracer(repo_root: Path, chain: list[ChainFn], target: TargetSpec) -> _TracerBase:
+def make_tracer(repo_root: Path, chain: list[ChainFn], target: TargetSpec,
+                stop_after_target: bool = False) -> _TracerBase:
     force = os.environ.get("CHECKLIMITS_TRACER")  # "settrace" | "monitoring"; used by tests
     if force == "settrace" or not hasattr(sys, "monitoring"):
-        return SettraceTracer(repo_root, chain, target)
-    return MonitoringTracer(repo_root, chain, target)
+        return SettraceTracer(repo_root, chain, target, stop_after_target)
+    return MonitoringTracer(repo_root, chain, target, stop_after_target)
 
 
