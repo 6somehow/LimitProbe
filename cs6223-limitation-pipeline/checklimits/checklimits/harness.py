@@ -6,7 +6,7 @@ Attempt package layout (checklimits/attempts/<artifact>/<finding>/):
   driver.py        def run(inputs: dict) -> object   (calls the entry; no assertions of its own)
   condition.py     optional: def predicate(locals: dict) -> bool
   sim.py           optional: implementations for mocks with behavior "sim"
-  oracle.lock.json written by the harness: hash of the oracle + expected results at the first run (T1)
+  (the oracle lock is not in the package: locks/<artifact>/<test_id>.json, written by the harness at the first run, T1)
 
 What the harness runs (each is a source of evidence for one defeater, see confidence.py):
   main pair        positive and negative input, traced, one process per input        D1 D2 D4 D6 D11 D12 D14
@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import platform
 import re
 import shutil
@@ -37,7 +38,7 @@ from . import audit as audit_mod
 from . import bva as bva_mod
 from . import confidence, fidelity, mutate, runner, verdict
 from .adapter import load_task
-from .models import (PIPELINE_ROOT, PROJECT_ROOT, AgentForm, AttemptManifest, Checks, Cost, Env, ExecutionReport,
+from .models import (PIPELINE_ROOT, PROJECT_ROOT, scratch_root, AgentForm, AttemptManifest, Checks, Cost, Env, ExecutionReport,
                      Fidelity, MutantResult, MutationResult, Observation, OracleRecord, RepeatResult, ReplayResult,
                      design_sha256, make_testcase)
 from .profile import DEFAULT, Profile
@@ -58,17 +59,33 @@ class RunOptions:
         return cls(probe_effect=False, repeats=1, bva=False, mutation=False, replay=False)
 
 
-def register_oracle(attempt_dir: Path, sha: str) -> tuple[bool, int]:
-    """T1: record the oracle hash at the first run; count later changes. Returns (preregistered, revisions)."""
-    lock = attempt_dir / "oracle.lock.json"
+LOCKS_DIR = PROJECT_ROOT / "locks"
+
+
+def register_oracle(lock: Path, sha: str) -> tuple[bool, int]:
+    """T1: record the oracle hash at the first run; count later changes. Returns (preregistered, revisions).
+
+    The lock lives in a harness-owned directory (locks/<artifact>/<test_id>.json), not inside the attempt
+    package, so an agent that edits its package cannot reset the revision count by deleting the lock.
+    `history` lists every hash seen, oldest first; a caller that keeps its own copy can detect tampering
+    with `lock_is_extension`."""
+    lock.parent.mkdir(parents=True, exist_ok=True)
     if not lock.exists():
-        lock.write_text(json.dumps({"sha256": sha, "revisions": 0}, indent=1) + "\n")
+        lock.write_text(json.dumps({"sha256": sha, "revisions": 0, "history": [sha]}, indent=1) + "\n")
         return True, 0
     data = json.loads(lock.read_text())
     if data["sha256"] != sha:
-        data = {"sha256": sha, "revisions": data["revisions"] + 1}
+        data = {"sha256": sha, "revisions": data["revisions"] + 1, "history": data.get("history", []) + [sha]}
         lock.write_text(json.dumps(data, indent=1) + "\n")
     return True, data["revisions"]
+
+
+def lock_is_extension(old: dict[str, Any], new: Optional[dict[str, Any]]) -> bool:
+    """True if `new` is `old` with zero or more later entries (history preserved, revisions not lower)."""
+    if new is None:
+        return False
+    oh, nh = old.get("history", []), new.get("history", [])
+    return nh[:len(oh)] == oh and new.get("revisions", 0) >= old.get("revisions", 0)
 
 
 def _pkg_versions(python: str) -> dict[str, str]:
@@ -158,8 +175,8 @@ def _run_mutation(ctx: _Ctx, original_verdict: str, profile: Profile) -> Mutatio
     src = (ctx.repo / ctx.region.location.file).read_text()
     mutants = mutate.generate(src, ctx.region.location.line_start)
     results: list[MutantResult] = []
-    scratch = PROJECT_ROOT / "scratch"
-    scratch.mkdir(exist_ok=True)
+    scratch = scratch_root()
+    scratch.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(dir=scratch, prefix="mut_") as td:
         copy = Path(td) / "repo"
         shutil.copytree(ctx.repo, copy, ignore=shutil.ignore_patterns(".git", "__pycache__", "*.pyc"))
@@ -167,11 +184,14 @@ def _run_mutation(ctx: _Ctx, original_verdict: str, profile: Profile) -> Mutatio
         try:
             for m in mutants:
                 target.write_text(m.source)
-                obs = ctx.run_many([("pos_m", ctx.form.design.positive_input),
-                                    ("neg_m", ctx.form.design.negative_input)], repo=copy)
+                cases = [("pos_m", ctx.form.design.positive_input), ("neg_m", ctx.form.design.negative_input)] + \
+                        [(f"neg_x{i}", inp) for i, inp in enumerate(ctx.form.design.extra_negatives)]
+                obs = ctx.run_many(cases, repo=copy)
                 after = verdict.decide(obs["pos_m"], obs["neg_m"]).verdict
+                extra_hit = any(obs[f"neg_x{i}"].effect is not False for i in range(len(ctx.form.design.extra_negatives)))
+                killed = after != original_verdict or extra_hit
                 results.append(MutantResult(operator=m.operator, line=m.line, original=m.original, mutated=m.mutated,
-                                            killed=after != original_verdict, verdict_after=after))
+                                            killed=killed, verdict_after=after + (" + extra negative fired" if extra_hit else "")))
         finally:
             target.write_text(src)
     killed = sum(r.killed for r in results)
@@ -186,8 +206,8 @@ def _run_replay(ctx: _Ctx, main_hashes: dict[str, str]) -> ReplayResult:
     """SCORECARD 3.6: new temp dir, fresh checkout of the pinned commit, fresh copy of the attempt,
     new processes, scrubbed environment. The harness replays its own invocation instead of executing
     the agent's replay_commands strings, so an attempt cannot make the harness run arbitrary commands."""
-    scratch = PROJECT_ROOT / "scratch"
-    scratch.mkdir(exist_ok=True)
+    scratch = scratch_root()
+    scratch.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(dir=scratch, prefix="replay_") as td:
         co = Path(td) / "repo"
         try:
@@ -198,7 +218,7 @@ def _run_replay(ctx: _Ctx, main_hashes: dict[str, str]) -> ReplayResult:
         except subprocess.CalledProcessError as e:
             return ReplayResult(ok=False, detail=f"checkout of {ctx.manifest.repo_commit[:8]} failed: {e.stderr[-200:]!r}")
         att = Path(td) / "attempt"
-        shutil.copytree(ctx.attempt_dir, att, ignore=shutil.ignore_patterns("oracle.lock.json", "__pycache__"))
+        shutil.copytree(ctx.attempt_dir, att, ignore=shutil.ignore_patterns("__pycache__"))
         raw_p, pos = ctx.run("positive", ctx.form.design.positive_input, repo=co, attempt_dir=att)
         raw_n, neg = ctx.run("negative", ctx.form.design.negative_input, repo=co, attempt_dir=att)
     got = {"positive": canonical_hash(raw_p, pos), "negative": canonical_hash(raw_n, neg)}
@@ -209,7 +229,8 @@ def _run_replay(ctx: _Ctx, main_hashes: dict[str, str]) -> ReplayResult:
 
 
 def run_attempt(attempt_dir: Path, pipeline_root: Path = PIPELINE_ROOT, options: Optional[RunOptions] = None,
-                profile: Profile = DEFAULT, probe: Optional[bool] = None) -> dict[str, Any]:
+                profile: Profile = DEFAULT, probe: Optional[bool] = None,
+                locks_dir: Optional[Path] = None) -> dict[str, Any]:
     t_start = time.monotonic()
     options = options or RunOptions()
     if probe is not None:  # backwards-compatible switch used by early tests
@@ -221,13 +242,19 @@ def run_attempt(attempt_dir: Path, pipeline_root: Path = PIPELINE_ROOT, options:
     # T1: register the oracle before running anything
     pred_bytes = (ctx.attempt_dir / ctx.pred_file).read_bytes() if ctx.pred_file else None
     sha = design_sha256(form, pred_bytes)
-    prereg, revisions = register_oracle(ctx.attempt_dir, sha)
+    env_locks = os.environ.get("CHECKLIMITS_LOCKS_DIR")
+    lock = (locks_dir or (Path(env_locks) if env_locks else LOCKS_DIR)) / manifest.artifact_id / f"{manifest.test_id}.json"
+    prereg, revisions = register_oracle(lock, sha)
 
     # main pair (traced)
     raw_p, pos = ctx.run("positive", form.design.positive_input)
     raw_n, neg = ctx.run("negative", form.design.negative_input)
     supported = region.outcome == "reject"
     v = verdict.decide(pos, neg, supported)
+
+    # extra negatives: more inputs that must show no effect
+    extra_obs = [ctx.run("negative", inp)[1] for inp in form.design.extra_negatives]
+    extras_clean = None if not extra_obs else all(o.effect is False and o.target_reached for o in extra_obs)
 
     # D7: untraced pair
     probe_ok: Optional[bool] = None
@@ -309,7 +336,8 @@ def run_attempt(attempt_dir: Path, pipeline_root: Path = PIPELINE_ROOT, options:
         cond_true_on_positive=audit_mod.cond_value(pos, True), cond_false_on_negative=audit_mod.cond_value(neg, False),
         condition_translated=bool(ctx.pred_file), mutation=mut_res,
         declared_tier=form.design.oracle.tier, verified_tier=verified, preregistered=prereg, oracle_revisions=revisions,
-        differing_factors=factors, controls_differ=controls_differ, bva=bva_res, info=info,
+        differing_factors=factors, controls_differ=controls_differ, extra_negatives_clean=extras_clean,
+        bva=bva_res, info=info,
         probe_effect_free=probe_ok, repeat=repeat, replay=replay_res, scale_declared=sc is not None,
         main_positive_effect=pos.effect, main_negative_effect=neg.effect,
         target_intact=ad.target_statement_intact, stmts_changed=ad.statements_changed, stmts_total=ad.statements_total,
@@ -329,6 +357,7 @@ def run_attempt(attempt_dir: Path, pipeline_root: Path = PIPELINE_ROOT, options:
         test_id=manifest.test_id, finding_id=manifest.finding_id, artifact_id=manifest.artifact_id,
         region_id=region.region_id, verdict=v.verdict, final_verdict=final_verdict, exec_result=exec_result,
         verdict_reason=v.reason, strategy=form.strategy, oracle=orec, positive=pos, negative=neg,
+        extra_negatives=extra_obs,
         checks=Checks(controls_differ=controls_differ, differing_factors=factors, bva=bva_res, mutation=mut_res,
                       repeat=repeat, replay=replay_res),
         fidelity=fid, audit=au, information=info, confidence=conf, finding_confidence=task.finding.confidence,

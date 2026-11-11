@@ -16,7 +16,7 @@ import tempfile
 from pathlib import Path
 from typing import Any, Optional
 
-from .models import (PROJECT_ROOT, AttemptManifest, ExceptionInfo, MockDecl,
+from .models import (PROJECT_ROOT, AttemptManifest, scratch_root, ExceptionInfo, MockDecl,
                      Observation, TargetHit)
 
 _DROP = re.compile(r"(^SOCLAAS_|^OPENAI_|^ANTHROPIC_|_proxy$|^proxy$|API_KEY|SECRET|TOKEN|PASSWORD)", re.I)
@@ -46,15 +46,15 @@ def resolve_python(python: Optional[str]) -> str:
 
 
 def run_cases(spec: dict[str, Any], cases: list[dict[str, Any]], timeout_s: int,
-              env_extra: dict[str, str] | None = None, scratch_root: Path | None = None,
+              env_extra: dict[str, str] | None = None, scratch_root_arg: Path | None = None,
               python: Optional[str] = None) -> dict[str, dict[str, Any]]:
     """Run `cases` ([{"id", "inputs"}]) in ONE child process; returns {id: raw result}.
 
     A timeout or a hard crash of the child gives every case that has no result a
     status of "timeout" / "crash"."""
-    scratch_root = scratch_root or (PROJECT_ROOT / "scratch")
-    scratch_root.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(dir=scratch_root, prefix="case_") as td:
+    root = scratch_root_arg or scratch_root()
+    root.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=root, prefix="case_") as td:
         td_path = Path(td)
         spec = dict(spec, out=str(td_path / "result.json"), cases=cases)
         (td_path / "spec.json").write_text(json.dumps(spec))
@@ -83,9 +83,9 @@ def run_cases(spec: dict[str, Any], cases: list[dict[str, Any]], timeout_s: int,
 
 
 def run_child(spec: dict[str, Any], timeout_s: int, env_extra: dict[str, str] | None = None,
-              scratch_root: Path | None = None, python: Optional[str] = None) -> dict[str, Any]:
+              scratch_root_arg: Path | None = None, python: Optional[str] = None) -> dict[str, Any]:
     """Single-case convenience wrapper around run_cases."""
-    return run_cases(spec, [{"id": "main", "inputs": spec["inputs"]}], timeout_s, env_extra, scratch_root,
+    return run_cases(spec, [{"id": "main", "inputs": spec["inputs"]}], timeout_s, env_extra, scratch_root_arg,
                      python)["main"]
 
 
