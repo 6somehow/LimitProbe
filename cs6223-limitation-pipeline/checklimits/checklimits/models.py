@@ -163,6 +163,10 @@ class AttemptManifest(_R):
     repo_dir: str = Field(description="repository path relative to the pipeline root")
     repo_commit: str
     data_dir: str = Field("data/pilot_flexprefill", description="relative to the pipeline root")
+    findings_file: Optional[str] = Field(
+        None, description="step 4 hand-off (results/step4/<artifact>/limitations_for_tests.json), relative to the "
+                          "pipeline root. When set, findings, limitations and witnesses come from it and data_dir "
+                          "only supplies artifact.json")
     form: str = "form.json"
     driver: str = "driver.py"
     driver_fn: str = "run"

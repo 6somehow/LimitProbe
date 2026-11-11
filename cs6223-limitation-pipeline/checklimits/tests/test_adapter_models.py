@@ -53,3 +53,46 @@ def test_shipped_attempt_forms_parse():
     for fid in ("F07", "F01"):
         AttemptManifest.model_validate_json((root / fid / "manifest.json").read_text())
         AgentForm.model_validate_json((root / fid / "form.json").read_text())
+
+
+# --- step 4 hand-off (witness-v2) -------------------------------------------------------------------
+STEP4 = PIPELINE_ROOT / "results" / "step4" / "flexprefill" / "limitations_for_tests.json"
+
+
+def test_parse_witness_v2_gives_a_pair_and_the_names_a_driver_can_take():
+    hint = {"format": "witness-v2", "kind": "input_value", "status": "solved",
+            "trigger": {"head_dim": 127, "q_len": 2, "q.shape[1]": 2},
+            "contrast": {"head_dim": 128, "q_len": 2, "q.shape[1]": 2},
+            "atoms": {"head_dim": {"kind": "input"}, "q_len": {"kind": "local"}, "q.shape[1]": {"kind": "derived"}},
+            "aliases": {"q_len": "q.shape[1]"}}
+    w = adapter.parse_witness(hint)
+    assert (w.format, w.kind, w.status) == ("witness-v2", "input_value", "solved")
+    assert w.input_keys == {"head_dim", "q_len"} and w.trigger["head_dim"] == 127 and w.contrast["head_dim"] == 128
+    assert adapter.witness_to_inputs(hint) == ("input_value", [hint["trigger"], hint["contrast"]])
+
+
+def test_parse_witness_v2_event_sequence_keeps_its_kind():
+    hint = {"format": "witness-v2", "kind": "event_sequence", "status": "solved", "trigger": {"a": 1}, "contrast": {"a": 0}}
+    assert adapter.witness_to_inputs(hint)[0] == "event_sequence"
+
+
+@pytest.mark.skipif(not STEP4.exists(), reason="step 4 hand-off missing")
+def test_step4_finding_builds_a_region_from_its_limitation():
+    t = adapter.load_task("flexprefill-F014", DATA, STEP4)
+    assert t.source == "step4" and t.finding.category == "undisclosed" and t.finding.review in ("unreviewed", "worth_testing")
+    r = t.regions[0]
+    assert r.location.line_start == 1837 and r.outcome == "reject" and r.condition.expr == "not (head_dim in {16, 32, 64, 128})"
+    assert r.call_chain == ["flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention"]
+    assert t.witness.format == "witness-v2" and t.trigger["head_dim"] == 127 and t.witness.contrast["head_dim"] == 128
+
+
+@pytest.mark.skipif(not STEP4.exists(), reason="step 4 hand-off missing")
+def test_step4_records_all_parse_and_unknown_id_raises():
+    import json
+    ids = [r["finding_id"] for r in json.loads(STEP4.read_text())["findings"]]
+    assert len(ids) == 65
+    for fid in ids:                       # every record loads; paper-side ones simply have no Region
+        t = adapter.load_task(fid, DATA, STEP4)
+        assert t.finding.finding_id == fid
+    with pytest.raises(KeyError):
+        adapter.load_task("flexprefill-F999", DATA, STEP4)

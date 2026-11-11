@@ -130,7 +130,8 @@ class _Ctx:
         self.pipeline_root = pipeline_root
         self.manifest = AttemptManifest.model_validate_json((self.attempt_dir / "manifest.json").read_text())
         self.form = AgentForm.model_validate_json((self.attempt_dir / self.manifest.form).read_text())
-        self.task = load_task(self.manifest.finding_id, pipeline_root / self.manifest.data_dir)
+        ff = pipeline_root / self.manifest.findings_file if self.manifest.findings_file else None
+        self.task = load_task(self.manifest.finding_id, pipeline_root / self.manifest.data_dir, ff)
         self.region = self.task.region(self.manifest.region_id)
         self.loc = f"{self.region.location.file}:{self.region.location.line_start}"
         self.repo = (pipeline_root / self.manifest.repo_dir).resolve()
@@ -164,7 +165,7 @@ class _Ctx:
 
 
 def _run_bva(ctx: _Ctx, profile: Profile) -> Optional[bva_mod.BvaResult]:
-    cases, bvar, reason = bva_mod.plan(ctx.form, ctx.task.finding.witness_hint, profile.probe_step)
+    cases, bvar, reason = bva_mod.plan(ctx.form, ctx.task.trigger, profile.probe_step)
     obs = ctx.run_many(cases)
     effects = {k: o.effect for k, o in obs.items()}
     inputs = {label: inp for label, inp in cases}
@@ -298,15 +299,16 @@ def run_attempt(attempt_dir: Path, pipeline_root: Path = PIPELINE_ROOT, options:
         notes.append(f"form.repo_files_modified={form.execution.repo_files_modified} but git shows {ad.files_changed}")
 
     # T3: positive input against the witness hint
-    hint = task.finding.witness_hint or {}
+    hint = task.trigger
     sc = form.design.scale
-    if task.witness_type == "input_value":
-        for k, hv in hint.items():
+    if task.witness_type == "input_value" and hint:
+        for k in sorted(task.witness.input_keys & set(hint)):
+            hv = hint[k]
             got = form.design.positive_input.get(k)
             if sc and k in sc.scaled and isinstance(hv, (int, float)) and got == int(hv * sc.factor):
                 continue
             if got != hv:
-                notes.append(f"T3: positive_input[{k!r}]={got!r} differs from witness_hint {hv!r}")
+                notes.append(f"T3: positive_input[{k!r}]={got!r} differs from the witness trigger value {hv!r}")
         if sc:
             notes.append(f"scaled down by {sc.factor} for {sc.scaled}: {sc.reason}")
 

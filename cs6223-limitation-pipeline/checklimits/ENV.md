@@ -89,3 +89,12 @@ F07/F01 的反例要继续跑完下游代码，需要仓库固定的 triton 3.0.
 
 F07 完整运行约 31 秒（venv 里的 torch 2.4.0 import 约 1 秒）。`--fast` 只跑主运行，其余 defeater 保持 `open`。
 `git clone --local` 在跨文件系统时会因硬链接失败，重放改用 `--no-hardlinks`（单元测试里发现）。
+
+## 合并 `wanting/step4-findings` 后新增的包（2026-11-11）
+
+| 包 | 版本 | 原因 |
+|---|---|---|
+| z3-solver | 5.4.1.0 | 合并来的 `codeside/scope_check.py` 在 import 时需要它；仓库 `pyproject.toml` 把它列为 `solver` 可选依赖。只为跑对方的测试 |
+| rank-bm25 | 见 `pip list` | 合并来的 `codeside/doc_index.py` 需要；列在 `verify` 可选依赖里。同上 |
+
+两者都不被 `checklimits` 使用。合并后对方的 `tests/` 全部通过（2 项跳过）。
