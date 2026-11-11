@@ -142,8 +142,19 @@ def outcome_support(region: Any, repo_root: Path) -> tuple[bool, str]:
     return False, f"outcome {o!r} has no effect check yet"
 
 
+def _raised_in(exc: Optional[ExceptionInfo], region: Any, span: Optional[tuple[int, int]]) -> bool:
+    """Was the exception raised inside the target statement (any line of its span)?"""
+    if exc is None or not exc.raised_at or ":" not in exc.raised_at:
+        return False
+    f, _, ln = exc.raised_at.rpartition(":")
+    if f != region.location.file or not ln.isdigit():
+        return False
+    a, b = span or (region.location.line_start, region.location.line_start)
+    return a <= int(ln) <= b
+
+
 def to_observation(raw: dict[str, Any], role: str, inputs: dict[str, Any], region: Any,
-                   expected_exc_type: Optional[str]) -> Observation:
+                   expected_exc_type: Optional[str], span: Optional[tuple[int, int]] = None) -> Observation:
     """Interpret one raw result.
 
     reject: the effect is an exception raised AT Region.location. A run that passes the target line and fails
@@ -159,6 +170,7 @@ def to_observation(raw: dict[str, Any], role: str, inputs: dict[str, Any], regio
     status = raw["status"]
     obs = Observation(role=role, inputs=inputs, status=status, exception=exc, target_reached=reached,
                       returned=raw.get("returned"), target_kind=raw.get("target_kind"),
+                      target_span=list(span) if span else None,
                       target_hits=hits, stdout_tail=(raw.get("stdout") or "")[-300:], wall_s=raw.get("wall_s", 0.0))
     starts = (trace or {}).get("starts", [])
     if starts:
@@ -176,7 +188,7 @@ def to_observation(raw: dict[str, Any], role: str, inputs: dict[str, Any], regio
         obs.effect_note = f"prelude call {raw['prelude_failed']} failed: {exc.type if exc else '?'} at {exc.raised_at if exc else '?'}"
     elif family == "branch":
         _branch_effect(obs, hits, exc, status, loc, raw.get("target_kind"))
-    elif exc is not None and exc.raised_at == loc and (expected_exc_type is None or exc.type == expected_exc_type):
+    elif _raised_in(exc, region, span) and (expected_exc_type is None or exc.type == expected_exc_type):
         obs.effect = True
         obs.effect_note = f"{exc.type} raised at target"
     elif reached:

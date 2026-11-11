@@ -79,6 +79,20 @@ class TargetSpec:
     body: tuple[int, int] = (0, 0)
     cond_expr: Optional[str] = None
     predicate: Optional[Callable[[dict], Any]] = None
+    end_line: int = 0     # last line of the statement (assert) or of its header (if / while); 0 = same as line
+
+
+def target_span(repo_root: Path, file: str, line: int) -> tuple[int, int]:
+    """First and last line of the target: the whole statement for an assert or any simple statement, the header
+    (up to the end of the condition) for if / while. A multi-line `assert (...)` raises on a line inside it."""
+    tree = ast.parse((repo_root / file).read_text())
+    for node in ast.walk(tree):
+        if isinstance(node, ast.stmt) and node.lineno == line and not isinstance(
+                node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            if isinstance(node, (ast.If, ast.While)):
+                return line, node.test.end_lineno
+            return line, node.end_lineno
+    return line, line
 
 
 def classify_target(repo_root: Path, file: str, line: int) -> tuple[str, tuple[int, int]]:
@@ -170,9 +184,18 @@ class _TracerBase:
         self.starts.append({"seq": fakes.next_seq(), "fn": getattr(code, "co_qualname", code.co_name),
                             "file": os.path.realpath(code.co_filename)})
 
+    def _in_target_span(self, line: int) -> bool:
+        t = self.target
+        return t.line <= line <= max(t.end_line, t.line)
+
     def handle_line(self, code, frame, line: int) -> None:
         info = self._info(code)
         fid = id(frame)
+        pend = self._pending.get(fid)
+        if pend is not None and pend.code is code and self._in_target_span(line):
+            # still evaluating the multi-line statement / condition: not the next statement yet
+            self.lines.setdefault(getattr(code, "co_qualname", code.co_name), set()).add(line)
+            return
         pend = self._pending.pop(fid, None)
         if pend is not None and pend.code is code:
             t = self.target
@@ -181,7 +204,9 @@ class _TracerBase:
             elif t.kind in ("if", "while"):
                 self._resolve(pend, "true" if t.body[0] <= line <= t.body[1] else "false")
         self.lines.setdefault(getattr(code, "co_qualname", code.co_name), set()).add(line)
-        if info.has_target and line == self.target.line:
+        # The first LINE event inside the statement's span starts a hit. For a multi-line `assert (` or `if (` the
+        # interpreter may report the first line of the condition instead of the keyword line (3.12+ does).
+        if info.has_target and self._in_target_span(line):
             hit = {"seq": fakes.next_seq(), "outcome": None, "condition_value": None, "condition_error": None,
                    "locals": {}, "call": self.call_index}
             f_locals = frame.f_locals
@@ -202,7 +227,7 @@ class _TracerBase:
     def handle_unwind(self, frame, exc) -> None:
         pend = self._pending.pop(id(frame), None)
         if pend is not None:
-            at_target = frame.f_lineno == self.target.line
+            at_target = self.target.line <= frame.f_lineno <= max(self.target.end_line, self.target.line)
             if at_target and self.target.kind == "assert" and isinstance(exc, AssertionError):
                 self._resolve(pend, "false", may_stop=False)
             else:

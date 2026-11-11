@@ -131,16 +131,46 @@ def ast_diff(repo: Path, commit: str, chain: list[str], target_file: str, target
     # an edit of the target; the moved line number is caught separately by the snippet check (D12).
     old_t = stmt_at(ast.parse(_file_at_commit(repo, commit, target_file)))
     new_t = old_t if old_t is not None and old_t in stmts_of_function(ast.parse((repo / target_file).read_text())) else None
-    src_lines = (repo / target_file).read_text().splitlines()
+    new_src = (repo / target_file).read_text()
+    src_lines = new_src.splitlines()
     line_txt = src_lines[target_line - 1].strip() if 0 < target_line <= len(src_lines) else ""
     return AstDiff(
         files_checked=files,
         files_changed=sorted(set(changed_tracked) | set(changed_untracked)),
         statements_total=total, statements_changed=changed,
         target_statement_intact=(old_t is not None and old_t == new_t),
-        snippet_matches_region=(snippet is None or snippet.strip() == line_txt),
+        snippet_matches_region=(snippet is None or snippet.strip() == line_txt or snippet_matches(new_src, target_line, snippet)),
         git_status_clean=not status,
     )
+
+
+def snippet_matches(source: str, line: int, snippet: str) -> bool:
+    """Does the Region snippet describe the statement at `line`? Step 4 joins multi-line statements onto one line,
+    drops the assert message and the redundant parentheses, so compare the parsed condition, not the text."""
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return False
+    node = next((n for n in ast.walk(tree) if isinstance(n, ast.stmt) and n.lineno == line
+                 and not isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))), None)
+    if node is None:
+        return False
+    text = snippet.strip()
+    try:
+        if isinstance(node, (ast.If, ast.While)):
+            kw = "if" if isinstance(node, ast.If) else "while"
+            body = text[:-1] if text.endswith(":") else text
+            if not body.startswith(("if", "while", "elif")):
+                return False
+            parsed = ast.parse(body.replace("elif", "if", 1) + ":\n    pass").body[0]
+            return ast.dump(parsed.test) == ast.dump(node.test) and type(parsed).__name__ == type(node).__name__ or (
+                ast.dump(parsed.test) == ast.dump(node.test))
+        parsed = ast.parse(text).body[0]
+    except SyntaxError:
+        return False
+    if isinstance(node, ast.Assert) and isinstance(parsed, ast.Assert):
+        return ast.dump(node.test) == ast.dump(parsed.test)          # the message is not part of the decision
+    return ast.dump(node) == ast.dump(parsed)
 
 
 def coverage(repo: Path, chain: list[str], trace_lines: dict[str, list[int]]) -> CoverageScope:

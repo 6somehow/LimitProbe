@@ -93,8 +93,31 @@ def entry(n, m):
     return check(n, m)
 '''
 
+CORE_MULTILINE = '''def pre(n):
+    return n + 1
+
+
+def check(n, m):
+    base = pre(n)
+    assert (
+        n == 1
+        and m >= 0
+    ), "n must be 1"
+    if (
+        n > 3
+        and m > 100
+    ):
+        return "fallback"
+    return "main"
+
+
+def entry(n, m):
+    return check(n, m)
+'''
+
 KINDS = {   # kind -> (source, text that starts the target line, outcome, condition expr, snippet)
     "reject": (None, "assert n == 1", "reject", "n != 1", 'assert n == 1, "n must be 1"'),
+    "multiline": (CORE_MULTILINE, "assert (", "reject", "n != 1 or m < 0", "assert n == 1 and m >= 0"),
     "branch": (CORE_BRANCH, "if n > 3:", "fallback", "n > 3", "if n > 3:"),
     "state": (CORE_STATE, "if cache is None:", "state_dependent", "cache is None", "if cache is None:"),
 }
@@ -164,7 +187,7 @@ def build(tmp: Path, with_ext=True, form_overrides=None, driver_src=DRIVER, mani
     }
     if scale:
         form["design"]["scale"] = scale
-    if kind != "reject":
+    if kind not in ("reject", "multiline"):
         form["design"]["oracle"].update(type="path_hook", spec=f"branch taken at {loc}", signal_location=loc)
         form["design"]["expected"] = {"positive": f"branch taken at {loc}", "negative": f"branch not taken at {loc}"}
         form["claims"]["positive_observed"] = f"branch taken at {loc}"
