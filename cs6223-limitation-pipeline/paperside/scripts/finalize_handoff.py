@@ -9,7 +9,7 @@ from codeside.verify3b import load_paper_side
 from codeside.scope_check import ScopeChecker
 
 def numeric_scope(s):
- return (s.get('explicit') is True) and ((s['kind']=='interval' and (s.get('lower') is not None or s.get('upper') is not None)) or (s['kind']=='set' and bool(s.get('values')) and all(type(v) in [int,float] for v in s['values'])))
+ return s.get('explicit') is True and ((s['kind']=='interval' and (s.get('lower') is not None or s.get('upper') is not None)) or (s['kind']=='set' and bool(s.get('values')) and all(type(v) in [int,float] for v in s['values'])))
 
 def finish(folder):
  manifest=read_json(folder/'manifest.json');data=read_json(folder/'paper_side.json')
@@ -28,6 +28,10 @@ def finish(folder):
   ids={r['eval_id'] for r in action['records']}|{action['original_id']}
   data['eval_points']=[r for r in data['eval_points'] if r['eval_id'] not in ids]+action['records']
  write_json(folder/'pending_records.json',pending)
+ observations=adjustments.get('reported_observations',[])
+ for group in observations:
+  for record in group['records']:EvalPoint.model_validate(record)
+ if observations:write_json(folder/'reported_observations.json',observations)
  scopes={s['param']:s for s in data['scope']};inactive=read_json(folder/'inactive_bindings.json')
  draft=folder/'paper_side.pre-final.json'
  if not draft.exists():write_json(draft,data)
@@ -58,6 +62,9 @@ def finish(folder):
  for row in read_json(TEAM/'results/pipeline'/aid/'limitations.json'):
   lim=Limitation.model_validate(row);v=checker.check(lim.condition);probe.append(dict(limitation_id=lim.limitation_id,scope_status=v.scope_status,evaluated_in_paper=v.evaluated_in_paper,reason=v.reason))
  validation=read_json(folder/'validation.json');validation.update(pending_paper_records=len(pending),pending_claim_records=sum(r.get('field')=='claims' for r in pending),held_evaluation_records=sum(r.get('field')=='eval_points' for r in pending),held_scope_records=sum(r.get('field')=='scope' for r in pending),counts={k:len(v) for k,v in data.items()},active_solver_bindings=len(selected),navigation_bindings=len(navigation),inactive_bindings=len(inactive),wanting_existing_conditions=probe,solver_guard='Only author-explicit numeric literal sets/bounded intervals and certain scalar bindings activated. Evaluation-only sets cannot exclude other inputs; actual consumer otherwise treats free_text as unconstrained.')
+ validation.update(reported_observation_groups=len(observations),reported_observation_records=sum(len(g['records']) for g in observations))
+ if adjustments:
+  validation['interface_review']=dict(status='source_assisted_adjustments_applied',adjustments_sha256=file_sha256(folder/'review-adjustments.json'),counts_after_application={k:len(v) for k,v in data.items()},note='Review notes describe the pre-application audit. This status is interface provenance review, not human conformance adjudication.')
  write_json(folder/'validation.json',validation)
  evidence=folder/'evidence';evidence.mkdir(exist_ok=True);pdf=TEAM/'third_party/papers'/f'{aid}.pdf';shutil.copyfile(pdf,evidence/'paper.pdf')
  work=Path(manifest['work']);calls=evidence/'interface-calls';calls.mkdir(exist_ok=True)

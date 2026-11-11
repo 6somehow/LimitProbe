@@ -38,26 +38,31 @@ CS6223 小组项目，输入为论文和对应仓库。Zhaopeng 负责步骤 1 �
 
 ## 下一步
 
-状态核对日期：2026-11-11。SparTA、FlexPrefill 已验收并入库；后三篇实际模型运行和本地初步导出均已结束，不要因旧 README 写着“仍运行”而重跑 API。
+状态核对日期：2026-11-11。五篇交接包均已验收、发布到 `zhaopeng/paper-side-v1`。这指接口/证据/归档验收；人工语义评审和目标运行仍未完成。不要因旧文档或原始失败记录而重新跑整篇 API。
 
-| 本地结果 | 机制 / 行为 | artifact 已判断 / 待办 | 接手动作 |
+| 已入库结果 | 机制 / 行为 | artifact 已判断 / 待办 | 原生接口 claim / scope / eval / binding |
 |---|---|---|---|
-| MInference | 13 / 141 | 108 / 33 | 本地接口已修订；复查最终包并发布轻量版 |
-| InfiniGen | 8 / 70 | 59 / 11 | 审核现有修订建议、应用后最终验收并发布 |
-| NNSmith | 13 / 140 | 113 / 27 | 本地导出完成；审阅接口、最终验收并发布 |
+| SparTA | 20 / 206 | 199 / 7 | 204 / 26 / 29 / 26 |
+| FlexPrefill | 12 / 104 | 96 / 8 | 104 / 16 / 23 / 24 |
+| MInference | 13 / 141 | 108 / 33 | 139 / 23 / 22 / 24 |
+| InfiniGen | 8 / 70 | 59 / 11 | 65 / 25 / 11 / 12 |
+| NNSmith | 13 / 140 | 113 / 27 | 139 / 22 / 8 / 24 |
 
-当前发布分支 `zhaopeng/paper-side-v1`。本机完整开发工作区：`/Users/pp/Desktop/nus/cs6223/paper-guided-testing`；发布工作树：`/Users/pp/Desktop/nus/cs6223/paperside-publish-v1`。这些是维护者机器路径，另一台机器不可直接使用。
+共 661 行、575 已判断、86 待办。后三篇均有 `frozen-behaviors.json` 与 `mechanisms.json`，以及完整本地包的 `archive-acceptance.json`；旧两包的轻量离线检查使用 manifest/claim 关联，明确报告未独立提供冻结清单的限制。
 
 接手顺序：
 
-1. 先确认所在 checkout 与 Git 状态；读取本地 `runs/team-complete-v1/parallel-summary.json`、`code-coverage-verification.json` 和每包 `validation.json`，与 README 对齐。
-2. InfiniGen 已有 `runs/team-complete-v1/infinigen/review-adjustments.proposed.json`，尚待最后应用。若记录包含 `reported_observations`，以非激活观察单独保留，不能把基线/动机实验混进本系统评估。
-3. NNSmith 的原始 binding proposal 有缺少 `line_end` 的结构错误，已有 `bindings-structure-repair-v1.raw.json` 修正及 `repair_corpus_bindings.py`。先核对本地修正脚本和缓存；直接跑旧 builder 会重读有意保留的原始错误。不要重复付费修正。
-4. 在完整工作区做接口来源审阅，保留原输出，用 `review-adjustments.json` 记录修订。最终化、生成报告，再最终化一次，使 ZIP/索引包含报告。先阅读脚本参数与现有状态再执行。
-5. 更新全篇验收与分发清单，再复制轻量 JSON、源码证据到发布工作树。发布 README 和 agent 状态同步更新；不得宣称 pending 已完成。
-6. 后续再逐条处理 pending，以及人工语义评审和候选去重。没有人工 gold，不能声称模型审阅是人工验收或报告准确率。
+1. 核对所在分支与 Git 状态，按 HANDOFF 安装并运行 `scripts/validate_delivery.py`，应发现并通过五篇；无需 API。
+2. Wanting 整合时读取各包 `paper_side.json`，通过行为 ID/claim_id 联接 `conformance.json`、`limitations.json` 和源码 registry。先做候选审阅及父子/重复机制去重，再交给测试侧。
+3. 源码待办在 conformance 的两种 scope 中分别记录；论文引文未闭合的条目在 `pending_records.json`。逐条补证，不把两个列表机械相加或当作缺陷。
+4. `limitations.json` 只包含有论文 claim、已完成的不符/未实现项。InfiniGen 的 M08-A06 有代码侧不符判断，但论文 claim 未闭合，故只留 conformance，未导出为可整合 limitation。先处理其论文依据，再决定是否新增候选。
+5. 若修改方法或 prompt，另建实验身份/输出目录，不覆盖已有记录。现有编排入口使用固定路径，先修改并核对路径再启动；小范围验证后再扩大。
 
-本地恢复脚本与后期修正记录不一定已进入轻量分支；先核对差异再同步，不要假设新 clone 含全部原始运行。传输失败的未知 token 用量和远端状态保留在 `transport-uncertainty.json`，不能记作零消耗。
+已完成的修订不要再重做：InfiniGen 的实验值/基线/耗时等没有被当作全局输入域；8 条背景/基线观测另存。NNSmith 的样例 dtype、平台条件、约21h复现时间已修订，4 条基线评估另存，最后保留22scope/8eval。MInference 的上下文标签、默认版本及实验配置拼接问题已按来源修订。原始审阅提案中的 `not_applied` 描述的是审阅当时；应用状态以每包 `validation.json.interface_review` 为准。
+
+恢复历史：MInference M05/M09 复用实际 Pi 源码读取，进行非流式语义收尾（无新工具）；NNSmith 已完成一次 binding 字段结构修正。原始失败仍保留，不代表任务还在运行。不要直接重跑旧 builder 或导入历史 `close_corpus_nonstream.py`：后者是针对当次运行的可执行恢复脚本，导入也可能触发操作。
+
+完整资产在维护者本机 `/Users/pp/Desktop/nus/cs6223/paper-guided-testing`；发布工作树为 `/Users/pp/Desktop/nus/cs6223/paperside-publish-v1`。另一台机器不具备这些路径，须下载固定资产或向维护者取得归档。原始 API 日志和完整 ZIP 不在 Git；每包分发清单记录省略项。28条传输异常的未知用量/远端状态留在 `transport-uncertainty.json`，不能算零消耗。
 
 ## 开发与验收规则
 

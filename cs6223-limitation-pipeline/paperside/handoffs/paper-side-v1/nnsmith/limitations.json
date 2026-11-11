@@ -1,0 +1,243 @@
+[
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "nnsmith-gap-M05-B08-R02",
+    "artifact_id": "nnsmith",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: nnsmith/graph_gen.py::GuidedGen（Bin、extra_constraints、gen_ph_cons、post_process 折半回退）——机制对齐分箱路径，默认入口未实例化. Paper precondition: try_add_constraints(Cb) 返回失败。",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "论文要求每轮随机选一半；代码仅首轮随机，后续轮固定丢弃后半段",
+    "paper_evidence": [
+      {
+        "quote": "18 𝐶𝑏← randomly select |𝐶𝑏|\n2 constraints in𝐶𝑏",
+        "source": "paper",
+        "locator": "PDF p.6, text lines 48-49"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "nnsmith/graph_gen.py",
+        "line_start": 1029,
+        "line_end": 1058,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M05-B08-R02; external repo refs stay in code_evidence_registry.json. Equivalence: 首轮随机子集等价；后续子集由首轮顺序决定，非独立随机; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "nnsmith-gap-M08-B06",
+    "artifact_id": "nnsmith",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: experiments/nnsmith_gen_onnx.py::nnsmith_gen_once 与 nnsmith/materialize/torch/__init__.py::TorchModel.refine_weights 经PracticalHybridSearch.search（max_sample=2、时间预算），依赖torch Adam与proxy_grad. Paper precondition: After the gradient update, <X,W> is unchanged.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "零梯度触发搜索终止+外层重试，而非 Line 11 随机重启",
+    "paper_evidence": [
+      {
+        "quote": "if⟨𝑋,𝑊⟩ not changed then // Zero gradients",
+        "source": "paper",
+        "locator": "PDF p.7"
+      },
+      {
+        "quote": "⟨𝑋,𝑊⟩← randomly initialized values",
+        "source": "paper",
+        "locator": "PDF p.7"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "nnsmith/materialize/torch/symbolnet.py",
+        "line_start": 229,
+        "line_end": 293,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "nnsmith/materialize/torch/symbolnet.py",
+        "line_start": 151,
+        "line_end": 217,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "nnsmith/materialize/torch/__init__.py",
+        "line_start": 31,
+        "line_end": 41,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "experiments/nnsmith_gen_onnx.py",
+        "line_start": 42,
+        "line_end": 48,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M08-B06; external repo refs stay in code_evidence_registry.json. Equivalence: 外层重试可部分补偿，但触发条件与重启语义不同; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "nnsmith-gap-M08-B08",
+    "artifact_id": "nnsmith",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: experiments/nnsmith_gen_onnx.py::nnsmith_gen_once 与 nnsmith/materialize/torch/__init__.py::TorchModel.refine_weights 经PracticalHybridSearch.search（max_sample=2、时间预算），依赖torch Adam与proxy_grad. Paper precondition: A restart occurred due to zero gradient, or NaN/Inf values were replaced in <X,W>.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "零梯度未 continue OUTER，仅外层 max_sample 重试",
+    "paper_evidence": [
+      {
+        "quote": "continue OUTER // Go to Line 3",
+        "source": "paper",
+        "locator": "PDF p.7"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "nnsmith/materialize/torch/symbolnet.py",
+        "line_start": 229,
+        "line_end": 293,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "nnsmith/materialize/torch/__init__.py",
+        "line_start": 31,
+        "line_end": 41,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "experiments/nnsmith_gen_onnx.py",
+        "line_start": 42,
+        "line_end": 48,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M08-B08; external repo refs stay in code_evidence_registry.json. Equivalence: 外层重试非 continue OUTER，语义不同; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "nnsmith-gap-M08-B10",
+    "artifact_id": "nnsmith",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: experiments/nnsmith_gen_onnx.py::nnsmith_gen_once 与 nnsmith/materialize/torch/__init__.py::TorchModel.refine_weights 经PracticalHybridSearch.search（max_sample=2、时间预算），依赖torch Adam与proxy_grad. Paper precondition: The outer while loop exits because the time budget is exhausted.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "失败未以异常表达，改为随机输入回退",
+    "paper_evidence": [
+      {
+        "quote": "raise failed to find viable⟨𝑋,𝑊⟩",
+        "source": "paper",
+        "locator": "PDF p.7"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "nnsmith/materialize/torch/symbolnet.py",
+        "line_start": 229,
+        "line_end": 293,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "experiments/nnsmith_gen_onnx.py",
+        "line_start": 42,
+        "line_end": 48,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M08-B10; external repo refs stay in code_evidence_registry.json. Equivalence: 回退随机输入改变失败语义; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "nnsmith-gap-M12-B02",
+    "artifact_id": "nnsmith",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: 同一 pinned commit 的规格+图生成路径（op.py + graph_gen.py 的 concretize_op/checked_type_transfer）；无独立实验脚本承载该机制. Paper precondition: Default C* attribute binning settings are used for Conv2d padding.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "artifact 路径不存在 Conv2d padding 的 0 箱特化",
+    "paper_evidence": [
+      {
+        "quote": "we add one extra bin that contains only one integer “0” for\nthe “padding” attribute in Conv2d",
+        "source": "paper",
+        "locator": "PDF p.8"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "nnsmith/abstract/op.py",
+        "line_start": 1332,
+        "line_end": 1360,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "nnsmith/graph_gen.py",
+        "line_start": 50,
+        "line_end": 70,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M12-B02; external repo refs stay in code_evidence_registry.json. Equivalence: 无等价分箱实现; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "nnsmith-gap-M12-B03",
+    "artifact_id": "nnsmith",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: 同一 pinned commit 的规格+图生成路径（op.py + graph_gen.py 的 concretize_op/checked_type_transfer）；无独立实验脚本承载该机制. Paper precondition: Default C* attribute binning settings are used for these pad operators.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "artifact 路径不存在 pad 的 0 箱/负箱特化",
+    "paper_evidence": [
+      {
+        "quote": "for the “padding” attribute in ConstPad, ReplicatePad,\nand ReflectPad, we add both the 0-bin and negative bins",
+        "source": "paper",
+        "locator": "PDF p.8"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "nnsmith/abstract/op.py",
+        "line_start": 1053,
+        "line_end": 1080,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "nnsmith/graph_gen.py",
+        "line_start": 50,
+        "line_end": 70,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M12-B03; external repo refs stay in code_evidence_registry.json. Equivalence: 无等价分箱实现; effect_status=not_established"
+  }
+]

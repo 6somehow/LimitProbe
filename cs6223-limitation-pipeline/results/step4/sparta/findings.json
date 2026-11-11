@@ -1,0 +1,3126 @@
+[
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F001",
+  "artifact_id": "sparta",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B002"
+  ],
+  "verification_ids": [
+   "V002"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When cover_sizes[(1, 1)] < ordered_pricing[0][0]: The choice of covering algorithm is driven by the caller's sparsity pattern: if the cheapest block price exceeds the (1,1) element price, the whole weighted-set-cover is skipped and the function returns `None, {(1,1)}` — i.e. the tensor is treated as fully element-wise (no block covering), which then flows into wbc_matmul setting w_tesa.block_si...",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "cover_sizes[(1, 1)] < ordered_pricing[0][0]",
+   "path_prefix": [
+    "def weighted_block_cover"
+   ],
+   "dropped_prefix": [
+    "def weighted_block_cover"
+   ],
+   "trigger": {
+    "cover_sizes[1, 1]": 1,
+    "ordered_pricing[0][0]": 2
+   },
+   "contrast": {
+    "cover_sizes[1, 1]": 1,
+    "ordered_pricing[0][0]": 1
+   },
+   "atoms": {
+    "cover_sizes[1, 1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "ordered_pricing[0][0]": {
+     "kind": "derived",
+     "sort": "int"
+    }
+   },
+   "aliases_not_applied": {
+    "universe": "torch.zeros_like(tesa.tesa, dtype=torch.int32)",
+    "n_row": "universe.size()[0]",
+    "n_col": "universe.size()[1]",
+    "universe_count": "seq_id - 1",
+    "ordered_pricing": "SortedList(key=lambda x: x[0])",
+    "non_pruned": "extract_non_pruned_eles(universe, csize, i, j)"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "sparta/transformation/weighted_block_cover.py:77",
+   "function": "sparta/transformation/weighted_block_cover.py::weighted_block_cover"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect; related (candidate pair, judged different): sparta-F002, sparta-F082",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 1), not human: When even the cheapest block price is worse than the element-wise price, the block cover is skipped and the whole weight becomes fine-grained (1,1), a variant switch driven by the sparsity pattern; ordered_pricing[0] on an empty list also raises IndexError for an all-pruned TeSA."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F002",
+  "artifact_id": "sparta",
+  "category": "docs_only",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B003",
+   "sparta-gap-M08-A03",
+   "sparta-gap-M09-A12",
+   "sparta-gap-M11-B01",
+   "sparta-gap-M11-B09",
+   "sparta-gap-M11-A01",
+   "sparta-gap-M12-B05-R01",
+   "sparta-gap-M12-A01"
+  ],
+  "verification_ids": [
+   "V003"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When len(unique_block_sizes) != 1: wbc_matmul only supports a single block size for the weight tesa. If the weighted block cover (driven by the caller's sparsity pattern / TeSA values) selects more than one block size, decompose_blocked_tesas is a no-op stub (`...`) and then a bare `raise` aborts the whole transformation. So a sparsity pattern that mixes block sizes is rejected rather than hand...",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "len(unique_block_sizes) != 1",
+   "path_prefix": [
+    "for w_tesa in w_tesas"
+   ],
+   "dropped_prefix": [
+    "for w_tesa in w_tesas"
+   ],
+   "trigger": {
+    "len(unique_block_sizes)": 2
+   },
+   "contrast": {
+    "len(unique_block_sizes)": 1
+   },
+   "atoms": {
+    "len(unique_block_sizes)": {
+     "kind": "derived",
+     "sort": "int"
+    }
+   },
+   "aliases_not_applied": {
+    "cover_sizes": "available_covering_size()"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "sparta/transformation/weighted_block_cover.py:123",
+   "function": "sparta/transformation/weighted_block_cover.py::wbc_matmul"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: found in code_comment, docstring; merged (LLM: same issue): sparta-gap-M08-A03, sparta-gap-M09-A12, sparta-gap-M11-B01, sparta-gap-M11-B09, sparta-gap-M11-A01, sparta-gap-M12-B05-R01, sparta-gap-M12-A01; paper side also reports: impl_deviates, not_implemented; priority 2: impl_deviates; related (candidate pair, judged different): sparta-F001, sparta-F032, sparta-F036, sparta-F037, sparta-F038, sparta-F039, sparta-F042, sparta-F078, sparta-F079, sparta-F080, sparta-F081, sparta-F082",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 1), not human: wbc_matmul hits a bare raise whenever the weighted block cover picks more than one block size (including a block size plus the (1,1) leftover), so mixed-granularity sparsity patterns from the user's TeSA are rejected."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F003",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M02-B01"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求 S 初始为全部节点；代码初始队列只含源/汇节点，其余节点由度数递减触发入队",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The code always initializes the propagation queue with only source/sink nodes rather than all nodes, so the paper's S = Set(AllNodesOf(G)) precondition is never satisfied on any call."
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates; related (candidate pair, judged different): sparta-F004, sparta-F005, sparta-F006, sparta-F051",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F004",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M02-B05-R02"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求把全部邻居（除 N）插入 S；代码只在度数归零时入队，非全部邻居",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "no_condition",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [],
+   "note": "LLM gave no usable condition: names not in the cited code: B"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates; related (candidate pair, judged different): sparta-F003, sparta-F005, sparta-F006, sparta-F051",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F005",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M02-B06-R01"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求直到无 TeSA 需更新；代码固定两遍、每节点一次，不检测掩码是否仍变化",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The code always performs a fixed two-pass propagation with one update per node and never checks whether masks still change, so it diverges from the paper's until-empty worklist precondition on every call."
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates; related (candidate pair, judged different): sparta-F003, sparta-F004, sparta-F006, sparta-F051",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F006",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M02-A03"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求随算子类型 AND 属性类型变化；代码仅覆盖剪枝一种属性种类（量化比特未实现，见 M02-B07-R02），属性维度分派缺失",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The code only implements pruning-attribute propagation and lacks attribute-type dispatch entirely, so the paper's operator/attribute-dependent PropOneNode behavior is never realized on any call."
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates; related (candidate pair, judged different): sparta-F003, sparta-F004, sparta-F005, sparta-F051",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F007",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M04-B04-R01",
+   "sparta-gap-M04-A01"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求重复运行多次（经验 256 个随机张量）；代码单次前向，以批内方差近似重复采样，重复次数由 confidence/batch 维决定而非 256 次独立运行",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The code always performs a single forward pass and approximates repeated sampling via batch/confidence variance, never running 256 independent randomized forward passes as the paper requires."
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; merged (LLM: same issue): sparta-gap-M04-A01; priority 2: impl_deviates",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F008",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M07-B05"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文返回 Iupdated∪Oupdated 的输入与输出 TeSA 更新集；代码只返回每层 weight_mask，缺输入/输出更新集",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The code's infer_modules_masks returns only per-layer weight masks and never computes or returns the input/output TeSA update sets Iupdated/Oupdated, so the paper-code gap occurs on every call."
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates; related (candidate pair, judged different): sparta-F052, sparta-F053, sparta-F054, sparta-F055",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F009",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M14-A04"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "artifact 路径无通用纳入机制。",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The artifact's specialization path only fetches and dismantles kernels for the built-in SparTA specialization; there is no generic mechanism to incorporate arbitrary sparsity-aware techniques, so the gap holds on every call regardless of inputs."
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates; related (candidate pair, judged different): sparta-F034, sparta-F056, sparta-F057",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F010",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M06-B01"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求用真实数据集推理得到的算子输入输出张量；逐模块传播路径用随机张量代替真实激活",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "script/figure14/search_finetune_fit_qat.py:169-178",
+    "script/figure14/search_finetune_fit_qat.py:260-299",
+    "script/figure14/search_finetune_fit_qat.py:301-335",
+    "script/figure14/search_finetune_fit_qat.py:571-664"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. train_bit_propagate always builds calibration/training data from torch.rand(dummy_input_shape) instead of real dataset activations, so the paper's real-tensor propagation is never used.",
+   "location": "script/figure14/search_finetune_fit_qat.py:169-178",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates; related (candidate pair, judged different): sparta-F011, sparta-F012, sparta-F013, sparta-F014, sparta-F015, sparta-F058, sparta-F059, sparta-F060, sparta-F061, sparta-F062",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F011",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M06-B05"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求对算子所有张量（输入/权重/输出）逐一评估；代码只对 weight 张量做位宽搜索，input/output 未评估",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "script/figure14/search_finetune_fit_qat.py:301-335",
+    "script/figure14/search_finetune_fit_qat.py:571-664"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The code only searches weight bits (loop over weight_bits) while input_bits and output_bits are fixed from bit_setting, so input/output tensors are never evaluated regardless of inputs.",
+   "location": "script/figure14/search_finetune_fit_qat.py:301-335",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates; related (candidate pair, judged different): sparta-F010, sparta-F012, sparta-F013, sparta-F014, sparta-F015, sparta-F058, sparta-F059, sparta-F060, sparta-F061, sparta-F062",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F012",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M06-B04"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求精度下降小于预定义阈值（1%）才接受；代码用 best_acc<original_acc 即任何下降都拒绝，无 1% 阈值",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "no_condition",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "script/figure14/search_finetune_fit_qat.py:496-538",
+    "script/figure14/search_finetune_fit_qat.py:571-664"
+   ],
+   "note": "LLM gave no usable condition: names not in the cited code: best_acc, original_acc",
+   "location": "script/figure14/search_finetune_fit_qat.py:496-538",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates; related (candidate pair, judged different): sparta-F010, sparta-F011, sparta-F013, sparta-F014, sparta-F015, sparta-F058, sparta-F059, sparta-F060, sparta-F061, sparta-F062",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F013",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M06-B06-R01"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求拓扑序并缓存激活；代码按模块注册顺序遍历且无激活缓存",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "script/figure14/search_finetune_fit_qat.py:496-538",
+    "script/figure14/search_finetune_fit_qat.py:571-664"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The code iterates modules in named_modules() registration order and quantizes each conv independently without topological ordering or activation caching, so the paper's propagation precondition is never satisfied regardless of inputs.",
+   "location": "script/figure14/search_finetune_fit_qat.py:496-538",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates; related (candidate pair, judged different): sparta-F010, sparta-F011, sparta-F012, sparta-F014, sparta-F015, sparta-F058, sparta-F059, sparta-F060, sparta-F061, sparta-F062",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F014",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M06-A02"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求同时更新 S 与 Supdated；代码只更新全局位设置，无 Supdated 累积",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "trigger_only",
+   "condition": "True",
+   "path_prefix": [
+    "weight_bits in range(weight_upbound_bits-1, downbound_bit-1, -1)"
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "weight_bits in range(weight_upbound_bits - 1, downbound_bit - 1, -1)": true
+   },
+   "note": "the condition holds on every point that reaches it; no contrast point exists",
+   "atoms": {
+    "weight_bits in range(weight_upbound_bits - 1, downbound_bit - 1, -1)": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "code_locations": [
+    "script/figure14/search_finetune_fit_qat.py:571-664"
+   ],
+   "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "location": "script/figure14/search_finetune_fit_qat.py:571-664",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates; related (candidate pair, judged different): sparta-F010, sparta-F011, sparta-F012, sparta-F013, sparta-F015, sparta-F058, sparta-F059, sparta-F060, sparta-F061, sparta-F062",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F015",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M06-A03"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文以 Tupdated==T 跳过；代码以精度下降 break，语义不同",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "script/figure14/search_finetune_fit_qat.py:571-664"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The code always breaks on accuracy degradation rather than checking Tupdated == T, so the semantic gap occurs on every execution of this loop regardless of input values.",
+   "location": "script/figure14/search_finetune_fit_qat.py:571-664",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates; related (candidate pair, judged different): sparta-F010, sparta-F011, sparta-F012, sparta-F013, sparta-F014, sparta-F058, sparta-F059, sparta-F060, sparta-F061, sparta-F062",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F016",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M17-A02"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文报告第二 sub-Matmul 的具体残余稀疏度；实验路径无该测量/输出，且底层分派规则与数值趋势不符。",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "script/figure16/a100/sparta.cu:118-140",
+    "script/figure16/a100/run.sh:4-20",
+    "script/figure16/a100/draw.py:11-31"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The transform function always splits each 2-element group keeping only the first nonzero in A1 and the rest in A2, and the run script never measures or prints the residual sparsity of the second sub-Matmul, so the paper's reported 12.5%/8%/4.5%/2.0%/0.5% values are never produced regardless of input.",
+   "location": "script/figure16/a100/sparta.cu:118-140",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F017",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M17-B04-R02"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "实验路径的第二部分内核依赖为 Sputnik，而非 SparTA 专用稀疏内核。",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "no_condition",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "script/figure16/a100/sparta.cu:266-311",
+    "script/figure16/a100/run.sh:4-20",
+    "image/Dockerfile.a100:21-29"
+   ],
+   "note": "not decided by input values: The second-tensor kernel is hardwired to Sputnik via the build/link flags in run.sh (and the Dockerfile), so the paper/code mismatch occurs regardless of any runtime input value.",
+   "location": "script/figure16/a100/sparta.cu:266-311",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F018",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M19-B02-R01"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "artifact 脚本无反馈驱动的稀疏属性更新步骤。",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "script/figure19/run.sh:1-7",
+    "script/figure19/iterative_SA.py:319-344"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The artifact scripts never implement feedback-driven sparsity attribute updates; the run.sh/iterative_SA.py path only runs SimulatedAnnealingPruner with fixed sparsity_per_iter and no designer feedback step, so the gap is present on every run.",
+   "location": "script/figure19/run.sh:1-7",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates; related (candidate pair, judged different): sparta-F019, sparta-F021, sparta-F063, sparta-F064",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F019",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M19-B02-R02",
+   "sparta-gap-M19-A02"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "artifact 无编译-测量迭代回路。",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "script/figure19/run.sh:1-7"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The pinned artifact only runs iterative_SA.py with --speed-up True/False and draw.py, with no SpartaModel compile-measure loop, so the paper's iterative compile-measure tradeoff search is absent on every run.",
+   "location": "script/figure19/run.sh:1-7",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; merged (LLM: same issue): sparta-gap-M19-A02; priority 2: impl_deviates; related (candidate pair, judged different): sparta-F018, sparta-F063, sparta-F064, sparta-F066",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F020",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M19-B04"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "加速来自 NNI ModelSpeedup 而非 SparTA 稀疏 kernel。",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "script/figure19/run.sh:1-7",
+    "script/figure19/draw.py:10-35"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The speed-up arm (--speed-up True) always uses NNI ModelSpeedup rather than SparTA sparse kernels, so the gap appears whenever the speed-up branch runs.",
+   "location": "script/figure19/run.sh:1-7",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates; related (candidate pair, judged different): sparta-F063",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F021",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M19-A04"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "artifact 无目标稀疏度终止条件。",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "script/figure19/run.sh:1-7",
+    "script/figure19/iterative_SA.py:319-344"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The artifact's iterative_SA.py has no target-sparsity termination condition; it always runs a fixed --n_iter (default 3) iterations regardless of any target sparsity, so the paper's 'repeat until targeted sparsity' behavior is never implemented.",
+   "location": "script/figure19/run.sh:1-7",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates; related (candidate pair, judged different): sparta-F018, sparta-F065, sparta-F066",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F022",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M18-B03"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求传播为 Rammer 内专用编译 pass；实验路径在编译前以 Python 脚本离线传播，编译器 pass 列表无传播 pass。",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "script/init_checkpoints.sh:1-34"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The propagation is performed by offline Python scripts (bert_propagate_*.py, mobilenet_propagate_*.py, run_coarse.sh/run_finegrained.sh) before ONNX export, and no dedicated propagation pass is registered in the compiler pass list, so the paper's claimed compilation-pass implementation is absent on every run.",
+   "location": "script/init_checkpoints.sh:1-34",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F023",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M20-B04",
+   "sparta-gap-M20-B05"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求复现 Figure 8-11、14-18、20；实际覆盖 8-11、13-15、17、19 与 table3，缺 figure18、figure20，且 2080Ti 路径无 figure16。",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "script/run_all_2080ti.sh:1-57",
+    "script/run_all_a100.sh:1-6",
+    "script/figure16/a100/run.sh:1-20"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The run_all_2080ti.sh script unconditionally reproduces figures 8-11,13-15,17 (and table3) rather than the paper's claimed 8-11,14-18,20, and figure16 is only run on A100, so the mismatch holds on every invocation regardless of inputs.",
+   "location": "script/run_all_2080ti.sh:1-57",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; merged (LLM: same issue): sparta-gap-M20-B05; priority 2: impl_deviates",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F024",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M01-B02",
+   "sparta-gap-M01-A04"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求 2 字节位域属性；artifact 路径以文本配置+按位宽分支替代，未实现 7/4/5 位布局",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "bit == 32 or bit == 8",
+   "path_prefix": [
+    "weight_tesa.block_size is not None"
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "bit": 8,
+    "weight_tesa.block_size is None": false
+   },
+   "contrast": {
+    "bit": 9,
+    "weight_tesa.block_size is None": false
+   },
+   "atoms": {
+    "bit": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "weight_tesa.block_size is None": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "code_locations": [
+    "sparta/artifact_specialization/generate_code.py:58-82"
+   ],
+   "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "location": "sparta/artifact_specialization/generate_code.py:58-82",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; merged (LLM: same issue): sparta-gap-M01-A04; priority 2: impl_deviates; related (candidate pair, judged different): sparta-F025",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F025",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M01-A03"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求 4/8 表示 uint4/uint8；artifact 仅实现 int8 路径，无符号量化未体现",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "bit == 4 or bit == 8",
+   "path_prefix": [
+    "weight_tesa.block_size is not None"
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "bit": 4,
+    "weight_tesa.block_size is None": false
+   },
+   "contrast": {
+    "bit": 5,
+    "weight_tesa.block_size is None": false
+   },
+   "atoms": {
+    "bit": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "weight_tesa.block_size is None": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "code_locations": [
+    "sparta/artifact_specialization/generate_code.py:58-82"
+   ],
+   "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "location": "sparta/artifact_specialization/generate_code.py:58-82",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates; related (candidate pair, judged different): sparta-F024",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F026",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M03-B03-R01"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求 ×、÷、x^y 三类算子均满足任一 φ 即 φ；代码只提供 × 的 and 规则，÷ 与 x^y 无任何规则",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "sparta/propagation/talgebra.py:4-17",
+    "sparta/propagation/talgebra.py:20-34"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The code only implements the × (and) rule via __mul__/algebra_matmul; ÷ and x^y operators have no rules at all, so the gap appears on every call regardless of input values.",
+   "location": "sparta/propagation/talgebra.py:4-17",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates; related (candidate pair, judged different): sparta-F027, sparta-F028, sparta-F068",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F027",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M03-B03-R02"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求 ×/÷/x^y 三者均满足 α∧α→α；代码仅实现 ×",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "sparta/propagation/talgebra.py:4-17"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The code only implements multiplication (__mul__) for the α∧α→α case and lacks division and exponentiation operators, so the gap appears whenever a non-multiplication binary operator (÷ or x^y) is used, i.e., on any call reaching this algebra.",
+   "location": "sparta/propagation/talgebra.py:4-17",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates; related (candidate pair, judged different): sparta-F026, sparta-F028, sparta-F068",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F028",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M03-B01-R01",
+   "sparta-gap-M03-B01-R02",
+   "sparta-gap-M03-B04"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求对逐元素可表达算子按计算流计算输出 TeSA；代码只对 matmul 实现，一元与 ÷/x^y 算子无对应计算流",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "sparta/propagation/talgebra.py:20-34",
+    "sparta/propagation/talgebra.py:40-62",
+    "test/test_tesa_algebra.py:1-10"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The code only implements matmul-based TeSA algebra (algebra_matmul/propagate_matmul), so any element-wise operator other than matmul (unary, division, power) has no corresponding computation flow regardless of input values.",
+   "location": "sparta/propagation/talgebra.py:20-34",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; merged (LLM: same issue): sparta-gap-M03-B01-R01, sparta-gap-M03-B01-R02; priority 2: impl_deviates; related (candidate pair, judged different): sparta-F026, sparta-F027, sparta-F068",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F029",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M05-B05-R01",
+   "sparta-gap-M05-B05-R03",
+   "sparta-gap-M05-A01"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求三条导数公式（含 gB=gY）；代码仅实现两条，偏置项缺失。",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "sparta/propagation/talgebra.py:50-62",
+    "sparta/propagation/talgebra.py:20-38"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The matmul propagation only computes gradients for the two matrix inputs (gA and gX) and never produces the bias gradient gB=gY, so the missing third formula applies on every call regardless of input values.",
+   "location": "sparta/propagation/talgebra.py:50-62",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; merged (LLM: same issue): sparta-gap-M05-B05-R01, sparta-gap-M05-B05-R03; priority 2: impl_deviates",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F030",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M08-B03-R01"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文允许输入分解；artifact 路径只处理单输入 TeSA",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "len(in_tesa) > 1 or len(out_t_tesa) > 1",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "len(in_tesa)": 1,
+    "len(out_t_tesa)": 2
+   },
+   "contrast": {
+    "len(in_tesa)": 1,
+    "len(out_t_tesa)": 1
+   },
+   "atoms": {
+    "len(in_tesa)": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "len(out_t_tesa)": {
+     "kind": "derived",
+     "sort": "int"
+    }
+   },
+   "code_locations": [
+    "sparta/specialization/specialize_kernel.py:18-42",
+    "sparta/transformation/transform_policy.py:158-191"
+   ],
+   "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "location": "sparta/specialization/specialize_kernel.py:18-42",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates; related (candidate pair, judged different): sparta-F031, sparta-F032, sparta-F043, sparta-F044, sparta-F074",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F031",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M08-B03-R02"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "输出不分解",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "len(weight_tesa) > 1",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "len(weight_tesa)": 2
+   },
+   "contrast": {
+    "len(weight_tesa)": 1
+   },
+   "atoms": {
+    "len(weight_tesa)": {
+     "kind": "derived",
+     "sort": "int"
+    }
+   },
+   "code_locations": [
+    "sparta/specialization/specialize_kernel.py:18-42"
+   ],
+   "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "location": "sparta/specialization/specialize_kernel.py:18-42",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates; related (candidate pair, judged different): sparta-F030, sparta-F032, sparta-F069, sparta-F070",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F032",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M08-B04-R01",
+   "sparta-gap-M08-B08"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求 m+1 维笛卡尔积；代码仅权重维枚举，实际 1 维",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "len(in_tesa) == 1 and len(out_t_tesa) == 1 and len(weight_tesa) >= 1",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "len(in_tesa)": 1,
+    "len(out_t_tesa)": 1,
+    "len(weight_tesa)": 1
+   },
+   "contrast": {
+    "len(in_tesa)": 2,
+    "len(out_t_tesa)": 1,
+    "len(weight_tesa)": 1
+   },
+   "atoms": {
+    "len(in_tesa)": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "len(out_t_tesa)": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "len(weight_tesa)": {
+     "kind": "derived",
+     "sort": "int"
+    }
+   },
+   "code_locations": [
+    "sparta/specialization/specialize_kernel.py:18-42",
+    "sparta/transformation/weighted_block_cover.py:104-144"
+   ],
+   "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "location": "sparta/specialization/specialize_kernel.py:18-42",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; merged (LLM: same issue): sparta-gap-M08-B08; priority 2: impl_deviates; related (candidate pair, judged different): sparta-F002, sparta-F030, sparta-F031, sparta-F069, sparta-F070",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F033",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M13-A01"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求位宽提示指导硬件指令选择（DP4A/wmma）；代码按位宽选不同 CUDA 模板，但模板选择处无基于位宽的指令级特化分支，32bit 分支直接走 cublas/稠密模板（artifact 范围：位宽→模板分派存在，位宽→硬件指令（DP4A）选择不存在）",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "n_bits == 32",
+   "path_prefix": [
+    "dismantle == -1"
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "n_bits": 32,
+    "dismantle": -1
+   },
+   "contrast": {
+    "n_bits": 33,
+    "dismantle": -1
+   },
+   "atoms": {
+    "dismantle": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "n_bits": {
+     "kind": "input",
+     "sort": "int"
+    }
+   },
+   "code_locations": [
+    "sparta/specialization/specialize_kernel.py:44-77",
+    "sparta/specialization/specialize_kernel.py:143-166",
+    "sparta/specialization/specialize_kernel.py:210-258"
+   ],
+   "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "location": "sparta/specialization/specialize_kernel.py:44-77",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 2: impl_deviates",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F034",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M14-B01",
+   "sparta-gap-M14-B02"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "artifact 路径无 dismantle 展开步骤，仅消费预生成 kernel。",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "dismantle != -1",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "dismantle": 1
+   },
+   "contrast": {
+    "dismantle": -1
+   },
+   "atoms": {
+    "dismantle": {
+     "kind": "input",
+     "sort": "int"
+    }
+   },
+   "code_locations": [
+    "sparta/specialization/specialize_kernel.py:44-77"
+   ],
+   "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "location": "sparta/specialization/specialize_kernel.py:44-77",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; merged (LLM: same issue): sparta-gap-M14-B02; priority 2: impl_deviates; related (candidate pair, judged different): sparta-F009, sparta-F056, sparta-F057",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F035",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M08-A08"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "执行计划未被重写",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "not is_fast_pass(post_sparsity)",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "is_fast_pass(post_sparsity)": false
+   },
+   "contrast": {
+    "is_fast_pass(post_sparsity)": true
+   },
+   "atoms": {
+    "is_fast_pass(post_sparsity)": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "code_locations": [
+    "sparta/transformation/optimize_model.py:29-54",
+    "sparta/specialization/specialize_kernel.py:18-42"
+   ],
+   "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "location": "sparta/transformation/optimize_model.py:29-54",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F036",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M08-A01"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求每次调用产生新选项并初始化空列表；代码桩未实现且原地修改输入",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "sparta/transformation/transform_policy.py:56-81",
+    "sparta/transformation/transform_policy.py:137-156"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. transform_tesas always returns the input tesa unchanged in a single-element list instead of generating new options, so the paper-code gap occurs on every call.",
+   "location": "sparta/transformation/transform_policy.py:56-81",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 2: impl_deviates; related (candidate pair, judged different): sparta-F002, sparta-F037, sparta-F039",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F037",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M08-A04"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求返回累积分解列表；代码无该累积返回",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "len(unique_block_sizes) > 1",
+   "path_prefix": [
+    "decompose"
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "len(unique_block_sizes)": 2,
+    "decompose": true
+   },
+   "contrast": {
+    "len(unique_block_sizes)": 1,
+    "decompose": true
+   },
+   "atoms": {
+    "decompose": {
+     "kind": "input",
+     "sort": "bool"
+    },
+    "len(unique_block_sizes)": {
+     "kind": "derived",
+     "sort": "int"
+    }
+   },
+   "code_locations": [
+    "sparta/transformation/transform_policy.py:56-81",
+    "sparta/transformation/weighted_block_cover.py:104-144"
+   ],
+   "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "location": "sparta/transformation/transform_policy.py:56-81",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 2: impl_deviates; related (candidate pair, judged different): sparta-F002, sparta-F036, sparta-F039",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F038",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M11-B10"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求对每个 BitRounding 结果 extend 其 WBC 输出；代码 TransformTeSA 未实现该 extend，实际路径仅收集未使用的 transform_options",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "sparta/transformation/transform_policy.py:56-81",
+    "sparta/transformation/transform_policy.py:137-191",
+    "sparta/transformation/optimize_model.py:29-54"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. transform_tesas unconditionally returns [(tesa,)] without ever calling WeightedBlockCover or extending the transformed set, so the paper's extend step is missing on every call.",
+   "location": "sparta/transformation/transform_policy.py:56-81",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 2: impl_deviates; related (candidate pair, judged different): sparta-F002, sparta-F082",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F039",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M08-A02"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求按采样位选项产生 k 个结果；代码无采样且限制最多 2 种位宽",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "len(aligned_bits) > 2",
+   "path_prefix": [
+    "decompose",
+    "len(aligned_bits) != 1"
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "len(aligned_bits)": 3,
+    "decompose": true
+   },
+   "contrast": {
+    "len(aligned_bits)": 2,
+    "decompose": true
+   },
+   "atoms": {
+    "decompose": {
+     "kind": "input",
+     "sort": "bool"
+    },
+    "len(aligned_bits)": {
+     "kind": "derived",
+     "sort": "int"
+    }
+   },
+   "code_locations": [
+    "sparta/transformation/transform_policy.py:137-156",
+    "sparta/specialization/specialize_kernel.py:18-42"
+   ],
+   "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "location": "sparta/transformation/transform_policy.py:137-156",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 2: impl_deviates; related (candidate pair, judged different): sparta-F002, sparta-F036, sparta-F037",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F040",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M10-B01"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求先经 SampleBitOption 采样一个位选项再传给 BitRounding；代码无采样步骤，bit_align 直接使用 hardware_bit_precisions() 全集合（E4）并返回固定候选，位选项非采样所得。（artifact 范围：无 SampleBitOption 采样，位选项由硬件位宽集合直接决定。）",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "sparta/transformation/transform_policy.py:137-156",
+    "sparta/transformation/transform_policy.py:158-191",
+    "sparta/transformation/optimize_model.py:29-54"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. bit_align always derives bit options directly from hardware_bit_precisions() with no SampleBitOption sampling, so the paper's sampling step is absent on every invocation of the transformation path.",
+   "location": "sparta/transformation/transform_policy.py:137-156",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 2: impl_deviates; related (candidate pair, judged different): sparta-F041",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F041",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M10-B05"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求每次运行返回新的（可不同的）变换选项；代码每次返回相同候选集合，无“per run 新选项”机制。（artifact 范围：。）",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "sparta/transformation/transform_policy.py:137-156",
+    "sparta/transformation/transform_policy.py:158-191",
+    "sparta/transformation/optimize_model.py:29-54"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. transform_matmul/bit_align always return the same deterministic candidate set derived from tesa bits and hardware precisions, with no per-run randomness or state, so the paper's 'new transformation option per run' is never satisfied on any call.",
+   "location": "sparta/transformation/transform_policy.py:137-156",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 2: impl_deviates; related (candidate pair, judged different): sparta-F040",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F042",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M13-A05"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求每个操作数 TeSA 各自带块大小；代码仅权重 TeSA 获得 block_size，输入/输出 TeSA 的 block_size 保持 None 且不被消费（artifact 范围：仅权重侧 hints 完整）",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "in_tesa.block_size is not None or out_tesa.block_size is not None",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "in_tesa.block_size is None": false,
+    "out_tesa.block_size is None": true
+   },
+   "contrast": {
+    "in_tesa.block_size is None": true,
+    "out_tesa.block_size is None": true
+   },
+   "atoms": {
+    "in_tesa.block_size is None": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "out_tesa.block_size is None": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "code_locations": [
+    "sparta/transformation/transform_policy.py:137-191",
+    "sparta/transformation/weighted_block_cover.py:104-144",
+    "sparta/specialization/specialize_kernel.py:44-77"
+   ],
+   "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "location": "sparta/transformation/transform_policy.py:137-191",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 2: impl_deviates; related (candidate pair, judged different): sparta-F002",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F043",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M08-B06-R03"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求 RecordPerf 记录每次 profile；artifact 路径计算后未记录",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "sparta/transformation/transform_policy.py:158-191",
+    "sparta/specialization/specialize_kernel.py:18-42"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The transform_matmul path never calls RecordPerf and the specialize_matmul loop is commented out, so no profiling record is ever produced regardless of inputs.",
+   "location": "sparta/transformation/transform_policy.py:158-191",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates; related (candidate pair, judged different): sparta-F030, sparta-F044, sparta-F074",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F044",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M08-B07"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求返回策略选出的最佳变换；代码无选择逻辑，返回 None",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "sparta/transformation/transform_policy.py:158-191",
+    "sparta/specialization/specialize_kernel.py:18-42"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The selection loop is commented out, so best_kernels stays None and the function always returns (None, None) regardless of inputs.",
+   "location": "sparta/transformation/transform_policy.py:158-191",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 2: impl_deviates; related (candidate pair, judged different): sparta-F030, sparta-F043, sparta-F074",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F045",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M09-B01-R01"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求先 SampleBitOption 采样再传 BitRounding；代码以固定硬件位宽集合枚举替代采样（artifact 范围：无 SampleBitOption 采样触发）",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "isinstance(module_sparsity.module_obj, nn.Linear)",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "isinstance(module_sparsity.module_obj, nn.Linear)": true
+   },
+   "contrast": {
+    "isinstance(module_sparsity.module_obj, nn.Linear)": false
+   },
+   "atoms": {
+    "isinstance(module_sparsity.module_obj, nn.Linear)": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "code_locations": [
+    "sparta/transformation/transform_policy.py:158-191",
+    "sparta/transformation/transform_policy.py:26-156",
+    "sparta/specialization/specialize_kernel.py:44-77"
+   ],
+   "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "location": "sparta/transformation/transform_policy.py:158-191",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 2: impl_deviates",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F046",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M09-B03"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求返回变换后 TeSA 列表；代码对应函数为桩，实际入口返回 None kernel 列表，未返回变换 TeSA 列表",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "sparta/transformation/transform_policy.py:158-191",
+    "sparta/transformation/transform_policy.py:56-81",
+    "sparta/specialization/specialize_kernel.py:44-77"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. transform_matmul always returns best_kernels (None) because the specialization loop is commented out, so no transformed TeSA list is ever returned regardless of inputs.",
+   "location": "sparta/transformation/transform_policy.py:158-191",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 2: impl_deviates",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F047",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M09-A15"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求调用方迭代多个方案并选满足者；代码迭代循环被注释，未执行方案搜索",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "sparta/transformation/transform_policy.py:158-191",
+    "sparta/specialization/specialize_kernel.py:44-77"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The plan-search loop in transform_matmul is commented out unconditionally, so no transformation plan is ever iterated or selected regardless of inputs.",
+   "location": "sparta/transformation/transform_policy.py:158-191",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 2: impl_deviates; related (candidate pair, judged different): sparta-F048, sparta-F049",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F048",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M09-A16"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求每次调用返回一个新选项；代码返回固定单元素列表或一次性全部结果",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "sparta/transformation/transform_policy.py:158-191",
+    "sparta/transformation/transform_policy.py:56-81"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. transform_matmul always returns a single fixed (best_kernels, best_aggr_type) pair rather than yielding a new transformation option per call, regardless of inputs.",
+   "location": "sparta/transformation/transform_policy.py:158-191",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 2: impl_deviates; related (candidate pair, judged different): sparta-F047",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F049",
+  "artifact_id": "sparta",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M16-B03"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文声称框架可纳入任意 sparsity-aware 技术；实验路径既未执行 specialization，其可达代码也只有固定模板枚举，无外部内核纳入能力。",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "sparta/transformation/transform_policy.py:158-191",
+    "sparta/specialization/specialize_kernel.py:44-77"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The specialization path is commented out in transform_matmul and matmul_kernel_codegen only enumerates three fixed templates, so no external sparsity-aware kernel can ever be incorporated regardless of inputs.",
+   "location": "sparta/transformation/transform_policy.py:158-191",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates; related (candidate pair, judged different): sparta-F047, sparta-F076, sparta-F077",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F050",
+  "artifact_id": "sparta",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B001"
+  ],
+  "verification_ids": [
+   "V001"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "When info.module_name in self.modules_info: When a module name is already present, the merge branch is an empty ellipsis body, so the new SparseModuleInfo (and its updated TeSA attributes) is silently discarded and the earlier state is kept. The mechanism therefore depends on earlier update() calls and ignores later sparsity info for the same module. (sparta/common/sparsity.py:57)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "info.module_name in self.modules_info",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "info.module_name in self.modules_info": true
+   },
+   "contrast": {
+    "info.module_name in self.modules_info": false
+   },
+   "atoms": {
+    "info.module_name in self.modules_info": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "location": "sparta/common/sparsity.py:57",
+   "function": "sparta/common/sparsity.py::ModelSparsityInfo.update"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: undisclosed, other effect",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 1), not human: The merge branch is a stub, but the only caller, extract_sparsity, iterates model.named_modules(), whose names are unique, so a duplicate module name never reaches it."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F051",
+  "artifact_id": "sparta",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M02-B07-R02"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求量化比特收敛规则；代码只处理剪枝掩码，无量化属性种类",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The propagate_mask/infer_modules_masks path only handles pruning masks and has no quantization-attribute convergence logic, so the paper's quantization-bit convergence rule is never implemented regardless of inputs."
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; priority 3: not_implemented, other effect; related (candidate pair, judged different): sparta-F003, sparta-F004, sparta-F005, sparta-F006",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F052",
+  "artifact_id": "sparta",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M07-B01"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求分发前初始化 Iupdated/Oupdated 空集；代码无规则分发，仅建空字典收集结果",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The code never initializes Iupdated/Oupdated as empty sets before propagation; it only builds an empty dict to collect results, so the paper's precondition is absent on every call."
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; priority 3: not_implemented, other effect; related (candidate pair, judged different): sparta-F008, sparta-F053, sparta-F054, sparta-F055",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F053",
+  "artifact_id": "sparta",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M07-B02",
+   "sparta-gap-M07-B06-R01",
+   "sparta-gap-M07-B07",
+   "sparta-gap-M07-A01"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求 foreach RegisteredPropRule 调用规则；代码为固定两个硬编码推断函数，无注册表迭代",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The code always uses two hardcoded inference functions instead of iterating over registered propagation rules, so the paper's foreach RegisteredPropRule behavior never occurs on any call."
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; merged (LLM: same issue): sparta-gap-M07-B06-R01, sparta-gap-M07-B07, sparta-gap-M07-A01; priority 3: not_implemented, other effect; related (candidate pair, judged different): sparta-F008, sparta-F052, sparta-F054, sparta-F055",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F054",
+  "artifact_id": "sparta",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M07-B03"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求把规则返回的 Iproped/Oproped 合并进节点 Is/Os；代码无规则返回值，直接由硬编码推断写 masks",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The code never reads rule-returned Iproped/Oproped at all; it always infers masks via hardcoded logic, so the paper's merge step is absent on every call."
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; priority 3: not_implemented, other effect; related (candidate pair, judged different): sparta-F008, sparta-F052, sparta-F053, sparta-F055",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F055",
+  "artifact_id": "sparta",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M07-B04"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求累积每条规则更新到 Iupdated/Oupdated；代码为逐层快照收集，无规则更新累积",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "no_condition",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [],
+   "note": "LLM gave no usable condition: names not in the cited code: infer_modules_masks"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; priority 3: not_implemented, other effect; related (candidate pair, judged different): sparta-F008, sparta-F052, sparta-F053, sparta-F054",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F056",
+  "artifact_id": "sparta",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M14-A03"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "artifact 路径无单块回退到通用稀疏/dense kernel 的分派。",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "no_condition",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [],
+   "note": "LLM gave no usable condition: names not in the cited code: block_size, shape, tensor"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; priority 3: not_implemented, other effect; related (candidate pair, judged different): sparta-F009, sparta-F034, sparta-F057",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F057",
+  "artifact_id": "sparta",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M14-A05"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "artifact 路径无该搜索步骤。",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The sparta_kernel_fetch_pass.cpp path performs kernel fetch and Weight_Dismantled marking without any loop-level search for the block-size-aligned inner loop body, so the paper's search step is absent on every call."
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; priority 3: not_implemented, other effect; related (candidate pair, judged different): sparta-F009, sparta-F034, sparta-F056",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F058",
+  "artifact_id": "sparta",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M06-B06-R02"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求从最近缓存激活部分推理；代码无缓存也无部分推理",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "script/figure14/search_finetune_fit_qat.py:260-299",
+    "script/figure14/search_finetune_fit_qat.py:571-664"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The code always generates random dummy inputs via torch.rand instead of performing partial inference from cached activations, so the paper's caching/partial-inference precondition is never implemented regardless of inputs.",
+   "location": "script/figure14/search_finetune_fit_qat.py:260-299",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; priority 3: not_implemented, other effect; related (candidate pair, judged different): sparta-F010, sparta-F011, sparta-F012, sparta-F013, sparta-F014, sparta-F015, sparta-F059, sparta-F060, sparta-F061, sparta-F062",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F059",
+  "artifact_id": "sparta",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M06-A05"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "无注册调用",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "script/figure14/search_finetune_fit_qat.py:260-299",
+    "script/figure14/search_finetune_fit_qat.py:571-664"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The code never calls RegisterPropRule(QuantizationPropRule) before PropOneNode execution, so the paper's propagation-rule registration precondition is absent on every run.",
+   "location": "script/figure14/search_finetune_fit_qat.py:260-299",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; priority 3: not_implemented, other effect; related (candidate pair, judged different): sparta-F010, sparta-F011, sparta-F012, sparta-F013, sparta-F014, sparta-F015, sparta-F058, sparta-F060, sparta-F061, sparta-F062",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F060",
+  "artifact_id": "sparta",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M06-A06"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求 La 输出激活部分推理得 Lb 校准数据；代码无此复用",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "script/figure14/search_finetune_fit_qat.py:260-299",
+    "script/figure14/search_finetune_fit_qat.py:571-664"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The code always generates fresh random dummy inputs for each layer's calibration/training data and never reuses La's collected output activations for Lb, so the paper's partial-inference propagation is never implemented regardless of inputs.",
+   "location": "script/figure14/search_finetune_fit_qat.py:260-299",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; priority 3: not_implemented, other effect; related (candidate pair, judged different): sparta-F010, sparta-F011, sparta-F012, sparta-F013, sparta-F014, sparta-F015, sparta-F058, sparta-F059, sparta-F061, sparta-F062",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F061",
+  "artifact_id": "sparta",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M06-A01"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "无 TeSA 集合初始化",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "script/figure14/search_finetune_fit_qat.py:301-335",
+    "script/figure14/search_finetune_fit_qat.py:571-664"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The code never initializes a TeSA set S from the node's inputs/outputs; it only uses QAT_Quantizer with input/weight/output bits, so the paper's S = (Is ∪ Os) initialization is absent on every call.",
+   "location": "script/figure14/search_finetune_fit_qat.py:301-335",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; priority 3: not_implemented, other effect; related (candidate pair, judged different): sparta-F010, sparta-F011, sparta-F012, sparta-F013, sparta-F014, sparta-F015, sparta-F058, sparta-F059, sparta-F060, sparta-F062",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F062",
+  "artifact_id": "sparta",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M06-A04"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "无 SplitToIsOs 返回",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "script/figure14/search_finetune_fit_qat.py:301-335",
+    "script/figure14/search_finetune_fit_qat.py:571-664"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The code never calls SplitToIsOs or evaluates all tensors in Is∪Os; it only runs QAT_Quantizer.compress() and dummy training, so the paper's precondition/return is absent on every call.",
+   "location": "script/figure14/search_finetune_fit_qat.py:301-335",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; priority 3: not_implemented, other effect; related (candidate pair, judged different): sparta-F010, sparta-F011, sparta-F012, sparta-F013, sparta-F014, sparta-F015, sparta-F058, sparta-F059, sparta-F060, sparta-F061",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F063",
+  "artifact_id": "sparta",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M19-B01"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "artifact 路径无编译后延迟/内存测量步骤。",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "script/figure19/run.sh:1-7",
+    "script/figure19/draw.py:10-35"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The figure19 script only runs iterative_SA.py with --speed-up True/False and draw.py, which never invokes the SpartaModel compile path or measures compiled-model latency/memory, so the missing profiling step is absent on every run.",
+   "location": "script/figure19/run.sh:1-7",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; priority 3: not_implemented, other effect; related (candidate pair, judged different): sparta-F018, sparta-F019, sparta-F020, sparta-F064",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F064",
+  "artifact_id": "sparta",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M19-B03"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "artifact 路径无真实延迟过滤。",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "script/figure19/run.sh:1-7"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The figure19 script only runs iterative_SA.py with --speed-up True/False and draw.py, and never invokes the SpartaModel compile/profile path, so real-latency filtering is absent on every run regardless of inputs.",
+   "location": "script/figure19/run.sh:1-7",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; priority 3: not_implemented, other effect; related (candidate pair, judged different): sparta-F018, sparta-F019, sparta-F063, sparta-F066",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F065",
+  "artifact_id": "sparta",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M19-A01"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "artifact 无编译迭代。",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "script/figure19/run.sh:1-7",
+    "sparta/core/sparta.py:7-27"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The figure19 script only runs iterative_SA.py with SimulatedAnnealingPruner/ModelSpeedup and never instantiates SpartaModel or re-feeds compiled output, so the paper's iterative compilation is absent on every run.",
+   "location": "script/figure19/run.sh:1-7",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; priority 3: not_implemented, other effect; related (candidate pair, judged different): sparta-F021, sparta-F066",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F066",
+  "artifact_id": "sparta",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M19-A03"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "artifact 无 FLOPs 过滤基线。",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "script/figure19/run.sh:1-7"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The artifact's run.sh never implements the paper's FLOPs-based baseline filtering (models with FLOPS > 70% of original), so the gap appears on every run regardless of inputs.",
+   "location": "script/figure19/run.sh:1-7",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; priority 3: not_implemented, other effect; related (candidate pair, judged different): sparta-F019, sparta-F021, sparta-F064, sparta-F065",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F067",
+  "artifact_id": "sparta",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M15-B01",
+   "sparta-gap-M15-B04-R02",
+   "sparta-gap-M15-A02"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求对每个 (sub)operator 执行量化特化；artifact 链中特化调用被注释、重建为直通，未执行任何循环级特化。",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "trigger_only",
+   "condition": "True",
+   "path_prefix": [
+    "not is_fast_pass(post_sparsity)",
+    "backend == 'pytorch'"
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "is_fast_pass(post_sparsity)": false,
+    "backend": "pytorch"
+   },
+   "note": "the condition holds on every point that reaches it; no contrast point exists",
+   "atoms": {
+    "backend": {
+     "kind": "category",
+     "sort": "str"
+    },
+    "is_fast_pass(post_sparsity)": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "code_locations": [
+    "sparta/core/sparta.py:16-24",
+    "sparta/transformation/optimize_model.py:29-54",
+    "sparta/transformation/transform_policy.py:158-191",
+    "test/test_specialize.py:1-40"
+   ],
+   "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "location": "sparta/core/sparta.py:16-24",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; merged (LLM: same issue): sparta-gap-M15-B04-R02, sparta-gap-M15-A02; priority 3: not_implemented, other effect; related (candidate pair, judged different): sparta-F072, sparta-F073, sparta-F075",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F068",
+  "artifact_id": "sparta",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M03-A01"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求可注册新算子规则；代码无注册机制，新增算子需改源码",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "sparta/propagation/talgebra.py:4-17",
+    "sparta/propagation/talgebra.py:20-34",
+    "sparta/propagation/talgebra.py:40-62",
+    "test/test_tesa_algebra.py:1-10"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The code has no operator-rule registration mechanism at all, so the paper's extensibility claim fails on every call regardless of inputs.",
+   "location": "sparta/propagation/talgebra.py:4-17",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; priority 3: not_implemented, other effect; related (candidate pair, judged different): sparta-F026, sparta-F027, sparta-F028",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F069",
+  "artifact_id": "sparta",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M08-B02-R01"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "无 TransformOp 级 S 初始化",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "sparta/specialization/specialize_kernel.py:18-42"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. specialize_matmul never initializes a TransformOp-level S list; it only accumulates latency and kernels, so the missing S initialization is unconditional on every call.",
+   "location": "sparta/specialization/specialize_kernel.py:18-42",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; priority 3: not_implemented, other effect; related (candidate pair, judged different): sparta-F031, sparta-F032, sparta-F070",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F070",
+  "artifact_id": "sparta",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M08-B06-R01"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求组合为图 G；代码无图构造步骤",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "sparta/specialization/specialize_kernel.py:18-42"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. specialize_matmul never constructs a graph G or calls ComposeToGraph/RecordPerf; it only tunes and sums per-kernel latencies, so the paper's ComposeToGraph(S) step is absent on every call.",
+   "location": "sparta/specialization/specialize_kernel.py:18-42",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 3: not_implemented, other effect; related (candidate pair, judged different): sparta-F031, sparta-F032, sparta-F069",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F071",
+  "artifact_id": "sparta",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M13-A03"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "依赖存在但未被该判定消费，属未接线而非实现",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "block_size is not None and block_size != 1",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "block_size is None": false,
+    "block_size": 2
+   },
+   "contrast": {
+    "block_size is None": false,
+    "block_size": 1
+   },
+   "atoms": {
+    "block_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "block_size is None": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "code_locations": [
+    "sparta/specialization/specialize_kernel.py:44-77",
+    "sparta/specialization/specialize_kernel.py:143-166"
+   ],
+   "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "location": "sparta/specialization/specialize_kernel.py:44-77",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; priority 3: not_implemented, other effect",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F072",
+  "artifact_id": "sparta",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M15-B03",
+   "sparta-gap-M15-B04-R01",
+   "sparta-gap-M15-A01"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求特化 tiling 对齐指令形状；artifact 入口链无 tiling 生成步骤。",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "backend == 'pytorch'",
+   "path_prefix": [
+    "not is_fast_pass(post_sparsity)"
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "backend": "pytorch",
+    "is_fast_pass(post_sparsity)": false
+   },
+   "contrast": {
+    "backend": {
+     "not_in": [
+      "pytorch"
+     ]
+    },
+    "is_fast_pass(post_sparsity)": false
+   },
+   "atoms": {
+    "backend": {
+     "kind": "category",
+     "sort": "str"
+    },
+    "is_fast_pass(post_sparsity)": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "code_locations": [
+    "sparta/transformation/optimize_model.py:29-54",
+    "sparta/transformation/transform_policy.py:158-191"
+   ],
+   "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "location": "sparta/transformation/optimize_model.py:29-54",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; merged (LLM: same issue): sparta-gap-M15-B04-R01, sparta-gap-M15-A01; priority 3: not_implemented, other effect; related (candidate pair, judged different): sparta-F067, sparta-F073, sparta-F075",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F073",
+  "artifact_id": "sparta",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M15-A03"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求 DP4A 重排+替换；artifact 入口链无此步骤。",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "backend == 'pytorch'",
+   "path_prefix": [
+    "not is_fast_pass(post_sparsity)"
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "backend": "pytorch",
+    "is_fast_pass(post_sparsity)": false
+   },
+   "contrast": {
+    "backend": {
+     "not_in": [
+      "pytorch"
+     ]
+    },
+    "is_fast_pass(post_sparsity)": false
+   },
+   "atoms": {
+    "backend": {
+     "kind": "category",
+     "sort": "str"
+    },
+    "is_fast_pass(post_sparsity)": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "code_locations": [
+    "sparta/transformation/optimize_model.py:29-54",
+    "sparta/transformation/transform_policy.py:158-191"
+   ],
+   "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "location": "sparta/transformation/optimize_model.py:29-54",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; priority 3: not_implemented, other effect; related (candidate pair, judged different): sparta-F067, sparta-F072, sparta-F075",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F074",
+  "artifact_id": "sparta",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M08-B01"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求 while 搜索；artifact 路径仅单遍枚举",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "sparta/transformation/transform_policy.py:158-191",
+    "sparta/specialization/specialize_kernel.py:18-42"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The search loop body is commented out and specialize_matmul is mocked, so transform_matmul always performs a single enumeration pass regardless of any input, never the paper's while HasBudget/PerfNotSatisfied loop.",
+   "location": "sparta/transformation/transform_policy.py:158-191",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; priority 3: not_implemented, other effect; related (candidate pair, judged different): sparta-F030, sparta-F043, sparta-F044",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F075",
+  "artifact_id": "sparta",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M15-B02"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求按 TeSA 位宽选指令；artifact 链未调用特化，位宽选择步骤不存在。",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "sparta/transformation/transform_policy.py:158-191",
+    "sparta/transformation/transform_policy.py:26-30"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The specialization call chain (specialize_matmul) is commented out entirely, so the bit-width-based instruction selection never runs on any call to transform_matmul.",
+   "location": "sparta/transformation/transform_policy.py:158-191",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; priority 3: not_implemented, other effect; related (candidate pair, judged different): sparta-F067, sparta-F072, sparta-F073",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F076",
+  "artifact_id": "sparta",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M16-B01"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "实验路径未执行 specialization 内核选择，且无 block==shape→通用稀疏内核的代码路径；依赖存在不等于执行路径存在。",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "sparta/transformation/transform_policy.py:158-191",
+    "image/Dockerfile:63-66"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The specialization kernel-selection loop is commented out, so the block==shape→general sparse kernel path is never executed regardless of input values.",
+   "location": "sparta/transformation/transform_policy.py:158-191",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; priority 3: not_implemented, other effect; related (candidate pair, judged different): sparta-F049, sparta-F077",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F077",
+  "artifact_id": "sparta",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M16-B02"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "实验路径未运行内核选择，且无 block==shape 的稠密回退分支。",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "sparta/transformation/transform_policy.py:158-191"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The kernel-selection loop that would compare dense vs sparse kernels and fall back to the dense kernel is commented out, so transform_matmul never runs kernel selection or a block==shape dense fallback on any call.",
+   "location": "sparta/transformation/transform_policy.py:158-191",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; priority 3: not_implemented, other effect; related (candidate pair, judged different): sparta-F049, sparta-F076",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F078",
+  "artifact_id": "sparta",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M12-B05-R02"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求从枚举结果选最佳；代码无候选集合，择优逻辑被注释",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "sparta/transformation/transform_policy.py:172-191"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The best-selection loop over transform_options is commented out unconditionally, so the code always returns the initial best_kernels/best_aggr_type without ever picking the best candidate.",
+   "location": "sparta/transformation/transform_policy.py:172-191",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 3: not_implemented, other effect; related (candidate pair, judged different): sparta-F002, sparta-F079, sparta-F080, sparta-F081",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F079",
+  "artifact_id": "sparta",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M12-B02"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "artifact 路径无 13 块大小评估入口",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "sparta/transformation/weighted_block_cover.py:7-24",
+    "sparta/specialization/Template/block_sparse_template_bias_row.cu:1-40",
+    "sparta/specialization/specialize_kernel.py:210-258"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The artifact only hardcodes 7 block sizes in available_covering_size and provides no entry point to evaluate 13 block sizes, so the paper's 13-block-size evaluation is missing on every call.",
+   "location": "sparta/transformation/weighted_block_cover.py:7-24",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; priority 3: not_implemented, other effect; related (candidate pair, judged different): sparta-F002, sparta-F078, sparta-F080, sparta-F081",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F080",
+  "artifact_id": "sparta",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M12-B03-R01"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "artifact 路径无零稀疏延迟测量入口",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "sparta/transformation/weighted_block_cover.py:7-24",
+    "sparta/specialization/specialize_kernel.py:210-258"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The artifact only provides hardcoded profiled block costs in available_covering_size and kernel templates; there is no code path that measures zero-sparsity latency for each block size, so the paper's profiling entry point is missing on every call.",
+   "location": "sparta/transformation/weighted_block_cover.py:7-24",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; priority 3: not_implemented, other effect; related (candidate pair, judged different): sparta-F002, sparta-F078, sparta-F079, sparta-F081",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F081",
+  "artifact_id": "sparta",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M12-B03-R02"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求 latency/块数；代码无该计算，E2 除法语义不同（按覆盖元素数分摊）",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "sparta/transformation/weighted_block_cover.py:7-24"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The code only returns a hardcoded cost table and never divides latency by the number of blocks, so the paper's latency-per-block computation is absent on every call.",
+   "location": "sparta/transformation/weighted_block_cover.py:7-24",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 3: not_implemented, other effect; related (candidate pair, judged different): sparta-F002, sparta-F078, sparta-F079, sparta-F080",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "sparta-F082",
+  "artifact_id": "sparta",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "sparta-gap-M11-A03"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求过稀疏时枚举所有块大小组合并选最优；代码无枚举、无最优选择、无触发条件",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "sparta/transformation/weighted_block_cover.py:47-102",
+    "sparta/transformation/weighted_block_cover.py:125-144",
+    "sparta/transformation/optimize_model.py:29-54"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The code never enumerates block-size combinations or selects the best one for sparse operators; wbc_matmuls always returns a single covering option regardless of sparsity, so the paper-described behavior is absent on every call.",
+   "location": "sparta/transformation/weighted_block_cover.py:47-102",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 3: not_implemented, other effect; related (candidate pair, judged different): sparta-F001, sparta-F002, sparta-F038",
+  "review": "unreviewed",
+  "review_note": null
+ }
+]

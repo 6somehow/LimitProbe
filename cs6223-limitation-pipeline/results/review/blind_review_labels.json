@@ -1,0 +1,2057 @@
+{
+ "_note": "Blind review of route-B additions by Claude subagents (single reviewer per item, source method hidden). Rubric: useful / real_not_useful / wrong. Not human annotation. Rounds: 1 = raw sweep/agent/hybrid sample, 2 = filtered sweep, 3 = merged final B. See docs/06_two_routes.md.",
+ "labels": [
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/modules/llama/flex_prefill_attention.py",
+   "line": 89,
+   "label": "real_not_useful",
+   "reason": "The RoPE implementation choice by Triton version computes the same result; it is an environment and performance detail.",
+   "round": 1,
+   "item_id": "flexprefill-15"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/modules/llama/flex_prefill_attention.py",
+   "line": 121,
+   "label": "real_not_useful",
+   "reason": "Standard HF dtype-recast boilerplate under autocast, unrelated to the mechanism.",
+   "round": 1,
+   "item_id": "flexprefill-18"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/modules/llama/flex_prefill_attention.py",
+   "line": 140,
+   "label": "wrong",
+   "reason": "There is no flex_prefill_gamma check; the patched forward always calls flex_prefill_attention.",
+   "round": 1,
+   "item_id": "flexprefill-29"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/modules/patch.py",
+   "line": 69,
+   "label": "real_not_useful",
+   "reason": "The minfer config loading belongs to the MInference baseline, not to FlexPrefill.",
+   "round": 3,
+   "item_id": "flexprefill-m06"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/modules/patch.py",
+   "line": 100,
+   "label": "wrong",
+   "reason": "The raise is inside `if pattern == \"minfer\"` in patch_model_config, so it only affects the MInference baseline config lookup, not the FlexPrefill mechanism as claimed.",
+   "round": 1,
+   "item_id": "flexprefill-01"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/modules/patch.py",
+   "line": 114,
+   "label": "real_not_useful",
+   "reason": "pattern=='default' is the user explicitly choosing the unpatched baseline, not a fallback of the mechanism.",
+   "round": 3,
+   "item_id": "flexprefill-m03"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/modules/patch.py",
+   "line": 123,
+   "label": "useful",
+   "reason": "Even among llama-named HF models, only LlamaForCausalLM instances are accepted, so other Llama heads such as LlamaModel or sequence classification fail the assertion; this is a narrower check than m02.",
+   "round": 3,
+   "item_id": "flexprefill-m09"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/modules/patch.py",
+   "line": 149,
+   "label": "real_not_useful",
+   "reason": "The user explicitly picks the pattern to choose a baseline or flex_prefill; that is a choice, not a silent fallback.",
+   "round": 1,
+   "item_id": "flexprefill-12"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/modules/patch.py",
+   "line": 274,
+   "label": "real_not_useful",
+   "reason": "Rejects an invalid pattern name, which is ordinary argument validation and not a limitation of the mechanism.",
+   "round": 1,
+   "item_id": "flexprefill-24"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/modules/patch.py",
+   "line": 313,
+   "label": "useful",
+   "reason": "patch_hf_model raises ValueError for any HF model whose class name does not contain llama, glm or qwen2, so FlexPrefill only supports those model families.",
+   "round": 3,
+   "item_id": "flexprefill-m02"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/modules/patch.py",
+   "line": 315,
+   "label": "real_not_useful",
+   "reason": "Per-model-family patching selects the GLM integration of the same mechanism; the real limitation is the unsupported-model raise, which isn't this item.",
+   "round": 1,
+   "item_id": "flexprefill-08"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/modules/patch.py",
+   "line": 317,
+   "label": "real_not_useful",
+   "reason": "Per-model-family patching for Qwen2, same kind as flexprefill-08.",
+   "round": 1,
+   "item_id": "flexprefill-22"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/modules/patch.py",
+   "line": 320,
+   "label": "useful",
+   "reason": "patch_hf_model raises ValueError for any model class whose name lacks llama/glm/qwen2, so other architectures cannot use FlexPrefill.",
+   "round": 2,
+   "item_id": "flexprefill-f07"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/modules/patch.py",
+   "line": 332,
+   "label": "real_not_useful",
+   "reason": "The vLLM pattern assert accepts flex_prefill and only restricts which baseline patterns are available under vLLM.",
+   "round": 1,
+   "item_id": "flexprefill-03"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/modules/patch.py",
+   "line": 338,
+   "label": "real_not_useful",
+   "reason": "The early return runs only when the user explicitly picks the default/flash baseline patterns, so it is baseline selection, not a fallback of FlexPrefill.",
+   "round": 3,
+   "item_id": "flexprefill-m04"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/modules/patch.py",
+   "line": 424,
+   "label": "useful",
+   "reason": "In vLLM, when the prefill has non-empty block tables (e.g. prefix caching hits), the code silently runs dense flash_attn_varlen_func instead of flex_prefill_attention.",
+   "round": 3,
+   "item_id": "flexprefill-m10"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/modules/patch.py",
+   "line": 501,
+   "label": "real_not_useful",
+   "reason": "Matching modules by class name to patch vLLM attention is internal plumbing that every attention layer satisfies; no user condition is involved.",
+   "round": 3,
+   "item_id": "flexprefill-m08"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "line": 244,
+   "label": "real_not_useful",
+   "reason": "triton_flash_prefill is only reached through triton_flash_attention, which asserts bf16 first; duplicate of flexprefill-f08.",
+   "round": 2,
+   "item_id": "flexprefill-f03"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "line": 245,
+   "label": "real_not_useful",
+   "reason": "Same head_dim assert already enforced by triton_flash_attention and the entry function; duplicate of flexprefill-f11.",
+   "round": 2,
+   "item_id": "flexprefill-f04"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "line": 247,
+   "label": "real_not_useful",
+   "reason": "Requiring q heads to be a multiple of kv heads is a GQA shape invariant that every real model satisfies, not a mechanism limitation.",
+   "round": 2,
+   "item_id": "flexprefill-f02"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "line": 535,
+   "label": "real_not_useful",
+   "reason": "Decode kernel is only reached via triton_flash_attention, which already asserts bf16; duplicate of flexprefill-f08.",
+   "round": 2,
+   "item_id": "flexprefill-f06"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "line": 536,
+   "label": "real_not_useful",
+   "reason": "triton_flash_decode is only called via triton_flash_attention, which already asserts the same head_dim set; duplicate of flexprefill-f11.",
+   "round": 2,
+   "item_id": "flexprefill-f01"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "line": 543,
+   "label": "real_not_useful",
+   "reason": "GQA divisibility is a shape invariant; same check as flexprefill-f02.",
+   "round": 2,
+   "item_id": "flexprefill-f10"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "line": 672,
+   "label": "useful",
+   "reason": "triton_flash_attention (used for decode/short-sequence dense paths when gqa_interleave is set or flash-attn is missing) rejects non-bf16 inputs; the sparse block-wise kernel also asserts bf16, so fp16/fp32 models cannot run.",
+   "round": 2,
+   "item_id": "flexprefill-f08"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "line": 673,
+   "label": "useful",
+   "reason": "triton_flash_attention rejects head_dim outside {16,32,64,128}, matching the entry function's own head_dim restriction that a user's model can violate.",
+   "round": 2,
+   "item_id": "flexprefill-f11"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "line": 881,
+   "label": "real_not_useful",
+   "reason": "Default value for an optional softmax_scale argument.",
+   "round": 1,
+   "item_id": "flexprefill-16"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "line": 1099,
+   "label": "real_not_useful",
+   "reason": "Kernel-side counterpart of the gqa_interleave layout option (duplicate of flexprefill-20).",
+   "round": 1,
+   "item_id": "flexprefill-28"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "line": 1221,
+   "label": "wrong",
+   "reason": "flex_prefill_attention already asserts head_dim in {16,32,64,128}, so the head_dim>128 branch with its {32,64} restriction is unreachable through the mechanism.",
+   "round": 1,
+   "item_id": "flexprefill-19"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "line": 1239,
+   "label": "real_not_useful",
+   "reason": "Internal input-format normalization of block_idx; flex_prefill passes a list form internally.",
+   "round": 1,
+   "item_id": "flexprefill-30"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "line": 1261,
+   "label": "real_not_useful",
+   "reason": "Default value for an optional softmax_scale argument (same as flexprefill-16).",
+   "round": 1,
+   "item_id": "flexprefill-23"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "line": 1267,
+   "label": "real_not_useful",
+   "reason": "On Triton <3 the same column-count cumsum is computed with a slower torch path, so this is only a performance fallback.",
+   "round": 1,
+   "item_id": "flexprefill-10"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "line": 1353,
+   "label": "real_not_useful",
+   "reason": "Internal dispatch; flex_prefill_attention already handles q_len==1 before calling this, so the decode branch is never taken from the mechanism.",
+   "round": 1,
+   "item_id": "flexprefill-04"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "line": 1455,
+   "label": "wrong",
+   "reason": "No caller ever passes pool_type='last' (get_active_blocks uses the default 'avg'), so this branch is dead.",
+   "round": 1,
+   "item_id": "flexprefill-06"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "line": 1456,
+   "label": "wrong",
+   "reason": "Sub-branch of the dead pool_type=='last' path, which no caller reaches.",
+   "round": 1,
+   "item_id": "flexprefill-09"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "line": 1469,
+   "label": "real_not_useful",
+   "reason": "triton_bnhd_pool is only called with the default 'avg' pool type internally, so the KeyError cannot be triggered by a user.",
+   "round": 1,
+   "item_id": "flexprefill-05"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "line": 1678,
+   "label": "real_not_useful",
+   "reason": "gqa_interleave selects the GQA head layout that matches the model's weight layout; it is a supported option, not a limitation.",
+   "round": 1,
+   "item_id": "flexprefill-20"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "line": 1718,
+   "label": "real_not_useful",
+   "reason": "Same gqa_interleave layout option as flexprefill-20.",
+   "round": 1,
+   "item_id": "flexprefill-31"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "line": 1826,
+   "label": "real_not_useful",
+   "reason": "Both branches are dense decoding attention; gqa_interleave only picks the kernel implementation.",
+   "round": 1,
+   "item_id": "flexprefill-13"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "line": 1843,
+   "label": "real_not_useful",
+   "reason": "Both branches are the same dense causal fallback; gqa_interleave only picks the kernel (the short-sequence dense fallback itself is not this item).",
+   "round": 1,
+   "item_id": "flexprefill-17"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "line": 1867,
+   "label": "real_not_useful",
+   "reason": "Optional flag that only adds a debug or statistics return value.",
+   "round": 1,
+   "item_id": "flexprefill-25"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/ops/minfer/minfer_attention.py",
+   "line": 80,
+   "label": "real_not_useful",
+   "reason": "Per-head dispatch in the MInference baseline, not the FlexPrefill mechanism.",
+   "round": 1,
+   "item_id": "flexprefill-07"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/ops/minfer/minfer_attention.py",
+   "line": 106,
+   "label": "real_not_useful",
+   "reason": "Config validation inside the MInference baseline (related to flexprefill-07).",
+   "round": 1,
+   "item_id": "flexprefill-26"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/ops/streaming_llm_attention.py",
+   "line": 37,
+   "label": "real_not_useful",
+   "reason": "GQA expansion in the torch StreamingLLM baseline, not the mechanism.",
+   "round": 1,
+   "item_id": "flexprefill-21"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/ops/streaming_llm_attention.py",
+   "line": 255,
+   "label": "real_not_useful",
+   "reason": "bf16 assert is in the StreamingLLM baseline op, not the FlexPrefill mechanism.",
+   "round": 1,
+   "item_id": "flexprefill-32"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/ops/streaming_llm_attention.py",
+   "line": 256,
+   "label": "real_not_useful",
+   "reason": "head_dim assert is in the StreamingLLM baseline op, not the FlexPrefill mechanism.",
+   "round": 1,
+   "item_id": "flexprefill-02"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/ops/streaming_llm_attention.py",
+   "line": 392,
+   "label": "real_not_useful",
+   "reason": "Benchmark script code for a baseline op.",
+   "round": 1,
+   "item_id": "flexprefill-27"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/ops/vertical_slash_attention.py",
+   "line": 264,
+   "label": "real_not_useful",
+   "reason": "bf16 assert sits in the vertical-slash baseline kernel, not the FlexPrefill path.",
+   "round": 2,
+   "item_id": "flexprefill-f12"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/ops/vertical_slash_attention.py",
+   "line": 265,
+   "label": "real_not_useful",
+   "reason": "vertical_slash_attention.py is the separate vertical-slash (MInference-style) baseline pattern, not the FlexPrefill path, which uses triton_block_wise_attention.",
+   "round": 2,
+   "item_id": "flexprefill-f05"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/ops/vertical_slash_attention.py",
+   "line": 266,
+   "label": "real_not_useful",
+   "reason": "head_dim assert is in the vertical-slash baseline op, not the FlexPrefill entry point.",
+   "round": 1,
+   "item_id": "flexprefill-14"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/ops/vertical_slash_attention.py",
+   "line": 519,
+   "label": "real_not_useful",
+   "reason": "Global causal-mask caching in the vertical-slash baseline is an internal implementation detail.",
+   "round": 1,
+   "item_id": "flexprefill-11"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/ops/vertical_slash_attention.py",
+   "line": 552,
+   "label": "real_not_useful",
+   "reason": "The head_dim assert is in the vertical_slash baseline op, not in FlexPrefill's mechanism.",
+   "round": 3,
+   "item_id": "flexprefill-m05"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/ops/vertical_slash_attention.py",
+   "line": 553,
+   "label": "real_not_useful",
+   "reason": "The assert is in vertical_slash_attention, the MInference-style vertical_slash baseline, not on FlexPrefill's own path (flex_prefill_attention).",
+   "round": 3,
+   "item_id": "flexprefill-m01"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/ops/vertical_slash_attention.py",
+   "line": 557,
+   "label": "real_not_useful",
+   "reason": "The short-sequence dense fallback is in the vertical-slash baseline function, not in flex_prefill_attention.",
+   "round": 2,
+   "item_id": "flexprefill-f09"
+  },
+  {
+   "artifact": "flexprefill",
+   "file": "flex_prefill/ops/vertical_slash_attention.py",
+   "line": 570,
+   "label": "real_not_useful",
+   "reason": "The 16k switch is a performance choice inside the vertical_slash baseline op, not in FlexPrefill.",
+   "round": 3,
+   "item_id": "flexprefill-m07"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/flexgen/flexgen/compression.py",
+   "line": 94,
+   "label": "real_not_useful",
+   "reason": "Upcasting CPU fp16 before quantization is an internal numeric detail of FlexGen compression.",
+   "round": 1,
+   "item_id": "infinigen-04"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/flexgen/flexgen/compression.py",
+   "line": 104,
+   "label": "real_not_useful",
+   "reason": "Zero-padding to group_size in compression is an internal quantization detail.",
+   "round": 1,
+   "item_id": "infinigen-22"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/flexgen/flexgen/compression.py",
+   "line": 160,
+   "label": "real_not_useful",
+   "reason": "Padding in decompress is an internal quantization detail.",
+   "round": 1,
+   "item_id": "infinigen-29"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/flexgen/flexgen/compression.py",
+   "line": 280,
+   "label": "real_not_useful",
+   "reason": "Symmetric vs asymmetric quantization belongs to FlexGen compression and is hardcoded symmetric=False.",
+   "round": 1,
+   "item_id": "infinigen-23"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/flexgen/infinigen/flex_opt.py",
+   "line": 191,
+   "label": "real_not_useful",
+   "reason": "Popping vs reusing the weight buffer on the last GPU batch is memory-management bookkeeping.",
+   "round": 1,
+   "item_id": "infinigen-09"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/flexgen/infinigen/flex_opt.py",
+   "line": 287,
+   "label": "useful",
+   "reason": "Layers 0 and 1 always get partial_weight_ratio=None (and are excluded from prefetched cache loading), so InfiniGen speculation/selection never applies to the first two layers, which always use the full KV cache.",
+   "round": 1,
+   "item_id": "infinigen-10"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/flexgen/infinigen/flex_opt.py",
+   "line": 360,
+   "label": "real_not_useful",
+   "reason": "Duplicate of infinigen-10: the same layer_id>1 gate that excludes layers 0 and 1 from the prefetch path.",
+   "round": 1,
+   "item_id": "infinigen-30"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/flexgen/infinigen/flex_opt.py",
+   "line": 389,
+   "label": "real_not_useful",
+   "reason": "attn_sparsity<1 picks FlexGen's top-k sparse attention baseline rather than InfiniGen's KV selection; same branch logic as infinigen-f04.",
+   "round": 2,
+   "item_id": "infinigen-f10"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/flexgen/infinigen/flex_opt.py",
+   "line": 406,
+   "label": "real_not_useful",
+   "reason": "attn_sparsity<1 selects FlexGen's own top-k sparse attention baseline; this branch is baseline handling, not an InfiniGen limitation.",
+   "round": 2,
+   "item_id": "infinigen-f04"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/flexgen/infinigen/flex_opt.py",
+   "line": 426,
+   "label": "real_not_useful",
+   "reason": "The assert only rejects FlexGen's top-k sparse attention baseline (attn_sparsity<1) in the mixed-cache CPU path, not InfiniGen's mechanism.",
+   "round": 2,
+   "item_id": "infinigen-f07"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/flexgen/infinigen/flex_opt.py",
+   "line": 456,
+   "label": "real_not_useful",
+   "reason": "Prefetch is skipped only when FlexGen's top-k sparse attention baseline (attn_sparsity<1) is on, so this is an interaction with a baseline option rather than a limit of InfiniGen itself.",
+   "round": 2,
+   "item_id": "infinigen-f09"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/flexgen/infinigen/flex_opt.py",
+   "line": 466,
+   "label": "useful",
+   "reason": "prefetch_cache is called in the generation loop regardless of --cpu-cache-compute, and raises ValueError for CPU-compute paths 1/2, so InfiniGen prefetching cannot be combined with CPU attention compute.",
+   "round": 2,
+   "item_id": "infinigen-f03"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/flexgen/infinigen/flex_opt.py",
+   "line": 528,
+   "label": "real_not_useful",
+   "reason": "enable_prefetching is fixed per layer in OptLM.__init__ (off only for the first and last layers), so it is an internal design detail rather than a user-reachable switch.",
+   "round": 2,
+   "item_id": "infinigen-f05"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/flexgen/infinigen/flex_opt.py",
+   "line": 690,
+   "label": "wrong",
+   "reason": "The last layer still has its KV selected by the previous layer's speculation and layer 1 also runs on full KV, so 'boundary layers run plain attention, interior layers get InfiniGen' misstates the effect (the real limitation is item 10).",
+   "round": 1,
+   "item_id": "infinigen-18"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/flexgen/infinigen/flex_opt.py",
+   "line": 703,
+   "label": "real_not_useful",
+   "reason": "FlexGen activation-placement policy plumbing (must be 100% on one device), unrelated to InfiniGen's KV selection mechanism.",
+   "round": 2,
+   "item_id": "infinigen-f02"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/flexgen/infinigen/flex_opt.py",
+   "line": 710,
+   "label": "real_not_useful",
+   "reason": "Requiring activations to live entirely on one tier is an inherited FlexGen offloading-policy restriction unrelated to InfiniGen's KV management.",
+   "round": 1,
+   "item_id": "infinigen-16"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/flexgen/infinigen/flex_opt.py",
+   "line": 799,
+   "label": "real_not_useful",
+   "reason": "Skipping load_cache for attention layers after the first two is a fixed internal schedule (those layers get KV via prefetch), not a condition a user can trigger.",
+   "round": 2,
+   "item_id": "infinigen-f01"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/flexgen/infinigen/flex_opt.py",
+   "line": 957,
+   "label": "real_not_useful",
+   "reason": "Attention-mask placement following cpu_cache_compute is FlexGen device plumbing.",
+   "round": 1,
+   "item_id": "infinigen-17"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/flexgen/infinigen/flex_opt.py",
+   "line": 1067,
+   "label": "real_not_useful",
+   "reason": "Stream synchronization placement is a scheduling detail.",
+   "round": 1,
+   "item_id": "infinigen-15"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/flexgen/infinigen/flex_opt.py",
+   "line": 1314,
+   "label": "wrong",
+   "reason": "At this line compress_weight only appends '-compw' to the output filename in get_filename; it does not select a weight-loading implementation.",
+   "round": 1,
+   "item_id": "infinigen-08"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/flexgen/infinigen/flex_opt.py",
+   "line": 1359,
+   "label": "real_not_useful",
+   "reason": "This is FlexGen's own check against combining cache compression with its top-k sparse attention (attn_sparsity<1); it is not the InfiniGen KV selection path as claimed.",
+   "round": 2,
+   "item_id": "infinigen-f08"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+   "line": 109,
+   "label": "real_not_useful",
+   "reason": "Calling device.delete only for disk tensors is memory bookkeeping.",
+   "round": 1,
+   "item_id": "infinigen-26"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+   "line": 114,
+   "label": "real_not_useful",
+   "reason": "Disk vs memory write in load_from_np is storage plumbing.",
+   "round": 1,
+   "item_id": "infinigen-19"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+   "line": 189,
+   "label": "real_not_useful",
+   "reason": "Pinned-memory default for CPU allocation is an allocation detail.",
+   "round": 1,
+   "item_id": "infinigen-12"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+   "line": 204,
+   "label": "real_not_useful",
+   "reason": "CPU workspace allocation choice for FlexGen cache compression is infrastructure, not a limitation of the KV selection mechanism.",
+   "round": 1,
+   "item_id": "infinigen-03"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+   "line": 326,
+   "label": "wrong",
+   "reason": "partial_weight_index being None does not make mha_gen get p_w_q=None; p_w_q comes from partial_weight_read_buf (filled by the next layer) whenever enable_prefetching is set, so speculation is not skipped as claimed.",
+   "round": 1,
+   "item_id": "infinigen-01"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+   "line": 334,
+   "label": "wrong",
+   "reason": "Skewed w_q/w_k produced in warmup are written back to weight_home (flex_opt.py:522-524), so later non-warmup runs do use skewed weights; they are not left unskewed.",
+   "round": 1,
+   "item_id": "infinigen-31"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+   "line": 372,
+   "label": "real_not_useful",
+   "reason": "Returning compressed vs plain caches is FlexGen's cache-compression feature, not an InfiniGen variant.",
+   "round": 1,
+   "item_id": "infinigen-27"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+   "line": 401,
+   "label": "real_not_useful",
+   "reason": "p_w_q is None only for layers built with enable_prefetching=False, so this is the same 'early layers get no speculation/full KV' limitation already covered by infinigen-10.",
+   "round": 1,
+   "item_id": "infinigen-07"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+   "line": 421,
+   "label": "real_not_useful",
+   "reason": "The TorchTensor vs mixed-device cache path is FlexGen offloading plumbing.",
+   "round": 1,
+   "item_id": "infinigen-32"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+   "line": 422,
+   "label": "real_not_useful",
+   "reason": "The dense vs attn_sparsity<1 switch selects FlexGen's own top-k sparse attention baseline, not a variant of InfiniGen.",
+   "round": 1,
+   "item_id": "infinigen-21"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+   "line": 476,
+   "label": "real_not_useful",
+   "reason": "Deleting a donated attention mask is memory bookkeeping.",
+   "round": 1,
+   "item_id": "infinigen-20"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+   "line": 479,
+   "label": "real_not_useful",
+   "reason": "group_dim rounding is an internal detail of FlexGen cache compression whose config is hardcoded in run_flexgen (group_dim=2), not a user-facing variant of InfiniGen.",
+   "round": 1,
+   "item_id": "infinigen-02"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+   "line": 515,
+   "label": "real_not_useful",
+   "reason": "topk truncation belongs to FlexGen's built-in attn_sparsity baseline path, not InfiniGen's mechanism, and it does not reject input.",
+   "round": 1,
+   "item_id": "infinigen-14"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+   "line": 523,
+   "label": "real_not_useful",
+   "reason": "CUDA vs CPU v_cache handling in FlexGen's sparse baseline is a device-implementation detail.",
+   "round": 1,
+   "item_id": "infinigen-24"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+   "line": 767,
+   "label": "real_not_useful",
+   "reason": "GPU/CPU/disk KV-cache segment sizing is FlexGen offloading plumbing, not a change to the mechanism.",
+   "round": 2,
+   "item_id": "infinigen-f06"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+   "line": 835,
+   "label": "real_not_useful",
+   "reason": "Per-segment copying for mixed-device tensors is internal data-movement plumbing.",
+   "round": 1,
+   "item_id": "infinigen-06"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+   "line": 849,
+   "label": "real_not_useful",
+   "reason": "Copy dispatch for compressed tensors is internal data-movement plumbing.",
+   "round": 1,
+   "item_id": "infinigen-05"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+   "line": 865,
+   "label": "real_not_useful",
+   "reason": "Pinning unpinned CPU source before H2D copy is a transfer optimization.",
+   "round": 1,
+   "item_id": "infinigen-28"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/infinigen/infinigen/kv_selection_controller.py",
+   "line": 59,
+   "label": "useful",
+   "reason": "The user-set --max-num-kv budget silently caps the alpha-threshold selection via min(int(mean), max_num_kv), dropping tokens the mechanism deemed critical (the empty-set sub-claim is unlikely since the max token always passes for alpha>0).",
+   "round": 1,
+   "item_id": "infinigen-11"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/infinigen/infinigen/partial_weight_generation_controller.py",
+   "line": 25,
+   "label": "useful",
+   "reason": "A user-set --partial-weight-ratio with head_dim*ratio<1 is silently truncated to zero partial channels, so speculation runs with an empty partial query/key and becomes meaningless, with no validation.",
+   "round": 1,
+   "item_id": "infinigen-25"
+  },
+  {
+   "artifact": "infinigen",
+   "file": "speedup/infinigen/infinigen/skewing_controller.py",
+   "line": 21,
+   "label": "real_not_useful",
+   "reason": "scaling is fixed internally (True for query, False for key at flex_opt.py:324/327), not user-selectable, and with scaling=False the whole matrix (not just bias) is unscaled.",
+   "round": 1,
+   "item_id": "infinigen-13"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/minference_configuration.py",
+   "line": 52,
+   "label": "useful",
+   "reason": "For non-minference attn_types (e.g. 'static'), the user's config_path is silently dropped, so the static variant always uses the hard-coded default pattern sizes.",
+   "round": 3,
+   "item_id": "minference-m08"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/minference_configuration.py",
+   "line": 57,
+   "label": "useful",
+   "reason": "Without an explicit config_path, any model name not in the hard-coded MODEL2PATH table is rejected with an AssertionError.",
+   "round": 1,
+   "item_id": "minference-28"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/models_patch.py",
+   "line": 42,
+   "label": "useful",
+   "reason": "The user-facing attn_type string decides whether the model runs searched sparse attention, the dense, dilated, static, or streaming variants, or no patch at all.",
+   "round": 1,
+   "item_id": "minference-24"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/models_patch.py",
+   "line": 81,
+   "label": "real_not_useful",
+   "reason": "attn_type='hf' is an explicit user request for the unpatched baseline, not a silent fallback, and it is already covered by minference-24.",
+   "round": 1,
+   "item_id": "minference-30"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/modules/minference_forward.py",
+   "line": 13,
+   "label": "real_not_useful",
+   "reason": "This optional vllm import only emits a warning and does not change the HF mechanism path.",
+   "round": 1,
+   "item_id": "minference-14"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/modules/minference_forward.py",
+   "line": 30,
+   "label": "real_not_useful",
+   "reason": "ROPE_TYPE caching only matters when mixing models with different RoPE signatures in one process; it is model-compat plumbing, not a limitation of the sparse mechanism.",
+   "round": 3,
+   "item_id": "minference-m03"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/modules/minference_forward.py",
+   "line": 32,
+   "label": "real_not_useful",
+   "reason": "Caching ROPE_TYPE in a global is RoPE-integration plumbing that only matters when several model types run in one process; it does not limit the mechanism.",
+   "round": 1,
+   "item_id": "minference-04"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/modules/minference_forward.py",
+   "line": 34,
+   "label": "real_not_useful",
+   "reason": "Detecting the RoPE call signature only adapts to the model's rotary-embedding API and does not change the sparse mechanism.",
+   "round": 1,
+   "item_id": "minference-31"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/modules/minference_forward.py",
+   "line": 36,
+   "label": "real_not_useful",
+   "reason": "RoPE signature detection is transformers-version compatibility plumbing, not a limit of the sparse attention mechanism.",
+   "round": 2,
+   "item_id": "minference-f02"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/modules/minference_forward.py",
+   "line": 41,
+   "label": "real_not_useful",
+   "reason": "Same ROPE_TYPE global dispatch already covered by minference-m03/m06; it is RoPE compatibility plumbing.",
+   "round": 3,
+   "item_id": "minference-m12"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/modules/minference_forward.py",
+   "line": 44,
+   "label": "real_not_useful",
+   "reason": "The max_seq_len RoPE branch is model-compatibility plumbing for positional embeddings, not a variant of the sparse attention mechanism.",
+   "round": 3,
+   "item_id": "minference-m06"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/modules/minference_forward.py",
+   "line": 63,
+   "label": "useful",
+   "reason": "With a missing config_path, or one that has too few layers, best_pattern is empty and every head silently uses the default vertical_and_slash (1000, 6096) pattern instead of the searched per-head pattern.",
+   "round": 2,
+   "item_id": "minference-f10"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/modules/minference_forward.py",
+   "line": 66,
+   "label": "useful",
+   "reason": "If config_path is missing, wrong, or has fewer layers than the model, best_pattern is silently left empty and every head uses the fixed default (vertical_and_slash, 1000, 6096) instead of a searched pattern.",
+   "round": 1,
+   "item_id": "minference-20"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/modules/minference_forward.py",
+   "line": 74,
+   "label": "wrong",
+   "reason": "The check is not always true: the branch sets self.apply_rotary_pos_emb = True, so it runs once per module, and cross-model global overwrite is an internal multi-model detail.",
+   "round": 3,
+   "item_id": "minference-m02"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/modules/minference_forward.py",
+   "line": 192,
+   "label": "useful",
+   "reason": "The offline pattern search can never assign the A-shape (stream_llm) pattern; it is always remapped to vertical_and_slash, so one of the paper's three patterns is effectively unused.",
+   "round": 2,
+   "item_id": "minference-f05"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/modules/minference_forward.py",
+   "line": 194,
+   "label": "useful",
+   "reason": "The offline pattern search replaces a winning block_sparse (and stream_llm) result with vertical_and_slash 1000/6096, so searched configs can never contain those patterns.",
+   "round": 1,
+   "item_id": "minference-22"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/modules/minference_forward.py",
+   "line": 257,
+   "label": "wrong",
+   "reason": "repeat() is never called anywhere in the package, so this q_len==1 branch is dead code.",
+   "round": 2,
+   "item_id": "minference-f01"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/modules/minference_forward.py",
+   "line": 336,
+   "label": "real_not_useful",
+   "reason": "The dilated1/dilated2 patterns are hard-coded baselines selected by attn_type, not the searched MInference mechanism.",
+   "round": 1,
+   "item_id": "minference-17"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/modules/minference_forward.py",
+   "line": 363,
+   "label": "real_not_useful",
+   "reason": "Always keeping the last 100 diagonals is a fixed heuristic inside the kernel with no user-reachable condition, so it is not a condition-driven limitation.",
+   "round": 1,
+   "item_id": "minference-32"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/modules/minference_forward.py",
+   "line": 393,
+   "label": "real_not_useful",
+   "reason": "Clamping the static variant's budget to a minimum of 30/50 (and to q_len) is a small default floor on an optional variant, not a meaningful limitation.",
+   "round": 1,
+   "item_id": "minference-23"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/modules/minference_forward.py",
+   "line": 421,
+   "label": "real_not_useful",
+   "reason": "dilated1 is a baseline attention type selected by attn_type, not a variant of the paper's mechanism.",
+   "round": 2,
+   "item_id": "minference-f07"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/modules/minference_forward.py",
+   "line": 423,
+   "label": "real_not_useful",
+   "reason": "dilated2 is a baseline attention type selected by attn_type, not a variant of the paper's mechanism.",
+   "round": 2,
+   "item_id": "minference-f09"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/modules/minference_forward.py",
+   "line": 427,
+   "label": "real_not_useful",
+   "reason": "The streaming flag is set only by attn_type='streaming', so this is the same config-driven variant switch already covered by minference-24.",
+   "round": 1,
+   "item_id": "minference-02"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/modules/minference_forward.py",
+   "line": 430,
+   "label": "useful",
+   "reason": "Heads missing from the pattern config (or a missing/empty config_path) silently get a fixed default vertical_and_slash (1000, 6096) pattern; the 'whole sequence' claim only holds for q_len <= 6096.",
+   "round": 3,
+   "item_id": "minference-m05"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/modules/minference_forward.py",
+   "line": 432,
+   "label": "useful",
+   "reason": "The static_pattern config (attn_type='static') switches to a kernel that computes the vertical/slash indices once and reuses them, instead of estimating them online.",
+   "round": 3,
+   "item_id": "minference-m10"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/modules/minference_forward.py",
+   "line": 434,
+   "label": "real_not_useful",
+   "reason": "vs_only is real but is not exposed through MInferenceConfig/attn_type and is never set by the package, so it is a hidden debug flag.",
+   "round": 2,
+   "item_id": "minference-f03"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/modules/minference_forward.py",
+   "line": 437,
+   "label": "real_not_useful",
+   "reason": "Choosing a kernel from each head's searched pattern type is the paper's core design, not a limitation or undocumented variant.",
+   "round": 1,
+   "item_id": "minference-05"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/modules/minference_forward.py",
+   "line": 467,
+   "label": "real_not_useful",
+   "reason": "Choosing separate or fused QKV projections only adapts to the model architecture and does not change the attention mechanism.",
+   "round": 1,
+   "item_id": "minference-11"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/modules/minference_forward.py",
+   "line": 492,
+   "label": "real_not_useful",
+   "reason": "Choosing the RoPE call form by model signature is compatibility plumbing, the same detection as f02.",
+   "round": 2,
+   "item_id": "minference-f08"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/modules/minference_forward.py",
+   "line": 504,
+   "label": "useful",
+   "reason": "In search mode the code hits assert False when the config file already has an entry for the layer (true by default, since config_path comes from the shipped MODEL2PATH file), and search mode runs dense attention.",
+   "round": 1,
+   "item_id": "minference-25"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/modules/minference_forward.py",
+   "line": 508,
+   "label": "useful",
+   "reason": "In pattern-search mode an existing config file with an entry for the layer hits assert False, so the offline search cannot resume or overwrite.",
+   "round": 3,
+   "item_id": "minference-m07"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/modules/minference_forward.py",
+   "line": 521,
+   "label": "useful",
+   "reason": "Layers below the configurable starting_layer silently run dense flash attention (or gather_qkv) instead of sparse attention.",
+   "round": 1,
+   "item_id": "minference-27"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/modules/minference_forward.py",
+   "line": 613,
+   "label": "useful",
+   "reason": "The starting_layer config makes layers below it use dense flash attention instead of the sparse vertical-slash path.",
+   "round": 3,
+   "item_id": "minference-m04"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/modules/minference_forward.py",
+   "line": 689,
+   "label": "real_not_useful",
+   "reason": "This is the same starting_layer dense-fallback check as minference-27, here in the SnapKV variant.",
+   "round": 1,
+   "item_id": "minference-21"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/modules/minference_forward.py",
+   "line": 709,
+   "label": "real_not_useful",
+   "reason": "Which dense kernel runs below starting_layer depends on whether flash-attn is installed; this is an implementation choice inside the fallback already covered by minference-21/27.",
+   "round": 1,
+   "item_id": "minference-29"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/modules/minference_forward.py",
+   "line": 756,
+   "label": "useful",
+   "reason": "In the vLLM path, decode steps (q_len==1) always use dense flash attention, so sparsity applies only to prefill.",
+   "round": 2,
+   "item_id": "minference-f11"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/modules/minference_forward.py",
+   "line": 790,
+   "label": "useful",
+   "reason": "The vLLM forward indexes pattern_config[layer_idx] with no bounds check or default, so a pattern file with fewer layers than the model raises IndexError, while the HF path falls back to a default.",
+   "round": 1,
+   "item_id": "minference-18"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/modules/minference_forward.py",
+   "line": 802,
+   "label": "real_not_useful",
+   "reason": "Repeating KV heads for GQA/MQA is standard plumbing that preserves the mechanism, not a limitation.",
+   "round": 3,
+   "item_id": "minference-m01"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/modules/minference_forward.py",
+   "line": 864,
+   "label": "useful",
+   "reason": "In the vLLM integration, prefill with prefix cache or chunked prefill (non-empty block tables) silently uses dense PagedAttention.forward_prefix instead of sparse attention.",
+   "round": 2,
+   "item_id": "minference-f06"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/modules/snap_kv.py",
+   "line": 98,
+   "label": "real_not_useful",
+   "reason": "Compressing only at prefill is how the SnapKV method is designed, not a limit of MInference.",
+   "round": 1,
+   "item_id": "minference-12"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/modules/snap_kv.py",
+   "line": 176,
+   "label": "real_not_useful",
+   "reason": "Resetting kv_seq_len at the first generation step is SnapKV bookkeeping, not a limitation of the mechanism.",
+   "round": 1,
+   "item_id": "minference-26"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/modules/snap_kv.py",
+   "line": 321,
+   "label": "real_not_useful",
+   "reason": "Skipping compression for short prompts is normal SnapKV behaviour in an optional add-on, not a limit of MInference's sparse prefill.",
+   "round": 2,
+   "item_id": "minference-f04"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/modules/snap_kv.py",
+   "line": 354,
+   "label": "real_not_useful",
+   "reason": "Choosing SnapKV pooling is a setting of the separate SnapKV KV-compression method, not of MInference's sparse prefill.",
+   "round": 1,
+   "item_id": "minference-08"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/ops/block_sparse_flash_attention.py",
+   "line": 130,
+   "label": "real_not_useful",
+   "reason": "Choosing the Triton compute dtype (non-bf16 cast to fp16 inside the kernel) is a kernel precision detail, not a limit of the sparse-attention mechanism.",
+   "round": 1,
+   "item_id": "minference-03"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/ops/block_sparse_flash_attention.py",
+   "line": 164,
+   "label": "real_not_useful",
+   "reason": "Clamping top_k to the number of key blocks that exist is a trivial bound, and block_size_M/N are equal by default, so the mix-up is an internal detail.",
+   "round": 3,
+   "item_id": "minference-m11"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/ops/pit_sparse_flash_attention.py",
+   "line": 384,
+   "label": "real_not_useful",
+   "reason": "pycuda_build_index lives in the v1 PIT kernel, which the mechanism does not use (minference_forward imports pit_sparse_flash_attention_v2), and the buffer size is only a memory/performance detail.",
+   "round": 1,
+   "item_id": "minference-10"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/ops/pit_sparse_flash_attention_v2.py",
+   "line": 188,
+   "label": "wrong",
+   "reason": "Zero-padding the head dim adds nothing to q.k dot products and sm_scale uses the original head_dim, so the softmax is unchanged, contrary to the claim.",
+   "round": 3,
+   "item_id": "minference-m09"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/ops/streaming_kernel.py",
+   "line": 340,
+   "label": "real_not_useful",
+   "reason": "The 4-D shape assert in get_score is an internal invariant that callers always meet and users cannot trigger.",
+   "round": 1,
+   "item_id": "minference-06"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/ops/streaming_kernel.py",
+   "line": 414,
+   "label": "useful",
+   "reason": "_forward asserts head_dim in {16,32,64,128}, and streaming_forward does not pad head_dim 256/512, so models with such head sizes are rejected on the A-shape/streaming path.",
+   "round": 1,
+   "item_id": "minference-01"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/ops/streaming_kernel.py",
+   "line": 609,
+   "label": "real_not_useful",
+   "reason": "Zero-padding head_dim to a power of two gives the same result and is an internal kernel-compatibility detail.",
+   "round": 1,
+   "item_id": "minference-16"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/ops/streaming_kernel.py",
+   "line": 620,
+   "label": "real_not_useful",
+   "reason": "When k_len <= n_local the sliding window already covers every key, so skipping the sink pass gives the same result; this is an implementation detail.",
+   "round": 1,
+   "item_id": "minference-09"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/ops/streaming_kernel.py",
+   "line": 701,
+   "label": "real_not_useful",
+   "reason": "Truncating the KV cache to sink plus local tokens belongs to the StreamingLLM baseline forward (stream_llm_forward), not to MInference.",
+   "round": 1,
+   "item_id": "minference-19"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/ops/streaming_kernel.py",
+   "line": 724,
+   "label": "real_not_useful",
+   "reason": "stream_llm_forward is the StreamingLLM/InfLLM baseline forward used through patch_hf, not the MInference mechanism.",
+   "round": 1,
+   "item_id": "minference-15"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/patch.py",
+   "line": 835,
+   "label": "real_not_useful",
+   "reason": "kv_cache_cpu only changes where the KV cache is placed (memory/device plumbing), not the sparse mechanism.",
+   "round": 2,
+   "item_id": "minference-f12"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/patch.py",
+   "line": 840,
+   "label": "useful",
+   "reason": "The user config flag use_snapkv switches patching to a different forward (minference_with_snapkv_forward) that combines sparse prefill with SnapKV compression, which is a config-driven variant.",
+   "round": 1,
+   "item_id": "minference-13"
+  },
+  {
+   "artifact": "minference",
+   "file": "minference/patch.py",
+   "line": 1253,
+   "label": "real_not_useful",
+   "reason": "patch_hf is reached only for the inf_llm baseline (streaming2 is rejected by the config), while the MInference path goes through minference_patch, so this class whitelist limits baseline code, not the mechanism.",
+   "round": 1,
+   "item_id": "minference-07"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/abstract/arith.py",
+   "line": 19,
+   "label": "real_not_useful",
+   "reason": "Internal operand-type handling in the z3 bitvector alignment helper; not a user-reachable limitation of the mechanism.",
+   "round": 1,
+   "item_id": "nnsmith-01"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/abstract/arith.py",
+   "line": 30,
+   "label": "real_not_useful",
+   "reason": "Internal type check in a helper; only the generator's own code passes these values.",
+   "round": 1,
+   "item_id": "nnsmith-31"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/abstract/arith.py",
+   "line": 58,
+   "label": "real_not_useful",
+   "reason": "Internal zero-extension in the bitvector alignment helper.",
+   "round": 1,
+   "item_id": "nnsmith-15"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/abstract/arith.py",
+   "line": 64,
+   "label": "real_not_useful",
+   "reason": "Internal zero-extension in the bitvector alignment helper.",
+   "round": 1,
+   "item_id": "nnsmith-30"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/abstract/arith.py",
+   "line": 66,
+   "label": "real_not_useful",
+   "reason": "Internal z3 type conversion inside the alignment helper.",
+   "round": 1,
+   "item_id": "nnsmith-09"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/abstract/arith.py",
+   "line": 74,
+   "label": "real_not_useful",
+   "reason": "Internal carry-bit extension in the z3 helper.",
+   "round": 1,
+   "item_id": "nnsmith-34"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/abstract/arith.py",
+   "line": 77,
+   "label": "real_not_useful",
+   "reason": "Internal bit-width padding for multiplication in the z3 helper.",
+   "round": 1,
+   "item_id": "nnsmith-11"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/abstract/arith.py",
+   "line": 79,
+   "label": "real_not_useful",
+   "reason": "Internal bit-width cap in the z3 multiplication helper.",
+   "round": 1,
+   "item_id": "nnsmith-21"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/abstract/op.py",
+   "line": 291,
+   "label": "real_not_useful",
+   "reason": "How each op class defines its parameter count is set by the developer per class; users cannot change it.",
+   "round": 1,
+   "item_id": "nnsmith-17"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/abstract/op.py",
+   "line": 910,
+   "label": "useful",
+   "reason": "NNSMITH_Z3_CONS_FLOPS=off removes the FLOPS bound from the solver constraints (and other values fail an assert at import), an env-driven switch in how FLOPS are limited.",
+   "round": 1,
+   "item_id": "nnsmith-13"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/abstract/op.py",
+   "line": 982,
+   "label": "real_not_useful",
+   "reason": "A 10% random choice of an open-ended slice is internal generation randomness that no user condition triggers.",
+   "round": 3,
+   "item_id": "nnsmith-m03"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/abstract/op.py",
+   "line": 1555,
+   "label": "useful",
+   "reason": "The NNSMITH_GRES env var switches the Reshape dimension-grouping strategy (and rejects unknown values), a config-driven change to how constraints are generated.",
+   "round": 3,
+   "item_id": "nnsmith-m01"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/abstract/op.py",
+   "line": 1563,
+   "label": "real_not_useful",
+   "reason": "Rejecting an invalid value of an internal env knob is config validation, not a limit of what the mechanism supports.",
+   "round": 2,
+   "item_id": "nnsmith-f12"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/abstract/op.py",
+   "line": 1587,
+   "label": "useful",
+   "reason": "The NNSMITH_CONS_RESHAPE env var adds per-dimension upper bounds to Reshape target shapes, changing which shapes the generator can produce.",
+   "round": 1,
+   "item_id": "nnsmith-07"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/abstract/op.py",
+   "line": 1595,
+   "label": "real_not_useful",
+   "reason": "The generator builds Reshape target shapes from symbolic z3 variables, so -1 cannot reach requires(); this is an internal invariant.",
+   "round": 3,
+   "item_id": "nnsmith-m12"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/backends/factory.py",
+   "line": 61,
+   "label": "useful",
+   "reason": "Pairing a model type with a backend that does not support it ends the process with sys.exit(1), which limits the supported model/backend combinations.",
+   "round": 3,
+   "item_id": "nnsmith-m02"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/backends/factory.py",
+   "line": 354,
+   "label": "wrong",
+   "reason": "BackendFactory.add_constraints is never called anywhere in the repo, so this branch is dead (backend patching happens in narrow_spec.auto_opset instead).",
+   "round": 1,
+   "item_id": "nnsmith-23"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/cli/fuzz.py",
+   "line": 179,
+   "label": "real_not_useful",
+   "reason": "Re-raising internal errors while logging other generator failures is error-handling plumbing.",
+   "round": 3,
+   "item_id": "nnsmith-m11"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/graph_gen.py",
+   "line": 190,
+   "label": "wrong",
+   "reason": "NNSMITH_BITS is only read when use_bitvec is True, which is hard-coded False, so this code is dead.",
+   "round": 1,
+   "item_id": "nnsmith-35"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/graph_gen.py",
+   "line": 256,
+   "label": "useful",
+   "reason": "The NNSMITH_LIMNF_V env var switches between one total float-count limit and per-node limits on tensor size.",
+   "round": 1,
+   "item_id": "nnsmith-24"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/graph_gen.py",
+   "line": 270,
+   "label": "real_not_useful",
+   "reason": "A random coin flip choosing constant vs input placeholders is part of normal randomized generation, not a limitation.",
+   "round": 1,
+   "item_id": "nnsmith-08"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/graph_gen.py",
+   "line": 290,
+   "label": "wrong",
+   "reason": "use_bitvec is hard-coded False (graph_gen.py:133) so the branch is dead, and it only runs a sanity check rather than adding constraints.",
+   "round": 1,
+   "item_id": "nnsmith-03"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/graph_gen.py",
+   "line": 493,
+   "label": "real_not_useful",
+   "reason": "Input-rank matching set by each op's own definition; internal to normal generation.",
+   "round": 1,
+   "item_id": "nnsmith-22"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/graph_gen.py",
+   "line": 524,
+   "label": "real_not_useful",
+   "reason": "Skipping placeholders whose rank is too low for Expand is an operator-specific shape-validity invariant, not a user-facing limitation.",
+   "round": 2,
+   "item_id": "nnsmith-f02"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/graph_gen.py",
+   "line": 556,
+   "label": "real_not_useful",
+   "reason": "forward_prob is just the probability of mixing forward and backward insertion, both part of the normal mechanism; it is a tuning knob.",
+   "round": 2,
+   "item_id": "nnsmith-f09"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/graph_gen.py",
+   "line": 659,
+   "label": "real_not_useful",
+   "reason": "NNSMITH_LIMNF_V picks between two equivalent encodings of the same float-count limit, which is an internal implementation detail.",
+   "round": 2,
+   "item_id": "nnsmith-f05"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/graph_gen.py",
+   "line": 661,
+   "label": "real_not_useful",
+   "reason": "Duplicate of nnsmith-24 (the same NNSMITH_LIMNF_V switch).",
+   "round": 1,
+   "item_id": "nnsmith-29"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/graph_gen.py",
+   "line": 681,
+   "label": "real_not_useful",
+   "reason": "Same NNSMITH_LIMNF_V encoding switch as nnsmith-f05 (equivalent constraint forms).",
+   "round": 2,
+   "item_id": "nnsmith-f07"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/graph_gen.py",
+   "line": 694,
+   "label": "real_not_useful",
+   "reason": "Same NNSMITH_LIMNF_V encoding switch as nnsmith-f05.",
+   "round": 2,
+   "item_id": "nnsmith-f10"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/graph_gen.py",
+   "line": 698,
+   "label": "wrong",
+   "reason": "The module asserts NNSMITH_LIMNF_V is in ['0','1'] at import (line 34), so the claimed UnboundLocalError for other values cannot happen.",
+   "round": 2,
+   "item_id": "nnsmith-f11"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/graph_gen.py",
+   "line": 699,
+   "label": "real_not_useful",
+   "reason": "Rejecting a node whose constraints cannot be satisfied with what is already in the graph is how incremental SMT-based generation is meant to work, not a limitation.",
+   "round": 1,
+   "item_id": "nnsmith-26"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/graph_gen.py",
+   "line": 711,
+   "label": "real_not_useful",
+   "reason": "NNSMITH_LIMNF_V picks between two equivalent encodings of the same float-count limit, which is an internal implementation detail.",
+   "round": 2,
+   "item_id": "nnsmith-f03"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/graph_gen.py",
+   "line": 834,
+   "label": "wrong",
+   "reason": "range_constrain is only called from GuidedGen, which is never instantiated, so the NNSMITH_LB switch has no effect in practice.",
+   "round": 1,
+   "item_id": "nnsmith-20"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/graph_gen.py",
+   "line": 984,
+   "label": "wrong",
+   "reason": "GuidedGen is never instantiated, so the NNSMITH_G_CONFIG selection is dead code.",
+   "round": 3,
+   "item_id": "nnsmith-m06"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/graph_gen.py",
+   "line": 1016,
+   "label": "wrong",
+   "reason": "GuidedGen is never instantiated anywhere in the repo, so this branch is dead.",
+   "round": 3,
+   "item_id": "nnsmith-m05"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/graph_gen.py",
+   "line": 1022,
+   "label": "real_not_useful",
+   "reason": "An empty guidance bin list just means that parameter has no binning guidance, which is tuning config.",
+   "round": 2,
+   "item_id": "nnsmith-f06"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/graph_gen.py",
+   "line": 1044,
+   "label": "wrong",
+   "reason": "GuidedGen.post_process is never reached because GuidedGen is never instantiated.",
+   "round": 1,
+   "item_id": "nnsmith-05"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/graph_gen.py",
+   "line": 1052,
+   "label": "wrong",
+   "reason": "GuidedGen is never instantiated anywhere (random_model_gen uses PureSymbolGen), so this post_process back-off is dead code.",
+   "round": 1,
+   "item_id": "nnsmith-04"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/graph_gen.py",
+   "line": 1054,
+   "label": "wrong",
+   "reason": "GuidedGen.post_process is never reached because GuidedGen is never instantiated.",
+   "round": 3,
+   "item_id": "nnsmith-m07"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/materialize/__init__.py",
+   "line": 230,
+   "label": "real_not_useful",
+   "reason": "Choosing the model export format class from config is plumbing, not a limitation of the mechanism.",
+   "round": 1,
+   "item_id": "nnsmith-14"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/materialize/torch/__init__.py",
+   "line": 39,
+   "label": "real_not_useful",
+   "reason": "Duplicate of nnsmith-f08: this is the same fallback to random inputs when the search finds nothing.",
+   "round": 2,
+   "item_id": "nnsmith-f04"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/materialize/torch/__init__.py",
+   "line": 47,
+   "label": "useful",
+   "reason": "When the value search finds no satisfying inputs, the oracle silently uses random inputs that may produce NaN/Inf.",
+   "round": 2,
+   "item_id": "nnsmith-f08"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/materialize/torch/forward.py",
+   "line": 235,
+   "label": "real_not_useful",
+   "reason": "Implementation detail of how the Slice operator is executed in PyTorch, driven by an internal generated attribute.",
+   "round": 1,
+   "item_id": "nnsmith-02"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/materialize/torch/forward.py",
+   "line": 389,
+   "label": "real_not_useful",
+   "reason": "ArgMin execution detail chosen by a generated attribute; not a limitation.",
+   "round": 1,
+   "item_id": "nnsmith-19"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/materialize/torch/input_gen.py",
+   "line": 40,
+   "label": "useful",
+   "reason": "Search gives up after max_sample tries (the default is 1, not 100 as claimed; refine_weights passes 2 with a 20ms limit), and make_oracle then falls back to random inputs.",
+   "round": 1,
+   "item_id": "nnsmith-32"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/materialize/torch/input_gen.py",
+   "line": 41,
+   "label": "real_not_useful",
+   "reason": "Optional caller-supplied seeds are replayed first; this is an API convenience, not a limitation, and the main path (refine_weights) passes none.",
+   "round": 1,
+   "item_id": "nnsmith-10"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/materialize/torch/input_gen.py",
+   "line": 71,
+   "label": "wrong",
+   "reason": "forward() resets invalid_found_last to False at the start of each call, so the result depends only on the current input and weights.",
+   "round": 1,
+   "item_id": "nnsmith-25"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/materialize/torch/input_gen.py",
+   "line": 100,
+   "label": "useful",
+   "reason": "Any non-float model input disables gradient search, so value search always falls back to random sampling.",
+   "round": 3,
+   "item_id": "nnsmith-m09"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/materialize/torch/numeric.py",
+   "line": 63,
+   "label": "wrong",
+   "reason": "Returning the l0 loss first is a staged loss that drives gradient search to make the base positive; inputs are not rejected.",
+   "round": 3,
+   "item_id": "nnsmith-m08"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/materialize/torch/symbolnet.py",
+   "line": 86,
+   "label": "real_not_useful",
+   "reason": "Input placeholders naturally have no forward function; internal graph-building detail.",
+   "round": 1,
+   "item_id": "nnsmith-06"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/materialize/torch/symbolnet.py",
+   "line": 93,
+   "label": "real_not_useful",
+   "reason": "n_vulnerable_op is only a counter, read only by an experiment script, and does not gate the search in the main pipeline.",
+   "round": 3,
+   "item_id": "nnsmith-m04"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/materialize/torch/symbolnet.py",
+   "line": 135,
+   "label": "real_not_useful",
+   "reason": "Using proxy gradients only for ops that have a proxy is the paper's own design, not a hidden limitation.",
+   "round": 1,
+   "item_id": "nnsmith-33"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/materialize/torch/symbolnet.py",
+   "line": 191,
+   "label": "useful",
+   "reason": "Zero gradients raise ConstraintError, grad_input_gen breaks and returns None, so for such models the gradient search gives up and make_oracle ends up using random inputs.",
+   "round": 1,
+   "item_id": "nnsmith-12"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/materialize/torch/symbolnet.py",
+   "line": 238,
+   "label": "useful",
+   "reason": "Gradient-guided value search optimizes only floating-point inputs; integer inputs are never searched.",
+   "round": 2,
+   "item_id": "nnsmith-f01"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/materialize/torch/symbolnet.py",
+   "line": 269,
+   "label": "real_not_useful",
+   "reason": "Replacing NaN/Inf inputs inside the gradient loop is an internal recovery step; the give-up path is already covered by nnsmith-12 and nnsmith-28.",
+   "round": 1,
+   "item_id": "nnsmith-27"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/materialize/torch/symbolnet.py",
+   "line": 382,
+   "label": "wrong",
+   "reason": "The real condition is check_intermediate_numeric or (use_gradient and not stop_updating_loss), and invalid_found_last is reset to False at the start of every forward, so the claimed dependence on earlier state does not exist.",
+   "round": 1,
+   "item_id": "nnsmith-18"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/materialize/torch/symbolnet.py",
+   "line": 385,
+   "label": "useful",
+   "reason": "When gradient search is running and an op with no registered loss function produces NaN/Inf, a ConstraintError ends the gradient search, so such ops cannot be repaired.",
+   "round": 1,
+   "item_id": "nnsmith-28"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/narrow_spec.py",
+   "line": 179,
+   "label": "useful",
+   "reason": "Op/dtype combinations that fail to compile or run on the installed backend are silently left out of the generator's operator set, so what gets generated depends on the backend.",
+   "round": 1,
+   "item_id": "nnsmith-16"
+  },
+  {
+   "artifact": "nnsmith",
+   "file": "nnsmith/narrow_spec.py",
+   "line": 243,
+   "label": "real_not_useful",
+   "reason": "Loading a cached, logged topset file is caching plumbing, not a limitation of the mechanism.",
+   "round": 3,
+   "item_id": "nnsmith-m10"
+  },
+  {
+   "artifact": "sparta",
+   "file": "sparta/artifact_specialization/generate_code.py",
+   "line": 128,
+   "label": "real_not_useful",
+   "reason": "The hard-coded absolute checkpoint path is real, but it is in an artifact-evaluation verification script, not in the SparTA mechanism.",
+   "round": 1,
+   "item_id": "sparta-11"
+  },
+  {
+   "artifact": "sparta",
+   "file": "sparta/artifact_specialization/generate_code.py",
+   "line": 144,
+   "label": "real_not_useful",
+   "reason": "The hard-coded overwrite of BLOCK_SIZE_N_VALUE to 64 is real, but it sits in an artifact-reproduction verification script for BERT, not in the mechanism.",
+   "round": 1,
+   "item_id": "sparta-06"
+  },
+  {
+   "artifact": "sparta",
+   "file": "sparta/artifact_specialization/generate_code.py",
+   "line": 173,
+   "label": "real_not_useful",
+   "reason": "Same hard-coded artifact-script checkpoint path as sparta-11 (the int8 variant, which also only processes tesa_id 73), so it is a duplicate.",
+   "round": 1,
+   "item_id": "sparta-12"
+  },
+  {
+   "artifact": "sparta",
+   "file": "sparta/artifact_specialization/generate_code.py",
+   "line": 177,
+   "label": "real_not_useful",
+   "reason": "This is an artifact-evaluation verification script with hard-coded paths and a tesa_id filter, not part of SparTA's mechanism.",
+   "round": 3,
+   "item_id": "sparta-m03"
+  },
+  {
+   "artifact": "sparta",
+   "file": "sparta/artifact_specialization/generate_code.py",
+   "line": 468,
+   "label": "real_not_useful",
+   "reason": "Looking for 'Pass' in the generated test program's stdout is how the tuning harness checks its own kernels, not a condition a user input or config controls.",
+   "round": 1,
+   "item_id": "sparta-03"
+  },
+  {
+   "artifact": "sparta",
+   "file": "sparta/common/sparsity.py",
+   "line": 57,
+   "label": "real_not_useful",
+   "reason": "The merge branch is a stub, but the only caller, extract_sparsity, iterates model.named_modules(), whose names are unique, so a duplicate module name never reaches it.",
+   "round": 1,
+   "item_id": "sparta-05"
+  },
+  {
+   "artifact": "sparta",
+   "file": "sparta/specialization/specialize_kernel.py",
+   "line": 68,
+   "label": "real_not_useful",
+   "reason": "Choosing the template from the TeSA block_size attribute is normal dispatch: a weight with no block structure is dense by design, so this is not a silent fallback, and the extra block_size==1 remark is a stale comment.",
+   "round": 3,
+   "item_id": "sparta-m04"
+  },
+  {
+   "artifact": "sparta",
+   "file": "sparta/specialization/specialize_kernel.py",
+   "line": 164,
+   "label": "useful",
+   "reason": "For a dense (block_size None) weight with n_bits 32, the NotImplementedError is built but never raised, so kernel and tuning_param are unbound and specialize_matmul crashes; fp32 dense weights are unsupported.",
+   "round": 3,
+   "item_id": "sparta-m02"
+  },
+  {
+   "artifact": "sparta",
+   "file": "sparta/specialization/specialize_kernel.py",
+   "line": 279,
+   "label": "wrong",
+   "reason": "convert_to_block_csr does return (None, None, None), but bcsr_generate then calls numpy array(None, 'i'), which raises a TypeError, so no bogus .bin files are written and no kernel is run; the result is a crash, not a degraded kernel.",
+   "round": 1,
+   "item_id": "sparta-04"
+  },
+  {
+   "artifact": "sparta",
+   "file": "sparta/specialization/specialize_kernel.py",
+   "line": 332,
+   "label": "useful",
+   "reason": "run_gpu_kernel always compiles for sm_75 and never checks the device, so kernel specialization through the public specialize_matmul is tied to Turing GPUs; the claim that it would still give timings on other GPUs is overstated, since an sm_75-only binary will not run on other major architectures.",
+   "round": 1,
+   "item_id": "sparta-02"
+  },
+  {
+   "artifact": "sparta",
+   "file": "sparta/transformation/optimize_model.py",
+   "line": 36,
+   "label": "useful",
+   "reason": "is_fast_pass is a stub, so that branch is dead; the 'pytorch' backend returns the original dense model unchanged, 'nnfusion' is unimplemented, and any other backend hits a bare raise, so the transformation result is silently dropped.",
+   "round": 1,
+   "item_id": "sparta-08"
+  },
+  {
+   "artifact": "sparta",
+   "file": "sparta/transformation/transform_policy.py",
+   "line": 30,
+   "label": "real_not_useful",
+   "reason": "The bit list is an unconditional hard-coded hardware constant (device_info is never read), so no reachable condition changes behavior; the stated condition is not a real branch.",
+   "round": 3,
+   "item_id": "sparta-m01"
+  },
+  {
+   "artifact": "sparta",
+   "file": "sparta/transformation/transform_policy.py",
+   "line": 43,
+   "label": "useful",
+   "reason": "Any module that is not nn.Linear leaves aggr_type unset and raises UnboundLocalError, so other layer types are rejected; nn.Conv2d is also a '...' stub that fails the same way, which the claim misstates.",
+   "round": 1,
+   "item_id": "sparta-13"
+  },
+  {
+   "artifact": "sparta",
+   "file": "sparta/transformation/transform_policy.py",
+   "line": 134,
+   "label": "useful",
+   "reason": "Bit widths that align above 32 make min() run over an empty list and raise ValueError, and the precision list is hard-coded to [4, 8, 16, 32] for the 2080Ti, ignoring device_info.",
+   "round": 1,
+   "item_id": "sparta-10"
+  },
+  {
+   "artifact": "sparta",
+   "file": "sparta/transformation/transform_policy.py",
+   "line": 155,
+   "label": "useful",
+   "reason": "When a weight TeSA aligns to three or more distinct hardware precisions, bit_align fails the assert len(aligned_bits)==2, so mixed precision beyond two levels is rejected.",
+   "round": 1,
+   "item_id": "sparta-09"
+  },
+  {
+   "artifact": "sparta",
+   "file": "sparta/transformation/weighted_block_cover.py",
+   "line": 77,
+   "label": "useful",
+   "reason": "When even the cheapest block price is worse than the element-wise price, the block cover is skipped and the whole weight becomes fine-grained (1,1), a variant switch driven by the sparsity pattern; ordered_pricing[0] on an empty list also raises IndexError for an all-pruned TeSA.",
+   "round": 1,
+   "item_id": "sparta-07"
+  },
+  {
+   "artifact": "sparta",
+   "file": "sparta/transformation/weighted_block_cover.py",
+   "line": 123,
+   "label": "useful",
+   "reason": "wbc_matmul hits a bare raise whenever the weighted block cover picks more than one block size (including a block size plus the (1,1) leftover), so mixed-granularity sparsity patterns from the user's TeSA are rejected.",
+   "round": 1,
+   "item_id": "sparta-01"
+  }
+ ]
+}
