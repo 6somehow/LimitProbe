@@ -1,0 +1,623 @@
+{
+  "mechanisms": [
+    {
+      "name": "Operator specification framework (abstract tensors, requires, type_transfer, infer_input_type)",
+      "description": "Users declare each operator's input/output abstract tensor types (dtype, rank, symbolic shape), a requires() predicate list over inputs/attributes, a type_transfer() rule relating output shape to inputs/attributes, and infer_input_type() to derive input types from a desired output. These specifications encode the compiler's type-checking rules and are shared across all ONNX-accepting compilers.",
+      "pages": [
+        4,
+        5
+      ],
+      "evidence": [
+        {
+          "page": 4,
+          "quote": "An operator’s specification codifies rules for checking validity and depends on its inputs and attributes"
+        },
+        {
+          "page": 4,
+          "quote": "The operator uses a type transfer function (Line 16) to specify how its output tensor relates to its inputs."
+        },
+        {
+          "page": 4,
+          "quote": "NNSmith specifications are written using symbolic integers and abstract tensors."
+        }
+      ],
+      "boundary": "Only declares constraints; does not itself solve them or generate graphs. Requires manual authoring per operator (mitigated by meta-types).",
+      "members": [
+        "A01",
+        "B01"
+      ],
+      "merge_reason": "A01 与 B01 描述的是同一套算子规格框架：两者都包含抽象张量（具体 dtype/rank、符号形状）、requires() 谓词、type_transfer() 输出形状规则以及 infer_input_type() 反向推导。B01 额外强调符号整数与跨编译器共享，A01 额外强调 meta-types 缓解手工编写，这些是同一机制的不同侧面而非不同机制。",
+      "parent_name": null,
+      "id": "M01",
+      "mechanical": [
+        {
+          "page": 4,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": true,
+          "short_quote": false
+        },
+        {
+          "page": 4,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": true,
+          "short_quote": false
+        },
+        {
+          "page": 4,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Incremental graph generation with forward/backward insertion",
+      "description": "Starts from a single placeholder node and repeatedly inserts a randomly chosen operator either forward (connect op as consumer of existing intermediate tensors) or backward (replace a placeholder with op and create new placeholders for its inputs). Each insertion is validated by type matching then SMT constraint solving, keeping the graph connected and valid.",
+      "pages": [
+        4,
+        5
+      ],
+      "evidence": [
+        {
+          "page": 4,
+          "quote": "extending it by either (a) adding a new node whose input edges are connected to the output of an existing node (we refer to this as a forward insertion) or (b) replacing an existing placeholder node"
+        },
+        {
+          "page": 5,
+          "quote": "NNSmith generates connected computation graph by extending an existing graph while maintaining connectivity."
+        },
+        {
+          "page": 4,
+          "quote": "starting with a graph that contains a single placeholder node"
+        },
+        {
+          "page": 5,
+          "quote": "Forward insertion (Line 6) selects one group of plausible tensors (v) as the inputs of op"
+        }
+      ],
+      "boundary": "Produces topology only; attributes are fixed later by binning. Relies on operator specs and an SMT solver.",
+      "members": [
+        "A02",
+        "B02"
+      ],
+      "merge_reason": "A02 与 B02 描述同一增量图生成算法：均从单个占位节点开始，随机选择算子进行前向插入（作为现有张量的消费者）或后向插入（替换占位节点并创建新占位节点），并保持图连通。两者只是措辞不同，没有算法阶段上的区别。",
+      "parent_name": null,
+      "id": "M02",
+      "mechanical": [
+        {
+          "page": 4,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        },
+        {
+          "page": 5,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": false,
+          "short_quote": false
+        },
+        {
+          "page": 4,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        },
+        {
+          "page": 5,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Type-matching heuristic prefilter",
+      "description": "Before invoking the SMT solver, a cheap heuristic filters candidate insertion points whose data types or ranks are obviously incompatible (e.g., non-boolean edges for Where's condition), reducing solver calls.",
+      "pages": [
+        5
+      ],
+      "evidence": [
+        {
+          "page": 5,
+          "quote": "we use a simple type matching heuristic to filter out nodes that are obviously infeasible because of incompatible data types or ranks"
+        }
+      ],
+      "boundary": "Only a prefilter; final feasibility still decided by SMT solving.",
+      "members": [
+        "A03",
+        "B03"
+      ],
+      "merge_reason": "A03 与 B03 是同一预过滤步骤：在调用 SMT 求解器之前用廉价的类型/秩匹配启发式剔除明显不可行的插入点（如 Where 的非布尔条件边）。两者描述完全一致，属于同一机制。",
+      "parent_name": null,
+      "id": "M03",
+      "mechanical": [
+        {
+          "page": 5,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "SMT-based constraint solving with incremental solving and caching",
+      "description": "Builds constraints from requires() and type_transfer() (plus shape>=1 constraints) and checks satisfiability with Z3, caching the model's constraints and using incremental solving to reduce overhead. The SMT model also supplies concrete attribute values.",
+      "pages": [
+        5
+      ],
+      "evidence": [
+        {
+          "page": 5,
+          "quote": "NNSmith caches constraints for the current model (in M.solver) to reduce constraint generation overheads, and uses incremental solving [5]"
+        }
+      ],
+      "boundary": "Solver alone yields boundary values, motivating attribute binning; solving adds generation overhead.",
+      "members": [
+        "A04",
+        "B04"
+      ],
+      "merge_reason": "A04 与 B04 描述同一 SMT 约束求解机制：由 requires()/type_transfer() 及 shape>=1 构造约束，用 Z3 检查可满足性，并缓存当前模型的约束、使用增量求解以降低开销，SMT 模型同时给出具体属性值。两者是同一求解步骤的不同表述。",
+      "parent_name": null,
+      "id": "M04",
+      "mechanical": [
+        {
+          "page": 5,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": false,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Attribute binning with exponential bins and constraint relaxation",
+      "description": "To avoid SMT picking boundary values, each operator attribute is constrained to a randomly chosen exponential bin [2^{i-1},2^i) (last bin [2^{k-1},∞)), sampling l,r within it; specialized per-attribute strategies (C*) override defaults. If binning constraints make the system unsatisfiable, half the constraints are randomly dropped and retried.",
+      "pages": [
+        5,
+        6
+      ],
+      "evidence": [
+        {
+          "page": 6,
+          "quote": "The binning constraints for each attribute are generated by randomly choosing from one of k bins, where the ith bin represents the range [2^{i−1}, 2^i)"
+        },
+        {
+          "page": 6,
+          "quote": "we randomly drop half of the constraints and retry, until it succeeds"
+        },
+        {
+          "page": 6,
+          "quote": "The binning constraints for each attribute are generated by randomly choosing from one of k bins"
+        },
+        {
+          "page": 6,
+          "quote": "we randomly drop half of the constraints and retry, until it succeeds (Line 18)"
+        }
+      ],
+      "boundary": "Applied only after a valid graph exists; improves diversity, not validity; total-coverage gain is modest.",
+      "members": [
+        "A05",
+        "B05"
+      ],
+      "merge_reason": "A05 与 B05 是同一属性分箱机制：对每个 (op, attribute) 随机选择指数区间 [2^{i-1},2^i)（最后一箱 [2^{k-1},∞)），在箱内采样 l,r 并加 l<=a<=r；算子特定 C* 策略覆盖默认；不可满足时随机丢弃一半约束重试。两者描述的是同一后处理步骤。",
+      "parent_name": null,
+      "id": "M05",
+      "mechanical": [
+        {
+          "page": 6,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": false,
+          "short_quote": false
+        },
+        {
+          "page": 6,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        },
+        {
+          "page": 6,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": false,
+          "short_quote": false
+        },
+        {
+          "page": 6,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Tensor-inequality to loss-function conversion",
+      "description": "Each vulnerable operator's valid input domain is expressed as inequality predicates f(X)<=0 or f(X)<0; these are converted to scalar losses via sum over elements of max(f(x),0) (or max(f(x)+epsilon,0)), giving per-operator loss functions (Table 1/2).",
+      "pages": [
+        6,
+        7
+      ],
+      "evidence": [
+        {
+          "page": 7,
+          "quote": "We associate a loss function with each predicate in an operator’s tensor inequality."
+        },
+        {
+          "page": 6,
+          "quote": "Tensor inequality to loss function conversions."
+        },
+        {
+          "page": 6,
+          "quote": "We associate a loss function with each predicate in an operator’s tensor inequality."
+        },
+        {
+          "page": 6,
+          "quote": "Table 2: Tensor inequality to loss function conversions."
+        }
+      ],
+      "boundary": "Assumes loss positive iff predicate violated; domains are under-approximations.",
+      "members": [
+        "A06",
+        "B06"
+      ],
+      "merge_reason": "A06 与 B06 是同一转换机制：把脆弱算子的有效输入域写成不等式谓词，规范化为 f(X)<=0 或 f(X)<0，再用 max(f(x),0) 或 max(f(x)+epsilon,0) 对元素求和得到标量损失（Table 1/2）。两者描述同一转换步骤，只是引用表号略有差异。",
+      "parent_name": null,
+      "id": "M06",
+      "mechanical": [
+        {
+          "page": 7,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        },
+        {
+          "page": 6,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        },
+        {
+          "page": 6,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": false,
+          "short_quote": false
+        },
+        {
+          "page": 6,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Proxy derivative functions",
+      "description": "For operators that are undifferentiable or have zero gradient in a region (Floor, Ceil, ReLU), substitute a small-magnitude signed derivative alpha (sign from function trend) or the closest left-derivative, enabling gradient back-propagation.",
+      "pages": [
+        7
+      ],
+      "evidence": [
+        {
+          "page": 7,
+          "quote": "we use Proxy Derivative Functions [4] instead of actual derivatives during gradient propagation."
+        }
+      ],
+      "boundary": "Approximation; only used where true gradients fail.",
+      "members": [
+        "A07",
+        "B08"
+      ],
+      "merge_reason": "A07 与 B08 是同一代理导数机制：对不可微或梯度为零的算子（Floor、Ceil、ReLU）用符号由函数趋势决定的小幅值常数 alpha 或最近左导数替代真实导数，使反向传播可以进行。两者描述完全一致。",
+      "parent_name": null,
+      "id": "M07",
+      "mechanical": [
+        {
+          "page": 7,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Gradient-guided value search (Algorithm 3)",
+      "description": "Randomly initialize inputs/weights, then iterate in topological order: find the first operator producing NaN/Inf, take its first positive loss, and update inputs/weights by gradient descent (Adam, learning rate reset on loss switch). Restart on zero gradient or NaN/Inf in values; fail if budget exhausted.",
+      "pages": [
+        6,
+        7
+      ],
+      "evidence": [
+        {
+          "page": 7,
+          "quote": "we find the first operator (in topological order, Line 4) that produces an FP exceptional value (Line 7). We use its loss function as an optimization objective"
+        },
+        {
+          "page": 7,
+          "quote": "we use Adam [25], an adaptive learning rate scheduling algorithm, to set the learning rate"
+        },
+        {
+          "page": 7,
+          "quote": "we find the first operator (in topological order, Line 4) that produces an FP exceptional value (Line 7)"
+        }
+      ],
+      "boundary": "May oscillate between operators (rare); fails when model has no valid inputs.",
+      "members": [
+        "A08",
+        "B07"
+      ],
+      "merge_reason": "A08 与 B07 是同一梯度引导取值搜索（Algorithm 3）：随机初始化输入/权重，按拓扑序找第一个产生 NaN/Inf 的算子，取其第一个正损失，用 Adam 梯度下降更新 <X,W>（切换损失时重置学习率），零梯度或出现 NaN/Inf 时重启，预算耗尽则失败。两者描述同一搜索过程。",
+      "parent_name": null,
+      "id": "M08",
+      "mechanical": [
+        {
+          "page": 7,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        },
+        {
+          "page": 7,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        },
+        {
+          "page": 7,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Differential testing with PyTorch oracle and O0 cross-check",
+      "description": "Compile generated model with the tested compiler and run reference (PyTorch) on the same inputs; compare outputs with magnitude-scaled tolerance. On disagreement, recompile in compiler O0 mode to localize whether the optimization is at fault.",
+      "pages": [
+        2,
+        7,
+        8
+      ],
+      "evidence": [
+        {
+          "page": 7,
+          "quote": "we regard PyTorch’s results as the oracle"
+        },
+        {
+          "page": 8,
+          "quote": "if the compiler and PyTorch disagree on the model outputs, we further compare it with the compiler “O0” mode"
+        },
+        {
+          "page": 8,
+          "quote": "we further compare it with the compiler “O0” mode at an extra cost of re-compilation"
+        }
+      ],
+      "boundary": "Tolerance can yield false alarms (e.g., Sigmoid+Floor); PyTorch converter itself can be buggy.",
+      "members": [
+        "A09",
+        "B11"
+      ],
+      "merge_reason": "A09 与 B11 是同一差分测试机制：以 PyTorch 结果为 oracle，用同一输入比较被测编译器输出，按量级缩放容差判定；不一致时用编译器 O0 模式重编译以定位是否为优化错误。B11 额外标注了第 2 页的流程背景，但机制本身相同。",
+      "parent_name": null,
+      "id": "M09",
+      "mechanical": [
+        {
+          "page": 7,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        },
+        {
+          "page": 8,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": false,
+          "short_quote": false
+        },
+        {
+          "page": 8,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": false,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Compiler operator/data-type support probing",
+      "description": "Infer which operators and data types the tested compiler supports by compiling single-operator models, then restrict graph generation to avoid Not-Implemented errors.",
+      "pages": [
+        7
+      ],
+      "evidence": [
+        {
+          "page": 7,
+          "quote": "we infer the set of operators supported by the compiler being tested by trying to compile single-operator models with different data types"
+        }
+      ],
+      "boundary": "Only a support filter; does not test unsupported paths.",
+      "members": [
+        "A10",
+        "B10"
+      ],
+      "merge_reason": "A10 与 B10 是同一支持探测机制：通过编译单算子模型（不同数据类型）推断被测编译器支持的算子与 dtype 集合，并据此限制图生成以避免 Not-Implemented 错误。两者描述完全一致。",
+      "parent_name": null,
+      "id": "M10",
+      "mechanical": [
+        {
+          "page": 7,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "ONNX model materialization and export pipeline",
+      "description": "Concretize the symbolic graph by invoking PyTorch functors in topological order and export to ONNX via PyTorch's exporter, making tests applicable to any ONNX-supporting system.",
+      "pages": [
+        7
+      ],
+      "evidence": [
+        {
+          "page": 7,
+          "quote": "we then concretize the symbolic graph by invoking the materialized PyTorch functors in the topological order, and export the model to the deployment-friendly ONNX [2] format"
+        }
+      ],
+      "boundary": "Inherits PyTorch exporter bugs (found as by-product); limited to ONNX-representable models.",
+      "members": [
+        "A11",
+        "B09"
+      ],
+      "merge_reason": "A11 与 B09 是同一物化与导出流水线：按拓扑序调用 PyTorch functor 具体化符号图，再用 PyTorch exporter 导出为 ONNX。两者描述同一实现步骤，B09 额外说明 PyTorch 也实现取值搜索，但核心机制相同。",
+      "parent_name": null,
+      "id": "M11",
+      "mechanical": [
+        {
+          "page": 7,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": false,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Operator-spec meta types and C* binning specializations",
+      "description": "Reusable unary/binary/reduce/broadcast meta types shrink spec code; default C* binning specializations add a 0-bin for Conv2d padding, 0/negative bins for pad ops, and valid start/end ranges for Slice.",
+      "pages": [
+        8
+      ],
+      "evidence": [
+        {
+          "page": 8,
+          "quote": "we implemented several meta types including, unary/binary, reduce and broadcast that further reduce the amount of code needed to specify an operator"
+        },
+        {
+          "page": 8,
+          "quote": "we specifically handle for the indexing ranges (i.e., “start” and “end” attributes) in Slice"
+        }
+      ],
+      "boundary": "Implementation convenience and attribute-range correctness; not a testing strategy.",
+      "members": [
+        "B12"
+      ],
+      "merge_reason": "仅 B12 提出；A 清单未单列该实现细节。它描述可复用 meta types 与 C* 分箱特化（Conv2d padding 0 箱、pad 算子 0/负箱、Slice start/end 有效范围），是独立于通用分箱机制的实现便利与属性范围正确性机制，故保留为单独机制。",
+      "parent_name": null,
+      "id": "M12",
+      "mechanical": [
+        {
+          "page": 8,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        },
+        {
+          "page": 8,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Artifact reproduction workflow",
+      "description": "Docker image (Docker Hub or Zenodo import) plus HTML docs; run NNSmith and baselines on instrumented TVM/ONNXRuntime for 4 hours each, then visualize coverage trends and Venn diagrams.",
+      "pages": [
+        12,
+        13
+      ],
+      "evidence": [
+        {
+          "page": 13,
+          "quote": "Running NNSmith and baselines on instrumented TVM and ONNXRuntime for 4 hours each to get code coverage reports."
+        },
+        {
+          "page": 13,
+          "quote": "Visualize coverage in coverage trends and Venn diagram."
+        }
+      ],
+      "boundary": "Reproduces evaluation results; not part of the fuzzing algorithm.",
+      "members": [
+        "B13"
+      ],
+      "merge_reason": "仅 B13 提出；A 清单未包含工件复现流程。它描述 Docker 镜像与 HTML 文档、在插桩 TVM/ONNXRuntime 上各跑 4 小时、可视化覆盖率趋势与 Venn 图，属于评估复现流程而非模糊测试算法，故保留为单独机制。",
+      "parent_name": null,
+      "id": "M13",
+      "mechanical": [
+        {
+          "page": 13,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        },
+        {
+          "page": 13,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    }
+  ],
+  "exclusions": [],
+  "open_questions": [
+    "B12 的 C* 分箱特化与 A05/B05 的通用属性分箱在实现上紧密耦合（C* 覆盖默认分箱），但论文将其作为实现细节单独描述；是否应把 C* 特化视为属性分箱的子机制而非独立机制，需依据更细的代码结构判断。",
+    "B13 的工件复现流程属于评估基础设施，是否应纳入“机制”清单取决于清单的收录范围（算法机制 vs 实验流程）；当前按候选保留并标注边界。"
+  ],
+  "semantic_review": "pending"
+}

@@ -13,7 +13,7 @@ python3 -m venv .venv
 node --test tools/pi-mechanism-agent/*.test.mjs
 ```
 
-以上检查不调用 API、不运行目标系统。`validate_delivery.py` 当前验收已发布的 SparTA 和 FlexPrefill。回归测试命令：
+以上检查不调用 API、不运行目标系统。`validate_delivery.py` 默认验收已发布的全部五篇。回归测试命令：
 
 ```bash
 .venv/bin/python -m unittest discover -s tests -v
@@ -73,4 +73,20 @@ SoCLaaS 使用 `x-test-2` 路由，实际模型标识以每次响应记录为准
 
 仓库保存代码、测试、配置、版本清单、PNG 流程图及已发布的轻量交接包。原 PDF、完整目标仓库、原始 API 日志、ZIP、大型 HTML 和 `node_modules` 不入库。密钥不属于交接包。
 
-每包 `source-distribution.json` 列出保留和省略的文件。归档绝对路径是原始运行位置，不能当作另一台机器上的有效路径。当前维护者本地工作区和剩余任务见 [CLAUDE.md](CLAUDE.md#下一步)。
+每包 `source-distribution.json` 列出保留和省略的文件。后三篇另附 `archive-acceptance.json`：记录完整本地包的原论文、固定 Git 源码、冻结 ID 和 ZIP 检查结果；轻量验收只校验这里保留的快照，不能替代原始资产检查。归档绝对路径是原始运行位置，不能当作另一台机器上的有效路径。当前维护者本地工作区和剩余任务见 [CLAUDE.md](CLAUDE.md#下一步)。
+
+## 本轮交付的恢复记录
+
+MInference 的 M05、M09 在流式连接失败后，复用 Pi 实际读过的源码和冻结行为，分别进行一次无新工具的非流式语义收尾；不是重新探索整个仓库。NNSmith 的 binding proposal 经过一次字段结构修正。全部原始失败保留；源码判断未由打包程序机械改写。
+
+InfiniGen 的 8 条背景/基线观测和 NNSmith 的 4 条基线观测单独留在 `reported_observations.json`，不进入本系统的 active eval。各包的 `review-adjustments.json` 记录接口修订。
+
+需要重查完整本地 ZIP 时，在持有原始运行和资产的工作区运行：
+
+```bash
+.venv/bin/python scripts/validate_handoff_archive.py \
+  handoffs/paper-side-v1/minference handoffs/paper-side-v1/infinigen \
+  handoffs/paper-side-v1/nnsmith --out runs/team-complete-v1/final-archive-acceptance.json
+```
+
+该命令不调用模型、不执行目标源码；它会读取论文、Git blobs 和 ZIP。验收摘要中的 token 仅为成功收到的用量，失败传输未返回的用量未知，不代表完整账单。

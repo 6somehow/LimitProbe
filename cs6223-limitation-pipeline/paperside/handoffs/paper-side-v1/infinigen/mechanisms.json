@@ -1,0 +1,413 @@
+{
+  "mechanisms": [
+    {
+      "name": "Offline Q/K weight skewing via SVD-derived orthogonal matrix A",
+      "description": "One-time offline pass: run forward pass with a sample input, gather each layer's query matrix, decompose with SVD (Q=UΣV^T), set A=V, and multiply WQ and WK by A so a few columns dominate. Because A A^T = I, Q̃K̃^T = QK^T exactly, so attention results are unchanged while column magnitudes become skewed.",
+      "pages": [
+        4,
+        8,
+        9
+      ],
+      "evidence": [
+        {
+          "page": 8,
+          "quote": "we first decompose the query matrix using SVD and obtain U, Σ, and V. We then set A to orthogonal matrix V to align the column vectors with the standard unit vectors as V^T A = V^T V = I"
+        },
+        {
+          "page": 8,
+          "quote": "this is mathematically equivalent to QKT, not an approximation"
+        },
+        {
+          "page": 9,
+          "quote": "the skewing is a one-time offline process and does not incur any runtime overhead because we modify the weight matrices that are invariant at runtime"
+        }
+      ],
+      "boundary": "Produces modified Q/K weights only; does not itself select tokens or move data. Requires a sample input and per-layer SVD; dimensions of weight matrices are unchanged.",
+      "members": [
+        "A01",
+        "B01"
+      ],
+      "merge_reason": "两个候选描述的是完全相同的离线权重偏斜机制：都使用样本输入进行前向传播，对每层查询矩阵做SVD得到正交矩阵A=V，并将A乘入WQ和WK。两者都强调该操作是离线一次性完成、不改变注意力计算结果（数学等价而非近似），且不涉及运行时开销。因此它们是同一机制的不同表述，而非两个独立机制。",
+      "parent_name": null,
+      "id": "M01",
+      "mechanical": [
+        {
+          "page": 8,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": false,
+          "short_quote": false
+        },
+        {
+          "page": 8,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": false,
+          "short_quote": false
+        },
+        {
+          "page": 9,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Partial weight index generation (prefill-stage column selection)",
+      "description": "In prefill, take element-wise absolute values of skewed query and key matrices, add them, sum each column, and take top-k columns (30% in the paper) to obtain a single shared index set used for both the partial query weight and the partial key cache.",
+      "pages": [
+        9
+      ],
+      "evidence": [
+        {
+          "page": 9,
+          "quote": "we first take the element-wise absolute values of the skewed query and key matrices, then add these two matrices together"
+        },
+        {
+          "page": 9,
+          "quote": "We then sum the elements in each column and select the top-k columns in the matrix; we choose 30% of the columns in our work"
+        }
+      ],
+      "boundary": "Runs once per request at prefill; selects column indices, not tokens. The 30% ratio is a tunable parameter (partial weight ratio).",
+      "members": [
+        "A02",
+        "B02"
+      ],
+      "merge_reason": "两个候选描述的是同一个预填充阶段的列索引生成过程：对偏斜后的查询和键矩阵取绝对值、相加、按列求和，然后执行一次top-k选择（30%列）。两者都指出该过程在预填充阶段运行一次，生成共享的列索引，用于后续构建部分查询权重和部分键缓存。因此它们是同一机制。",
+      "parent_name": null,
+      "id": "M02",
+      "mechanical": [
+        {
+          "page": 9,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        },
+        {
+          "page": 9,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Partial query weight and partial key cache construction",
+      "description": "From the selected indices, build a partial query weight matrix and a partial (transposed) key cache that are kept for the decoding stage; these are the compact representations used for speculation.",
+      "pages": [
+        9
+      ],
+      "evidence": [
+        {
+          "page": 9,
+          "quote": "generates partial query weight and key cache matrices used in the decoding stage"
+        },
+        {
+          "page": 9,
+          "quote": "it is essential to select the same column indices in the query weight matrix and the key cache"
+        }
+      ],
+      "boundary": "Only the selected columns are retained; the full KV cache remains in CPU memory. Memory overhead reported as 2.5% of model params and 15% of KV cache at ratio 0.3.",
+      "members": [
+        "B03"
+      ],
+      "merge_reason": "该候选描述了从选定的列索引构建部分查询权重矩阵和部分键缓存的过程，这是预填充阶段索引生成后的直接产物，用于解码阶段的推测。它与索引生成（B02）是不同阶段：索引生成决定选哪些列，而本机制实际构建部分矩阵。因此保留为独立机制。",
+      "parent_name": null,
+      "id": "M03",
+      "mechanical": [
+        {
+          "page": 9,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": true,
+          "short_quote": false
+        },
+        {
+          "page": 9,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": false,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Cross-layer attention-pattern speculation (minimal rehearsal)",
+      "description": "At Layer i-1, multiply the attention input of Layer i-1 by the partial query weight of Layer i to get a partial query, then multiply by the partial key cache of Layer i to obtain a speculated attention score for Layer i. Relies on high similarity of consecutive layers' attention inputs. Speculation starts from Layer 1 because outliers emerge in Layer 0.",
+      "pages": [
+        7,
+        8,
+        9,
+        10
+      ],
+      "evidence": [
+        {
+          "page": 7,
+          "quote": "speculates on the attention pattern of the next layer (Layer i) using the attention input of Layer i−1, a partial query weight, and a partial key cache of Layer i"
+        },
+        {
+          "page": 8,
+          "quote": "InfiniGen leverages this key observation to speculate on the attention pattern of Layer i using the attention input of Layer i− 1"
+        },
+        {
+          "page": 9,
+          "quote": "At Layer i−1, we use the partial query weight matrix and key cache of Layer i, which are identified in the prefill stage, along with the attention input of Layer i−1"
+        },
+        {
+          "page": 10,
+          "quote": "InfiniGen initiates speculation and prefetching from Layer 1 because the outliers, which are essential for exploiting input similarity, emerge during the computation in Layer 0"
+        }
+      ],
+      "boundary": "Approximate score from partial columns only; relies on the empirical input-similarity assumption (Table 1) and does not apply to Layer 0. It is an approximation used only for selection, not for the actual attention output.",
+      "members": [
+        "A03",
+        "B04"
+      ],
+      "merge_reason": "两个候选描述的是同一个跨层注意力推测机制：在Layer i-1使用Layer i-1的注意力输入、Layer i的部分查询权重和部分键缓存，计算Layer i的推测注意力分数。两者都强调该机制利用连续层注意力输入的高相似性，且从Layer 1开始（因为Layer 0出现离群值）。因此它们是同一机制。",
+      "parent_name": null,
+      "id": "M04",
+      "mechanical": [
+        {
+          "page": 7,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": false,
+          "short_quote": false
+        },
+        {
+          "page": 8,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        },
+        {
+          "page": 9,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": false,
+          "short_quote": false
+        },
+        {
+          "page": 10,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Alpha-threshold token selection with per-head averaging",
+      "description": "Select tokens whose speculated attention score exceeds (max score - alpha); because softmax turns the subtraction into division, excluded tokens carry <1/e^alpha relative weight. To keep heads balanced, average the number of tokens between max and threshold across heads so each head fetches the same count. A per-layer cap of 20% of total KV cache applies if more candidates exist.",
+      "pages": [
+        9,
+        10
+      ],
+      "evidence": [
+        {
+          "page": 9,
+          "quote": "We select only the tokens with an attention score greater than the maximum score subtracted by alpha"
+        },
+        {
+          "page": 10,
+          "quote": "we ensure that each head in the same layer fetches the same number of tokens by averaging the number of tokens between the maximum score and the threshold across the heads"
+        }
+      ],
+      "boundary": "Alpha is a tunable accuracy/latency knob (4 for OPT, 5 for Llama-2); a per-layer cap of 20% of total KV cache applies if more candidates exist. Selection is ephemeral (per-iteration, per-layer).",
+      "members": [
+        "A04",
+        "B05"
+      ],
+      "merge_reason": "两个候选描述的是同一个基于alpha阈值的动态令牌选择机制：选择推测注意力分数大于（最大分数 - alpha）的令牌，并通过对各头之间的令牌数量取平均来确保同一层内每个头获取相同数量的令牌。两者都提到alpha是可调参数（OPT为4，Llama-2为5）以及每层20%的上限。因此它们是同一机制。",
+      "parent_name": null,
+      "id": "M05",
+      "mechanical": [
+        {
+          "page": 9,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        },
+        {
+          "page": 10,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Dynamic KV prefetch from CPU to GPU (ephemeral pruning)",
+      "description": "Using the selected token indices, prefetch only those KV entries from the CPU-resident KV cache pool to the GPU for the real attention computation of Layer i, overlapping transfer with the preceding layer's compute. Non-selected entries are not evicted, only skipped for this iteration.",
+      "pages": [
+        2,
+        7,
+        9
+      ],
+      "evidence": [
+        {
+          "page": 2,
+          "quote": "prefetch only the essential KV cache entries (without fetching them all)"
+        },
+        {
+          "page": 7,
+          "quote": "load and compute with only the keys and values of a few important tokens, dropping other unimportant ones dynamically"
+        }
+      ],
+      "boundary": "Reduces PCIe transfer volume; does not change model math. Depends on offloading-based backend (FlexGen) for explicit transfers.",
+      "members": [
+        "A05",
+        "B06"
+      ],
+      "merge_reason": "两个候选描述的是同一个动态KV预取机制：根据选定的令牌索引，仅将必要的KV条目从CPU内存池预取到GPU，用于当前层的注意力计算，而非选中的条目不会被永久驱逐，只是本次迭代跳过。两者都强调该机制减少PCIe传输量，且依赖于卸载式后端。因此它们是同一机制。",
+      "parent_name": null,
+      "id": "M06",
+      "mechanical": [
+        {
+          "page": 2,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        },
+        {
+          "page": 7,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "KV cache pool management with counter-based victim selection",
+      "description": "Maintain the KV cache as a CPU-memory pool under a user-defined size limit. On overflow, pick a victim entry by smallest prefetch counter (counters halved on saturation), overwrite it with the new key/value, and update the corresponding partial key cache on GPU. FIFO and LRU are considered alternatives.",
+      "pages": [
+        10,
+        12
+      ],
+      "evidence": [
+        {
+          "page": 10,
+          "quote": "the pool manager increments a counter for each prefetched KV entry and selects a victim with the smallest count in the KV cache pool"
+        },
+        {
+          "page": 10,
+          "quote": "the manager overwrites the selected victim with the newly generated key and value, along with updating the corresponding partial key cache residing in the GPU"
+        }
+      ],
+      "boundary": "Only active when a memory limit is set; counter policy chosen over LRU to avoid atomic updates. Order of entries is arbitrary as long as key/value of a token stay co-located.",
+      "members": [
+        "A06",
+        "B07"
+      ],
+      "merge_reason": "两个候选描述的是同一个KV缓存池管理机制：在用户定义的内存限制下，当池满时，根据预取计数器选择受害者条目（计数器饱和时减半），用新生成的键/值覆盖，并更新GPU上的部分键缓存。两者都提到FIFO和LRU作为替代方案，并选择计数器策略以避免原子更新。因此它们是同一机制。",
+      "parent_name": null,
+      "id": "M07",
+      "mechanical": [
+        {
+          "page": 10,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        },
+        {
+          "page": 10,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Controller-based runtime architecture (data plane / control plane)",
+      "description": "System decomposition: PWIGen Controller (partial weight index generation), KVSel Controller (KV selection), Inference Controller (LLM inference), Skewing Controller (offline weight modification), and Pool Manager, split into a GPU data plane and a control plane over CPU memory.",
+      "pages": [
+        7
+      ],
+      "evidence": [
+        {
+          "page": 7,
+          "quote": "there are two major components in the InfiniGen runtime. The first includes the Partial Weight Index Generation Controller, KV Selection Controller, and Inference Controller"
+        },
+        {
+          "page": 7,
+          "quote": "the Skewing Controller performs offline modifications on the model weights"
+        }
+      ],
+      "boundary": "Organizational/integration layer; individual behaviors are described by the other mechanisms.",
+      "members": [
+        "A07",
+        "B08"
+      ],
+      "merge_reason": "两个候选描述的是同一个运行时架构组织：将系统分解为数据平面（GPU）和控制平面（CPU），包括PWIGen控制器、KVSel控制器、推理控制器、偏斜控制器和池管理器。两者都强调这是组织/集成层，具体行为由其他机制定义。因此它们是同一机制。",
+      "parent_name": null,
+      "id": "M08",
+      "mechanical": [
+        {
+          "page": 7,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        },
+        {
+          "page": 7,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    }
+  ],
+  "exclusions": [
+    {
+      "id": "B09",
+      "reason": "该候选描述的是InfiniGen与FlexGen卸载后端的集成，属于实现/评估环境配置，而非论文提出的核心机制。论文中明确说明InfiniGen与FlexGen正交并可协同工作，但集成本身不是一种独立的KV缓存管理机制，而是系统部署方式。因此排除。",
+      "evidence": [
+        {
+          "page": 10,
+          "quote": "For the FlexGen baseline, unless otherwise specified, we explicitly locate all the KV cache in the CPU memory"
+        },
+        {
+          "page": 15,
+          "quote": "InfiniGen is orthogonal to FlexGen and can work in conjunction with it"
+        }
+      ]
+    }
+  ],
+  "open_questions": [
+    "A05和B06合并后，是否应进一步区分“临时剪枝”策略与“预取”操作？论文中将两者作为同一预取技术的一部分，但边界描述中可能隐含不同角色。",
+    "B03（部分查询权重和部分键缓存构建）是否应作为B02（索引生成）的子机制？两者在预填充阶段紧密相关，但论文中描述为不同步骤。"
+  ],
+  "semantic_review": "pending"
+}

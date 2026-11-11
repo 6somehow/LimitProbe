@@ -1,0 +1,292 @@
+[
+  {
+    "title": "A取排序重排后的V而非论文A=V",
+    "scope": "local_entry",
+    "behavior_ids": [
+      "M01-B03"
+    ],
+    "refs": [
+      "E1"
+    ],
+    "boundary": "仅skew函数；正交性与QK^T等价不受影响",
+    "unverified_effect": "重排对偏斜列选择与prefetch效果的影响未测",
+    "artifact_id": "infinigen",
+    "mechanism_id": "M01",
+    "claim_ids": [
+      "infinigen:M01-B03"
+    ],
+    "evidence_registry_ids": [
+      "M01:E1"
+    ]
+  },
+  {
+    "title": "artifact路径同样执行重排A",
+    "scope": "artifact",
+    "behavior_ids": [
+      "M01-B03"
+    ],
+    "refs": [
+      "E3",
+      "E1"
+    ],
+    "boundary": "warmup→mha→skew调用链",
+    "unverified_effect": "端到端精度/偏斜度未验证",
+    "artifact_id": "infinigen",
+    "mechanism_id": "M01",
+    "claim_ids": [
+      "infinigen:M01-B03"
+    ],
+    "evidence_registry_ids": [
+      "M01:E3",
+      "M01:E1"
+    ]
+  },
+  {
+    "title": "speedup入口列索引仅由Q生成，缺K的abs与相加",
+    "scope": "local_entry",
+    "behavior_ids": [
+      "M02-B01",
+      "M02-B02",
+      "M02-B03",
+      "M02-B05"
+    ],
+    "refs": [
+      "E1",
+      "E2"
+    ],
+    "boundary": "仅限speedup/flexgen/infinigen路径与partial_weight_index_generation；accuracy/setup路径另行实现",
+    "unverified_effect": "未证明仅用Q列和会改变最终KV选择或精度；无运行对照",
+    "artifact_id": "infinigen",
+    "mechanism_id": "M02",
+    "claim_ids": [
+      "infinigen:M02-B01",
+      "infinigen:M02-B02",
+      "infinigen:M02-B03",
+      "infinigen:M02-B05"
+    ],
+    "evidence_registry_ids": [
+      "M02:E1",
+      "M02:E2"
+    ]
+  },
+  {
+    "title": "speedup实验脚本驱动的实现同样缺K项",
+    "scope": "artifact",
+    "behavior_ids": [
+      "M02-B01",
+      "M02-B02",
+      "M02-B03",
+      "M02-B05"
+    ],
+    "refs": [
+      "E1",
+      "E2",
+      "E8"
+    ],
+    "boundary": "figure17b/run.sh 等speedup脚本经符号链接使用同一flex_opt/pytorch_backend",
+    "unverified_effect": "未评估该差异对图17b等实验数值的影响",
+    "artifact_id": "infinigen",
+    "mechanism_id": "M02",
+    "claim_ids": [
+      "infinigen:M02-B01",
+      "infinigen:M02-B02",
+      "infinigen:M02-B03",
+      "infinigen:M02-B05"
+    ],
+    "evidence_registry_ids": [
+      "M02:E1",
+      "M02:E2",
+      "M02:E8"
+    ]
+  },
+  {
+    "title": "阈值仅用于计数，实际选取为 top-k(各头候选均值)",
+    "scope": "local_entry",
+    "behavior_ids": [
+      "M05-B01-R02"
+    ],
+    "refs": [
+      "E1",
+      "E5"
+    ],
+    "boundary": "kv_selection_controller.py:52-61 与 prefetch_cache 消费路径",
+    "unverified_effect": "未证明 top-k 相对严格阈值掩码的精度影响；候选数=均值时等价",
+    "artifact_id": "infinigen",
+    "mechanism_id": "M05",
+    "claim_ids": [
+      "infinigen:M05-B01-R02"
+    ],
+    "evidence_registry_ids": [
+      "M05:E1",
+      "M05:E5"
+    ]
+  },
+  {
+    "title": "上限为绝对 max_num_kv 而非总 KV cache 的 20%",
+    "scope": "artifact",
+    "behavior_ids": [
+      "M05-B03"
+    ],
+    "refs": [
+      "E1",
+      "E6"
+    ],
+    "boundary": "flex_opt.py:1447 与脚本 --max-num-kv 取值",
+    "unverified_effect": "未证明绝对上限在长序列下与 20% 比例上限的预取量/精度差异",
+    "artifact_id": "infinigen",
+    "mechanism_id": "M05",
+    "claim_ids": [
+      "infinigen:M05-B03"
+    ],
+    "evidence_registry_ids": [
+      "M05:E1",
+      "M05:E6"
+    ]
+  },
+  {
+    "title": "local_entry 的 mha_gen 只做索引推测，未发起 KV 预取传输，故不实现“Layer i-1 计算期间预取 Layer i”",
+    "scope": "local_entry",
+    "behavior_ids": [
+      "M06-B03"
+    ],
+    "refs": [
+      "E1",
+      "E4"
+    ],
+    "boundary": "预取传输在 artifact 的 prefetch_cache 中；local_entry 仅覆盖推测与注意力计算。",
+    "unverified_effect": "实际 stream 重叠程度未测量。",
+    "artifact_id": "infinigen",
+    "mechanism_id": "M06",
+    "claim_ids": [
+      "infinigen:M06-B03"
+    ],
+    "evidence_registry_ids": [
+      "M06:E1",
+      "M06:E4"
+    ]
+  },
+  {
+    "title": "淘汰以注意力掩码实现，未覆盖受害者槽位，也未更新 GPU 部分 key cache",
+    "scope": "local_entry",
+    "behavior_ids": [
+      "M07-B03-R01",
+      "M07-B03-R02"
+    ],
+    "refs": [
+      "E2",
+      "E4",
+      "E5",
+      "E6"
+    ],
+    "boundary": "仅 accuracy/src/modeling_opt_ours.py 与 modeling_llama_ours.py 的 kv_cache_mask；speedup 路径未确认",
+    "unverified_effect": "掩码淘汰与覆盖写对注意力输出是否等价未验证",
+    "artifact_id": "infinigen",
+    "mechanism_id": "M07",
+    "claim_ids": [
+      "infinigen:M07-B03-R01",
+      "infinigen:M07-B03-R02"
+    ],
+    "evidence_registry_ids": [
+      "M07:E2",
+      "M07:E4",
+      "M07:E5",
+      "M07:E6"
+    ]
+  },
+  {
+    "title": "计数器饱和减半规则未实现",
+    "scope": "local_entry",
+    "behavior_ids": [
+      "M07-B07"
+    ],
+    "refs": [
+      "E4"
+    ],
+    "boundary": "counter 分支每次由 fetch_mask 重算，无饱和状态",
+    "unverified_effect": "计数是否可能饱和及对精度影响未验证",
+    "artifact_id": "infinigen",
+    "mechanism_id": "M07",
+    "claim_ids": [
+      "infinigen:M07-B07"
+    ],
+    "evidence_registry_ids": [
+      "M07:E4"
+    ]
+  },
+  {
+    "title": "accuracy 路径无 CPU 池与按需预取，仅 GPU 常驻加掩码",
+    "scope": "local_entry",
+    "behavior_ids": [
+      "M07-A01"
+    ],
+    "refs": [
+      "E2",
+      "E5",
+      "E6"
+    ],
+    "boundary": "accuracy 路径；speedup 路径待查",
+    "unverified_effect": "内存占用与预取带宽收益未验证",
+    "artifact_id": "infinigen",
+    "mechanism_id": "M07",
+    "claim_ids": [
+      "infinigen:M07-A01"
+    ],
+    "evidence_registry_ids": [
+      "M07:E2",
+      "M07:E5",
+      "M07:E6"
+    ]
+  },
+  {
+    "title": "控制平面缺Pool Manager，KV池无压力管理",
+    "scope": "local_entry",
+    "behavior_ids": [
+      "M08-B04",
+      "M08-A01",
+      "M08-A06"
+    ],
+    "refs": [
+      "E4",
+      "E9"
+    ],
+    "boundary": "仅限pinned commit的speedup/flexgen/infinigen路径；accuracy/目录未检查",
+    "unverified_effect": "CPU内存压力下的池容量管理效果未建立",
+    "artifact_id": "infinigen",
+    "mechanism_id": "M08",
+    "claim_ids": [
+      "infinigen:M08-B04",
+      "infinigen:M08-A01",
+      null
+    ],
+    "evidence_registry_ids": [
+      "M08:E4",
+      "M08:E9"
+    ]
+  },
+  {
+    "title": "artifact路径同样无Pool Manager，预取由调度层直接发起",
+    "scope": "artifact",
+    "behavior_ids": [
+      "M08-B04",
+      "M08-A01",
+      "M08-A06"
+    ],
+    "refs": [
+      "E8",
+      "E9"
+    ],
+    "boundary": "flex_opt.py调度层；未运行",
+    "unverified_effect": "池管理效果未建立",
+    "artifact_id": "infinigen",
+    "mechanism_id": "M08",
+    "claim_ids": [
+      "infinigen:M08-B04",
+      "infinigen:M08-A01",
+      null
+    ],
+    "evidence_registry_ids": [
+      "M08:E8",
+      "M08:E9"
+    ]
+  }
+]

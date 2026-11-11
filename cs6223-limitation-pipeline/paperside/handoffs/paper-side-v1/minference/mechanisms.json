@@ -1,0 +1,563 @@
+{
+  "mechanisms": [
+    {
+      "name": "Three-pattern head taxonomy (A-shape / Vertical-Slash / Block-Sparse)",
+      "description": "Author-defined categorization of long-context attention heads into three spatial sparse patterns: A-shape (initial tokens + local windows, static), Vertical-Slash (specific token columns plus fixed-interval diagonal lines, dynamic), and Block-Sparse (dispersed spatially-clustered blocks, most dynamic). Table 1 compares spatial distribution, GPU latency, and index-build time. Each head is assigned exactly one pattern; the pattern determines which index-building and kernel path is used at inference.",
+      "pages": [
+        3,
+        4
+      ],
+      "evidence": [
+        {
+          "page": 3,
+          "quote": "categorized such attention sparse patterns into the A-shape, Vertical-Slash (VS), and Block-Sparse patterns"
+        },
+        {
+          "page": 4,
+          "quote": "A-shape pattern The attention weights of these types of heads are concentrated on initial tokens and local windows"
+        }
+      ],
+      "boundary": "Descriptive taxonomy derived from visualization; classification only, does not itself compute attention. The actual per-head assignment is done offline by the separate kernel-aware search mechanism (Algorithm 1), not at runtime.",
+      "members": [
+        "A01",
+        "B01"
+      ],
+      "merge_reason": "两个候选描述的是同一套三分类注意力头模式分类法（A-shape、Vertical-Slash、Block-Sparse），均引用第3-4页的同一段定义与Table 1，仅措辞略有差异，属于同一机制的不同表述，故合并。",
+      "parent_name": null,
+      "id": "M01",
+      "mechanical": [
+        {
+          "page": 3,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": false,
+          "short_quote": false
+        },
+        {
+          "page": 4,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Kernel-aware optimal sparse pattern search (Algorithm 1)",
+      "description": "Offline per-head search. First builds a kernel-aware search space: for each candidate setting, iteratively calls FLOPs_in_kernel and ChangeSpace until the real GPU-kernel FLOPs match target FLOPs t (not conceptual FLOPs). Then, using a reference example, computes dense output y = Softmax(QK^T/sqrt(d)) and for each candidate computes sparse output y_i, selecting p_best = argmin(y_i - y) i.e. best attention-output recall. Uses FlashAttention to limit memory and incorporates V information for end-to-end selection. Runs once offline (~15 min on one A100); produces a static per-head pattern+setting table reused for all inputs.",
+      "pages": [
+        5,
+        18
+      ],
+      "evidence": [
+        {
+          "page": 5,
+          "quote": "Kernel-aware here indicates the computational cost reflects the real FLOPs in GPU kernels, instead of conceptual estimations"
+        },
+        {
+          "page": 5,
+          "quote": "we use recall of the attention output as the objective criterion when searching for the best pattern"
+        }
+      ],
+      "boundary": "Offline, one-time per model (~15 min on A100); uses a single 30k-token KV-retrieval sample as validation; search space fixed in Table 6. This is the parent procedure that determines per-head pattern assignment; the concrete search-space constants are a child configuration detail.",
+      "members": [
+        "A03",
+        "B02"
+      ],
+      "merge_reason": "两个候选均描述Algorithm 1的离线核感知最优稀疏模式搜索，包括构建核感知搜索空间（ChangeSpace迭代匹配真实GPU FLOPs）和基于注意力输出召回率选择最优模式，引用同一页码与同一算法，属于同一机制，故合并。",
+      "parent_name": null,
+      "id": "M02",
+      "mechanical": [
+        {
+          "page": 5,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": true,
+          "short_quote": false
+        },
+        {
+          "page": 5,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Search space and ChangeSpace step configuration",
+      "description": "Concrete search space per pattern: A-shape {(1024,4096)}; Vertical-Slash {(30,2048),(100,1800),(500,1500),(3000,200)} (top-k vertical, top-k slash); Block-Sparse {100} top-k blocks. ChangeSpace step size 50. Validation uses one KV-retrieval synthetic sample with 30k tokens. The same optimal configuration is reused across LLaMA-3-262K and 1M variants.",
+      "pages": [
+        18
+      ],
+      "evidence": [
+        {
+          "page": 18,
+          "quote": "The step size of ChangeSpace is set to 50, with the corresponding search space shown in Table 6."
+        },
+        {
+          "page": 18,
+          "quote": "we use only one sample as our validation set from KV retrieval synthetic data with 30k token inputs"
+        }
+      ],
+      "boundary": "Configuration constants for the parent kernel-aware search (Algorithm 1); not a separate algorithm but the concrete parameterization of its search space.",
+      "members": [
+        "B03"
+      ],
+      "merge_reason": "仅B03提出该具体搜索空间与步长配置，A03将其作为Algorithm 1边界的一部分提及。按粒度规则，这是父机制（核感知搜索）的配置子项，保留为独立子机制以保留其具体常量，不与其他候选合并。",
+      "parent_name": "Kernel-aware optimal sparse pattern search (Algorithm 1)",
+      "id": "M03",
+      "mechanical": [
+        {
+          "page": 18,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        },
+        {
+          "page": 18,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Masked-softmax sparse attention formulation",
+      "description": "Formalizes sparse attention as A(M)=Softmax(QK^T/sqrt(d) - c(1-M)) with binary mask M and large constant c (e.g. 1e5) so masked entries approach zero after softmax. Objective: minimize |A(M)-A_dense| and minimize t_sparse(M)+t_overhead(M).",
+      "pages": [
+        4,
+        5
+      ],
+      "evidence": [
+        {
+          "page": 4,
+          "quote": "where M_i,j ∈ {0,1} represents the dynamic sparse mask for item i,j of the attention matrix"
+        },
+        {
+          "page": 5,
+          "quote": "min t_sparse(M) + t_overhead(M)"
+        }
+      ],
+      "boundary": "Mathematical framing of the trade-off; the actual kernels implement the mask implicitly via index lists rather than materializing M.",
+      "members": [
+        "A02",
+        "B04"
+      ],
+      "merge_reason": "两个候选均描述同一数学形式化：带大常数掩码的softmax稀疏注意力公式（Eq.1）及最小化输出偏差与稀疏+开销时间的目标（Eq.2），引用第4-5页同一公式，属于同一机制，故合并。",
+      "parent_name": null,
+      "id": "M04",
+      "mechanical": [
+        {
+          "page": 4,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": false,
+          "short_quote": false
+        },
+        {
+          "page": 5,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": false,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Vertical-Slash dynamic index approximation (Algorithm 2)",
+      "description": "Runtime estimation for VS heads: matmul only the last last_q (=64) query rows with all K, add causal mask, softmax to get approximate attention A_hat. Then i_v = argtopk(sum over vertical direction of A_hat, k_v) and i_s = argtopk(sum along slash direction, k_s). Indices are converted to sparse format i_vs, then sparse(QK^T, i_vs) and sparse(AV, i_vs) compute the real attention. Estimation overhead is small (5-15% of kernel time); relies on continuity of vertical/slash lines so last-query rows are representative.",
+      "pages": [
+        5,
+        6
+      ],
+      "evidence": [
+        {
+          "page": 5,
+          "quote": "we matmul the last query vector Q[−last_q:] and key vector K to produce the estimated attention matrix"
+        },
+        {
+          "page": 6,
+          "quote": "we convert them into a sparse format i_vs. Using these sparse indices, we perform block-sparse calculations"
+        }
+      ],
+      "boundary": "Approximation assumes vertical/slash continuity; A-shape heads need no dynamic mask. This is the index-building stage for VS heads, distinct from the subsequent VS index kernel and VS FlashAttention kernel.",
+      "members": [
+        "A04",
+        "B05"
+      ],
+      "merge_reason": "两个候选均描述Algorithm 2的Vertical-Slash动态索引近似：用最后last_q=64个query行估计注意力，沿垂直和斜线方向求和取top-k，再转为稀疏格式进行稀疏计算，引用同一算法与页码，属于同一机制，故合并。",
+      "parent_name": null,
+      "id": "M05",
+      "mechanical": [
+        {
+          "page": 5,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": false,
+          "short_quote": false
+        },
+        {
+          "page": 6,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": false,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Block-Sparse dynamic index approximation via mean pooling (Algorithm 3)",
+      "description": "Runtime estimation for BS heads: mean-pool Q and K in blocks of block_size=64 to get Q_bar, K_bar; multiply to get block-level approximate attention A_hat; argtopk over blocks to get i_b; sparseformat; then sparse(QK^T, i_b) and sparse(AV, i_b). Exploits commutativity of mean pooling and matmul so pooled product approximates pooled true attention. Index-building overhead higher (~25% of kernel time) due to MeanPooling and block matmul; memory for indices stays under 160MB at 1M context.",
+      "pages": [
+        5,
+        6
+      ],
+      "evidence": [
+        {
+          "page": 6,
+          "quote": "Since the mean pooling and matrix multiplication operations are commutative, the resulting attention weights are approximately equivalent to the actual attention weights after mean pooling."
+        },
+        {
+          "page": 5,
+          "quote": "Q_bar ← MeanPooling(Q, block_size)"
+        }
+      ],
+      "boundary": "Index-building stage for BS heads; distinct from the Block-Sparse FlashAttention kernel that consumes the indices.",
+      "members": [
+        "A05",
+        "B06"
+      ],
+      "merge_reason": "两个候选均描述Algorithm 3的Block-Sparse动态索引近似：对Q/K按64块均值池化、相乘得块级注意力、取top-k块索引，并利用均值池化与矩阵乘法的可交换性，引用同一算法与页码，属于同一机制，故合并。",
+      "parent_name": null,
+      "id": "M06",
+      "mechanical": [
+        {
+          "page": 6,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        },
+        {
+          "page": 5,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": false,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "A-shape static mask path (zero index overhead)",
+      "description": "For A-shape heads the sparse mask is static (1k global tokens + 4k local windows), so no dynamic index building occurs; only the sparse calculation kernel runs. Equivalent to StreamingLLM behavior; cannot capture dynamic retrieval content (shown by ablations).",
+      "pages": [
+        6
+      ],
+      "evidence": [
+        {
+          "page": 6,
+          "quote": "Noted that the sparse mask is static for A-shape heads, so there is no overhead in building the dynamic masks, and only sparse calculation is required."
+        }
+      ],
+      "boundary": "Static path for A-shape heads; no dynamic index stage. Distinct from the dynamic VS/BS index approximations.",
+      "members": [
+        "B07"
+      ],
+      "merge_reason": "仅B07提出A-shape静态掩码路径（无动态索引开销），A01/A02等将其作为分类法的一部分提及。按粒度规则，这是与动态索引近似并列的独立推理路径，保留为独立机制。",
+      "parent_name": null,
+      "id": "M07",
+      "mechanical": [
+        {
+          "page": 6,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Vertical-Slash index kernel with point-range two-way merge (Algorithm 4)",
+      "description": "GPU-parallel per-row-block index builder. Sorts vertical indices ascending and slash indices descending; for each row block i computes the slash-line range [r_start, r_end) crossing that row; merges vertical indices (points) and slash indices (ranges) via a two-way merge, emitting separate column indices for points outside ranges and block indices for covered ranges. Outputs block counts/indices and column counts/indices. Complexity O(k_v+k_s) per row. Produces the mixed block/column mask representation (Fig. 7: slash lines 64x64 blocks, vertical lines 1x64 blocks); does not perform attention itself.",
+      "pages": [
+        19,
+        25
+      ],
+      "evidence": [
+        {
+          "page": 19,
+          "quote": "We apply a point-range two-way merge algorithm where vertical indexes are treated as points and slash indexes are converted to ranges given the row index."
+        },
+        {
+          "page": 25,
+          "quote": "# Merge points (vertical indexes) and ranges (slash indexes)"
+        }
+      ],
+      "boundary": "Produces index structures consumed by the VS FlashAttention kernel; parallelized over row blocks on GPU. Distinct from the VS FlashAttention kernel (Algorithm 5) which performs the actual attention computation.",
+      "members": [
+        "A07",
+        "B08"
+      ],
+      "merge_reason": "两个候选均描述Algorithm 4的Vertical-Slash稀疏索引核：将垂直索引视为点、斜线索引转为范围，进行点-范围双向归并，输出块索引与列索引，复杂度O(k_v+k_s)，引用同一算法与页码，属于同一机制，故合并。",
+      "parent_name": null,
+      "id": "M08",
+      "mechanical": [
+        {
+          "page": 19,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        },
+        {
+          "page": 25,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Vertical-Slash hybrid FlashAttention kernel (Algorithm 5)",
+      "description": "Combines block-sparse FlashAttention and PIT sparse attention. Per query chip: first loop over block indices (block part, standard FlashAttention online softmax with running max m, sum l, rescaling alpha), then loop over column indices grouped by block size (PIT part) loading sparse K/V columns into dense compute blocks. Final output normalized by diag(l)^-1. Latency linear in total area of blocks plus columns. Requires at least one vertical and one slash line (kernel limitation noted in Table 7 caption).",
+      "pages": [
+        19,
+        25
+      ],
+      "evidence": [
+        {
+          "page": 19,
+          "quote": "A thread block first loops through the block indexes as described in the previous section (block part) and then loops through the column indexes grouped by block size (PIT part)."
+        },
+        {
+          "page": 25,
+          "quote": "# Loop through column indexes : PIT sparse flash attention"
+        }
+      ],
+      "boundary": "Consumes the index structures from Algorithm 4; performs the actual sparse attention computation. Distinct from the index kernel and from the Block-Sparse FlashAttention kernel.",
+      "members": [
+        "A08",
+        "B09"
+      ],
+      "merge_reason": "两个候选均描述Algorithm 5的Vertical-Slash混合FlashAttention核：先循环块索引（块稀疏FlashAttention），再循环按块大小分组的列索引（PIT稀疏注意力），带在线softmax重缩放，引用同一算法与页码，属于同一机制，故合并。",
+      "parent_name": null,
+      "id": "M09",
+      "mechanical": [
+        {
+          "page": 19,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        },
+        {
+          "page": 25,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Block-Sparse FlashAttention kernel",
+      "description": "Triton FlashAttention variant taking selected block indices as extra input; each thread block loops over the top-K blocks in its row. Speedup ratio vs dense approximated as sp = S/(2B x k_b). Fastest of the three kernels (30x vs FlashAttention at 1M) but weakest standalone accuracy per ablations.",
+      "pages": [
+        19
+      ],
+      "evidence": [
+        {
+          "page": 19,
+          "quote": "With the selected block index as an additional input, each thread block loops through the top-K blocks in a row."
+        },
+        {
+          "page": 19,
+          "quote": "sp = S / (2B × k_b)"
+        }
+      ],
+      "boundary": "Latency linear in number of blocks; only for block-aligned sparsity. Consumes indices from the BS index approximation (Algorithm 3).",
+      "members": [
+        "A06",
+        "B10"
+      ],
+      "merge_reason": "两个候选均描述同一Block-Sparse FlashAttention核：基于Triton FlashAttention，以选中块索引为额外输入，每个线程块循环top-K块，加速比公式sp=S/(2B×k_b)，引用第19页同一段，属于同一机制，故合并。",
+      "parent_name": null,
+      "id": "M10",
+      "mechanical": [
+        {
+          "page": 19,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        },
+        {
+          "page": 19,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": false,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Single-A100 memory/latency implementation optimizations",
+      "description": "Engineering procedures to fit 1M-token pre-filling on one 80G A100: (1) tensor splitting — attention split by head, MLP by sequence dimension; (2) reduction of intermediate variables — remove attention mask, implement causal mask inside kernel; (3) elimination of unnecessary computation — compute LM Head only for the last prompt token. Needed because original PyTorch LLaMA OOMs beyond 50k tokens.",
+      "pages": [
+        18
+      ],
+      "evidence": [
+        {
+          "page": 18,
+          "quote": "We split the Attention by head and the MLP by sequence dimension."
+        },
+        {
+          "page": 18,
+          "quote": "we only retain the computation of the LM Head Linear layer for the last token"
+        }
+      ],
+      "boundary": "Host-side/framework-level changes, not part of the sparse attention algorithm; engineering enabler for the latency experiments.",
+      "members": [
+        "A09",
+        "B11"
+      ],
+      "merge_reason": "两个候选均描述同一组单A100内存/延迟实现优化：张量切分、减少中间变量、消除不必要计算（LM Head仅最后token），引用第18页同一段，属于同一机制，故合并。",
+      "parent_name": null,
+      "id": "M11",
+      "mechanical": [
+        {
+          "page": 18,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        },
+        {
+          "page": 18,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Pre-filling-only sparse / dense decoding integration",
+      "description": "Sparse computation is applied only during the pre-filling stage; decoding remains dense. Also compatible with KV-cache compression (SnapKV) applied in decoding, showing composability. Does not accelerate decoding; gains are confined to Time-To-First-Token.",
+      "pages": [
+        7,
+        9
+      ],
+      "evidence": [
+        {
+          "page": 7,
+          "quote": "For all baselines, we perform sparse computation only during the pre-filling stage, while retaining dense computation during the decoding stage."
+        },
+        {
+          "page": 9,
+          "quote": "This proves our method is compatible with KV cache compression techniques."
+        }
+      ],
+      "boundary": "Deployment/integration policy, not a sparse algorithm component.",
+      "members": [
+        "B12"
+      ],
+      "merge_reason": "仅B12提出预填充稀疏/解码稠密的集成策略及与KV缓存压缩的兼容性，A组未单独列出。这是独立的部署策略机制，保留。",
+      "parent_name": null,
+      "id": "M12",
+      "mechanical": [
+        {
+          "page": 7,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        },
+        {
+          "page": 9,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Ablation variants as diagnostic mechanisms",
+      "description": "Controlled variants used to isolate components: Ours w/ static (static indices for VS/BS), only A-shape, only block-sparse, only vertical-slash, only vertical, only slash (with top-1 of the other retained due to kernel limits).",
+      "pages": [
+        8,
+        21
+      ],
+      "evidence": [
+        {
+          "page": 8,
+          "quote": "(1) Ours w/ static, which uses a static sparse mask in the Vertical-Slash and Block-Sparse patterns"
+        },
+        {
+          "page": 21,
+          "quote": "due to kernel limitations, we must retain at least one vertical and one slash"
+        }
+      ],
+      "boundary": "Evaluation instrumentation, not deployed inference path.",
+      "members": [
+        "B13"
+      ],
+      "merge_reason": "仅B13提出消融变体作为诊断机制，A组未单独列出。这是评估用变体集合，保留为独立机制。",
+      "parent_name": null,
+      "id": "M13",
+      "mechanical": [
+        {
+          "page": 8,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        },
+        {
+          "page": 21,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    }
+  ],
+  "exclusions": [],
+  "open_questions": [
+    "A03/B02（核感知搜索）与B03（搜索空间配置）的父子关系是否应进一步拆分：B03仅提供常量，是否应视为A03/B02边界的一部分而非独立子机制？当前按粒度规则保留为子机制。",
+    "A07/B08（VS索引核）与A08/B09（VS FlashAttention核）是同一VS路径的两个不同阶段（索引构建 vs 注意力计算），已分别保留；是否应引入一个父机制“Vertical-Slash路径”来统摄二者？当前未引入，因无候选明确将其作为单一机制。",
+    "A06/B10（Block-Sparse FlashAttention核）与A05/B06（Block-Sparse索引近似）是BS路径的两个阶段，已分别保留；是否应引入父机制“Block-Sparse路径”？当前未引入。"
+  ],
+  "semantic_review": "pending"
+}

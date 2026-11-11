@@ -22,9 +22,11 @@
 |---|---|---|---|
 | [SparTA](handoffs/paper-side-v1/sparta/) | 20 / 206 | 199 / 7 | 已验收并入库 |
 | [FlexPrefill](handoffs/paper-side-v1/flexprefill/) | 12 / 104 | 96 / 8 | 已验收并入库 |
-| MInference | 13 / 141 | 108 / 33 | 本地运行结束，最终交接包待入库 |
-| InfiniGen | 8 / 70 | 59 / 11 | 本地运行结束，最终交接包待验收、入库 |
-| NNSmith | 13 / 140 | 113 / 27 | 本地运行结束，最终交接包待验收、入库 |
+| [MInference](handoffs/paper-side-v1/minference/) | 13 / 141 | 108 / 33 | 已验收并入库 |
+| [InfiniGen](handoffs/paper-side-v1/infinigen/) | 8 / 70 | 59 / 11 | 已验收并入库 |
+| [NNSmith](handoffs/paper-side-v1/nnsmith/) | 13 / 140 | 113 / 27 | 已验收并入库 |
+
+五篇交接包均已完成接口与证据验收；共 661 条行为，575 条已判断、86 条待办。验收指字段、来源和实际消费者检查，不等于人工确认研究结论。
 
 “已判断 / 待办”按 `artifact` 路径统计。待办没有结论，不视作未实现。当前没有运行目标系统，也尚未完成人工语义验收；这些数字不是 bug 数或准确率。
 
@@ -66,4 +68,4 @@
 
 1. 使用已入库的 SparTA 或 FlexPrefill，按 [HANDOFF.md](HANDOFF.md) 做离线检查。
 2. Wanting 接收 `paper_side.json`，结合 `conformance.json` 和 `limitations.json` 整合候选。
-3. 若继续开发，先读 [CLAUDE.md 的下一步](CLAUDE.md#下一步)，完成剩余三篇的交接验收与入库，再处理待办；不必重新调用模型跑一遍。
+3. 若继续开发，先读 [CLAUDE.md 的下一步](CLAUDE.md#下一步)，从已有候选的审阅、去重和待办处理开始；五篇无需重新跑一遍。
