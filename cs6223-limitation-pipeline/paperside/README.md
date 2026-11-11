@@ -4,6 +4,86 @@
 
 团队分工见[项目总览](../docs/00_project_overview.md)。本页集中说明论文侧的方法、当前结果、交接文件和复跑方式。
 
+## 当前做法流程图
+
+```mermaid
+flowchart TD
+    P["论文原文<br/>逐页文字 + 原始页面图像"]
+
+    subgraph PAPER["第一阶段：论文侧独立拆解，不输入源码"]
+        A["独立发现 A<br/>按章节阅读"]
+        B["独立发现 B<br/>按系统输入输出流程阅读"]
+        M["合并并冻结机制<br/>保留独立机制和父子关系"]
+        S["初次拆分行为<br/>每条保留原文和适用前提"]
+        O["独立阅读机制相关原页<br/>不看初次行为，列出应有步骤"]
+        R["机制内对账与原子性复核<br/>补遗漏、拆复合项、检查前提"]
+        F["冻结待核验行为清单<br/>源码调查不反向改写论文要求"]
+        A --> M
+        B --> M
+        M --> S
+        M --> O
+        S --> R
+        O --> R
+        R --> F
+    end
+    P --> A
+    P --> B
+
+    subgraph CODE["第二阶段：按机制调查，逐条行为核验"]
+        PI["每个机制一个 Pi 会话<br/>输入：机制 + 相关原文 + 冻结行为"]
+        REPO["固定 commit 的源码<br/>主仓库与实际需要的依赖"]
+        TOOLS["自主搜索、读源码、查静态调用关系<br/>对齐入口、配置和实际实现路径"]
+        REVIEW["模型语义复核<br/>检查完整条件、等价实现和具体差异"]
+        CHECK["程序检查<br/>行为 ID、字段、来源和已读行范围"]
+        YES["支持论文声明<br/>supports"]
+        DIFF["实现与论文不符<br/>deviates"]
+        NO["声明在该路径未实现<br/>absent"]
+        WAIT["核验待办<br/>pending + null verdict<br/>不是第四类结论"]
+        GROUP["仅将不符和未实现归组<br/>保留原文、源码、条件与影响边界"]
+        PI --> TOOLS
+        REPO --> TOOLS
+        TOOLS --> REVIEW
+        REVIEW --> CHECK
+        CHECK -->|完成核验| YES
+        CHECK -->|完成核验| DIFF
+        CHECK -->|完成核验| NO
+        CHECK -. 未完成核验 .-> WAIT
+        DIFF --> GROUP
+        NO --> GROUP
+    end
+    F --> PI
+
+    subgraph DELIVERY["交接：保留完整证据，再适配共享接口"]
+        SCOPE["只读论文提取并复核<br/>适用范围 + 实验配置"]
+        BIND["核对论文术语与源码的映射<br/>不确定或求解器无法表达的映射另存"]
+        OUT["交接包<br/>claims / scope / eval_points / bindings<br/>三结论、候选、源码证据和待办另表保留"]
+        W["交给 Wanting<br/>供步骤 3b 读取、步骤 4 整合"]
+        SCOPE --> BIND
+        BIND --> OUT
+        OUT --> W
+    end
+    P -->|接口提取仍只看论文| SCOPE
+    TOOLS -->|实际源码证据| BIND
+    YES -->|保留支持证据| OUT
+    GROUP --> OUT
+    WAIT -. 保留工作状态 .-> OUT
+
+    classDef paper fill:#fff2cc,stroke:#b59b52,color:#172c43;
+    classDef code fill:#e3eef9,stroke:#7997b5,color:#172c43;
+    classDef delivery fill:#ece5f3,stroke:#9a81b2,color:#172c43;
+    classDef support fill:#e3efdf,stroke:#829e76,color:#172c43;
+    classDef negative fill:#f5e0de,stroke:#bc8982,color:#172c43;
+    classDef pending fill:#eceef0,stroke:#9da7af,color:#465564;
+    class P,A,B,M,S,O,R,F paper;
+    class PI,REPO,TOOLS,REVIEW,CHECK code;
+    class SCOPE,BIND,OUT,W delivery;
+    class YES support;
+    class DIFF,NO,GROUP negative;
+    class WAIT pending;
+```
+
+黄色为论文侧，蓝色为源码核验，紫色为接口交接。图中省略了失败修正分支：失败请求和返回会另存，补读或修正也写入新阶段，不覆盖已有记录。当前模块不运行目标系统。
+
 ## 实现流程
 
 | 阶段 | 做法 | 实现 |
