@@ -43,6 +43,13 @@ class DeliveryTests(unittest.TestCase):
  def test_strings_booleans_and_empty_ranges_are_not_numeric_domains(self):
   for s in [dict(kind='set',values=['A100']),dict(kind='set',values=[True]),dict(kind='interval',lower=None,upper=None),dict(kind='boolean',values=[True,False])]:
    self.assertFalse(numeric_scope(s))
+ def test_evaluation_only_numeric_domain_cannot_exclude_unseen_inputs(self):
+  s=ScopeItem(scope_id='s',artifact_id='a',param='block_size',kind='set',values=[64,128],explicit=False,evidence=[])
+  b=Binding(binding_id='b',artifact_id='a',paper_term='block_size',kind='parameter',code_symbol='bs')
+  self.assertFalse(numeric_scope(s.model_dump()))
+  self.assertEqual(ScopeChecker([s],[],[]).check(Condition(expr='bs == 96',params=['bs'])).scope_status,'unknown')
+ def test_missing_explicit_support_flag_cannot_activate_solver_domain(self):
+  self.assertFalse(numeric_scope(dict(kind='set',values=[64,128])))
  def test_navigation_bindings_do_not_claim_parameter_scope(self):
   s=ScopeItem(scope_id='s',artifact_id='a',param='width',kind='interval',lower=1,upper=4,evidence=[])
   b=Binding(binding_id='b',artifact_id='a',paper_term='width',kind='mechanism_entry',code_symbol='x',certain=False)

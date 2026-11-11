@@ -56,7 +56,7 @@ def supplement_unread(stage,out):
                 r=dict(repo=alias,path=p,commit=repo['commit'],start_line=lo,end_line=end,lines='\n'.join(f'{n+1}: {line}' for n,line in enumerate(content) if lo<=n+1<=end))
                 i['evidence_packet'].append(dict(origin='actual source read after rejected unread citation; not a supplied verdict',result=r));i['seed_read_spans'].append({k:r[k] for k in ['repo','path','start_line','end_line']});write_json(out/'recovery-read.json',r)
                 i['validation_feedback']+=f'; Actual additional source {alias}:{p}:{lo}-{end} supplied. Never cite beyond its actual end.'
-    i['validation_feedback']+=' Every pending item needs a NONEMPTY actual field stating inspected facts or the precise uninspected path. Return every original behavior ID; unfinished work is null verdict, not absent.'
+    i['validation_feedback']+=' Every pending item needs a NONEMPTY actual field stating inspected facts or the precise uninspected path. Every completed scope item MUST contain a NONEMPTY equivalence string explaining source matching or differences; empty equivalence is allowed only for pending work. Return every original behavior ID; unfinished work is null verdict, not absent.'
     i['assessment_contract']['max_output_tokens']=max(12000,i['assessment_contract']['max_output_tokens']);write_json(out/'input.json',i)
 
 def audit_one(work,art,ctx,m):

@@ -98,20 +98,25 @@ flowchart TD
 
 模型为 SoCLaaS `x-test-2` 路由；实际 prompt、返回、工具读取、失败和修正分开留档。没有构建或运行被分析系统。
 
-## 当前交付：SparTA
+## 当前交付
 
-| 项目 | 数量或状态 |
-|---|---|
-| 冻结机制 / 行为 | 20 / 206 |
-| artifact 判断 | 支持 96、不符 55、未实现 48；另有 7 条核验待办 |
-| 原生论文接口 | 204 claim、26 scope、29 eval point、26 navigation binding |
-| 求解器映射 | 0 条可用标量参数映射；现有三个代码侧条件的 scope 仍为 `unknown` |
-| 保留的论文记录 | 2 条引文依据未闭合的 claim，2 条修订后撤出的原评估配置 |
-| 运行与人工确认 | 未运行目标；独立人工语义复核待完成 |
+当前只有 SparTA 与 FlexPrefill 两篇完成数据验收并入库。其余 MInference、InfiniGen、NNSmith 三篇仍在运行或等待失败恢复，不计为已完成交付；其中 MInference 当前仅接受 11/13 个机制报告，另有 25 条行为缺少已接受报告。
 
-完整 JSON 位于 [`handoffs/paper-side-v1/sparta/`](handoffs/paper-side-v1/sparta/)。机制中含父子及重复要求；行为和候选数量不能当作独立 bug 数或准确率。其余四篇的运行与验收正在本地进行，尚未作为已完成结果入库。
+| 项目 | SparTA | FlexPrefill |
+|---|---|---|
+| 冻结机制 / 行为 | 20 / 206 | 12 / 104 |
+| artifact 已完成判断 | 支持 96、不符 55、未实现 48 | 支持 75、不符 10、未实现 11 |
+| artifact 待办 | 7 条 | 8 条 |
+| 原生论文接口 | 204 claim、26 scope、29 eval point、26 binding | 104 claim、16 scope、23 eval point、24 binding |
+| 求解器映射 / 入口导航 | 0 / 26 | 1 条 `tau` 标量映射 / 23 |
+| 保留的论文记录 | 2 条引文依据未闭合 claim、2 条撤出评估配置 | 6 条撤出 scope、7 条撤出评估配置 |
+| 交接目录 | [SparTA](handoffs/paper-side-v1/sparta/) | [FlexPrefill](handoffs/paper-side-v1/flexprefill/) |
 
-源码校验确认引用对应固定 commit 的实际内容，结构检查确认行为 ID 完整。这两项检查不替代语义判断。接口经过额外来源复核：例如将“延迟降低 30% / 40%”从错误的稀疏率字段中移出，将 Table 4 的五个张量案例与整模型评估区分。原模型输出和修订依据均保留在 [`review-adjustments.json`](handoffs/paper-side-v1/sparta/review-adjustments.json) 与 [`review-notes.json`](handoffs/paper-side-v1/sparta/review-notes.json)。
+两篇均未运行目标系统，独立人工语义复核仍待完成。机制含父子及重复要求；行为和候选数量不能当作独立 bug 数或准确率。SparTA 现有三个代码侧条件的 scope 仍为 `unknown`；FlexPrefill 只有 `tau` 已建立标量映射，不能据此声称全部范围匹配完成。
+
+源码校验确认引用对应固定 commit 的实际内容，结构检查确认行为 ID 完整。这两项检查不替代语义判断。接口另经来源复核，原模型输出和修订依据均保留在各包的 `review-adjustments.json` 与 `review-notes.json`：SparTA 将“延迟降低 30% / 40%”从错误的稀疏率字段中移出，将 Table 4 张量案例与整模型评估区分；FlexPrefill 将 gamma 开区间保留为文本条件，不把实验 block size 视作穷尽支持范围，也不把 `min_budget=1024` 当全局硬下界。论文中的 `k` 标签保留原样，Table 8 的两种 query 位置分开；仅相关工作描述的 training-free / quantization 不作为系统范围。
+
+FlexPrefill 的[本地完整运行验收摘要](handoffs/paper-side-v1/flexprefill/corpus-acceptance.json)记录 144 次请求、2,602,303 个实际返回 token、138 次工具调用及 10 个被拒收阶段。失败和修正计入记录；这些资源数不是独立样本数。通用验收脚本 [`validate_corpus.mjs`](scripts/validate_corpus.mjs) 需要完整本地运行记录及固定 Git 源码，已对完整 FlexPrefill 运行验过；轻量 checkout 不包含运行它所需的全部外部资产。
 
 ## Wanting 如何接入
 
@@ -125,7 +130,9 @@ flowchart TD
 | [`pending_records.json`](handoffs/paper-side-v1/sparta/pending_records.json)、[`inactive_bindings.json`](handoffs/paper-side-v1/sparta/inactive_bindings.json) | 未闭合的论文条目及不传给求解器的映射 |
 | [`validation.json`](handoffs/paper-side-v1/sparta/validation.json)、[`RUN_WITH_WANTING.md`](handoffs/paper-side-v1/sparta/RUN_WITH_WANTING.md) | 实际消费者检查结果和接入命令 |
 
-入口导航只表示所检查的函数位置，不表示实现支持，也不作为数值参数映射。不确定映射不会传给当前求解器：它无法表达的文本范围可能被当作无约束条件，直接传入会误判 `in_scope`。
+上表文件结构适用于两包；表中链接以 SparTA 为例，FlexPrefill 对应文件位于其交接目录。
+
+入口导航只表示所检查的函数位置，不表示实现支持，也不作为数值参数映射。只有作者明确支持的数值域及确定的标量映射可激活求解器；实验专用数值域不能用于排除未测试输入。不确定映射不会传给当前求解器：它无法表达的文本范围可能被当作无约束条件，直接传入会误判 `in_scope`。
 
 共享 `Verification` 的五类标签回答的是另一种匹配问题，因此没有机械重命名我们的三类判断。Wanting 可先使用原生论文接口，再通过 `conformance.json` 的 ID 和证据整合静态差异。
 
@@ -172,6 +179,6 @@ SparTA 专用的 `prepare_sparta_delivery.py`、`review_sparta_interface.py` 依
 
 ## 仓库中保留什么
 
-入库内容包括实现、测试、配置和版本清单、Pi 源码及 lockfile、轻量 SparTA 交接记录。分发清单见 [`source-distribution.json`](handoffs/paper-side-v1/sparta/source-distribution.json)。
+入库内容包括实现、测试、配置和版本清单、Pi 源码及 lockfile、轻量 SparTA 与 FlexPrefill 交接记录。分发清单分别见 [SparTA](handoffs/paper-side-v1/sparta/source-distribution.json) 和 [FlexPrefill](handoffs/paper-side-v1/flexprefill/source-distribution.json)。
 
 原 PDF、目标仓库、原始 API 日志、`node_modules`、密钥、ZIP 和大型 HTML 看板留在本地证据包。归档中的绝对路径描述原始运行位置，不是其他机器上的有效链接。早期工作流说明保存在 [`README.legacy.md`](README.legacy.md)，当前交付状态以本页和交接包为准。

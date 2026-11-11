@@ -9,12 +9,18 @@ from codeside.verify3b import load_paper_side
 from codeside.scope_check import ScopeChecker
 
 def numeric_scope(s):
- return s['kind']=='interval' and (s.get('lower') is not None or s.get('upper') is not None) or s['kind']=='set' and bool(s.get('values')) and all(type(v) in [int,float] for v in s['values'])
+ return (s.get('explicit') is True) and ((s['kind']=='interval' and (s.get('lower') is not None or s.get('upper') is not None)) or (s['kind']=='set' and bool(s.get('values')) and all(type(v) in [int,float] for v in s['values'])))
 
 def finish(folder):
  manifest=read_json(folder/'manifest.json');data=read_json(folder/'paper_side.json')
  adjustments=read_json(folder/'review-adjustments.json') if (folder/'review-adjustments.json').exists() else {}
  pending=read_json(folder/'pending_records.json')
+ for action in adjustments.get('scope_replacements',[]):
+  old=next((r for r in data['scope'] if r['scope_id']==action['original_id']),None)
+  if old is not None and action.get('hold_original') and not any(r.get('review_action_id')==action['original_id'] for r in pending):
+   pending.append(dict(field='scope',row=old,review_action_id=action['original_id'],reason=action['reason']))
+  ids={r['scope_id'] for r in action['records']}|{action['original_id']}
+  data['scope']=[r for r in data['scope'] if r['scope_id'] not in ids]+action['records']
  for action in adjustments.get('evaluation_replacements',[]):
   old=next((r for r in data['eval_points'] if r['eval_id']==action['original_id']),None)
   if old is not None and action.get('hold_original') and not any(r.get('review_action_id')==action['original_id'] for r in pending):
@@ -51,7 +57,7 @@ def finish(folder):
  aid=manifest['artifact']['artifact_id'];probe=[]
  for row in read_json(TEAM/'results/pipeline'/aid/'limitations.json'):
   lim=Limitation.model_validate(row);v=checker.check(lim.condition);probe.append(dict(limitation_id=lim.limitation_id,scope_status=v.scope_status,evaluated_in_paper=v.evaluated_in_paper,reason=v.reason))
- validation=read_json(folder/'validation.json');validation.update(pending_paper_records=len(pending),pending_claim_records=sum(r.get('field')=='claims' for r in pending),held_evaluation_records=sum(r.get('field')=='eval_points' for r in pending),counts={k:len(v) for k,v in data.items()},active_solver_bindings=len(selected),navigation_bindings=len(navigation),inactive_bindings=len(inactive),wanting_existing_conditions=probe,solver_guard='Only numeric literal sets or bounded intervals and certain scalar bindings activated; actual consumer otherwise treats free_text as unconstrained.')
+ validation=read_json(folder/'validation.json');validation.update(pending_paper_records=len(pending),pending_claim_records=sum(r.get('field')=='claims' for r in pending),held_evaluation_records=sum(r.get('field')=='eval_points' for r in pending),held_scope_records=sum(r.get('field')=='scope' for r in pending),counts={k:len(v) for k,v in data.items()},active_solver_bindings=len(selected),navigation_bindings=len(navigation),inactive_bindings=len(inactive),wanting_existing_conditions=probe,solver_guard='Only author-explicit numeric literal sets/bounded intervals and certain scalar bindings activated. Evaluation-only sets cannot exclude other inputs; actual consumer otherwise treats free_text as unconstrained.')
  write_json(folder/'validation.json',validation)
  evidence=folder/'evidence';evidence.mkdir(exist_ok=True);pdf=TEAM/'third_party/papers'/f'{aid}.pdf';shutil.copyfile(pdf,evidence/'paper.pdf')
  work=Path(manifest['work']);calls=evidence/'interface-calls';calls.mkdir(exist_ok=True)
