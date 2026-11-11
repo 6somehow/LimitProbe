@@ -5,7 +5,7 @@ import textwrap
 
 import pytest
 
-from checklimits.tracer import ChainFn, TargetSpec, Tracer, classify_target
+from checklimits.tracer import ChainFn, MonitoringTracer, SettraceTracer, TargetSpec, classify_target
 
 SRC = textwrap.dedent('''
     def f(x):
@@ -20,6 +20,12 @@ SRC = textwrap.dedent('''
         assert y < 100, "too big"
         return y
 ''')
+
+
+@pytest.fixture(params=["monitoring", "settrace"])
+def Tracer(request):
+    """Both back-ends must give identical results (the settrace one is used on Python 3.11)."""
+    return MonitoringTracer if request.param == "monitoring" else SettraceTracer
 
 
 @pytest.fixture
@@ -38,7 +44,7 @@ def line_of(text):
     return next(i for i, l in enumerate(SRC.splitlines(), 1) if text in l)
 
 
-def trace(tmp, m, line, arg, expr=None):
+def trace(Tracer, tmp, m, line, arg, expr=None):
     kind, body = classify_target(tmp, "mod_under_trace.py", line)
     t = Tracer(tmp, [ChainFn("mod_under_trace.py", "f")], TargetSpec("mod_under_trace.py", line, "f", kind, body, expr))
     t.start()
@@ -51,27 +57,27 @@ def trace(tmp, m, line, arg, expr=None):
     return kind, t.result()
 
 
-def test_if_outcomes(mod):
+def test_if_outcomes(Tracer, mod):
     tmp, m = mod
     ln = line_of("if x > 3")
-    kind, r = trace(tmp, m, ln, 5, "x > 3")
+    kind, r = trace(Tracer, tmp, m, ln, 5, "x > 3")
     assert kind == "if" and [h["outcome"] for h in r["target_hits"]] == ["true"]
     assert r["target_hits"][0]["condition_value"] is True
-    _, r = trace(tmp, m, ln, 1, "x > 3")
+    _, r = trace(Tracer, tmp, m, ln, 1, "x > 3")
     assert [h["outcome"] for h in r["target_hits"]] == ["false"]
     assert r["target_hits"][0]["condition_value"] is False
 
 
-def test_assert_outcomes(mod):
+def test_assert_outcomes(Tracer, mod):
     tmp, m = mod
     ln = line_of("assert y < 100")
-    kind, r = trace(tmp, m, ln, 5)
+    kind, r = trace(Tracer, tmp, m, ln, 5)
     assert kind == "assert" and [h["outcome"] for h in r["target_hits"]] == ["true"]
-    _, r = trace(tmp, m, ln, 500)
+    _, r = trace(Tracer, tmp, m, ln, 500)
     assert [h["outcome"] for h in r["target_hits"]] == ["false"]
 
 
-def test_assert_as_last_statement_resolves_on_return(tmp_path):
+def test_assert_as_last_statement_resolves_on_return(Tracer, tmp_path):
     p = tmp_path / "m2.py"
     p.write_text("def g(x):\n    assert x\n")
     spec = importlib.util.spec_from_file_location("m2", p)
@@ -86,22 +92,22 @@ def test_assert_as_last_statement_resolves_on_return(tmp_path):
     assert [h["outcome"] for h in t.result()["target_hits"]] == ["true"]
 
 
-def test_loop_line_hit_counts_and_coverage(mod):
+def test_loop_line_hit_counts_and_coverage(Tracer, mod):
     tmp, m = mod
     ln = line_of("y += i")
-    kind, r = trace(tmp, m, ln, 1)
+    kind, r = trace(Tracer, tmp, m, ln, 1)
     assert kind == "other" and len(r["target_hits"]) == 2
     assert ln in r["lines"]["f"] and line_of("y += 1") not in r["lines"]["f"]  # else-branch only
 
 
-def test_condition_not_evaluable_is_recorded_not_raised(mod):
+def test_condition_not_evaluable_is_recorded_not_raised(Tracer, mod):
     tmp, m = mod
-    _, r = trace(tmp, m, line_of("if x > 3"), 5, "undefined_name > 3")
+    _, r = trace(Tracer, tmp, m, line_of("if x > 3"), 5, "undefined_name > 3")
     h = r["target_hits"][0]
     assert h["condition_value"] is None and "NameError" in h["condition_error"]
 
 
-def test_predicate_callable_is_used(mod):
+def test_predicate_callable_is_used(Tracer, mod):
     tmp, m = mod
     kind, body = classify_target(tmp, "mod_under_trace.py", line_of("if x > 3"))
     t = Tracer(tmp, [ChainFn("mod_under_trace.py", "f")],
@@ -114,7 +120,10 @@ def test_predicate_callable_is_used(mod):
     assert t.result()["target_hits"][0]["condition_value"] is True
 
 
-def test_tracer_releases_the_tool_slot(mod):
+def test_tracer_releases_the_tool_slot(Tracer, mod):
     tmp, m = mod
-    trace(tmp, m, line_of("if x > 3"), 5)
-    assert sys.monitoring.get_tool(sys.monitoring.PROFILER_ID) is None
+    trace(Tracer, tmp, m, line_of("if x > 3"), 5)
+    if Tracer is MonitoringTracer:
+        assert sys.monitoring.get_tool(sys.monitoring.PROFILER_ID) is None
+    else:
+        assert sys.gettrace() is None
