@@ -15,21 +15,24 @@ from .models import PROJECT_ROOT
 
 
 def cmd_run(a: argparse.Namespace) -> int:
-    from .harness import run_attempt, write_outputs
+    from .harness import RunOptions, run_attempt, write_outputs
 
     attempt = Path(a.attempt)
-    result = run_attempt(attempt, probe=not a.no_probe)
+    opts = RunOptions.fast() if a.fast else RunOptions(repeats=a.repeats)
+    result = run_attempt(attempt, options=opts)
     report = result["report"]
     out_dir = Path(a.out) if a.out else PROJECT_ROOT / "results" / report.artifact_id
     paths = write_outputs(result, out_dir, PROJECT_ROOT / "runs" / report.artifact_id)
-    sc = report.scorecard
+    c = report.confidence
     print(json.dumps({
         "test_id": report.test_id, "finding_id": report.finding_id,
         "verdict": report.verdict, "final_verdict": report.final_verdict, "exec_result": report.exec_result,
         "target_reached": report.positive.target_reached,
         "positive": report.positive.observed_text, "negative": report.negative.observed_text,
-        "dims": sc.dims, "gates": sc.gates, "total": sc.total, "form_integrity": sc.form_integrity,
-        "final": sc.final, "level": sc.level, "outputs": {k: str(v) for k, v in paths.items()},
+        "level": c.level, "level_note": c.level_note, "calibrated": c.calibrated,
+        "defeaters": {d.id: d.status for d in c.defeaters},
+        "next_steps": c.next_steps, "form_integrity": report.audit.rate,
+        "outputs": {k: str(v) for k, v in paths.items()},
     }, indent=1))
     return 0
 
@@ -45,7 +48,8 @@ def main(argv: list[str] | None = None) -> int:
     r = sub.add_parser("run", help="run an attempt package and write report + testcase")
     r.add_argument("--attempt", required=True, help="attempt directory")
     r.add_argument("--out", help="output directory (default: results/<artifact_id>)")
-    r.add_argument("--no-probe", action="store_true", help="skip the untraced runs (probe-effect check)")
+    r.add_argument("--fast", action="store_true", help="main pair only; every optional defeater stays open")
+    r.add_argument("--repeats", type=int, help="independent runs for D8 (default: profile n_rep)")
     r.set_defaults(fn=cmd_run)
     rl = sub.add_parser("relay", help="start the SoCLaaS relay (needs SOCLAAS_* in the environment)")
     rl.add_argument("--port", type=int, default=8787)

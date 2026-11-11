@@ -3,7 +3,7 @@
 Four groups:
   AttemptManifest  what the harness needs to run an attempt package
   AgentForm        the table the code agent fills in (SCORECARD section 6)
-  Scorecard        dimension scores, gates, final score and level (SCORECARD sections 3-5)
+  Confidence       defeater table and level (CONFIDENCE_SPEC.md; replaces the numeric Scorecard)
   ExecutionReport  the sidecar report written by the harness
 
 `schema.models.TestCase` (shared, read-only) is produced by `make_testcase`.
@@ -18,6 +18,8 @@ from pathlib import Path
 from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from .profile import Profile
 
 REPORT_VERSION = "0.1.0"
 PIPELINE_ROOT = Path(__file__).resolve().parents[2]  # .../cs6223-limitation-pipeline
@@ -104,6 +106,7 @@ class HookDecl(_R):
 
 class Execution(_R):
     entry_called: str = Field(description="'file::function' of the function the driver calls")
+    entry_reason: Optional[str] = Field(None, description="T4: why a function deeper than the official entry is called")
     call_chain_index: Optional[int] = None
     repo_files_modified: list[str] = Field(default_factory=list)
     mocks: list[MockDecl] = Field(default_factory=list)
@@ -187,7 +190,7 @@ class Observation(_R):
     """What one run showed, after the harness interpreted the trace."""
     role: Literal["positive", "negative"]
     inputs: dict[str, Any]
-    status: Literal["ok", "exception", "timeout", "crash", "load_error"]
+    status: Literal["ok", "exception", "timeout", "crash", "load_error", "probe_stop"]
     exception: Optional[ExceptionInfo] = None
     target_reached: bool = False
     target_hits: list[TargetHit] = Field(default_factory=list)
@@ -206,6 +209,7 @@ class Observation(_R):
 class MockRecord(_R):
     symbol: str
     kind: str
+    sim_class: str = "stub"
     on_path: bool
     accesses_before_target: int
     accesses_total: int
@@ -230,43 +234,98 @@ class Fidelity(_R):
     call_chain_len: int
     probe_effect_free: bool
     probe_note: str = ""
-    s_mod: float
-    s_mock: float
-    s_entry: float
-    s_probe: float
+
+
+EvidenceState = Literal["direct", "simulated:reference", "simulated:fake", "simulated:stub"]
+
+
+class InfoItem(_R):
+    """One observation, with the stand-ins in its causal past (CONFIDENCE_SPEC.md section 5).
+
+    direct               no stand-in was touched before the observation was produced
+    simulated:reference  only stand-ins that call a reference implementation shipped in the repository
+    simulated:fake       a stand-in with real computation written for the test
+    simulated:stub       a stand-in that returns a canned value
+    Only verdict_bearing observations decide the verdict; the others are supplementary."""
+    statement: str
+    run: Literal["positive", "negative"]
+    verdict_bearing: bool
+    depends_on_mocks: list[str] = Field(default_factory=list)
+    evidence_state: EvidenceState
+    basis: str
+
+
+class BvaProbe(_R):
+    label: str
+    inputs: dict[str, Any]
+    effect: Optional[bool]
+    note: str = ""
+
+
+class BvaResult(_R):
+    """Harness-run boundary value analysis (domain testing ON/OFF points) at full witness scale."""
+    applicable: bool
+    boundary_variable: str
+    full_scale_positive: Optional[bool] = None
+    full_scale_negative: Optional[bool] = None
+    neighbours: list[BvaProbe] = Field(default_factory=list)
+    adjacent: Optional[bool] = Field(None, description="the negative input has a neighbour at distance probe_step with the effect")
+    pattern: str = ""
+    note: str = ""
+
+
+class MutantResult(_R):
+    operator: str
+    line: int
+    original: str
+    mutated: str
+    killed: bool
+    verdict_after: str
 
 
 class MutationResult(_R):
     generated: int
     killed: int
+    wilson_lower: float
+    mutants: list[MutantResult] = Field(default_factory=list)
+    note: str = ""
+
+
+class RepeatResult(_R):
+    runs: int
+    identical: bool
+    distinct_hashes: int
+    flake_bound: float = Field(description="approximate 95 % upper bound on the flake probability, 3/runs")
+    trace_hash: str
 
 
 class ReplayResult(_R):
     ok: bool
-
-
-class InfoItem(_R):
-    """One piece of information the run produced, with the confidence the harness gives it.
-
-    confidence = product of SIM_WEIGHT[sim_class] over every mock touched before the information
-    was produced, times the scale weight. 1.0 means no stand-in sits between the repository code
-    and the observation. The weights are initial values (see fidelity.py), not calibrated."""
-    statement: str
-    run: Literal["positive", "negative"]
-    depends_on_mocks: list[str] = Field(default_factory=list)
-    scale_weight: float = 1.0
-    confidence: float
-    basis: str
+    detail: str
 
 
 class Checks(_R):
     controls_differ: bool
     differing_factors: list[str]
-    boundary_adjacent: Optional[bool]
+    bva: Optional[BvaResult] = Field(None, description="None = not run")
     mutation: Optional[MutationResult] = Field(None, description="None = not run")
+    repeat: Optional[RepeatResult] = Field(None, description="None = not run")
     replay: Optional[ReplayResult] = Field(None, description="None = not run")
-    runs: int = 1
-    consistent_runs: int = 1
+
+
+DefStatus = Literal["eliminated", "residual", "open", "refuted"]
+Severity = Literal["fatal", "important", "note"]
+Level = Literal["invalid", "L0", "L1", "L2", "L3", "n/a"]
+
+
+class DefeaterResult(_R):
+    id: str
+    name: str
+    concept: str
+    severity: Severity
+    status: DefStatus
+    evidence: str
+    measured: dict[str, Any] = Field(default_factory=dict)
 
 
 class AuditItem(_R):
@@ -295,45 +354,13 @@ class OracleRecord(_R):
     revisions_after_first_run: int
 
 
-class EvidenceRecord(_R):
-    """Harness-verified measurements fed into scoring.py (mirrors scoring_prototype.Evidence)."""
-    target_reached: bool
-    decision_outcomes: int
-    cond_true_on_positive: Optional[bool]
-    cond_false_on_negative: Optional[bool]
-    condition_translated: bool
-    oracle_tier: Tier
-    preregistered: bool
-    oracle_revisions_after_first_run: int
-    controls_differ: bool
-    differing_factors: int
-    boundary_adjacent: Optional[bool]
-    mutants_generated: Optional[int]
-    mutants_killed: Optional[int]
-    critical_modification: bool
-    modified_stmt_ratio: float
-    mocks_on_path: int
-    mocks_off_path: int
-    entry_index: Optional[int]
-    call_chain_len: int
-    probe_effect_free: bool
-    replay_ok: Optional[bool] = Field(None, description="None = replay not run")
-    runs: int
-    consistent_runs: int
-    declared_checks: int
-    matched_checks: int
-    verdict: Verdict
-
-
-class Scorecard(_R):
-    dims: dict[str, float]
-    gates: dict[str, Optional[bool]] = Field(description="True pass, False fail, None not evaluated")
-    gates_not_run: list[str] = Field(default_factory=list)
-    total: float
-    form_integrity: float
-    final: float
-    level: Literal["high", "medium", "low"]
+class Confidence(_R):
+    profile: Profile
+    defeaters: list[DefeaterResult]
+    level: Level
     level_note: str = ""
+    calibrated: bool = Field(False, description="True once the level has been checked against fault-injection ground truth")
+    next_steps: list[str] = Field(default_factory=list, description="what would remove the open / residual / refuted defeaters")
 
 
 class Env(_R):
@@ -356,7 +383,7 @@ class ExecutionReport(_R):
     artifact_id: str
     region_id: str
     verdict: Verdict = Field(description="from the SCORECARD 3.5 table, before gates")
-    final_verdict: Verdict = Field(description="after gates: any failed gate forces inconclusive")
+    final_verdict: Verdict = Field(description="after the defeater rules: a refuted fatal defeater forces inconclusive")
     exec_result: ExecResultName
     verdict_reason: str
     strategy: Strategy
@@ -367,8 +394,7 @@ class ExecutionReport(_R):
     fidelity: Fidelity
     audit: AuditResult
     information: list[InfoItem] = Field(default_factory=list)
-    evidence: EvidenceRecord
-    scorecard: Scorecard
+    confidence: Confidence
     finding_confidence: Optional[str] = Field(None, description="upstream Finding.confidence, reported separately")
     env: Env
     cost: Cost = Field(default_factory=Cost)
@@ -406,8 +432,8 @@ def make_testcase(report: ExecutionReport, form: AgentForm, manifest: AttemptMan
     from schema.models import ExecEnv, ExecResult, OracleType, TestCase, WitnessType
 
     executable_on = ExecEnv.cpu_mock if form.execution.mocks else ExecEnv.cpu
-    notes = (f"verdict={report.verdict} final_verdict={report.final_verdict} level={report.scorecard.level} "
-             f"final={report.scorecard.final}; {report.verdict_reason}")
+    notes = (f"verdict={report.verdict} final_verdict={report.final_verdict} "
+             f"confidence={report.confidence.level} (uncalibrated); {report.verdict_reason}")
     return TestCase(
         test_id=report.test_id,
         finding_id=report.finding_id,
