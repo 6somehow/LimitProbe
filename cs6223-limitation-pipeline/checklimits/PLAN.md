@@ -160,3 +160,4 @@ cs6223-limitation-pipeline/checklimits/
 | 7 | `TestCase.inputs` 格式（`role` 键）与 `result_notes` | 确认 | 保持现状 |
 
 | 8 | 置信度方案（2026-11-11 晚第二轮） | 四项均批准：放弃数值最终分；档位定义和 profile 初始值；判定只依赖 direct 的观察；先改 harness，再写 agent skill 与 workflow | 已实现，见 `CONFIDENCE_SPEC.md` §11。下一步：agent skill、workflow 与缺陷清单回环；故障注入基准与校准 |
+| 9 | 合并 `wanting/step4-findings`（2026-11-11 晚） | 用户要求检查、合并并继续开发 | 已合并（无冲突）；适配 schema 0.2.0（类别改名）和 witness-v2（trigger/contrast）；`adapter.py` 可直接读 `results/step4/<artifact>/limitations_for_tests.json`，并从 Limitation 构造 Region（step 4 不产出 Region，调用链只有"入口函数 + 所在函数"）。65 条 FlexPrefill Finding 全部能加载，其中 23 条是当前 harness 能测的（代码侧、`reject`、witness 为 solved 的输入对）。agent 层已完成，见 `AGENT_RESULTS.md` |

@@ -69,7 +69,7 @@ class SessionStats:
 # and the git history (which contains all of those). The first agent run found and copied the hand-written
 # F07 driver, so its result was thrown away (scratch/agent_runs/INVALID-*).
 HIDE_PATHS_DIRS = [PROJECT_ROOT / d for d in ("attempts", "results", "locks", "runs", "tests", "scripts", "scratch")] + \
-                  [PIPELINE_ROOT.parent / ".git", PIPELINE_ROOT / "results"]
+                  [PIPELINE_ROOT.parent / ".git"]     # PIPELINE_ROOT/results stays visible: it holds the step 4 inputs
 HIDE_PATHS_FILES = [PROJECT_ROOT / f for f in ("PLAN.md", "KICKOFF_PROMPT.md", "ENV.md", "scoring_prototype.py")]
 SCRATCH_KEEP_RO = ["venv311", "opencode"]     # interpreter for the code under test, and the agent runtime itself
 
@@ -101,7 +101,8 @@ def agent_env(run_dir: Path) -> dict[str, str]:
     }
 
 
-def build_prompt(finding: str, run_dir: Path, feedback: Optional[str] = None) -> str:
+def build_prompt(finding: str, run_dir: Path, feedback: Optional[str] = None,
+                 findings_file: Optional[str] = None) -> str:
     attempt = run_dir / "workspace" / "attempt"
     out = run_dir / "out"
     if feedback:
@@ -112,7 +113,9 @@ def build_prompt(finding: str, run_dir: Path, feedback: Optional[str] = None) ->
     return (INSTRUCTIONS.read_text() + f"\n\n---\n\n# Your assignment\n\nVerify finding **{finding}**.\n\n"
             f"* `CL` = `{CL}` (use this exact path).\n* Your attempt directory: `{attempt}` (create it with `init`).\n"
             f"* Output directory for reports: `{out}`.\n* Everything else on disk is read-only.\n"
-            f"Start with `{CL} task {finding}`.")
+            + (f"* Input source: the step 4 hand-off. Pass `--findings-file {findings_file}` to `task` and `init`.\n"
+               if findings_file else "")
+            + f"Start with `{CL} task {finding}" + (f" --findings-file {findings_file}" if findings_file else "") + "`.")
 
 
 def _kill(proc: subprocess.Popen) -> None:
@@ -215,7 +218,7 @@ def authoritative_run(run_dir: Path, options: RunOptions) -> dict[str, Any]:
 
 
 def run_agent(finding: str, run_id: str, budget: Budget = Budget(), options: Optional[RunOptions] = None,
-              target_level: str = "L3") -> dict[str, Any]:
+              target_level: str = "L3", findings_file: Optional[str] = None) -> dict[str, Any]:
     options = options or RunOptions()
     run_dir = prepare_run(finding, run_id)
     sessions: list[SessionStats] = []
@@ -224,7 +227,7 @@ def run_agent(finding: str, run_id: str, budget: Budget = Budget(), options: Opt
     auth: Optional[dict[str, Any]] = None
     t0 = time.monotonic()
     for i in range(budget.sessions):
-        st = run_session(run_dir, build_prompt(finding, run_dir, feedback), budget, session_id, f"events_{i}.jsonl")
+        st = run_session(run_dir, build_prompt(finding, run_dir, feedback, findings_file), budget, session_id, f"events_{i}.jsonl")
         sessions.append(st)
         session_id = st.session_id
         if not (run_dir / "workspace" / "attempt" / "manifest.json").exists():
