@@ -1,0 +1,365 @@
+{
+  "sparta": {
+    "commit": "1f61a363b128b6eeedd064f34ba59b3e5492dc27",
+    "pdf_sha256": "dee06b8df674fcc7c3f9114c8d95ef6fb027d69fc5e9b6d190847b307bef2dd8",
+    "claims": [
+      {
+        "mechanism": "TeSA propagation",
+        "statement": "Algorithm propagates TeSA attributes across the graph using a worklist.",
+        "kind": "capability",
+        "evidence": [
+          {
+            "page": 5,
+            "quote": "Function Propagate(G):"
+          }
+        ]
+      }
+    ],
+    "scope": [],
+    "eval_points": [
+      {
+        "config": {
+          "model": "MobileNet",
+          "initial_sparsity_ratio": 0.5
+        },
+        "evidence": [
+          {
+            "page": 12,
+            "quote": "tested three sparsity ratios (i.e., 50%, 70%, 90%)"
+          }
+        ]
+      },
+      {
+        "config": {
+          "model": "MobileNet",
+          "initial_sparsity_ratio": 0.7
+        },
+        "evidence": [
+          {
+            "page": 12,
+            "quote": "tested three sparsity ratios (i.e., 50%, 70%, 90%)"
+          }
+        ]
+      },
+      {
+        "config": {
+          "model": "MobileNet",
+          "initial_sparsity_ratio": 0.9
+        },
+        "evidence": [
+          {
+            "page": 12,
+            "quote": "tested three sparsity ratios (i.e., 50%, 70%, 90%)"
+          }
+        ]
+      }
+    ],
+    "cases": [
+      {
+        "condition_text": "Calling the pinned artifact public propagate_sparsity entry",
+        "effect_text": "Entry returns extracted pre-sparsity without performing the paper worklist propagation",
+        "level": "L2",
+        "result": "boundary_mismatch",
+        "rationale": "Only this entry and caller are matched. MobileNet scripts follow other paths, including NNI ModelSpeedup; the stub cannot establish absence of propagation across the artifact.",
+        "code": [
+          [
+            "sparta/propagation/propagate.py",
+            26,
+            30,
+            "post_sparsity = pre_sparsity"
+          ],
+          [
+            "sparta/core/sparta.py",
+            16,
+            23,
+            "propagate_sparsity(self.model)"
+          ],
+          [
+            "script/checkpoints/mobilenet/mobilenet_propagate_finegrained.py",
+            9,
+            14,
+            "ms.speedup_model()"
+          ]
+        ],
+        "effect_type": "other",
+        "evidence": [
+          {
+            "page": 5,
+            "quote": "Function Propagate(G):"
+          }
+        ]
+      }
+    ]
+  },
+  "minference": {
+    "commit": "427b1ddbd285577f0bed896b61231dc3137c848c",
+    "pdf_sha256": "b061e544a499c1e1abc292c9c996e21c5bfedbc6514703bcfca554ca7f5fe50a",
+    "claims": [
+      {
+        "mechanism": "Dynamic index cost",
+        "statement": "Index construction becomes proportionally more expensive at shorter sequence lengths.",
+        "kind": "performance",
+        "evidence": [
+          {
+            "page": 17,
+            "quote": "As the context length decreases"
+          }
+        ]
+      }
+    ],
+    "scope": [],
+    "eval_points": [
+      {
+        "config": {
+          "context_length_tokens": 10000
+        },
+        "evidence": [
+          {
+            "page": 17,
+            "quote": "with a 10k context"
+          }
+        ]
+      }
+    ],
+    "cases": [
+      {
+        "condition_text": "Shorter prefill lengths, with the paper workload fixed",
+        "effect_text": "Dynamic index overhead can erode the reported speedup",
+        "level": "L1",
+        "result": "unresolved",
+        "rationale": "Pinned source computes sparse indices; code alone does not establish the latency curve. The single-query dense branch is a decode control, not the 10k prefill performance crossover.",
+        "code": [
+          [
+            "minference/modules/minference_forward.py",
+            397,
+            419,
+            "if q_len == 1:"
+          ]
+        ],
+        "effect_type": "performance",
+        "evidence": [
+          {
+            "page": 17,
+            "quote": "As the context length decreases"
+          }
+        ]
+      }
+    ]
+  },
+  "nnsmith": {
+    "commit": "a8307f2b8043eb64b413a9b68ba2e6a2646cae8a",
+    "pdf_sha256": "0e297c1b5859fcd7b90b8cb2f741ed3a89b90f2aac81c64c3eeff0ea50082f41",
+    "claims": [
+      {
+        "mechanism": "Gradient-guided search",
+        "statement": "Stop once a graph run has no floating-point exceptional values.",
+        "kind": "capability",
+        "evidence": [
+          {
+            "page": 6,
+            "quote": "The algorithm terminates when no FP exceptional values are found."
+          }
+        ]
+      }
+    ],
+    "scope": [],
+    "eval_points": [
+      {
+        "config": {
+          "model_nodes": 10,
+          "models_per_group": 512
+        },
+        "evidence": [
+          {
+            "page": 10,
+            "quote": "512 models of 10, 20 and 30 nodes respectively."
+          }
+        ]
+      },
+      {
+        "config": {
+          "model_nodes": 20,
+          "models_per_group": 512
+        },
+        "evidence": [
+          {
+            "page": 10,
+            "quote": "512 models of 10, 20 and 30 nodes respectively."
+          }
+        ]
+      },
+      {
+        "config": {
+          "model_nodes": 30,
+          "models_per_group": 512
+        },
+        "evidence": [
+          {
+            "page": 10,
+            "quote": "512 models of 10, 20 and 30 nodes respectively."
+          }
+        ]
+      }
+    ],
+    "cases": [
+      {
+        "condition_text": "A search attempt returns a successful set of inputs",
+        "effect_text": "The outer search returns the first successful set, without gathering several successes",
+        "level": "L3",
+        "result": "found",
+        "rationale": "The early-exit mechanism is present at this pinned version. Its effect on value diversity is a separate untested hypothesis, and zero loss does not imply zero sqrt output.",
+        "code": [
+          [
+            "nnsmith/materialize/torch/input_gen.py",
+            56,
+            62,
+            "if res is not None:"
+          ]
+        ],
+        "effect_type": "other",
+        "evidence": [
+          {
+            "page": 6,
+            "quote": "The algorithm terminates when no FP exceptional values are found."
+          }
+        ]
+      }
+    ]
+  },
+  "infinigen": {
+    "commit": "3754f52d131c30ab7a310e3c4cf356e8e3326ac3",
+    "pdf_sha256": "638e3f536447ce7fbfed1b485654620629a4e34fbd250db74018b8a880c4f029",
+    "claims": [
+      {
+        "mechanism": "Orthogonal skewing",
+        "statement": "The full dot product is preserved under paired orthogonal transforms.",
+        "kind": "guarantee",
+        "evidence": [
+          {
+            "page": 8,
+            "quote": "with the same orthogonal matrix A."
+          }
+        ]
+      }
+    ],
+    "scope": [],
+    "eval_points": [
+      {
+        "config": {
+          "model_family": "OPT",
+          "partial_weight_ratio": 0.3,
+          "alpha": 4
+        },
+        "evidence": [
+          {
+            "page": 10,
+            "quote": "set to 0.3. We set alpha to 4 for OPT and 5 for Llama-2"
+          }
+        ]
+      },
+      {
+        "config": {
+          "model_family": "Llama-2",
+          "partial_weight_ratio": 0.3,
+          "alpha": 5
+        },
+        "evidence": [
+          {
+            "page": 10,
+            "quote": "set to 0.3. We set alpha to 4 for OPT and 5 for Llama-2"
+          }
+        ]
+      }
+    ],
+    "cases": [
+      {
+        "condition_text": "Adapt the checked LLaMA path to Hq > Hkv",
+        "effect_text": "Current projection construction uses the same head count for Q and K",
+        "level": "L3",
+        "result": "weaker",
+        "rationale": "The source supports the equal-head premise on this path. It does not show that GQA is intrinsically incompatible or that KV duplication is necessary.",
+        "code": [
+          [
+            "accuracy/src/modeling_llama_ours.py",
+            163,
+            178,
+            "self.k_proj = nn.Linear"
+          ]
+        ],
+        "effect_type": "other",
+        "evidence": [
+          {
+            "page": 8,
+            "quote": "with the same orthogonal matrix A."
+          }
+        ]
+      }
+    ]
+  },
+  "flexprefill": {
+    "commit": "a24b27bf117fd6ad4ba34b0db82c598e7786fd59",
+    "pdf_sha256": "d2240298d13ad238d6a0f8c9332dc65321cbcd269f9cca2ebb32d1858063ffe2",
+    "claims": [
+      {
+        "mechanism": "Query-aware pattern selection",
+        "statement": "Algorithm chooses query-specific attention below the divergence threshold.",
+        "kind": "capability",
+        "evidence": [
+          {
+            "page": 6,
+            "quote": "ifdJ S<τ then pattern← query_specific"
+          }
+        ]
+      }
+    ],
+    "scope": [],
+    "eval_points": [
+      {
+        "config": {
+          "block_size": 64
+        },
+        "evidence": [
+          {
+            "page": 22,
+            "quote": "comparing block sizes of 64 and 128."
+          }
+        ]
+      },
+      {
+        "config": {
+          "block_size": 128
+        },
+        "evidence": [
+          {
+            "page": 22,
+            "quote": "comparing block sizes of 64 and 128."
+          }
+        ]
+      }
+    ],
+    "cases": [
+      {
+        "condition_text": "Small cumulative attention budget (gamma)",
+        "effect_text": "Minimum budget can improve reported task quality",
+        "level": "L1",
+        "result": "weaker",
+        "rationale": "The code floors the budget and has a short-prefill dense path. Static code supports the mechanism only, not its quality effect.",
+        "code": [
+          [
+            "flex_prefill/ops/flex_prefill_attention.py",
+            1836,
+            1849,
+            "min_budget = 1"
+          ]
+        ],
+        "effect_type": "accuracy",
+        "evidence": [
+          {
+            "page": 24,
+            "quote": "minimum budget threshold significantly enhances the model’s performance"
+          }
+        ]
+      }
+    ]
+  }
+}

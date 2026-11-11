@@ -1,0 +1,505 @@
+{
+  "schema_version": "paper-limitations/1",
+  "annotation_mode": "AI-assisted development drafts; not independent human ground truth",
+  "records": [
+    {
+      "id": "sparta-propagation-regime",
+      "paper_id": "sparta",
+      "title": "传播收益依赖稀疏结构及初始稀疏率",
+      "statement": "论文在 MobileNet 的评测中报告非结构化稀疏的传播能力较低；高初始稀疏率才有明显增长。50/70/90% 是评测点，不是系统合法输入范围。",
+      "kind": "evaluation",
+      "level": 1,
+      "origin": "proposal Level 1 + primary-paper Section 5.2",
+      "scope": "限于图14对应 MobileNet、剪枝方式及传播过程；不推广成所有模型的阈值规律。",
+      "assessment": "paper_reported",
+      "paper_evidence": [
+        {
+          "page": 12,
+          "quote": "The propagation abil-",
+          "sha256": "63a7afca363d4519413ac0030e789b4cef88faff1c769e9ab3fd6d255cce4dd4",
+          "paper_sha256": "dee06b8df674fcc7c3f9114c8d95ef6fb027d69fc5e9b6d190847b307bef2dd8",
+          "role": "support",
+          "locator": "§5.2 / Fig.14"
+        },
+        {
+          "page": 12,
+          "quote": "Only high sparsity ratio",
+          "sha256": "d12f50820e0f04a862fcc03a5e8e8806cefca9a6590d77f932a139c699882058",
+          "paper_sha256": "dee06b8df674fcc7c3f9114c8d95ef6fb027d69fc5e9b6d190847b307bef2dd8",
+          "role": "support",
+          "locator": "§5.2"
+        }
+      ],
+      "code_evidence": [],
+      "alignment": {
+        "relation": "paper_only_located",
+        "rationale": "当前独立仓库的已检查组件主要是 TeSA 与 sparse-kernel specialization；尚未定位论文 Rammer 编译传播 pass，不能用普通 block mask 转换替代该 pass。",
+        "search_limitations": "检索范围：当前 pin 的 sparta/ 与 README；未检查所有历史分支、Rammer 外部 artifact，未定位不代表不存在。"
+      },
+      "handoff": {
+        "variable": "结构化/非结构化掩码 × 初始稀疏率（先用论文评测点）",
+        "controls": "同模型、层尺寸、剪枝方式及随机种子；独立记录不同结构",
+        "observables": "各层传播前后零元素比例、总传播增益、输出一致性",
+        "comparison": "对每个稀疏率比较有/无传播；结构化和非结构化分组",
+        "oracle_basis": "传播保持语义是正确性关系；传播收益大小是实验现象，不以低收益判 bug",
+        "resources": "CPU 可跑独立参考；目标实现是否可运行依赖传播 pass",
+        "dependencies": "Wanting 先找到匹配论文版本的 propagation 入口；Shanghao 再做实际 runner"
+      },
+      "search_terms": [
+        "propagation",
+        "Propagate",
+        "TeSA",
+        "sparsity"
+      ]
+    },
+    {
+      "id": "sparta-collapse-control",
+      "paper_id": "sparta",
+      "title": "高稀疏率下退化应区分剪枝损失与传播错误",
+      "statement": "论文对结构化 90% 初始稀疏时传播达到全零及分类表现的异常已有说明；论文同时指出传播前后评测准确率相同。不能把剪枝后的差准确率直接归因于传播实现错误。",
+      "kind": "evaluation",
+      "level": 1,
+      "origin": "primary-paper reading; counter-check to proposal",
+      "scope": "仅指图14的特定模型和结构化剪枝设置；全零现象不等于通用90%边界。",
+      "assessment": "paper_reported",
+      "paper_evidence": [
+        {
+          "page": 12,
+          "quote": "similar to a random image classiﬁer",
+          "sha256": "8bba636735792d9a6721701d9581fd7517fa405b638d421723a2255a0829d8f2",
+          "paper_sha256": "dee06b8df674fcc7c3f9114c8d95ef6fb027d69fc5e9b6d190847b307bef2dd8",
+          "role": "support",
+          "locator": "§5.2"
+        },
+        {
+          "page": 12,
+          "quote": "same before and after propagation",
+          "sha256": "3c088de521c466c56e78f17438241879b368d5163c3f4153e94ea84deb266a96",
+          "paper_sha256": "dee06b8df674fcc7c3f9114c8d95ef6fb027d69fc5e9b6d190847b307bef2dd8",
+          "role": "context",
+          "locator": "§5.2"
+        }
+      ],
+      "code_evidence": [],
+      "alignment": {
+        "relation": "paper_only_located",
+        "rationale": "需要同一已剪枝模型的 before/after 配对；当前未找到目标 propagation pass。",
+        "search_limitations": "与上一条相同版本/组件范围；不声称已验证全仓库缺失。"
+      },
+      "handoff": {
+        "variable": "初始 mask 结构与稀疏率",
+        "controls": "同一已剪枝权重与样本，先固定剪枝再运行传播",
+        "observables": "传播前后输出、准确率、全零层位置",
+        "comparison": "原始稠密/已剪枝/已剪枝加传播三路分开",
+        "oracle_basis": "比较已剪枝与加传播的语义；不能只与未剪枝模型比较而判错",
+        "resources": "CPU 参考或目标传播环境",
+        "dependencies": "同上一条先解决真实 pass 定位；保留正常控制"
+      },
+      "search_terms": [
+        "propagation",
+        "mask",
+        "TeSA"
+      ]
+    },
+    {
+      "id": "minference-short-context",
+      "paper_id": "minference",
+      "title": "短上下文索引开销侵蚀加速收益",
+      "statement": "附录 A 明确讨论上下文变短时动态索引开销占比上升，10k 示例端到端延迟接近 FlashAttention；这是已报告的性能适用区域。",
+      "kind": "explicit_limitation",
+      "level": 1,
+      "origin": "primary-paper Appendix A",
+      "scope": "论文模型、硬件、精度与 kernel 设置下的性能现象；10k 是示例，不是分支阈值或最短支持长度。",
+      "assessment": "paper_reported",
+      "paper_evidence": [
+        {
+          "page": 19,
+          "quote": "As the context length decreases",
+          "sha256": "4d22a57e50040f9717f16b198ab433b285b34ec16860f8faf44797f65c36fe2b",
+          "paper_sha256": "1ee682e239eafc71afff1fd79cdca2ab4b99016a803197472b357fd0e0f4e823",
+          "role": "support",
+          "locator": "Appendix A"
+        }
+      ],
+      "code_evidence": [
+        {
+          "path": "minference/modules/minference_forward.py",
+          "line_start": 598,
+          "line_end": 614,
+          "quote": "    head_dim = q.size(-1)\n    def vertical_and_slash_kernel(q, k, v, vertical_size, slash_size):\n        vertical_size, slash_size  = min(q_len, max(vertical_size, 30)), min(q_len, max(slash_size, 50))\n        last_q = min(64, q_len)\n        qk = torch.einsum(f'bhmk, bhnk -> bhmn', q[:,:,-last_q:,:], k) / math.sqrt(head_dim)\n        qk[:, :, :, -last_q:] = torch.where(LAST_Q_MASK[...,-last_q:,-last_q:].to(q.device), qk[:, :, :, -last_q:], -torch.inf)\n        qk = torch.nn.functional.softmax(qk, dim=-1, dtype=torch.float32)\n        vertical = qk.sum(-2, keepdim=True)\n        vertical[...,:30] = torch.inf\n        vertical_topk = torch.topk(vertical, vertical_size, -1).indices\n\n        slash = sum_all_diagonal_matrix(qk)[...,:-last_q + 1]\n        slash[...,-100:] = torch.inf\n        slash_topk = slash\n        slash = (q_len - 1) - torch.topk(slash, slash_size, -1).indices\n\n        return vertical_slash_sparse_attention(q, k, v, vertical_topk, slash)",
+          "sha256": "21a9843697ef1554297701626844630039c0f8173e70c0334acfa3e5bb2656ec",
+          "file_sha256": "b368e765fcc2021591f7cdf970e4e1a71731ed66f19e97023a13b70a02e6edc2",
+          "repository_commit": "29ef1974fcb5a1440ccf92d7d7996900230fddcf",
+          "role": "context"
+        }
+      ],
+      "alignment": {
+        "relation": "unassessed",
+        "rationale": "代码摘录定位动态 index 构造与 sparse kernel 调用，尚无计时证据证明与论文开销占比对应。",
+        "search_limitations": ""
+      },
+      "handoff": {
+        "variable": "上下文长度，围绕10k安排多个尺度",
+        "controls": "模型/权重、GPU、dtype、稀疏预算、warmup与计时同步方式固定",
+        "observables": "索引构造、attention kernel及端到端时间",
+        "comparison": "同输入配对 MInference 与 FlashAttention，分别报告分项和总耗时",
+        "oracle_basis": "属于性能曲线比较；阈值和可接受误差要先冻结，慢于对照不自动判 bug",
+        "resources": "GPU；3090可做缩小模型/长度的开发实验，不能复现A100数值主张",
+        "dependencies": "Shanghao 建立目标入口计时；Wanting 核查调用链与配置"
+      },
+      "search_terms": [
+        "vertical",
+        "slash",
+        "topk",
+        "q_len"
+      ]
+    },
+    {
+      "id": "minference-sparsity-quality",
+      "paper_id": "minference",
+      "title": "更高稀疏率可能损伤模型质量",
+      "statement": "附录 A 声明较高稀疏率可能使模型表现下降。需要区分预算变化导致的近似误差与实现违约。",
+      "kind": "explicit_limitation",
+      "level": 1,
+      "origin": "primary-paper Appendix A",
+      "scope": "固定任务与模型下的质量—稀疏率权衡；论文没有在这句话中给出通用失效阈值。",
+      "assessment": "paper_reported",
+      "paper_evidence": [
+        {
+          "page": 19,
+          "quote": "when using a higher sparsity rate",
+          "sha256": "ee2487eae0074c3f2fd266cf289dca24474102396c9ea7eccfddaa636e4ec973",
+          "paper_sha256": "1ee682e239eafc71afff1fd79cdca2ab4b99016a803197472b357fd0e0f4e823",
+          "role": "support",
+          "locator": "Appendix A"
+        }
+      ],
+      "code_evidence": [
+        {
+          "path": "minference/modules/minference_forward.py",
+          "line_start": 620,
+          "line_end": 631,
+          "quote": "    q_len = q.shape[2]\n    ty, vertical_size, slash_size, _ = config[\"best_pattern\"][layer_idx].get(str(head_id), (\"vertical_and_slash\", 1000, 6096, 1))\n\n    if \"minference_ratio\" in config:\n        vertical_size = int(vertical_size * config.get(\"minference_ratio\", 1))\n        slash_size = int(slash_size * config.get(\"minference_ratio\", 1))\n    fc = {\n        \"stream_llm\": streaming_forward,\n        \"vertical_and_slash\": vertical_and_slash_kernel,\n        \"block_sparse\": block_sparse_kernel,\n    }[ty]\n    return fc(q, k, v, vertical_size, slash_size)",
+          "sha256": "05f1c19d20ebea48314d977aaf766b99a848da2fe3fc258e261f21624e9434a0",
+          "file_sha256": "b368e765fcc2021591f7cdf970e4e1a71731ed66f19e97023a13b70a02e6edc2",
+          "repository_commit": "29ef1974fcb5a1440ccf92d7d7996900230fddcf",
+          "role": "context"
+        }
+      ],
+      "alignment": {
+        "relation": "unassessed",
+        "rationale": "可定位预算缩放配置，但参数到实际 retained pattern 的关系和质量影响仍需运行核验。",
+        "search_limitations": ""
+      },
+      "handoff": {
+        "variable": "vertical/slash预算比例",
+        "controls": "同模型、任务样本、长度、解码与tokenization",
+        "observables": "实际保留比例、输出误差和任务质量",
+        "comparison": "配对稀疏预算扫描与同输入dense对照",
+        "oracle_basis": "近似注意力与dense不同本身不构成错误；质量损失标准须预先约定",
+        "resources": "GPU小型开发；最终按可承受模型规模报告",
+        "dependencies": "Wanting 核对参数含义，Shanghao 选择独立任务标签或数值参考"
+      },
+      "search_terms": [
+        "minference_ratio",
+        "vertical_size",
+        "slash_size"
+      ]
+    },
+    {
+      "id": "minference-rope-hypothesis",
+      "paper_id": "minference",
+      "title": "RoPE 对 slash 的作用需要因果比较",
+      "statement": "proposal 提出的 RoPE/slash 解释保留为假设。附录 G 已讨论非 RoPE 模型中的类似模式，因此不能宣称 slash 只能由 RoPE 产生，也不能将单纯发现该问题作为新增 limitation。",
+      "kind": "hypothesis",
+      "level": 2,
+      "origin": "proposal exploratory hypothesis; exposed development case",
+      "scope": "只研究受控条件下位置编码对模式统计的影响；不同模型直接比较不能隔离因果。",
+      "assessment": "counterevidence_found",
+      "paper_evidence": [
+        {
+          "page": 24,
+          "quote": "RoPE-Based LLMs?",
+          "sha256": "e432ecca02c836dfdb38f71083a223aef0e6fb504423344804e1550c7826793c",
+          "paper_sha256": "1ee682e239eafc71afff1fd79cdca2ab4b99016a803197472b357fd0e0f4e823",
+          "role": "counter",
+          "locator": "Appendix G"
+        },
+        {
+          "page": 24,
+          "quote": "patterns in T5 across different heads",
+          "sha256": "19963313be19c447e909495b60eb241789cc8a1e358d018db87ca9362797b758",
+          "paper_sha256": "1ee682e239eafc71afff1fd79cdca2ab4b99016a803197472b357fd0e0f4e823",
+          "role": "counter",
+          "locator": "Appendix G"
+        }
+      ],
+      "code_evidence": [],
+      "alignment": {
+        "relation": "unassessed",
+        "rationale": "已发现论文中的必要反证；尚无绑定到相同 Q/K 内容的受控实验，也无实现错误证据。",
+        "search_limitations": "尚未做完整模式调用链追踪；此条不是已确认代码缺陷。"
+      },
+      "handoff": {
+        "variable": "同一内容Q/K施加或不施加位置旋转",
+        "controls": "Q/K内容、长度、head维度与归一化；另报真实训练模型的有效性限制",
+        "observables": "注意力对角质量占比、选中slash分布及任务质量",
+        "comparison": "受控张量比较用于机制，真实模型比较单列",
+        "oracle_basis": "合成消融只说明数学机制；关闭训练模型RoPE可能离开分布，不能据此判论文错误",
+        "resources": "CPU小张量可检查模式；目标模型验证另需GPU",
+        "dependencies": "先定义slash统计量；Wanting 核对RoPE应用入口；Shanghao 做受控实验"
+      },
+      "search_terms": [
+        "rotary",
+        "position",
+        "slash"
+      ]
+    },
+    {
+      "id": "minference-block-budget-control",
+      "paper_id": "minference",
+      "title": "Block-Sparse 预算100的一致性控制",
+      "statement": "附录 C.2 表7的 Block-Sparse 搜索空间列出100；已检查路径也将 block sparse 的topk设为100。这一对证据支持局部一致，不能仅因代码有常量就报告 paper–code gap。",
+      "kind": "claim",
+      "level": 2,
+      "origin": "primary-paper plus manually located source; negative control",
+      "scope": "只覆盖固定当前版本 minference_prefill_kernel 的 block_sparse 分支，不外推所有集成入口或原论文提交。",
+      "assessment": "consistent_control",
+      "paper_evidence": [
+        {
+          "page": 20,
+          "quote": "Block-Sparse {100}",
+          "sha256": "abbd2a1aa3abdb9200ef0040d05efd18d2ac9349fa04868c942a12f3059d5b5a",
+          "paper_sha256": "1ee682e239eafc71afff1fd79cdca2ab4b99016a803197472b357fd0e0f4e823",
+          "role": "support",
+          "locator": "Appendix C.2 / Table 7"
+        }
+      ],
+      "code_evidence": [
+        {
+          "path": "minference/modules/minference_forward.py",
+          "line_start": 616,
+          "line_end": 618,
+          "quote": "    def block_sparse_kernel(q, k, v, vertical_size=None, slash_size=None):\n        topk = 100\n        return block_sparse_attention(q, k, v, topk)",
+          "sha256": "5ecc40d70323aab0c5016cc442140be2ca3180d69774a01f4feef2dc40ad8564",
+          "file_sha256": "b368e765fcc2021591f7cdf970e4e1a71731ed66f19e97023a13b70a02e6edc2",
+          "repository_commit": "29ef1974fcb5a1440ccf92d7d7996900230fddcf",
+          "role": "support"
+        }
+      ],
+      "alignment": {
+        "relation": "consistent",
+        "rationale": "表中预算与该分支常量一致；尚未验证动态调用路径与预算单位。",
+        "search_limitations": ""
+      },
+      "handoff": {
+        "variable": "选择block_sparse模式及合法head配置",
+        "controls": "同Q/K/V、shape与dtype",
+        "observables": "实际选择分支、传递topk和kernel入口",
+        "comparison": "配置选择该分支时记录预算；其他入口独立检查",
+        "oracle_basis": "来源一致性控制，不以分支执行视为语义正确证明",
+        "resources": "CPU可做静态/适配器检查；真实kernel需GPU",
+        "dependencies": "Wanting 追踪生产入口到此函数；Shanghao 记录调用参数"
+      },
+      "search_terms": [
+        "block_sparse_kernel",
+        "topk"
+      ]
+    },
+    {
+      "id": "infinigen-gqa-path",
+      "paper_id": "infinigen",
+      "title": "当前LLaMA路径的Q/K head布局与GQA适配",
+      "statement": "已检查 ours LLaMA 实现用相同 num_heads 建立 Q/K 投影；离线 skewing 也按同一个head索引读取Q和K。这为该路径需要GQA适配提供静态线索，不证明算法普遍不支持GQA。",
+      "kind": "hypothesis",
+      "level": 3,
+      "origin": "proposal Level 3; manually scoped source follow-up",
+      "scope": "限于固定commit的 ours LLaMA 与 skewing setup 路径；同库其他模型、历史版本和新增适配不在此结论内。",
+      "assessment": "hypothesis",
+      "paper_evidence": [
+        {
+          "page": 8,
+          "quote": "same orthogonal matrix A",
+          "sha256": "88742c59eabf2e5eaf4c2a6691d3b961e394240bdeadc90a174c5a0d76167c59",
+          "paper_sha256": "638e3f536447ce7fbfed1b485654620629a4e34fbd250db74018b8a880c4f029",
+          "role": "context",
+          "locator": "§4.2 / Eq.2"
+        },
+        {
+          "page": 9,
+          "quote": "dimensions of",
+          "sha256": "f4c8ea6b873ac455cf97adf5ec16ebc327508005bf24f3ec92db09027698bce4",
+          "paper_sha256": "638e3f536447ce7fbfed1b485654620629a4e34fbd250db74018b8a880c4f029",
+          "role": "context",
+          "locator": "§4.3"
+        }
+      ],
+      "code_evidence": [
+        {
+          "path": "accuracy/src/modeling_llama_ours.py",
+          "line_start": 163,
+          "line_end": 178,
+          "quote": "    def __init__(self, config: LlamaConfig, layer_idx: int):\n        super().__init__()\n        self.config = config\n        self.hidden_size = config.hidden_size\n        self.num_heads = config.num_attention_heads\n        self.head_dim = self.hidden_size // self.num_heads\n        self.max_position_embeddings = config.max_position_embeddings\n\n        if (self.head_dim * self.num_heads) != self.hidden_size:\n            raise ValueError(\n                f\"hidden_size must be divisible by num_heads (got `hidden_size`: {self.hidden_size}\"\n                f\" and `num_heads`: {self.num_heads}).\"\n            )\n        self.q_proj = nn.Linear(self.hidden_size, self.num_heads * self.head_dim, bias=False)\n        self.k_proj = nn.Linear(self.hidden_size, self.num_heads * self.head_dim, bias=False)\n        self.v_proj = nn.Linear(self.hidden_size, self.num_heads * self.head_dim, bias=False)",
+          "sha256": "76eaa8e2ae1e61de64d5ce85a346ba11583fed98bb4f52d919d324392546abde",
+          "file_sha256": "cb7e4d7c7428d0ea00390eb753b439f934d4a9aed75521be67ff1c2e02e3d313",
+          "repository_commit": "3754f52d131c30ab7a310e3c4cf356e8e3326ac3",
+          "role": "context"
+        },
+        {
+          "path": "accuracy/setup/gen_llama_skewing_matrix.py",
+          "line_start": 54,
+          "line_end": 65,
+          "quote": "    A = torch.zeros(n_layer, n_head, head_dim, head_dim).to('cuda').to(torch.float16)\n    for name in query_v:\n        layer = int(name)\n        query = query_v[name]\n        key = key_v[name]\n\n        for head in range(n_head):\n            in_q = query[0, head]\n            in_k = key[0, head]\n            uq, sq, vq = torch.svd(in_q.to(torch.float))\n            uk, sk, vk = torch.svd(in_k.to(torch.float))\n            s = sq * sk",
+          "sha256": "60e2f1078acfab9910f86b50e449d1091e9deca5c76573dacd698e78e3527cb9",
+          "file_sha256": "feda4dec8e6feb8646fb803c3fb9abe7ccc8ac8eebcdd739b45d3e29ad54934a",
+          "repository_commit": "3754f52d131c30ab7a310e3c4cf356e8e3326ac3",
+          "role": "context"
+        }
+      ],
+      "alignment": {
+        "relation": "potential_conflict",
+        "rationale": "论文公式未自动给出不同Q/K head数的实现规则；现有路径是MHA式布局。只有明确声明了GQA支持且合法GQA输入失败，才可能构成声明冲突。",
+        "search_limitations": ""
+      },
+      "handoff": {
+        "variable": "Hq=Hkv 控制与 Hq>Hkv 的分组布局",
+        "controls": "固定每head维度、query/key内容及分组映射；不使用错误shape伪造反例",
+        "observables": "投影形状、缓存head数、skew矩阵索引与可运行性",
+        "comparison": "先核对入口契约，再以合法MHA/GQA配置比较",
+        "oracle_basis": "head_dim相同仍可共享正交变换；形状失败只说明该路径/配置问题",
+        "resources": "CPU小张量可检查形状契约；完整artifact另需环境",
+        "dependencies": "Wanting 确认配置是否声明GQA支持，Shanghao 绑定真实入口"
+      },
+      "search_terms": [
+        "num_heads",
+        "k_proj",
+        "skewing_matrix",
+        "in_k"
+      ]
+    },
+    {
+      "id": "infinigen-shared-basis",
+      "paper_id": "infinigen",
+      "title": "共享KV组中的变换兼容条件",
+      "statement": "正交恒等式要求参与同一次点积的Q/K采用兼容变换。若同KV组多个query head独立选择不同基底，单份预变换K一般不能同时满足所有配对；共享同一基底则可以保留GQA共享。不能由head数不同直接推出必须扩展全部KV缓存。",
+      "kind": "hypothesis",
+      "level": 3,
+      "origin": "proposal assumption-by-architecture hypothesis, refined with algebraic counter-control",
+      "scope": "只讨论正交变换后的原始点积；不自动证明部分列近似精度、RoPE顺序、缓存布局或端到端速度。",
+      "assessment": "hypothesis",
+      "paper_evidence": [
+        {
+          "page": 8,
+          "quote": "same orthogonal matrix A",
+          "sha256": "88742c59eabf2e5eaf4c2a6691d3b961e394240bdeadc90a174c5a0d76167c59",
+          "paper_sha256": "638e3f536447ce7fbfed1b485654620629a4e34fbd250db74018b8a880c4f029",
+          "role": "support",
+          "locator": "§4.2 / Eq.2"
+        }
+      ],
+      "code_evidence": [
+        {
+          "path": "accuracy/setup/gen_llama_skewing_matrix.py",
+          "line_start": 54,
+          "line_end": 70,
+          "quote": "    A = torch.zeros(n_layer, n_head, head_dim, head_dim).to('cuda').to(torch.float16)\n    for name in query_v:\n        layer = int(name)\n        query = query_v[name]\n        key = key_v[name]\n\n        for head in range(n_head):\n            in_q = query[0, head]\n            in_k = key[0, head]\n            uq, sq, vq = torch.svd(in_q.to(torch.float))\n            uk, sk, vk = torch.svd(in_k.to(torch.float))\n            s = sq * sk\n            a = torch.zeros(head_dim, head_dim).to('cuda')\n            _, ind = s.sort()\n            r,c = a.shape\n            A[layer, head] = a.scatter(-1, ind.unsqueeze(0).repeat(r,1), vq).to(torch.float16)\n",
+          "sha256": "3d107da7201fd12c29d05dc1b692923c0c71b333770e4987f5b468f6b82d7a02",
+          "file_sha256": "feda4dec8e6feb8646fb803c3fb9abe7ccc8ac8eebcdd739b45d3e29ad54934a",
+          "repository_commit": "3754f52d131c30ab7a310e3c4cf356e8e3326ac3",
+          "role": "context"
+        }
+      ],
+      "alignment": {
+        "relation": "unassessed",
+        "rationale": "per-head setup线索支持检查共享组一致性；需分别评估组内共享基底、复制K与运行时变换，不能预设唯一实现。",
+        "search_limitations": ""
+      },
+      "handoff": {
+        "variable": "组内共享A与各query head独立A",
+        "controls": "Hq=4,Hkv=2,head_dim=2；固定Q/K与head到KV组映射",
+        "observables": "点积不变误差、需要的K表示数量；真实实现再测缓存bytes",
+        "comparison": "共同正交基底作正常控制，故意混配基底作反例控制",
+        "oracle_basis": "独立线性代数恒等式；CPU证明仅为数学控制，不是InfiniGen真实执行或GQA性能结果",
+        "resources": "纯Python CPU代数检查；目标适配/GPU由后续决定",
+        "dependencies": "本工作流提供代数probe；Shanghao若运行目标需独立实现与测量"
+      },
+      "search_terms": [
+        "svd",
+        "in_q",
+        "in_k",
+        "head"
+      ]
+    },
+    {
+      "id": "nnsmith-first-valid",
+      "paper_id": "nnsmith",
+      "title": "首次全图有限即停止：数值多样性假设",
+      "statement": "论文算法3和artifact对应搜索循环在全图检查通过后返回第一组合法输入。是否限制固定图下的数值区域覆盖仍是假设；loss=0不等于sqrt输出=0。共享讨论中的现代版本all-loss线索不混入论文artifact的结论。",
+      "kind": "hypothesis",
+      "level": 2,
+      "origin": "Teams shared analysis and student handout; externally exposed hypothesis",
+      "scope": "固定论文对应artifact图、shape和dtype；比较多组值时控制权重/编译产物一致；全图有限性不是单个元素合法。",
+      "assessment": "hypothesis",
+      "paper_evidence": [
+        {
+          "page": 6,
+          "quote": "when no FP exceptional values are found",
+          "sha256": "8a0ee665de1ad5603bb85c4029a05fef96185cf40dea7d1ed47ef4b2dca5ead5",
+          "paper_sha256": "ae36fdb9249f7cc4dbe333c8ba22ba2a5255f133ff99cbe9bc2d5d0fdbc7e2f5",
+          "role": "support",
+          "locator": "§3.3"
+        },
+        {
+          "page": 7,
+          "quote": "Algorithm 3: Gradient-guided value search.",
+          "sha256": "5a5c4c1fab0c29c8068aff3dd23801cd41b8f41c4b359f8986f9aee093dcdb6b",
+          "paper_sha256": "ae36fdb9249f7cc4dbe333c8ba22ba2a5255f133ff99cbe9bc2d5d0fdbc7e2f5",
+          "role": "context",
+          "locator": "Algorithm 3"
+        }
+      ],
+      "code_evidence": [
+        {
+          "path": "nnsmith/graph_gen.py",
+          "line_start": 347,
+          "line_end": 368,
+          "quote": "        last_check_intermediate_numeric = self.check_intermediate_numeric\n        self.check_intermediate_numeric = True\n\n        if use_cuda:\n            inputs = [inp.cuda() for inp in inputs]\n            self.use_cuda()\n\n        sat_inputs = None\n        st = time.time()\n        self.iter_num = 0\n        self.cur_loss_name = None\n        while time.time() - st < max_time:\n            self.training_reset()\n            self.iter_num += 1\n\n            try:\n                _ = self(*inputs)\n                if self.invalid_found_last:  # need_to_train\n                    self.backward()\n                else:\n                    sat_inputs = [v.data for v in inputs]\n                    break",
+          "sha256": "f873cbb51e3c194e3d7989ba1f25be980cd4a32f6b6bfa7d8ecb55d17315f4d4",
+          "file_sha256": "e357fb1b2bb0a3a54409430ec7b4dc755eb01f3dcbc3913660f0bea4e08d6115",
+          "repository_commit": "620645967a14d6a7b077cedd9c2c03ed74af50d9",
+          "role": "support"
+        },
+        {
+          "path": "nnsmith/graph_gen.py",
+          "line_start": 486,
+          "line_end": 496,
+          "quote": "                    loss_suf, l = vul_op_loss\n                    msg = f'loss_{loss_suf}: {l.min().data:.3f} ~ {l.max().data:.3f} ~ {torch.sum((l > 0) * l).item()}'\n                    if self.print_grad >= 1:\n                        print(\n                            f'Iter #{self.iter_num} [NaN/Inf] in outputs ~ {op}_{node_id} :: {msg}')\n\n                    assert (l > 0).sum() > 0, \\\n                        f'`{op}` produces NaN or INF but loss is all negative'\n                    loss_name = f'{op}_{node_id}_{loss_suf}'\n                    assert self.loss is None, 'Multiple loss detected!'\n                    self.loss = loss_name, torch.sum((l > 0) * l)",
+          "sha256": "3c23004b6f0f4da1b3c620a5800ae9eee5c7346a8923b7552c9b24d252ba6e9b",
+          "file_sha256": "e357fb1b2bb0a3a54409430ec7b4dc755eb01f3dcbc3913660f0bea4e08d6115",
+          "repository_commit": "620645967a14d6a7b077cedd9c2c03ed74af50d9",
+          "role": "counter"
+        }
+      ],
+      "alignment": {
+        "relation": "consistent",
+        "rationale": "artifact循环与论文首次合法即返回的设计一致。此版本用至少一个正损失检查，不将现代all(loss>0)线索归于本版本。",
+        "search_limitations": ""
+      },
+      "handoff": {
+        "variable": "同固定图的初始化区域及每图保留合法输入数",
+        "controls": "shape/dtype/权重、图集、起始种子和总预算；多输入由同编译产物消费",
+        "observables": "所有中间张量有限性、数值区域覆盖、失败和尝试次数",
+        "comparison": "原始首次成功/多起点/多合法输入在相同预算比较",
+        "oracle_basis": "合法性和数值多样性分开；sqrt(4)=2是反驳必为0的正常控制；检出收益另需独立错误样本",
+        "resources": "CPU小图可做后续验证，不安装大型compiler镜像",
+        "dependencies": "Shanghao建立artifact输入搜索runner；Wanting核验权重冻结/调用链"
+      },
+      "search_terms": [
+        "grad_input_gen",
+        "sat_inputs",
+        "invalid_found_last",
+        "torch_loss"
+      ]
+    }
+  ]
+}
