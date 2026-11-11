@@ -1,0 +1,380 @@
+"""Records for check_limits (PLAN.md section 7, SCORECARD.md section 6).
+
+Four groups:
+  AttemptManifest  what the harness needs to run an attempt package
+  AgentForm        the table the code agent fills in (SCORECARD section 6)
+  Scorecard        dimension scores, gates, final score and level (SCORECARD sections 3-5)
+  ExecutionReport  the sidecar report written by the harness
+
+`schema.models.TestCase` (shared, read-only) is produced by `make_testcase`.
+All models are pydantic v2 with extra="forbid".
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+import sys
+from pathlib import Path
+from typing import Any, Literal, Optional
+
+from pydantic import BaseModel, ConfigDict, Field
+
+REPORT_VERSION = "0.1.0"
+PIPELINE_ROOT = Path(__file__).resolve().parents[2]  # .../cs6223-limitation-pipeline
+PROJECT_ROOT = Path(__file__).resolve().parents[1]  # .../cs6223-limitation-pipeline/checklimits
+
+
+class _R(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+Verdict = Literal["yes", "no", "inconclusive"]
+ExecResultName = Literal["confirmed", "refuted", "test_error", "not_run"]
+Tier = Literal["O1", "O2", "O3", "O4"]
+Strategy = Literal["S0", "S1", "S2", "S3"]
+
+
+# --------------------------------------------------------------------------- #
+# AgentForm (SCORECARD section 6)
+# --------------------------------------------------------------------------- #
+class FreeParameter(_R):
+    name: str
+    value: Any
+    why: str
+
+
+class OracleDecl(_R):
+    tier: Tier
+    type: Literal["exception", "path_hook", "differential", "metamorphic", "resource"]
+    spec: str
+    signal_location: Optional[str] = Field(None, description="repo-relative 'file:line' the signal must point to")
+
+
+class Expected(_R):
+    positive: str
+    negative: str
+
+
+class Design(_R):
+    witness_source: str
+    free_parameters: list[FreeParameter] = Field(default_factory=list)
+    positive_input: dict[str, Any]
+    negative_input: dict[str, Any]
+    boundary_variable: str
+    condition_predicate_file: Optional[str] = None
+    oracle: OracleDecl
+    expected: Expected
+
+
+class MockDecl(_R):
+    """An external stand-in. `behavior` is a closed vocabulary (see fakes.py)."""
+    symbol: str = Field(description="dotted path; for env_var kind, the variable name")
+    kind: Literal["fake_module", "patch", "env_var"]
+    reason: str
+    behavior: Literal["return_first_arg", "return_none", "record_only"] = "return_first_arg"
+    value: Optional[str] = Field(None, description="env_var only")
+
+
+class HookDecl(_R):
+    name: str
+    purpose: str
+
+
+class Execution(_R):
+    entry_called: str = Field(description="'file::function' of the function the driver calls")
+    call_chain_index: Optional[int] = None
+    repo_files_modified: list[str] = Field(default_factory=list)
+    mocks: list[MockDecl] = Field(default_factory=list)
+    hooks: list[HookDecl] = Field(default_factory=list)
+    replay_commands: list[str] = Field(default_factory=list)
+
+
+class Claims(_R):
+    """Every field is recomputed by audit.py."""
+    target_reached: bool
+    decision_outcomes_seen: list[Literal["true", "false"]]
+    condition_true_on_positive: Optional[bool]
+    condition_false_on_negative: Optional[bool]
+    positive_observed: str
+    negative_observed: str
+
+
+class EvidenceFiles(_R):
+    trace_file: Optional[str] = None
+    stdout_file: Optional[str] = None
+    diff_file: Optional[str] = None
+
+
+class AgentForm(_R):
+    test_id: str
+    finding_id: str
+    strategy: Strategy
+    design: Design
+    execution: Execution
+    claims: Claims
+    evidence: EvidenceFiles = Field(default_factory=EvidenceFiles)
+
+
+# --------------------------------------------------------------------------- #
+# Attempt manifest
+# --------------------------------------------------------------------------- #
+class AttemptManifest(_R):
+    test_id: str
+    finding_id: str
+    artifact_id: str
+    region_id: str
+    repo_dir: str = Field(description="repository path relative to the pipeline root")
+    repo_commit: str
+    data_dir: str = Field("data/pilot_flexprefill", description="relative to the pipeline root")
+    form: str = "form.json"
+    driver: str = "driver.py"
+    driver_fn: str = "run"
+    timeout_s: int = 300
+    seed: int = 0
+    env: dict[str, str] = Field(default_factory=dict, description="extra environment for the child")
+
+
+# --------------------------------------------------------------------------- #
+# Observations, checks, fidelity
+# --------------------------------------------------------------------------- #
+class ExceptionInfo(_R):
+    type: str
+    message: str
+    raised_at: Optional[str] = Field(None, description="innermost frame, repo-relative 'file:line' if inside the repo")
+    frames: list[str] = Field(default_factory=list)
+
+
+class TargetHit(_R):
+    seq: int
+    outcome: Optional[Literal["true", "false", "error"]] = None
+    condition_value: Optional[bool] = None
+    condition_error: Optional[str] = None
+    locals: dict[str, str] = Field(default_factory=dict)
+
+
+class CoverageScope(_R):
+    scope: str = "call_chain"
+    lines_executed: int
+    lines_total: int
+
+
+class Observation(_R):
+    """What one run showed, after the harness interpreted the trace."""
+    role: Literal["positive", "negative"]
+    inputs: dict[str, Any]
+    status: Literal["ok", "exception", "timeout", "crash", "load_error"]
+    exception: Optional[ExceptionInfo] = None
+    target_reached: bool = False
+    target_hits: list[TargetHit] = Field(default_factory=list)
+    effect: Optional[bool] = Field(None, description="Region.outcome effect observed; None = cannot tell")
+    effect_note: str = ""
+    post_target_exception: Optional[ExceptionInfo] = Field(
+        None, description="exception raised after the target line passed (does not count as the effect)")
+    entry_first_started: Optional[str] = None
+    observed_text: str = ""
+    coverage: Optional[CoverageScope] = None
+    stdout_tail: str = ""
+    wall_s: float = 0.0
+
+
+class MockRecord(_R):
+    symbol: str
+    kind: str
+    on_path: bool
+    accesses_before_target: int
+    accesses_total: int
+    reason: str
+
+
+class AstDiff(_R):
+    files_checked: list[str]
+    files_changed: list[str] = Field(default_factory=list)
+    statements_total: int
+    statements_changed: int
+    target_statement_intact: bool
+    snippet_matches_region: bool
+    git_status_clean: bool
+
+
+class Fidelity(_R):
+    strategy: Strategy
+    ast_diff: AstDiff
+    mocks: list[MockRecord]
+    entry_index: Optional[int]
+    call_chain_len: int
+    probe_effect_free: bool
+    probe_note: str = ""
+    s_mod: float
+    s_mock: float
+    s_entry: float
+    s_probe: float
+
+
+class MutationResult(_R):
+    generated: int
+    killed: int
+
+
+class ReplayResult(_R):
+    ok: bool
+
+
+class Checks(_R):
+    controls_differ: bool
+    differing_factors: list[str]
+    boundary_adjacent: Optional[bool]
+    mutation: Optional[MutationResult] = Field(None, description="None = not run")
+    replay: Optional[ReplayResult] = Field(None, description="None = not run")
+    runs: int = 1
+    consistent_runs: int = 1
+
+
+class AuditItem(_R):
+    claim: str
+    declared: Any
+    recomputed: Any
+    match: bool
+
+
+class AuditResult(_R):
+    declared_checks: int
+    matched_checks: int
+    rate: float
+    items: list[AuditItem]
+    extra_notes: list[str] = Field(default_factory=list)
+
+
+class OracleRecord(_R):
+    declared_tier: Tier
+    verified_tier: Tier
+    type: str
+    spec: str
+    signal_location: Optional[str]
+    sha256: str
+    preregistered: bool
+    revisions_after_first_run: int
+
+
+class EvidenceRecord(_R):
+    """Harness-verified measurements fed into scoring.py (mirrors scoring_prototype.Evidence)."""
+    target_reached: bool
+    decision_outcomes: int
+    cond_true_on_positive: Optional[bool]
+    cond_false_on_negative: Optional[bool]
+    condition_translated: bool
+    oracle_tier: Tier
+    preregistered: bool
+    oracle_revisions_after_first_run: int
+    controls_differ: bool
+    differing_factors: int
+    boundary_adjacent: Optional[bool]
+    mutants_generated: Optional[int]
+    mutants_killed: Optional[int]
+    critical_modification: bool
+    modified_stmt_ratio: float
+    mocks_on_path: int
+    mocks_off_path: int
+    entry_index: Optional[int]
+    call_chain_len: int
+    probe_effect_free: bool
+    replay_ok: Optional[bool] = Field(None, description="None = replay not run")
+    runs: int
+    consistent_runs: int
+    declared_checks: int
+    matched_checks: int
+    verdict: Verdict
+
+
+class Scorecard(_R):
+    dims: dict[str, float]
+    gates: dict[str, Optional[bool]] = Field(description="True pass, False fail, None not evaluated")
+    gates_not_run: list[str] = Field(default_factory=list)
+    total: float
+    form_integrity: float
+    final: float
+    level: Literal["high", "medium", "low"]
+    level_note: str = ""
+
+
+class Env(_R):
+    executable_on: str
+    python: str
+    packages: dict[str, str] = Field(default_factory=dict)
+    repo_commit: str
+
+
+class Cost(_R):
+    llm_calls: int = 0
+    tokens: int = 0
+    wall_seconds: float = 0.0
+
+
+class ExecutionReport(_R):
+    report_version: str = REPORT_VERSION
+    test_id: str
+    finding_id: str
+    artifact_id: str
+    region_id: str
+    verdict: Verdict = Field(description="from the SCORECARD 3.5 table, before gates")
+    final_verdict: Verdict = Field(description="after gates: any failed gate forces inconclusive")
+    exec_result: ExecResultName
+    verdict_reason: str
+    strategy: Strategy
+    oracle: OracleRecord
+    positive: Observation
+    negative: Observation
+    checks: Checks
+    fidelity: Fidelity
+    audit: AuditResult
+    evidence: EvidenceRecord
+    scorecard: Scorecard
+    finding_confidence: Optional[str] = Field(None, description="upstream Finding.confidence, reported separately")
+    env: Env
+    cost: Cost = Field(default_factory=Cost)
+    notes: list[str] = Field(default_factory=list)
+
+
+# --------------------------------------------------------------------------- #
+# helpers
+# --------------------------------------------------------------------------- #
+def design_sha256(form: AgentForm, predicate_bytes: bytes | None = None) -> str:
+    """Hash of everything the agent must commit to before the first run (T1)."""
+    payload = {
+        "design": form.design.model_dump(mode="json"),
+        "mocks": [m.model_dump(mode="json") for m in form.execution.mocks],
+        "entry": form.execution.entry_called,
+    }
+    h = hashlib.sha256(json.dumps(payload, sort_keys=True).encode())
+    if predicate_bytes:
+        h.update(predicate_bytes)
+    return h.hexdigest()
+
+
+_ORACLE_TYPE = {
+    "exception": "exception", "path_hook": "path_hook", "differential": "differential",
+    "metamorphic": "metamorphic", "resource": "resource",
+}
+
+
+def make_testcase(report: ExecutionReport, form: AgentForm, manifest: AttemptManifest,
+                  witness_type: str, inputs: list[dict[str, Any]]):
+    """Build the standard `schema.models.TestCase` (shared schema, validated by codeside.cli)."""
+    if str(PIPELINE_ROOT) not in sys.path:
+        sys.path.insert(0, str(PIPELINE_ROOT))
+    from schema.models import ExecEnv, ExecResult, OracleType, TestCase, WitnessType
+
+    executable_on = ExecEnv.cpu_mock if form.execution.mocks else ExecEnv.cpu
+    notes = (f"verdict={report.verdict} final_verdict={report.final_verdict} level={report.scorecard.level} "
+             f"final={report.scorecard.final}; {report.verdict_reason}")
+    return TestCase(
+        test_id=report.test_id,
+        finding_id=report.finding_id,
+        witness_type=WitnessType(witness_type),
+        inputs=inputs,
+        oracle_type=OracleType(_ORACLE_TYPE[form.design.oracle.type]),
+        oracle_spec=form.design.oracle.spec,
+        executable_on=executable_on,
+        file=str(Path("checklimits/attempts") / manifest.artifact_id / manifest.finding_id / manifest.driver),
+        result=ExecResult(report.exec_result),
+        result_notes=notes,
+    )
