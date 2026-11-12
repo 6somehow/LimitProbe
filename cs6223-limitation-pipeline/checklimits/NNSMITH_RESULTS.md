@@ -16,8 +16,8 @@
 没有 L3。压低档位的是：
 
 * **D3 变异 residual 17 条。** 守卫只有一两个可变异点（取反是唯一的非等价变异体）：变异体个数 1 的 11 条、2 的 2 条、3 的 4 条、6 个和 10 个各 1 条。与 FlexPrefill 的结论一致：这是这类守卫的属性，不是算子集的问题。
-* **D14 入口 residual 15 条。** 同 FlexPrefill：Region 的调用链只有"入口加目标所在函数"。
-* D5 residual / open 8 条。
+* **D14 入口 residual 13 条。** 同 FlexPrefill：Region 的调用链只有"入口加目标所在函数"。
+* D5 residual 3 条、open 1 条；D2 residual 3 条（条件靠 agent 写的谓词，翻译是否忠实没有验证）。
 
 ## 批量暴露并修复的三个 harness 缺陷（第二个 artifact 才看得到）
 
