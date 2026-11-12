@@ -1,0 +1,73 @@
+{
+  "test_id": "A-nnsmith-F003",
+  "finding_id": "nnsmith-F003",
+  "strategy": "S1",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "loop_timeout_s",
+        "value": 1,
+        "why": "FuzzingLoop.run needs a positive time budget to enter its while loop; one second is enough for exactly one iteration because the negative call sleeps longer than that"
+      },
+      {
+        "name": "negative_delay_s",
+        "value": 1.5,
+        "why": "makes the negative run's make_testcase fail after the time budget so the swallowing branch iterates exactly once and the run ends deterministically"
+      },
+      {
+        "name": "random_seed",
+        "value": 0,
+        "why": "FuzzingLoop.run draws a fresh random seed each iteration; fixing the module RNG makes the single iteration identical across runs"
+      }
+    ],
+    "positive_input": {
+      "failure_code": 1
+    },
+    "negative_input": {
+      "failure_code": 0
+    },
+    "boundary_variable": "failure_code",
+    "scale": null,
+    "condition_predicate_file": "condition.py",
+    "oracle": {
+      "tier": "O4",
+      "type": "exception",
+      "spec": "InternalError raised at nnsmith/cli/fuzz.py:179",
+      "signal_location": "nnsmith/cli/fuzz.py:179"
+    },
+    "expected": {
+      "positive": "InternalError at nnsmith/cli/fuzz.py:179",
+      "negative": "no exception at nnsmith/cli/fuzz.py:179"
+    }
+  },
+  "execution": {
+    "entry_called": "nnsmith/cli/fuzz.py::FuzzingLoop.run",
+    "entry_reason": "The target statement is inside FuzzingLoop.run. The Region's call_chain[0], PracticalHybridSearch.search_one, is not an ancestor of the target: it is reached inside make_testcase (via TorchModel.refine_weights), which runs before the try/except that contains the target, so calling search_one cannot execute line 179. The target's own function is called directly; only its failing callee is a declared stand-in.",
+    "call_chain_index": 1,
+    "repo_files_modified": [],
+    "mocks": [
+      {
+        "symbol": "nnsmith.cli.fuzz.FuzzingLoop.make_testcase",
+        "kind": "patch",
+        "behavior": "sim",
+        "impl": "sim.py::make_testcase",
+        "sim_class": "stub",
+        "reason": "The target line handles exceptions raised by make_testcase. Building the real NNSmith backend/model on this CPU-only box needs a GPU compiler toolchain, so the failing callee is replaced by a stub that raises InternalError for failure_code=1 and RuntimeError otherwise; the target function and its exception-handling code stay real."
+      }
+    ],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "no exception at nnsmith/cli/fuzz.py:179",
+    "negative_observed": "no exception at nnsmith/cli/fuzz.py:179"
+  },
+  "evidence": {}
+}

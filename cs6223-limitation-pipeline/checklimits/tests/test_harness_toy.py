@@ -186,11 +186,13 @@ def test_nondeterminism_refutes_d8(tmp_path):
 
 
 def test_replay_in_fresh_checkout_detects_uncommitted_dependence(tmp_path):
-    # an uncommitted edit to a NON-target statement changes what the run does; a fresh checkout of the
-    # pinned commit does not have the edit, so the replay must disagree
+    # an uncommitted edit to a NON-target statement changes what the run returns; a fresh checkout of the
+    # pinned commit does not have the edit, so the replay must disagree.
+    # (Since the canonical hash only covers the Region condition's names, an edit that changes only an unrelated
+    # local would NOT be noticed: replay checks that the finding reproduces, not that every variable matches.)
     b = build(tmp_path, with_ext=False)
     core = b["repo"] / "toypkg" / "core.py"
-    core.write_text(core.read_text().replace("    return n + 1\n", "    return n + 2\n", 1))
+    core.write_text(core.read_text().replace('return "small"', 'return "tiny"', 1))
     r = harness.run_attempt(b["attempt"], pipeline_root=b["root"],
                             options=RunOptions(probe_effect=False, repeats=1, bva=False, mutation=False, replay=True),
                             profile=QUICK)["report"]
@@ -274,3 +276,35 @@ def test_child_environment_is_scrubbed(tmp_path, monkeypatch):
     ctx = harness._Ctx(b["attempt"], b["root"])
     raw, _ = ctx.run("positive", {"n": 1, "m": 1, "leak_probe": True}, trace=False)
     assert raw["status"] == "ok" and raw["returned"] == "0" and "dummy-secret" not in json.dumps(raw)
+
+
+def test_unrelated_nondeterministic_locals_do_not_fail_repeats_or_replay(tmp_path):
+    # `stamp = time.time()` and `jitter = random.random()` are locals at the target line that change on every run.
+    # They stay in the report but are not hashed: D8 / D9 are about the finding, not about the clock.
+    drv = "from toypkg.core import entry\n\n\ndef run(inputs):\n    return entry(inputs['n'], inputs['m'])\n"
+    b = build(tmp_path, with_ext=False, kind="stamp", driver_src=drv, pos={"n": 2, "m": 0}, neg={"n": 1, "m": 0},
+              design_extra={"boundary_variable": "n"}, manifest_overrides={})
+    opts = RunOptions(probe_effect=False, repeats=3, bva=False, mutation=False, replay=True)
+    r = harness.run_attempt(b["attempt"], pipeline_root=b["root"], options=opts, profile=QUICK)["report"]
+    assert r.checks.repeat.identical and r.checks.replay.ok
+    assert {"stamp", "jitter"} <= set(r.negative.target_hits[0].locals)       # still recorded in the report
+    assert st(r)["D8"] == "eliminated" and st(r)["D9"] == "eliminated"
+
+
+def test_nondeterminism_in_a_condition_name_still_fails_d8(tmp_path):
+    from checklimits.harness import canonical_hash
+    from checklimits.models import Observation
+    mk = lambda n: ({"status": "ok", "exception": None, "returned": None, "trace": {"target_hits": [
+        {"outcome": "true", "condition_value": True, "locals": {"n": str(n), "stamp": str(n * 7)}}], "starts": [], "lines": {}}},
+        Observation(role="positive", inputs={}, status="ok", effect=True))
+    a, b = mk(1), mk(2)
+    assert canonical_hash(*a, relevant={"n"}) != canonical_hash(*b, relevant={"n"})           # n is read by the condition
+    assert canonical_hash(*a, relevant={"other"}) == canonical_hash(*b, relevant={"other"})   # stamp is not
+    assert canonical_hash(*a, relevant=None) != canonical_hash(*b, relevant=None)             # predicate file: keep all
+
+
+def test_condition_names():
+    from checklimits.harness import condition_names
+    assert condition_names("n != 1 and m.shape[0] < k") == {"n", "m", "k"}
+    assert condition_names("causal_mask is None  # first call only") == {"causal_mask"}
+    assert condition_names("not a valid ((") is None and condition_names(None) is None

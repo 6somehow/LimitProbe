@@ -1,0 +1,48 @@
+{
+  "test_id": "A-nnsmith-F002",
+  "finding_id": "nnsmith-F002",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {"name": "seed", "value": 0, "why": "fixed RNG seed so the rank-increment loop is deterministic"},
+      {"name": "dtype", "value": "float32", "why": "MatMul out dtypes are non-bool; float32 is the canonical CPU dtype"},
+      {"name": "dim_size", "value": 1, "why": "only the rank (number of dims) enters check_sat; dimension sizes are irrelevant"}
+    ],
+    "positive_input": {"out_rank": 1000},
+    "negative_input": {"out_rank": 0},
+    "boundary_variable": "out_rank",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "exception",
+      "spec": "AssertionError raised at nnsmith/abstract/op.py:2083",
+      "signal_location": "nnsmith/abstract/op.py:2083"
+    },
+    "expected": {
+      "positive": "AssertionError at nnsmith/abstract/op.py:2083",
+      "negative": "no exception at nnsmith/abstract/op.py:2083"
+    }
+  },
+  "execution": {
+    "entry_called": "nnsmith/abstract/op.py::MatMul.deduct_inp_ranks_and_dtype",
+    "entry_reason": "The hand-off call chain (entry PracticalHybridSearch.search_one) does not call the target; deduct_inp_ranks_and_dtype is reached from graph_gen.try_occupy_placeholder. The driver calls the real target function directly with a real AbsTensor built from the witness boundary.",
+    "call_chain_index": 1,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": ["false", "true"],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "no exception at nnsmith/abstract/op.py:2083",
+    "negative_observed": "no exception at nnsmith/abstract/op.py:2083"
+  },
+  "evidence": {}
+}

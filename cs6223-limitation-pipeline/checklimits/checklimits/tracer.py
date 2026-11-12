@@ -100,6 +100,36 @@ def target_span(repo_root: Path, file: str, line: int) -> tuple[int, int]:
     return line, line
 
 
+def statement_span(repo_root: Path, file: str, line: int) -> tuple[int, int]:
+    """First and last line of the whole statement, body included (target_span stops at the end of an if / while header)."""
+    tree = ast.parse((repo_root / file).read_text())
+    for node in ast.walk(tree):
+        if isinstance(node, ast.stmt) and node.lineno == line and not isinstance(
+                node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            return line, node.end_lineno
+    return line, line
+
+
+def can_raise_here(repo_root: Path, file: str, line: int) -> tuple[bool, str]:
+    """Can an exception be raised BY the statement at `line` itself (the innermost frame is this statement)?
+    True for assert and raise, and for if / while / try whose body holds a raise statement."""
+    tree = ast.parse((repo_root / file).read_text())
+    for node in ast.walk(tree):
+        if isinstance(node, ast.stmt) and node.lineno == line and not isinstance(
+                node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            if isinstance(node, (ast.Assert, ast.Raise)):
+                return True, ""
+            if isinstance(node, (ast.If, ast.While, ast.Try, ast.For, ast.With)):
+                subs = [n for part in (getattr(node, "body", []), getattr(node, "orelse", [])) for st in part
+                        for n in ast.walk(st)]
+                if any(isinstance(n, ast.Raise) for n in subs):
+                    return True, ""
+                return False, (f"the {type(node).__name__.lower()} statement has no raise in its body "
+                               "(the exception, if any, is raised elsewhere)")
+            return False, f"a {type(node).__name__} statement does not raise by itself"
+    return False, "no statement starts at this line"
+
+
 def classify_target(repo_root: Path, file: str, line: int) -> tuple[str, tuple[int, int]]:
     tree = ast.parse((repo_root / file).read_text())
     for node in ast.walk(tree):

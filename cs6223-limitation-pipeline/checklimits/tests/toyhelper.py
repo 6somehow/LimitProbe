@@ -127,6 +127,46 @@ def entry(n, m):
     return make()(n, m)
 '''
 
+CORE_IFRAISE = '''def check(n, m):
+    base = n + 1
+    if n != 1:
+        raise ValueError("n must be 1")
+    return "ok"
+
+
+def entry(n, m):
+    return check(n, m)
+'''
+
+CORE_IFSKIP = '''def check(n, m):
+    out = []
+    for i in range(3):
+        if i == n:
+            continue
+        out.append(i)
+    return out
+
+
+def entry(n, m):
+    return check(n, m)
+'''
+
+CORE_STAMP = '''import random
+import time
+
+
+def check(n, m):
+    stamp = time.time()          # differs on every run, unrelated to the condition
+    jitter = random.random()     # same
+    noisy = n + (jitter > 2)     # reads n only
+    assert n == 1, "n must be 1"
+    return "ok"
+
+
+def entry(n, m):
+    return check(n, m)
+'''
+
 CORE_MODULE = '''import os
 
 LIMIT = os.getenv("TOY_LIMIT", "auto")
@@ -143,6 +183,9 @@ def entry(n, m):
 FUNC = {"nested": "make.check", "module": "<module>"}     # Region.location.function, when it is not simply `check`
 
 KINDS = {
+    "stamp": (CORE_STAMP, "assert n == 1", "reject", "n != 1", 'assert n == 1, "n must be 1"'),
+    "ifraise": (CORE_IFRAISE, "if n != 1:", "reject", "n != 1", "if n != 1:"),
+    "ifskip": (CORE_IFSKIP, "if i == n:", "reject", "i == n", "if i == n:"),
     "module": (CORE_MODULE, 'if LIMIT == "off":', "fallback", 'LIMIT == "off"', 'if LIMIT == "off":'),
     "nested": (CORE_NESTED, "assert n == 1", "reject", "n != 1", 'assert n == 1, "n must be 1"'),   # kind -> (source, text that starts the target line, outcome, condition expr, snippet)
     "reject": (None, "assert n == 1", "reject", "n != 1", 'assert n == 1, "n must be 1"'),
@@ -216,7 +259,7 @@ def build(tmp: Path, with_ext=True, form_overrides=None, driver_src=DRIVER, mani
     }
     if scale:
         form["design"]["scale"] = scale
-    if kind not in ("reject", "multiline", "nested"):
+    if kind not in ("reject", "multiline", "nested", "ifraise", "ifskip"):
         form["design"]["oracle"].update(type="path_hook", spec=f"branch taken at {loc}", signal_location=loc)
         form["design"]["expected"] = {"positive": f"branch taken at {loc}", "negative": f"branch not taken at {loc}"}
         form["claims"]["positive_observed"] = f"branch taken at {loc}"
