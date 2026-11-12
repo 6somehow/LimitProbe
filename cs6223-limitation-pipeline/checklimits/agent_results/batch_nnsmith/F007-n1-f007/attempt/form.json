@@ -1,0 +1,78 @@
+{
+  "test_id": "A-nnsmith-F007",
+  "finding_id": "nnsmith-F007",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "shape_size",
+        "value": 2,
+        "why": "tensor length is irrelevant to loss_fn.dispatch(type(op)) and to whether the output is finite; fixed at 2 for both inputs"
+      },
+      {
+        "name": "dtype",
+        "value": "float32",
+        "why": "the registered losses and finite/overflow arithmetic are float32 in the repository; fixed for both inputs"
+      },
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "fixed torch seed so PracticalHybridSearch's differentiability probe and the run are reproducible"
+      },
+      {
+        "name": "timeout_ms",
+        "value": 100,
+        "why": "gives grad_input_gen time to enter its first iteration; both cases leave the loop after that one iteration, so the count does not depend on timing"
+      },
+      {
+        "name": "overflow_value",
+        "value": 3e+38,
+        "why": "largest float32-representable finite value used as Mul input so the product overflows to +inf while debug_numeric still sees finite inputs"
+      }
+    ],
+    "positive_input": {
+      "case_id": 1
+    },
+    "negative_input": {
+      "case_id": 0
+    },
+    "boundary_variable": "case_id",
+    "extra_negatives": [],
+    "scale": null,
+    "condition_predicate_file": "condition.py",
+    "oracle": {
+      "tier": "O4",
+      "type": "exception",
+      "spec": "ConstraintError raised at nnsmith/materialize/torch/symbolnet.py:385",
+      "signal_location": "nnsmith/materialize/torch/symbolnet.py:385"
+    },
+    "expected": {
+      "positive": "no exception at nnsmith/materialize/torch/symbolnet.py:385",
+      "negative": "no exception at nnsmith/materialize/torch/symbolnet.py:385"
+    }
+  },
+  "execution": {
+    "entry_called": "nnsmith/materialize/torch/input_gen.py::PracticalHybridSearch.search_one",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "false",
+      "true"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "no exception at nnsmith/materialize/torch/symbolnet.py:385",
+    "negative_observed": "no exception at nnsmith/materialize/torch/symbolnet.py:385"
+  },
+  "evidence": {}
+}

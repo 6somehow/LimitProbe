@@ -1,0 +1,41 @@
+{
+  "test_id": "A-nnsmith-F005",
+  "finding_id": "nnsmith-F005",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {"name": "seed", "value": 0, "why": "fixes the RNG sequence so the run and its target hits are reproducible"},
+      {"name": "max_nodes", "value": 3, "why": "terminates generation by node count (not wall clock) so the run is deterministic and fast"},
+      {"name": "timeout_ms", "value": 20000, "why": "default wall-clock cap only; generation terminates on max_nodes before it applies"},
+      {"name": "forward_prob", "value": 0.5, "why": "needs backward attempts to reach the guard plus forward successes so the rank-1 run can grow to max_nodes instead of spinning until the wall-clock timeout"},
+      {"name": "limnf", "value": false, "why": "memory/flops limiting is consulted after the target decision; disabling it keeps the guard the only shape-based skip"},
+      {"name": "expand_last_dim", "value": 2, "why": "selects ExpandLast2, fixing the witness value op.expand_last_dim=2"}
+    ],
+    "positive_input": {"placeholder_ndims": 1},
+    "negative_input": {"placeholder_ndims": 2},
+    "boundary_variable": "placeholder_ndims",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {"tier": "O4", "type": "exception", "spec": "AssertionError raised at nnsmith/graph_gen.py:524", "signal_location": "nnsmith/graph_gen.py:524"},
+    "expected": {"positive": "AssertionError at nnsmith/graph_gen.py:524", "negative": "no exception at nnsmith/graph_gen.py:524"}
+  },
+  "execution": {
+    "entry_called": "nnsmith/graph_gen.py::random_model_gen",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": ["python -m checklimits run --attempt <this directory>"]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": ["false", "true"],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "no exception at nnsmith/graph_gen.py:524",
+    "negative_observed": "no exception at nnsmith/graph_gen.py:524"
+  },
+  "evidence": {}
+}

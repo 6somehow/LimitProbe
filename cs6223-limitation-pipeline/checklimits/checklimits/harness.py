@@ -106,15 +106,37 @@ def differing_factors(pos: dict[str, Any], neg: dict[str, Any]) -> list[str]:
 _ADDR = re.compile(r"0x[0-9a-fA-F]+")
 
 
-def canonical_hash(raw: dict, obs: Observation) -> str:
-    """Hash of everything observable about a run except timing and sequence numbers."""
+def condition_names(expr: Optional[str]) -> Optional[set[str]]:
+    """Names (and dotted roots) a condition expression reads. None = not parseable, so keep every local."""
+    import ast as _ast
+    if not expr:
+        return None
+    try:
+        tree = _ast.parse(expr.split("#")[0].strip(), mode="eval")
+    except SyntaxError:
+        return None
+    names: set[str] = set()
+    for n in _ast.walk(tree):
+        if isinstance(n, _ast.Name):
+            names.add(n.id)
+    return names
+
+
+def canonical_hash(raw: dict, obs: Observation, relevant: Optional[set[str]] = None) -> str:
+    """Hash of everything observable about a run except timing, sequence numbers and unrelated locals.
+
+    Locals are only hashed for the names the Region condition reads (`relevant`; None = all). A local such as
+    `init_time = time.time()` or an object address differs on every run of a deterministic program and would
+    make D8 / D9 fail for a reason that has nothing to do with the finding. All locals stay in the report."""
     exc = raw.get("exception") or {}
     trace = raw.get("trace") or {}
     payload = {
         "status": raw.get("status"),
         "exc": [exc.get("type"), exc.get("raised_at"), _ADDR.sub("0x", exc.get("message") or "")],
         "returned": raw.get("returned"),
-        "hits": [[h["outcome"], h["condition_value"], h["locals"]] for h in trace.get("target_hits", [])],
+        "hits": [[h["outcome"], h["condition_value"],
+                  {k: v for k, v in h["locals"].items() if relevant is None or k in relevant}]
+                 for h in trace.get("target_hits", [])],
         "starts": [[s["file"], s["fn"]] for s in trace.get("starts", [])],
         "lines": trace.get("lines", {}),
         "effect": obs.effect,
@@ -137,9 +159,12 @@ class _Ctx:
         self.repo = (pipeline_root / self.manifest.repo_dir).resolve()
         self.mocks = self.form.execution.mocks
         self.pred_file = self.form.design.condition_predicate_file
+        # a predicate file can read any local; with the Region's own condition only its names matter
+        self.relevant = None if self.pred_file else condition_names(self.region.condition.expr)
         self.exp_type = verdict.expected_exception_type(self.form.design.oracle)
-        from .tracer import target_span
+        from .tracer import statement_span, target_span
         self.span = target_span(self.repo, self.region.location.file, self.region.location.line_start)
+        self.full_span = statement_span(self.repo, self.region.location.file, self.region.location.line_start)
         self.free = {fp.name: fp.value for fp in self.form.design.free_parameters}  # disclosed free parameters (T3)
         if self.form.test_id != self.manifest.test_id or self.form.finding_id != self.manifest.finding_id:
             raise ValueError("form.json and manifest.json disagree on test_id / finding_id")
@@ -159,7 +184,7 @@ class _Ctx:
         spec["seed"] = self.manifest.seed
         spec["prelude"] = self.prelude_for(role)
         raw = runner.run_child(spec, self.manifest.timeout_s, self.manifest.env, python=self.manifest.python)
-        return raw, runner.to_observation(raw, role, inputs, self.region, self.exp_type, self.span)
+        return raw, runner.to_observation(raw, role, inputs, self.region, self.exp_type, self.span, self.full_span)
 
     def run_many(self, cases: list[tuple[str, dict[str, Any]]], *, repo: Optional[Path] = None
                  ) -> dict[str, Observation]:
@@ -170,7 +195,7 @@ class _Ctx:
         cs = [{"id": label, "inputs": {**self.free, **inp}, "prelude": self.prelude_for(label)} for label, inp in cases]
         raws = runner.run_cases(spec, cs, self.manifest.timeout_s, self.manifest.env, python=self.manifest.python)
         return {label: runner.to_observation(raws[label], "negative" if label.startswith("neg") else "positive",
-                                             {**self.free, **inp}, self.region, self.exp_type, self.span)
+                                             {**self.free, **inp}, self.region, self.exp_type, self.span, self.full_span)
                 for label, inp in cases}
 
 
@@ -232,7 +257,7 @@ def _run_replay(ctx: _Ctx, main_hashes: dict[str, str]) -> ReplayResult:
         shutil.copytree(ctx.attempt_dir, att, ignore=shutil.ignore_patterns("__pycache__"))
         raw_p, pos = ctx.run("positive", ctx.form.design.positive_input, repo=co, attempt_dir=att)
         raw_n, neg = ctx.run("negative", ctx.form.design.negative_input, repo=co, attempt_dir=att)
-    got = {"positive": canonical_hash(raw_p, pos), "negative": canonical_hash(raw_n, neg)}
+    got = {"positive": canonical_hash(raw_p, pos, ctx.relevant), "negative": canonical_hash(raw_n, neg, ctx.relevant)}
     ok = got == main_hashes
     return ReplayResult(ok=ok, detail="fresh checkout reproduces both runs (identical canonical traces)" if ok else
                         "fresh checkout gave different canonical traces: " +
@@ -279,12 +304,12 @@ def run_attempt(attempt_dir: Path, pipeline_root: Path = PIPELINE_ROOT, options:
 
     # D8: repeats in fresh processes
     n_rep = options.repeats if options.repeats is not None else profile.n_rep
-    hashes = {"positive": [canonical_hash(raw_p, pos)], "negative": [canonical_hash(raw_n, neg)]}
+    hashes = {"positive": [canonical_hash(raw_p, pos, ctx.relevant)], "negative": [canonical_hash(raw_n, neg, ctx.relevant)]}
     for _ in range(n_rep - 1):
         rp, op = ctx.run("positive", form.design.positive_input)
         rn, on = ctx.run("negative", form.design.negative_input)
-        hashes["positive"].append(canonical_hash(rp, op))
-        hashes["negative"].append(canonical_hash(rn, on))
+        hashes["positive"].append(canonical_hash(rp, op, ctx.relevant))
+        hashes["negative"].append(canonical_hash(rn, on, ctx.relevant))
     repeat = None
     if n_rep >= 2:
         distinct = max(len(set(hashes["positive"])), len(set(hashes["negative"])))

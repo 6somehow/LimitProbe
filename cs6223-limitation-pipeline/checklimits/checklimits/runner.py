@@ -129,10 +129,17 @@ def outcome_support(region: Any, repo_root: Path) -> tuple[bool, str]:
                                                      (state_dependent: the checked call comes after prelude calls)
     Branch effects need the target to be an `if` / `while` statement: the tracer sees which way it went.
     Anything else (an assignment, a call, an assert for a non-reject outcome) is not judged."""
-    from .tracer import classify_target
+    from .tracer import can_raise_here, classify_target
     o = region.outcome
     if o in EXCEPTION_OUTCOMES:
-        return True, ""
+        ok, why = can_raise_here(repo_root, region.location.file, region.location.line_start)
+        if ok:
+            return True, ""
+        # A `reject` label on a statement that cannot raise (a `continue`, a flag assignment, a filter) describes what
+        # the program eventually does, not an exception at this line. Judging it by "exception at the location" would
+        # give a confident `no` for the wrong reason, so the harness declines.
+        return False, (f"outcome 'reject' is judged by an exception raised at {region.location.file}:"
+                       f"{region.location.line_start}, but {why}")
     if o in BRANCH_OUTCOMES:
         kind, _ = classify_target(repo_root, region.location.file, region.location.line_start)
         if kind in ("if", "while"):
@@ -154,7 +161,8 @@ def _raised_in(exc: Optional[ExceptionInfo], region: Any, span: Optional[tuple[i
 
 
 def to_observation(raw: dict[str, Any], role: str, inputs: dict[str, Any], region: Any,
-                   expected_exc_type: Optional[str], span: Optional[tuple[int, int]] = None) -> Observation:
+                   expected_exc_type: Optional[str], span: Optional[tuple[int, int]] = None,
+                   full_span: Optional[tuple[int, int]] = None) -> Observation:
     """Interpret one raw result.
 
     reject: the effect is an exception raised AT Region.location. A run that passes the target line and fails
@@ -188,7 +196,7 @@ def to_observation(raw: dict[str, Any], role: str, inputs: dict[str, Any], regio
         obs.effect_note = f"prelude call {raw['prelude_failed']} failed: {exc.type if exc else '?'} at {exc.raised_at if exc else '?'}"
     elif family == "branch":
         _branch_effect(obs, hits, exc, status, loc, raw.get("target_kind"))
-    elif _raised_in(exc, region, span) and (expected_exc_type is None or exc.type == expected_exc_type):
+    elif _raised_in(exc, region, full_span or span) and (expected_exc_type is None or exc.type == expected_exc_type):
         obs.effect = True
         obs.effect_note = f"{exc.type} raised at target"
     elif reached:

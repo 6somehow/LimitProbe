@@ -8,6 +8,9 @@ from collections import Counter
 from pathlib import Path
 
 FF = Path(__file__).resolve().parents[2] / "results/step4/flexprefill/limitations_for_tests.json"
+import os
+if os.environ.get("BATCH_FINDINGS"):
+    FF = Path(os.environ["BATCH_FINDINGS"])
 
 
 def main(dirs):
