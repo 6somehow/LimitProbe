@@ -21,7 +21,7 @@ def main(dirs):
             if f.name == "summary.json":
                 continue
             runs.append(json.loads(f.read_text()))
-    out = ["# Agent batch over step 4 FlexPrefill findings", "",
+    out = ["# Agent batch over step 4 findings", "",
            f"{len(runs)} runs. Distributions only: there is no ground truth for these Findings, so `yes` is not accuracy, "
            "and the levels are uncalibrated.", ""]
     ok = [r for r in runs if r.get("level")]
