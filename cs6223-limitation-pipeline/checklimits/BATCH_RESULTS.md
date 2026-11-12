@@ -123,3 +123,8 @@ tool calls 1650, LLM steps 1444, tokens 78.7M (counts every re-sent context), ag
 ## 补记（2026-11-12）：变异算子 v2 之后的重新审计
 
 补了 `is` / `in` / `and` / `or` 互换，并去掉单比较守卫里与取反重复的互换（`CONFIDENCE_SPEC.md` §14）。对上面 33 个已归档 attempt 重新跑 harness（`python -m checklimits reaudit`，不重新运行 agent）：32 条不变，**F053 从 L3 降到 L1**（3 个变异体 < 4）。上面表格里 F053 的 L3 是旧算子集下的结果。分布变为 L3 6 条、L2 8 条、L1 16 条、无结论 3 条。
+
+
+## 补记二（2026-11-12）：第二个 artifact 之后的规则修正
+
+NNSmith 的批量（`NNSMITH_RESULTS.md`）暴露了三处 harness 缺陷，修复后对本页的 33 个 attempt 再次重新审计，结果与"补记"一致（只有 F053 变化）。对本页有一处解释要改：**F047 没测出来不是 agent 的问题**，它的目标语句（`flex_prefill_attention.py:1221` 的 `if`）不能抛异常，`reject` 标签不适用，现在 harness 直接返回 `not_run`。F047 因此不再属于可判断的 Finding，可判断的 FlexPrefill Finding 是 32 条。
