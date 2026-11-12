@@ -118,3 +118,8 @@ tool calls 1650, LLM steps 1444, tokens 78.7M (counts every re-sent context), ag
 - Region 的调用链应是真实的"入口到目标"的链（现在只有两个元素），否则 D14 总是 residual。
 - F010 的 witness 看起来没有把子函数参数 `d` 与入口参数 `head_dim` 关联起来（推断，见上），值得核对。
 - 盲审标签与结果：`real_but_minor` 10 条全是 yes；`worth_testing` 5 条里 4 条 yes（另一条是 F019）；`wrong` 的 F047 没有测出来；未审的 17 条里 16 条 yes。样本太小，不能说盲审标签预测了可测性。
+
+
+## 补记（2026-11-12）：变异算子 v2 之后的重新审计
+
+补了 `is` / `in` / `and` / `or` 互换，并去掉单比较守卫里与取反重复的互换（`CONFIDENCE_SPEC.md` §14）。对上面 33 个已归档 attempt 重新跑 harness（`python -m checklimits reaudit`，不重新运行 agent）：32 条不变，**F053 从 L3 降到 L1**（3 个变异体 < 4）。上面表格里 F053 的 L3 是旧算子集下的结果。分布变为 L3 6 条、L2 8 条、L1 16 条、无结论 3 条。

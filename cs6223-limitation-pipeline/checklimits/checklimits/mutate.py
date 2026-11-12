@@ -1,7 +1,9 @@
 """Mutants of the target decision (SCORECARD "mutation"; CONFIDENCE_SPEC defeater D3).
 
-Operators (fixed set): negate the condition, swap a comparison operator (== <-> !=, < <-> <=,
-> <-> >=), delete the statement (assert / raise), add 1 to / subtract 1 from an integer constant.
+Operators (fixed set; v2 of 2026-11-12 added the identity, membership and logical swaps): negate the
+condition; swap a comparison operator (== <-> !=, < <-> <=, > <-> >=, is <-> is not, in <-> not in);
+swap a logical connective (and <-> or), one junction at a time; delete the statement (assert / raise);
+add 1 to / subtract 1 from an integer constant.
 Only the statement at Region.location is mutated. Edits are made on the source text so every
 mutant has the same line count as the original: location-based oracles keep working.
 Mutants are written into a temporary copy of the repository, never into third_party/.
@@ -13,9 +15,13 @@ import ast
 import re
 from dataclasses import dataclass
 
-_SWAP = {"==": "!=", "!=": "==", "<": "<=", "<=": "<", ">": ">=", ">=": ">"}
-_OP_SYMBOL = {ast.Eq: "==", ast.NotEq: "!=", ast.Lt: "<", ast.LtE: "<=", ast.Gt: ">", ast.GtE: ">="}
-_OP_RE = re.compile(r"==|!=|<=|>=|<|>")
+_SWAP = {"==": "!=", "!=": "==", "<": "<=", "<=": "<", ">": ">=", ">=": ">",
+         "is": "is not", "is not": "is", "in": "not in", "not in": "in"}
+_OP_SYMBOL = {ast.Eq: "==", ast.NotEq: "!=", ast.Lt: "<", ast.LtE: "<=", ast.Gt: ">", ast.GtE: ">=",
+              ast.Is: "is", ast.IsNot: "is not", ast.In: "in", ast.NotIn: "not in"}
+_OP_RE = re.compile(r"\bis\s+not\b|\bis\b|\bnot\s+in\b|\bin\b|==|!=|<=|>=|<|>")
+_LOGIC_RE = {ast.And: re.compile(r"\band\b"), ast.Or: re.compile(r"\bor\b")}
+_LOGIC_SWAP = {ast.And: "or", ast.Or: "and"}
 
 
 @dataclass
@@ -68,6 +74,9 @@ def generate(src: str, line: int) -> list[Mutant]:
     if test is not None:
         a, b = t.span(test)
         out.append(("negate_condition", replace(a, b, f"not ({src[a:b]})")))
+        # `not (a == b)` and `a != b` are the same mutant: when the whole test is one such comparison the swap
+        # adds nothing and would inflate the mutant count that D3 relies on, so it is skipped.
+        lone = isinstance(test, ast.Compare) and len(test.ops) == 1
         for cmp_node in [n for n in ast.walk(test) if isinstance(n, ast.Compare)]:
             left_end = t.span(cmp_node.left)[1]
             for op, comp in zip(cmp_node.ops, cmp_node.comparators):
@@ -76,9 +85,16 @@ def generate(src: str, line: int) -> list[Mutant]:
                     continue
                 c_start = t.span(comp)[0]
                 m = _OP_RE.search(src, left_end, c_start)
-                if m and m.group(0) == sym:
+                complement = sym in ("==", "!=", "is", "is not", "in", "not in")
+                if m and re.sub(r"\s+", " ", m.group(0)) == sym and not (lone and complement):
                     out.append((f"swap_comparison {sym}->{_SWAP[sym]}", replace(m.start(), m.end(), _SWAP[sym])))
                 left_end = t.span(comp)[1]
+        for bo in [n for n in ast.walk(test) if isinstance(n, ast.BoolOp)]:
+            word = "and" if isinstance(bo.op, ast.And) else "or"
+            for left, right in zip(bo.values, bo.values[1:]):
+                m = _LOGIC_RE[type(bo.op)].search(src, t.span(left)[1], t.span(right)[0])
+                if m:
+                    out.append((f"swap_logical {word}->{_LOGIC_SWAP[type(bo.op)]}", replace(m.start(), m.end(), _LOGIC_SWAP[type(bo.op)])))
         for c in [n for n in ast.walk(test) if isinstance(n, ast.Constant)
                   and isinstance(n.value, int) and not isinstance(n.value, bool)]:
             ca, cb = t.span(c)

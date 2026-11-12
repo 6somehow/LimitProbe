@@ -67,3 +67,36 @@ def run_batch(findings_file: str, batch_id: str, only: Optional[list[str]] = Non
                "results": results}
     (out / "summary.json").write_text(json.dumps(summary, indent=1, default=str))
     return summary
+
+
+def reaudit(root: Path, out: Path, workers: int = 3, options: Optional[RunOptions] = None) -> dict[str, Any]:
+    """Run the harness again on archived agent packages (no agent involved), e.g. after a rule or operator change.
+
+    root/<name>/attempt/ and root/<name>/agent_result.json (the earlier outcome) are read; fresh oracle locks are used."""
+    import tempfile
+    from .harness import run_attempt
+
+    options = options or RunOptions()
+    dirs = sorted(d for d in root.iterdir() if (d / "attempt" / "manifest.json").exists())
+    out.mkdir(parents=True, exist_ok=True)
+
+    def one(d: Path) -> dict[str, Any]:
+        before = json.loads((d / "agent_result.json").read_text()) if (d / "agent_result.json").exists() else {}
+        row: dict[str, Any] = {"name": d.name, "finding": before.get("finding"), "before_verdict": before.get("final_verdict"),
+                               "before_level": before.get("level"), "before_defeaters": before.get("defeaters", {})}
+        try:
+            with tempfile.TemporaryDirectory(dir=PROJECT_ROOT / "scratch") as td:
+                r = run_attempt(d / "attempt", options=options, locks_dir=Path(td))["report"]
+            row.update({"after_verdict": r.final_verdict, "after_level": r.confidence.level,
+                        "after_defeaters": {x.id: x.status for x in r.confidence.defeaters},
+                        "mutation": (r.checks.mutation.model_dump(include={"generated", "killed", "wilson_lower"})
+                                     if r.checks.mutation else None), "error": None})
+        except Exception as e:
+            row.update({"after_verdict": None, "after_level": None, "after_defeaters": {}, "mutation": None,
+                        "error": f"{type(e).__name__}: {e}"[:300]})
+        return row
+
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        rows = list(ex.map(one, dirs))
+    (out / "reaudit.json").write_text(json.dumps(rows, indent=1, default=str))
+    return {"rows": rows}

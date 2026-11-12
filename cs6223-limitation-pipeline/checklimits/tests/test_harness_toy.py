@@ -36,7 +36,7 @@ def test_full_run_eliminates_every_defeater(tmp_path):
     assert p.target_hits[0].condition_value is True and n.target_hits[0].condition_value is False
     assert r.audit.rate == 1.0 and r.fidelity.entry_index == 0 and r.fidelity.probe_effect_free
     m = r.checks.mutation
-    assert m.generated == 5 and m.killed == 5 and m.wilson_lower == pytest.approx(0.566, abs=1e-3)
+    assert m.generated == 4 and m.killed == 4 and m.wilson_lower == pytest.approx(0.510, abs=1e-3)   # negate, 1->2, 1->0, delete
     assert r.checks.bva.adjacent and r.checks.bva.full_scale_positive and r.checks.bva.full_scale_negative is False
     assert r.checks.repeat.runs == 2 and r.checks.repeat.identical and r.checks.replay.ok
     assert r.confidence.profile.name == "default-v1"

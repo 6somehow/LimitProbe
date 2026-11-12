@@ -82,6 +82,15 @@ def cmd_batch(a: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_reaudit(a: argparse.Namespace) -> int:
+    from .agent_batch import reaudit
+
+    res = reaudit(Path(a.root), Path(a.out), a.workers)
+    changed = [r for r in res["rows"] if (r["before_verdict"], r["before_level"]) != (r["after_verdict"], r["after_level"])]
+    print(json.dumps({"rows": len(res["rows"]), "changed": [(r["name"], r["before_level"], r["after_level"]) for r in changed]}, indent=1))
+    return 0
+
+
 def cmd_bench(a: argparse.Namespace) -> int:
     from .bench import run_bench
     from .harness import RunOptions
@@ -146,6 +155,11 @@ def main(argv: list[str] | None = None) -> int:
     ba.add_argument("--sessions", type=int, default=2)
     ba.add_argument("--list", action="store_true", help="only list what would run and why the rest is skipped")
     ba.set_defaults(fn=cmd_batch)
+    ra = sub.add_parser("reaudit", help="re-run the harness on archived agent packages (after a rule change)")
+    ra.add_argument("--root", default="agent_results/batch")
+    ra.add_argument("--out", required=True)
+    ra.add_argument("--workers", type=int, default=3)
+    ra.set_defaults(fn=cmd_reaudit)
     b = sub.add_parser("bench", help="fault-injection benchmark (writes results/bench/)")
     b.add_argument("--case", action="append", help="case id (repeatable); default: all")
     b.add_argument("--out")
