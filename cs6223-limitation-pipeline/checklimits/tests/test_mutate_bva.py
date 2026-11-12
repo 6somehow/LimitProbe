@@ -20,7 +20,8 @@ def ops(mutants):
 
 def test_assert_mutants_keep_line_count_and_parse():
     ms = mutate.generate(SRC, 3)
-    assert len(ms) == 8
+    assert len(ms) == 9    # negate, ==, <, and->or, four constants, delete
+    assert "swap_logical and->or" in ops(ms)
     assert set(ops(ms)) >= {"negate_condition", "delete_statement", "swap_comparison ==->!=", "swap_comparison <-><="}
     for m in ms:
         assert m.source.count("\n") == SRC.count("\n") and m.line == 3
@@ -59,9 +60,9 @@ def test_raise_can_be_deleted():
 
 
 def test_unicode_before_the_expression_does_not_shift_offsets():
-    src = 'def f(a):\n    assert a == 1, "不支持"\n'
+    src = 'def f(a, b):\n    assert a == 1 and b, "不支持"\n'
     m = next(m for m in mutate.generate(src, 2) if m.operator.startswith("swap"))
-    assert m.mutated == 'assert a != 1, "不支持"'
+    assert m.mutated == 'assert a != 1 and b, "不支持"'
 
 
 # --- bva ---------------------------------------------------------------------------------------------
@@ -112,3 +113,23 @@ def test_evaluate_patterns():
     assert undecided.adjacent is None
     na = bva.evaluate("x", {"pos_full": True}, inp, False, "float")
     assert not na.applicable and na.adjacent is None and na.full_scale_positive is True
+
+
+def test_identity_membership_and_logical_swaps():
+    src = "def f(h, k):\n    assert h in {16, 32} and k is not None, 'm'\n"
+    got = {m.operator: m.mutated for m in mutate.generate(src, 2)}
+    assert got["swap_comparison in->not in"] == "assert h not in {16, 32} and k is not None, 'm'"
+    assert got["swap_comparison is not->is"] == "assert h in {16, 32} and k is None, 'm'"
+    assert got["swap_logical and->or"] == "assert h in {16, 32} or k is not None, 'm'"
+    src2 = "def f(a, b, c):\n    if (a or b) and not c:\n        return 1\n"
+    assert {"swap_logical and->or", "swap_logical or->and"} <= {m.operator for m in mutate.generate(src2, 2)}
+
+
+def test_a_lone_complement_comparison_is_one_mutant_not_two():
+    # `not (c is None)` and `c is not None` are the same mutant; counting both would inflate D3's mutant count
+    assert [m.operator for m in mutate.generate("def f(c):\n    if c is None:\n        return 1\n", 2)] == ["negate_condition"]
+    assert [m.operator for m in mutate.generate("def f(a):\n    assert a in (1, 2)\n", 2)][:1] == ["negate_condition"]
+    ops_ = [m.operator for m in mutate.generate("def f(a):\n    assert a == 1\n", 2)]
+    assert not any(o.startswith("swap_comparison") for o in ops_)
+    # `<` -> `<=` is NOT the complement, so it stays
+    assert any(o.startswith("swap_comparison") for o in [m.operator for m in mutate.generate("def f(a):\n    assert a < 1\n", 2)])
