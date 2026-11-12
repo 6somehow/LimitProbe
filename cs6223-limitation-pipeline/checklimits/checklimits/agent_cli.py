@@ -29,9 +29,13 @@ def _repo_dir_for(artifact: dict[str, Any]) -> str:
     return "third_party/" + artifact["repo_url"].rstrip("/").split("/")[-1].removesuffix(".git")
 
 
-def _venv_python() -> Optional[str]:
-    p = PROJECT_ROOT / "scratch" / "venv311" / "bin" / "python"
-    return "scratch/venv311/bin/python" if p.exists() else None
+def _venv_python(artifact_id: str = "flexprefill") -> Optional[str]:
+    """Interpreter for the code under test: scratch/venv_<artifact> if it exists (scripts/make_venv_*.sh), and for
+    FlexPrefill the original scratch/venv311. None = the harness interpreter."""
+    for name in (f"venv_{artifact_id}", "venv311" if artifact_id == "flexprefill" else ""):
+        if name and (PROJECT_ROOT / "scratch" / name / "bin" / "python").exists():
+            return f"scratch/{name}/bin/python"
+    return None
 
 
 # --------------------------------------------------------------------------- task
@@ -75,11 +79,14 @@ def task_text(finding_id: str, data_dir_rel: str = DEFAULT_DATA, context: int = 
             L += [f"Source around the target ({repo_rel}/{loc.file}, read-only):", "```python"]
             L += [f"{i:5d}{'>' if i == loc.line_start else ' '} {lines[i - 1]}" for i in range(a, b + 1)]
             L += ["```", ""]
-    py = _venv_python()
+    py = _venv_python(art["artifact_id"])
+    from .harness import _pkg_versions
+    from .runner import resolve_python
+    pk = _pkg_versions(resolve_python(py)) if py else {}
     L += ["## Environment",
           f"- repository (pinned, read-only): `{repo_rel}` at `{art['commit']}`",
           f"- python for the code under test: `{py or 'harness interpreter'}` "
-          "(torch 2.4.0 CPU, triton 3.0.0, transformers 4.44.0: the versions the repository pins; no GPU)",
+          f"({', '.join(f'{k} {v}' for k, v in pk.items()) or 'versions unknown'}; CPU only, no GPU)",
           "- stand-ins for GPU-only calls are allowed only as declared mocks (see INSTRUCTIONS.md)", "",
           "## Next",
           f"`init {f.finding_id} --out <dir>` creates the attempt package skeleton; then read INSTRUCTIONS.md."]
@@ -100,7 +107,7 @@ def init_attempt(finding_id: str, out: Path, data_dir_rel: str = DEFAULT_DATA, t
     manifest = AttemptManifest(
         test_id=test_id or f"A-{finding_id}", finding_id=finding_id, artifact_id=art["artifact_id"],
         region_id=r.region_id, repo_dir=_repo_dir_for(art), repo_commit=art["commit"], data_dir=data_dir_rel,
-        findings_file=findings_file, python=python or _venv_python())
+        findings_file=findings_file, python=python or _venv_python(art["artifact_id"]))
     w = t.witness
     keys = sorted(w.input_keys & set(w.trigger or {}))
     witness = {k: w.trigger[k] for k in keys} if t.witness_type == "input_value" and w.trigger else {}

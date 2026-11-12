@@ -71,7 +71,7 @@ class SessionStats:
 HIDE_PATHS_DIRS = [PROJECT_ROOT / d for d in ("attempts", "results", "locks", "runs", "tests", "scripts", "scratch")] + \
                   [PIPELINE_ROOT.parent / ".git"]     # PIPELINE_ROOT/results stays visible: it holds the step 4 inputs
 HIDE_PATHS_FILES = [PROJECT_ROOT / f for f in ("PLAN.md", "KICKOFF_PROMPT.md", "ENV.md", "scoring_prototype.py")]
-SCRATCH_KEEP_RO = ["venv311", "opencode"]     # interpreter for the code under test, and the agent runtime itself
+SCRATCH_KEEP_RO = ["venv311", "venv_nnsmith", "opencode"]   # interpreters for the code under test, and the agent runtime
 
 
 def sandbox_cmd(run_dir: Path, inner: list[str]) -> list[str]:
@@ -83,7 +83,8 @@ def sandbox_cmd(run_dir: Path, inner: list[str]) -> list[str]:
         if f.is_file():
             cmd += ["--ro-bind", "/dev/null", str(f)]
     for k in SCRATCH_KEEP_RO:          # re-expose what the agent needs inside the emptied scratch/
-        cmd += ["--ro-bind", str(PROJECT_ROOT / "scratch" / k), str(PROJECT_ROOT / "scratch" / k)]
+        if (PROJECT_ROOT / "scratch" / k).exists():
+            cmd += ["--ro-bind", str(PROJECT_ROOT / "scratch" / k), str(PROJECT_ROOT / "scratch" / k)]
     cmd += ["--bind", str(run_dir), str(run_dir), "--chdir", str(PIPELINE_ROOT), "--unshare-pid", "--die-with-parent"]
     return cmd + inner
 
@@ -102,7 +103,7 @@ def agent_env(run_dir: Path) -> dict[str, str]:
 
 
 def build_prompt(finding: str, run_dir: Path, feedback: Optional[str] = None,
-                 findings_file: Optional[str] = None) -> str:
+                 findings_file: Optional[str] = None, data_dir: Optional[str] = None) -> str:
     attempt = run_dir / "workspace" / "attempt"
     out = run_dir / "out"
     if feedback:
@@ -113,9 +114,11 @@ def build_prompt(finding: str, run_dir: Path, feedback: Optional[str] = None,
     return (INSTRUCTIONS.read_text() + f"\n\n---\n\n# Your assignment\n\nVerify finding **{finding}**.\n\n"
             f"* `CL` = `{CL}` (use this exact path).\n* Your attempt directory: `{attempt}` (create it with `init`).\n"
             f"* Output directory for reports: `{out}`.\n* Everything else on disk is read-only.\n"
-            + (f"* Input source: the step 4 hand-off. Pass `--findings-file {findings_file}` to `task` and `init`.\n"
-               if findings_file else "")
-            + f"Start with `{CL} task {finding}" + (f" --findings-file {findings_file}" if findings_file else "") + "`.")
+            + (f"* Input source: the step 4 hand-off. Pass `--findings-file {findings_file}"
+               + (f" --data-dir {data_dir}" if data_dir and data_dir != "data/pilot_flexprefill" else "")
+               + "` to `task` and `init`.\n" if findings_file else "")
+            + f"Start with `{CL} task {finding}" + (f" --findings-file {findings_file}" if findings_file else "")
+            + (f" --data-dir {data_dir}" if findings_file and data_dir and data_dir != "data/pilot_flexprefill" else "") + "`.")
 
 
 def _kill(proc: subprocess.Popen) -> None:
@@ -218,7 +221,8 @@ def authoritative_run(run_dir: Path, options: RunOptions) -> dict[str, Any]:
 
 
 def run_agent(finding: str, run_id: str, budget: Budget = Budget(), options: Optional[RunOptions] = None,
-              target_level: str = "L3", findings_file: Optional[str] = None) -> dict[str, Any]:
+              target_level: str = "L3", findings_file: Optional[str] = None,
+              data_dir: Optional[str] = None) -> dict[str, Any]:
     options = options or RunOptions()
     run_dir = prepare_run(finding, run_id)
     sessions: list[SessionStats] = []
@@ -227,7 +231,7 @@ def run_agent(finding: str, run_id: str, budget: Budget = Budget(), options: Opt
     auth: Optional[dict[str, Any]] = None
     t0 = time.monotonic()
     for i in range(budget.sessions):
-        st = run_session(run_dir, build_prompt(finding, run_dir, feedback, findings_file), budget, session_id, f"events_{i}.jsonl")
+        st = run_session(run_dir, build_prompt(finding, run_dir, feedback, findings_file, data_dir), budget, session_id, f"events_{i}.jsonl")
         sessions.append(st)
         session_id = st.session_id
         if not (run_dir / "workspace" / "attempt" / "manifest.json").exists():

@@ -216,10 +216,16 @@ class _TracerBase:
                    "locals": {}, "call": self.call_index}
             f_locals = frame.f_locals
             self._eval_condition(hit, f_locals, frame.f_globals)
-            for i, (k, v) in enumerate(f_locals.items()):
-                if i >= 40:
+            root = str(self.repo_root)
+            n = 0
+            for k, v in f_locals.items():
+                if k.startswith("__"):          # a module-level frame's "locals" are the module dict: __file__ etc.
+                    continue
+                if n >= 40:
                     break
-                hit["locals"][k] = summarize(v)
+                n += 1
+                # absolute paths differ between the main run and a replay in a fresh checkout
+                hit["locals"][k] = summarize(v).replace(root, "<repo>")
             if len(self.hits) < 50:
                 self.hits.append(hit)
             self._pending[fid] = _Pending(hit, code)

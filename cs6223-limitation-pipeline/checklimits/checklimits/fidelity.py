@@ -83,8 +83,38 @@ def functions_by_qualname(tree: ast.AST) -> dict[str, ast.FunctionDef | ast.Asyn
     return out
 
 
+MODULE = "<module>"
+
+
+def module_level_statements(tree: ast.Module) -> list[ast.stmt]:
+    """Statements that run when the module is imported: everything outside function and class bodies (the
+    compound statements around them, if / try / for / with, are descended into)."""
+    out: list[ast.stmt] = []
+
+    def walk(body: list[ast.stmt]) -> None:
+        for st in body:
+            out.append(st)
+            if isinstance(st, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                continue
+            for f in ("body", "orelse", "finalbody"):
+                walk(getattr(st, f, None) or [])
+            for h in getattr(st, "handlers", []) or []:
+                walk(h.body)
+    walk(tree.body)
+    return out
+
+
 def fn_statements(fn: ast.AST) -> list[ast.stmt]:
-    return [s for s in iter_stmts(fn.body) if not _is_docstring(s) and not _is_log_probe(s)]
+    body = module_level_statements(fn) if isinstance(fn, ast.Module) else list(iter_stmts(fn.body))
+    return [s for s in body if not _is_docstring(s) and not _is_log_probe(s)
+            and not (isinstance(fn, ast.Module) and isinstance(s, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)))]
+
+
+def function_nodes(tree: ast.Module) -> dict[str, Any]:
+    """functions_by_qualname plus '<module>' (the module body) so module-level targets can be located."""
+    out = functions_by_qualname(tree)
+    out[MODULE] = tree
+    return out
 
 
 def _file_at_commit(repo: Path, commit: str, rel: str) -> str:
@@ -101,7 +131,7 @@ def ast_diff(repo: Path, commit: str, chain: list[str], target_file: str, target
     for rel in files:
         old_tree = ast.parse(_file_at_commit(repo, commit, rel))
         new_tree = ast.parse((repo / rel).read_text())
-        old_fns, new_fns = functions_by_qualname(old_tree), functions_by_qualname(new_tree)
+        old_fns, new_fns = function_nodes(old_tree), function_nodes(new_tree)
         for c in chain:
             f, _, q = c.partition("::")
             if f != rel or q not in old_fns:
@@ -124,8 +154,11 @@ def ast_diff(repo: Path, commit: str, chain: list[str], target_file: str, target
         return None
 
     def stmts_of_function(tree: ast.AST) -> set[str]:
-        fn = functions_by_qualname(tree).get(target_function)
-        return {ast.dump(s) for s in iter_stmts(fn.body)} if fn is not None else set()
+        fn = function_nodes(tree).get(target_function or MODULE)
+        if fn is None:
+            return set()
+        body = module_level_statements(fn) if isinstance(fn, ast.Module) else iter_stmts(fn.body)
+        return {ast.dump(s) for s in body}
 
     # The target statement is intact if the committed statement still exists, unchanged, in the same
     # function. Matching by content (not by line) keeps a harmless insertion above it from looking like
@@ -178,7 +211,7 @@ def coverage(repo: Path, chain: list[str], trace_lines: dict[str, list[int]]) ->
     total = executed = 0
     for c in chain:
         f, _, q = c.partition("::")
-        fns = functions_by_qualname(ast.parse((repo / f).read_text()))
+        fns = function_nodes(ast.parse((repo / f).read_text()))
         if q not in fns:
             continue
         lines = {s.lineno for s in fn_statements(fns[q])}

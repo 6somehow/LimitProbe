@@ -127,9 +127,23 @@ def entry(n, m):
     return make()(n, m)
 '''
 
-FUNC = {"nested": "make.check"}     # Region.location.function, when it is not simply `check`
+CORE_MODULE = '''import os
+
+LIMIT = os.getenv("TOY_LIMIT", "auto")
+if LIMIT == "off":
+    LIMIT = None
+else:
+    LIMIT = 5
+
+
+def entry(n, m):
+    return LIMIT
+'''
+
+FUNC = {"nested": "make.check", "module": "<module>"}     # Region.location.function, when it is not simply `check`
 
 KINDS = {
+    "module": (CORE_MODULE, 'if LIMIT == "off":', "fallback", 'LIMIT == "off"', 'if LIMIT == "off":'),
     "nested": (CORE_NESTED, "assert n == 1", "reject", "n != 1", 'assert n == 1, "n must be 1"'),   # kind -> (source, text that starts the target line, outcome, condition expr, snippet)
     "reject": (None, "assert n == 1", "reject", "n != 1", 'assert n == 1, "n must be 1"'),
     "multiline": (CORE_MULTILINE, "assert (", "reject", "n != 1 or m < 0", "assert n == 1 and m >= 0"),

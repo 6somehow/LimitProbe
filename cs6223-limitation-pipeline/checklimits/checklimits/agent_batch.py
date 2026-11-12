@@ -21,6 +21,15 @@ from .runner import outcome_support
 USABLE_WITNESS = ("solved", "solved_contrast_outside_scope")
 
 
+def artifact_paths(artifact: str) -> tuple[str, str, str]:
+    """(data_dir, findings_file, repo dir) of an artifact, relative to the pipeline root. FlexPrefill keeps its
+    pilot data directory; every other artifact uses data/<artifact> and results/step4/<artifact>."""
+    data = "data/pilot_flexprefill" if artifact == "flexprefill" else f"data/{artifact}"
+    art = json.loads((PIPELINE_ROOT / data / "artifact.json").read_text())
+    repo = "third_party/" + art["repo_url"].rstrip("/").split("/")[-1].removesuffix(".git")
+    return data, f"results/step4/{artifact}/limitations_for_tests.json", repo
+
+
 def select(findings_file: str, data_dir: str = "data/pilot_flexprefill", repo_rel: str = "third_party/FlexPrefill"
            ) -> tuple[list[str], dict[str, str]]:
     ff = PIPELINE_ROOT / findings_file
@@ -43,8 +52,9 @@ def select(findings_file: str, data_dir: str = "data/pilot_flexprefill", repo_re
 
 
 def run_batch(findings_file: str, batch_id: str, only: Optional[list[str]] = None, skip: Optional[list[str]] = None,
-              workers: int = 3, budget: Budget = Budget(), options: Optional[RunOptions] = None) -> dict[str, Any]:
-    chosen, skipped = select(findings_file)
+              workers: int = 3, budget: Budget = Budget(), options: Optional[RunOptions] = None,
+              data_dir: str = "data/pilot_flexprefill", repo_rel: str = "third_party/FlexPrefill") -> dict[str, Any]:
+    chosen, skipped = select(findings_file, data_dir, repo_rel)
     if only:
         chosen = [c for c in chosen if c in only]
     chosen = [c for c in chosen if c not in (skip or [])]
@@ -55,7 +65,7 @@ def run_batch(findings_file: str, batch_id: str, only: Optional[list[str]] = Non
     def one(fid: str) -> dict[str, Any]:
         run_id = f"{batch_id}-{fid.split('-')[-1].lower()}"
         try:
-            res = run_agent(fid, run_id, budget, options, findings_file=findings_file)
+            res = run_agent(fid, run_id, budget, options, findings_file=findings_file, data_dir=data_dir)
         except BaseException as e:  # a crashed run is a result, not a reason to stop the batch
             res = {"finding": fid, "run_id": run_id, "verdict": None, "level": None, "error": f"{type(e).__name__}: {e}"[:300]}
         (out / f"{run_id}.json").write_text(json.dumps(res, indent=1, default=str))
