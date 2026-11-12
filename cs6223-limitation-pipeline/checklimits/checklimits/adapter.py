@@ -124,7 +124,9 @@ def region_from_limitation(lim: Limitation, entry_points: list[str]) -> Optional
         return None
     loc = lim.code_evidence[0]
     cond = lim.condition or Condition(expr=lim.condition_text, params=[], path_prefix=[])
-    entry = entry_points[0] if entry_points else (loc.function or "")
+    # entry: the artifact's entry point in the same file as the target if there is one, else the first one
+    same_file = [e for e in entry_points if e.partition("::")[0] == loc.file]
+    entry = (same_file or entry_points or [loc.function or ""])[0]
     chain = [entry] if not loc.function or loc.function == entry else [entry, loc.function]
     return Region(region_id=(lim.region_ids[0] if lim.region_ids else lim.limitation_id), artifact_id=lim.artifact_id,
                   entry_point=entry, condition=cond, outcome=Outcome(_OUTCOME.get(lim.effect_type, "suspicious")),

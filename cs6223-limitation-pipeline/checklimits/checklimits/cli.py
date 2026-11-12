@@ -69,15 +69,17 @@ def cmd_agent(a: argparse.Namespace) -> int:
 
 
 def cmd_batch(a: argparse.Namespace) -> int:
-    from .agent_batch import run_batch, select
+    from .agent_batch import artifact_paths, run_batch, select
     from .agent_loop import Budget
 
+    data_dir, ff, repo = artifact_paths(a.artifact)
+    a.findings_file = a.findings_file or ff
     if a.list:
-        chosen, skipped = select(a.findings_file)
+        chosen, skipped = select(a.findings_file, data_dir, repo)
         print(json.dumps({"selected": chosen, "n_skipped": len(skipped), "skipped": skipped}, indent=1))
         return 0
     res = run_batch(a.findings_file, a.batch_id, a.only, a.skip, a.workers,
-                    Budget(a.wall_s, a.tool_calls, a.tokens, a.sessions))
+                    Budget(a.wall_s, a.tool_calls, a.tokens, a.sessions), data_dir=data_dir, repo_rel=repo)
     print(json.dumps({k: v for k, v in res.items() if k != "results"}, indent=1))
     return 0
 
@@ -144,7 +146,8 @@ def main(argv: list[str] | None = None) -> int:
     ag.add_argument("--fast", action="store_true", help="authoritative run without optional defeaters (debugging)")
     ag.set_defaults(fn=cmd_agent)
     ba = sub.add_parser("batch", help="run the agent over every step 4 Finding the harness can judge")
-    ba.add_argument("--findings-file", default="results/step4/flexprefill/limitations_for_tests.json")
+    ba.add_argument("--artifact", default="flexprefill")
+    ba.add_argument("--findings-file", help="default: results/step4/<artifact>/limitations_for_tests.json")
     ba.add_argument("--batch-id", default="batch1")
     ba.add_argument("--only", action="append")
     ba.add_argument("--skip", action="append")
