@@ -1,0 +1,79 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "nnsmith-F006",
+ "artifact_id": "nnsmith",
+ "status": "not_run",
+ "not_run": {
+  "code": "outcome_unsupported",
+  "reason": "outcome 'reject' is judged by an exception raised at nnsmith/materialize/torch/symbolnet.py:188, but the if statement has no raise in its body (the exception, if any, is raised elsewhere)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "reject",
+  "priority": 1,
+  "summary": "When p.grad is not None and torch.any(p.grad != 0): If all parameter gradients are zero, ConstraintCheck.true(nonzero, ...) raises, aborting the backward step ('Gradients are all zero. Cannot make progress.'). (nnsmith/materialize/torch/symbolnet.py:188)",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 1), not human: Zero gradients raise ConstraintError, grad_input_gen breaks and returns None, so for such models the gradient search gives up and make_oracle ends up using random inputs.",
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "nnsmith/materialize/torch/symbolnet.py:188",
+  "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.backward",
+  "condition": "p.grad is not None and torch.any(p.grad != 0)"
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "if⟨𝑋,𝑊⟩ not changed then // Zero gradients",
+    "source": "paper",
+    "locator": "PDF p.7"
+   },
+   {
+    "quote": "⟨𝑋,𝑊⟩← randomly initialized values",
+    "source": "paper",
+    "locator": "PDF p.7"
+   },
+   {
+    "quote": "continue OUTER // Go to Line 3",
+    "source": "paper",
+    "locator": "PDF p.7"
+   }
+  ],
+  "code": [
+   {
+    "file": "nnsmith/materialize/torch/symbolnet.py",
+    "line_start": 188,
+    "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.backward",
+    "snippet": "if p.grad is not None and torch.any(p.grad != 0):"
+   },
+   {
+    "file": "nnsmith/materialize/torch/symbolnet.py",
+    "line_start": 191,
+    "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.backward",
+    "snippet": "ConstraintCheck.true("
+   },
+   {
+    "file": "nnsmith/materialize/torch/symbolnet.py",
+    "line_start": 229,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/nnsmith/limitations_for_tests.json",
+  "findings_sha256": "d29e91293d1f6f050f93d88974310ce1ace7e432edd62cee7b10474404015a82",
+  "generated_at": "2026-11-15T17:08:15+08:00"
+ }
+}

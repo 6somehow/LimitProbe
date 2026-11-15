@@ -1,0 +1,58 @@
+{
+  "test_id": "A-nnsmith-F010",
+  "finding_id": "nnsmith-F010",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {"name": "left_size", "value": 1, "why": "derived value: witness trigger gives left.size()==1; the target condition only reads the two bitvector sizes, so 1 reproduces the witness exactly"},
+      {"name": "right_size", "value": 1, "why": "derived value: witness trigger gives right.size()==1; combined width is then left.size()+right.size()==2, matching the witness boundary"},
+      {"name": "left_value", "value": 1, "why": "concrete bitvector value is absent from the witness; the branch decision reads only left.size(), never the value, so any in-range value gives the same decision"},
+      {"name": "right_value", "value": 1, "why": "concrete bitvector value is absent from the witness; the branch decision reads only right.size(), never the value"},
+      {"name": "entry_tensor_len", "value": 2, "why": "size of the trivial CPU input passed to the official entry search_one; the target decision is made later by align_bvs and cannot depend on it"},
+      {"name": "entry_dtype", "value": "int32", "why": "integer dtype keeps the trivial SymbolNet on the non-differentiable SamplingSearch path of search_one, avoiding gradient search on CPU; it is never used by align_bvs"},
+      {"name": "seed", "value": 0, "why": "fixes the random state for deterministic repeats; the witness tensors are built with explicit values, so the target decision is seed independent"}
+    ],
+    "positive_input": {
+      "ARITH_MAX_WIDTH": 2,
+      "mult": true
+    },
+    "negative_input": {
+      "ARITH_MAX_WIDTH": 3,
+      "mult": true
+    },
+    "boundary_variable": "ARITH_MAX_WIDTH",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at nnsmith/abstract/arith.py:79",
+      "signal_location": "nnsmith/abstract/arith.py:79"
+    },
+    "expected": {
+      "positive": "branch taken at nnsmith/abstract/arith.py:79",
+      "negative": "branch not taken at nnsmith/abstract/arith.py:79"
+    }
+  },
+  "execution": {
+    "entry_called": "nnsmith/materialize/torch/input_gen.py::PracticalHybridSearch.search_one",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": ["true", "false"],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at nnsmith/abstract/arith.py:79",
+    "negative_observed": "branch not taken at nnsmith/abstract/arith.py:79"
+  },
+  "evidence": {}
+}

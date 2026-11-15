@@ -1,0 +1,105 @@
+{
+  "test_id": "A-flexprefill-F015",
+  "finding_id": "flexprefill-F015",
+  "strategy": "S1",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "batch_size",
+        "value": 1,
+        "why": "the witness fixes q_len/k_len only; one batch keeps the CPU run minimal and the guard reads only the sequence-length dimensions"
+      },
+      {
+        "name": "head_dim",
+        "value": 16,
+        "why": "the witness does not fix head_dim; 16 is the smallest value accepted by the later head_dim guard and is irrelevant to the q_len == k_len assertion"
+      },
+      {
+        "name": "num_q_heads",
+        "value": 1,
+        "why": "the witness does not fix the query head count; one head keeps the CPU tensors minimal and the length guard does not depend on it"
+      },
+      {
+        "name": "num_kv_heads",
+        "value": 1,
+        "why": "the witness does not fix the kv head count; one kv head matches num_q_heads so the later GQA divisibility guard is satisfied"
+      },
+      {
+        "name": "block_size",
+        "value": 32,
+        "why": "a valid block size from the repository's accepted set; it is checked only after the target length guard on the negative run"
+      },
+      {
+        "name": "dtype",
+        "value": "bfloat16",
+        "why": "the function asserts q.dtype == torch.bfloat16 immediately before the target line, and bfloat16 tensors can be allocated on CPU"
+      },
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "fixed seed makes tensor construction deterministic across repeat and replay runs"
+      }
+    ],
+    "positive_input": {
+      "q_len": 1,
+      "k_len": 2
+    },
+    "negative_input": {
+      "q_len": 2,
+      "k_len": 2
+    },
+    "boundary_variable": "q_len",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "exception",
+      "spec": "AssertionError raised at flex_prefill/ops/vertical_slash_attention.py:265",
+      "signal_location": "flex_prefill/ops/vertical_slash_attention.py:265"
+    },
+    "expected": {
+      "positive": "AssertionError at flex_prefill/ops/vertical_slash_attention.py:265",
+      "negative": "no exception at flex_prefill/ops/vertical_slash_attention.py:265"
+    }
+  },
+  "execution": {
+    "entry_called": "flex_prefill/ops/vertical_slash_attention.py::triton_vertical_slash_attention",
+    "entry_reason": "The step-4 hand-off synthesises the chain as [flex_prefill_attention, target] without the real call graph. flex_prefill_attention cannot reach this target: for q_len == 1 it takes the flash-decoding branch, and for q_len > 1 it uses the separate block-wise FlexPrefill path. The real caller of the target is vertical_slash_attention, which is not in the chain and runs GPU-only index selection before the guard. Calling the target function directly (chain index 1) exercises the real guard on CPU without any pre-target GPU code.",
+    "call_chain_index": 1,
+    "repo_files_modified": [],
+    "mocks": [
+      {
+        "symbol": "flash_attn",
+        "kind": "fake_module",
+        "reason": "flash_attn is an optional GPU dependency that is not installed on this CPU host, while vertical_slash_attention imports it unconditionally at module load; the fake makes the real module importable and is never executed before the target",
+        "behavior": "return_first_arg",
+        "sim_class": "stub"
+      },
+      {
+        "symbol": "flash_attn.flash_attn_func",
+        "kind": "patch",
+        "reason": "CPU attention implementation for the optional GPU flash-attention launcher; the target function does not call it before or at the q_len == k_len guard",
+        "behavior": "sim",
+        "impl": "sim.py::flash_attn_sim",
+        "sim_class": "independent_native"
+      }
+    ],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "false",
+      "true"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "AssertionError at flex_prefill/ops/vertical_slash_attention.py:265",
+    "negative_observed": "no exception at flex_prefill/ops/vertical_slash_attention.py:265"
+  },
+  "evidence": {}
+}

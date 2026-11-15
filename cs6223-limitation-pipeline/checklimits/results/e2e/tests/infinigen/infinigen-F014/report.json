@@ -1,0 +1,51 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "infinigen-F014",
+ "artifact_id": "infinigen",
+ "status": "not_run",
+ "not_run": {
+  "code": "env_unavailable",
+  "reason": "repository third_party/InfiniGen is not checked out"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "path_change",
+  "priority": 2,
+  "summary": "When p_w_q is None: In TorchDevice.mha_gen, the InfiniGen KV speculation (speculate_attention) only runs when the caller passes a partial-weight query tensor p_w_q. When p_w_q is None, prefetch_idx stays None (line 400) and the whole dynamic KV selection / prefetch mechanism is skipped, so the run degrades to plain dense attention over the full KV cache. (speedup/flexgen/infinigen/pytorch_backe...",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 1), not human: p_w_q is None only for layers built with enable_prefetching=False, so this is the same 'early layers get no speculation/full KV' limitation already covered by infinigen-10.",
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "speedup/flexgen/infinigen/pytorch_backend.py:401",
+  "function": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha_gen",
+  "condition": "p_w_q is None"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+    "line_start": 401,
+    "function": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha_gen",
+    "snippet": "if p_w_q is not None:"
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/infinigen/limitations_for_tests.json",
+  "findings_sha256": "913c346f51c3af18010d1cc1c73e84200fd350f7ca7f00dea7c151c9aa6c2557",
+  "generated_at": "2026-11-15T17:08:13+08:00"
+ }
+}
