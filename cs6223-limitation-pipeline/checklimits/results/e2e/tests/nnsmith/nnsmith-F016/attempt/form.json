@@ -1,0 +1,99 @@
+{
+  "test_id": "A-nnsmith-F016",
+  "finding_id": "nnsmith-F016",
+  "strategy": "S1",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "fixed RNG seed required for deterministic replay; the target branch does not read any random value"
+      },
+      {
+        "name": "model_type",
+        "value": "torch",
+        "why": "valid Model type needed by the pre-target Model.init call; the branch condition does not depend on it"
+      },
+      {
+        "name": "backend_type_name",
+        "value": "onnxruntime",
+        "why": "a concrete non-None backend type used for every non-zero boundary code"
+      },
+      {
+        "name": "backend_target",
+        "value": "cpu",
+        "why": "CPU-only machine; passed through to Model.init and BackendFactory"
+      },
+      {
+        "name": "init_rank",
+        "value": 1,
+        "why": "kept minimal; only read below the target by random_model_gen, which the stand-in stops"
+      },
+      {
+        "name": "max_nodes",
+        "value": 1,
+        "why": "kept minimal; only read below the target by random_model_gen, which the stand-in stops"
+      },
+      {
+        "name": "timeout_ms",
+        "value": 1,
+        "why": "kept minimal; only read below the target by random_model_gen, which the stand-in stops"
+      }
+    ],
+    "positive_input": {
+      "backend_type_code": 1
+    },
+    "negative_input": {
+      "backend_type_code": 0
+    },
+    "boundary_variable": "backend_type_code",
+    "scale": null,
+    "positive_prelude": [],
+    "negative_prelude": [],
+    "extra_negatives": [],
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at nnsmith/cli/model_gen.py:31",
+      "signal_location": "nnsmith/cli/model_gen.py:31"
+    },
+    "expected": {
+      "positive": "branch taken at nnsmith/cli/model_gen.py:31",
+      "negative": "branch not taken at nnsmith/cli/model_gen.py:31"
+    }
+  },
+  "execution": {
+    "entry_called": "nnsmith/cli/model_gen.py::main",
+    "entry_reason": "The target statement lives in main. The hand-off lists PracticalHybridSearch.search_one as call_chain[0] because it is the artifact's global entry point, but that function is called by main (via TorchModel.refine_weights) and cannot reach the target; the real entry that executes the target is main.",
+    "call_chain_index": 1,
+    "repo_files_modified": [],
+    "mocks": [
+      {
+        "symbol": "nnsmith.cli.model_gen.auto_opset",
+        "kind": "patch",
+        "reason": "Runs below the target on both sides; stopping it avoids minutes of operator compilation and keeps the branch observation untouched",
+        "behavior": "sim",
+        "impl": "sim.py::post_target_stop",
+        "sim_class": "stub"
+      }
+    ],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "true",
+      "false"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at nnsmith/cli/model_gen.py:31",
+    "negative_observed": "branch not taken at nnsmith/cli/model_gen.py:31"
+  },
+  "evidence": {}
+}

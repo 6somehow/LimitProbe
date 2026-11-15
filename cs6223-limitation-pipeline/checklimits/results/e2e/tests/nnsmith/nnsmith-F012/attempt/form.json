@@ -1,0 +1,79 @@
+{
+  "test_id": "A-nnsmith-F012",
+  "finding_id": "nnsmith-F012",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "kernel_h_size",
+        "value": 2,
+        "why": "Concrete Pool2d kernel height; any positive integer satisfies the guard and the target decision depends only on the flag."
+      },
+      {
+        "name": "kernel_w_size",
+        "value": 2,
+        "why": "Concrete Pool2d kernel width; any positive integer satisfies the guard and the target decision depends only on the flag."
+      },
+      {
+        "name": "stride",
+        "value": 1,
+        "why": "Concrete Pool2d stride; a valid positive stride needed only to build the operator before the target line."
+      },
+      {
+        "name": "padding",
+        "value": 0,
+        "why": "Concrete Pool2d padding; a valid non-negative padding needed only to build the operator before the target line."
+      },
+      {
+        "name": "input_shape",
+        "value": [1, 3, 8, 8],
+        "why": "Concrete NCHW input shape; the branch reads only the module flag, not the shape, so the concrete size is immaterial."
+      },
+      {
+        "name": "dtype",
+        "value": "float32",
+        "why": "Pool2d only accepts floating dtypes; float32 is a valid member and dtype cannot affect the flag branch."
+      }
+    ],
+    "positive_input": {
+      "Z3_CONS_FLOPS": true
+    },
+    "negative_input": {
+      "Z3_CONS_FLOPS": false
+    },
+    "boundary_variable": "Z3_CONS_FLOPS",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at nnsmith/abstract/op.py:910",
+      "signal_location": "nnsmith/abstract/op.py:910"
+    },
+    "expected": {
+      "positive": "branch taken at nnsmith/abstract/op.py:910",
+      "negative": "branch not taken at nnsmith/abstract/op.py:910"
+    }
+  },
+  "execution": {
+    "entry_called": "nnsmith/abstract/op.py::Pool2d.requires",
+    "entry_reason": "The official call_chain[0] PracticalHybridSearch.search_one is the torch input-search routine and never constructs operator constraints, so it cannot reach Pool2d.requires; the target is the module-flag branch inside requires, which the driver calls directly with a real Pool2d and a real AbsTensor.",
+    "call_chain_index": 1,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": ["false", "true"],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at nnsmith/abstract/op.py:910",
+    "negative_observed": "branch not taken at nnsmith/abstract/op.py:910"
+  },
+  "evidence": {}
+}

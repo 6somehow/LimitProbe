@@ -1,0 +1,69 @@
+{
+  "test_id": "A-flexprefill-F013",
+  "finding_id": "flexprefill-F013",
+  "strategy": "S1",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {"name": "num_q_heads", "value": 2, "why": "head count is not in the witness; the target condition only reads q.shape[1] (sequence length)"},
+      {"name": "num_kv_heads", "value": 2, "why": "head count is not in the witness; the target condition only reads k.shape[1] (sequence length)"},
+      {"name": "head_dim", "value": 64, "why": "must be in {16,32,64,128} to pass the assertion immediately after the target on the negative run"},
+      {"name": "gamma", "value": 0.5, "why": "required positional argument of the entry point; not read before the target assertion"},
+      {"name": "dtype", "value": "float32", "why": "CPU-only harness has no bfloat16 GPU kernels; dtype cannot change a shape comparison"},
+      {"name": "seed", "value": 0, "why": "fixes tensor values so repeats are byte-identical; values cannot change a shape comparison"},
+      {"name": "torch_threads", "value": 1, "why": "single-threaded execution keeps the run deterministic, as required by T6/D8"}
+    ],
+    "positive_input": {
+      "batch_size": 1,
+      "k_len": 3,
+      "q_len": 2
+    },
+    "negative_input": {
+      "batch_size": 1,
+      "k_len": 3,
+      "q_len": 3
+    },
+    "boundary_variable": "q_len",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "exception",
+      "spec": "AssertionError raised at flex_prefill/ops/flex_prefill_attention.py:1836",
+      "signal_location": "flex_prefill/ops/flex_prefill_attention.py:1836"
+    },
+    "expected": {
+      "positive": "AssertionError at flex_prefill/ops/flex_prefill_attention.py:1836",
+      "negative": "no exception at flex_prefill/ops/flex_prefill_attention.py:1836"
+    }
+  },
+  "execution": {
+    "entry_called": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [
+      {
+        "symbol": "flex_prefill.ops.flex_prefill_attention.flash_attn_func",
+        "kind": "patch",
+        "reason": "on this no-GPU machine flash_attn_func aliases the triton kernel launcher; the negative run reaches it only after the target assert, so a CPU tensor stand-in lets that run return instead of crashing",
+        "behavior": "sim",
+        "impl": "sim.py::flash_attn_cpu",
+        "sim_class": "independent_native"
+      }
+    ],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": ["true", "false"],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "AssertionError at flex_prefill/ops/flex_prefill_attention.py:1836",
+    "negative_observed": "no exception at flex_prefill/ops/flex_prefill_attention.py:1836"
+  },
+  "evidence": {}
+}

@@ -1,0 +1,72 @@
+{
+  "test_id": "A-nnsmith-F034",
+  "finding_id": "nnsmith-F034",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "fixed RNG seed so the positive/negative paths and bin sampling are deterministic across repeats and replay"
+      },
+      {
+        "name": "positive_op",
+        "value": "ReLU",
+        "why": "real repository op class whose name is absent from PARAM_CONFIG1, so param_config.get(..., None) returns None"
+      },
+      {
+        "name": "negative_op",
+        "value": "MaxPool2d",
+        "why": "real repository op class present in PARAM_CONFIG1, so the derived config is not None"
+      },
+      {
+        "name": "in_shape",
+        "value": [1, 3, 8, 8],
+        "why": "a valid NCHW float32 input tensor shape; input_shapes is unused on the config-is-None path and only feeds the already-negated config path"
+      }
+    ],
+    "positive_input": {
+      "config_present": 0
+    },
+    "negative_input": {
+      "config_present": 1
+    },
+    "boundary_variable": "config_present",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at nnsmith/graph_gen.py:1016",
+      "signal_location": "nnsmith/graph_gen.py:1016"
+    },
+    "expected": {
+      "positive": "branch taken at nnsmith/graph_gen.py:1016",
+      "negative": "branch not taken at nnsmith/graph_gen.py:1016"
+    }
+  },
+  "execution": {
+    "entry_called": "nnsmith/graph_gen.py::GuidedGen.extra_constraints",
+    "entry_reason": "The official entry random_model_gen constructs a PureSymbolGen and GuidedGen is never instantiated anywhere in the repository, so random_model_gen cannot reach this Region. The driver therefore instantiates the real GuidedGen class and calls its real extra_constraints method directly with real AbsOpBase nodes; no repository code is replaced.",
+    "call_chain_index": 1,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "false",
+      "true"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at nnsmith/graph_gen.py:1016",
+    "negative_observed": "branch not taken at nnsmith/graph_gen.py:1016"
+  },
+  "evidence": {}
+}
