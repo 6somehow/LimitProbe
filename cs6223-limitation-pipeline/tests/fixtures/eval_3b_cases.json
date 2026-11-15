@@ -1,0 +1,51 @@
+{
+  "_note": "Test set for step 3b, not gold. planted: a sentence with a known label is inserted into a copy of the paper text. near_miss: limitations written to share vocabulary with the paper, which the paper does not state (not_found expected). real_positive: statements really in the paper (found or weaker expected).",
+  "planted": [
+    {"id": "P01", "limitation": "CL01", "label": "found", "text": "Our implementation processes one prompt at a time; inputs with more than one sequence in a batch are rejected."},
+    {"id": "P02", "limitation": "CL02", "label": "found", "text": "When only a single new token is processed, as in the decoding stage, the implementation always computes dense attention instead of the sparse pattern."},
+    {"id": "P03", "limitation": "CL03", "label": "found", "text": "Prefilling on top of previously cached key-value states is not supported: query and key lengths must be equal, so multi-turn prefix reuse fails with an error."},
+    {"id": "P04", "limitation": "CL04", "label": "found", "text": "The kernels reject models whose per-head dimension is not 16, 32, 64, or 128."},
+    {"id": "P05", "limitation": "CL05", "label": "found", "text": "A block size of 16 is rejected by the prefill kernel when the head dimension is at most 128, although it passes the initial argument check."},
+    {"id": "P06", "limitation": "CL06", "label": "found", "text": "Prompts no longer than the larger of two blocks and the minimum token budget rounded up to a block boundary run with dense attention."},
+    {"id": "P07", "limitation": "CL07", "label": "found", "text": "The sparse path requires bfloat16 tensors and fails with an error for any other data type."},
+    {"id": "P08", "limitation": "CL08", "label": "found", "text": "The number of query heads must be divisible by the number of key-value heads, otherwise the kernel raises an error."},
+    {"id": "P09", "limitation": "CL09", "label": "found", "text": "With Triton versions below 3, the index bins are computed by a slower PyTorch fallback."},
+    {"id": "P10", "limitation": "CL10", "label": "found", "text": "The token budget is always converted to blocks by dividing by 128, regardless of the configured block size, so the attention coverage can differ at other block sizes."},
+    {"id": "P11", "limitation": "CL11", "label": "found", "text": "The causal mask is cached at module level after first use, so changing the block size or device between calls in one process reuses a stale mask."},
+    {"id": "P12", "limitation": "CL12", "label": "found", "text": "On GPUs other than the H100, A100 and RTX 4090, the kernels use a default launch configuration that is not tuned."},
+    {"id": "P13", "limitation": "CL13", "label": "found", "text": "If flash_attn is not installed, dense fallbacks use the Triton kernel and inherit its restrictions."},
+    {"id": "B01", "limitation": "CL01", "label": "boundary_mismatch", "text": "We support batch sizes of at most 8; larger batches are rejected."},
+    {"id": "B02", "limitation": "CL04", "label": "boundary_mismatch", "text": "Head dimensions other than 64 and 128 are rejected by the kernels."},
+    {"id": "B03", "limitation": "CL06", "label": "boundary_mismatch", "text": "Prompts shorter than 4096 tokens always run with dense attention rather than the sparse pattern."},
+    {"id": "B04", "limitation": "CL05", "label": "boundary_mismatch", "text": "Block sizes below 64 are rejected by the prefill kernel."},
+    {"id": "W01", "limitation": "CL01", "label": "weaker", "text": "We have only tested our implementation with a single prompt per batch."},
+    {"id": "W02", "limitation": "CL03", "label": "weaker", "text": "We have not evaluated prefilling on top of an existing KV cache."},
+    {"id": "W03", "limitation": "CL07", "label": "weaker", "text": "We have only evaluated our implementation with bfloat16 precision."},
+    {"id": "W04", "limitation": "CL04", "label": "weaker", "text": "All tested models have a head dimension of 128, and other head dimensions have not been validated."},
+    {"id": "W05", "limitation": "CL12", "label": "weaker", "text": "We have only tuned the implementation on A100 GPUs, and other GPUs may need different settings."},
+    {"id": "X01", "limitation": "CL01", "label": "contradicted", "text": "FlexPrefill works with arbitrary batch sizes."},
+    {"id": "X02", "limitation": "CL03", "label": "contradicted", "text": "FlexPrefill supports prefilling on top of an existing KV cache, enabling multi-turn prefix reuse."},
+    {"id": "X03", "limitation": "CL04", "label": "contradicted", "text": "FlexPrefill works with any head dimension."},
+    {"id": "X04", "limitation": "CL05", "label": "contradicted", "text": "All of the block sizes 16, 32, 64 and 128 are supported by the sparse kernels."},
+    {"id": "X05", "limitation": "CL07", "label": "contradicted", "text": "FlexPrefill runs with any floating-point precision, including float16 and float32."}
+  ],
+  "near_miss": [
+    {"id": "N01", "condition_text": "gamma above 0.99", "expr": "gamma > 0.99", "params": ["gamma"], "effect_type": "reject", "effect_text": "AssertionError when the cumulative attention threshold is above 0.99"},
+    {"id": "N02", "condition_text": "tau is ignored when the model has more than 32 heads", "expr": "num_q_heads > 32", "params": ["num_q_heads"], "effect_type": "path_change", "effect_text": "all heads use the vertical-slash pattern regardless of tau"},
+    {"id": "N03", "condition_text": "context length above 128K tokens", "expr": "q_len > 131072", "params": ["q_len"], "effect_type": "reject", "effect_text": "AssertionError: sequences longer than 128K tokens are refused"},
+    {"id": "N04", "condition_text": "block_size other than 128", "expr": "block_size != 128", "params": ["block_size"], "effect_type": "path_change", "effect_text": "silently falls back to dense attention"},
+    {"id": "N05", "condition_text": "minimum budget below 1024 tokens", "expr": "min_budget < 1024", "params": ["min_budget"], "effect_type": "reject", "effect_text": "ValueError: the budget must be at least 1024 tokens"},
+    {"id": "N06", "condition_text": "GPU other than an A100", "expr": "gpu_name != 'a100'", "params": ["gpu_name"], "effect_type": "reject", "effect_text": "RuntimeError: only A100 GPUs are supported"},
+    {"id": "N07", "condition_text": "model is not one of Llama, GLM, Yi, Qwen2", "expr": "model_type not in {'llama', 'glm', 'yi', 'qwen2'}", "params": ["model_type"], "effect_type": "reject", "effect_text": "the patch refuses unsupported model types"},
+    {"id": "N08", "condition_text": "the query-aware pattern on the first attention head", "expr": "head_idx == 0", "params": ["head_idx"], "effect_type": "path_change", "effect_text": "the first head always uses the query-aware pattern, ignoring the divergence test"}
+  ],
+  "real_positive": [
+    {"id": "T01", "paper": "minference", "condition_text": "short context, around 10k tokens", "expr": "seq_len <= 10000", "params": ["seq_len"], "effect_type": "performance", "effect_text": "index building dominates, so end-to-end latency approaches the dense baseline", "expected": ["found", "weaker"]},
+    {"id": "T02", "paper": "minference", "condition_text": "higher sparsity rate", "expr": "sparsity_ratio > 0.95", "params": ["sparsity_ratio"], "effect_type": "accuracy", "effect_text": "model accuracy declines", "expected": ["found", "weaker"]},
+    {"id": "T03", "paper": "nnsmith", "condition_text": "an operator cannot be differentiated in the region of its input", "expr": "not differentiable_at(op, x)", "params": ["op", "x"], "effect_type": "other", "effect_text": "the search uses the closest left-derivative", "expected": ["found", "weaker"]},
+    {"id": "T04", "paper": "nnsmith", "condition_text": "the search step leaves the inputs and weights unchanged (zero gradients)", "expr": "unchanged(inputs, weights)", "params": ["inputs", "weights"], "effect_type": "path_change", "effect_text": "the inputs and weights are re-initialized with random values", "expected": ["found", "weaker"]},
+    {"id": "T05", "paper": "nnsmith", "condition_text": "inputs or weights contain NaN or Inf after a step", "expr": "has_nan_or_inf(inputs)", "params": ["inputs"], "effect_type": "path_change", "effect_text": "the NaN or Inf values are replaced with random values", "expected": ["found", "weaker"]},
+    {"id": "T06", "paper": "infinigen", "condition_text": "not in the prefill stage", "expr": "not prefill", "params": ["prefill"], "effect_type": "path_change", "effect_text": "partial weights are generated only in the prefill stage and used during decoding", "expected": ["found", "weaker"]},
+    {"id": "T07", "paper": "sparta", "condition_text": "intermediate tensors in the SparTA-based version", "expr": "is_intermediate(t)", "params": ["t"], "effect_type": "resource", "effect_text": "they are managed by PyTorch, which leaves memory usage higher than it could be", "expected": ["found", "weaker"]}
+  ]
+}

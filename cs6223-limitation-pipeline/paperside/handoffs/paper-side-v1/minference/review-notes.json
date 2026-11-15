@@ -1,0 +1,164 @@
+{
+  "reviewer": "Independent static source-assisted agent review; not human gold",
+  "reviewed_at_utc": "2026-11-11T09:20:05.119820+00:00",
+  "reviewed_paper_side_sha256": "e5cc31c2922977bfc02e573e75cbc770af3fcb84d87b927fab5785a51e46c330",
+  "method": {
+    "model_api_calls": 0,
+    "target_execution": "not_run",
+    "handoff_or_shared_source_mutations": 0,
+    "checks": "Actual consumer/Pydantic validation, generated schema inspection, deterministic solver probes, paper text/source pin verification, ID/hash/ZIP parity. No standalone JSON Schema validator available."
+  },
+  "confirmed_errors": [
+    {
+      "id": "MIR-001",
+      "records": [
+        "minference-scope-009",
+        "minference-scope-010",
+        "minference-scope-012",
+        "minference-binding-001",
+        "minference-binding-002",
+        "minference-binding-003"
+      ],
+      "fields": "singleton scalar domains for last_q64, block_size_M64, topk100",
+      "problem": "Paper experiment/pseudocode/search settings become universal/exhaustive support domains.",
+      "evidence": "PDF p6 lines32-35: We set last_q64 and block_size64; PDF p18 lines18-31 describes target FLOPs and kernel-aware pattern search space, including BlockSparse{100}. It does not claim other values unsupported. Code minference_forward.py:354 uses local last_q=min(64,q_len), so even the runtime query count varies for short inputs.",
+      "reproduction": [
+        "last_q==32 -> out_of_scope",
+        "block_size_M==32 -> out_of_scope",
+        "topk==50 -> out_of_scope"
+      ],
+      "minimal_correction": "Deactivate all three scalar mappings; preserve experimental settings in free_text/eval records. Changing explicit=False alone still excludes other values, and certain=False alone is ignored by current consumer."
+    },
+    {
+      "id": "MIR-002",
+      "record": "minference-scope-001",
+      "field": "context_length interval[1000,1000000],explicit=True",
+      "problem": "An observed Needle-In-A-Haystack test span was promoted to global algorithm support bounds. Current attached quotes do not establish the1000 lower bound or global exclusion above1M.",
+      "evidence": "Attached PDF p1 lines11-12 describes 1M prompt latency; p6 lines46-47 benchmark windows up to1M. PDF p8 lines65-69 explicitly describes evaluation across1k to1M.",
+      "minimal_correction": "Retain exact tested-range description as free_text/explicitFalse; do not activate a global numeric supported interval."
+    },
+    {
+      "id": "MIR-003",
+      "records": [
+        "minference-eval_points-001",
+        "minference-eval_points-002",
+        "minference-eval_points-003",
+        "minference-eval_points-014",
+        "minference-eval_points-015",
+        "minference-eval_points-016",
+        "minference-eval_points-017"
+      ],
+      "field": "context_length_tokens214000",
+      "problem": "Dataset-wide approximate mean length was represented as a concrete jointly tested input length in every InfiniteBench configuration.",
+      "evidence": "PDF p6 lines38-41: benchmark consists of10 tasks; The average context length of InfiniteBench is about214K tokens.",
+      "minimal_correction": "Remove concrete context_length_tokens from these rows; retain average about214K in benchmark metadata or a clearly named descriptive field, not a concrete length assignment."
+    },
+    {
+      "id": "MIR-004",
+      "records": [
+        "minference-eval_points-004",
+        "minference-eval_points-005",
+        "minference-eval_points-006"
+      ],
+      "field": "context_length_tokens128000",
+      "problem": "RULER paper128k column was normalized to decimal128000 despite pinned RULER config using131072.",
+      "evidence": "PDF p7 Table3 reports128k; pinned experiments/ruler/config_models.sh:7-13 SEQ_LENGTHS=4096,8192,16384,32768,65536,131072.",
+      "minimal_correction": "Preserve context_length_label128k or document source-assisted conversion to131072. Do not impose one conversion convention across tasks: needle/run_needle.sh explicitly uses1000000 and min1000, and ppl/run_ppl.py default100_000."
+    },
+    {
+      "id": "MIR-005",
+      "record": "minference-eval_points-019",
+      "related_records": [
+        "minference-eval_points-018",
+        "minference-eval_points-020"
+      ],
+      "field": "model=LLaMA-3-8B-Instruct-262K at latency300K",
+      "problem": "The exact262K weight identity is unsupported by the cited paper paragraph and conflicts with the pinned300000-token latency invocation, whose default model is1048k.",
+      "evidence": "PDF p9 lines8-12 gives latency curve100K/300K/500K/1M without naming262K weights. Pinned experiments/benchmarks/run_e2e.sh:7-9 invokes benchmark_e2e.py --context_window300000 without model override; benchmark_e2e.py:99-103 defaultsgradientai/Llama-3-8B-Instruct-Gradient-1048k.",
+      "minimal_correction": "For019 use source-assisted1048K model with recorded code provenance or remove unsupported exact model. For018/020 from the same curve, conservatively retain model family only until exact experiment identity is established; do not assume extrapolated262K weights."
+    },
+    {
+      "id": "MIR-006",
+      "records": [
+        "minference-scope-015",
+        "minference-scope-019",
+        "minference-scope-020"
+      ],
+      "field": "numeric support domains from measured outcomes",
+      "problem": "Approximate search time, conditional index-memory measurement, and observed indexing-time share were encoded as hard scope intervals, losing their measured/outcome role and conditions.",
+      "evidence": [
+        "PDF p18 line22: search time approximately15minutes on singleA100 (not exact15).",
+        "PDF p21 lines26-27: indexing memory within160MB specifically LLaMA3-8B in1M context.",
+        "PDF p9 lines15-17: about5%-20% spent in index building; PDF p21 lines23-24 separately says5%-15% VerticalSlash and25% BlockSparse, so .05-.2 is not a universal applicability constraint."
+      ],
+      "minimal_correction": "Use free_text measured observations with model/context/pattern/hardware qualifiers; do not create scalar solver bindings."
+    }
+  ],
+  "joint_config_evidence_gaps": [
+    {
+      "records": "minference-eval_points-001 through017",
+      "fields": [
+        "dtype:bfloat16",
+        "gpu:A100"
+      ],
+      "evidence": "PDF p6 lines34-35 says the latency experiments are on singleA100 inbfloat16; p18 lines15-16 repeats latency qualifier. This does not on its own establish those joint settings for accuracy benchmarks.",
+      "suggested_action": "Remove dtype/gpu from non-latency points unless direct shared experiment provenance is attached. Current pinned accuracy scripts use torch_dtype:auto, not explicitbfloat16."
+    },
+    {
+      "records": [
+        "minference-eval_points-012",
+        "minference-eval_points-013"
+      ],
+      "field": "decoding:greedy",
+      "concern": "Paper says greedy in all experiments generally, but PG19 perplexity evaluation is not a generated-decoding task; attaching decoding to the perplexity input configuration may be misleading.",
+      "suggested_action": "Omit irrelevant decoding field on teacher-forced perplexity points or name the evaluation protocol precisely."
+    },
+    {
+      "record": "minference-scope-025",
+      "field": "model_architecture_scope",
+      "evidence": "PDF p22 lines40-47 reports similar patterns inBERT/T5/multimodal and says usingMInference there holds great promise; p10 lines28-31 same prospective claim.",
+      "suggested_action": "Retain free_text as pattern observation and prospective application, never established implementation/acceleration support."
+    },
+    {
+      "records": [
+        "minference-scope-004",
+        "minference-scope-005",
+        "minference-scope-006",
+        "minference-scope-007",
+        "minference-scope-008",
+        "minference-scope-011",
+        "minference-scope-013",
+        "minference-scope-026",
+        "minference-scope-027"
+      ],
+      "concern": "Additional explicitTrue scopes are evaluation/device/config/model/benchmark descriptions, not exhaustive unsupported-else domains. String sets currently have no active scalar mapping, so no direct solver impact.",
+      "suggested_action": "Keep paper-explicit experimental observations separately labeled and do not activate them as exhaustive supported domains."
+    }
+  ],
+  "passed_checks": {
+    "counts": {
+      "claims": 139,
+      "scope": 27,
+      "eval_points": 22,
+      "bindings": 27,
+      "scalar_bindings": 3,
+      "navigation_bindings": 24,
+      "conformance": 141,
+      "completed_artifact": 108,
+      "pending_artifact": 33
+    },
+    "pending_paper_ids": [
+      "M09-B04-R03",
+      "M09-B06-R03"
+    ],
+    "native_models": "All native records validate with current shared Pydantic models; current model schema SHA matches snapshot and validation SHA.",
+    "reference_integrity": "All present conformance claim IDs and evidence registry IDs resolve; two null claim links correspond to explicit unresolved records.",
+    "paper_evidence": "Every active paper_side quote exists verbatim in the indicated paper-input page; evidence/paper.pdf matches original team PDF.",
+    "source_evidence": "All68 source-read numbered snippets match pinned git source exactly; source/registry pins match repositories.",
+    "archive": "36files; no missing or extra paths, no archive-vs-directory byte mismatches; all index hashes pass; no unindexed local files.",
+    "scope_semantics": "stage=prefill agrees with sparse-prefill/dense-decode statement p7 lines32-33. training_free has direct paper evidence p1 lines23-24. No head-dimension limit was invented as a scalar paper domain.",
+    "eval_output_check": "No speedup/accuracy/perplexity output was copied as a numeric configuration field. The notable misuse is average dataset length as fixed input, and measured outcome fields inside scope."
+  },
+  "consumer_limitations": "Scalar existential feasibility cannot establish tensor/head/model/FP/hardware/stage preconditions jointly. Keep unbound and dropped preconditions visible and do not equate unknown with a defect or in_scope with implementation support.",
+  "next_validation": "Checks and hash bind original3scalar+24navigation package only. Parent corrections require renewed consumer/schema/index/ZIP checks; this reviewer has not verified future edits."
+}

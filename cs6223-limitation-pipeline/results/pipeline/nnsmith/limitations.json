@@ -1,0 +1,1230 @@
+[
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B001",
+    "artifact_id": "nnsmith",
+    "origin": "code",
+    "level": null,
+    "condition_text": "carry and max(left_size, right_size) >= ARITH_MAX_WIDTH",
+    "condition": {
+      "expr": "carry and max(left_size, right_size) >= ARITH_MAX_WIDTH",
+      "params": [
+        "ARITH_MAX_WIDTH",
+        "carry",
+        "left_size",
+        "max",
+        "right_size"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "path_change",
+    "effect_text": "For addition, the extra carry bit is only prepended when the wider operand is strictly below ARITH_MAX_WIDTH; at the maximum width nnsmith_add silently omits the carry extension.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "nnsmith/abstract/arith.py",
+        "line_start": 74,
+        "line_end": null,
+        "function": "nnsmith/abstract/arith.py::align_bvs",
+        "snippet": "if carry and max(left_size, right_size) < ARITH_MAX_WIDTH:"
+      }
+    ],
+    "region_ids": [
+      "B001"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B002",
+    "artifact_id": "nnsmith",
+    "origin": "code",
+    "level": null,
+    "condition_text": "mult and (right.size() + left.size()) >= ARITH_MAX_WIDTH",
+    "condition": {
+      "expr": "mult and (right.size() + left.size()) >= ARITH_MAX_WIDTH",
+      "params": [
+        "ARITH_MAX_WIDTH",
+        "left",
+        "mult",
+        "right"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "path_change",
+    "effect_text": "For multiplication, when the combined width already reaches ARITH_MAX_WIDTH, align_bvs returns the operands without zero-extension, so nnsmith_mul silently skips the widening that it performs for narrower operands.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "nnsmith/abstract/arith.py",
+        "line_start": 79,
+        "line_end": null,
+        "function": "nnsmith/abstract/arith.py::align_bvs",
+        "snippet": "if max_val >= ARITH_MAX_WIDTH:"
+      }
+    ],
+    "region_ids": [
+      "B002"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B003",
+    "artifact_id": "nnsmith",
+    "origin": "code",
+    "level": null,
+    "condition_text": "FLOPS_LIM == \"off\"",
+    "condition": {
+      "expr": "FLOPS_LIM == \"off\"",
+      "params": [
+        "FLOPS_LIM"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "path_change",
+    "effect_text": "Setting NNSMITH_FLOPS_LIM=off sets FLOPS_LIM to None, disabling the FLOPs constraint entirely, which changes the search/acceptance behavior of the generator.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "nnsmith/abstract/op.py",
+        "line_start": 25,
+        "line_end": null,
+        "function": "nnsmith/abstract/op.py::<module>",
+        "snippet": "elif FLOPS_LIM == \"off\":"
+      }
+    ],
+    "region_ids": [
+      "B003"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B004",
+    "artifact_id": "nnsmith",
+    "origin": "code",
+    "level": null,
+    "condition_text": "Z3_CONS_FLOPS",
+    "condition": {
+      "expr": "Z3_CONS_FLOPS",
+      "params": [
+        "Z3_CONS_FLOPS"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "path_change",
+    "effect_text": "A module-level flag decides whether the FLOPS upper-bound constraint is added to the Pool2d requirements; when enabled, the solver rejects parameter/shape combinations exceeding FLOPS_LIM, changing which models are generated.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "nnsmith/abstract/op.py",
+        "line_start": 910,
+        "line_end": null,
+        "function": "nnsmith/abstract/op.py::Pool2d.requires",
+        "snippet": "if Z3_CONS_FLOPS:"
+      }
+    ],
+    "region_ids": [
+      "B004"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B005",
+    "artifact_id": "nnsmith",
+    "origin": "code",
+    "level": null,
+    "condition_text": "gres_config != \"4\"",
+    "condition": {
+      "expr": "gres_config != \"4\"",
+      "params": [
+        "gres_config"
+      ],
+      "path_prefix": [
+        "class Reshape",
+        "def requires"
+      ]
+    },
+    "effect_type": "path_change",
+    "effect_text": "The environment variable NNSMITH_GRES selects the reshape grouping strategy: \"5\" = one group (flatten), \"3\" = min(src_len, dst_len) groups, \"4\" (default) = random number of groups weighted by 2**i. Any other value raises ValueError, rejecting the model. The chosen grouping changes the generated reshape constraints and hence the accepted graphs.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "nnsmith/abstract/op.py",
+        "line_start": 1552,
+        "line_end": null,
+        "function": "nnsmith/abstract/op.py::Reshape.requires",
+        "snippet": "gres_config = os.getenv(\"NNSMITH_GRES\", \"4\")"
+      }
+    ],
+    "region_ids": [
+      "B005"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B006",
+    "artifact_id": "nnsmith",
+    "origin": "code",
+    "level": null,
+    "condition_text": "gres_config not in (\"3\", \"4\", \"5\")",
+    "condition": {
+      "expr": "gres_config not in (\"3\", \"4\", \"5\")",
+      "params": [
+        "gres_config"
+      ],
+      "path_prefix": [
+        "gres_config not in (\"3\", \"4\", \"5\")"
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "An unrecognized NNSMITH_GRES environment value causes a ValueError, rejecting the input.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "nnsmith/abstract/op.py",
+        "line_start": 1563,
+        "line_end": null,
+        "function": "nnsmith/abstract/op.py::Reshape.requires",
+        "snippet": "raise ValueError(f\"NNSMITH_GRES={gres_config} is not recognized\")"
+      }
+    ],
+    "region_ids": [
+      "B006"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B007",
+    "artifact_id": "nnsmith",
+    "origin": "code",
+    "level": null,
+    "condition_text": "os.getenv(\"NNSMITH_CONS_RESHAPE\", \"off\") != \"off\"",
+    "condition": {
+      "expr": "os.getenv(\"NNSMITH_CONS_RESHAPE\", \"off\") != \"off\"",
+      "params": [
+        "os"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "path_change",
+    "effect_text": "The environment variable NNSMITH_CONS_RESHAPE toggles whether additional dimension-limit constraints (__DIM_LIMIT__=4096, halving per dim) are added to the Reshape constraints, changing the generated constraint set.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "nnsmith/abstract/op.py",
+        "line_start": 1587,
+        "line_end": null,
+        "function": "nnsmith/abstract/op.py::Reshape.requires",
+        "snippet": "if os.getenv(\"NNSMITH_CONS_RESHAPE\", \"off\") != \"off\":"
+      }
+    ],
+    "region_ids": [
+      "B007"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B008",
+    "artifact_id": "nnsmith",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not check_sat()",
+    "condition": {
+      "expr": "not check_sat()",
+      "params": [
+        "check_sat"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "reject",
+    "effect_text": "If the requested output rank cannot be satisfied by the rank-increment loop (e.g. out_abs_tensor ndims inconsistent with the max reachable rank), the loop never terminates, effectively rejecting/hanging on that output shape.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "nnsmith/abstract/op.py",
+        "line_start": 2083,
+        "line_end": null,
+        "function": "nnsmith/abstract/op.py::MatMul.deduct_inp_ranks_and_dtype",
+        "snippet": "while not check_sat():"
+      }
+    ],
+    "region_ids": [
+      "B008"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B009",
+    "artifact_id": "nnsmith",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not self.crash_safe and self.test_timeout is not None",
+    "condition": {
+      "expr": "not self.crash_safe and self.test_timeout is not None",
+      "params": [
+        "self"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "path_change",
+    "effect_text": "Setting fuzz.test_timeout without crash_safe silently changes execution to the crash-safe path (warning only), altering how testcases are validated.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "nnsmith/cli/fuzz.py",
+        "line_start": 60,
+        "line_end": null,
+        "function": "nnsmith/cli/fuzz.py::FuzzingLoop.__init__",
+        "snippet": "if not self.crash_safe and self.test_timeout is not None:"
+      }
+    ],
+    "region_ids": [
+      "B009"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B010",
+    "artifact_id": "nnsmith",
+    "origin": "code",
+    "level": null,
+    "condition_text": "isinstance(e, InternalError)",
+    "condition": {
+      "expr": "isinstance(e, InternalError)",
+      "params": [
+        "InternalError",
+        "e",
+        "isinstance"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "reject",
+    "effect_text": "InternalError from make_testcase is propagated, aborting the fuzzing loop, while other exceptions are swallowed and the loop continues.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "nnsmith/cli/fuzz.py",
+        "line_start": 179,
+        "line_end": null,
+        "function": "nnsmith/cli/fuzz.py::FuzzingLoop.run",
+        "snippet": "except InternalError as e:"
+      }
+    ],
+    "region_ids": [
+      "B010"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B011",
+    "artifact_id": "nnsmith",
+    "origin": "code",
+    "level": null,
+    "condition_text": "cfg[\"backend\"][\"type\"] is not None",
+    "condition": {
+      "expr": "cfg[\"backend\"][\"type\"] is not None",
+      "params": [
+        "cfg"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "path_change",
+    "effect_text": "A caller-supplied backend type decides whether a BackendFactory is constructed; the factory is then passed to auto_opset, changing which operators are considered available for model generation.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "nnsmith/cli/model_gen.py",
+        "line_start": 31,
+        "line_end": null,
+        "function": "nnsmith/cli/model_gen.py::main",
+        "snippet": "if cfg[\"backend\"][\"type\"] is not None:"
+      }
+    ],
+    "region_ids": [
+      "B011"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B012",
+    "artifact_id": "nnsmith",
+    "origin": "code",
+    "level": null,
+    "condition_text": "int(os.getenv(\"NNSMITH_BITS\", 30)) != 30",
+    "condition": {
+      "expr": "int(os.getenv(\"NNSMITH_BITS\", 30)) != 30",
+      "params": [
+        "int",
+        "os"
+      ],
+      "path_prefix": [
+        "class SimpleGenerator",
+        "def new_syms"
+      ]
+    },
+    "effect_type": "path_change",
+    "effect_text": "The number of bits used to split the integer-domain symbols into groups is read from NNSMITH_BITS (default 30). A smaller value makes `random_group` produce more, smaller groups, i.e. a different (coarser) integer encoding of the same abstract graph, changing which graphs the solver accepts.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "nnsmith/graph_gen.py",
+        "line_start": 190,
+        "line_end": null,
+        "function": "nnsmith/graph_gen.py::SimpleGenerator.new_syms",
+        "snippet": "map(len, random_group(int(os.getenv(\"NNSMITH_BITS\", 30)), len(names)))"
+      }
+    ],
+    "region_ids": [
+      "B012"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B013",
+    "artifact_id": "nnsmith",
+    "origin": "code",
+    "level": null,
+    "condition_text": "NNSMITH_LIMNF_V == \"0\"",
+    "condition": {
+      "expr": "NNSMITH_LIMNF_V == \"0\"",
+      "params": [
+        "NNSMITH_LIMNF_V"
+      ],
+      "path_prefix": [
+        "self.limnf"
+      ]
+    },
+    "effect_type": "path_change",
+    "effect_text": "Branches the memory-limit constraint: v0 adds nnsmith_le(self.n_floats, self.limit_float); v1 adds the accumulated self.n_floats_cons instead.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "nnsmith/graph_gen.py",
+        "line_start": 256,
+        "line_end": null,
+        "function": "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+        "snippet": "if NNSMITH_LIMNF_V == \"0\":"
+      }
+    ],
+    "region_ids": [
+      "B013"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B014",
+    "artifact_id": "nnsmith",
+    "origin": "code",
+    "level": null,
+    "condition_text": "NNSMITH_LIMNF_V == \"1\"",
+    "condition": {
+      "expr": "NNSMITH_LIMNF_V == \"1\"",
+      "params": [
+        "NNSMITH_LIMNF_V"
+      ],
+      "path_prefix": [
+        "class SimpleGenerator",
+        "def abstract_gen",
+        "if self.limnf"
+      ]
+    },
+    "effect_type": "path_change",
+    "effect_text": "With NNSMITH_LIMNF_V=1 the per-op float-count constraints accumulated in `self.n_floats_cons` are added to the solver instead of the single aggregate constraint, so the same seed yields different accepted graphs depending on the environment variable.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "nnsmith/graph_gen.py",
+        "line_start": 259,
+        "line_end": null,
+        "function": "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+        "snippet": "self.solver.add(*self.n_floats_cons)"
+      }
+    ],
+    "region_ids": [
+      "B014"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B015",
+    "artifact_id": "nnsmith",
+    "origin": "code",
+    "level": null,
+    "condition_text": "self.check_sat() != z3.sat",
+    "condition": {
+      "expr": "self.check_sat() != z3.sat",
+      "params": [
+        "self",
+        "z3"
+      ],
+      "path_prefix": [
+        "self.limnf"
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "After adding the memory-limit constraint, an unsatisfiable (or unknown) solver result aborts generation via assertion.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "nnsmith/graph_gen.py",
+        "line_start": 260,
+        "line_end": null,
+        "function": "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+        "snippet": "assert self.check_sat() == z3.sat"
+      }
+    ],
+    "region_ids": [
+      "B015"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B016",
+    "artifact_id": "nnsmith",
+    "origin": "code",
+    "level": null,
+    "condition_text": "isinstance(op, Expand) and oshape.ndims < op.expand_last_dim",
+    "condition": {
+      "expr": "isinstance(op, Expand) and oshape.ndims < op.expand_last_dim",
+      "params": [
+        "Expand",
+        "isinstance",
+        "op",
+        "oshape"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "reject",
+    "effect_text": "Placeholder shapes with fewer dims than the Expand op's expand_last_dim are skipped as backward-insertion candidates, excluding them from consideration.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "nnsmith/graph_gen.py",
+        "line_start": 524,
+        "line_end": null,
+        "function": "nnsmith/graph_gen.py::SimpleGenerator.try_backward_insert",
+        "snippet": "if isinstance(op, Expand) and oshape.ndims < op.expand_last_dim:"
+      }
+    ],
+    "region_ids": [
+      "B016"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B017",
+    "artifact_id": "nnsmith",
+    "origin": "code",
+    "level": null,
+    "condition_text": "random.uniform(0, 1) < self.forward_prob",
+    "condition": {
+      "expr": "random.uniform(0, 1) < self.forward_prob",
+      "params": [
+        "random",
+        "self"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "path_change",
+    "effect_text": "A caller-configured forward_prob attribute decides whether the node is inserted by forward insertion (try_forward_insert) or backward insertion (try_backward_insert), selecting between two different graph-construction algorithms.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "nnsmith/graph_gen.py",
+        "line_start": 556,
+        "line_end": null,
+        "function": "nnsmith/graph_gen.py::SimpleGenerator.try_insert_node_type",
+        "snippet": "if random.uniform(0, 1) < self.forward_prob:"
+      }
+    ],
+    "region_ids": [
+      "B017"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B018",
+    "artifact_id": "nnsmith",
+    "origin": "code",
+    "level": null,
+    "condition_text": "os.getenv(\"NNSMITH_LB\", \"off\") == \"off\"",
+    "condition": {
+      "expr": "os.getenv(\"NNSMITH_LB\", \"off\") == \"off\"",
+      "params": [
+        "os"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "other",
+    "effect_text": "The upper-bound constraint on slice start/end parameters is only added when the NNSMITH_LB environment variable is unset or 'off'; setting NNSMITH_LB to any other value silently drops the upper bound, changing the generated slice parameter ranges.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "nnsmith/graph_gen.py",
+        "line_start": 834,
+        "line_end": null,
+        "function": "nnsmith/graph_gen.py::range_constrain",
+        "snippet": "if ub is not None and os.getenv(\"NNSMITH_LB\", \"off\") == \"off\":  # HACK"
+      }
+    ],
+    "region_ids": [
+      "B018"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B019",
+    "artifact_id": "nnsmith",
+    "origin": "code",
+    "level": null,
+    "condition_text": "idx in disable",
+    "condition": {
+      "expr": "idx in disable",
+      "params": [
+        "disable",
+        "idx"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "path_change",
+    "effect_text": "For each reshape group, one randomly chosen destination dimension is disabled from binning, so that dimension is left unconstrained by the guidance.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "nnsmith/graph_gen.py",
+        "line_start": 944,
+        "line_end": null,
+        "function": "nnsmith/graph_gen.py::__GROUP_RESHAPE",
+        "snippet": "if idx in disable:"
+      }
+    ],
+    "region_ids": [
+      "B019"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B020",
+    "artifact_id": "nnsmith",
+    "origin": "code",
+    "level": null,
+    "condition_text": "os.getenv(\"NNSMITH_G_CONFIG\", \"1\") != \"1\"",
+    "condition": {
+      "expr": "os.getenv(\"NNSMITH_G_CONFIG\", \"1\") != \"1\"",
+      "params": [
+        "os"
+      ],
+      "path_prefix": [
+        "class GuidedGen",
+        "def __init__"
+      ]
+    },
+    "effect_type": "path_change",
+    "effect_text": "The environment variable NNSMITH_G_CONFIG selects which parameter-guidance table GuidedGen uses: \"0\" = PARAM_CONFIG0 (no parameter guidance at all, only input-shape guidance), \"1\" = PARAM_CONFIG1, \"2\" = PARAM_CONFIG2 (pads get symmetric bins). This changes the constraints added in `extra_constraints`/`post_process`, i.e. which models are generated. An unknown value raises KeyError.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "nnsmith/graph_gen.py",
+        "line_start": 984,
+        "line_end": null,
+        "function": "nnsmith/graph_gen.py::GuidedGen.__init__",
+        "snippet": "}[os.getenv(\"NNSMITH_G_CONFIG\", \"1\")]"
+      }
+    ],
+    "region_ids": [
+      "B020"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B021",
+    "artifact_id": "nnsmith",
+    "origin": "code",
+    "level": null,
+    "condition_text": "config is None",
+    "condition": {
+      "expr": "config is None",
+      "params": [
+        "config"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "path_change",
+    "effect_text": "If the op class has no entry in param_config, extra_constraints returns an empty list, so no guidance is applied for that op (silently unguided).",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "nnsmith/graph_gen.py",
+        "line_start": 1016,
+        "line_end": null,
+        "function": "nnsmith/graph_gen.py::GuidedGen.extra_constraints",
+        "snippet": "if config is None:"
+      }
+    ],
+    "region_ids": [
+      "B021"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B022",
+    "artifact_id": "nnsmith",
+    "origin": "code",
+    "level": null,
+    "condition_text": "len(cons) == 0 or random.uniform(0, 1) > self.constrain_prob",
+    "condition": {
+      "expr": "len(cons) == 0 or random.uniform(0, 1) > self.constrain_prob",
+      "params": [
+        "cons",
+        "len",
+        "random",
+        "self"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "path_change",
+    "effect_text": "Guidance constraints for a node are randomly skipped based on constrain_prob, so the mechanism probabilistically falls back to unguided generation for that node.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "nnsmith/graph_gen.py",
+        "line_start": 1044,
+        "line_end": null,
+        "function": "nnsmith/graph_gen.py::GuidedGen.post_process",
+        "snippet": "if len(cons) == 0 or random.uniform(0, 1) > self.constrain_prob:"
+      }
+    ],
+    "region_ids": [
+      "B022"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B023",
+    "artifact_id": "nnsmith",
+    "origin": "code",
+    "level": null,
+    "condition_text": "self.check_sat(*cur_cons) != z3.sat",
+    "condition": {
+      "expr": "self.check_sat(*cur_cons) != z3.sat",
+      "params": [
+        "cur_cons",
+        "self",
+        "z3"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "path_change",
+    "effect_text": "If the collected guidance constraints are unsatisfiable, the code halves the constraint list repeatedly (line 1053) and finally adds whatever remains (possibly empty), silently dropping guidance rather than rejecting the input.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "nnsmith/graph_gen.py",
+        "line_start": 1052,
+        "line_end": null,
+        "function": "nnsmith/graph_gen.py::GuidedGen.post_process",
+        "snippet": "while self.check_sat(*cur_cons) != z3.sat:"
+      }
+    ],
+    "region_ids": [
+      "B023"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B024",
+    "artifact_id": "nnsmith",
+    "origin": "code",
+    "level": null,
+    "condition_text": "len(cur_cons) == 0",
+    "condition": {
+      "expr": "len(cur_cons) == 0",
+      "params": [
+        "cur_cons",
+        "len"
+      ],
+      "path_prefix": [
+        "self.check_sat(*cur_cons) != z3.sat"
+      ]
+    },
+    "effect_type": "path_change",
+    "effect_text": "When all guidance constraints are dropped due to unsat, the loop breaks and self.solver.add(cur_cons) adds an empty list, so generation proceeds with no guidance applied.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "nnsmith/graph_gen.py",
+        "line_start": 1054,
+        "line_end": null,
+        "function": "nnsmith/graph_gen.py::GuidedGen.post_process",
+        "snippet": "if len(cur_cons) == 0:"
+      }
+    ],
+    "region_ids": [
+      "B024"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B025",
+    "artifact_id": "nnsmith",
+    "origin": "code",
+    "level": null,
+    "condition_text": "self.sat_inputs is None",
+    "condition": {
+      "expr": "self.sat_inputs is None",
+      "params": [
+        "self"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "path_change",
+    "effect_text": "When no satisfying inputs were found (sat_inputs is None), make_oracle silently uses random inputs via get_random_inps() rather than the search result, changing which inputs the oracle is built from.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "nnsmith/materialize/torch/__init__.py",
+        "line_start": 47,
+        "line_end": null,
+        "function": "nnsmith/materialize/torch/__init__.py::TorchModel.make_oracle",
+        "snippet": "if self.sat_inputs is None:"
+      }
+    ],
+    "region_ids": [
+      "B025"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B026",
+    "artifact_id": "nnsmith",
+    "origin": "code",
+    "level": null,
+    "condition_text": "all([DType.is_float(v.dtype) for _, v in self.net.input_like.items()])",
+    "condition": {
+      "expr": "all([DType.is_float(v.dtype) for _, v in self.net.input_like.items()])",
+      "params": [
+        "DType",
+        "_",
+        "all",
+        "self",
+        "v"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "path_change",
+    "effect_text": "Whether all model inputs are float dtypes decides if a differentiability probe is run; otherwise self.differentiable is forced False, which later routes search_one to SamplingSearch instead of GradSearch.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "nnsmith/materialize/torch/input_gen.py",
+        "line_start": 93,
+        "line_end": null,
+        "function": "nnsmith/materialize/torch/input_gen.py::PracticalHybridSearch.__init__",
+        "snippet": "if all([DType.is_float(v.dtype) for _, v in self.net.input_like.items()]):"
+      }
+    ],
+    "region_ids": [
+      "B026"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B027",
+    "artifact_id": "nnsmith",
+    "origin": "code",
+    "level": null,
+    "condition_text": "self.differentiable is False",
+    "condition": {
+      "expr": "self.differentiable is False",
+      "params": [
+        "self"
+      ],
+      "path_prefix": [
+        "class PracticalHybridSearch",
+        "def __init__"
+      ]
+    },
+    "effect_type": "path_change",
+    "effect_text": "The variant is decided by a single probe forward pass on random inputs: `self.net.differentiable` is set by SymbolNet.forward (it becomes False as soon as any op is non-differentiable or a numeric check fails). If that one random probe happens to hit a non-differentiable path, `search_one` (line 107) silently falls back to `SamplingSearch.search_one` for all subsequent calls, even for models that are mostly differentiable.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "nnsmith/materialize/torch/input_gen.py",
+        "line_start": 98,
+        "line_end": null,
+        "function": "nnsmith/materialize/torch/input_gen.py::PracticalHybridSearch.__init__",
+        "snippet": "self.differentiable = self.net.differentiable"
+      }
+    ],
+    "region_ids": [
+      "B027"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B028",
+    "artifact_id": "nnsmith",
+    "origin": "code",
+    "level": null,
+    "condition_text": "p.grad is not None and torch.any(p.grad != 0)",
+    "condition": {
+      "expr": "p.grad is not None and torch.any(p.grad != 0)",
+      "params": [
+        "p",
+        "torch"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "reject",
+    "effect_text": "If all parameter gradients are zero, ConstraintCheck.true(nonzero, ...) raises, aborting the backward step ('Gradients are all zero. Cannot make progress.').",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "nnsmith/materialize/torch/symbolnet.py",
+        "line_start": 188,
+        "line_end": null,
+        "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.backward",
+        "snippet": "if p.grad is not None and torch.any(p.grad != 0):"
+      }
+    ],
+    "region_ids": [
+      "B028"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B029",
+    "artifact_id": "nnsmith",
+    "origin": "code",
+    "level": null,
+    "condition_text": "nonzero is False",
+    "condition": {
+      "expr": "nonzero is False",
+      "params": [
+        "nonzero"
+      ],
+      "path_prefix": [
+        "class SymbolNet",
+        "def backward"
+      ]
+    },
+    "effect_type": "path_change",
+    "effect_text": "If the loss has zero gradient w.r.t. all trainable tensors (e.g. the NaN/Inf came from a non-differentiable path), `backward` raises ConstraintError; `grad_input_gen` catches it at line 268 and breaks out of the search loop (line 286), returning None so the hybrid search degrades to random sampling.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "nnsmith/materialize/torch/symbolnet.py",
+        "line_start": 191,
+        "line_end": null,
+        "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.backward",
+        "snippet": "ConstraintCheck.true("
+      }
+    ],
+    "region_ids": [
+      "B029"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B030",
+    "artifact_id": "nnsmith",
+    "origin": "code",
+    "level": null,
+    "condition_text": "max_time is None",
+    "condition": {
+      "expr": "max_time is None",
+      "params": [
+        "max_time"
+      ],
+      "path_prefix": [
+        "class SymbolNet",
+        "def grad_input_gen"
+      ]
+    },
+    "effect_type": "other",
+    "effect_text": "The gradient-based input search budget is taken from the environment (NNSMITH_GRAD_TIME, default 0.5 s). The `while time.time() - st < max_time` loop at line 257 can therefore exit before any satisfying input is found, in which case `grad_input_gen` returns None (line 293) and the caller falls back to random sampling.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "nnsmith/materialize/torch/symbolnet.py",
+        "line_start": 234,
+        "line_end": null,
+        "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.grad_input_gen",
+        "snippet": "max_time = float(os.getenv(\"NNSMITH_GRAD_TIME\", 0.5))"
+      }
+    ],
+    "region_ids": [
+      "B030"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B031",
+    "artifact_id": "nnsmith",
+    "origin": "code",
+    "level": null,
+    "condition_text": "tensor.data.dtype.is_floating_point",
+    "condition": {
+      "expr": "tensor.data.dtype.is_floating_point",
+      "params": [
+        "tensor"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "path_change",
+    "effect_text": "Only floating-point input tensors are wrapped as trainable Parameters; integer tensors are passed through untrained, so gradient-based input search only optimizes float inputs.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "nnsmith/materialize/torch/symbolnet.py",
+        "line_start": 238,
+        "line_end": null,
+        "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.grad_input_gen",
+        "snippet": "if tensor.data.dtype.is_floating_point:"
+      }
+    ],
+    "region_ids": [
+      "B031"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B032",
+    "artifact_id": "nnsmith",
+    "origin": "code",
+    "level": null,
+    "condition_text": "output_tensors[i].grad_fn is None",
+    "condition": {
+      "expr": "output_tensors[i].grad_fn is None",
+      "params": [
+        "i",
+        "output_tensors"
+      ],
+      "path_prefix": [
+        "class SymbolNet",
+        "def forward"
+      ]
+    },
+    "effect_type": "path_change",
+    "effect_text": "`differentiable` is reset to True at the start of every forward (line 313) and AND-ed with each op output's grad_fn. PracticalHybridSearch.__init__ reads this flag after one probe forward, so a single non-differentiable op (or a non-float input) permanently disables the gradient search for the whole model.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "nnsmith/materialize/torch/symbolnet.py",
+        "line_start": 358,
+        "line_end": null,
+        "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.forward",
+        "snippet": "self.differentiable &= output_tensors[i].grad_fn is not None"
+      }
+    ],
+    "region_ids": [
+      "B032"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B033",
+    "artifact_id": "nnsmith",
+    "origin": "code",
+    "level": null,
+    "condition_text": "self.check_intermediate_numeric or (self.use_gradient and not self.stop_updating_loss)",
+    "condition": {
+      "expr": "self.check_intermediate_numeric or (self.use_gradient and not self.stop_updating_loss)",
+      "params": [
+        "self"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "path_change",
+    "effect_text": "Constructor/config attributes check_intermediate_numeric, use_gradient and stop_updating_loss decide whether the numeric-validity check and loss-based input search run at all; when false, the whole NaN/Inf detection and loss-update mechanism is skipped.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "nnsmith/materialize/torch/symbolnet.py",
+        "line_start": 382,
+        "line_end": null,
+        "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.forward",
+        "snippet": "if self.check_intermediate_numeric or ("
+      }
+    ],
+    "region_ids": [
+      "B033"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B034",
+    "artifact_id": "nnsmith",
+    "origin": "code",
+    "level": null,
+    "condition_text": "loss_fn.dispatch(type(op)) is not None",
+    "condition": {
+      "expr": "loss_fn.dispatch(type(op)) is not None",
+      "params": [
+        "loss_fn",
+        "op",
+        "type"
+      ],
+      "path_prefix": [
+        "self.check_intermediate_numeric or (self.use_gradient and not self.stop_updating_loss)",
+        "self.invalid_found_last and (self.use_gradient and not self.stop_updating_loss)"
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "If an op produces NaN/Inf but has no registered loss function, ConstraintCheck.true at line 403 fails with 'op=... has no torch_loss but produces NaN or INF!', aborting the search.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "nnsmith/materialize/torch/symbolnet.py",
+        "line_start": 385,
+        "line_end": null,
+        "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.forward",
+        "snippet": "if loss_fn.dispatch(type(op)) is not None:"
+      }
+    ],
+    "region_ids": [
+      "B034"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B035",
+    "artifact_id": "nnsmith",
+    "origin": "code",
+    "level": null,
+    "condition_text": "vul_op_loss is None",
+    "condition": {
+      "expr": "vul_op_loss is None",
+      "params": [
+        "vul_op_loss"
+      ],
+      "path_prefix": [
+        "class SymbolNet",
+        "def forward",
+        "if self.check_intermediate_numeric or (self.use_gradient and not self.stop_updating_loss)",
+        "if self.invalid_found_last and (self.use_gradient and not self.stop_updating_loss)"
+      ]
+    },
+    "effect_type": "path_change",
+    "effect_text": "When an op produces NaN/Inf but has no registered loss function (`loss_fn.dispatch(type(op)) is None`), the constraint check raises ConstraintError, which `grad_input_gen` catches at line 268 and turns into `break` (line 286) — the gradient search aborts and returns None, so the caller silently falls back to random sampling for that model.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "nnsmith/materialize/torch/symbolnet.py",
+        "line_start": 403,
+        "line_end": null,
+        "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.forward",
+        "snippet": "ConstraintCheck.true("
+      }
+    ],
+    "region_ids": [
+      "B035"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B036",
+    "artifact_id": "nnsmith",
+    "origin": "code",
+    "level": null,
+    "condition_text": "self.loss is not None",
+    "condition": {
+      "expr": "self.loss is not None",
+      "params": [
+        "self"
+      ],
+      "path_prefix": [
+        "class SymbolNet",
+        "def forward",
+        "if self.check_intermediate_numeric or (self.use_gradient and not self.stop_updating_loss)",
+        "if self.invalid_found_last and (self.use_gradient and not self.stop_updating_loss)"
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "If two vulnerable ops both produce NaN/Inf in the same forward pass, the second one trips this check and raises ConstraintError, which aborts the gradient search (caught in grad_input_gen, line 268 -> break) instead of optimising for either loss.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "nnsmith/materialize/torch/symbolnet.py",
+        "line_start": 421,
+        "line_end": null,
+        "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.forward",
+        "snippet": "ConstraintCheck.true(self.loss is None, \"Multiple loss detected!\")"
+      }
+    ],
+    "region_ids": [
+      "B036"
+    ],
+    "provenance": "llm",
+    "notes": null
+  }
+]

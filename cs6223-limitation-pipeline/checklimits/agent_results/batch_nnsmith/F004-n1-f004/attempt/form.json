@@ -1,0 +1,76 @@
+{
+  "test_id": "A-nnsmith-F004",
+  "finding_id": "nnsmith-F004",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "opset",
+        "value": "unary_cpu_v1",
+        "why": "A fixed set of plain unary CPU ops; with max_nodes=0 the generation loop does not run, so the choice only fixes the module-level import graph and never changes the solver decision."
+      },
+      {
+        "name": "init_rank",
+        "value": 4,
+        "why": "Default initial placeholder rank; it only creates the symbolic shape whose element count makes the zero memory limit unsatisfiable."
+      },
+      {
+        "name": "max_nodes",
+        "value": 0,
+        "why": "The memory constraint and the assertion are added after graph generation, so no generated ops are needed to reach the target; zero nodes removes timing-dependent graph growth and keeps both runs deterministic."
+      },
+      {
+        "name": "timeout_ms",
+        "value": 20000,
+        "why": "Default generation budget from random_model_gen; with no generation loop iterations it only sets the z3 solver timeout, which is far above the time needed for this small constraint set."
+      },
+      {
+        "name": "limnf",
+        "value": true,
+        "why": "Path prefix from the Region: the memory-limit branch must be enabled for the target assertion to execute."
+      }
+    ],
+    "positive_input": {
+      "seed": 0,
+      "megabyte_lim": 0
+    },
+    "negative_input": {
+      "seed": 0,
+      "megabyte_lim": 1
+    },
+    "boundary_variable": "megabyte_lim",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "exception",
+      "spec": "AssertionError raised at nnsmith/graph_gen.py:260",
+      "signal_location": "nnsmith/graph_gen.py:260"
+    },
+    "expected": {
+      "positive": "AssertionError at nnsmith/graph_gen.py:260",
+      "negative": "no exception at nnsmith/graph_gen.py:260"
+    }
+  },
+  "execution": {
+    "entry_called": "nnsmith/graph_gen.py::random_model_gen",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": ["false", "true"],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "AssertionError at nnsmith/graph_gen.py:260",
+    "negative_observed": "no exception at nnsmith/graph_gen.py:260"
+  },
+  "evidence": {}
+}

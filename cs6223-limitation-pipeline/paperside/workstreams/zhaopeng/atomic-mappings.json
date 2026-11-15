@@ -1,0 +1,194 @@
+{
+  "flexprefill": [
+    [
+      "模式选择条件",
+      "论文说低于散度阈值时选 query-specific；源码以平方根 JS 散度与 tau 比较，生成 block_sparse_mask。",
+      "static",
+      "flex_prefill/ops/flex_prefill_attention.py",
+      1725,
+      1729,
+      "kl_div < tau",
+      "claim"
+    ],
+    [
+      "按 head 生成索引",
+      "代码仅对 mask 选中的 head 算块级注意力，将得到的索引与现有索引合并；不把这段概括成完全替换。",
+      "static",
+      "flex_prefill/ops/flex_prefill_attention.py",
+      1758,
+      1779,
+      "block_sparse_mask.nonzero()",
+      "claim"
+    ],
+    [
+      "预算参数",
+      "论文的最小预算对应公开入口的 min_budget，接口文档以 token 为单位。",
+      "static",
+      "flex_prefill/ops/flex_prefill_attention.py",
+      1791,
+      1813,
+      "minimum number of calculated tokens"
+    ],
+    [
+      "单位转换",
+      "稀疏选择器接收 ceil(min_budget / block_size)，即以块计的下限。",
+      "static",
+      "flex_prefill/ops/flex_prefill_attention.py",
+      1856,
+      1865,
+      "math.ceil(min_budget / block_size)"
+    ],
+    [
+      "索引约束",
+      "代码给 vertical/slash 两个候选块数施加下限；这不是每个 query 最终计算 token 数的全局保证。",
+      "static",
+      "flex_prefill/ops/flex_prefill_attention.py",
+      1708,
+      1715,
+      "num_vertical_blocks < min_budget"
+    ],
+    [
+      "执行旁路",
+      "在该入口通过前置检查后，短序列满足指定公式则走 dense；这条路径不经过后续稀疏索引选择。",
+      "static",
+      "flex_prefill/ops/flex_prefill_attention.py",
+      1836,
+      1855,
+      "q_len <= max"
+    ],
+    [
+      "效果声明",
+      "固定低 gamma、模型、样本和长度，比较不同 min_budget 的任务分数；源码不能证明收益。",
+      "runtime",
+      null,
+      null,
+      null,
+      null
+    ]
+  ],
+  "sparta": [
+    [
+      "传播机制",
+      "已定位的 propagate_sparsity 入口返回 pre_sparsity，没有在该函数执行 worklist 传播。",
+      "mismatch",
+      "sparta/propagation/propagate.py",
+      26,
+      30,
+      "post_sparsity = pre_sparsity"
+    ],
+    [
+      "调用边",
+      "SpartaModel._optimize_sparsity 调用该入口，再把返回值传给重建流程。",
+      "static",
+      "sparta/core/sparta.py",
+      16,
+      23,
+      "propagate_sparsity(self.model)"
+    ],
+    [
+      "实验路径",
+      "此 MobileNet 脚本调用 NNI ModelSpeedup；不能用公开入口的桩判断论文实际实验路径。",
+      "static",
+      "script/checkpoints/mobilenet/mobilenet_propagate_finegrained.py",
+      9,
+      14,
+      "ms.speedup_model()"
+    ],
+    [
+      "效果声明",
+      "需确认实验实际走哪条路径，并测量不同稀疏结构下传播前后的增益。",
+      "runtime",
+      null,
+      null,
+      null,
+      null
+    ]
+  ],
+  "minference": [
+    [
+      "索引机制",
+      "已定位 vertical/slash 索引形成；计时需要把索引计算与 kernel 分开。",
+      "static",
+      "minference/modules/minference_forward.py",
+      397,
+      408,
+      "vertical_topk = torch.topk"
+    ],
+    [
+      "反例控制",
+      "单 query dense 分支不能解释论文 10k prefill 的开销；保留为负控制。",
+      "static",
+      "minference/modules/minference_forward.py",
+      415,
+      419,
+      "if q_len == 1:"
+    ],
+    [
+      "效果声明",
+      "固定模型、设备和稀疏配置，比较不同 prefill 长度的索引开销占比。",
+      "runtime",
+      null,
+      null,
+      null,
+      null
+    ]
+  ],
+  "infinigen": [
+    [
+      "实现前提",
+      "已检查 LLaMA 路径的 Q/K 投影都使用 num_heads × head_dim。",
+      "static",
+      "accuracy/src/modeling_llama_ours.py",
+      163,
+      178,
+      "self.k_proj = nn.Linear"
+    ],
+    [
+      "公式与实现边界",
+      "同一正交变换可保持全量点积；要核对分组共享基底如何接入固定版本的实际调用链。",
+      "unresolved",
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      "效果声明",
+      "分别量测组内共享基底与每头独立基底的误差、缓存占用和适配成本；不预设必须复制 KV。",
+      "runtime",
+      null,
+      null,
+      null,
+      null
+    ]
+  ],
+  "nnsmith": [
+    [
+      "搜索控制流",
+      "外层 search 接到首个非空结果即退出。它和论文的全图数值有效性成功条件是两个层次。",
+      "static",
+      "nnsmith/materialize/torch/input_gen.py",
+      56,
+      62,
+      "if res is not None:"
+    ],
+    [
+      "适用前提",
+      "可微与不可微网络分别进入梯度搜索与采样；早停不意味着所有输入都做梯度修复。",
+      "static",
+      "nnsmith/materialize/torch/input_gen.py",
+      102,
+      110,
+      "if self.differentiable:"
+    ],
+    [
+      "效果声明",
+      "固定图和预算，对比首次成功与多合法输入方案的数值区间覆盖；未验证缺陷检出收益。",
+      "runtime",
+      null,
+      null,
+      null,
+      null
+    ]
+  ]
+}

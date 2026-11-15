@@ -1,0 +1,2717 @@
+{
+  "claims": [
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M01-B01",
+      "artifact_id": "flexprefill",
+      "mechanism": "M01",
+      "statement": "Compute sparse attention as Softmax((1/√d)(Q·Kᵀ + M_S)).",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Problem Setting In the sparse attention mechanism, Q and K represent the query and key ma-\ntrices given sequence length L, respectively. The attention score for each position is computed\nas the scaled dot product between the query matrix Q and the key matrix K, normalized by the\nsquare root of the head dimension d. To improve computational efficiency, sparse attention lim-\nits computation to a subset of query-key pairs whose indexes form the set S = SL\ni=1 Si, where\nSi⊆{ (i,j )| 1≤j≤i, j∈ Z}. The sparse attention mechanism is formalized as:\nA(Q, K, V, S) = Softmax\n\u0012 1√\nd\n\u0000\nQ· K⊤ + MS\n\u0001\u0013\n.",
+          "source": "paper",
+          "locator": "PDF p.2, text lines 47-60"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M01-B02",
+      "artifact_id": "flexprefill",
+      "mechanism": "M01",
+      "statement": "Set mask M_S[i,j]=0 when (i,j)∈S and −∞ otherwise.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Here, MS is a sparse attention mask based on S , defined as:\nMS[i,j ] =\n\u001a0, if (i,j )∈ S,\n−∞, otherwise.",
+          "source": "paper",
+          "locator": "PDF p.3, text lines 2-5"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M01-B03-R01",
+      "artifact_id": "flexprefill",
+      "mechanism": "M01",
+      "statement": "Set the global index set S as the union of per-query subsets S_i, i.e., S = ∪_{i=1}^{L} S_i.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "square root of the head dimension d. To improve computational efficiency, sparse attention lim-\nits computation to a subset of query-key pairs whose indexes form the set S = SL\ni=1 Si, where\nSi⊆{ (i,j )| 1≤j≤i, j∈ Z}. The sparse attention mechanism is formalized as:",
+          "source": "paper",
+          "locator": "PDF p.2, text lines 50-53"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M01-B03-R02",
+      "artifact_id": "flexprefill",
+      "mechanism": "M01",
+      "statement": "Constrain each per-query subset S_i to causal positions: S_i ⊆ {(i,j) | 1≤j≤i, j∈ℤ}.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Si⊆{ (i,j )| 1≤j≤i, j∈ Z}",
+          "source": "paper",
+          "locator": "PDF p.2"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M01-A01",
+      "artifact_id": "flexprefill",
+      "mechanism": "M01",
+      "statement": "Compute the attention score for each position as the scaled dot product between Q and K, normalized by the square root of the head dimension d.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "The attention score for each position is computed\nas the scaled dot product between the query matrix Q and the key matrix K, normalized by the\nsquare root of the head dimension d.",
+          "source": "paper",
+          "locator": "PDF p.2"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M01-A02",
+      "artifact_id": "flexprefill",
+      "mechanism": "M01",
+      "statement": "Restrict sparse attention computation to only the query-key pairs whose indexes are in S, rather than all pairs.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "square root of the head dimension d. To improve computational efficiency, sparse attention lim-\nits computation to a subset of query-key pairs whose indexes form the set S = SL\ni=1 Si, where",
+          "source": "paper",
+          "locator": "PDF p.2, text lines 50-52"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M02-B01-R01",
+      "artifact_id": "flexprefill",
+      "mechanism": "M02",
+      "statement": "Minimize the deviation between the full attention result and the sparse attention result, i.e., minimize |A(Q,K,V)−A(Q,K,V,S)| over S.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "min\nS\n|A(Q, K, V )− A(Q, K, V, S)| ,",
+          "source": "paper",
+          "locator": "PDF p.3"
+        },
+        {
+          "quote": "The first objective in Equation 1 aims to minimize the difference between\nthe sparse and full attention results.",
+          "source": "paper",
+          "locator": "PDF p.3"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M02-B02",
+      "artifact_id": "flexprefill",
+      "mechanism": "M02",
+      "statement": "Minimize the size of the selected subset |S|.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "The second objective seeks to minimize the size of the selected\nsubset S, which directly relates to the computational efficiency.",
+          "source": "paper",
+          "locator": "PDF p.3"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M02-A01",
+      "artifact_id": "flexprefill",
+      "mechanism": "M02",
+      "statement": "Treat the deviation objective and the subset-size objective as competing goals to be balanced, rather than collapsing them into a single scalarized objective.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Goal The goal of the dynamic sparse attention system is to achieve a balance between compu-\ntational efficiency and attention effectiveness. This can be formally expressed as a multi-objective\noptimization problem:",
+          "source": "paper",
+          "locator": "PDF p.3, text lines 6-8"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M02-A02",
+      "artifact_id": "flexprefill",
+      "mechanism": "M02",
+      "statement": "Construct the sparse attention mask M_S such that M_S[i,j]=0 if (i,j)∈S and M_S[i,j]=−∞ otherwise, and evaluate the sparse attention result A(Q,K,V,S) through this mask.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Here, MS is a sparse attention mask based on S , defined as:",
+          "source": "paper",
+          "locator": "PDF p.3"
+        },
+        {
+          "quote": "MS[i,j ] =\n\u001a0, if (i,j )∈ S,\n−∞, otherwise.",
+          "source": "paper",
+          "locator": "PDF p.3"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M03-B01",
+      "artifact_id": "flexprefill",
+      "mechanism": "M03",
+      "statement": "Select the last block_size query vectors as representative subset Q̂.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "1. Representative Query Selection: We select the last block_size query vectors, denoted as\nˆQ, as a representative subset for subsequent estimation.",
+          "source": "paper",
+          "locator": "PDF p.4, text lines 49-50"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M03-B02",
+      "artifact_id": "flexprefill",
+      "mechanism": "M03",
+      "statement": "Reuse the representative attention score computed from Q̂ for both sparse pattern determination and Vertical-Slash sparse index selection.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "experiments. We choose the last block_size query vector as the representative query set ˆQ for both\nsparse pattern determination and Vertical-Slash sparse index selection, which allows the represen-\ntative attention score to be computed only once and reused in both attention pattern determination\nand sparse index selection. The sparse pattern threshold τ is set to 0.1 for all models. Additionally,",
+          "source": "paper",
+          "locator": "PDF p.7, text lines 12-15"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M03-A01",
+      "artifact_id": "flexprefill",
+      "mechanism": "M03",
+      "statement": "将 Q̂ 作为 Q 的严格子集（Q̂ ⊂ Q）使用，即代表查询集不包含全部查询向量。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "ˆA← softmax\n\u0010\nˆQK⊤/\n√\nd\n\u0011\n,where ˆQ⊂ Q",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 54-60"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M03-A02",
+      "artifact_id": "flexprefill",
+      "mechanism": "M03",
+      "statement": "在 Sparse Pattern Search 中，用 Q̂ 与 K 的池化结果计算估计块级注意力分布 ā = softmax(pool(Q̂)pool(K)ᵀ/√d)。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "¯a← softmax\n\u0010\npool( ˆQ)pool(K)⊤/\n√\nd\n\u0011",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 25-30"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M03-A03",
+      "artifact_id": "flexprefill",
+      "mechanism": "M03",
+      "statement": "在 Sparse Pattern Search 中，用 Q̂ 与 K 计算真实块级注意力分布 â = pool(softmax(Q̂Kᵀ/√d))。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "ˆa← pool\n\u0010\nsoftmax\n\u0010\nˆQK⊤/\n√\nd\n\u0011\u0011",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 31-38"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M03-A04",
+      "artifact_id": "flexprefill",
+      "mechanism": "M03",
+      "statement": "在 Vertical Slash Index Search 中，用 Q̂ 与 K 计算子集注意力图 Â = softmax(Q̂Kᵀ/√d)。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Algorithm 3 Vertical Slash Index Search\nInput: Q, K,γ\n# Compute a subset of the full attention map\nˆA← softmax\n\u0010\nˆQK⊤/\n√\nd\n\u0011\n,where ˆQ⊂ Q",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 51-60"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M03-A05",
+      "artifact_id": "flexprefill",
+      "mechanism": "M03",
+      "statement": "在 Query Aware Index Search 中，不使用 Q̂，而是对完整 Q 与 K 做池化：Q̄ = pool(Q), K̄ = pool(K)。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Algorithm 4 Query Aware Index Search\nInput: Q, K,γ\n# Compute estimated attention scores using\npooled Q and K\n¯Q← pool(Q), ¯K← pool(K)\n¯A← softmax\n\u0010\n¯Q ¯K⊤/\n√\nd\n\u0011",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 82-92"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M03-A06",
+      "artifact_id": "flexprefill",
+      "mechanism": "M03",
+      "statement": "代表查询集 Q̂ 的大小等于 block_size。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "# Take a representative query subset\nselect ˆQ = Q[−block_size:]",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 21-22"
+        },
+        {
+          "quote": "for optimizing the performance of GPU-accelerated computations and uses ablock_size = 128 in all\nexperiments. We choose the last block_size query vector as the representative query set ˆQ for both",
+          "source": "paper",
+          "locator": "PDF p.7, text lines 11-12"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M04-B01",
+      "artifact_id": "flexprefill",
+      "mechanism": "M04",
+      "statement": "Select the last block_size query vectors as the representative query subset Q̂ for block-wise attention estimation.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "1. Representative Query Selection: We select the last block_size query vectors, denoted as\nˆQ, as a representative subset for subsequent estimation.",
+          "source": "paper",
+          "locator": "PDF p.4, text lines 49-50"
+        },
+        {
+          "quote": "select ˆQ = Q[−block_size:]",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 22-22"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M04-B02-R01",
+      "artifact_id": "flexprefill",
+      "mechanism": "M04",
+      "statement": "Compute the estimated block-wise distribution ā by applying average-pooling to both Q̂ and K, then computing softmax(avgpool(Q̂)·avgpool(K)ᵀ/√d).",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "¯a = softmax\n\u0010\navgpool( ˆQ)avgpool(K)⊤/\n√\nd\n\u0011\n,\nˆa = sumpool\n\u0010\nsoftmax\n\u0010\nˆQK⊤/\n√\nd\n\u0011\u0011\n,\nwhere the kernel size of the pooling operation is equal to block_size, ¯a represents the\nestimated distribution and ˆa represents the true distribution.",
+          "source": "paper",
+          "locator": "PDF p.4, text lines 53-70"
+        },
+        {
+          "quote": "¯a← softmax\n\u0010\npool( ˆQ)pool(K)⊤/\n√\nd\n\u0011",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 25-30"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M04-B03-R01",
+      "artifact_id": "flexprefill",
+      "mechanism": "M04",
+      "statement": "Compute the true block-wise distribution â by applying softmax to Q̂Kᵀ/√d first, then sum-pooling the resulting attention matrix.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "ˆa = sumpool\n\u0010\nsoftmax\n\u0010\nˆQK⊤/\n√\nd\n\u0011\u0011\n,\nwhere the kernel size of the pooling operation is equal to block_size, ¯a represents the\nestimated distribution and ˆa represents the true distribution.",
+          "source": "paper",
+          "locator": "PDF p.4, text lines 60-70"
+        },
+        {
+          "quote": "ˆa← pool\n\u0010\nsoftmax\n\u0010\nˆQK⊤/\n√\nd\n\u0011\u0011",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 31-38"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M04-A01",
+      "artifact_id": "flexprefill",
+      "mechanism": "M04",
+      "statement": "Set the pooling kernel size used in both the avgpool and sumpool operations equal to block_size.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "where the kernel size of the pooling operation is equal to block_size",
+          "source": "paper",
+          "locator": "PDF p.4"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M04-A02",
+      "artifact_id": "flexprefill",
+      "mechanism": "M04",
+      "statement": "Designate ā as the estimated distribution and â as the true distribution, establishing the two operands for the subsequent divergence comparison.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "¯a represents the\nestimated distribution and ˆa represents the true distribution",
+          "source": "paper",
+          "locator": "PDF p.4"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M04-A03",
+      "artifact_id": "flexprefill",
+      "mechanism": "M04",
+      "statement": "Output ā and â to the JS-divergence comparison step without performing any thresholding or pattern decision within this mechanism.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "3. Distribution Comparison: We quantify the discrepancy between these distributions using\nthe square root of the Jensen-Shannon divergence",
+          "source": "paper",
+          "locator": "PDF p.4"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M05-B01",
+      "artifact_id": "flexprefill",
+      "mechanism": "M05",
+      "statement": "Compute the mean distribution m = ½(ā+â) and the Jensen-Shannon divergence between ā and â.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "3. Distribution Comparison: We quantify the discrepancy between these distributions using\nthe square root of the Jensen-Shannon divergence:\nDJS (¯a, ˆa) =\np\nJSD (¯a||ˆa) =\nr\n1\n2 (DKL (¯a||m) +DKL (ˆa||m)) , (2)\nwhere m = 1\n2 (¯a+ˆa) is the mean distribution, andDKL (·||·) denotes the Kullback-Leibler\ndivergence. We adopt the Jensen-Shannon divergence for its symmetry and boundedness",
+          "source": "paper",
+          "locator": "PDF p.4, text lines 71-81"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M05-B02",
+      "artifact_id": "flexprefill",
+      "mechanism": "M05",
+      "statement": "Take the square root of the JSD to obtain D_JS.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "We quantify the discrepancy between these distributions using\nthe square root of the Jensen-Shannon divergence",
+          "source": "paper",
+          "locator": "PDF p.4"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M05-B03-R01",
+      "artifact_id": "flexprefill",
+      "mechanism": "M05",
+      "statement": "若 D_JS < τ，则将模式分类为 query_specific。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "ifdJ S<τ then\npattern← query_specific",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 45-46"
+        },
+        {
+          "quote": "4. Adaptive Decision: We compareDJS to a predefined thresholdτ. IfDJS <τ , the block-\nwise attention estimation adequately approximates the true distribution. Consequently, we",
+          "source": "paper",
+          "locator": "PDF p.4, text lines 83-84"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M05-B03-R02",
+      "artifact_id": "flexprefill",
+      "mechanism": "M05",
+      "statement": "若 D_JS ≥ τ（即不满足 D_JS < τ），则将模式分类为 vertical_slash。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Otherwise, the\napproximation is inadequate, we fall back to a more conservative approach.",
+          "source": "paper",
+          "locator": "PDF p.4"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M05-A01",
+      "artifact_id": "flexprefill",
+      "mechanism": "M05",
+      "statement": "选取 Q 的最后 block_size 个查询向量作为代表性子集 Q̂=Q[−block_size:]。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "# Take a representative query subset\nselect ˆQ = Q[−block_size:]",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 21-22"
+        },
+        {
+          "quote": "1. Representative Query Selection: We select the last block_size query vectors, denoted as\nˆQ, as a representative subset for subsequent estimation.",
+          "source": "paper",
+          "locator": "PDF p.4, text lines 49-50"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M05-A02",
+      "artifact_id": "flexprefill",
+      "mechanism": "M05",
+      "statement": "计算估计的块池化分布 ā=softmax(pool(Q̂)pool(K)ᵀ/√d)。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "where the kernel size of the pooling operation is equal to block_size",
+          "source": "paper",
+          "locator": "PDF p.4"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M05-A03",
+      "artifact_id": "flexprefill",
+      "mechanism": "M05",
+      "statement": "计算真实的块池化分布 â=pool(softmax(Q̂Kᵀ/√d))。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "ˆa← pool\n\u0010\nsoftmax\n\u0010\nˆQK⊤/\n√\nd\n\u0011\u0011",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 31-38"
+        },
+        {
+          "quote": "ˆa = sumpool\n\u0010\nsoftmax\n\u0010\nˆQK⊤/\n√\nd\n\u0011\u0011\n,\nwhere the kernel size of the pooling operation is equal to block_size, ¯a represents the\nestimated distribution and ˆa represents the true distribution.",
+          "source": "paper",
+          "locator": "PDF p.4, text lines 60-70"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M05-A04",
+      "artifact_id": "flexprefill",
+      "mechanism": "M05",
+      "statement": "采用 Jensen-Shannon 散度作为分布比较度量，因其具有对称性与有界性，从而保证模式判定更稳定可靠。",
+      "kind": "guarantee",
+      "evidence": [
+        {
+          "quote": "We adopt the Jensen-Shannon divergence for its symmetry and boundedness\nproperties, which ensure a more stable and reliable pattern determination.",
+          "source": "paper",
+          "locator": "PDF p.4"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M05-A05",
+      "artifact_id": "flexprefill",
+      "mechanism": "M05",
+      "statement": "返回所选择的模式标签（query_specific 或 vertical_slash）给调用方。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "return pattern",
+          "source": "paper",
+          "locator": "PDF p.6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M05-A06",
+      "artifact_id": "flexprefill",
+      "mechanism": "M05",
+      "statement": "算法1 根据返回的 pattern 分派：query_specific 时调用 Query Aware Index(Q,K,γ)，vertical_slash 时调用 Vertical Slash Index(Q,K,γ)。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "γ∈ (0, 1)",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 5-5"
+        },
+        {
+          "quote": "pattern← Sparse Pattern Search (Q, K,τ )",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 8-8"
+        },
+        {
+          "quote": "ifpattern == query_specific then\nS← Query Aware Index(Q, K,γ )\nelse ifpattern == vertical_slash then\nS← Vertical Slash Index(Q, K,γ )",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 11-14"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M06-B01",
+      "artifact_id": "flexprefill",
+      "mechanism": "M06",
+      "statement": "Select per-query subsets S_i minimizing total size Σ|S_i| subject to the normalized attention mass within S_i being at least γ for every query i.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Cumulative-Attention Based Index Selection After deciding whether an attention head belongs\nto Query-Aware or Vertical-Slash, we attempt to minimize the computation while ensuring effec-\ntiveness. Our sparse attention mechanism aims to select the smallest possible subsets Si for each\nquery positioni while ensuring that the sum of normalized attention scores within each subset meets\na predefined cumulative attention thresholdγ. This objective can be formally expressed as:\nmin\nSi\nnX\ni=1\n|Si| subject to\nX\n(i,j)∈Si\nexp(Qi· K⊤\nj /\n√\nd)\nPi\nj′=1 exp(Qi· K⊤\nj′/\n√\nd)\n≥γ,∀i∈ [n] , (3)\nwhere S =∪iSi and|Si| denotes the size of chosen index subset, Qi and Kj are the query and key",
+          "source": "paper",
+          "locator": "PDF p.5, text lines 2-24"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M06-B02",
+      "artifact_id": "flexprefill",
+      "mechanism": "M06",
+      "statement": "For Query-Aware heads, estimate block-wise attention by average-pooling queries and keys, then sort blocks descending and select until cumulative normalized score exceeds γ.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Estimate the block-wise attention scores by first average-pooling the queries and keys,\nthen computing the attention.",
+          "source": "paper",
+          "locator": "PDF p.5"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M06-B03",
+      "artifact_id": "flexprefill",
+      "mechanism": "M06",
+      "statement": "For Vertical-Slash heads, compute attention on representative Q̂, average scores along vertical and slash lines, sort descending, and select lines until cumulative normalized score exceeds γ, then extend to the full matrix.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Extend selected lines to the entire attention matrix, forming the sparse index set S.",
+          "source": "paper",
+          "locator": "PDF p.5"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M06-A01",
+      "artifact_id": "flexprefill",
+      "mechanism": "M06",
+      "statement": "将累积注意力阈值 γ 作为 Query-Aware 与 Vertical-Slash 两类头共享的索引选择预算准则，在头类型决策完成后统一应用。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Cumulative-Attention Based Index Selection After deciding whether an attention head belongs\nto Query-Aware or Vertical-Slash, we attempt to minimize the computation while ensuring effec-\ntiveness. Our sparse attention mechanism aims to select the smallest possible subsets Si for each\nquery positioni while ensuring that the sum of normalized attention scores within each subset meets\na predefined cumulative attention thresholdγ. This objective can be formally expressed as:",
+          "source": "paper",
+          "locator": "PDF p.5, text lines 2-6"
+        },
+        {
+          "quote": "To achieve this objective, we employ different strategies depending on the attention head type:\n1. Query-Aware head:\n• Estimate the block-wise attention scores by first average-pooling the queries and keys,\nthen computing the attention.\n• Sort the blocks in descending order and select blocks in order until the sum of their\nnormalized attention scores exceeds the thresholdγ, forming the sparse index set S.\n2. Vertical-Slash head:\n• Select a representative query subset ˆQ and compute attention scores, then calculate\naverage scores for the vertical and slash lines.\n• Sort these lines and select vertical and slash lines in descending order until their cu-\nmulative normalized attention scores exceedγ.\n• Extend selected lines to the entire attention matrix, forming the sparse index set S.",
+          "source": "paper",
+          "locator": "PDF p.5, text lines 27-38"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M06-A02",
+      "artifact_id": "flexprefill",
+      "mechanism": "M06",
+      "statement": "Algorithm 1 以查询矩阵 Q、键矩阵 K、值矩阵 V、稀疏模式阈值 τ 和累积注意力阈值 γ 作为输入。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "The algorithm takes the query matrix Q, key matrix K, value matrix V ,\nsparse pattern threshold τ and cumulative attention threshold γ as input.",
+          "source": "paper",
+          "locator": "PDF p.5"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M06-A03",
+      "artifact_id": "flexprefill",
+      "mechanism": "M06",
+      "statement": "将选出的稀疏索引集 S 作为输入执行稀疏注意力计算，并返回最终注意力结果。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "The algorithm performs sparse attention computation for each\nattention head using the obtained sparse index and returns the final attention result.",
+          "source": "paper",
+          "locator": "PDF p.5"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M06-A04",
+      "artifact_id": "flexprefill",
+      "mechanism": "M06",
+      "statement": "将优化 Eq.3 的理论依据推迟到 Appendix A 给出，本页不展开推导。",
+      "kind": "guarantee",
+      "evidence": [
+        {
+          "quote": "The detailed rationale behind optimizing Equation (3) is provided\nin Appendix A.",
+          "source": "paper",
+          "locator": "PDF p.5"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M07-B01",
+      "artifact_id": "flexprefill",
+      "mechanism": "M07",
+      "statement": "Compute pooled query and key matrices by applying the pooling kernel to Q and K.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "¯Q← pool(Q), ¯K← pool(K)",
+          "source": "paper",
+          "locator": "PDF p.6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M07-B02",
+      "artifact_id": "flexprefill",
+      "mechanism": "M07",
+      "statement": "Compute estimated attention map Ā as softmax of pooled Q times pooled K transpose divided by √d.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "¯Q← pool(Q), ¯K← pool(K)\n¯A← softmax\n\u0010\n¯Q ¯K⊤/\n√\nd\n\u0011",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 86-92"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M07-B03",
+      "artifact_id": "flexprefill",
+      "mechanism": "M07",
+      "statement": "Flatten the attention map and normalize it by dividing by the sum of all its entries.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "# Flatten and normalize attention map\n¯A← flatten( ¯A/P\ni, j\n¯A[i,j ])",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 93-96"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M07-B04",
+      "artifact_id": "flexprefill",
+      "mechanism": "M07",
+      "statement": "Argsort the flattened normalized attention scores to obtain ordering Ia.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Ia← argsort( ¯A)",
+          "source": "paper",
+          "locator": "PDF p.6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M07-B05",
+      "artifact_id": "flexprefill",
+      "mechanism": "M07",
+      "statement": "Select the minimum prefix length K such that the cumulative sum of the top-k sorted scores is at least γ.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Ia← argsort( ¯A)\n# Obtain the minimum computational budget\nmaking the sum of the scores exceedsγ\nK← min{k :P\ni∈Ia[1:k]\n¯A[i]≥γ}",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 98-103"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M07-B06-R01",
+      "artifact_id": "flexprefill",
+      "mechanism": "M07",
+      "statement": "构造稀疏索引集 S 为排序索引列表 Ia 的前 K 项。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "S← Ia[1 :K]",
+          "source": "paper",
+          "locator": "PDF p.6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M07-B06-R02",
+      "artifact_id": "flexprefill",
+      "mechanism": "M07",
+      "statement": "将稀疏索引集 S 返回给调用者。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "return S",
+          "source": "paper",
+          "locator": "PDF p.6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M07-A01",
+      "artifact_id": "flexprefill",
+      "mechanism": "M07",
+      "statement": "将稀疏索引集 S 返回给调用者。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "return S",
+          "source": "paper",
+          "locator": "PDF p.6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M08-B01",
+      "artifact_id": "flexprefill",
+      "mechanism": "M08",
+      "statement": "Compute a subset of the full attention map Â = softmax(Q̂Kᵀ/√d) using a representative query subset Q̂ ⊂ Q.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "# Compute a subset of the full attention map\nˆA← softmax\n\u0010\nˆQK⊤/\n√\nd\n\u0011\n,where ˆQ⊂ Q",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 53-60"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M08-B02",
+      "artifact_id": "flexprefill",
+      "mechanism": "M08",
+      "statement": "Sum attention scores along the vertical direction and normalize by the total sum of Â to obtain a_v.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "# Sum and normalize attention scores along the\nvertical and slash directions\nav← sum_vertical( ˆA)/P\ni, j\nˆA[i,j ]",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 61-65"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M08-B03",
+      "artifact_id": "flexprefill",
+      "mechanism": "M08",
+      "statement": "Sum attention scores along the slash direction and normalize by the total sum of Â to obtain a_s.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "as← sum_slash( ˆA)/P\ni, j\nˆA[i,j ]",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 66-68"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M08-B04-R01",
+      "artifact_id": "flexprefill",
+      "mechanism": "M08",
+      "statement": "Argsort the vertical scores a_v to obtain ordering I_v.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Iv← argsort(av)",
+          "source": "paper",
+          "locator": "PDF p.6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M08-B04-R02",
+      "artifact_id": "flexprefill",
+      "mechanism": "M08",
+      "statement": "Argsort the slash scores a_s to obtain ordering I_s.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Is← argsort(as)",
+          "source": "paper",
+          "locator": "PDF p.6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M08-B05",
+      "artifact_id": "flexprefill",
+      "mechanism": "M08",
+      "statement": "Determine minimum vertical prefix length K_v such that cumulative sum of top-k vertical scores is at least γ.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "# Sort vertical and slash attention scores\nIv← argsort(av)\nIs← argsort(as)\n# Obtain the minimum computational budget\nmaking the sum of the scores exceedsγ\nKv← min{k :P\ni∈Iv [1:k] av[i]≥γ}",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 69-75"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M08-B06",
+      "artifact_id": "flexprefill",
+      "mechanism": "M08",
+      "statement": "Determine minimum slash prefix length K_s such that cumulative sum of top-k slash scores is at least γ.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "# Sort vertical and slash attention scores\nIv← argsort(av)\nIs← argsort(as)\n# Obtain the minimum computational budget\nmaking the sum of the scores exceedsγ\nKv← min{k :P\ni∈Iv [1:k] av[i]≥γ}\nKs← min{k :P\ni∈Is[1:k] as[i]≥γ}",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 69-77"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M08-B07",
+      "artifact_id": "flexprefill",
+      "mechanism": "M08",
+      "statement": "Select vertical and slash index sets S_v and S_s as the first K_v and K_s entries of I_v and I_s respectively.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Sv← Iv[1 :Kv], Ss← Is[1 :Ks]",
+          "source": "paper",
+          "locator": "PDF p.6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M08-B08-R01",
+      "artifact_id": "flexprefill",
+      "mechanism": "M08",
+      "statement": "Form the sparse index set S as the union of the selected vertical and slash index sets, S = S_v ∪ S_s.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "S← Sv∪ Ss",
+          "source": "paper",
+          "locator": "PDF p.6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M08-B08-R02",
+      "artifact_id": "flexprefill",
+      "mechanism": "M08",
+      "statement": "Return the sparse index set S.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "return S",
+          "source": "paper",
+          "locator": "PDF p.6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M08-A01",
+      "artifact_id": "flexprefill",
+      "mechanism": "M08",
+      "statement": "Extend the selected vertical and slash lines to the entire attention matrix to form the sparse index set S.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Extend selected lines to the entire attention matrix, forming the sparse index set S.",
+          "source": "paper",
+          "locator": "PDF p.5"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M09-B01",
+      "artifact_id": "flexprefill",
+      "mechanism": "M09",
+      "statement": "Determine the sparse pattern by calling Sparse Pattern Search with Q, K, and threshold τ.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "pattern← Sparse Pattern Search (Q, K,τ )",
+          "source": "paper",
+          "locator": "PDF p.6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M09-B02",
+      "artifact_id": "flexprefill",
+      "mechanism": "M09",
+      "statement": "If the pattern is query_specific, obtain the sparse index set S via Query Aware Index with Q, K, γ.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "ifpattern == query_specific then\nS← Query Aware Index(Q, K,γ )",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 11-12"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M09-B03",
+      "artifact_id": "flexprefill",
+      "mechanism": "M09",
+      "statement": "If the pattern is vertical_slash, obtain the sparse index set S via Vertical Slash Index with Q, K, γ.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "else ifpattern == vertical_slash then\nS← Vertical Slash Index(Q, K,γ )",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 13-14"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M09-B04-R01",
+      "artifact_id": "flexprefill",
+      "mechanism": "M09",
+      "statement": "Compute the final sparse attention output y = A(Q, K, V, S) using the obtained sparse index set.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "y← A(Q, K, V, S)",
+          "source": "paper",
+          "locator": "PDF p.6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M09-B04-R02",
+      "artifact_id": "flexprefill",
+      "mechanism": "M09",
+      "statement": "Return y as the pipeline output.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "return y",
+          "source": "paper",
+          "locator": "PDF p.6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M09-A01",
+      "artifact_id": "flexprefill",
+      "mechanism": "M09",
+      "statement": "During decoding, switch from sparse computation to dense computation.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Algorithm 1 presents the overall procedure of our proposed method for efficient sparse\nattention computation.",
+          "source": "paper",
+          "locator": "PDF p.5"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M10-B01-R01",
+      "artifact_id": "flexprefill",
+      "mechanism": "M10",
+      "statement": "For each query block, retain the first key block in the sparse computation.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "we retain the first\nand last key blocks of each query block",
+          "source": "paper",
+          "locator": "PDF p.7"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M10-B01-R02",
+      "artifact_id": "flexprefill",
+      "mechanism": "M10",
+      "statement": "For each query block, retain the last key block in the sparse computation.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "we retain the first\nand last key blocks of each query block",
+          "source": "paper",
+          "locator": "PDF p.7"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M10-B02",
+      "artifact_id": "flexprefill",
+      "mechanism": "M10",
+      "statement": "Require each attention head to compute at least 1024 tokens.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "requiring each attention head to compute at least\n1024 tokens",
+          "source": "paper",
+          "locator": "PDF p.7"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M10-B03",
+      "artifact_id": "flexprefill",
+      "mechanism": "M10",
+      "statement": "Setting a minimum budget threshold prevents collapse of attention heads with extremely high sparsity ratios.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "setting a minimum budget\nthreshold enhances performance and prevents the collapse of attention heads with extremely high\nsparsity ratios",
+          "source": "paper",
+          "locator": "PDF p.9"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M10-A01",
+      "artifact_id": "flexprefill",
+      "mechanism": "M10",
+      "statement": "When γ is high, the minimum budget limit is unnecessary because the model already captures most important tokens; when γ is smaller, the minimum budget threshold is applied because some attention heads may select insufficient tokens and malfunction.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "ble 10 demonstrates that whenγ is high, the model effectively captures most of the important tokens,\nmaking a minimum budget limit unnecessary. However, with smaller γ, the number of tokens se-\nlected by some attention heads may be insufficient, causing them to malfunction. In this scenario,\nimplementing a minimum budget threshold significantly enhances the model’s performance. More-",
+          "source": "paper",
+          "locator": "PDF p.24, text lines 10-13"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M10-A02",
+      "artifact_id": "flexprefill",
+      "mechanism": "M10",
+      "statement": "The minimum budget limit need not be excessive; increasing the budget further does not lead to better results.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "this minimum budget limit does not need to be excessive, as increasing the budget further does\nnot lead to better results",
+          "source": "paper",
+          "locator": "PDF p.24"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M10-A03",
+      "artifact_id": "flexprefill",
+      "mechanism": "M10",
+      "statement": "The minimum budget safeguard acts as a floor layered on top of the cumulative-attention budget rule: the per-head budget is still assigned via γ, and the floor only raises heads whose selected token count falls below the minimum.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "by adjusting the parameter γ, we assign a tailored computational budget to each attention head in\nreal-time for each input scenario",
+          "source": "paper",
+          "locator": "PDF p.7"
+        },
+        {
+          "quote": "while also requiring each attention head to compute at least\n1024 tokens",
+          "source": "paper",
+          "locator": "PDF p.7"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M11-B01",
+      "artifact_id": "flexprefill",
+      "mechanism": "M11",
+      "statement": "Derive an upper bound on the difference between full and sparse attention of (1−a_S)Σ|v_j|.",
+      "kind": "guarantee",
+      "evidence": [
+        {
+          "quote": "= (1−aS)\nLX\nj=1\n|vj|",
+          "source": "paper",
+          "locator": "PDF p.19"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M11-B02",
+      "artifact_id": "flexprefill",
+      "mechanism": "M11",
+      "statement": "Formulate the primal objective as maximizing the sum of normalized attention scores in S subject to |S| ≤ γ_S.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "max\nS⊆[L]\nX\nj∈S\nexp(xj)PL\nj′=1 exp(x′\nj)\n, subject to |S|≤ γS",
+          "source": "paper",
+          "locator": "PDF p.19"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M11-B03",
+      "artifact_id": "flexprefill",
+      "mechanism": "M11",
+      "statement": "Relax binary selection variables z_j to continuous 0≤z_j≤1.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Step 2: Relax Binary Variables Relaxing to continuous variables:",
+          "source": "paper",
+          "locator": "PDF p.20"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M11-B04",
+      "artifact_id": "flexprefill",
+      "mechanism": "M11",
+      "statement": "Form the Lagrangian with multiplier λ for the size constraint and multipliers μ_j, ν_j for bounds.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Step 3: Lagrangian Formulation Let’s form the Lagrangian for the primal problem:",
+          "source": "paper",
+          "locator": "PDF p.20"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M11-B05",
+      "artifact_id": "flexprefill",
+      "mechanism": "M11",
+      "statement": "Apply KKT stationarity and complementary slackness conditions.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Step 4: KKT Conditions The KKT conditions give:",
+          "source": "paper",
+          "locator": "PDF p.20"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M11-B06",
+      "artifact_id": "flexprefill",
+      "mechanism": "M11",
+      "statement": "Select positions (z_j=1) iff their normalized attention score exceeds λ.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "1 if exp(xj )PL\nj′ =1 exp(xj′ ) >λ",
+          "source": "paper",
+          "locator": "PDF p.20"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M11-B07",
+      "artifact_id": "flexprefill",
+      "mechanism": "M11",
+      "statement": "Transform to the dual objective: minimize |S| subject to the sum of normalized attention scores in S ≥ γ_a.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "The dual\nobjective minimizes the size of the selected subset S while ensuring that the sum of normalized\nattention scores in the subset is greater than or equal to a threshold γa.",
+          "source": "paper",
+          "locator": "PDF p.21"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M11-A01",
+      "artifact_id": "flexprefill",
+      "mechanism": "M11",
+      "statement": "定义全注意力 A(Q,K,V)=Σ_{j=1}^L e^{x_j}v_j/Σ_{j'=1}^L e^{x_{j'}} 与稀疏注意力 A(Q,K,V,S)=Σ_{j∈S} e^{x_j}v_j/Σ_{j'∈S} e^{x_{j'}}。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "A(Q, K, V ) = PL\nj=1\nexj vjPL\nj′ =1 e\nxj′ and the sparse attention computation for this subset is:\nA(Q, K, V, S) =P\nj∈S\nexj vjP\nj′ ∈S e\nxj′ .",
+          "source": "paper",
+          "locator": "PDF p.19"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M11-A02",
+      "artifact_id": "flexprefill",
+      "mechanism": "M11",
+      "statement": "定义归一化注意力分数 a_j = e^{x_j}/Σ_{j'=1}^L e^{x_{j'}}。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "xj′ . Let the attention scores be defined as aj = exj\nPL\nj′ =1 e\nej′ . The",
+          "source": "paper",
+          "locator": "PDF p.19, text lines 27-30"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M11-A03",
+      "artifact_id": "flexprefill",
+      "mechanism": "M11",
+      "statement": "将全/稀疏注意力之差表达为 Σ_{j∉S}a_jv_j − (1/Σ_{j∈S}a_j − 1)Σ_{j'∈S}a_{j'}v_{j'}。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "=\nX\nj̸∈S\najvj−\n \n1P\nj∈Saj\n− 1\n!X\nj′∈S\naj′vj′",
+          "source": "paper",
+          "locator": "PDF p.19, text lines 51-61"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M11-A04",
+      "artifact_id": "flexprefill",
+      "mechanism": "M11",
+      "statement": "定义 a_S=Σ_{j∈S}a_j，并给出界 a_k≤a_S（k∈S）与 a_k≤1−a_S（k∉S）。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "LetaS =P\nj∈Saj. Then, ak≤ aS fork∈ S, and ak≤ 1−aS fork̸∈ S.",
+          "source": "paper",
+          "locator": "PDF p.19"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M11-A05",
+      "artifact_id": "flexprefill",
+      "mechanism": "M11",
+      "statement": "陈述原始约束优化问题：min_S |A(Q,K,V)−A(Q,K,V,S)| s.t. |S|≤γ_S 且 S⊆{(i,j)|1≤j≤i, i,j∈Z}。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "min\nS\n|A(Q, K, V )− A(Q, K, V, S)|\nsubject to |S|≤ γS\nS⊆{ (i,j )| 1≤j≤i, i,j∈ Z}\n(4)",
+          "source": "paper",
+          "locator": "PDF p.19"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M11-A06",
+      "artifact_id": "flexprefill",
+      "mechanism": "M11",
+      "statement": "引入二值变量 z_j=1（j∈S）否则0，将原问题重写为 max_{z_j∈{0,1}} Σ_j z_j e^{x_j}/Σ_{j'}e^{x_{j'}} s.t. Σ_j z_j≤γ_S。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Step 1: Binary Variables Ifzj = 1 ifj∈S andzj = 0 otherwise, the primal objective is:\nmax\nzj∈{0,1}\nLX\nj=1\nzj\nexp(xj)PL\nj′=1 exp(xj′)\n, subject to\nLX\nj=1\nzj≤γS",
+          "source": "paper",
+          "locator": "PDF p.20"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M11-A07",
+      "artifact_id": "flexprefill",
+      "mechanism": "M11",
+      "statement": "应用KKT平稳性条件 ∂L/∂z_j = −e^{x_j}/Σ_{j'}e^{x_{j'}} + λ − μ_j + ν_j = 0。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "1. Stationarity:\n∂L\n∂zj\n=− exp(xj)PL\nj′=1 exp(xj′)\n+λ−µj +νj = 0",
+          "source": "paper",
+          "locator": "PDF p.20"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M11-A08",
+      "artifact_id": "flexprefill",
+      "mechanism": "M11",
+      "statement": "应用KKT互补松弛条件 λ(Σ_j z_j−γ_S)=0、μ_jz_j=0、ν_j(z_j−1)=0。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "2. Complementary slackness:\nλ(\nLX\nj=1\nzj−γS) = 0\nµjzj = 0\nνj(zj− 1) = 0",
+          "source": "paper",
+          "locator": "PDF p.20"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M11-A09",
+      "artifact_id": "flexprefill",
+      "mechanism": "M11",
+      "statement": "给出单查询位置的对偶问题：min_{0≤z_j≤1} Σ_j z_j s.t. Σ_j z_j e^{x_j}/Σ_{j'}e^{x_{j'}} ≥ γ_a。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Step 6: Duality The dual problem becomes finding minimum|S| (or equivalentlyPL\nj=1zj) that\nachieves required attention massγa. This gives us:\nmin\n0≤zj≤1\nLX\nj=1\nzj subject to\nLX\nj=1\nzj\nexp(xj)PL\nj′=1 exp(xj′)\n≥γa",
+          "source": "paper",
+          "locator": "PDF p.20"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M11-A10",
+      "artifact_id": "flexprefill",
+      "mechanism": "M11",
+      "statement": "将各查询位置的对偶目标（Eq.8）在 i∈[n] 上聚合，得到全体查询的通用目标（Eq.3）。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "The general objective for all query positions, as shown in Equation (3), can be obtained by aggre-\ngating the objectives for individual query positions (Equation (8)) across alli∈ [n]",
+          "source": "paper",
+          "locator": "PDF p.20"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M11-A11",
+      "artifact_id": "flexprefill",
+      "mechanism": "M11",
+      "statement": "断言 γ_a 对应原问题达到的最优注意力质量，且因凸松弛保证零对偶间隙，原-对偶等价由强对偶成立。",
+      "kind": "guarantee",
+      "evidence": [
+        {
+          "quote": "γa corresponds to the optimal attention mass achieved in the primal problem. The equivalence holds\nby strong duality, as the primal problem’s convex relaxation ensures zero duality gap.",
+          "source": "paper",
+          "locator": "PDF p.21"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M11-A12",
+      "artifact_id": "flexprefill",
+      "mechanism": "M11",
+      "statement": "建立Eq.7与Eq.3之间的联系，指出子集大小与注意力分数之间的内在权衡构成优化目标的理论基础。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "By deriving the dual form and showing that it is equivalent to our main objective, we establish a\nstrong connection between the Equation (7) and Equation (3) formulations. This connection high-\nlights the inherent trade-off between the subset size and the attention scores, and it provides a solid\ntheoretical foundation for our optimization goal.",
+          "source": "paper",
+          "locator": "PDF p.21"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M12-B01",
+      "artifact_id": "flexprefill",
+      "mechanism": "M12",
+      "statement": "Implement a custom PyTorch pipeline building on FlashAttention for efficient long-context attention.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "we implement a\ncustom pipeline using PyTorch, building on FlashAttention (Dao, 2024)",
+          "source": "paper",
+          "locator": "PDF p.7"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M12-B02",
+      "artifact_id": "flexprefill",
+      "mechanism": "M12",
+      "statement": "Leverage Triton for GPU-accelerated computation optimization.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Our implementation leverages Triton (Tillet et al., 2019)\nfor optimizing the performance of GPU-accelerated computations",
+          "source": "paper",
+          "locator": "PDF p.7"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M12-B03",
+      "artifact_id": "flexprefill",
+      "mechanism": "M12",
+      "statement": "Use block_size = 128 in all experiments.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "uses ablock_size = 128 in all\nexperiments",
+          "source": "paper",
+          "locator": "PDF p.7"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M12-B04",
+      "artifact_id": "flexprefill",
+      "mechanism": "M12",
+      "statement": "Set sparse pattern threshold τ = 0.1 for all models.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "The sparse pattern threshold τ is set to 0.1 for all models.",
+          "source": "paper",
+          "locator": "PDF p.7"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M12-B05-R01",
+      "artifact_id": "flexprefill",
+      "mechanism": "M12",
+      "statement": "Set γ = 0.9 for Yi-9B-200k and Qwen2-7B-Instruct, and 0.95 for other models.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "We set γ = 0.9 for Yi-9B-200k and Qwen2-7B-Instruct model,\nand 0.95 for the other models.",
+          "source": "paper",
+          "locator": "PDF p.7"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M12-B05-R02",
+      "artifact_id": "flexprefill",
+      "mechanism": "M12",
+      "statement": "Adjust γ to assign a tailored computational budget to each attention head in real time for each input scenario.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Additionally,\nby adjusting the parameter γ, we assign a tailored computational budget to each attention head in\nreal-time for each input scenario.",
+          "source": "paper",
+          "locator": "PDF p.7"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M12-B06",
+      "artifact_id": "flexprefill",
+      "mechanism": "M12",
+      "statement": "Conduct all experiments using greedy decoding.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "All experiments were conducted using greedy decoding to maintain consistency across\nresults.",
+          "source": "paper",
+          "locator": "PDF p.7"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M12-A01",
+      "artifact_id": "flexprefill",
+      "mechanism": "M12",
+      "statement": "Choose the last block_size query vectors as the representative query set Q̂ for both sparse pattern determination and Vertical-Slash sparse index selection.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "We choose the last block_size query vector as the representative query set ˆQ for both\nsparse pattern determination and Vertical-Slash sparse index selection",
+          "source": "paper",
+          "locator": "PDF p.7"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M12-A02",
+      "artifact_id": "flexprefill",
+      "mechanism": "M12",
+      "statement": "Compute the representative attention score only once and reuse it in both attention pattern determination and sparse index selection.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "experiments. We choose the last block_size query vector as the representative query set ˆQ for both\nsparse pattern determination and Vertical-Slash sparse index selection, which allows the represen-\ntative attention score to be computed only once and reused in both attention pattern determination\nand sparse index selection. The sparse pattern threshold τ is set to 0.1 for all models. Additionally,",
+          "source": "paper",
+          "locator": "PDF p.7, text lines 12-15"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M12-A03",
+      "artifact_id": "flexprefill",
+      "mechanism": "M12",
+      "statement": "Retain the first and last key blocks of each query block.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "we retain the first\nand last key blocks of each query block",
+          "source": "paper",
+          "locator": "PDF p.7"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M12-A04",
+      "artifact_id": "flexprefill",
+      "mechanism": "M12",
+      "statement": "Require each attention head to compute at least 1024 tokens.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "while also requiring each attention head to compute at least\n1024 tokens",
+          "source": "paper",
+          "locator": "PDF p.7"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "claim_id": "flexprefill:M12-A05",
+      "artifact_id": "flexprefill",
+      "mechanism": "M12",
+      "statement": "Run experiments on a single NVIDIA A100 GPU with 80GB of memory.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Our experiments are conducted in a computing environment equipped\nwith a single NVIDIA A100 GPU with 80GB of memory.",
+          "source": "paper",
+          "locator": "PDF p.7"
+        }
+      ]
+    }
+  ],
+  "scope": [
+    {
+      "schema_version": "0.1.0",
+      "scope_id": "flexprefill-scope-001",
+      "artifact_id": "flexprefill",
+      "param": "sparse_pattern_threshold_tau",
+      "kind": "interval",
+      "lower": 0.0,
+      "upper": 1.0,
+      "values": null,
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "Input: Q, K, V ∈ RS×dh , τ ∈ [0, 1],\nγ∈ (0, 1)",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 4-5"
+        },
+        {
+          "quote": "4. Adaptive Decision: We compareDJS to a predefined thresholdτ. IfDJS <τ , the block-\nwise attention estimation adequately approximates the true distribution. Consequently, we\ncalculate ¯a for all queries, enabling query-aware sparse index selection. Otherwise, the",
+          "source": "paper",
+          "locator": "PDF p.4, text lines 83-85"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "scope_id": "flexprefill-scope-002",
+      "artifact_id": "flexprefill",
+      "param": "cumulative_attention_threshold_gamma",
+      "kind": "interval",
+      "lower": 0.0,
+      "upper": 1.0,
+      "values": null,
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "Input: Q, K, V ∈ RS×dh , τ ∈ [0, 1],\nγ∈ (0, 1)",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 4-5"
+        },
+        {
+          "quote": "query positioni while ensuring that the sum of normalized attention scores within each subset meets\na predefined cumulative attention thresholdγ. This objective can be formally expressed as:",
+          "source": "paper",
+          "locator": "PDF p.5, text lines 5-6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "scope_id": "flexprefill-scope-003",
+      "artifact_id": "flexprefill",
+      "param": "block_size",
+      "kind": "set",
+      "lower": null,
+      "upper": null,
+      "values": [
+        64,
+        128
+      ],
+      "unit": "tokens",
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "for optimizing the performance of GPU-accelerated computations and uses ablock_size = 128 in all\nexperiments. We choose the last block_size query vector as the representative query set ˆQ for both",
+          "source": "paper",
+          "locator": "PDF p.7, text lines 11-12"
+        },
+        {
+          "quote": "We explore the impact of adjusting Triton block sizes, specifically comparing block sizes of 64\nand 128. The results in Table 7 show that the block size does not have a significant effect on the",
+          "source": "paper",
+          "locator": "PDF p.22, text lines 46-47"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "scope_id": "flexprefill-scope-004",
+      "artifact_id": "flexprefill",
+      "param": "min_compute_tokens_per_head",
+      "kind": "interval",
+      "lower": 1024.0,
+      "upper": null,
+      "values": null,
+      "unit": "tokens",
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "and last key blocks of each query block, while also requiring each attention head to compute at least\n1024 tokens. All experiments were conducted using greedy decoding to maintain consistency across",
+          "source": "paper",
+          "locator": "PDF p.7, text lines 19-20"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "scope_id": "flexprefill-scope-005",
+      "artifact_id": "flexprefill",
+      "param": "retain_first_last_key_blocks",
+      "kind": "boolean",
+      "lower": null,
+      "upper": null,
+      "values": null,
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "and 0.95 for the other models. To ensure that all attention heads work normally, we retain the first\nand last key blocks of each query block, while also requiring each attention head to compute at least",
+          "source": "paper",
+          "locator": "PDF p.7, text lines 18-19"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "scope_id": "flexprefill-scope-006",
+      "artifact_id": "flexprefill",
+      "param": "representative_query_position",
+      "kind": "set",
+      "lower": null,
+      "upper": null,
+      "values": [
+        "last"
+      ],
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "experiments. We choose the last block_size query vector as the representative query set ˆQ for both\nsparse pattern determination and Vertical-Slash sparse index selection, which allows the represen-\ntative attention score to be computed only once and reused in both attention pattern determination",
+          "source": "paper",
+          "locator": "PDF p.7, text lines 12-14"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "scope_id": "flexprefill-scope-007",
+      "artifact_id": "flexprefill",
+      "param": "prefill_sparse_decoding_dense",
+      "kind": "boolean",
+      "lower": null,
+      "upper": null,
+      "values": null,
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "All baselines use sparse computation during pre-filling, switching to dense computation during the\ndecoding stage. This ensures a fair comparison across different methods and highlights the balance",
+          "source": "paper",
+          "locator": "PDF p.7, text lines 34-35"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "scope_id": "flexprefill-scope-008",
+      "artifact_id": "flexprefill",
+      "param": "decoding_strategy",
+      "kind": "set",
+      "lower": null,
+      "upper": null,
+      "values": [
+        "greedy"
+      ],
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "1024 tokens. All experiments were conducted using greedy decoding to maintain consistency across\nresults.",
+          "source": "paper",
+          "locator": "PDF p.7, text lines 20-21"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "scope_id": "flexprefill-scope-009",
+      "artifact_id": "flexprefill",
+      "param": "gpu_memory_gb",
+      "kind": "interval",
+      "lower": 80.0,
+      "upper": 80.0,
+      "values": null,
+      "unit": "GB",
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "Implementation Details Our experiments are conducted in a computing environment equipped\nwith a single NVIDIA A100 GPU with 80GB of memory. For our experiments, we implement a",
+          "source": "paper",
+          "locator": "PDF p.7, text lines 7-8"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "scope_id": "flexprefill-scope-010",
+      "artifact_id": "flexprefill",
+      "param": "implementation_stack",
+      "kind": "free_text",
+      "lower": null,
+      "upper": null,
+      "values": null,
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "with a single NVIDIA A100 GPU with 80GB of memory. For our experiments, we implement a\ncustom pipeline using PyTorch, building on FlashAttention (Dao, 2024), to ensure efficient atten-\ntion mechanisms over long-context inputs. Our implementation leverages Triton (Tillet et al., 2019)\nfor optimizing the performance of GPU-accelerated computations and uses ablock_size = 128 in all",
+          "source": "paper",
+          "locator": "PDF p.7, text lines 8-11"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "scope_id": "flexprefill-scope-011",
+      "artifact_id": "flexprefill",
+      "param": "supported_models",
+      "kind": "set",
+      "lower": null,
+      "upper": null,
+      "values": [
+        "Meta-Llama-3.1-8B-Instruct-128k",
+        "GLM-4-9B-Chat-1024k",
+        "Yi-9B-200K",
+        "Qwen2-7B-Instruct-128k",
+        "Llama-3-8B-Instruct-262k"
+      ],
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "Models We utilize four state-of-the-art LLMs known for their proficiency in handling long-context\ntasks: (i) Meta-Llama-3.1-8B-Instruct-128k (Dubey et al., 2024) ( LLaMA) (ii) GLM-4-9B-Chat-\n1024k (Zeng et al., 2024) ( GLM) (iii) Yi-9B-200K (Young et al., 2024) ( Yi) (iv) Qwen2-7B-\nInstruct-128k (Yang et al., 2024) (Qwen), where Yi is a pre-trained model and all others are instruct\nmodels. We use the default chat template for all instruct models in the subsequent experiments.",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 107-111"
+        },
+        {
+          "quote": "against additional baselines. Specifically, we evaluated LM-Infinite (Han et al., 2024), In-\nfLLM (Xiao et al., 2024a), and MoA (Fu et al., 2024a) using the Llama-3-8B-Instruct-262k (Pekelis\net al., 2024) models. Additionally, we assessed HIP (Lee et al., 2024) using the Meta-Llama-3.1-8B-",
+          "source": "paper",
+          "locator": "PDF p.21, text lines 61-63"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "scope_id": "flexprefill-scope-012",
+      "artifact_id": "flexprefill",
+      "param": "chat_template",
+      "kind": "set",
+      "lower": null,
+      "upper": null,
+      "values": [
+        "default"
+      ],
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "Instruct-128k (Yang et al., 2024) (Qwen), where Yi is a pre-trained model and all others are instruct\nmodels. We use the default chat template for all instruct models in the subsequent experiments.",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 110-111"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "scope_id": "flexprefill-scope-013",
+      "artifact_id": "flexprefill",
+      "param": "context_length_tokens",
+      "kind": "set",
+      "lower": null,
+      "upper": null,
+      "values": [
+        4000,
+        8000,
+        16000,
+        32000,
+        64000,
+        128000,
+        256000,
+        384000,
+        512000
+      ],
+      "unit": "tokens",
+      "explicit": false,
+      "evidence": [
+        {
+          "quote": "Models Methods 4k 8k 16k 32k 64k 128k Avg",
+          "source": "paper",
+          "locator": "PDF p.8, text lines 4-4"
+        },
+        {
+          "quote": "128k 256k 384k 512k",
+          "source": "paper",
+          "locator": "PDF p.25, text lines 48-48"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "scope_id": "flexprefill-scope-014",
+      "artifact_id": "flexprefill",
+      "param": "datasets",
+      "kind": "set",
+      "lower": null,
+      "upper": null,
+      "values": [
+        "RULER",
+        "InfiniteBench"
+      ],
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "Datasets We evaluate the models on two datasets, each offering unique challenges in long-context\nunderstanding: (i) RULER (Hsieh et al., 2024): a synthetic benchmark dataset created to evaluate\n6",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 112-114"
+        },
+        {
+          "quote": "aggregation. (ii) Infinite Bench (Zhang et al., 2024c): a benchmark dataset designed to test LLMs’\nunderstanding of long dependencies within extensive contexts, with an average token count of 214k.",
+          "source": "paper",
+          "locator": "PDF p.7, text lines 4-5"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "scope_id": "flexprefill-scope-015",
+      "artifact_id": "flexprefill",
+      "param": "training_free",
+      "kind": "boolean",
+      "lower": null,
+      "upper": null,
+      "values": null,
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "or fine-tuning of the model. There is also research proposing training-free sparse attention methods\nfor large language models. For instance, StreamingLLM (Xiao et al., 2024b) identifies the attention",
+          "source": "paper",
+          "locator": "PDF p.2, text lines 16-17"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "scope_id": "flexprefill-scope-016",
+      "artifact_id": "flexprefill",
+      "param": "sparse_pattern_types",
+      "kind": "set",
+      "lower": null,
+      "upper": null,
+      "values": [
+        "query_aware",
+        "vertical_slash"
+      ],
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "tured patterns (Figure 2b) motivate an adaptive approach to sparse attention estimation. We classify\nattention heads into two types: the Query-Aware head, which is designed to capture variable sparse\npatterns contingent upon query positions, and the Vertical-Slash head, which is intended to handle\ncommonly occurring structured sparse attention patterns in LLMs. We propose a method that dy-",
+          "source": "paper",
+          "locator": "PDF p.4, text lines 41-44"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "scope_id": "flexprefill-scope-017",
+      "artifact_id": "flexprefill",
+      "param": "causal_mask",
+      "kind": "boolean",
+      "lower": null,
+      "upper": null,
+      "values": null,
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "its computation to a subset of query-key pairs whose indexes form the set S = SL\ni=1 Si, where\nSi⊆{ (i,j )| 1≤j≤i, j∈ Z}. The sparse attention mechanism is formalized as:",
+          "source": "paper",
+          "locator": "PDF p.2, text lines 51-53"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "scope_id": "flexprefill-scope-018",
+      "artifact_id": "flexprefill",
+      "param": "quantization",
+      "kind": "free_text",
+      "lower": null,
+      "upper": null,
+      "values": null,
+      "unit": null,
+      "explicit": false,
+      "evidence": [
+        {
+          "quote": "Hong et al., 2023) and PagedAttention (Kwon et al., 2023). Other approaches aim to reduce KV\ncache sizes through quantization (Liu et al., 2024a; Kang et al., 2024; Liu et al., 2024b), token",
+          "source": "paper",
+          "locator": "PDF p.10, text lines 35-36"
+        }
+      ]
+    }
+  ],
+  "eval_points": [
+    {
+      "schema_version": "0.1.0",
+      "eval_id": "flexprefill-eval_points-001",
+      "artifact_id": "flexprefill",
+      "config": {
+        "model": "Meta-Llama-3.1-8B-Instruct-128k",
+        "dataset": "RULER",
+        "context_length_tokens": 128000,
+        "gamma": 0.95,
+        "tau": 0.1,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 1024
+      },
+      "evidence": [
+        {
+          "quote": "and sparse index selection. The sparse pattern threshold τ is set to 0.1 for all models. Additionally,\nby adjusting the parameter γ, we assign a tailored computational budget to each attention head in\nreal-time for each input scenario. We set γ = 0.9 for Yi-9B-200k and Qwen2-7B-Instruct model,\nand 0.95 for the other models. To ensure that all attention heads work normally, we retain the first",
+          "source": "paper",
+          "locator": "PDF p.7, text lines 15-18"
+        },
+        {
+          "quote": "Ours 95.43 93.51 94.71 89.42 82.93 79.09 89.18",
+          "source": "paper",
+          "locator": "PDF p.8, text lines 9-9"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "eval_id": "flexprefill-eval_points-002",
+      "artifact_id": "flexprefill",
+      "config": {
+        "model": "GLM-4-9B-Chat-1024k",
+        "dataset": "RULER",
+        "context_length_tokens": 128000,
+        "gamma": 0.95,
+        "tau": 0.1,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 1024
+      },
+      "evidence": [
+        {
+          "quote": "real-time for each input scenario. We set γ = 0.9 for Yi-9B-200k and Qwen2-7B-Instruct model,\nand 0.95 for the other models. To ensure that all attention heads work normally, we retain the first",
+          "source": "paper",
+          "locator": "PDF p.7, text lines 17-18"
+        },
+        {
+          "quote": "Ours 93.51 91.83 89.90 91.35 86.06 83.41 89.34",
+          "source": "paper",
+          "locator": "PDF p.8, text lines 14-14"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "eval_id": "flexprefill-eval_points-003",
+      "artifact_id": "flexprefill",
+      "config": {
+        "model": "Yi-9B-200K",
+        "dataset": "RULER",
+        "context_length_tokens": 128000,
+        "gamma": 0.9,
+        "tau": 0.1,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 1024
+      },
+      "evidence": [
+        {
+          "quote": "real-time for each input scenario. We set γ = 0.9 for Yi-9B-200k and Qwen2-7B-Instruct model,\nand 0.95 for the other models. To ensure that all attention heads work normally, we retain the first",
+          "source": "paper",
+          "locator": "PDF p.7, text lines 17-18"
+        },
+        {
+          "quote": "Ours 93.27 86.78 83.89 72.36 64.66 56.97 76.32",
+          "source": "paper",
+          "locator": "PDF p.8, text lines 19-19"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "eval_id": "flexprefill-eval_points-004",
+      "artifact_id": "flexprefill",
+      "config": {
+        "model": "Qwen2-7B-Instruct-128k",
+        "dataset": "RULER",
+        "context_length_tokens": 128000,
+        "gamma": 0.9,
+        "tau": 0.1,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 1024
+      },
+      "evidence": [
+        {
+          "quote": "real-time for each input scenario. We set γ = 0.9 for Yi-9B-200k and Qwen2-7B-Instruct model,\nand 0.95 for the other models. To ensure that all attention heads work normally, we retain the first",
+          "source": "paper",
+          "locator": "PDF p.7, text lines 17-18"
+        },
+        {
+          "quote": "Ours 90.39 89.91 83.17 81.25 59.14 20.67 70.75",
+          "source": "paper",
+          "locator": "PDF p.8, text lines 24-24"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "eval_id": "flexprefill-eval_points-005",
+      "artifact_id": "flexprefill",
+      "config": {
+        "model": "Meta-Llama-3.1-8B-Instruct-128k",
+        "dataset": "InfiniteBench",
+        "gamma": 0.95,
+        "tau": 0.1,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 1024
+      },
+      "evidence": [
+        {
+          "quote": "Ours 31.82 24.82 69.43 19.50 35.46 16.75 31.14 98.64 99.83 44.00 47.14",
+          "source": "paper",
+          "locator": "PDF p.8, text lines 32-32"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "eval_id": "flexprefill-eval_points-006",
+      "artifact_id": "flexprefill",
+      "config": {
+        "model": "GLM-4-9B-Chat-1024k",
+        "dataset": "InfiniteBench",
+        "gamma": 0.95,
+        "tau": 0.1,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 1024
+      },
+      "evidence": [
+        {
+          "quote": "Ours 28.90 20.27 42.36 29.50 15.55 33.50 23.71 99.15 100.00 55.40 44.83",
+          "source": "paper",
+          "locator": "PDF p.8, text lines 37-37"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "eval_id": "flexprefill-eval_points-007",
+      "artifact_id": "flexprefill",
+      "config": {
+        "model": "Yi-9B-200K",
+        "dataset": "InfiniteBench",
+        "gamma": 0.9,
+        "tau": 0.1,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 1024
+      },
+      "evidence": [
+        {
+          "quote": "Ours 6.62 11.89 65.07 2.50 16.87 19.54 24.00 99.83 91.53 24.00 36.18",
+          "source": "paper",
+          "locator": "PDF p.8, text lines 42-42"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "eval_id": "flexprefill-eval_points-008",
+      "artifact_id": "flexprefill",
+      "config": {
+        "model": "Qwen2-7B-Instruct-128k",
+        "dataset": "InfiniteBench",
+        "gamma": 0.9,
+        "tau": 0.1,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 1024
+      },
+      "evidence": [
+        {
+          "quote": "Ours 14.27 6.55 34.06 13.50 11.51 20.81 30.86 96.95 72.20 0.00 30.07",
+          "source": "paper",
+          "locator": "PDF p.8, text lines 47-47"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "eval_id": "flexprefill-eval_points-009",
+      "artifact_id": "flexprefill",
+      "config": {
+        "model": "Meta-Llama-3.1-8B-Instruct-128k",
+        "dataset": "RULER",
+        "gamma": 0.9,
+        "tau": 0.1,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 1024
+      },
+      "evidence": [
+        {
+          "quote": "Ours (γ = 0.9) 61.92 185.75 50.66 88.38",
+          "source": "paper",
+          "locator": "PDF p.21, text lines 39-39"
+        },
+        {
+          "quote": "Ours (γ = 0.9) 95.43 93.27 94.23 87.98 81.49 77.89 88.38 3.49x",
+          "source": "paper",
+          "locator": "PDF p.22, text lines 18-18"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "eval_id": "flexprefill-eval_points-010",
+      "artifact_id": "flexprefill",
+      "config": {
+        "model": "Meta-Llama-3.1-8B-Instruct-128k",
+        "dataset": "RULER",
+        "gamma": 0.85,
+        "tau": 0.1,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 1024
+      },
+      "evidence": [
+        {
+          "quote": "0.85 95.91 93.51 92.31 86.54 80.05 74.28 87.10 4.60x",
+          "source": "paper",
+          "locator": "PDF p.22, text lines 35-35"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "eval_id": "flexprefill-eval_points-011",
+      "artifact_id": "flexprefill",
+      "config": {
+        "model": "Meta-Llama-3.1-8B-Instruct-128k",
+        "dataset": "RULER",
+        "gamma": 0.6,
+        "tau": 0.1,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 1024
+      },
+      "evidence": [
+        {
+          "quote": "0.6 95.67 93.27 91.83 82.21 74.52 62.02 83.25 9.81x",
+          "source": "paper",
+          "locator": "PDF p.22, text lines 40-40"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "eval_id": "flexprefill-eval_points-012",
+      "artifact_id": "flexprefill",
+      "config": {
+        "model": "Meta-Llama-3.1-8B-Instruct-128k",
+        "dataset": "RULER",
+        "gamma": 0.95,
+        "tau": 0.0,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 1024
+      },
+      "evidence": [
+        {
+          "quote": "0 95.43 93.75 94.71 89.67 82.45 78.61 89.10",
+          "source": "paper",
+          "locator": "PDF p.23, text lines 6-6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "eval_id": "flexprefill-eval_points-013",
+      "artifact_id": "flexprefill",
+      "config": {
+        "model": "Meta-Llama-3.1-8B-Instruct-128k",
+        "dataset": "RULER",
+        "gamma": 0.95,
+        "tau": 0.3,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 1024
+      },
+      "evidence": [
+        {
+          "quote": "0.3 95.19 93.27 93.99 89.66 82.21 75.96 88.38",
+          "source": "paper",
+          "locator": "PDF p.23, text lines 9-9"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "eval_id": "flexprefill-eval_points-014",
+      "artifact_id": "flexprefill",
+      "config": {
+        "model": "GLM-4-9B-Chat-1024k",
+        "dataset": "RULER",
+        "gamma": 0.95,
+        "tau": 0.2,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 1024
+      },
+      "evidence": [
+        {
+          "quote": "0.2 93.99 92.31 90.38 91.11 86.78 83.66 89.70",
+          "source": "paper",
+          "locator": "PDF p.23, text lines 13-13"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "eval_id": "flexprefill-eval_points-015",
+      "artifact_id": "flexprefill",
+      "config": {
+        "model": "GLM-4-9B-Chat-1024k",
+        "dataset": "RULER",
+        "gamma": 0.95,
+        "tau": 0.1,
+        "block_size": 64,
+        "min_compute_tokens_per_head": 1024
+      },
+      "evidence": [
+        {
+          "quote": "64 94.23 92.07 89.90 91.11 86.06 82.69 89.34",
+          "source": "paper",
+          "locator": "PDF p.23, text lines 28-28"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "eval_id": "flexprefill-eval_points-016",
+      "artifact_id": "flexprefill",
+      "config": {
+        "model": "Qwen2-7B-Instruct-128k",
+        "dataset": "RULER",
+        "gamma": 0.9,
+        "tau": 0.1,
+        "block_size": 64,
+        "min_compute_tokens_per_head": 1024
+      },
+      "evidence": [
+        {
+          "quote": "64 91.11 89.90 83.65 82.93 60.10 20.43 71.35",
+          "source": "paper",
+          "locator": "PDF p.23, text lines 32-32"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "eval_id": "flexprefill-eval_points-017",
+      "artifact_id": "flexprefill",
+      "config": {
+        "model": "Meta-Llama-3.1-8B-Instruct-128k",
+        "dataset": "RULER",
+        "gamma": 0.95,
+        "tau": 0.1,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 2048
+      },
+      "evidence": [
+        {
+          "quote": "0.95 2048 95.19 93.27 94.23 89.90 82.93 77.64 88.86",
+          "source": "paper",
+          "locator": "PDF p.24, text lines 22-22"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "eval_id": "flexprefill-eval_points-018",
+      "artifact_id": "flexprefill",
+      "config": {
+        "model": "Meta-Llama-3.1-8B-Instruct-128k",
+        "dataset": "RULER",
+        "gamma": 0.9,
+        "tau": 0.1,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 2048
+      },
+      "evidence": [
+        {
+          "quote": "0.9 2048 95.67 94.47 94.23 89.90 83.41 75.24 88.82",
+          "source": "paper",
+          "locator": "PDF p.24, text lines 25-25"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "eval_id": "flexprefill-eval_points-019",
+      "artifact_id": "flexprefill",
+      "config": {
+        "model": "Meta-Llama-3.1-8B-Instruct-128k",
+        "dataset": "RULER",
+        "gamma": 0.95,
+        "tau": 0.1,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 1024,
+        "max_budget_tokens": 32000
+      },
+      "evidence": [
+        {
+          "quote": "32k 95.43 93.51 94.71 89.42 84.14 75.72 88.82",
+          "source": "paper",
+          "locator": "PDF p.25, text lines 7-7"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "eval_id": "flexprefill-eval_points-020",
+      "artifact_id": "flexprefill",
+      "config": {
+        "model": "GLM-4-9B-Chat-1024k",
+        "dataset": "RULER",
+        "gamma": 0.95,
+        "tau": 0.1,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 1024,
+        "max_budget_tokens": 32000
+      },
+      "evidence": [
+        {
+          "quote": "32k 93.51 91.83 89.90 91.35 86.54 84.14 89.54",
+          "source": "paper",
+          "locator": "PDF p.25, text lines 12-12"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "eval_id": "flexprefill-eval_points-021",
+      "artifact_id": "flexprefill",
+      "config": {
+        "model": "Llama-3-8B-Instruct-262k",
+        "dataset": "RULER",
+        "gamma": 0.9,
+        "tau": 0.1,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 1024
+      },
+      "evidence": [
+        {
+          "quote": "Ours (γ = 0.9) 89.18 89.18 89.66 83.65 79.33 77.64 84.78 3.47x",
+          "source": "paper",
+          "locator": "PDF p.22, text lines 12-12"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "eval_id": "flexprefill-eval_points-022",
+      "artifact_id": "flexprefill",
+      "config": {
+        "model": "Llama-3-8B-Instruct-262k",
+        "dataset": "RULER",
+        "gamma": 0.95,
+        "tau": 0.1,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 1024
+      },
+      "evidence": [
+        {
+          "quote": "Ours (γ = 0.95) 90.87 89.9 90.38 82.21 81.25 79.81 85.74 2.43x",
+          "source": "paper",
+          "locator": "PDF p.22, text lines 13-13"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1.0",
+      "eval_id": "flexprefill-eval_points-023",
+      "artifact_id": "flexprefill",
+      "config": {
+        "model": "Meta-Llama-3.1-8B-Instruct-128k",
+        "dataset": "RULER",
+        "gamma": 0.95,
+        "tau": 0.1,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 1024,
+        "representative_query_position": "middle"
+      },
+      "evidence": [
+        {
+          "quote": "last middle 68.27 51.68 38.46 40.87 19.23 10.58 38.18",
+          "source": "paper",
+          "locator": "PDF p.23, text lines 47-47"
+        }
+      ]
+    }
+  ],
+  "bindings": [
+    {
+      "schema_version": "0.1.0",
+      "binding_id": "flexprefill-binding-001",
+      "artifact_id": "flexprefill",
+      "paper_term": "sparse_pattern_threshold_tau",
+      "kind": "parameter",
+      "code_symbol": "tau",
+      "location": {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1796,
+        "line_end": 1796,
+        "function": null,
+        "snippet": null
+      },
+      "certain": true,
+      "rationale": "LLM-assisted static mapping, independent review pending. flex_prefill_attention signature has `tau: float = 0`; docstring line 1811 says 'query aware head threshold, [0, 1]'. Used at line 1727 `block_sparse_mask = kl_div < tau`, matching paper's D_JS<τ decision. Unitless scalar in [0,1]."
+    },
+    {
+      "schema_version": "0.1.0",
+      "binding_id": "flexprefill-binding-002",
+      "artifact_id": "flexprefill",
+      "paper_term": "cumulative_attention_threshold_gamma",
+      "kind": "parameter",
+      "code_symbol": "gamma",
+      "location": {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1795,
+        "line_end": 1795,
+        "function": null,
+        "snippet": null
+      },
+      "certain": true,
+      "rationale": "LLM-assisted static mapping, independent review pending. flex_prefill_attention signature `gamma: float`; docstring line 1810 'attention coverage ratio, (0, 1)'. Passed to get_active_blocks and used in score_cover_topk(vertical, gamma) / score_cover_idx(attn, gamma*num_blocks), matching cumulative-attention threshold γ."
+    },
+    {
+      "schema_version": "0.1.0",
+      "binding_id": "flexprefill-binding-003",
+      "artifact_id": "flexprefill",
+      "paper_term": "block_size",
+      "kind": "parameter",
+      "code_symbol": "block_size",
+      "location": {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1801,
+        "line_end": 1801,
+        "function": null,
+        "snippet": null
+      },
+      "certain": true,
+      "rationale": "LLM-assisted static mapping, independent review pending. flex_prefill_attention signature `block_size: int = 128`; docstring line 1816 'block size. Defaults to 128'. Asserted in {16,32,64,128} at line 1838. Matches paper's block_size=128 (and 64/128 ablation)."
+    },
+    {
+      "schema_version": "0.1.0",
+      "binding_id": "flexprefill-binding-004",
+      "artifact_id": "flexprefill",
+      "paper_term": "min_compute_tokens_per_head",
+      "kind": "parameter",
+      "code_symbol": "min_budget",
+      "location": {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1797,
+        "line_end": 1797,
+        "function": null,
+        "snippet": null
+      },
+      "certain": true,
+      "rationale": "LLM-assisted static mapping, independent review pending. flex_prefill_attention signature `min_budget: int = None`; docstring line 1812 'minimum number of calculated tokens'. Converted to blocks via math.ceil(min_budget/block_size) at line 1862 and clamped in get_active_blocks (lines 1710-1713). Matches paper's 'at least 1024 tokens' floor (unit tokens)."
+    },
+    {
+      "schema_version": "0.1.0",
+      "binding_id": "flexprefill-binding-005",
+      "artifact_id": "flexprefill",
+      "paper_term": "retain_first_last_key_blocks",
+      "kind": "mechanism_entry",
+      "code_symbol": "get_active_blocks",
+      "location": {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1730,
+        "line_end": 1732,
+        "function": null,
+        "snippet": null
+      },
+      "certain": true,
+      "rationale": "LLM-assisted static mapping, independent review pending. Lines 1730-1732 'keep first vertical and slash block': vertical[..., :1]=inf and slash[..., -1:]=inf force retention of first and last key blocks, matching paper's boundary-block retention safeguard. Mapped as mechanism entry (function get_active_blocks) rather than a scalar."
+    },
+    {
+      "schema_version": "0.1.0",
+      "binding_id": "flexprefill-binding-006",
+      "artifact_id": "flexprefill",
+      "paper_term": "representative_query_position",
+      "kind": "mechanism_entry",
+      "code_symbol": "get_active_blocks",
+      "location": {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1677,
+        "line_end": 1677,
+        "function": null,
+        "snippet": null
+      },
+      "certain": true,
+      "rationale": "LLM-assisted static mapping, independent review pending. Line 1677 `last_q = q[:, -block_size:, :, :]` selects the last block_size query vectors as representative Q̂, matching paper's 'last block_size query vector' choice. Mechanism entry (function get_active_blocks), not a scalar."
+    },
+    {
+      "schema_version": "0.1.0",
+      "binding_id": "flexprefill-binding-007",
+      "artifact_id": "flexprefill",
+      "paper_term": "prefill_sparse_decoding_dense",
+      "kind": "mechanism_entry",
+      "code_symbol": "flex_prefill_attention",
+      "location": {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1825,
+        "line_end": 1835,
+        "function": null,
+        "snippet": null
+      },
+      "certain": true,
+      "rationale": "LLM-assisted static mapping, independent review pending. Lines 1825-1835: when q_len==1 (decoding) it dispatches to flash_attn_func/triton_flash_attention (dense), while prefill path uses sparse block-wise attention. Matches paper's sparse-prefill/dense-decoding regime. Mechanism entry."
+    },
+    {
+      "schema_version": "0.1.0",
+      "binding_id": "flexprefill-binding-010",
+      "artifact_id": "flexprefill",
+      "paper_term": "implementation_stack",
+      "kind": "mechanism_entry",
+      "code_symbol": "triton_block_wise_prefill_attention",
+      "location": {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1190,
+        "line_end": 1199,
+        "function": null,
+        "snippet": null
+      },
+      "certain": true,
+      "rationale": "LLM-assisted static mapping, independent review pending. Triton-based block-wise prefill attention kernel function implements the custom PyTorch/Triton pipeline described in paper. Mechanism entry (function), not a scalar."
+    },
+    {
+      "schema_version": "0.1.0",
+      "binding_id": "flexprefill-binding-015",
+      "artifact_id": "flexprefill",
+      "paper_term": "training_free",
+      "kind": "mechanism_entry",
+      "code_symbol": "flex_prefill_attention",
+      "location": {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1790,
+        "line_end": 1803,
+        "function": null,
+        "snippet": null
+      },
+      "certain": true,
+      "rationale": "LLM-assisted static mapping, independent review pending. flex_prefill_attention is decorated @torch.no_grad() and performs no weight updates, consistent with training-free inference. Mechanism entry."
+    },
+    {
+      "schema_version": "0.1.0",
+      "binding_id": "flexprefill-binding-016",
+      "artifact_id": "flexprefill",
+      "paper_term": "sparse_pattern_types",
+      "kind": "mechanism_entry",
+      "code_symbol": "get_active_blocks",
+      "location": {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1726,
+        "line_end": 1778,
+        "function": null,
+        "snippet": null
+      },
+      "certain": true,
+      "rationale": "LLM-assisted static mapping, independent review pending. get_active_blocks computes JS divergence (line 1726) to set block_sparse_mask (query-aware) and otherwise builds vertical/slash indices (lines 1734-1758), implementing both query_aware and vertical_slash pattern types. Mechanism entry."
+    },
+    {
+      "schema_version": "0.1.0",
+      "binding_id": "flexprefill-binding-017",
+      "artifact_id": "flexprefill",
+      "paper_term": "causal_mask",
+      "kind": "mechanism_entry",
+      "code_symbol": "causal_mask",
+      "location": {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1694,
+        "line_end": 1701,
+        "function": null,
+        "snippet": null
+      },
+      "certain": true,
+      "rationale": "LLM-assisted static mapping, independent review pending. Module-level causal_mask built as lower-triangular (line 1697) and applied via masked_fill_ (lines 1699-1701), enforcing causal masking. Mechanism entry (module variable/mechanism), not a scalar parameter."
+    }
+  ]
+}

@@ -1,0 +1,756 @@
+[
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "flexprefill-gap-M04-B03-R01",
+    "artifact_id": "flexprefill",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: 同一入口的池化/JSD 内核路径：triton_bnhd_pool/bnhd_pool_kernel、torch_bhn_sumpool/bhn_sumpool_kernel、square_root_js_divergence；无独立实验脚本，tests/test_llm.py 仅调用该入口. Paper precondition: Q̂ is the representative query subset; pooling kernel size equals block_size; softmax is applied before sumpool.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "池化内核无法表达论文二维 sumpool(softmax 矩阵)，实际 â 为列和向量",
+    "paper_evidence": [
+      {
+        "quote": "ˆa = sumpool\n\u0010\nsoftmax\n\u0010\nˆQK⊤/\n√\nd\n\u0011\u0011\n,\nwhere the kernel size of the pooling operation is equal to block_size, ¯a represents the\nestimated distribution and ˆa represents the true distribution.",
+        "source": "paper",
+        "locator": "PDF p.4, text lines 60-70"
+      },
+      {
+        "quote": "ˆa← pool\n\u0010\nsoftmax\n\u0010\nˆQK⊤/\n√\nd\n\u0011\u0011",
+        "source": "paper",
+        "locator": "PDF p.6, text lines 31-38"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1705,
+        "line_end": 1716,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1545,
+        "line_end": 1585,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M04-B03-R01; external repo refs stay in code_evidence_registry.json. Equivalence: 同上，仅在一维弱化解释下等价，与原文不符; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "flexprefill-gap-M04-A02",
+    "artifact_id": "flexprefill",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: 同一入口的池化/JSD 内核路径：triton_bnhd_pool/bnhd_pool_kernel、torch_bhn_sumpool/bhn_sumpool_kernel、square_root_js_divergence；无独立实验脚本，tests/test_llm.py 仅调用该入口. Paper precondition: Both ā and â have been computed.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "同上，â 操作数非论文块和",
+    "paper_evidence": [
+      {
+        "quote": "¯a represents the\nestimated distribution and ˆa represents the true distribution",
+        "source": "paper",
+        "locator": "PDF p.4"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1718,
+        "line_end": 1729,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1654,
+        "line_end": 1658,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M04-A02; external repo refs stay in code_evidence_registry.json. Equivalence: 调用点参数顺序与论文 (ā,â) 一致，但第二操作数内容不等价; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "flexprefill-gap-M04-A03",
+    "artifact_id": "flexprefill",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: 同一入口的池化/JSD 内核路径：triton_bnhd_pool/bnhd_pool_kernel、torch_bhn_sumpool/bhn_sumpool_kernel、square_root_js_divergence；无独立实验脚本，tests/test_llm.py 仅调用该入口. Paper precondition: ā and â computed.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "同上",
+    "paper_evidence": [
+      {
+        "quote": "3. Distribution Comparison: We quantify the discrepancy between these distributions using\nthe square root of the Jensen-Shannon divergence",
+        "source": "paper",
+        "locator": "PDF p.4"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1718,
+        "line_end": 1729,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1856,
+        "line_end": 1866,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M04-A03; external repo refs stay in code_evidence_registry.json. Equivalence: 无独立 pattern 返回路径，与 Algorithm 2 接口不等价; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "flexprefill-gap-M05-A02",
+    "artifact_id": "flexprefill",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: 同一 Triton/PyTorch 实现路径：flex_prefill_attention 的块索引决策 + triton_block_wise_attention 消费 block_idx；依赖 torch/triton/einops（setup.py 声明），未执行. Paper precondition: Q̂ 与 K 已就绪，池化核大小等于 block_size。",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "同上：ā 的构造为 mean(Q̂)·pool(K) 而非 pool(Q̂)·pool(K)",
+    "paper_evidence": [
+      {
+        "quote": "where the kernel size of the pooling operation is equal to block_size",
+        "source": "paper",
+        "locator": "PDF p.4"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1676,
+        "line_end": 1706,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1714,
+        "line_end": 1729,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1855,
+        "line_end": 1885,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M05-A02; external repo refs stay in code_evidence_registry.json. Equivalence: 同上；未运行实验，无法证明对模式判定无影响; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "flexprefill-gap-M07-B03",
+    "artifact_id": "flexprefill",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: 同一 Triton/PyTorch 路径：triton_bnhd_pool、torch_bhn_sumpool、score_cover_idx、transform_veritcal_slash_idx 及 flex_prefill_attention 内核调用链；无独立实验脚本或外部依赖参与该机制. Paper precondition: Estimated attention map Ā has been computed.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "同上",
+    "paper_evidence": [
+      {
+        "quote": "# Flatten and normalize attention map\n¯A← flatten( ¯A/P\ni, j\n¯A[i,j ])",
+        "source": "paper",
+        "locator": "PDF p.6, text lines 93-96"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1661,
+        "line_end": 1779,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1588,
+        "line_end": 1598,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M07-B03; external repo refs stay in code_evidence_registry.json. Equivalence: 同上; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "flexprefill-gap-M07-B05",
+    "artifact_id": "flexprefill",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: 同一 Triton/PyTorch 路径：triton_bnhd_pool、torch_bhn_sumpool、score_cover_idx、transform_veritcal_slash_idx 及 flex_prefill_attention 内核调用链；无独立实验脚本或外部依赖参与该机制. Paper precondition: Sorted index list Ia and threshold γ are available.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "同上",
+    "paper_evidence": [
+      {
+        "quote": "Ia← argsort( ¯A)\n# Obtain the minimum computational budget\nmaking the sum of the scores exceedsγ\nK← min{k :P\ni∈Ia[1:k]\n¯A[i]≥γ}",
+        "source": "paper",
+        "locator": "PDF p.6, text lines 98-103"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1661,
+        "line_end": 1779,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1588,
+        "line_end": 1598,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M07-B05; external repo refs stay in code_evidence_registry.json. Equivalence: 同上; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "flexprefill-gap-M07-B06-R01",
+    "artifact_id": "flexprefill",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: 同一 Triton/PyTorch 路径：triton_bnhd_pool、torch_bhn_sumpool、score_cover_idx、transform_veritcal_slash_idx 及 flex_prefill_attention 内核调用链；无独立实验脚本或外部依赖参与该机制. Paper precondition: K 已由累计阈值规则确定。",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "同上",
+    "paper_evidence": [
+      {
+        "quote": "S← Ia[1 :K]",
+        "source": "paper",
+        "locator": "PDF p.6"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1661,
+        "line_end": 1779,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1611,
+        "line_end": 1632,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M07-B06-R01; external repo refs stay in code_evidence_registry.json. Equivalence: 同上; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "flexprefill-gap-M08-B05",
+    "artifact_id": "flexprefill",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: 同一 flex_prefill 路径的索引选择+块稀疏注意力内核：get_active_blocks、score_cover_topk、sum_all_diagonal_matrix、transform_veritcal_slash_idx、triton_block_wise_attention；不含 vertical_slash 固定预算模式与 minfer 外部依赖. Paper precondition: Sorted vertical scores and threshold γ are available.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "同上：>γ 而非 ≥γ，且 //128+1 与预算截断改变前缀长度",
+    "paper_evidence": [
+      {
+        "quote": "# Sort vertical and slash attention scores\nIv← argsort(av)\nIs← argsort(as)\n# Obtain the minimum computational budget\nmaking the sum of the scores exceedsγ\nKv← min{k :P\ni∈Iv [1:k] av[i]≥γ}",
+        "source": "paper",
+        "locator": "PDF p.6, text lines 69-75"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1588,
+        "line_end": 1591,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1707,
+        "line_end": 1716,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1730,
+        "line_end": 1758,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M08-B05; external repo refs stay in code_evidence_registry.json. Equivalence: 未证明对最终 S 的覆盖质量无影响; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "flexprefill-gap-M08-B06",
+    "artifact_id": "flexprefill",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: 同一 flex_prefill 路径的索引选择+块稀疏注意力内核：get_active_blocks、score_cover_topk、sum_all_diagonal_matrix、transform_veritcal_slash_idx、triton_block_wise_attention；不含 vertical_slash 固定预算模式与 minfer 外部依赖. Paper precondition: Sorted slash scores and threshold γ are available.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "同上",
+    "paper_evidence": [
+      {
+        "quote": "# Sort vertical and slash attention scores\nIv← argsort(av)\nIs← argsort(as)\n# Obtain the minimum computational budget\nmaking the sum of the scores exceedsγ\nKv← min{k :P\ni∈Iv [1:k] av[i]≥γ}\nKs← min{k :P\ni∈Is[1:k] as[i]≥γ}",
+        "source": "paper",
+        "locator": "PDF p.6, text lines 69-77"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1588,
+        "line_end": 1591,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1707,
+        "line_end": 1716,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1730,
+        "line_end": 1758,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M08-B06; external repo refs stay in code_evidence_registry.json. Equivalence: 未证明等价; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "flexprefill-gap-M10-B02",
+    "artifact_id": "flexprefill",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: experiments/scripts/flex_prefill/ruler.sh（--cfg flex_prefill_min_budget=1024,gamma=0.95/0.9,block_size=128）→ run_ruler.py → patch.py → flex_prefill_attention 的 Triton 稀疏 kernel 路径. Paper precondition: Applied per attention head as a minimum computational budget.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "实验配置的 1024 预算未转化为每 head 最终激活 token 数下限，Query-Aware 头无下限",
+    "paper_evidence": [
+      {
+        "quote": "requiring each attention head to compute at least\n1024 tokens",
+        "source": "paper",
+        "locator": "PDF p.7"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1707,
+        "line_end": 1713,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1727,
+        "line_end": 1732,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1734,
+        "line_end": 1758,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "experiments/scripts/flex_prefill/ruler.sh",
+        "line_start": 16,
+        "line_end": 30,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "flex_prefill/modules/patch.py",
+        "line_start": 446,
+        "line_end": 454,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M10-B02; external repo refs stay in code_evidence_registry.json. Equivalence: 无；配置值正确但语义落点不同; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "flexprefill-gap-M11-B01",
+    "artifact_id": "flexprefill",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: 同一 pinned commit 的 flex_prefill 包 + experiments/scripts/flex_prefill/ruler.sh（flex_prefill_gamma=0.95 配置）构成的实验路径；无独立推导/证明构建产物. Paper precondition: Single query position; a_S = Σ_{j∈S} a_j; a_k ≤ a_S for k∈S and a_k ≤ 1−a_S for k∉S.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "论文要求的上界推导在实验路径无对应实现或检验",
+    "paper_evidence": [
+      {
+        "quote": "= (1−aS)\nLX\nj=1\n|vj|",
+        "source": "paper",
+        "locator": "PDF p.19"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "experiments/scripts/flex_prefill/ruler.sh",
+        "line_start": 21,
+        "line_end": 29,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=absent; behavior=M11-B01; external repo refs stay in code_evidence_registry.json. Equivalence: 无; effect_status=not_applicable"
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "flexprefill-gap-M11-B03",
+    "artifact_id": "flexprefill",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: 同一 pinned commit 的 flex_prefill 包 + experiments/scripts/flex_prefill/ruler.sh（flex_prefill_gamma=0.95 配置）构成的实验路径；无独立推导/证明构建产物. Paper precondition: Step 2 of the dual derivation.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "同上",
+    "paper_evidence": [
+      {
+        "quote": "Step 2: Relax Binary Variables Relaxing to continuous variables:",
+        "source": "paper",
+        "locator": "PDF p.20"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "experiments/scripts/flex_prefill/ruler.sh",
+        "line_start": 21,
+        "line_end": 29,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=absent; behavior=M11-B03; external repo refs stay in code_evidence_registry.json. Equivalence: 无; effect_status=not_applicable"
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "flexprefill-gap-M11-B04",
+    "artifact_id": "flexprefill",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: 同一 pinned commit 的 flex_prefill 包 + experiments/scripts/flex_prefill/ruler.sh（flex_prefill_gamma=0.95 配置）构成的实验路径；无独立推导/证明构建产物. Paper precondition: Step 3 of the dual derivation.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "同上",
+    "paper_evidence": [
+      {
+        "quote": "Step 3: Lagrangian Formulation Let’s form the Lagrangian for the primal problem:",
+        "source": "paper",
+        "locator": "PDF p.20"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "experiments/scripts/flex_prefill/ruler.sh",
+        "line_start": 21,
+        "line_end": 29,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=absent; behavior=M11-B04; external repo refs stay in code_evidence_registry.json. Equivalence: 无; effect_status=not_applicable"
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "flexprefill-gap-M11-B05",
+    "artifact_id": "flexprefill",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: 同一 pinned commit 的 flex_prefill 包 + experiments/scripts/flex_prefill/ruler.sh（flex_prefill_gamma=0.95 配置）构成的实验路径；无独立推导/证明构建产物. Paper precondition: Step 4 of the dual derivation.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "同上",
+    "paper_evidence": [
+      {
+        "quote": "Step 4: KKT Conditions The KKT conditions give:",
+        "source": "paper",
+        "locator": "PDF p.20"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "experiments/scripts/flex_prefill/ruler.sh",
+        "line_start": 21,
+        "line_end": 29,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=absent; behavior=M11-B05; external repo refs stay in code_evidence_registry.json. Equivalence: 无; effect_status=not_applicable"
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "flexprefill-gap-M11-A03",
+    "artifact_id": "flexprefill",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: 同一 pinned commit 的 flex_prefill 包 + experiments/scripts/flex_prefill/ruler.sh（flex_prefill_gamma=0.95 配置）构成的实验路径；无独立推导/证明构建产物. Paper precondition: 单查询位置；a_j 已定义。",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "同上",
+    "paper_evidence": [
+      {
+        "quote": "=\nX\nj̸∈S\najvj−\n \n1P\nj∈Saj\n− 1\n!X\nj′∈S\naj′vj′",
+        "source": "paper",
+        "locator": "PDF p.19, text lines 51-61"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "experiments/scripts/flex_prefill/ruler.sh",
+        "line_start": 21,
+        "line_end": 29,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=absent; behavior=M11-A03; external repo refs stay in code_evidence_registry.json. Equivalence: 无; effect_status=not_applicable"
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "flexprefill-gap-M11-A04",
+    "artifact_id": "flexprefill",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: 同一 pinned commit 的 flex_prefill 包 + experiments/scripts/flex_prefill/ruler.sh（flex_prefill_gamma=0.95 配置）构成的实验路径；无独立推导/证明构建产物. Paper precondition: a_S 为所选子集的注意力质量。",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "同上",
+    "paper_evidence": [
+      {
+        "quote": "LetaS =P\nj∈Saj. Then, ak≤ aS fork∈ S, and ak≤ 1−aS fork̸∈ S.",
+        "source": "paper",
+        "locator": "PDF p.19"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "experiments/scripts/flex_prefill/ruler.sh",
+        "line_start": 21,
+        "line_end": 29,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=absent; behavior=M11-A04; external repo refs stay in code_evidence_registry.json. Equivalence: 无; effect_status=not_applicable"
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "flexprefill-gap-M11-A05",
+    "artifact_id": "flexprefill",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: 同一 pinned commit 的 flex_prefill 包 + experiments/scripts/flex_prefill/ruler.sh（flex_prefill_gamma=0.95 配置）构成的实验路径；无独立推导/证明构建产物. Paper precondition: 给定子集大小容差 γ_S。",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "同上",
+    "paper_evidence": [
+      {
+        "quote": "min\nS\n|A(Q, K, V )− A(Q, K, V, S)|\nsubject to |S|≤ γS\nS⊆{ (i,j )| 1≤j≤i, i,j∈ Z}\n(4)",
+        "source": "paper",
+        "locator": "PDF p.19"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "experiments/scripts/flex_prefill/ruler.sh",
+        "line_start": 21,
+        "line_end": 29,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=absent; behavior=M11-A05; external repo refs stay in code_evidence_registry.json. Equivalence: 无; effect_status=not_applicable"
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "flexprefill-gap-M11-A06",
+    "artifact_id": "flexprefill",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: 同一 pinned commit 的 flex_prefill 包 + experiments/scripts/flex_prefill/ruler.sh（flex_prefill_gamma=0.95 配置）构成的实验路径；无独立推导/证明构建产物. Paper precondition: 单查询位置；原问题（Eq.7）。",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "同上",
+    "paper_evidence": [
+      {
+        "quote": "Step 1: Binary Variables Ifzj = 1 ifj∈S andzj = 0 otherwise, the primal objective is:\nmax\nzj∈{0,1}\nLX\nj=1\nzj\nexp(xj)PL\nj′=1 exp(xj′)\n, subject to\nLX\nj=1\nzj≤γS",
+        "source": "paper",
+        "locator": "PDF p.20"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "experiments/scripts/flex_prefill/ruler.sh",
+        "line_start": 21,
+        "line_end": 29,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=absent; behavior=M11-A06; external repo refs stay in code_evidence_registry.json. Equivalence: 无; effect_status=not_applicable"
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "flexprefill-gap-M11-A07",
+    "artifact_id": "flexprefill",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: 同一 pinned commit 的 flex_prefill 包 + experiments/scripts/flex_prefill/ruler.sh（flex_prefill_gamma=0.95 配置）构成的实验路径；无独立推导/证明构建产物. Paper precondition: 拉格朗日函数已构造。",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "同上",
+    "paper_evidence": [
+      {
+        "quote": "1. Stationarity:\n∂L\n∂zj\n=− exp(xj)PL\nj′=1 exp(xj′)\n+λ−µj +νj = 0",
+        "source": "paper",
+        "locator": "PDF p.20"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "experiments/scripts/flex_prefill/ruler.sh",
+        "line_start": 21,
+        "line_end": 29,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=absent; behavior=M11-A07; external repo refs stay in code_evidence_registry.json. Equivalence: 无; effect_status=not_applicable"
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "flexprefill-gap-M11-A08",
+    "artifact_id": "flexprefill",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: 同一 pinned commit 的 flex_prefill 包 + experiments/scripts/flex_prefill/ruler.sh（flex_prefill_gamma=0.95 配置）构成的实验路径；无独立推导/证明构建产物. Paper precondition: 拉格朗日函数已构造。",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "同上",
+    "paper_evidence": [
+      {
+        "quote": "2. Complementary slackness:\nλ(\nLX\nj=1\nzj−γS) = 0\nµjzj = 0\nνj(zj− 1) = 0",
+        "source": "paper",
+        "locator": "PDF p.20"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "experiments/scripts/flex_prefill/ruler.sh",
+        "line_start": 21,
+        "line_end": 29,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=absent; behavior=M11-A08; external repo refs stay in code_evidence_registry.json. Equivalence: 无; effect_status=not_applicable"
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "flexprefill-gap-M12-A05",
+    "artifact_id": "flexprefill",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: experiments/scripts/flex_prefill/{ruler.sh,infinitebench.sh} + experiments/benchmark/{run_ruler.py,run_infinitebench.py} 实验路径，含其调用的 flex_prefill 包与 setup.py/README 声明的依赖（triton==3.0.0，flash_attn 可选）. Paper precondition: Executing any experiment.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "论文要求单卡 A100 80GB；脚本未固定设备数量或型号，accelerate 可多进程运行",
+    "paper_evidence": [
+      {
+        "quote": "Our experiments are conducted in a computing environment equipped\nwith a single NVIDIA A100 GPU with 80GB of memory.",
+        "source": "paper",
+        "locator": "PDF p.7"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "experiments/scripts/flex_prefill/ruler.sh",
+        "line_start": 16,
+        "line_end": 45,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "experiments/scripts/flex_prefill/infinitebench.sh",
+        "line_start": 20,
+        "line_end": 65,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=absent; behavior=M12-A05; external repo refs stay in code_evidence_registry.json. Equivalence: 脚本无任何设备数/型号参数，不存在等价约束; effect_status=not_established"
+  }
+]

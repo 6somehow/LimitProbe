@@ -1,0 +1,820 @@
+{
+  "mechanisms": [
+    {
+      "name": "Tensor-with-Sparsity-Attribute (TeSA) abstraction",
+      "description": "Augments a standard tensor with a same-shaped attribute tensor whose scalar elements encode per-element sparsity (bit width, data format, pruned). Unifies pruning and quantization in one representation; used only at compile time so no runtime memory cost.",
+      "pages": [
+        4,
+        9
+      ],
+      "evidence": [
+        {
+          "page": 4,
+          "quote": "TeSA augments a traditional tensor with an additional tensor with the same shape, where each element is a scalar value, representing the sparsity attribute of the corresponding element in the original tensor."
+        },
+        {
+          "page": 9,
+          "quote": "Each TeSA element has a two-byte attribute: 7 bits record the bit width of the element, 4 bits specify the element’s data format ... and the rest 5 bits are reserved. The bit-width zero means the element is pruned."
+        }
+      ],
+      "boundary": "Representation only; does not itself optimize execution. Attribute values are user-specified or inferred; encoding is a fixed 2-byte layout.",
+      "members": [
+        "A01",
+        "B01"
+      ],
+      "merge_reason": "两个候选描述的是同一个抽象：都是给张量附加同形状的属性张量，元素编码位宽、数据格式和剪枝状态，且都强调仅在编译期使用。A01 与 B01 的边界和证据一致，属于同一机制的不同表述。",
+      "parent_name": null,
+      "id": "M01",
+      "mechanical": [
+        {
+          "page": 4,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": true,
+          "short_quote": false
+        },
+        {
+          "page": 9,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": false,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Sparsity attribute propagation (Algorithm 1)",
+      "description": "Worklist algorithm over the DFG that repeatedly calls PropOneNode on nodes whose input/output TeSAs changed, propagating attributes to neighbors until no TeSA updates. Monotonic increase of sparsity guarantees termination.",
+      "pages": [
+        5
+      ],
+      "evidence": [
+        {
+          "page": 5,
+          "quote": "Given a node, if the TeSA of any input or output tensor of a node is updated (TeSAOf in Line 5), PropOneNode (Line 6) updates the TeSA of other tensors associated with this node, according to a certain propagation rule"
+        },
+        {
+          "page": 5,
+          "quote": "As each propagation monotonically increases sparsity and both the propagations of pruning and quantization are commutative and associative, Algorithm 1 is guaranteed to terminate."
+        }
+      ],
+      "boundary": "Relies on registered per-operator rules; propagation quality depends on those rules and on which tensors are initially annotated.",
+      "members": [
+        "A02",
+        "B02"
+      ],
+      "merge_reason": "A02 与 B02 都描述 Algorithm 1 的工作列表传播引擎：从任意节点开始，读取输入/输出 TeSA，调用 PropOneNode，更新邻居直到收敛。两者是同一算法的不同摘要，不是不同阶段。",
+      "parent_name": null,
+      "id": "M02",
+      "mechanical": [
+        {
+          "page": 5,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        },
+        {
+          "page": 5,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "TeSA algebra for pruning propagation",
+      "description": "Maps an operator's element-wise computation to a two-element set {pruned, non-pruned} with rules for unary and binary ops (e.g., + requires both pruned; × requires either pruned), so output TeSA follows the operator's computation flow.",
+      "pages": [
+        5
+      ],
+      "evidence": [
+        {
+          "page": 5,
+          "quote": "SparTA defines a TeSA algebra that maps the an operator’s element-wise computation to a set with two elements, {pruned, non-pruned}."
+        },
+        {
+          "page": 5,
+          "quote": "((x = φ)∨ (y = φ))→ (z = φ)"
+        }
+      ],
+      "boundary": "Covers operators expressible element-wise; extensible table but limited to defined operator classes.",
+      "members": [
+        "A03",
+        "B03"
+      ],
+      "merge_reason": "A03 与 B03 都指 Table 2 的 TeSA 代数：把逐元素算子映射到 {pruned, non-pruned} 集合，并给出 +/− 与 ×/÷/x^y 的规则。两者是同一规则表的不同描述。",
+      "parent_name": null,
+      "id": "M03",
+      "mechanical": [
+        {
+          "page": 5,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": true,
+          "short_quote": false
+        },
+        {
+          "page": 5,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Tensor Scrambling probabilistic propagation",
+      "description": "For black-box/complex operators, zeroes pruned inputs, assigns random values to remaining elements, runs the operator repeatedly, and treats elements that always stay zero as pruned in the output.",
+      "pages": [
+        5,
+        12
+      ],
+      "evidence": [
+        {
+          "page": 5,
+          "quote": "the rule sets the pruned elements in the input tensor to zeros, and assigns random values to the remaining elements (i.e., scrambling). It then runs the operator to obtain its output tensor"
+        },
+        {
+          "page": 12,
+          "quote": "With Tensor Scrambling, our experiences show 256 randomly sampled tensors can identify sparsity correctly."
+        }
+      ],
+      "boundary": "Probabilistic; requires a dense operator implementation and enough repetitions; may miss rare non-zero outputs.",
+      "members": [
+        "A04",
+        "B04"
+      ],
+      "merge_reason": "A04 与 B04 都描述 Tensor Scrambling：将剪枝输入置零、其余随机赋值、重复运行算子，把始终为零的元素视为输出剪枝。两者是同一概率传播规则。",
+      "parent_name": null,
+      "id": "M04",
+      "mechanical": [
+        {
+          "page": 5,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": false,
+          "short_quote": false
+        },
+        {
+          "page": 12,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Backward (AD-based) propagation for output-to-input and input-to-input",
+      "description": "Uses auto-differentiation: gradient tensors share TeSA with their corresponding tensors, so applying TeSA algebra/Scrambling to the backward operator infers TeSA of other inputs from an output or another input.",
+      "pages": [
+        5,
+        6
+      ],
+      "evidence": [
+        {
+          "page": 5,
+          "quote": "According to AD’s property, gIi and gOi should have the same TeSA of Ii and Oi (both shape and value)."
+        },
+        {
+          "page": 6,
+          "quote": "The sparsity propagation from output tensor Y to input tensor A uses gA = gY× X T ."
+        }
+      ],
+      "boundary": "Requires the operator's backward implementation; illustrated on Y=AX+B.",
+      "members": [
+        "A05",
+        "B05"
+      ],
+      "merge_reason": "A05 与 B05 都描述利用自动微分反向算子进行输出到输入、输入到输入的 TeSA 传播，并给出 gA=gY×X^T 等例子。两者是同一 AD 传播机制。",
+      "parent_name": null,
+      "id": "M05",
+      "mechanical": [
+        {
+          "page": 5,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        },
+        {
+          "page": 6,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": false,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Quantization propagation rule (distillation/calibration)",
+      "description": "Collects calibration data by inference, progressively lowers one tensor's precision, fine-tunes to minimize MSE, and accepts the lower precision if accuracy drop is below a threshold; caches activations in topological order to reduce calibration cost.",
+      "pages": [
+        6,
+        12
+      ],
+      "evidence": [
+        {
+          "page": 6,
+          "quote": "we gradually reduce the quantization precision (e.g., 32-bit to 16-bit) of one tensor of this operator while keeping other tensors unchanged. The operator is then quantized and fine-tuned using the calibration data under the new precision."
+        },
+        {
+          "page": 6,
+          "quote": "If the drop of model accuracy is smaller than a predefined threshold (e.g., 1% in our experiment), the new quantization attribute of that operator is accepted"
+        }
+      ],
+      "boundary": "Heuristic with accuracy threshold; depends on calibration dataset and fine-tuning; not a formal guarantee.",
+      "members": [
+        "A06",
+        "B06"
+      ],
+      "merge_reason": "A06 与 B06 都描述 QuantizationPropRule：收集校准数据、逐步降低单个张量精度、微调最小化 MSE、按精度下降阈值接受，并按拓扑序缓存激活。两者是同一量化传播规则。",
+      "parent_name": null,
+      "id": "M06",
+      "mechanical": [
+        {
+          "page": 6,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": false,
+          "short_quote": false
+        },
+        {
+          "page": 6,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Rule registration / PropOneNode dispatch",
+      "description": "PropOneNode iterates over registered propagation rules (PruningPropRule, QuantizationPropRule), merges their updated input/output TeSAs, and returns the union of updates; new rules can be registered.",
+      "pages": [
+        6
+      ],
+      "evidence": [
+        {
+          "page": 6,
+          "quote": "foreach RegisteredPropRule do Iproped ,Oproped = RegisteredPropRule(N, Is, Os);"
+        },
+        {
+          "page": 5,
+          "quote": "New propagation rules can be registered and invoked in PropOneNode."
+        }
+      ],
+      "boundary": "Extensibility hook; ordering/conflict resolution among rules not detailed.",
+      "members": [
+        "B07"
+      ],
+      "merge_reason": "仅 B07 提出该候选；原文 Algorithm 2 明确 PropOneNode 遍历已注册规则并合并更新，属于独立的分发/注册机制，保留为单例。",
+      "parent_name": null,
+      "id": "M07",
+      "mechanical": [
+        {
+          "page": 6,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": false,
+          "short_quote": false
+        },
+        {
+          "page": 5,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Execution-plan transformation (Algorithm 3)",
+      "description": "Decomposes complex TeSAs into regular ones (one quantization type, one block size) and rewrites an operator into the Cartesian product of sub-operators, profiling each candidate plan and selecting the best.",
+      "pages": [
+        6,
+        7
+      ],
+      "evidence": [
+        {
+          "page": 6,
+          "quote": "SparTA therefore transforms a tensor with a complex sparsity pattern to multiple tensors, each with a simpler sparsity pattern."
+        },
+        {
+          "page": 7,
+          "quote": "the operator is transformed to |To| ∏m i=1|Ti| sub-operators, which are the Cartesian product of those decomposed TeSAs."
+        }
+      ],
+      "boundary": "Search is budget-limited; assumes sub-operators share computation logic (e.g., Einstein summation).",
+      "members": [
+        "A07",
+        "B08"
+      ],
+      "merge_reason": "A07 与 B08 都描述 Algorithm 3 的执行计划变换：将复杂 TeSA 分解为规则 TeSA，按笛卡尔积生成子算子，代码生成并 profile 后选最佳。两者是同一变换阶段。",
+      "parent_name": null,
+      "id": "M08",
+      "mechanical": [
+        {
+          "page": 6,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": true,
+          "short_quote": false
+        },
+        {
+          "page": 7,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": false,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "BitRounding and WeightedBlockCover",
+      "description": "TransformTeSA first rounds bit widths to hardware-supported options, then covers non-pruned elements with block sizes modeled as weighted set cover, greedily choosing blocks with lowest block_weight/num_covered_elements.",
+      "pages": [
+        7,
+        8
+      ],
+      "evidence": [
+        {
+          "page": 7,
+          "quote": "It first decomposes TeSA in BitRounding, based on both the quantization bit width that the TeSA contains and the possible quantization bit width supported by the hardware."
+        },
+        {
+          "page": 8,
+          "quote": "We use a simple greedy algorithm to pick the blocks with the lowest cost (i.e., block_weight num_covered_elements ), until all non-pruned elements are covered"
+        }
+      ],
+      "boundary": "Greedy, not optimal; block weights profiled per hardware and may be inaccurate for very sparse operators (then enumerates combinations).",
+      "members": [
+        "A08"
+      ],
+      "merge_reason": "A08 将 BitRounding 与 WeightedBlockCover 合并为一个候选；原文 TransformTeSA 中两者是先后调用的两个不同算法（位宽舍入 vs 块覆盖）。按粒度规则，保留 A08 作为父机制，B09 与 B10 作为子机制。",
+      "parent_name": null,
+      "id": "M09",
+      "mechanical": [
+        {
+          "page": 7,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": true,
+          "short_quote": false
+        },
+        {
+          "page": 8,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "BitRounding transformation option",
+      "description": "Decomposes a TeSA by quantization bit width according to hardware-supported widths, e.g., if hardware supports 4-bit and 8-bit, options are (i) round to 4-bit and 8-bit accordingly, (ii) all round to 8-bit.",
+      "pages": [
+        7,
+        8
+      ],
+      "evidence": [
+        {
+          "page": 7,
+          "quote": "It first decomposes TeSA in BitRounding, based on both the quantization bit width that the TeSA contains and the possible quantization bit width supported by the hardware."
+        }
+      ],
+      "boundary": "Produces candidate TeSAs; selection deferred to search.",
+      "members": [
+        "B09"
+      ],
+      "merge_reason": "B09 单独描述 BitRounding；原文中它是 TransformTeSA 的第一步，与 WeightedBlockCover 是不同算法。保留为 A08 的子机制。",
+      "parent_name": "BitRounding and WeightedBlockCover",
+      "id": "M10",
+      "mechanical": [
+        {
+          "page": 7,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "WeightedBlockCover greedy set cover",
+      "description": "Covers non-pruned elements with available block sizes treated as weighted set cover; greedily picks block minimizing block_weight/num_covered_elements until all non-pruned elements covered, then decomposes tensor into TeSAs per chosen blocks.",
+      "pages": [
+        8,
+        9
+      ],
+      "evidence": [
+        {
+          "page": 8,
+          "quote": "WeightedBlockCover chooses one or multiple proper block sizes to cover the non-pruned elements, which we treat as a weighted set cover problem"
+        },
+        {
+          "page": 8,
+          "quote": "We use a simple greedy algorithm to pick the blocks with the lowest cost (i.e., block_weight num_covered_elements ), until all non-pruned elements are covered"
+        }
+      ],
+      "boundary": "Greedy heuristic; block weights profiled per hardware.",
+      "members": [
+        "B10"
+      ],
+      "merge_reason": "B10 单独描述 WeightedBlockCover；原文中它是 TransformTeSA 的第二步，与 BitRounding 是不同算法。保留为 A08 的子机制。",
+      "parent_name": "BitRounding and WeightedBlockCover",
+      "id": "M11",
+      "mechanical": [
+        {
+          "page": 8,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        },
+        {
+          "page": 8,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Block-size weight profiling",
+      "description": "Implements a block-sparsity kernel template, profiles 13 block sizes at zero sparsity, divides latency by number of blocks to obtain per-block-size weights used by WeightedBlockCover.",
+      "pages": [
+        9
+      ],
+      "evidence": [
+        {
+          "page": 9,
+          "quote": "we implemented a kernel template for block sparsity, and evaluated 13 different block sizes on that template. The overhead of each block size is profiled by measuring the latency of the kernel with zero sparsity and dividing the latency with the number of blocks."
+        }
+      ],
+      "boundary": "Weights may be inaccurate when operator is too sparse to saturate cores; then enumerates combinations.",
+      "members": [
+        "A13",
+        "B11"
+      ],
+      "merge_reason": "A13 与 B11 都描述为 WeightedBlockCover 提供块大小权重的 profiling 过程：实现块稀疏模板、评估 13 种块大小、用零稀疏延迟除以块数得到权重。两者是同一 profiling 机制。",
+      "parent_name": null,
+      "id": "M12",
+      "mechanical": [
+        {
+          "page": 9,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Specialization hints",
+      "description": "Each transformed TeSA carries bit width and block size metadata passed to the second compilation pass to guide code specialization.",
+      "pages": [
+        8
+      ],
+      "evidence": [
+        {
+          "page": 8,
+          "quote": "each transformed TeSA is attached with the information about the bit width and block size, named as specialization hints"
+        }
+      ],
+      "boundary": "Metadata only; effectiveness depends on the specialization pass consuming it.",
+      "members": [
+        "A09",
+        "B12"
+      ],
+      "merge_reason": "A09 与 B12 都描述 specialization hints：变换后的 TeSA 附带位宽和块大小信息，传给第二遍编译指导特化。两者是同一元数据通道。",
+      "parent_name": null,
+      "id": "M13",
+      "mechanical": [
+        {
+          "page": 8,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "dismantle schedule primitive (loop unrolling + DCE)",
+      "description": "A schedule primitive that jointly unrolls a loop and its outer loops and eliminates dead computations according to the sparsity attribute, embedding the sparsity pattern into code and removing sparse encoding/indirect addressing.",
+      "pages": [
+        8
+      ],
+      "evidence": [
+        {
+          "page": 8,
+          "quote": "we introduce a new schedule primitive dismantle that jointly performs loop unrolling and DCE. When dismantle is applied on a loop, this loop and all its outer loops are unrolled and specialized with the given sparsity attribute."
+        },
+        {
+          "page": 8,
+          "quote": "dismantle embeds a specific sparsity pattern into the code, which eliminates the need of sparsity encoding, e.g., compressed sparse row (CSR)."
+        }
+      ],
+      "boundary": "Applied to loop nests from a dense compiler; may increase code size; falls back to generic sparse/dense kernels when block covers whole tensor.",
+      "members": [
+        "A10",
+        "B13"
+      ],
+      "merge_reason": "A10 与 B13 都描述 dismantle 原语：联合循环展开与 DCE，按稀疏属性特化，嵌入稀疏模式并消除 CSR 等编码。两者是同一调度原语。",
+      "parent_name": null,
+      "id": "M14",
+      "mechanical": [
+        {
+          "page": 8,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        },
+        {
+          "page": 8,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": false,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Quantization code specialization via hardware instructions",
+      "description": "Specializes from the innermost loop, selecting hardware instructions (DP4A, wmma) by bit width and aligning innermost tiling to the instruction's computation shape.",
+      "pages": [
+        8
+      ],
+      "evidence": [
+        {
+          "page": 8,
+          "quote": "SparTA picks a proper hardware instruction based on the bit-width denoted in TeSA, e.g., DP4A [13] or wmma [5] for 8bit, wmma for 4bit. The specialized tiling of the innermost loop(s) is then aligned to the computation shape of the instruction."
+        }
+      ],
+      "boundary": "Depends on available hardware instruction shapes; limited to supported bit widths.",
+      "members": [
+        "A11",
+        "B14"
+      ],
+      "merge_reason": "A11 与 B14 都描述量化特化：从最内层循环开始，按 TeSA 位宽选择 DP4A/wmma 等硬件指令，并将最内层 tiling 对齐到指令计算形状。两者是同一特化机制。",
+      "parent_name": null,
+      "id": "M15",
+      "mechanical": [
+        {
+          "page": 8,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Fallback to generic/dense kernels",
+      "description": "When a hint specifies block size equal to whole tensor shape, SparTA uses existing general sparse kernels (cuSPARSE, taco) or dense kernel if faster; framework can incorporate off-the-shelf sparse kernels.",
+      "pages": [
+        8
+      ],
+      "evidence": [
+        {
+          "page": 8,
+          "quote": "SparTA can directly use the existing state-of-the-art general sparse kernel implementation (e.g., cuSPARSE [3], taco [53]) or even use the dense kernel implementation if it perform better."
+        }
+      ],
+      "boundary": "Fallback path for fine-grained sparsity that cannot be regularized.",
+      "members": [
+        "B15"
+      ],
+      "merge_reason": "仅 B15 提出该候选；原文明确当块大小等于整个张量形状时回退到通用稀疏/稠密内核，属于独立回退路径，保留为单例。",
+      "parent_name": null,
+      "id": "M16",
+      "mechanical": [
+        {
+          "page": 8,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": false,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Sparse Tensor Core transformation policy",
+      "description": "A custom transformation policy that decomposes an unstructured sparse tensor into one part satisfying Sparse Tensor Core's [1×2] tile requirement (run via cuSPARSELt) and a remainder handled by specialized sparse kernels.",
+      "pages": [
+        13
+      ],
+      "evidence": [
+        {
+          "page": 13,
+          "quote": "we develop a new transformation policy to decompose an unstructured sparse tensor into two: one follows the sparsity requirement of Sparse Tensor Cores, the other contains the elements not included in the first one."
+        }
+      ],
+      "boundary": "Requires hardware with Sparse Tensor Cores; specific to the [1×2] tile constraint.",
+      "members": [
+        "A12",
+        "B16"
+      ],
+      "merge_reason": "A12 与 B16 都描述为利用 Sparse Tensor Core 而自定义的变换策略：将非结构化稀疏张量分解为满足 [1×2] tile 要求的部分（cuSPARSELt）和剩余部分（专用稀疏内核）。两者是同一策略。",
+      "parent_name": null,
+      "id": "M17",
+      "mechanical": [
+        {
+          "page": 13,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Rammer-based implementation integration",
+      "description": "Implemented on Rammer: model converted to ONNX graph, propagation as a dedicated compilation pass, execution-plan transformation as an additional graph-rewriting pass, specialized sub-operators injected into Rammer's kernel DB to build the executable.",
+      "pages": [
+        9
+      ],
+      "evidence": [
+        {
+          "page": 9,
+          "quote": "A DNN model is converted to an ONNX graph [14] before compiling."
+        },
+        {
+          "page": 9,
+          "quote": "The specialized sub-operators are injected into Rammer’s kernel DB for constructing the whole executable."
+        }
+      ],
+      "boundary": "Implementation substrate; no sparsity support in base Rammer.",
+      "members": [
+        "B17"
+      ],
+      "merge_reason": "仅 B17 提出该候选；原文第 4 节明确 SparTA 基于 Rammer 实现，传播作为专用编译 pass，变换作为图重写 pass，子算子注入 kernel DB。属于独立实现集成机制，保留为单例。",
+      "parent_name": null,
+      "id": "M18",
+      "mechanical": [
+        {
+          "page": 9,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        },
+        {
+          "page": 9,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Feedback loop for sparsity exploration",
+      "description": "Compiled model is profiled for authentic latency/memory, and designers update sparsity attributes and recompile iteratively; also used to replace FLOPs proxy metric and accelerate fine-tuning in sparsity search.",
+      "pages": [
+        4,
+        14
+      ],
+      "evidence": [
+        {
+          "page": 4,
+          "quote": "model designers may further update the sparsity attributes in some tensors and repeat this process iteratively to find the best tradeoff. Thus SparTA enables a feedback loop"
+        },
+        {
+          "page": 14,
+          "quote": "SparTA uses the real latency to filter models."
+        }
+      ],
+      "boundary": "Requires full compilation/profiling per iteration; compile overhead reported (propagation 3 min, transformation 2 h, specialization 1.5 h for BERT).",
+      "members": [
+        "A14",
+        "B18"
+      ],
+      "merge_reason": "A14 与 B18 都描述外层反馈循环：编译后 profile 真实延迟/内存，设计者更新稀疏属性并重复，且用于替代 FLOPs 代理指标和加速稀疏搜索。两者是同一反馈机制。",
+      "parent_name": null,
+      "id": "M19",
+      "mechanical": [
+        {
+          "page": 4,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": true,
+          "short_quote": false
+        },
+        {
+          "page": 14,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    },
+    {
+      "name": "Artifact reproduction procedure",
+      "description": "Docker-based environment (Dockerfile for 2080Ti, Dockerfile.a100), init_env.sh for env vars/datasets, per-figure shell scripts and run_all_2080ti.sh / run_all_a100.sh to reproduce Figures 8-11, 14-18, 20.",
+      "pages": [
+        21
+      ],
+      "evidence": [
+        {
+          "page": 21,
+          "quote": "Each figure has a shell script to reproduce and visualize the experimental results automatically."
+        },
+        {
+          "page": 21,
+          "quote": "bash run_all_2080ti.sh"
+        }
+      ],
+      "boundary": "Evaluation reproduction only; requires CUDA driver >11.2 and specific GPUs.",
+      "members": [
+        "B19"
+      ],
+      "merge_reason": "仅 B19 提出该候选；原文 Artifact Appendix 明确给出 Docker 环境、init_env.sh、逐图脚本和 run_all 脚本，属于独立的复现流程，保留为单例。",
+      "parent_name": null,
+      "id": "M20",
+      "mechanical": [
+        {
+          "page": 21,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": false,
+          "normalized_text_match": true,
+          "short_quote": false
+        },
+        {
+          "page": 21,
+          "valid_page": true,
+          "nonempty_quote": true,
+          "exact_text_match": true,
+          "normalized_text_match": true,
+          "short_quote": false
+        }
+      ]
+    }
+  ],
+  "exclusions": [],
+  "open_questions": [
+    "A08 将 BitRounding 与 WeightedBlockCover 合并为一个候选，而 B09/B10 分别描述两者；已按粒度规则保留 A08 为父、B09/B10 为子。是否需要进一步确认原文中两者是否总是成对出现？",
+    "B07（规则注册/PropOneNode 分发）与 A02/B02（传播工作列表）在原文中紧密相关，但前者是规则分发/扩展钩子，后者是迭代引擎；已分开保留，是否需要确认两者在实现上是否可独立替换？",
+    "B15（回退到通用/稠密内核）与 A10/B13（dismantle）在特化流程中互为补充，但原文明确回退是当块覆盖整个张量时的独立路径；已分开保留。"
+  ],
+  "semantic_review": "pending",
+  "model": {
+    "model": "deepseek-v4.1-flash-1017",
+    "usage": {
+      "prompt_tokens": 57250,
+      "total_tokens": 62605,
+      "completion_tokens": 5355,
+      "prompt_tokens_details": {
+        "cached_tokens": 0,
+        "created_cache_tokens": 57216,
+        "multimodal_tokens": {
+          "image": 20622
+        }
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 0
+      }
+    },
+    "finish_reason": "stop"
+  }
+}

@@ -1,0 +1,278 @@
+{
+  "$defs": {
+    "CodeLocation": {
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "description": "Path relative to the repo root.",
+          "title": "File",
+          "type": "string"
+        },
+        "line_start": {
+          "title": "Line Start",
+          "type": "integer"
+        },
+        "line_end": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Line End"
+        },
+        "function": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Qualified name, e.g. module.func.",
+          "title": "Function"
+        },
+        "snippet": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Source text of the statement.",
+          "title": "Snippet"
+        }
+      },
+      "required": [
+        "file",
+        "line_start"
+      ],
+      "title": "CodeLocation",
+      "type": "object"
+    },
+    "Condition": {
+      "additionalProperties": false,
+      "properties": {
+        "expr": {
+          "description": "Python boolean expression over code-level names.",
+          "title": "Expr",
+          "type": "string"
+        },
+        "params": {
+          "description": "Code-level names it depends on.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Params",
+          "type": "array"
+        },
+        "path_prefix": {
+          "description": "Enclosing branch conditions (already negated where needed), outermost first.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Path Prefix",
+          "type": "array"
+        }
+      },
+      "required": [
+        "expr"
+      ],
+      "title": "Condition",
+      "type": "object"
+    },
+    "DocSource": {
+      "enum": [
+        "paper",
+        "appendix",
+        "readme",
+        "code_comment",
+        "docstring",
+        "other"
+      ],
+      "title": "DocSource",
+      "type": "string"
+    },
+    "EffectType": {
+      "enum": [
+        "reject",
+        "path_change",
+        "resource",
+        "performance",
+        "accuracy",
+        "state",
+        "other"
+      ],
+      "title": "EffectType",
+      "type": "string"
+    },
+    "Level": {
+      "enum": [
+        "L1",
+        "L2",
+        "L3"
+      ],
+      "title": "Level",
+      "type": "string"
+    },
+    "Origin": {
+      "enum": [
+        "paper",
+        "code"
+      ],
+      "title": "Origin",
+      "type": "string"
+    },
+    "Provenance": {
+      "enum": [
+        "ast",
+        "llm",
+        "manual"
+      ],
+      "title": "Provenance",
+      "type": "string"
+    },
+    "TextEvidence": {
+      "additionalProperties": false,
+      "description": "A verbatim quote from the paper, README, a docstring or a comment.",
+      "properties": {
+        "quote": {
+          "description": "Verbatim text. Gate rule: must occur in the source.",
+          "title": "Quote",
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/DocSource",
+          "default": "paper"
+        },
+        "locator": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Section, page, table, or README heading.",
+          "title": "Locator"
+        }
+      },
+      "required": [
+        "quote"
+      ],
+      "title": "TextEvidence",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A condition -> effect statement, from either side.",
+  "properties": {
+    "schema_version": {
+      "default": "0.2.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "limitation_id": {
+      "title": "Limitation Id",
+      "type": "string"
+    },
+    "artifact_id": {
+      "title": "Artifact Id",
+      "type": "string"
+    },
+    "origin": {
+      "$ref": "#/$defs/Origin"
+    },
+    "level": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Level"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Set by the paper side for L1/L3; L2 is set in step 4."
+    },
+    "condition_text": {
+      "title": "Condition Text",
+      "type": "string"
+    },
+    "condition": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Condition"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "effect_type": {
+      "$ref": "#/$defs/EffectType"
+    },
+    "effect_text": {
+      "title": "Effect Text",
+      "type": "string"
+    },
+    "paper_evidence": {
+      "items": {
+        "$ref": "#/$defs/TextEvidence"
+      },
+      "title": "Paper Evidence",
+      "type": "array"
+    },
+    "code_evidence": {
+      "items": {
+        "$ref": "#/$defs/CodeLocation"
+      },
+      "title": "Code Evidence",
+      "type": "array"
+    },
+    "region_ids": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Region Ids",
+      "type": "array"
+    },
+    "provenance": {
+      "$ref": "#/$defs/Provenance"
+    },
+    "notes": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Notes"
+    }
+  },
+  "required": [
+    "limitation_id",
+    "artifact_id",
+    "origin",
+    "condition_text",
+    "effect_type",
+    "effect_text",
+    "provenance"
+  ],
+  "title": "Limitation",
+  "type": "object"
+}

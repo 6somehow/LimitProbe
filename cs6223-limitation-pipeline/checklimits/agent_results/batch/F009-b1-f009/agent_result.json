@@ -1,0 +1,57 @@
+{
+ "finding": "flexprefill-F009",
+ "run_id": "b1-f009",
+ "sessions": [
+  {
+   "wall_s": 373.6,
+   "tool_calls": 39,
+   "llm_steps": 40,
+   "tokens": 2073529,
+   "stopped_by": "finished",
+   "final_text": "Done.\n\n**Verdict:** `yes` (confirmed) \u2014 **level L2**, form_integrity 1.0.\n\n- Positive `num_q_heads=3, num_kv_heads=2` executes line 1258 and raises `AssertionError` there.\n- Negative `num_q_heads=4` (one factor differs) passes the assert and only fails later in a GPU-only triton launcher.\n- Eliminated: D1\u2013D12 (mutation 5/5, Wilson LB 0.57; BVA neighbours 3 and 5 both show the effect; 5 identical repeats; clean-checkout replay identical; no mocks at all; no scale reduction).\n- Residual: **D13** `scope_status=unknown` (not scored), and **D14** deeper entry.\n\n**Why D14 is unavoidable:** the offic",
+   "session_id": "ses_e34a534a2ffeFs60tvuhX3rFW5",
+   "exit_code": 0
+  },
+  {
+   "wall_s": 97.5,
+   "tool_calls": 2,
+   "llm_steps": 3,
+   "tokens": 301386,
+   "stopped_by": "finished",
+   "final_text": "**Verdict:** `yes` (confirmed), **level L2**, form_integrity 1.0, unchanged after the full re-run.\n\n**Why D14 cannot be fixed:** D14 requires `entry_first_started == call_chain[0]` (`flex_prefill_attention`). That entry can never reach line 1258 for a non-divisible `(num_q_heads, num_kv_heads)`: before the target it calls `get_active_blocks`, which reshapes with `num_share_q_heads = num_q_heads // num_kv_heads`. I verified across pairs (3/2, 5/2, 7/2, 6/4, 2/3, 5/3, 3/4) that all fail in the einsum/view *before* line 1258. Algebraically the einsum only succeeds when `num_q_heads` is divisible ",
+   "session_id": "ses_e34a534a2ffeFs60tvuhX3rFW5",
+   "exit_code": 0
+  }
+ ],
+ "tool_calls": 41,
+ "llm_steps": 43,
+ "tokens": 2374915,
+ "wall_s": 523.3,
+ "lock_tampered": false,
+ "test_id": "A-flexprefill-F009",
+ "verdict": "yes",
+ "final_verdict": "yes",
+ "level": "L2",
+ "form_integrity": 1.0,
+ "defeaters": {
+  "D1": "eliminated",
+  "D2": "eliminated",
+  "D3": "eliminated",
+  "D4": "eliminated",
+  "D5": "eliminated",
+  "D6": "eliminated",
+  "D7": "eliminated",
+  "D8": "eliminated",
+  "D9": "eliminated",
+  "D10": "eliminated",
+  "D11": "eliminated",
+  "D12": "eliminated",
+  "D13": "residual",
+  "D14": "residual"
+ },
+ "next_steps": [
+  "D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)"
+ ],
+ "positive": "AssertionError at flex_prefill/ops/flex_prefill_attention.py:1258",
+ "negative": "no exception at flex_prefill/ops/flex_prefill_attention.py:1258 (later RuntimeError at triton/runtime/driver.py:8)"
+}

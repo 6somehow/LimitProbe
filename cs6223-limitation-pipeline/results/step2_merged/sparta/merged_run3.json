@@ -1,0 +1,476 @@
+[
+  {
+    "schema_version": "0.1.0",
+    "region_id": "X001",
+    "artifact_id": "sparta",
+    "entry_point": "sparta/propagation/propagate.py::propagate_sparsity",
+    "condition": {
+      "expr": "otherwise",
+      "params": [
+        "otherwise"
+      ],
+      "path_prefix": []
+    },
+    "outcome": "mechanism",
+    "outcome_detail": "default path of the entry function",
+    "location": {
+      "file": "sparta/propagation/propagate.py",
+      "line_start": 30,
+      "line_end": 30,
+      "function": "sparta/propagation/propagate.py::propagate_sparsity",
+      "snippet": "return post_sparsity"
+    },
+    "call_chain": [
+      "sparta/propagation/propagate.py::propagate_sparsity"
+    ],
+    "provenance": "ast",
+    "notes": "All guards above passed."
+  },
+  {
+    "schema_version": "0.1.0",
+    "region_id": "X002",
+    "artifact_id": "sparta",
+    "entry_point": "sparta/propagation/talgebra.py::propagate_matmul",
+    "condition": {
+      "expr": "otherwise",
+      "params": [
+        "otherwise"
+      ],
+      "path_prefix": []
+    },
+    "outcome": "mechanism",
+    "outcome_detail": "default path of the entry function",
+    "location": {
+      "file": "sparta/propagation/talgebra.py",
+      "line_start": 62,
+      "line_end": 62,
+      "function": "sparta/propagation/talgebra.py::propagate_matmul",
+      "snippet": "return (tesa_in1, tesa_in2, tesa_out)"
+    },
+    "call_chain": [
+      "sparta/propagation/talgebra.py::propagate_matmul"
+    ],
+    "provenance": "ast",
+    "notes": "All guards above passed."
+  },
+  {
+    "schema_version": "0.1.0",
+    "region_id": "B001",
+    "artifact_id": "sparta",
+    "entry_point": "sparta/propagation/propagate.py::propagate_sparsity",
+    "condition": {
+      "expr": "tesa_id in log_dict",
+      "params": [
+        "log_dict",
+        "tesa_id"
+      ],
+      "path_prefix": [
+        "def bert_coarse_fp32_verify(config: dict):"
+      ]
+    },
+    "outcome": "suspicious",
+    "outcome_detail": "The weight TeSA used to build the BCSR data is not taken from the caller's config/model at all: it is loaded from a hard-coded absolute path on the authors' machine, and indexed by the config's tesa_id. Any user-supplied config therefore gets its sparsity pattern from that fixed checkpoint file (and the call fails outright if the path does not exist), so the specialization is not driven by the user's own sparsity attribute.",
+    "location": {
+      "file": "sparta/artifact_specialization/generate_code.py",
+      "line_start": 128,
+      "line_end": null,
+      "function": "sparta/artifact_specialization/generate_code.py::bert_coarse_fp32_verify",
+      "snippet": "tesa_dict = torch.load(\"/Data/nizhen/SparTA/script/checkpoints/bert/artifact_bert_coarse_onnx_with_tesa/tesa\")"
+    },
+    "call_chain": [],
+    "provenance": "llm",
+    "notes": "agent: outside the static walk"
+  },
+  {
+    "schema_version": "0.1.0",
+    "region_id": "B002",
+    "artifact_id": "sparta",
+    "entry_point": "sparta/propagation/propagate.py::propagate_sparsity",
+    "condition": {
+      "expr": "n <= template_config['BLOCK_SIZE_N_VALUE']",
+      "params": [
+        "n",
+        "template_config"
+      ],
+      "path_prefix": [
+        "def bert_coarse_fp32_verify(config: dict):"
+      ]
+    },
+    "outcome": "suspicious",
+    "outcome_detail": "The code first clamps BLOCK_SIZE_N_VALUE to the problem's n (and BLOCK_SIZE_M_VALUE to m) so the tiling fits the shape, then unconditionally overwrites BLOCK_SIZE_N_VALUE with the hard-coded 64, discarding both the tuned value from the log and the clamp. For any layer with n < 64 the generated kernel is built with a block width larger than the matrix, and the same 64 is then used as the TeSA block size in set_transform_meta, so the BCSR data and the kernel disagree with the shape.",
+    "location": {
+      "file": "sparta/artifact_specialization/generate_code.py",
+      "line_start": 144,
+      "line_end": null,
+      "function": "sparta/artifact_specialization/generate_code.py::bert_coarse_fp32_verify",
+      "snippet": "template_config['BLOCK_SIZE_N_VALUE'] = 64"
+    },
+    "call_chain": [],
+    "provenance": "llm",
+    "notes": "agent: outside the static walk"
+  },
+  {
+    "schema_version": "0.1.0",
+    "region_id": "B003",
+    "artifact_id": "sparta",
+    "entry_point": "sparta/propagation/propagate.py::propagate_sparsity",
+    "condition": {
+      "expr": "int(tesa_id) != 73",
+      "params": [
+        "int",
+        "tesa_id"
+      ],
+      "path_prefix": [
+        "def bert_coarse_int8_verify(config: dict):"
+      ]
+    },
+    "outcome": "suspicious",
+    "outcome_detail": "bert_coarse_int8_verify silently skips every layer of the caller's config except the one whose tesa_id is the hard-coded 73, so verification of the int8 BERT specialization only ever covers a single layer regardless of the model/config supplied. The tesa_id comes from the user's config dict.",
+    "location": {
+      "file": "sparta/artifact_specialization/generate_code.py",
+      "line_start": 177,
+      "line_end": null,
+      "function": "sparta/artifact_specialization/generate_code.py::bert_coarse_int8_verify",
+      "snippet": "if int(tesa_id) != 73:"
+    },
+    "call_chain": [],
+    "provenance": "llm",
+    "notes": "agent: outside the static walk"
+  },
+  {
+    "schema_version": "0.1.0",
+    "region_id": "B004",
+    "artifact_id": "sparta",
+    "entry_point": "sparta/propagation/propagate.py::propagate_sparsity",
+    "condition": {
+      "expr": "content.find(\"Pass\") == -1",
+      "params": [
+        "content"
+      ],
+      "path_prefix": [
+        "def verify_successful(file_name):"
+      ]
+    },
+    "outcome": "suspicious",
+    "outcome_detail": "Kernel correctness is decided by searching the program's stdout for the substring \"Pass\". A kernel that fails its own numerical check but prints anything containing \"Pass\" is accepted, and a correct kernel that does not print it is treated as failed (avg_latency forced to 10000). The verdict therefore depends on the generated kernel's output text rather than on the comparison result.",
+    "location": {
+      "file": "sparta/artifact_specialization/generate_code.py",
+      "line_start": 468,
+      "line_end": null,
+      "function": "sparta/artifact_specialization/generate_code.py::verify_successful",
+      "snippet": "if content.find(\"Pass\") == -1:"
+    },
+    "call_chain": [],
+    "provenance": "llm",
+    "notes": "agent: outside the static walk"
+  },
+  {
+    "schema_version": "0.1.0",
+    "region_id": "B005",
+    "artifact_id": "sparta",
+    "entry_point": "sparta/propagation/propagate.py::propagate_sparsity",
+    "condition": {
+      "expr": "info.module_name in self.modules_info",
+      "params": [
+        "info",
+        "self"
+      ],
+      "path_prefix": []
+    },
+    "outcome": "state_dependent",
+    "outcome_detail": "When a module name was already registered by an earlier update() call, the merge branch is taken; its body is only an ellipsis, so the new SparseModuleInfo (and its TeSA attributes) is silently discarded and the earlier state is kept. The result of propagation therefore depends on call order/earlier state.",
+    "location": {
+      "file": "sparta/common/sparsity.py",
+      "line_start": 57,
+      "line_end": null,
+      "function": "sparta/common/sparsity.py::ModelSparsityInfo.update",
+      "snippet": "if info.module_name in self.modules_info:"
+    },
+    "call_chain": [],
+    "provenance": "llm",
+    "notes": "sweep: outside the static walk"
+  },
+  {
+    "schema_version": "0.1.0",
+    "region_id": "B006",
+    "artifact_id": "sparta",
+    "entry_point": "sparta/propagation/propagate.py::propagate_sparsity",
+    "condition": {
+      "expr": "block_size is None",
+      "params": [
+        "block_size"
+      ],
+      "path_prefix": [
+        "def matmul_kernel_init(i_tesa: TeSA, w_tesa: TeSA, o_tesa: TeSA, bias=False) -> Tuple[str, str, Dict[str, List[int]]]:"
+      ]
+    },
+    "outcome": "fallback",
+    "outcome_detail": "The kernel template is selected purely from the weight TeSA's block_size attribute, which comes from the sparsity pattern the user attached. A weight with no block structure (block_size None) is specialized with dismantle = -1, i.e. the dense matmul template — the sparse mechanism is silently replaced by a dense kernel. Note also the comment on the block_size == 1 branch says \"not apply dismantle, kernel execute in dense way\" while the code sets dismantle = 8 (fine-grained sparse), and finegrained_matmul_template returns empty kernel strings, so that path produces an empty kernel.",
+    "location": {
+      "file": "sparta/specialization/specialize_kernel.py",
+      "line_start": 68,
+      "line_end": null,
+      "function": "sparta/specialization/specialize_kernel.py::matmul_kernel_init",
+      "snippet": "if block_size == None:"
+    },
+    "call_chain": [],
+    "provenance": "llm",
+    "notes": "agent: outside the static walk"
+  },
+  {
+    "schema_version": "0.1.0",
+    "region_id": "B007",
+    "artifact_id": "sparta",
+    "entry_point": "sparta/propagation/propagate.py::propagate_sparsity",
+    "condition": {
+      "expr": "n_bits != 8",
+      "params": [
+        "n_bits"
+      ],
+      "path_prefix": [
+        "def dense_matmul_template(shape, n_bits, bias):"
+      ]
+    },
+    "outcome": "reject",
+    "outcome_detail": "For a dense (block_size None) weight whose TeSA bit width is 32, the fp32 dense path is not implemented: `NotImplementedError(...)` is constructed but never raised, so execution falls through with `kernel`/`kernel_test`/`tuning_param` unbound and the caller dies with UnboundLocalError. The bit width is a property of the user's sparsity attribute, so a fp32 dense weight aborts specialization.",
+    "location": {
+      "file": "sparta/specialization/specialize_kernel.py",
+      "line_start": 164,
+      "line_end": null,
+      "function": "sparta/specialization/specialize_kernel.py::dense_matmul_template",
+      "snippet": "NotImplementedError(\"Shouldn't get through the fp32 dense specialization pass.\")"
+    },
+    "call_chain": [],
+    "provenance": "llm",
+    "notes": "agent: outside the static walk"
+  },
+  {
+    "schema_version": "0.1.0",
+    "region_id": "B008",
+    "artifact_id": "sparta",
+    "entry_point": "sparta/propagation/propagate.py::propagate_sparsity",
+    "condition": {
+      "expr": "size_h % block_h != 0 or size_w % block_w != 0",
+      "params": [
+        "block_h",
+        "block_w",
+        "size_h",
+        "size_w"
+      ],
+      "path_prefix": [
+        "def convert_to_block_csr(m_tensor, v_tensor, block_h, block_w):"
+      ]
+    },
+    "outcome": "fallback",
+    "outcome_detail": "When the weight matrix shape is not divisible by the block size chosen by the weighted block cover, convert_to_block_csr silently returns (None, None, None). bcsr_generate then writes three .bin files containing the bytes of `None` (numpy array(None, 'i')), and the generated kernel is compiled and run against those bogus BCSR index/value files; the resulting kernel is only rejected later by the \"Pass\" string check in verify_successful, which just assigns avg_latency = 10000. So an incompatible shape/block-size combination degrades into a failed kernel rather than an error.",
+    "location": {
+      "file": "sparta/specialization/specialize_kernel.py",
+      "line_start": 279,
+      "line_end": null,
+      "function": "sparta/specialization/specialize_kernel.py::convert_to_block_csr",
+      "snippet": "return None, None, None"
+    },
+    "call_chain": [],
+    "provenance": "llm",
+    "notes": "agent: outside the static walk"
+  },
+  {
+    "schema_version": "0.1.0",
+    "region_id": "B009",
+    "artifact_id": "sparta",
+    "entry_point": "sparta/propagation/propagate.py::propagate_sparsity",
+    "condition": {
+      "expr": "is_fast_pass(post_sparsity)",
+      "params": [
+        "is_fast_pass",
+        "post_sparsity"
+      ],
+      "path_prefix": [
+        "def optimize_and_rebuild(model: nn.Module,"
+      ]
+    },
+    "outcome": "fallback",
+    "outcome_detail": "optimize_and_rebuild branches on `is_fast_pass(post_sparsity)`, whose body is `...` (returns None, so the branch is currently dead), and then on the caller-supplied `backend` string: 'pytorch' calls rebuild_sparse_model_pytorch, which is a stub that just `return model` (the comment says \"return mocked for now\"), 'nnfusion' calls an unimplemented `...` function, and any other backend hits a bare `raise` with no active exception (RuntimeError: No active exception to re-raise). So the sparse-operator optimization result computed by TransformPolicy is discarded and the dense model is returned.",
+    "location": {
+      "file": "sparta/transformation/optimize_model.py",
+      "line_start": 36,
+      "line_end": null,
+      "function": "sparta/transformation/optimize_model.py::optimize_and_rebuild",
+      "snippet": "if is_fast_pass(post_sparsity):"
+    },
+    "call_chain": [],
+    "provenance": "llm",
+    "notes": "agent: outside the static walk"
+  },
+  {
+    "schema_version": "0.1.0",
+    "region_id": "B010",
+    "artifact_id": "sparta",
+    "entry_point": "sparta/propagation/propagate.py::propagate_sparsity",
+    "condition": {
+      "expr": "self.device_info is not None",
+      "params": [
+        "self"
+      ],
+      "path_prefix": [
+        "def hardware_bit_precisions(self) -> list:"
+      ]
+    },
+    "outcome": "suspicious",
+    "outcome_detail": "The set of supported bit precisions is a hard-coded constant (\"currently, specific for 2080ti\") and the `device_info` passed into TransformPolicy.__init__ (threaded from optimize_and_rebuild) is never consulted. The same list drives _align_to_hardware_bits and bit_align, so which variant runs (single aligned tensor vs. low/high decomposition) is fixed by the assumed GPU rather than the actual device.",
+    "location": {
+      "file": "sparta/transformation/transform_policy.py",
+      "line_start": 30,
+      "line_end": null,
+      "function": "sparta/transformation/transform_policy.py::TransformPolicy.hardware_bit_precisions",
+      "snippet": "return [4, 8, 16, 32]"
+    },
+    "call_chain": [],
+    "provenance": "llm",
+    "notes": "agent: outside the static walk"
+  },
+  {
+    "schema_version": "0.1.0",
+    "region_id": "B011",
+    "artifact_id": "sparta",
+    "entry_point": "sparta/propagation/propagate.py::propagate_sparsity",
+    "condition": {
+      "expr": "not isinstance(module_sparsity.module_obj, nn.Linear)",
+      "params": [
+        "isinstance",
+        "module_sparsity",
+        "nn"
+      ],
+      "path_prefix": [
+        "def transform_module(self, module_sparsity: SparseModuleInfo):"
+      ]
+    },
+    "outcome": "fallback",
+    "outcome_detail": "transform_module dispatches on the module type of the caller's model. Only nn.Linear is handled; nn.Conv2d and every other module fall into `...` branches, so `kernels` stays None and `aggr_type` is never bound — the function then raises UnboundLocalError at `return TransformedModule(module_sparsity, kernels, aggr_type)`. A model containing any non-Linear sparse module therefore aborts the whole optimization pass instead of being specialized.",
+    "location": {
+      "file": "sparta/transformation/transform_policy.py",
+      "line_start": 43,
+      "line_end": null,
+      "function": "sparta/transformation/transform_policy.py::TransformPolicy.transform_module",
+      "snippet": "if isinstance(module_sparsity.module_obj, nn.Linear):"
+    },
+    "call_chain": [],
+    "provenance": "llm",
+    "notes": "agent: outside the static walk"
+  },
+  {
+    "schema_version": "0.1.0",
+    "region_id": "B012",
+    "artifact_id": "sparta",
+    "entry_point": "sparta/propagation/propagate.py::propagate_sparsity",
+    "condition": {
+      "expr": "aligned_ideal_bit not in bit_options and not any(b > aligned_ideal_bit for b in bit_options)",
+      "params": [
+        "aligned_ideal_bit",
+        "any",
+        "b",
+        "bit_options"
+      ],
+      "path_prefix": [
+        "def _align_to_hardware_bits(self, bits: set, bit_options: list) -> bool:"
+      ]
+    },
+    "outcome": "reject",
+    "outcome_detail": "_align_to_hardware_bits rounds each bit width in the user's TeSA up to the next hardware precision from `hardware_bit_precisions()` = [4, 8, 16, 32]. If a sparsity attribute carries a bit width above 32 (e.g. 64, or any value whose 2^ceil(log2) exceeds 32), the `min([...])` over an empty list raises ValueError, aborting the transformation. The list of precisions is hard-coded for 2080ti and ignores `self.device_info` entirely.",
+    "location": {
+      "file": "sparta/transformation/transform_policy.py",
+      "line_start": 134,
+      "line_end": null,
+      "function": "sparta/transformation/transform_policy.py::TransformPolicy._align_to_hardware_bits",
+      "snippet": "aligned_bits.add(min([b for b in bit_options if b > aligned_ideal_bit]))"
+    },
+    "call_chain": [],
+    "provenance": "llm",
+    "notes": "agent: outside the static walk"
+  },
+  {
+    "schema_version": "0.1.0",
+    "region_id": "B013",
+    "artifact_id": "sparta",
+    "entry_point": "sparta/propagation/propagate.py::propagate_sparsity",
+    "condition": {
+      "expr": "decompose and len(aligned_bits) > 2",
+      "params": [
+        "aligned_bits",
+        "decompose",
+        "len"
+      ],
+      "path_prefix": [
+        "def bit_align(self, tesa: TeSA, n_candidates: int = 1, decompose: bool = True) -> List[tuple]:"
+      ]
+    },
+    "outcome": "reject",
+    "outcome_detail": "bit_align decomposes the weight TeSA only when the caller's sparsity attribute contains more than one distinct bit width, but it can only handle exactly two: with three or more distinct aligned bit widths the `assert len(aligned_bits) == 2` fails and the transformation is rejected (and with `python -O` the assert vanishes and `_convert_tesa_bits` silently keeps only min/max). The number of distinct bit widths comes entirely from the user's sparsity pattern.",
+    "location": {
+      "file": "sparta/transformation/transform_policy.py",
+      "line_start": 155,
+      "line_end": null,
+      "function": "sparta/transformation/transform_policy.py::TransformPolicy.bit_align",
+      "snippet": "assert len(aligned_bits) == 2"
+    },
+    "call_chain": [],
+    "provenance": "llm",
+    "notes": "agent: outside the static walk"
+  },
+  {
+    "schema_version": "0.1.0",
+    "region_id": "B014",
+    "artifact_id": "sparta",
+    "entry_point": "sparta/propagation/propagate.py::propagate_sparsity",
+    "condition": {
+      "expr": "cover_sizes[(1, 1)] < ordered_pricing[0][0]",
+      "params": [
+        "cover_sizes",
+        "ordered_pricing"
+      ],
+      "path_prefix": [
+        "def weighted_block_cover(tesa: TeSA, cover_sizes: dict) -> Tuple[list, set]:"
+      ]
+    },
+    "outcome": "mechanism_variant",
+    "outcome_detail": "The block-cover algorithm switches to a completely different variant based on the profiled cost table: if the per-element cost of a (1,1) block is cheaper than the cheapest candidate block, it returns `None, {(1,1)}` and the whole weight TeSA is treated as element-wise (1,1) blocks, i.e. no block sparsity is exploited. The same switch happens mid-loop at line 92 (`if price > cover_sizes[(1, 1)]`), abandoning the set-cover solution and returning the blocks chosen so far plus (1,1). The decision is driven by the hard-coded cost table in `available_covering_size()` and by the caller's sparsity pattern, not by any user option.",
+    "location": {
+      "file": "sparta/transformation/weighted_block_cover.py",
+      "line_start": 77,
+      "line_end": null,
+      "function": "sparta/transformation/weighted_block_cover.py::weighted_block_cover",
+      "snippet": "if cover_sizes[(1, 1)] < ordered_pricing[0][0]:"
+    },
+    "call_chain": [],
+    "provenance": "llm",
+    "notes": "agent: outside the static walk"
+  },
+  {
+    "schema_version": "0.1.0",
+    "region_id": "B015",
+    "artifact_id": "sparta",
+    "entry_point": "sparta/propagation/propagate.py::propagate_sparsity",
+    "condition": {
+      "expr": "len(unique_block_sizes) != 1",
+      "params": [
+        "len",
+        "unique_block_sizes"
+      ],
+      "path_prefix": [
+        "def wbc_matmul(in_tesa: TeSA, w_tesa: TeSA, out_tesa: TeSA) -> List[tuple]:"
+      ]
+    },
+    "outcome": "reject",
+    "outcome_detail": "wbc_matmul only supports a single block size for the weight TeSA. If the weighted block cover chosen from the caller's sparsity pattern (w_tesa) yields more than one block size, the code calls the unimplemented `decompose_blocked_tesas` (body is `...`) and then a bare `raise` with no active exception, which raises `RuntimeError: No active exception to re-raise`. So a sparsity pattern that needs mixed block sizes aborts the whole transformation instead of being handled.",
+    "location": {
+      "file": "sparta/transformation/weighted_block_cover.py",
+      "line_start": 123,
+      "line_end": null,
+      "function": "sparta/transformation/weighted_block_cover.py::wbc_matmul",
+      "snippet": "raise"
+    },
+    "call_chain": [],
+    "provenance": "llm",
+    "notes": "agent: outside the static walk"
+  }
+]
