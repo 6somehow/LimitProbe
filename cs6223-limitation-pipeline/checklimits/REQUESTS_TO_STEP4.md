@@ -24,3 +24,18 @@
 
 * `Region.location.function` 对嵌套函数写成 `outer.inner`（没有 `<locals>`）。测试侧已按这个约定匹配，请保持。
 * 19 条没有代码位置的论文侧 Finding 目前无法由测试侧处理（需要 differential / metamorphic 型 oracle，不在当前 harness 里）。如果论文侧能给出"论文公式对应的代码位置"，其中一部分可以按分支或异常效果测。
+
+## 5. 效果标签的约定（P0-3 / W2，2026-11-15）
+
+测试侧把每条 Finding 的 `effect_type` 当作"怎么判定"的指令。NNSmith 的 38 条里，15 条因为标签和目标语句对不上而没有测（`outcome_unsupported`），FlexPrefill 65 条里有 6 条。**这些不是测不了的 Finding，是标签用得不一致。**
+
+| `effect_type` | 测试侧怎么判 | 因此目标语句必须是 |
+|---|---|---|
+| `reject` | 目标位置抛出异常 | `assert`、`raise`，或分支体里有 `raise` 的 `if` / `while` |
+| `path_change`（测试侧叫 fallback） | 目标处的 `if` / `while` 条件为真，分支被执行 | `if` / `while` 语句本身（条件语句），不是赋值或函数调用 |
+| `state` | 前置调用之后，同一分支的判定变化 | 同上，且 witness 里有前置调用序列 |
+| `other` | 不判定 | 无要求 |
+
+NNSmith 里的反例：`while not check_sat():`（F002）和 `if ...: continue`（F005、F007）被标成 `reject`，它们不抛异常；`path_change` 被标在赋值语句上的有 7 条。这些如果能改标成 `other` 或者给出真正抛异常的位置，测试侧就能区分"测不了"和"没有标准确"。
+
+**请求：** step 4 在写 `effect_type` 前检查目标语句的类型，不满足上表的改标 `other`，或在 `witness_hint` 里另给出 `effect_location`（真正产生效果的语句）。测试侧会按这个字段重新选取。
