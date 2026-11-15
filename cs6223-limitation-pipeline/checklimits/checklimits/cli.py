@@ -37,6 +37,58 @@ def cmd_run(a: argparse.Namespace) -> int:
     return 0
 
 
+def _e2e_args(a: argparse.Namespace) -> dict:
+    from .agent_batch import artifact_paths
+    data_dir, ff, repo = artifact_paths(a.artifact)
+    return {"findings_file": a.findings_file or ff, "data_dir": a.data_dir or data_dir, "repo_rel": a.repo or repo}
+
+
+def _e2e_guard(fn):
+    """Run an e2e command; map the contract's exit codes (CONTRACT_TEST_REPORT.md section 6) and print the summary."""
+    from .e2e import EXIT_ERROR, EXIT_INPUT, InputError
+    try:
+        out = fn()
+    except (InputError, FileNotFoundError) as e:
+        print(json.dumps({"error": str(e), "exit_code": EXIT_INPUT}))
+        return EXIT_INPUT
+    except Exception as e:
+        print(json.dumps({"error": f"{type(e).__name__}: {e}"[:400], "exit_code": EXIT_ERROR}))
+        return EXIT_ERROR
+    print(json.dumps(out, indent=1, default=str))
+    return out.get("exit_code", 0)
+
+
+def cmd_test(a: argparse.Namespace) -> int:
+    from .e2e import DEFAULT_RESULTS_ROOT, run_test
+    return _e2e_guard(lambda: run_test(
+        a.artifact, results_root=Path(a.results_root) if a.results_root else DEFAULT_RESULTS_ROOT,
+        attempts_roots=[Path(p) for p in a.attempts_root] if a.attempts_root else None, run_agent=a.run_agent,
+        only=a.only, workers=a.workers, fast=a.fast, strict=a.strict, skip_envcheck=a.skip_envcheck, python=a.python,
+        **_e2e_args(a)))
+
+
+def cmd_report(a: argparse.Namespace) -> int:
+    from .e2e import DEFAULT_RESULTS_ROOT, run_report
+    def go():
+        kw = _e2e_args(a)
+        kw.pop("repo_rel")
+        return run_report(a.artifact, results_root=Path(a.results_root) if a.results_root else DEFAULT_RESULTS_ROOT,
+                          strict=a.strict, **kw)
+    return _e2e_guard(go)
+
+
+def cmd_envcheck(a: argparse.Namespace) -> int:
+    from .e2e import DEFAULT_RESULTS_ROOT, envcheck
+    def go():
+        kw = _e2e_args(a)
+        env = envcheck(a.artifact, kw["data_dir"], kw["repo_rel"], a.python)
+        root = Path(a.results_root) if a.results_root else DEFAULT_RESULTS_ROOT
+        (root / "tests" / a.artifact).mkdir(parents=True, exist_ok=True)
+        (root / "tests" / a.artifact / "ENV.json").write_text(json.dumps(env, indent=1) + "\n")
+        return {**env, "exit_code": 0 if env["status"] == "ok" else 4}
+    return _e2e_guard(go)
+
+
 def cmd_task(a: argparse.Namespace) -> int:
     from .agent_cli import task_text
     print(task_text(a.finding, a.data_dir, findings_file=a.findings_file))
@@ -163,6 +215,30 @@ def main(argv: list[str] | None = None) -> int:
     ra.add_argument("--out", required=True)
     ra.add_argument("--workers", type=int, default=3)
     ra.set_defaults(fn=cmd_reaudit)
+    def _common(sp, with_repo=True):
+        sp.add_argument("artifact", help="artifact_id as registered in data/*/artifact.json")
+        sp.add_argument("--findings-file", help="default: results/step4/<artifact>/limitations_for_tests.json")
+        sp.add_argument("--data-dir", help="default: the data/* directory whose artifact.json has this id")
+        sp.add_argument("--repo", help="repository dir relative to the pipeline root; default third_party/<repo name>")
+        sp.add_argument("--results-root", help="default: checklimits/results/e2e (the pipeline passes <root>/results)")
+        sp.add_argument("--python", help="interpreter of the code under test; default scratch/venv_<artifact>")
+    te = sub.add_parser("test", help="end to end: step 4 Findings -> one report.json per Finding + LIMITATIONS.md")
+    _common(te)
+    te.add_argument("--attempts-root", action="append", help="where to look for existing test packages (repeatable)")
+    te.add_argument("--run-agent", action="store_true", help="run the code agent for judgeable Findings without a package")
+    te.add_argument("--only", action="append", help="test only this finding id (repeatable); the rest keep earlier records")
+    te.add_argument("--workers", type=int, default=3)
+    te.add_argument("--fast", action="store_true")
+    te.add_argument("--strict", action="store_true", help="exit 4 if any Finding is not_run for env/agent/harness reasons")
+    te.add_argument("--skip-envcheck", action="store_true")
+    te.set_defaults(fn=cmd_test)
+    rp = sub.add_parser("report", help="regenerate LIMITATIONS.md from the records on disk")
+    _common(rp)
+    rp.add_argument("--strict", action="store_true")
+    rp.set_defaults(fn=cmd_report)
+    ec = sub.add_parser("envcheck", help="check repository commit, interpreter and entry imports; writes ENV.json")
+    _common(ec)
+    ec.set_defaults(fn=cmd_envcheck)
     b = sub.add_parser("bench", help="fault-injection benchmark (writes results/bench/)")
     b.add_argument("--case", action="append", help="case id (repeatable); default: all")
     b.add_argument("--out")
