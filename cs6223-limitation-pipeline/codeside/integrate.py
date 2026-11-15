@@ -18,6 +18,10 @@ Four steps:
                Paper side from 3a: deviates -> impl_deviates, absent -> not_implemented.
   3. witness   witness-v2 (codeside/witness.py): code-side conditions with aliases from the enclosing
                function; paper-side records get a condition from the LLM, checked against the cited code.
+               With a call graph (codeside/callgraph.py) the hint also carries the call chain from the entry
+               point to the target and the arguments at every call, and the solver states callee conditions
+               in the entry function's names (codeside/chain_bind.py): a check that cannot be reached
+               through any chain is `infeasible`.
   4. priority  consequence x reachability (see `priority`). The review field is filled from the blind
                review labels; a finding reviewed `wrong` drops to priority 3.
 """
@@ -32,6 +36,8 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Optional
 
+from codeside.callgraph import locate
+from codeside.chain_bind import ChainBinder
 from codeside.dedup import normalise
 from codeside.scope_check import ScopeChecker
 from codeside.verify3b import load_paper_side
@@ -73,6 +79,9 @@ class Context:
     labels: dict = field(default_factory=dict)  # (file, line) -> blind review record
     entry_points: list[str] = field(default_factory=list)  # "file::func" from artifact.json
     conformance: dict = field(default_factory=dict)  # behaviour id -> 3a record (conformance.json)
+    callgraph: object = None  # codeside.callgraph.RepoCallGraph of the repo
+    known_ids: dict = field(default_factory=dict)  # sorted limitation ids of a finding -> its id in the last run
+    effect_moves: dict = field(default_factory=dict)  # limitation id -> effect_anchor record of a moved target
 
 
 def resolve_same_as_above(lim: Limitation, conformance: dict) -> Optional[str]:
@@ -201,6 +210,64 @@ def _behaviour(lim: Limitation) -> str:
     return lim.limitation_id.split("-gap-", 1)[-1]
 
 
+CHAIN_KEYS = ("call_chain", "call_sites", "other_chains", "uncertain_steps", "calls_entry")
+
+
+def _chain_fields(info: dict, chosen: int = 0) -> dict:
+    """The call-chain part of a witness hint (see docs/09_step4_findings.md)."""
+    out = {"call_chain_status": info["status"]}
+    chains = info.get("chains") or []
+    if chains and chosen:
+        entry = info["entry"]
+        names = [[entry, *[c.callee for c in ch]] for ch in chains]
+        out["call_chain"] = names[chosen]
+        out["call_sites"] = [c.to_json() for c in chains[chosen]]
+        out["other_chains"] = [n for i, n in enumerate(names) if i != chosen]
+        unc = [f"{c.caller} -> {c.callee} ({c.resolved_by})" for c in chains[chosen] if not c.certain]
+        if unc:
+            out["uncertain_steps"] = unc
+    else:
+        out.update({k: info[k] for k in CHAIN_KEYS if k in info})
+    if info["status"] in ("not_found", "module_level") and info.get("note"):
+        out["call_chain_note"] = info["note"]
+    return out
+
+
+def code_witness(lim: Limitation, checker, ctx: Context) -> dict:
+    """witness-v2 for a code-side limitation, with the call chain when the repo's call graph is known."""
+    loc = lim.code_evidence[0] if lim.code_evidence else None
+    effect = _v(lim.effect_type)
+    info = locate(ctx.callgraph, ctx.entry_points, loc.file, loc.line_start) if ctx.callgraph and loc else None
+    chains = (info or {}).get("chains") or []
+    if info and info["status"] == "resolved" and lim.condition is not None:
+        # one problem per chain: the first chain that reaches the check gives the witness;
+        # the check is unreachable only if no chain reaches it
+        hints = []
+        for i, ch in enumerate(chains):
+            h = solve(lim.condition, checker, effect, None, ChainBinder(ctx.callgraph, info["entry"], ch, loc.line_start))
+            hints.append(h)
+            if h.get("status") != "infeasible":
+                break
+        chosen = len(hints) - 1 if hints[-1].get("status") != "infeasible" else 0
+        hint = hints[chosen]
+        if hint.get("status") == "infeasible" and len(chains) > 1 and hint.get("infeasible_because") == "call_chain":
+            hint["note"] += f" (all {len(chains)} call chains found were tried)"
+        hint.update(_chain_fields(info, chosen))
+        return hint
+    al = _aliases(ctx, loc, loc.line_start) if loc else {}
+    # without a chain the path prefix may mix frames; aliases of the innermost frame are only safe
+    # when there is no other frame (the check is in the entry function, or there is no prefix)
+    single_frame = not (lim.condition and lim.condition.path_prefix) or (loc and loc.function in ctx.entry_points)
+    hint = solve(lim.condition, checker, effect, al if single_frame else None)
+    if al and not single_frame:
+        hint["aliases_not_applied"] = al
+        hint.setdefault("note", "local definitions in the checked function, not used by the solver "
+                                "because the path prefix also holds caller conditions")
+    if info:
+        hint.update(_chain_fields(info))
+    return hint
+
+
 def _aliases(ctx: Context, loc, line: int) -> dict:
     if ctx.repo is None or loc is None:
         return {}
@@ -321,21 +388,20 @@ def integrate(artifact_id: str, code_lims: list[Limitation], code_vers: list[Ver
         # 3. witness
         loc = lim.code_evidence[0] if lim.code_evidence else None
         if lim.origin == "code":
-            al = _aliases(ctx, loc, loc.line_start) if loc else {}
-            # the path prefix mixes frames of the call chain; aliases of the innermost frame are only safe
-            # when there is no other frame (the check is in the entry function, or there is no prefix)
-            single_frame = not (lim.condition and lim.condition.path_prefix) or (loc and loc.function in ctx.entry_points)
-            hint = solve(lim.condition, checker, _v(lim.effect_type), al if single_frame else None)
-            if al and not single_frame:
-                hint["aliases_not_applied"] = al
-                hint.setdefault("note", "local definitions in the checked function, not used by the solver "
-                                        "because the path prefix also holds caller conditions")
+            hint = code_witness(lim, checker, ctx)
         else:
             hint = _paper_witness(lim, checker, ctx, cond_of.get(lim.limitation_id), conditions)
+            if ctx.callgraph and loc:  # where the cited code sits on the entry's call path (no solving)
+                hint.update(_chain_fields(locate(ctx.callgraph, ctx.entry_points, loc.file, loc.line_start)))
         if loc:
             hint["location"] = f"{loc.file}:{loc.line_start}" + (
                 f"-{loc.line_end}" if (loc.line_end or 0) > loc.line_start else "")
             hint["function"] = loc.function
+        moved = ctx.effect_moves.get(lim.limitation_id)
+        if moved:  # REQUESTS_TO_STEP4.md request 5: the statement that produces the effect
+            hint["effect_location"] = moved["to_location"]
+            hint["labelled_location"] = moved["from_location"]
+            hint["effect_location_reason"] = moved["reason"]
         # review (blind labels exist for code-side items only)
         review, review_note = "unreviewed", None
         for u in code:
@@ -362,7 +428,22 @@ def integrate(artifact_id: str, code_lims: list[Limitation], code_vers: list[Ver
                   priority=prio, rationale="; ".join(notes), review=review, review_note=review_note)
         drafts.append(((prio, 0 if code else 1, loc.file if loc else "", loc.line_start if loc else 0), kw, members))
     drafts.sort(key=lambda d: d[0])
-    fid_of_unit = {i: f"{artifact_id}-F{n:03d}" for n, d in enumerate(drafts, 1) for i in d[2]}
+    # ids are stable across runs: the test side archives results by finding id. A finding made of the same
+    # limitations as in the last run keeps its id; a new one gets the next free number. The order in the
+    # file is still the test order (priority first).
+    ids, used = [], set()
+    for _, kw, _ in drafts:
+        old = ctx.known_ids.get(tuple(sorted(kw["limitation_ids"])))
+        ids.append(old if old and old not in used else None)
+        used.add(old)
+    nums = [int(m.group(1)) for m in (re.fullmatch(rf"{re.escape(artifact_id)}-F(\d+)", i)
+                                      for i in ctx.known_ids.values()) if m]
+    free = max(nums, default=0)
+    for k, i in enumerate(ids):
+        if i is None:
+            free += 1
+            ids[k] = f"{artifact_id}-F{free:03d}"
+    fid_of_unit = {i: ids[n] for n, d in enumerate(drafts) for i in d[2]}
     # candidate pairs judged different (or not judged) stay linked: same code region, worth reading together
     related: dict[str, set[str]] = {}
     for i, j, _ in pairs:
@@ -371,8 +452,8 @@ def integrate(artifact_id: str, code_lims: list[Limitation], code_vers: list[Ver
             related.setdefault(a, set()).add(b)
             related.setdefault(b, set()).add(a)
     findings = []
-    for n, (_, kw, _) in enumerate(drafts, 1):
-        fid = f"{artifact_id}-F{n:03d}"
+    for n, (_, kw, _) in enumerate(drafts):
+        fid = ids[n]
         if fid in related:
             kw["rationale"] += "; related (candidate pair, judged different): " + ", ".join(sorted(related[fid]))
         findings.append(Finding(finding_id=fid, **kw))
@@ -438,6 +519,8 @@ def _report(findings: list[Finding], rules: Rules, units: list[_Unit], pairs: li
         "by_category_priority": dict(Counter(f"{_v(f.category)}/p{f.priority}" for f in findings)),
         "by_review": dict(Counter(_v(f.review) for f in findings)),
         "witness_status": dict(Counter(f.witness_hint.get("status") for f in findings if f.witness_hint)),
+        "call_chain_status": dict(Counter(f.witness_hint.get("call_chain_status", "none") for f in findings
+                                          if f.witness_hint)),
         "scope_status": dict(Counter(_v(f.scope_status) for f in findings)),
     }
 

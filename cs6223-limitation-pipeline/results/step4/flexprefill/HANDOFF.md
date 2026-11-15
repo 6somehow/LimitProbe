@@ -50,7 +50,7 @@
 
 | 来源 | p1 | p2 | p3 | 合计 |
 |---|---|---|---|---|
-| 代码侧 | 16 | 13 | 17 | 46 |
+| 代码侧 | 12 | 12 | 22 | 46 |
 | 论文侧 | 0 | 9 | 10 | 19 |
 | 两侧合并 | 0 | 0 | 0 | 0 |
 
@@ -58,7 +58,7 @@
 
 | 来源 | reject | path_change | state | accuracy | resource | performance | other | 合计 |
 |---|---|---|---|---|---|---|---|---|
-| 代码侧 | 31 | 10 | 1 | 0 | 0 | 0 | 4 | 46 |
+| 代码侧 | 30 | 9 | 1 | 0 | 0 | 0 | 6 | 46 |
 | 论文侧 | 0 | 0 | 0 | 0 | 0 | 0 | 19 | 19 |
 | 两侧合并 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 
@@ -66,7 +66,7 @@
 
 | 来源 | solved | solved_contrast_outside_scope | trigger_only | always | infeasible | untranslatable | unknown | no_condition | 合计 |
 |---|---|---|---|---|---|---|---|---|---|
-| 代码侧 | 38 | 0 | 1 | 0 | 7 | 0 | 0 | 0 | 46 |
+| 代码侧 | 35 | 0 | 0 | 0 | 11 | 0 | 0 | 0 | 46 |
 | 论文侧 | 3 | 0 | 0 | 15 | 0 | 0 | 0 | 1 | 19 |
 | 两侧合并 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 
@@ -112,12 +112,26 @@
 | solved_contrast_outside_scope | contrast 只能取在论文 scope 外 | 同上，注意 contrast 不在论文范围内 |
 | trigger_only | 条件在路径上总是成立，没有对照点 | 只用 trigger |
 | always | 论文侧：每次走到引用代码都会出现 | 任意走到 `code_locations` 的输入 |
-| infeasible | 条件和路径前缀矛盾，从入口很可能走不到 | 已降为 p3；可能是误报 |
+| infeasible | 条件和路径前缀矛盾，从入口走不到。`infeasible_because: call_chain` 表示是把被调函数的名字换成入口函数的名字之后才矛盾的（见下面“调用链”） | 已降为 p3，不用花预算 |
 | no_condition | 论文侧：没有可用条件 | 读 `note` 和 summary，人工判断 |
 | untranslatable / unknown | 条件翻译不了 / 求解超时 | 读 condition 原文 |
 
+调用链（`call_chain_status`）：
+
+| 值 | 意思 |
+|---|---|
+| resolved | `call_chain` 是从入口函数到目标所在函数的真实调用链（入口在前）。`call_sites` 逐层给出调用所在行、解析方式（`resolved_by`）和参数对应 `args`（被调函数的形参 -> 调用者里的表达式） |
+| entry_is_target | 目标就在入口函数里 |
+| module_level | 目标是模块级语句，import 时执行，没有调用链 |
+| not_found | 静态分析找不到从入口到目标的调用链（动态分发、回调，或目标不在入口的路径上）。有 `calls_entry` 时表示这个函数是调用入口的一方（如框架集成），要直接驱动它 |
+
+- `uncertain_steps` 列出靠猜解析的调用（方法名在仓库里唯一、子类覆盖、嵌套函数被传出去）。
+- `other_chains` 是其它调用链（例如同一个函数有两个调用点）。
+- `entry_terms`：条件和路径前缀换成入口函数名字后的写法，以及每个名字对应的入口表达式（如 `d` -> `k.shape[3]`）。有它时 `aliases` 也是用入口函数的名字写的。
+
 已知不足：
-- `path_prefix` 混着调用链上各层函数的条件。同一个名字在调用者和被调用者里可能不是同一个东西（例如两层里的 `q`）。所以别名只在单层时参与求解，其余只列在 `aliases_not_applied` 里。
+- 没有调用链（not_found）时，`path_prefix` 仍混着各层函数的条件，同一个名字在调用者和被调用者里可能不是同一个东西。这时别名只在单层时参与求解，其余只列在 `aliases_not_applied` 里。
+- 多行语句的 `snippet` 是 `ast.unparse` 后的第一行：并成一行、去掉 assert 消息、去掉多余括号，最多 200 字符。请按解析后的条件比较，不要逐字比较。
 - 论文侧条件由 LLM 写出，只核对过“名字都出现在引用的代码里”，**语义不一定对**，要当提示用。
 - 所有值都没有实际执行验证过。
 
@@ -136,66 +150,67 @@
 
 每个例子是一条 Finding 的精简版，长字段已截断；完整内容在 json 里。例子是按规则自动挑的第一条，不是挑好看的。“论文侧 · LLM 写出条件”那条正好说明了它的局限：条件在形式上能解，但不一定抓住了论文差异的本质，所以论文侧条件只当提示用。
 
-### 代码侧 · undisclosed · p1 · 有别名：`flexprefill-F003`
+### 代码侧 · undisclosed · p1 · 有别名：`flexprefill-F015`
 
 ```json
 {
- "finding_id": "flexprefill-F003",
+ "finding_id": "flexprefill-F015",
  "category": "undisclosed",
  "priority": 1,
  "effect_type": "reject",
  "scope_status": "unknown",
  "review": "real_but_minor",
- "summary": "When num_q_heads % num_kv_heads != 0: GQA requires the number of query heads to be a multiple of KV heads; otherwise execution stops. (flex_prefill/ops/flex_prefill_attention.py:247)",
+ "summary": "When q_len != k_len: Rejects inputs where query and key sequence lengths differ, so no cross-length (e.g. decode-style) attention is supported. (flex_prefill/ops/vertical_slash_attention.py:265)",
  "witness_hint": {
   "kind": "input_value",
   "status": "solved",
-  "condition": "num_q_heads % num_kv_heads != 0",
+  "condition": "q_len != k_len",
   "path_prefix": [],
   "aliases": {
-   "num_q_heads": "q.shape[2]",
-   "num_kv_heads": "k.shape[2]"
+   "q_len": "q.shape[1]",
+   "k_len": "k.shape[1]"
   },
   "trigger": {
-   "num_q_heads": 5,
-   "num_kv_heads": 4,
-   "q.shape[2]": 5,
-   "k.shape[2]": 4
+   "q_len": 1,
+   "k_len": 2,
+   "q.shape[1]": 1,
+   "k.shape[1]": 2
   },
   "contrast": {
-   "num_q_heads": 5,
-   "num_kv_heads": 5,
-   "q.shape[2]": 5,
-   "k.shape[2]": 5
+   "q_len": 2,
+   "k_len": 2,
+   "q.shape[1]": 2,
+   "k.shape[1]": 2
   },
   "atoms": {
-   "k.shape[2]": {
+   "k.shape[1]": {
     "kind": "derived",
     "sort": "int"
    },
-   "num_kv_heads": {
+   "k_len": {
     "kind": "local",
     "sort": "int"
    },
-   "num_q_heads": {
-    "kind": "local",
-    "sort": "int"
-   },
-   "q.shape[2]": {
+   "q.shape[1]": {
     "kind": "derived",
+    "sort": "int"
+   },
+   "q_len": {
+    "kind": "local",
     "sort": "int"
    }
   },
-  "location": "flex_prefill/ops/flex_prefill_attention.py:247"
+  "call_chain_status": "not_found",
+  "location": "flex_prefill/ops/vertical_slash_attention.py:265"
  },
  "limitations": [
   {
-   "limitation_id": "CL-B009",
+   "limitation_id": "CL-B013",
    "origin": "code",
-   "condition_text": "num_q_heads % num_kv_heads != 0",
-   "effect_text": "GQA requires the number of query heads to be a multiple of KV heads; otherwise execution stops.",
+   "condition_text": "q_len != k_len",
+   "effect_text": "Rejects inputs where query and key sequence lengths differ, so no cross-length (e.g. decode-style) attention is supported.",
    "code_evidence": [
-    "flex_prefill/ops/flex_prefill_attention.py:247-247"
+    "flex_prefill/ops/vertical_slash_attention.py:265-265"
    ],
    "paper_quote": null
   }
@@ -211,56 +226,49 @@
 }
 ```
 
-### 代码侧 · stated_differently（文档说得比代码弱）：`flexprefill-F019`
+### 代码侧 · stated_differently（文档说得比代码弱）：`flexprefill-F027`
 
 ```json
 {
- "finding_id": "flexprefill-F019",
+ "finding_id": "flexprefill-F027",
  "category": "stated_differently",
  "priority": 2,
  "effect_type": "reject",
  "scope_status": "unknown",
- "review": "worth_testing",
- "summary": "When not (\"llama\" in model_name.lower() or \"glm\" in model_name.lower() or \"qwen2\" in model_name.lower()): Any HF model whose class name lacks llama/glm/qwen2 is rejected outright. (flex_prefill/modules/patch.py:320)",
+ "review": "real_but_minor",
+ "summary": "When q.dtype != torch.bfloat16: Rejects any query tensor not in bfloat16, so callers using fp16/fp32 cannot run this kernel. (flex_prefill/ops/vertical_slash_attention.py:264)",
  "witness_hint": {
   "kind": "input_value",
   "status": "solved",
-  "condition": "not (\"llama\" in model_name.lower() or \"glm\" in model_name.lower() or \"qwen2\" in model_name.lower())",
+  "condition": "q.dtype != torch.bfloat16",
   "path_prefix": [],
   "trigger": {
-   "'llama' in model_name.lower()": false,
-   "'glm' in model_name.lower()": false,
-   "'qwen2' in model_name.lower()": false
-  },
-  "contrast": {
-   "'llama' in model_name.lower()": true,
-   "'glm' in model_name.lower()": false,
-   "'qwen2' in model_name.lower()": false
-  },
-  "atoms": {
-   "'glm' in model_name.lower()": {
-    "kind": "predicate",
-    "sort": "bool"
-   },
-   "'llama' in model_name.lower()": {
-    "kind": "predicate",
-    "sort": "bool"
-   },
-   "'qwen2' in model_name.lower()": {
-    "kind": "predicate",
-    "sort": "bool"
+   "q.dtype": {
+    "not_in": [
+     "torch.bfloat16"
+    ]
    }
   },
-  "location": "flex_prefill/modules/patch.py:320"
+  "contrast": {
+   "q.dtype": "torch.bfloat16"
+  },
+  "atoms": {
+   "q.dtype": {
+    "kind": "category",
+    "sort": "str"
+   }
+  },
+  "call_chain_status": "not_found",
+  "location": "flex_prefill/ops/vertical_slash_attention.py:264"
  },
  "limitations": [
   {
-   "limitation_id": "CL-B006",
+   "limitation_id": "CL-B012",
    "origin": "code",
-   "condition_text": "not (\"llama\" in model_name.lower() or \"glm\" in model_name.lower() or \"qwen2\" in model_name.lower())",
-   "effect_text": "Any HF model whose class name lacks llama/glm/qwen2 is rejected outright.",
+   "condition_text": "q.dtype != torch.bfloat16",
+   "effect_text": "Rejects any query tensor not in bfloat16, so callers using fp16/fp32 cannot run this kernel.",
    "code_evidence": [
-    "flex_prefill/modules/patch.py:320-320"
+    "flex_prefill/ops/vertical_slash_attention.py:264-264"
    ],
    "paper_quote": null
   }
@@ -271,7 +279,7 @@
    "documented_in": [
     "readme"
    ],
-   "quote": "Currently, `flex_prefill.patch_model` only supports the following models: - LLaMA: [meta-llama/Meta-Llama-3.1-8B-Instru…"
+   "quote": "Note: The current version only supports inference with a batch size of 1 and has only been tested with bfloat16 precisi…"
   }
  ],
  "rationale": "3b: weaker in readme; 3b weaker; priority 2: stated_differently"
@@ -310,6 +318,7 @@
     "sort": "str"
    }
   },
+  "call_chain_status": "not_found",
   "location": "flex_prefill/modules/patch.py:114"
  },
  "limitations": [
@@ -360,28 +369,49 @@
    "block_size in {16, 32, 64, 128}",
    "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))"
   ],
+  "aliases": {
+   "q_len": "q.shape[1]"
+  },
+  "entry_terms": {
+   "path_prefix": {
+    "batch_size == 1": "k.shape[0] == 1",
+    "not q_len == 1": "not q.shape[1] == 1",
+    "head_dim in {16, 32, 64, 128}": "k.shape[3] in {16, 32, 64, 128}"
+   },
+   "names": {
+    "q_len": "q.shape[1]"
+   }
+  },
   "trigger": {
    "causal_mask is None": true,
    "batch_size": 1,
    "q_len": 385,
-   "q.shape[1]": 1,
-   "k.shape[1]": 1,
-   "head_dim": 32,
+   "q.shape[1]": 385,
+   "k.shape[1]": 385,
+   "head_dim": 16,
    "block_size": 128,
-   "min_budget": 384
+   "min_budget": 318,
+   "k.shape[0]": 1,
+   "k.shape[3]": 64
   },
   "contrast": {
    "causal_mask is None": false,
    "batch_size": 1,
    "q_len": 385,
-   "q.shape[1]": 1,
-   "k.shape[1]": 1,
-   "head_dim": 32,
+   "q.shape[1]": 385,
+   "k.shape[1]": 385,
+   "head_dim": 16,
    "block_size": 128,
-   "min_budget": 384
+   "min_budget": 318,
+   "k.shape[0]": 1,
+   "k.shape[3]": 64
   },
-  "atoms": "... 8 atoms, see json",
-  "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+  "atoms": "... 10 atoms, see json",
+  "call_chain_status": "resolved",
+  "call_chain": [
+   "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention",
+   "flex_prefill/ops/flex_prefill_attention.py::get_active_blocks"
+  ],
   "location": "flex_prefill/ops/flex_prefill_attention.py:1695-1698"
  },
  "limitations": [
@@ -407,21 +437,21 @@
 }
 ```
 
-### 代码侧 · infeasible（多半走不到，p3）：`flexprefill-F041`
+### 代码侧 · infeasible（多半走不到，p3）：`flexprefill-F004`
 
 ```json
 {
- "finding_id": "flexprefill-F041",
- "category": "stated_differently",
+ "finding_id": "flexprefill-F004",
+ "category": "undisclosed",
  "priority": 3,
  "effect_type": "reject",
  "scope_status": "unknown",
  "review": "unreviewed",
- "summary": "When not (q.dtype == torch.bfloat16): AssertionError (flex_prefill/ops/flex_prefill_attention.py:868)",
+ "summary": "When not (q_len == 1): AssertionError (flex_prefill/ops/flex_prefill_attention.py:865)",
  "witness_hint": {
   "kind": "input_value",
   "status": "infeasible",
-  "condition": "not (q.dtype == torch.bfloat16)",
+  "condition": "not (q_len == 1)",
   "path_prefix": [
    "batch_size == 1",
    "not (q_len == 1)",
@@ -429,34 +459,51 @@
    "head_dim in {16, 32, 64, 128}",
    "block_size in {16, 32, 64, 128}",
    "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
-   "not (q.shape[1] > 1)",
-   "q_len == 1"
+   "not (q.shape[1] > 1)"
   ],
-  "note": "no values satisfy path prefix, condition and scope together",
-  "location": "flex_prefill/ops/flex_prefill_attention.py:868"
+  "aliases": {
+   "q_len": "q.shape[1]"
+  },
+  "entry_terms": {
+   "condition": "not q.shape[1] == 1",
+   "path_prefix": {
+    "batch_size == 1": "k.shape[0] == 1",
+    "head_dim in {16, 32, 64, 128}": "k.shape[3] in {16, 32, 64, 128}"
+   },
+   "names": {
+    "q_len": "q.shape[1]"
+   }
+  },
+  "note": "unreachable through this call chain: once callee names are stated in the entry function's names (entry_terms), path prefix and condition cannot hold together",
+  "infeasible_because": "call_chain",
+  "call_chain_status": "resolved",
+  "call_chain": [
+   "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention",
+   "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_attention",
+   "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_decode_attention"
+  ],
+  "location": "flex_prefill/ops/flex_prefill_attention.py:865"
  },
  "limitations": [
   {
-   "limitation_id": "CL-X025",
+   "limitation_id": "CL-X024",
    "origin": "code",
-   "condition_text": "not (q.dtype == torch.bfloat16)",
+   "condition_text": "not (q_len == 1)",
    "effect_text": "AssertionError",
    "code_evidence": [
-    "flex_prefill/ops/flex_prefill_attention.py:868-868"
+    "flex_prefill/ops/flex_prefill_attention.py:865-865"
    ],
    "paper_quote": null
   }
  ],
  "verifications": [
   {
-   "result": "weaker",
-   "documented_in": [
-    "readme"
-   ],
-   "quote": "Note: The current version only supports inference with a batch size of 1 and has only been tested with bfloat16 precisi…"
+   "result": "not_found",
+   "documented_in": [],
+   "quote": null
   }
  ],
- "rationale": "3b: weaker in readme; 3b weaker; priority 3: unreachable: condition contradicts its path prefix"
+ "rationale": "3b: not_found; priority 3: unreachable: condition contradicts its path prefix"
 }
 ```
 
@@ -480,6 +527,7 @@
    "experiments/scripts/flex_prefill/ruler.sh:21-29"
   ],
   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The paper's upper-bound derivation (single query position, a_k ≤ a_S / a_k ≤ 1−a_S) has no corresponding implem…",
+  "call_chain_status": "not_found",
   "location": "experiments/scripts/flex_prefill/ruler.sh:21-29"
  },
  "limitations": [
@@ -509,62 +557,85 @@
 }
 ```
 
-### 论文侧 · LLM 写出条件并求解：`flexprefill-F032`
+### 论文侧 · LLM 写出条件并求解：`flexprefill-F030`
 
 ```json
 {
- "finding_id": "flexprefill-F032",
+ "finding_id": "flexprefill-F030",
  "category": "impl_deviates",
  "priority": 2,
  "effect_type": "other",
  "scope_status": "unknown",
  "review": "unreviewed",
- "summary": "论文取累计和 ≥γ 的最小前缀长度 K；代码保留累计和 ≤γ*num_blocks 的项，边界条件与阈值尺度均不同，且未显式求 K",
+ "summary": "论文要求最小 k 使累计≥γ；代码取累计>γ 的最小 k（累计恰等于 γ 时多选一条），且 //128+1 放大、min/max_budget 覆盖，K_v 不再是论文定义的最小前缀（artifact 范围：>γ 而非 ≥γ，且 //128+1 与预算截断改变前缀长度）",
  "witness_hint": {
   "kind": "input_value",
   "status": "solved",
-  "condition": "gamma != gamma * num_blocks",
+  "condition": "torch.any(torch.cumsum(torch.sort(vertical, dim=-1, descending=True).values, dim=-1) == gamma) or torch.any(torch.cumsum(torch.sort(slash, dim=-1, descending=True).values, dim=-1) == gamma) or torch.any(score_cover_topk(vertical, gamma) // 128 + 1 != score_cover_topk(vertical, gamma)) or torch.any(score_cover_topk(slash, gamma) // 128 + 1 != score_cover_topk(slash, gamma)) or torch.any(score_cover_topk(vertical, gamma) // 128 + 1 < min_budget) or torch.any(score_cover_topk(vertical, gamma) // 128 + 1 > max_budget) or torch.any(score_cover_topk(slash, gamma) // 128 + 1 < min_budget) or torch.any(score_cover_topk(slash, gamma) // 128 + 1 > max_budget)",
   "path_prefix": [],
   "trigger": {
-   "gamma": 2,
-   "num_blocks": 2
+   "torch.any(torch.cumsum(torch.sort(vertical, dim=-1, descending=True).values, dim=-1) == gamma)": true,
+   "torch.any(torch.cumsum(torch.sort(slash, dim=-1, descending=True).values, dim=-1) == gamma)": false,
+   "torch.any(score_cover_topk(vertical, gamma) // 128 + 1 != score_cover_topk(vertical, gamma))": false,
+   "torch.any(score_cover_topk(slash, gamma) // 128 + 1 != score_cover_topk(slash, gamma))": false,
+   "torch.any(score_cover_topk(vertical, gamma) // 128 + 1 < min_budget)": false,
+   "torch.any(score_cover_topk(vertical, gamma) // 128 + 1 > max_budget)": false,
+   "torch.any(score_cover_topk(slash, gamma) // 128 + 1 < min_budget)": false,
+   "torch.any(score_cover_topk(slash, gamma) // 128 + 1 > max_budget)": false
   },
   "contrast": {
-   "gamma": 2,
-   "num_blocks": 1
+   "torch.any(torch.cumsum(torch.sort(vertical, dim=-1, descending=True).values, dim=-1) == gamma)": false,
+   "torch.any(torch.cumsum(torch.sort(slash, dim=-1, descending=True).values, dim=-1) == gamma)": false,
+   "torch.any(score_cover_topk(vertical, gamma) // 128 + 1 != score_cover_topk(vertical, gamma))": false,
+   "torch.any(score_cover_topk(slash, gamma) // 128 + 1 != score_cover_topk(slash, gamma))": false,
+   "torch.any(score_cover_topk(vertical, gamma) // 128 + 1 < min_budget)": false,
+   "torch.any(score_cover_topk(vertical, gamma) // 128 + 1 > max_budget)": false,
+   "torch.any(score_cover_topk(slash, gamma) // 128 + 1 < min_budget)": false,
+   "torch.any(score_cover_topk(slash, gamma) // 128 + 1 > max_budget)": false
   },
-  "atoms": {
-   "gamma": {
-    "kind": "input",
-    "sort": "int"
-   },
-   "num_blocks": {
-    "kind": "input",
-    "sort": "int"
-   }
-  },
+  "atoms": "... 8 atoms, see json",
   "code_locations": [
-   "flex_prefill/ops/flex_prefill_attention.py:1661-1779",
-   "flex_prefill/ops/flex_prefill_attention.py:1588-1598"
+   "flex_prefill/ops/flex_prefill_attention.py:1588-1591",
+   "flex_prefill/ops/flex_prefill_attention.py:1707-1716",
+   "flex_prefill/ops/flex_prefill_attention.py:1730-1758"
   ],
   "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
-  "location": "flex_prefill/ops/flex_prefill_attention.py:1661-1779"
+  "call_chain_status": "resolved",
+  "call_chain": [
+   "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention",
+   "flex_prefill/ops/flex_prefill_attention.py::get_active_blocks",
+   "flex_prefill/ops/flex_prefill_attention.py::score_cover_topk"
+  ],
+  "location": "flex_prefill/ops/flex_prefill_attention.py:1588-1591"
  },
  "limitations": [
   {
-   "limitation_id": "flexprefill-gap-M07-B05",
+   "limitation_id": "flexprefill-gap-M08-B05",
    "origin": "paper",
-   "condition_text": "Pinned inspected artifact path: 同一 Triton/PyTorch 路径：triton_bnhd_pool、torch_bhn_sumpool、score_cover_idx、transform_veritcal_slash_idx 及 flex_prefill_attention 内…",
+   "condition_text": "Pinned inspected artifact path: 同一 flex_prefill 路径的索引选择+块稀疏注意力内核：get_active_blocks、score_cover_topk、sum_all_diagonal_matrix、transform_veritcal_slash_idx、triton…",
+   "effect_text": "同上：>γ 而非 ≥γ，且 //128+1 与预算截断改变前缀长度",
+   "code_evidence": [
+    "flex_prefill/ops/flex_prefill_attention.py:1588-1591",
+    "flex_prefill/ops/flex_prefill_attention.py:1707-1716",
+    "flex_prefill/ops/flex_prefill_attention.py:1730-1758"
+   ],
+   "paper_quote": "# Sort vertical and slash attention scores Iv← argsort(av) Is← argsort(as) # Obtain the minimum computational budget making the sum of the …"
+  },
+  {
+   "limitation_id": "flexprefill-gap-M08-B06",
+   "origin": "paper",
+   "condition_text": "Pinned inspected artifact path: 同一 flex_prefill 路径的索引选择+块稀疏注意力内核：get_active_blocks、score_cover_topk、sum_all_diagonal_matrix、transform_veritcal_slash_idx、triton…",
    "effect_text": "同上",
    "code_evidence": [
-    "flex_prefill/ops/flex_prefill_attention.py:1661-1779",
-    "flex_prefill/ops/flex_prefill_attention.py:1588-1598"
+    "flex_prefill/ops/flex_prefill_attention.py:1588-1591",
+    "flex_prefill/ops/flex_prefill_attention.py:1707-1716",
+    "flex_prefill/ops/flex_prefill_attention.py:1730-1758"
    ],
-   "paper_quote": "Ia← argsort( ¯A) # Obtain the minimum computational budget making the sum of the scores exceedsγ K← min{k :P i∈Ia[1:k] ¯A[i]≥γ}"
+   "paper_quote": "# Sort vertical and slash attention scores Iv← argsort(av) Is← argsort(as) # Obtain the minimum computational budget making the sum of the …"
   }
  ],
  "verifications": [],
- "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 2: impl_deviates; related (candidate pair, judged different): flexprefill-F012, flexprefill-F025, flexprefill-F031, flexprefill-F050"
+ "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; merged (LLM: same issue): flexprefill-gap-M08-B06; priority 2: impl_deviates; related (candidate pair, judged different): flexprefill-F050"
 }
 ```
 
@@ -589,6 +660,7 @@
    "experiments/scripts/flex_prefill/infinitebench.sh:20-65"
   ],
   "note": "not decided by input values: The gap concerns hardware/device configuration (single A100 80GB vs. accelerate multi-process/multi-GPU), which is not determined by any input value in the shown code.",
+  "call_chain_status": "not_found",
   "location": "experiments/scripts/flex_prefill/ruler.sh:16-45"
  },
  "limitations": [
@@ -620,14 +692,10 @@
 | F001 | 代 | undisclosed | 1 | reject | solved | ✓ | `flex_prefill/modules/patch.py:123` | When not isinstance(model, LlamaForCausalLM): Patching a non-LlamaForCausalLM model with a non-defa… |
 | F002 | 代 | undisclosed | 1 | reject | solved |  | `flex_prefill/modules/patch.py:241` | When not isinstance(model, Qwen2ForCausalLM): Patching a non-Qwen2ForCausalLM model with a non-defa… |
 | F003 | 代 | undisclosed | 1 | reject | solved | ~ | `flex_prefill/ops/flex_prefill_attention.py:247` | When num_q_heads % num_kv_heads != 0: GQA requires the number of query heads to be a multiple of KV… |
-| F004 | 代 | undisclosed | 1 | reject | trigger_only |  | `flex_prefill/ops/flex_prefill_attention.py:865` | When not (q_len == 1): AssertionError |
-| F005 | 代 | undisclosed | 1 | reject | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1219` | When not (q_len == k_len): AssertionError |
 | F006 | 代 | undisclosed | 1 | reject | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1240-1244` | When not (isinstance(block_idx, list) and isinstance(block_idx[0], list) and isinstance(block_idx[0… |
 | F007 | 代 | undisclosed | 1 | reject | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1245` | When not (len(block_idx) == batch_size and len(block_idx[0]) == num_q_heads): AssertionError |
 | F008 | 代 | undisclosed | 1 | reject | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1256` | When not (num_block <= total_q_blocks * (total_q_blocks + 1) // 2): AssertionError |
 | F009 | 代 | undisclosed | 1 | reject | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1258` | When not (num_q_heads % num_kv_heads == 0): AssertionError |
-| F010 | 代 | undisclosed | 1 | reject | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1450` | When not (d in {16, 32, 64, 128}): AssertionError |
-| F011 | 代 | undisclosed | 1 | reject | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1451` | When not (kernel_size in {16, 32, 64, 128, 256, 512}): AssertionError |
 | F012 | 代 | undisclosed | 1 | state | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1695-1698` | When causal_mask is None # first call only: module-level cache initialised on first call and reused |
 | F013 | 代 | undisclosed | 1 | reject | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1836` | When not (q.shape[1] == k.shape[1]): AssertionError |
 | F014 | 代 | undisclosed | 1 | reject | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1837` | When not (head_dim in {16, 32, 64, 128}): AssertionError |
@@ -641,7 +709,6 @@
 | F022 | 代 | stated_differently | 2 | reject | solved | ✓ | `flex_prefill/ops/flex_prefill_attention.py:672` | When q.dtype != torch.bfloat16: triton_flash_attention rejects non-bfloat16 queries before dispatch… |
 | F023 | 代 | stated_differently | 2 | reject | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1218` | When not (q.dtype == torch.bfloat16): AssertionError |
 | F024 | 代 | stated_differently | 2 | reject | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1222-1226` | When not (block_size in {32, 64, 128}): 'only support block size in {32, 64, 128} if head_dim <= 12… |
-| F025 | 代 | undisclosed | 2 | path_change | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1727` | When kl_div < tau: per-element branch stored in block_sparse_mask |
 | F026 | 代 | undisclosed | 2 | path_change | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1842-1854` | When q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size): returns via fla… |
 | F027 | 代 | stated_differently | 2 | reject | solved | ~ | `flex_prefill/ops/vertical_slash_attention.py:264` | When q.dtype != torch.bfloat16: Rejects any query tensor not in bfloat16, so callers using fp16/fp3… |
 | F028 | 代 | undisclosed | 2 | path_change | solved | ~ | `flex_prefill/ops/vertical_slash_attention.py:557` | When seq_len <= min(vertical_size, slash_size) * block_size: For short sequences the sparse vertica… |
@@ -657,16 +724,21 @@
 | F038 | 论 | impl_deviates | 2 | other | always |  | `flex_prefill/ops/flex_prefill_attention.py:1718-1729` | 论文 Algorithm 2 以 JSD<τ 返回 pattern(query_specific/vertical_slash)；代码不返回模式，而用同一阈值改写预算并继续 vertical/sla… |
 | F039 | 代 | docs_only | 3 | path_change | solved | ~ | `flex_prefill/modules/patch.py:114` | When pattern == "default": For the default pattern, patch_llama_attention returns without patching,… |
 | F040 | 代 | undisclosed | 3 | other | solved |  | `flex_prefill/ops/flex_prefill_attention.py:88-96` | When not ('h100' in gpu_name) and not ('a100' in gpu_name) and not ('4090' in gpu_name): if head_la… |
+| F004 | 代 | undisclosed | 3 | reject | infeasible |  | `flex_prefill/ops/flex_prefill_attention.py:865` | When not (q_len == 1): AssertionError |
 | F041 | 代 | stated_differently | 3 | reject | infeasible |  | `flex_prefill/ops/flex_prefill_attention.py:868` | When not (q.dtype == torch.bfloat16): AssertionError |
 | F042 | 代 | undisclosed | 3 | reject | infeasible |  | `flex_prefill/ops/flex_prefill_attention.py:869` | When not (head_dim in {16, 32, 64, 128}): 'only support head_dim in {16, 32, 64, 128}' |
 | F043 | 代 | docs_only | 3 | reject | infeasible |  | `flex_prefill/ops/flex_prefill_attention.py:870-875` | When not (block_size in {16, 32, 64, 128}): 'only support block size in {16, 32, 64, 128}' |
 | F044 | 代 | undisclosed | 3 | reject | infeasible |  | `flex_prefill/ops/flex_prefill_attention.py:876` | When not (num_blocks <= triton.cdiv(k_len, block_size)): AssertionError |
 | F045 | 代 | undisclosed | 3 | reject | infeasible |  | `flex_prefill/ops/flex_prefill_attention.py:878` | When not (num_q_heads % num_kv_heads == 0): AssertionError |
+| F005 | 代 | undisclosed | 3 | reject | infeasible |  | `flex_prefill/ops/flex_prefill_attention.py:1219` | When not (q_len == k_len): AssertionError |
 | F046 | 代 | undisclosed | 3 | reject | infeasible |  | `flex_prefill/ops/flex_prefill_attention.py:1220` | When not (head_dim <= 256): 'only support head_dim <= 256' |
-| F047 | 代 | undisclosed | 3 | reject | solved | ✗ | `flex_prefill/ops/flex_prefill_attention.py:1221` | When head_dim <= 128: For head_dim <= 128 only block_size in {32,64,128} is allowed; otherwise (128… |
+| F047 | 代 | undisclosed | 3 | other | solved | ✗ | `flex_prefill/ops/flex_prefill_attention.py:1221` | When head_dim <= 128: For head_dim <= 128 only block_size in {32,64,128} is allowed; otherwise (128… |
 | F048 | 代 | undisclosed | 3 | reject | infeasible |  | `flex_prefill/ops/flex_prefill_attention.py:1228-1231` | When not (block_size in {32, 64}): 'only support block size in {32, 64} if 128 < head_dim <= 256' |
 | F049 | 代 | undisclosed | 3 | other | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1270-1272` | When not (int(triton.__version__.split('.')[0]) >= 3): warnings.warn('triton version greater than 3… |
+| F010 | 代 | undisclosed | 3 | reject | infeasible |  | `flex_prefill/ops/flex_prefill_attention.py:1450` | When not (d in {16, 32, 64, 128}): AssertionError |
+| F011 | 代 | undisclosed | 3 | reject | infeasible |  | `flex_prefill/ops/flex_prefill_attention.py:1451` | When not (kernel_size in {16, 32, 64, 128, 256, 512}): AssertionError |
 | F050 | 代 | undisclosed | 3 | other | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1708` | When block_size != 128: hard-coded 128 in `score_cover_topk(vertical, gamma) // 128` while paramete… |
+| F025 | 代 | undisclosed | 3 | other | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1727` | When kl_div < tau: per-element branch stored in block_sparse_mask |
 | F051 | 代 | undisclosed | 3 | other | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1787` | When not (is_flash_attn_2_available()): flash_attn_func = triton_flash_attention |
 | F052 | 代 | docs_only | 3 | reject | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1824` | When not (batch_size == 1): 'only support batch size 1 for now' |
 | F053 | 代 | docs_only | 3 | path_change | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1825-1835` | When q_len == 1: returns via flash_attn_func, triton_flash_attention |

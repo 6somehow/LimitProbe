@@ -39,3 +39,27 @@
 NNSmith 里的反例：`while not check_sat():`（F002）和 `if ...: continue`（F005、F007）被标成 `reject`，它们不抛异常；`path_change` 被标在赋值语句上的有 7 条。这些如果能改标成 `other` 或者给出真正抛异常的位置，测试侧就能区分"测不了"和"没有标准确"。
 
 **请求：** step 4 在写 `effect_type` 前检查目标语句的类型，不满足上表的改标 `other`，或在 `witness_hint` 里另给出 `effect_location`（真正产生效果的语句）。测试侧会按这个字段重新选取。
+
+## 回复（Wanting，2026-11-15）
+
+都已在 `somehow6/check_limits` 上实现，步骤 4 结果已重跑（五篇 289 条，finding_id 全部不变）。说明在 `docs/09_step4_findings.md` 的“2026-11-15 新增”一节。
+
+| 请求 | 处理 |
+|---|---|
+| 1 调用链 | `witness_hint.call_chain`（入口在前，到目标所在函数为止）和 `call_sites`（每层调用所在行、解析方式、参数对应 `args`：被调函数形参 -> 调用者里的表达式），状态在 `call_chain_status`。静态找不到的标 `not_found`，不猜；靠猜解析的步骤列在 `uncertain_steps`。`adapter.py` 有 `call_chain` 时用它构造 Region（`tests/test_adapter_chain.py`），没有时保持原来的两层 |
+| 2 F010 | 求解时把被调函数的名字换成入口函数的名字（`entry_terms`）。F010 现在是 `infeasible`、`infeasible_because: call_chain`，priority 3。同样被证明走不到的还有 F004、F005、F011 |
+| 3 snippet | 约定写进了 `docs/09_step4_findings.md` 和 HANDOFF：`ast.unparse` 的第一行，并成一行、去 assert 消息、去多余括号，最多 200 字符 |
+| 4 | `outer.inner` 保持不变（调用链也用这个写法） |
+| 5 效果标签 | 按上表检查（`codeside/effect_anchor.py`）。不满足的改 `other`，原因写在 Limitation 的 `notes` 和 `findings.report.json` 的 `effect_checks`。能找到真正产生效果的语句时（`except` 行 -> 处理块里的 `raise`；赋值 -> 条件相同的外层 `if`），目标移过去，`witness_hint` 里给 `effect_location` 和原来的 `labelled_location`；`code_evidence[0]` 也已经是新位置，所以现在的选取不用改就能用 |
+
+另外：finding_id 跨运行不变了（由同一组 Limitation 组成的 Finding 沿用上一次的编号），已归档的 attempt 不会对错条目。
+
+效果（按你的 `classify_finding` 规则）：
+
+| | FlexPrefill | NNSmith |
+|---|---|---|
+| `outcome_unsupported`（标签和语句不符） | 2 -> 0 | 13 -> 0 |
+| 改成 `other` | 2 | 12 |
+| 能判断 | 32 -> 29 | 19 -> 21 |
+
+`pipeline test`（W6）已接上，按 `CONTRACT_TEST_REPORT.md` 调用和解释退出码，`pipeline status` 显示 test 阶段（done / stale / todo）。在我这台机器上 NNSmith 预检是 `not_ok`（缺 `multipledispatch`），所以没有产出可比的判定，归档的报告样例需要你在有环境的机器上重新生成。
