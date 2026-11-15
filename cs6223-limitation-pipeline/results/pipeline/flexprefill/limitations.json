@@ -1,0 +1,1767 @@
+[
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-X001",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not (is_flash_attn_2_available())",
+    "condition": {
+      "expr": "not (is_flash_attn_2_available())",
+      "params": [
+        "is_flash_attn_2_available"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "other",
+    "effect_text": "flash_attn_func = triton_flash_attention",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1787,
+        "line_end": 1787,
+        "function": "flex_prefill/ops/flex_prefill_attention.py::<module>",
+        "snippet": "flash_attn_func = triton_flash_attention"
+      }
+    ],
+    "region_ids": [
+      "X001"
+    ],
+    "provenance": "ast",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-X002",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not (batch_size == 1)",
+    "condition": {
+      "expr": "not (batch_size == 1)",
+      "params": [
+        "batch_size"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "reject",
+    "effect_text": "'only support batch size 1 for now'",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1824,
+        "line_end": 1824,
+        "function": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention",
+        "snippet": "assert batch_size == 1, 'only support batch size 1 for now'"
+      }
+    ],
+    "region_ids": [
+      "X002"
+    ],
+    "provenance": "ast",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-X003",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "q_len == 1",
+    "condition": {
+      "expr": "q_len == 1",
+      "params": [
+        "q_len"
+      ],
+      "path_prefix": [
+        "batch_size == 1"
+      ]
+    },
+    "effect_type": "path_change",
+    "effect_text": "returns via flash_attn_func, triton_flash_attention",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1825,
+        "line_end": 1835,
+        "function": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention",
+        "snippet": "if q_len == 1:"
+      }
+    ],
+    "region_ids": [
+      "X003"
+    ],
+    "provenance": "ast",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-X004",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not (q.shape[1] == k.shape[1])",
+    "condition": {
+      "expr": "not (q.shape[1] == k.shape[1])",
+      "params": [
+        "k",
+        "q"
+      ],
+      "path_prefix": [
+        "batch_size == 1",
+        "not (q_len == 1)"
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "AssertionError",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1836,
+        "line_end": 1836,
+        "function": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention",
+        "snippet": "assert q.shape[1] == k.shape[1]"
+      }
+    ],
+    "region_ids": [
+      "X004"
+    ],
+    "provenance": "ast",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-X005",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not (head_dim in {16, 32, 64, 128})",
+    "condition": {
+      "expr": "not (head_dim in {16, 32, 64, 128})",
+      "params": [
+        "head_dim"
+      ],
+      "path_prefix": [
+        "batch_size == 1",
+        "not (q_len == 1)",
+        "q.shape[1] == k.shape[1]"
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "AssertionError",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1837,
+        "line_end": 1837,
+        "function": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention",
+        "snippet": "assert head_dim in {16, 32, 64, 128}"
+      }
+    ],
+    "region_ids": [
+      "X005"
+    ],
+    "provenance": "ast",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-X006",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not (block_size in {16, 32, 64, 128})",
+    "condition": {
+      "expr": "not (block_size in {16, 32, 64, 128})",
+      "params": [
+        "block_size"
+      ],
+      "path_prefix": [
+        "batch_size == 1",
+        "not (q_len == 1)",
+        "q.shape[1] == k.shape[1]",
+        "head_dim in {16, 32, 64, 128}"
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "AssertionError",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1838,
+        "line_end": 1838,
+        "function": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention",
+        "snippet": "assert block_size in {16, 32, 64, 128}"
+      }
+    ],
+    "region_ids": [
+      "X006"
+    ],
+    "provenance": "ast",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-X007",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size)",
+    "condition": {
+      "expr": "q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size)",
+      "params": [
+        "block_size",
+        "math",
+        "max",
+        "min_budget",
+        "q_len"
+      ],
+      "path_prefix": [
+        "batch_size == 1",
+        "not (q_len == 1)",
+        "q.shape[1] == k.shape[1]",
+        "head_dim in {16, 32, 64, 128}",
+        "block_size in {16, 32, 64, 128}"
+      ]
+    },
+    "effect_type": "path_change",
+    "effect_text": "returns via flash_attn_func, triton_flash_attention",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1842,
+        "line_end": 1854,
+        "function": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention",
+        "snippet": "if q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size):"
+      }
+    ],
+    "region_ids": [
+      "X007"
+    ],
+    "provenance": "ast",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-X008",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "causal_mask is None  # first call only",
+    "condition": {
+      "expr": "causal_mask is None  # first call only",
+      "params": [
+        "causal_mask"
+      ],
+      "path_prefix": [
+        "batch_size == 1",
+        "not (q_len == 1)",
+        "q.shape[1] == k.shape[1]",
+        "head_dim in {16, 32, 64, 128}",
+        "block_size in {16, 32, 64, 128}",
+        "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))"
+      ]
+    },
+    "effect_type": "state",
+    "effect_text": "module-level cache initialised on first call and reused",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1695,
+        "line_end": 1698,
+        "function": "flex_prefill/ops/flex_prefill_attention.py::get_active_blocks",
+        "snippet": "if causal_mask is None:"
+      }
+    ],
+    "region_ids": [
+      "X008"
+    ],
+    "provenance": "ast",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-X009",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "block_size != 128",
+    "condition": {
+      "expr": "block_size != 128",
+      "params": [
+        "block_size"
+      ],
+      "path_prefix": [
+        "batch_size == 1",
+        "not (q_len == 1)",
+        "q.shape[1] == k.shape[1]",
+        "head_dim in {16, 32, 64, 128}",
+        "block_size in {16, 32, 64, 128}",
+        "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))"
+      ]
+    },
+    "effect_type": "other",
+    "effect_text": "hard-coded 128 in `score_cover_topk(vertical, gamma) // 128` while parameter `block_size` is in scope",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1708,
+        "line_end": 1708,
+        "function": "flex_prefill/ops/flex_prefill_attention.py::get_active_blocks",
+        "snippet": "num_vertical_blocks = score_cover_topk(vertical, gamma) // 128 + 1"
+      }
+    ],
+    "region_ids": [
+      "X009"
+    ],
+    "provenance": "ast",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-X010",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not (d in {16, 32, 64, 128})",
+    "condition": {
+      "expr": "not (d in {16, 32, 64, 128})",
+      "params": [
+        "d"
+      ],
+      "path_prefix": [
+        "batch_size == 1",
+        "not (q_len == 1)",
+        "q.shape[1] == k.shape[1]",
+        "head_dim in {16, 32, 64, 128}",
+        "block_size in {16, 32, 64, 128}",
+        "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
+        "not gqa_interleave"
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "AssertionError",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1450,
+        "line_end": 1450,
+        "function": "flex_prefill/ops/flex_prefill_attention.py::triton_bnhd_pool",
+        "snippet": "assert d in {16, 32, 64, 128}"
+      }
+    ],
+    "region_ids": [
+      "X010"
+    ],
+    "provenance": "ast",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-X011",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not (kernel_size in {16, 32, 64, 128, 256, 512})",
+    "condition": {
+      "expr": "not (kernel_size in {16, 32, 64, 128, 256, 512})",
+      "params": [
+        "kernel_size"
+      ],
+      "path_prefix": [
+        "batch_size == 1",
+        "not (q_len == 1)",
+        "q.shape[1] == k.shape[1]",
+        "head_dim in {16, 32, 64, 128}",
+        "block_size in {16, 32, 64, 128}",
+        "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
+        "not gqa_interleave",
+        "d in {16, 32, 64, 128}"
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "AssertionError",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1451,
+        "line_end": 1451,
+        "function": "flex_prefill/ops/flex_prefill_attention.py::triton_bnhd_pool",
+        "snippet": "assert kernel_size in {16, 32, 64, 128, 256, 512}"
+      }
+    ],
+    "region_ids": [
+      "X011"
+    ],
+    "provenance": "ast",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-X012",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "kl_div < tau",
+    "condition": {
+      "expr": "kl_div < tau",
+      "params": [
+        "kl_div",
+        "tau"
+      ],
+      "path_prefix": [
+        "batch_size == 1",
+        "not (q_len == 1)",
+        "q.shape[1] == k.shape[1]",
+        "head_dim in {16, 32, 64, 128}",
+        "block_size in {16, 32, 64, 128}",
+        "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))"
+      ]
+    },
+    "effect_type": "path_change",
+    "effect_text": "per-element branch stored in block_sparse_mask",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1727,
+        "line_end": 1727,
+        "function": "flex_prefill/ops/flex_prefill_attention.py::get_active_blocks",
+        "snippet": "block_sparse_mask = kl_div < tau"
+      }
+    ],
+    "region_ids": [
+      "X012"
+    ],
+    "provenance": "ast",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-X013",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not (q.dtype == torch.bfloat16)",
+    "condition": {
+      "expr": "not (q.dtype == torch.bfloat16)",
+      "params": [
+        "q",
+        "torch"
+      ],
+      "path_prefix": [
+        "batch_size == 1",
+        "not (q_len == 1)",
+        "q.shape[1] == k.shape[1]",
+        "head_dim in {16, 32, 64, 128}",
+        "block_size in {16, 32, 64, 128}",
+        "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
+        "q.shape[1] > 1"
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "AssertionError",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1218,
+        "line_end": 1218,
+        "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention",
+        "snippet": "assert q.dtype == torch.bfloat16"
+      }
+    ],
+    "region_ids": [
+      "X013"
+    ],
+    "provenance": "ast",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-X014",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not (q_len == k_len)",
+    "condition": {
+      "expr": "not (q_len == k_len)",
+      "params": [
+        "k_len",
+        "q_len"
+      ],
+      "path_prefix": [
+        "batch_size == 1",
+        "not (q_len == 1)",
+        "q.shape[1] == k.shape[1]",
+        "head_dim in {16, 32, 64, 128}",
+        "block_size in {16, 32, 64, 128}",
+        "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
+        "q.shape[1] > 1",
+        "q.dtype == torch.bfloat16"
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "AssertionError",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1219,
+        "line_end": 1219,
+        "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention",
+        "snippet": "assert q_len == k_len"
+      }
+    ],
+    "region_ids": [
+      "X014"
+    ],
+    "provenance": "ast",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-X015",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not (head_dim <= 256)",
+    "condition": {
+      "expr": "not (head_dim <= 256)",
+      "params": [
+        "head_dim"
+      ],
+      "path_prefix": [
+        "batch_size == 1",
+        "not (q_len == 1)",
+        "q.shape[1] == k.shape[1]",
+        "head_dim in {16, 32, 64, 128}",
+        "block_size in {16, 32, 64, 128}",
+        "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
+        "q.shape[1] > 1",
+        "q.dtype == torch.bfloat16",
+        "q_len == k_len"
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "'only support head_dim <= 256'",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1220,
+        "line_end": 1220,
+        "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention",
+        "snippet": "assert head_dim <= 256, 'only support head_dim <= 256'"
+      }
+    ],
+    "region_ids": [
+      "X015"
+    ],
+    "provenance": "ast",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-X016",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not (block_size in {32, 64, 128})",
+    "condition": {
+      "expr": "not (block_size in {32, 64, 128})",
+      "params": [
+        "block_size"
+      ],
+      "path_prefix": [
+        "batch_size == 1",
+        "not (q_len == 1)",
+        "q.shape[1] == k.shape[1]",
+        "head_dim in {16, 32, 64, 128}",
+        "block_size in {16, 32, 64, 128}",
+        "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
+        "q.shape[1] > 1",
+        "q.dtype == torch.bfloat16",
+        "q_len == k_len",
+        "head_dim <= 256",
+        "head_dim <= 128"
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "'only support block size in {32, 64, 128} if head_dim <= 128'",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1222,
+        "line_end": 1226,
+        "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention",
+        "snippet": "assert block_size in {32, 64, 128}, 'only support block size in {32, 64, 128} if head_dim <= 128'"
+      }
+    ],
+    "region_ids": [
+      "X016"
+    ],
+    "provenance": "ast",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-X017",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not (block_size in {32, 64})",
+    "condition": {
+      "expr": "not (block_size in {32, 64})",
+      "params": [
+        "block_size"
+      ],
+      "path_prefix": [
+        "batch_size == 1",
+        "not (q_len == 1)",
+        "q.shape[1] == k.shape[1]",
+        "head_dim in {16, 32, 64, 128}",
+        "block_size in {16, 32, 64, 128}",
+        "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
+        "q.shape[1] > 1",
+        "q.dtype == torch.bfloat16",
+        "q_len == k_len",
+        "head_dim <= 256",
+        "not (head_dim <= 128)"
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "'only support block size in {32, 64} if 128 < head_dim <= 256'",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1228,
+        "line_end": 1231,
+        "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention",
+        "snippet": "assert block_size in {32, 64}, 'only support block size in {32, 64} if 128 < head_dim <= 256'"
+      }
+    ],
+    "region_ids": [
+      "X017"
+    ],
+    "provenance": "ast",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-X018",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not (isinstance(block_idx, list) and isinstance(block_idx[0], list) and isinstance(block_idx[0][0], torch.Tensor))",
+    "condition": {
+      "expr": "not (isinstance(block_idx, list) and isinstance(block_idx[0], list) and isinstance(block_idx[0][0], torch.Tensor))",
+      "params": [
+        "block_idx",
+        "isinstance",
+        "list",
+        "torch"
+      ],
+      "path_prefix": [
+        "batch_size == 1",
+        "not (q_len == 1)",
+        "q.shape[1] == k.shape[1]",
+        "head_dim in {16, 32, 64, 128}",
+        "block_size in {16, 32, 64, 128}",
+        "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
+        "q.shape[1] > 1",
+        "q.dtype == torch.bfloat16",
+        "q_len == k_len",
+        "head_dim <= 256",
+        "not isinstance(block_idx, torch.Tensor)"
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "AssertionError",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1240,
+        "line_end": 1244,
+        "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention",
+        "snippet": "assert isinstance(block_idx, list) and isinstance(block_idx[0], list) and isinstance(block_idx[0][0], torch.Tensor)"
+      }
+    ],
+    "region_ids": [
+      "X018"
+    ],
+    "provenance": "ast",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-X019",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not (len(block_idx) == batch_size and len(block_idx[0]) == num_q_heads)",
+    "condition": {
+      "expr": "not (len(block_idx) == batch_size and len(block_idx[0]) == num_q_heads)",
+      "params": [
+        "batch_size",
+        "block_idx",
+        "len",
+        "num_q_heads"
+      ],
+      "path_prefix": [
+        "batch_size == 1",
+        "not (q_len == 1)",
+        "q.shape[1] == k.shape[1]",
+        "head_dim in {16, 32, 64, 128}",
+        "block_size in {16, 32, 64, 128}",
+        "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
+        "q.shape[1] > 1",
+        "q.dtype == torch.bfloat16",
+        "q_len == k_len",
+        "head_dim <= 256",
+        "not isinstance(block_idx, torch.Tensor)",
+        "isinstance(block_idx, list) and isinstance(block_idx[0], list) and isinstance(block_idx[0][0], torch.Tensor)"
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "AssertionError",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1245,
+        "line_end": 1245,
+        "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention",
+        "snippet": "assert len(block_idx) == batch_size and len(block_idx[0]) == num_q_heads"
+      }
+    ],
+    "region_ids": [
+      "X019"
+    ],
+    "provenance": "ast",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-X020",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not (num_block <= total_q_blocks * (total_q_blocks + 1) // 2)",
+    "condition": {
+      "expr": "not (num_block <= total_q_blocks * (total_q_blocks + 1) // 2)",
+      "params": [
+        "num_block",
+        "total_q_blocks"
+      ],
+      "path_prefix": [
+        "batch_size == 1",
+        "not (q_len == 1)",
+        "q.shape[1] == k.shape[1]",
+        "head_dim in {16, 32, 64, 128}",
+        "block_size in {16, 32, 64, 128}",
+        "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
+        "q.shape[1] > 1",
+        "q.dtype == torch.bfloat16",
+        "q_len == k_len",
+        "head_dim <= 256",
+        "q_len == k_len"
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "AssertionError",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1256,
+        "line_end": 1256,
+        "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention",
+        "snippet": "assert num_block <= total_q_blocks * (total_q_blocks + 1) // 2"
+      }
+    ],
+    "region_ids": [
+      "X020"
+    ],
+    "provenance": "ast",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-X021",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not (num_q_heads % num_kv_heads == 0)",
+    "condition": {
+      "expr": "not (num_q_heads % num_kv_heads == 0)",
+      "params": [
+        "num_kv_heads",
+        "num_q_heads"
+      ],
+      "path_prefix": [
+        "batch_size == 1",
+        "not (q_len == 1)",
+        "q.shape[1] == k.shape[1]",
+        "head_dim in {16, 32, 64, 128}",
+        "block_size in {16, 32, 64, 128}",
+        "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
+        "q.shape[1] > 1",
+        "q.dtype == torch.bfloat16",
+        "q_len == k_len",
+        "head_dim <= 256",
+        "q_len == k_len",
+        "num_block <= total_q_blocks * (total_q_blocks + 1) // 2"
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "AssertionError",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1258,
+        "line_end": 1258,
+        "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention",
+        "snippet": "assert num_q_heads % num_kv_heads == 0"
+      }
+    ],
+    "region_ids": [
+      "X021"
+    ],
+    "provenance": "ast",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-X022",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not (int(triton.__version__.split('.')[0]) >= 3)",
+    "condition": {
+      "expr": "not (int(triton.__version__.split('.')[0]) >= 3)",
+      "params": [
+        "int",
+        "triton"
+      ],
+      "path_prefix": [
+        "batch_size == 1",
+        "not (q_len == 1)",
+        "q.shape[1] == k.shape[1]",
+        "head_dim in {16, 32, 64, 128}",
+        "block_size in {16, 32, 64, 128}",
+        "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
+        "q.shape[1] > 1",
+        "q.dtype == torch.bfloat16",
+        "q_len == k_len",
+        "head_dim <= 256",
+        "q_len == k_len",
+        "num_block <= total_q_blocks * (total_q_blocks + 1) // 2",
+        "num_q_heads % num_kv_heads == 0"
+      ]
+    },
+    "effect_type": "other",
+    "effect_text": "warnings.warn('triton version greater than 3.0.0 is required for faster attention')",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1270,
+        "line_end": 1272,
+        "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention",
+        "snippet": "warnings.warn('triton version greater than 3.0.0 is required for faster attention')"
+      }
+    ],
+    "region_ids": [
+      "X022"
+    ],
+    "provenance": "ast",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-X023",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not ('h100' in gpu_name) and not ('a100' in gpu_name) and not ('4090' in gpu_name)",
+    "condition": {
+      "expr": "not ('h100' in gpu_name) and not ('a100' in gpu_name) and not ('4090' in gpu_name)",
+      "params": [
+        "gpu_name"
+      ],
+      "path_prefix": [
+        "batch_size == 1",
+        "not (q_len == 1)",
+        "q.shape[1] == k.shape[1]",
+        "head_dim in {16, 32, 64, 128}",
+        "block_size in {16, 32, 64, 128}",
+        "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
+        "q.shape[1] > 1",
+        "q.dtype == torch.bfloat16",
+        "q_len == k_len",
+        "head_dim <= 256",
+        "q_len == k_len",
+        "num_block <= total_q_blocks * (total_q_blocks + 1) // 2",
+        "num_q_heads % num_kv_heads == 0"
+      ]
+    },
+    "effect_type": "other",
+    "effect_text": "if head_large and block_large:",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 88,
+        "line_end": 96,
+        "function": "flex_prefill/ops/flex_prefill_attention.py::get_num_warps_stages",
+        "snippet": "if head_large and block_large:"
+      }
+    ],
+    "region_ids": [
+      "X023"
+    ],
+    "provenance": "ast",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-X024",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not (q_len == 1)",
+    "condition": {
+      "expr": "not (q_len == 1)",
+      "params": [
+        "q_len"
+      ],
+      "path_prefix": [
+        "batch_size == 1",
+        "not (q_len == 1)",
+        "q.shape[1] == k.shape[1]",
+        "head_dim in {16, 32, 64, 128}",
+        "block_size in {16, 32, 64, 128}",
+        "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
+        "not (q.shape[1] > 1)"
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "AssertionError",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 865,
+        "line_end": 865,
+        "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_decode_attention",
+        "snippet": "assert q_len == 1"
+      }
+    ],
+    "region_ids": [
+      "X024"
+    ],
+    "provenance": "ast",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-X025",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not (q.dtype == torch.bfloat16)",
+    "condition": {
+      "expr": "not (q.dtype == torch.bfloat16)",
+      "params": [
+        "q",
+        "torch"
+      ],
+      "path_prefix": [
+        "batch_size == 1",
+        "not (q_len == 1)",
+        "q.shape[1] == k.shape[1]",
+        "head_dim in {16, 32, 64, 128}",
+        "block_size in {16, 32, 64, 128}",
+        "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
+        "not (q.shape[1] > 1)",
+        "q_len == 1"
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "AssertionError",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 868,
+        "line_end": 868,
+        "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_decode_attention",
+        "snippet": "assert q.dtype == torch.bfloat16"
+      }
+    ],
+    "region_ids": [
+      "X025"
+    ],
+    "provenance": "ast",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-X026",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not (head_dim in {16, 32, 64, 128})",
+    "condition": {
+      "expr": "not (head_dim in {16, 32, 64, 128})",
+      "params": [
+        "head_dim"
+      ],
+      "path_prefix": [
+        "batch_size == 1",
+        "not (q_len == 1)",
+        "q.shape[1] == k.shape[1]",
+        "head_dim in {16, 32, 64, 128}",
+        "block_size in {16, 32, 64, 128}",
+        "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
+        "not (q.shape[1] > 1)",
+        "q_len == 1",
+        "q.dtype == torch.bfloat16"
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "'only support head_dim in {16, 32, 64, 128}'",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 869,
+        "line_end": 869,
+        "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_decode_attention",
+        "snippet": "assert head_dim in {16, 32, 64, 128}, 'only support head_dim in {16, 32, 64, 128}'"
+      }
+    ],
+    "region_ids": [
+      "X026"
+    ],
+    "provenance": "ast",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-X027",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not (block_size in {16, 32, 64, 128})",
+    "condition": {
+      "expr": "not (block_size in {16, 32, 64, 128})",
+      "params": [
+        "block_size"
+      ],
+      "path_prefix": [
+        "batch_size == 1",
+        "not (q_len == 1)",
+        "q.shape[1] == k.shape[1]",
+        "head_dim in {16, 32, 64, 128}",
+        "block_size in {16, 32, 64, 128}",
+        "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
+        "not (q.shape[1] > 1)",
+        "q_len == 1",
+        "q.dtype == torch.bfloat16",
+        "head_dim in {16, 32, 64, 128}"
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "'only support block size in {16, 32, 64, 128}'",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 870,
+        "line_end": 875,
+        "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_decode_attention",
+        "snippet": "assert block_size in {16, 32, 64, 128}, 'only support block size in {16, 32, 64, 128}'"
+      }
+    ],
+    "region_ids": [
+      "X027"
+    ],
+    "provenance": "ast",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-X028",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not (num_blocks <= triton.cdiv(k_len, block_size))",
+    "condition": {
+      "expr": "not (num_blocks <= triton.cdiv(k_len, block_size))",
+      "params": [
+        "block_size",
+        "k_len",
+        "num_blocks",
+        "triton"
+      ],
+      "path_prefix": [
+        "batch_size == 1",
+        "not (q_len == 1)",
+        "q.shape[1] == k.shape[1]",
+        "head_dim in {16, 32, 64, 128}",
+        "block_size in {16, 32, 64, 128}",
+        "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
+        "not (q.shape[1] > 1)",
+        "q_len == 1",
+        "q.dtype == torch.bfloat16",
+        "head_dim in {16, 32, 64, 128}",
+        "block_size in {16, 32, 64, 128}"
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "AssertionError",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 876,
+        "line_end": 876,
+        "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_decode_attention",
+        "snippet": "assert num_blocks <= triton.cdiv(k_len, block_size)"
+      }
+    ],
+    "region_ids": [
+      "X028"
+    ],
+    "provenance": "ast",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-X029",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not (num_q_heads % num_kv_heads == 0)",
+    "condition": {
+      "expr": "not (num_q_heads % num_kv_heads == 0)",
+      "params": [
+        "num_kv_heads",
+        "num_q_heads"
+      ],
+      "path_prefix": [
+        "batch_size == 1",
+        "not (q_len == 1)",
+        "q.shape[1] == k.shape[1]",
+        "head_dim in {16, 32, 64, 128}",
+        "block_size in {16, 32, 64, 128}",
+        "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
+        "not (q.shape[1] > 1)",
+        "q_len == 1",
+        "q.dtype == torch.bfloat16",
+        "head_dim in {16, 32, 64, 128}",
+        "block_size in {16, 32, 64, 128}",
+        "num_blocks <= triton.cdiv(k_len, block_size)"
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "AssertionError",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 878,
+        "line_end": 878,
+        "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_decode_attention",
+        "snippet": "assert num_q_heads % num_kv_heads == 0"
+      }
+    ],
+    "region_ids": [
+      "X029"
+    ],
+    "provenance": "ast",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B001",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "pattern == \"minfer\"",
+    "condition": {
+      "expr": "pattern == \"minfer\"",
+      "params": [
+        "pattern"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "path_change",
+    "effect_text": "For minfer, the config is loaded from a hard-coded JSON file chosen by cfg['model_type'] and stored as model.config.minfer_config, rather than merging ATTENTION_CONFIG_EXAMPLE defaults.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/modules/patch.py",
+        "line_start": 69,
+        "line_end": null,
+        "function": "flex_prefill/modules/patch.py::patch_model_config",
+        "snippet": "if pattern == \"minfer\":"
+      }
+    ],
+    "region_ids": [
+      "B001"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B002",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "pattern == \"default\"",
+    "condition": {
+      "expr": "pattern == \"default\"",
+      "params": [
+        "pattern"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "path_change",
+    "effect_text": "For the default pattern, patch_llama_attention returns without patching, leaving the original dense attention implementation in place.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/modules/patch.py",
+        "line_start": 114,
+        "line_end": null,
+        "function": "flex_prefill/modules/patch.py::patch_llama_attention",
+        "snippet": "if pattern == \"default\":"
+      }
+    ],
+    "region_ids": [
+      "B002"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B003",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not isinstance(model, LlamaForCausalLM)",
+    "condition": {
+      "expr": "not isinstance(model, LlamaForCausalLM)",
+      "params": [
+        "LlamaForCausalLM",
+        "isinstance",
+        "model"
+      ],
+      "path_prefix": [
+        "pattern != \"default\""
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "Patching a non-LlamaForCausalLM model with a non-default pattern triggers an assertion failure.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/modules/patch.py",
+        "line_start": 123,
+        "line_end": null,
+        "function": "flex_prefill/modules/patch.py::patch_llama_attention",
+        "snippet": "assert isinstance(model, LlamaForCausalLM)"
+      }
+    ],
+    "region_ids": [
+      "B003"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B004",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not isinstance(model, Qwen2ForCausalLM)",
+    "condition": {
+      "expr": "not isinstance(model, Qwen2ForCausalLM)",
+      "params": [
+        "Qwen2ForCausalLM",
+        "isinstance",
+        "model"
+      ],
+      "path_prefix": [
+        "pattern != \"default\""
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "Patching a non-Qwen2ForCausalLM model with a non-default pattern triggers an assertion failure.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/modules/patch.py",
+        "line_start": 241,
+        "line_end": null,
+        "function": "flex_prefill/modules/patch.py::patch_qwen2_attention",
+        "snippet": "assert isinstance(model, Qwen2ForCausalLM)"
+      }
+    ],
+    "region_ids": [
+      "B004"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B005",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "\"llama\" in model_name.lower()",
+    "condition": {
+      "expr": "\"llama\" in model_name.lower()",
+      "params": [
+        "model_name"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "path_change",
+    "effect_text": "Model class name selects which patch_*_attention implementation is applied; non-llama/glm/qwen2 models are rejected.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/modules/patch.py",
+        "line_start": 313,
+        "line_end": null,
+        "function": "flex_prefill/modules/patch.py::patch_hf_model",
+        "snippet": "if \"llama\" in model_name.lower():"
+      }
+    ],
+    "region_ids": [
+      "B005"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B006",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not (\"llama\" in model_name.lower() or \"glm\" in model_name.lower() or \"qwen2\" in model_name.lower())",
+    "condition": {
+      "expr": "not (\"llama\" in model_name.lower() or \"glm\" in model_name.lower() or \"qwen2\" in model_name.lower())",
+      "params": [
+        "model_name"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "reject",
+    "effect_text": "Any HF model whose class name lacks llama/glm/qwen2 is rejected outright.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/modules/patch.py",
+        "line_start": 320,
+        "line_end": null,
+        "function": "flex_prefill/modules/patch.py::patch_hf_model",
+        "snippet": "raise ValueError(f\"unsupported model type: {model_name}\")"
+      }
+    ],
+    "region_ids": [
+      "B006"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B007",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "kv_cache is None or prefill_meta.block_tables is None or prefill_meta.block_tables.numel() == 0",
+    "condition": {
+      "expr": "kv_cache is None or prefill_meta.block_tables is None or prefill_meta.block_tables.numel() == 0",
+      "params": [
+        "kv_cache",
+        "prefill_meta"
+      ],
+      "path_prefix": [
+        "prefill_meta := attn_metadata.prefill_metadata"
+      ]
+    },
+    "effect_type": "path_change",
+    "effect_text": "Only when there is no prefix cache does the code call flex_prefill_attention; otherwise it falls back to flash_attn_varlen_func.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/modules/patch.py",
+        "line_start": 424,
+        "line_end": null,
+        "function": "flex_prefill/modules/patch.py::patch_vllm_model.flex_prefill_forward",
+        "snippet": "if ("
+      }
+    ],
+    "region_ids": [
+      "B007"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B008",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "\"attention\" in type(m).__name__.lower() and hasattr(m, \"impl\")",
+    "condition": {
+      "expr": "\"attention\" in type(m).__name__.lower() and hasattr(m, \"impl\")",
+      "params": [
+        "hasattr",
+        "m",
+        "type"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "path_change",
+    "effect_text": "Only modules whose class name contains 'attention' and expose an 'impl' attribute get their forward replaced; others keep the original implementation.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/modules/patch.py",
+        "line_start": 501,
+        "line_end": null,
+        "function": "flex_prefill/modules/patch.py::patch_vllm_model",
+        "snippet": "if \"attention\" in type(m).__name__.lower() and hasattr(m, \"impl\"):"
+      }
+    ],
+    "region_ids": [
+      "B008"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B009",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "num_q_heads % num_kv_heads != 0",
+    "condition": {
+      "expr": "num_q_heads % num_kv_heads != 0",
+      "params": [
+        "num_kv_heads",
+        "num_q_heads"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "reject",
+    "effect_text": "GQA requires the number of query heads to be a multiple of KV heads; otherwise execution stops.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 247,
+        "line_end": null,
+        "function": "flex_prefill/ops/flex_prefill_attention.py::triton_flash_prefill",
+        "snippet": "assert num_q_heads % num_kv_heads == 0"
+      }
+    ],
+    "region_ids": [
+      "B009"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B010",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "q.dtype != torch.bfloat16",
+    "condition": {
+      "expr": "q.dtype != torch.bfloat16",
+      "params": [
+        "q",
+        "torch"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "reject",
+    "effect_text": "triton_flash_attention rejects non-bfloat16 queries before dispatching to prefill or decode.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 672,
+        "line_end": null,
+        "function": "flex_prefill/ops/flex_prefill_attention.py::triton_flash_attention",
+        "snippet": "assert q.dtype == torch.bfloat16, \"only support dtype bfloat16\""
+      }
+    ],
+    "region_ids": [
+      "B010"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B011",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "head_dim <= 128",
+    "condition": {
+      "expr": "head_dim <= 128",
+      "params": [
+        "head_dim"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "reject",
+    "effect_text": "For head_dim <= 128 only block_size in {32,64,128} is allowed; otherwise (128 < head_dim <= 256) only {32,64} is allowed, so the accepted block_size set depends on head_dim.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1221,
+        "line_end": null,
+        "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention",
+        "snippet": "if head_dim <= 128:"
+      }
+    ],
+    "region_ids": [
+      "B011"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B012",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "q.dtype != torch.bfloat16",
+    "condition": {
+      "expr": "q.dtype != torch.bfloat16",
+      "params": [
+        "q",
+        "torch"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "reject",
+    "effect_text": "Rejects any query tensor not in bfloat16, so callers using fp16/fp32 cannot run this kernel.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/vertical_slash_attention.py",
+        "line_start": 264,
+        "line_end": null,
+        "function": "flex_prefill/ops/vertical_slash_attention.py::triton_vertical_slash_attention",
+        "snippet": "assert q.dtype == torch.bfloat16"
+      }
+    ],
+    "region_ids": [
+      "B012"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B013",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "q_len != k_len",
+    "condition": {
+      "expr": "q_len != k_len",
+      "params": [
+        "k_len",
+        "q_len"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "reject",
+    "effect_text": "Rejects inputs where query and key sequence lengths differ, so no cross-length (e.g. decode-style) attention is supported.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/vertical_slash_attention.py",
+        "line_start": 265,
+        "line_end": null,
+        "function": "flex_prefill/ops/vertical_slash_attention.py::triton_vertical_slash_attention",
+        "snippet": "assert q_len == k_len"
+      }
+    ],
+    "region_ids": [
+      "B013"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B014",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "head_dim not in {16, 32, 64, 128}",
+    "condition": {
+      "expr": "head_dim not in {16, 32, 64, 128}",
+      "params": [
+        "head_dim"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "reject",
+    "effect_text": "Caller-supplied head_dim outside the fixed set aborts execution via assertion.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/vertical_slash_attention.py",
+        "line_start": 552,
+        "line_end": null,
+        "function": "flex_prefill/ops/vertical_slash_attention.py::vertical_slash_attention",
+        "snippet": "assert head_dim in {16, 32, 64, 128}"
+      }
+    ],
+    "region_ids": [
+      "B014"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B015",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "block_size not in {16, 32, 64, 128}",
+    "condition": {
+      "expr": "block_size not in {16, 32, 64, 128}",
+      "params": [
+        "block_size"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "reject",
+    "effect_text": "Caller-supplied block_size outside the fixed set aborts execution via assertion.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/vertical_slash_attention.py",
+        "line_start": 553,
+        "line_end": null,
+        "function": "flex_prefill/ops/vertical_slash_attention.py::vertical_slash_attention",
+        "snippet": "assert block_size in {16, 32, 64, 128}"
+      }
+    ],
+    "region_ids": [
+      "B015"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B016",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "seq_len <= min(vertical_size, slash_size) * block_size",
+    "condition": {
+      "expr": "seq_len <= min(vertical_size, slash_size) * block_size",
+      "params": [
+        "block_size",
+        "min",
+        "seq_len",
+        "slash_size",
+        "vertical_size"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "path_change",
+    "effect_text": "For short sequences the sparse vertical/slash path is skipped and dense causal flash_attn_func is run instead.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/vertical_slash_attention.py",
+        "line_start": 557,
+        "line_end": null,
+        "function": "flex_prefill/ops/vertical_slash_attention.py::vertical_slash_attention",
+        "snippet": "if seq_len <= min(vertical_size, slash_size) * block_size:"
+      }
+    ],
+    "region_ids": [
+      "B016"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B017",
+    "artifact_id": "flexprefill",
+    "origin": "code",
+    "level": null,
+    "condition_text": "seq_len <= 16 * 1024",
+    "condition": {
+      "expr": "seq_len <= 16 * 1024",
+      "params": [
+        "seq_len"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "path_change",
+    "effect_text": "Sequence length selects between the vertical/slash Triton kernel (<=16k) and the block-wise attention kernel (>16k) with transformed block indices.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "flex_prefill/ops/vertical_slash_attention.py",
+        "line_start": 570,
+        "line_end": null,
+        "function": "flex_prefill/ops/vertical_slash_attention.py::vertical_slash_attention",
+        "snippet": "if seq_len <= 16 * 1024:"
+      }
+    ],
+    "region_ids": [
+      "B017"
+    ],
+    "provenance": "llm",
+    "notes": null
+  }
+]

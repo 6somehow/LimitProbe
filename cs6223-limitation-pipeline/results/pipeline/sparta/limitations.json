@@ -1,0 +1,105 @@
+[
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B001",
+    "artifact_id": "sparta",
+    "origin": "code",
+    "level": null,
+    "condition_text": "info.module_name in self.modules_info",
+    "condition": {
+      "expr": "info.module_name in self.modules_info",
+      "params": [
+        "info",
+        "self"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "other",
+    "effect_text": "When a module name is already present, the merge branch is an empty ellipsis body, so the new SparseModuleInfo (and its updated TeSA attributes) is silently discarded and the earlier state is kept. The mechanism therefore depends on earlier update() calls and ignores later sparsity info for the same module.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "sparta/common/sparsity.py",
+        "line_start": 57,
+        "line_end": null,
+        "function": "sparta/common/sparsity.py::ModelSparsityInfo.update",
+        "snippet": "if info.module_name in self.modules_info:"
+      }
+    ],
+    "region_ids": [
+      "B001"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B002",
+    "artifact_id": "sparta",
+    "origin": "code",
+    "level": null,
+    "condition_text": "cover_sizes[(1, 1)] < ordered_pricing[0][0]",
+    "condition": {
+      "expr": "cover_sizes[(1, 1)] < ordered_pricing[0][0]",
+      "params": [
+        "cover_sizes",
+        "ordered_pricing"
+      ],
+      "path_prefix": [
+        "def weighted_block_cover"
+      ]
+    },
+    "effect_type": "path_change",
+    "effect_text": "The choice of covering algorithm is driven by the caller's sparsity pattern: if the cheapest block price exceeds the (1,1) element price, the whole weighted-set-cover is skipped and the function returns `None, {(1,1)}` — i.e. the tensor is treated as fully element-wise (no block covering), which then flows into wbc_matmul setting w_tesa.block_size = (1,1). Also, ordered_pricing[0] is indexed without checking that any block was added, so an all-pruned/empty tesa raises IndexError.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "sparta/transformation/weighted_block_cover.py",
+        "line_start": 77,
+        "line_end": null,
+        "function": "sparta/transformation/weighted_block_cover.py::weighted_block_cover",
+        "snippet": "if cover_sizes[(1, 1)] < ordered_pricing[0][0]:"
+      }
+    ],
+    "region_ids": [
+      "B002"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.1.0",
+    "limitation_id": "CL-B003",
+    "artifact_id": "sparta",
+    "origin": "code",
+    "level": null,
+    "condition_text": "len(unique_block_sizes) != 1",
+    "condition": {
+      "expr": "len(unique_block_sizes) != 1",
+      "params": [
+        "len",
+        "unique_block_sizes"
+      ],
+      "path_prefix": [
+        "for w_tesa in w_tesas"
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "wbc_matmul only supports a single block size for the weight tesa. If the weighted block cover (driven by the caller's sparsity pattern / TeSA values) selects more than one block size, decompose_blocked_tesas is a no-op stub (`...`) and then a bare `raise` aborts the whole transformation. So a sparsity pattern that mixes block sizes is rejected rather than handled.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "sparta/transformation/weighted_block_cover.py",
+        "line_start": 123,
+        "line_end": null,
+        "function": "sparta/transformation/weighted_block_cover.py::wbc_matmul",
+        "snippet": "raise"
+      }
+    ],
+    "region_ids": [
+      "B003"
+    ],
+    "provenance": "llm",
+    "notes": null
+  }
+]

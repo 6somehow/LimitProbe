@@ -1,0 +1,3170 @@
+{
+ "schema_version": "0.2.0",
+ "witness_format": "witness-v2",
+ "rules": {
+  "strict_scope": false
+ },
+ "note": "One record per Finding (step 4). `limitations` and `verifications` are the full records behind it. Sorted by artifact, then priority. review comes from an LLM blind review, not a human.",
+ "findings": [
+  {
+   "schema_version": "0.2.0",
+   "finding_id": "infinigen-F001",
+   "artifact_id": "infinigen",
+   "category": "undisclosed",
+   "level": "L2",
+   "limitation_ids": [
+    "CL-B003"
+   ],
+   "verification_ids": [
+    "V007"
+   ],
+   "scope_status": "unknown",
+   "evaluated_in_paper": null,
+   "effect_type": "reject",
+   "summary": "When self.policy.attn_sparsity >= 1.0: Path 2 (split GPU/CPU attention) asserts that sparsity >= 1.0, so sparse attention with mixed cache placement is rejected. (speedup/flexgen/infinigen/flex_opt.py:426)",
+   "witness_hint": {
+    "format": "witness-v2",
+    "kind": "input_value",
+    "status": "solved",
+    "condition": "self.policy.attn_sparsity >= 1.0",
+    "path_prefix": [
+     "path == 2"
+    ],
+    "dropped_prefix": [],
+    "trigger": {
+     "self.policy.attn_sparsity": 1,
+     "path": 2
+    },
+    "contrast": {
+     "self.policy.attn_sparsity": 0.999,
+     "path": 2
+    },
+    "atoms": {
+     "path": {
+      "kind": "input",
+      "sort": "int"
+     },
+     "self.policy.attn_sparsity": {
+      "kind": "derived",
+      "sort": "real"
+     }
+    },
+    "aliases_not_applied": {
+     "gpu_k_buf": "k_home.data[0][0]",
+     "gpu_v_buf": "v_home.data[0][0]"
+    },
+    "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+    "location": "speedup/flexgen/infinigen/flex_opt.py:426",
+    "function": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention.load_cache"
+   },
+   "confidence": "llm_assisted",
+   "priority": 1,
+   "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+   "review": "real_but_minor",
+   "review_note": "blind review by an LLM subagent (round 2), not human: The assert only rejects FlexGen's top-k sparse attention baseline (attn_sparsity<1) in the mixed-cache CPU path, not InfiniGen's mechanism.",
+   "limitations": [
+    {
+     "schema_version": "0.1.0",
+     "limitation_id": "CL-B003",
+     "artifact_id": "infinigen",
+     "origin": "code",
+     "level": null,
+     "condition_text": "self.policy.attn_sparsity >= 1.0",
+     "condition": {
+      "expr": "self.policy.attn_sparsity >= 1.0",
+      "params": [
+       "self"
+      ],
+      "path_prefix": [
+       "path == 2"
+      ]
+     },
+     "effect_type": "reject",
+     "effect_text": "Path 2 (split GPU/CPU attention) asserts that sparsity >= 1.0, so sparse attention with mixed cache placement is rejected.",
+     "paper_evidence": [],
+     "code_evidence": [
+      {
+       "file": "speedup/flexgen/infinigen/flex_opt.py",
+       "line_start": 426,
+       "line_end": null,
+       "function": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention.load_cache",
+       "snippet": "assert self.policy.attn_sparsity >= 1.0"
+      }
+     ],
+     "region_ids": [
+      "B003"
+     ],
+     "provenance": "llm",
+     "notes": null
+    }
+   ],
+   "verifications": [
+    {
+     "schema_version": "0.1.0",
+     "verification_id": "V007",
+     "limitation_id": "CL-B003",
+     "direction": "code_to_paper",
+     "result": "not_found",
+     "documented_in": [],
+     "matching_evidence": [],
+     "matching_code": [],
+     "scope_status": "unknown",
+     "evaluated_in_paper": null,
+     "verifier": "llm:deepseek-v4.1-flash-1017",
+     "rationale": "paper: not_found; elsewhere: not_found. No passage states that sparse attention (attn_sparsity >= 1.0) is rejected when using the split GPU/CPU attention path. Related passages discuss sparsity, CPU attention, and mixed-device attention but do not state this restriction or effect. Scope: no Binding connects this condition to a scope item."
+    }
+   ]
+  },
+  {
+   "schema_version": "0.2.0",
+   "finding_id": "infinigen-F002",
+   "artifact_id": "infinigen",
+   "category": "undisclosed",
+   "level": "L2",
+   "limitation_ids": [
+    "CL-B004"
+   ],
+   "verification_ids": [
+    "V008"
+   ],
+   "scope_status": "unknown",
+   "evaluated_in_paper": null,
+   "effect_type": "state",
+   "summary": "When k_home.device.device_type == DeviceType.MIXED and k_home.data[0][0] is not None: Prefetch path 2 requires MIXED device with populated GPU portion; otherwise path 1. (speedup/flexgen/infinigen/flex_opt.py:442)",
+   "witness_hint": {
+    "format": "witness-v2",
+    "kind": "event_sequence",
+    "status": "solved",
+    "condition": "k_home.device.device_type == DeviceType.MIXED and k_home.data[0][0] is not None",
+    "path_prefix": [
+     "self.policy.cpu_cache_compute"
+    ],
+    "sequence_note": "state-dependent: earlier calls must leave the program in the trigger state; the values below describe that state at the checked call",
+    "dropped_prefix": [],
+    "trigger": {
+     "k_home.device.device_type": "DeviceType.MIXED",
+     "k_home.data[0][0] is None": false,
+     "self.policy.cpu_cache_compute": true
+    },
+    "contrast": {
+     "k_home.device.device_type": {
+      "not_in": [
+       "DeviceType.MIXED"
+      ]
+     },
+     "k_home.data[0][0] is None": false,
+     "self.policy.cpu_cache_compute": true
+    },
+    "atoms": {
+     "k_home.data[0][0] is None": {
+      "kind": "predicate",
+      "sort": "bool"
+     },
+     "k_home.device.device_type": {
+      "kind": "category",
+      "sort": "str"
+     },
+     "self.policy.cpu_cache_compute": {
+      "kind": "predicate",
+      "sort": "bool"
+     }
+    },
+    "location": "speedup/flexgen/infinigen/flex_opt.py:442",
+    "function": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention.prefetch_cache"
+   },
+   "confidence": "llm_assisted",
+   "priority": 1,
+   "rationale": "3b: not_found; priority 1: undisclosed, state effect, witness reaches it; related (candidate pair, judged different): infinigen-F022",
+   "review": "unreviewed",
+   "review_note": null,
+   "limitations": [
+    {
+     "schema_version": "0.1.0",
+     "limitation_id": "CL-B004",
+     "artifact_id": "infinigen",
+     "origin": "code",
+     "level": null,
+     "condition_text": "k_home.device.device_type == DeviceType.MIXED and k_home.data[0][0] is not None",
+     "condition": {
+      "expr": "k_home.device.device_type == DeviceType.MIXED and k_home.data[0][0] is not None",
+      "params": [
+       "DeviceType",
+       "k_home"
+      ],
+      "path_prefix": [
+       "self.policy.cpu_cache_compute"
+      ]
+     },
+     "effect_type": "state",
+     "effect_text": "Prefetch path 2 requires MIXED device with populated GPU portion; otherwise path 1.",
+     "paper_evidence": [],
+     "code_evidence": [
+      {
+       "file": "speedup/flexgen/infinigen/flex_opt.py",
+       "line_start": 442,
+       "line_end": null,
+       "function": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention.prefetch_cache",
+       "snippet": "if (k_home.device.device_type == DeviceType.MIXED and"
+      }
+     ],
+     "region_ids": [
+      "B004"
+     ],
+     "provenance": "llm",
+     "notes": null
+    }
+   ],
+   "verifications": [
+    {
+     "schema_version": "0.1.0",
+     "verification_id": "V008",
+     "limitation_id": "CL-B004",
+     "direction": "code_to_paper",
+     "result": "not_found",
+     "documented_in": [],
+     "matching_evidence": [],
+     "matching_code": [],
+     "scope_status": "unknown",
+     "evaluated_in_paper": null,
+     "verifier": "llm:deepseek-v4.1-flash-1017",
+     "rationale": "paper: not_found; elsewhere: not_found. No passage states that the prefetch path requires a MIXED device with a populated GPU portion (k_home.data[0][0] not None). Passages mention mixed devices and recursive handling but do not describe this condition or effect. Scope: no Binding connects this condition to a scope item."
+    }
+   ]
+  },
+  {
+   "schema_version": "0.2.0",
+   "finding_id": "infinigen-F003",
+   "artifact_id": "infinigen",
+   "category": "undisclosed",
+   "level": "L2",
+   "limitation_ids": [
+    "CL-B005"
+   ],
+   "verification_ids": [
+    "V009"
+   ],
+   "scope_status": "unknown",
+   "evaluated_in_paper": null,
+   "effect_type": "reject",
+   "summary": "When path == 1 or path == 2: Prefetching is not implemented for CPU-compute paths 1 and 2; raises ValueError. (speedup/flexgen/infinigen/flex_opt.py:466)",
+   "witness_hint": {
+    "format": "witness-v2",
+    "kind": "input_value",
+    "status": "solved",
+    "condition": "path == 1 or path == 2",
+    "path_prefix": [],
+    "dropped_prefix": [],
+    "trigger": {
+     "path": 2
+    },
+    "contrast": {
+     "path": 3
+    },
+    "atoms": {
+     "path": {
+      "kind": "input",
+      "sort": "int"
+     }
+    },
+    "location": "speedup/flexgen/infinigen/flex_opt.py:466",
+    "function": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention.prefetch_cache"
+   },
+   "confidence": "llm_assisted",
+   "priority": 1,
+   "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+   "review": "worth_testing",
+   "review_note": "blind review by an LLM subagent (round 2), not human: prefetch_cache is called in the generation loop regardless of --cpu-cache-compute, and raises ValueError for CPU-compute paths 1/2, so InfiniGen prefetching cannot be combined with CPU attention compute.",
+   "limitations": [
+    {
+     "schema_version": "0.1.0",
+     "limitation_id": "CL-B005",
+     "artifact_id": "infinigen",
+     "origin": "code",
+     "level": null,
+     "condition_text": "path == 1 or path == 2",
+     "condition": {
+      "expr": "path == 1 or path == 2",
+      "params": [
+       "path"
+      ],
+      "path_prefix": []
+     },
+     "effect_type": "reject",
+     "effect_text": "Prefetching is not implemented for CPU-compute paths 1 and 2; raises ValueError.",
+     "paper_evidence": [],
+     "code_evidence": [
+      {
+       "file": "speedup/flexgen/infinigen/flex_opt.py",
+       "line_start": 466,
+       "line_end": null,
+       "function": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention.prefetch_cache",
+       "snippet": "elif path == 1 or path == 2:"
+      }
+     ],
+     "region_ids": [
+      "B005"
+     ],
+     "provenance": "llm",
+     "notes": null
+    }
+   ],
+   "verifications": [
+    {
+     "schema_version": "0.1.0",
+     "verification_id": "V009",
+     "limitation_id": "CL-B005",
+     "direction": "code_to_paper",
+     "result": "not_found",
+     "documented_in": [],
+     "matching_evidence": [],
+     "matching_code": [],
+     "scope_status": "unknown",
+     "evaluated_in_paper": null,
+     "verifier": "llm:deepseek-v4.1-flash-1017",
+     "rationale": "paper: not_found; elsewhere: not_found. No passage states that prefetching is unimplemented for CPU-compute paths 1 and 2 or that a ValueError is raised. The passages only mention picking a code path or CPU/GPU attention computation without describing this restriction. Scope: no Binding connects this condition to a scope item."
+    }
+   ]
+  },
+  {
+   "schema_version": "0.2.0",
+   "finding_id": "infinigen-F004",
+   "artifact_id": "infinigen",
+   "category": "undisclosed",
+   "level": "L2",
+   "limitation_ids": [
+    "CL-B009"
+   ],
+   "verification_ids": [
+    "V013"
+   ],
+   "scope_status": "unknown",
+   "evaluated_in_paper": null,
+   "effect_type": "reject",
+   "summary": "When not (self.policy.act_gpu_percent == 100 or self.policy.act_cpu_percent == 100 or self.policy.act_disk_percent == 100): Any policy whose activation percentages are not a single 100% tier is rejected at construction time. (speedup/flexgen/infinigen/flex_opt.py:710)",
+   "witness_hint": {
+    "format": "witness-v2",
+    "kind": "input_value",
+    "status": "solved",
+    "condition": "not (self.policy.act_gpu_percent == 100 or self.policy.act_cpu_percent == 100 or self.policy.act_disk_percent == 100)",
+    "path_prefix": [],
+    "dropped_prefix": [],
+    "trigger": {
+     "self.policy.act_gpu_percent": 101,
+     "self.policy.act_cpu_percent": 99,
+     "self.policy.act_disk_percent": 101
+    },
+    "contrast": {
+     "self.policy.act_gpu_percent": 101,
+     "self.policy.act_cpu_percent": 99,
+     "self.policy.act_disk_percent": 100
+    },
+    "atoms": {
+     "self.policy.act_cpu_percent": {
+      "kind": "derived",
+      "sort": "int"
+     },
+     "self.policy.act_disk_percent": {
+      "kind": "derived",
+      "sort": "int"
+     },
+     "self.policy.act_gpu_percent": {
+      "kind": "derived",
+      "sort": "int"
+     }
+    },
+    "location": "speedup/flexgen/infinigen/flex_opt.py:710",
+    "function": "speedup/flexgen/infinigen/flex_opt.py::OptLM.__init__"
+   },
+   "confidence": "llm_assisted",
+   "priority": 1,
+   "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+   "review": "real_but_minor",
+   "review_note": "blind review by an LLM subagent (round 1), not human: Requiring activations to live entirely on one tier is an inherited FlexGen offloading-policy restriction unrelated to InfiniGen's KV management.",
+   "limitations": [
+    {
+     "schema_version": "0.1.0",
+     "limitation_id": "CL-B009",
+     "artifact_id": "infinigen",
+     "origin": "code",
+     "level": null,
+     "condition_text": "not (self.policy.act_gpu_percent == 100 or self.policy.act_cpu_percent == 100 or self.policy.act_disk_percent == 100)",
+     "condition": {
+      "expr": "not (self.policy.act_gpu_percent == 100 or self.policy.act_cpu_percent == 100 or self.policy.act_disk_percent == 100)",
+      "params": [
+       "self"
+      ],
+      "path_prefix": []
+     },
+     "effect_type": "reject",
+     "effect_text": "Any policy whose activation percentages are not a single 100% tier is rejected at construction time.",
+     "paper_evidence": [],
+     "code_evidence": [
+      {
+       "file": "speedup/flexgen/infinigen/flex_opt.py",
+       "line_start": 710,
+       "line_end": null,
+       "function": "speedup/flexgen/infinigen/flex_opt.py::OptLM.__init__",
+       "snippet": "raise NotImplementedError()"
+      }
+     ],
+     "region_ids": [
+      "B009"
+     ],
+     "provenance": "llm",
+     "notes": null
+    }
+   ],
+   "verifications": [
+    {
+     "schema_version": "0.1.0",
+     "verification_id": "V013",
+     "limitation_id": "CL-B009",
+     "direction": "code_to_paper",
+     "result": "not_found",
+     "documented_in": [],
+     "matching_evidence": [],
+     "matching_code": [],
+     "scope_status": "unknown",
+     "evaluated_in_paper": null,
+     "verifier": "llm:deepseek-v4.1-flash-1017",
+     "rationale": "paper: not_found; elsewhere: not_found. No passage states that activation percentages must be a single 100% tier or that other configurations are rejected. D0012 and D0014 only show example percent values, not a restriction on other values. Scope: no Binding connects this condition to a scope item."
+    }
+   ]
+  },
+  {
+   "schema_version": "0.2.0",
+   "finding_id": "infinigen-F005",
+   "artifact_id": "infinigen",
+   "category": "undisclosed",
+   "level": "L2",
+   "limitation_ids": [
+    "CL-B011"
+   ],
+   "verification_ids": [
+    "V015"
+   ],
+   "scope_status": "unknown",
+   "evaluated_in_paper": null,
+   "effect_type": "reject",
+   "summary": "When args.compress_cache and args.attn_sparsity < 1.0: Combining cache compression with attention sparsity (the InfiniGen KV selection path) is not implemented; the run aborts. (speedup/flexgen/infinigen/flex_opt.py:1359)",
+   "witness_hint": {
+    "format": "witness-v2",
+    "kind": "input_value",
+    "status": "solved",
+    "condition": "args.compress_cache and args.attn_sparsity < 1.0",
+    "path_prefix": [],
+    "dropped_prefix": [],
+    "trigger": {
+     "args.compress_cache": true,
+     "args.attn_sparsity": 0.999
+    },
+    "contrast": {
+     "args.compress_cache": true,
+     "args.attn_sparsity": 1
+    },
+    "atoms": {
+     "args.attn_sparsity": {
+      "kind": "derived",
+      "sort": "real"
+     },
+     "args.compress_cache": {
+      "kind": "predicate",
+      "sort": "bool"
+     }
+    },
+    "location": "speedup/flexgen/infinigen/flex_opt.py:1359",
+    "function": "speedup/flexgen/infinigen/flex_opt.py::run_flexgen"
+   },
+   "confidence": "llm_assisted",
+   "priority": 1,
+   "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+   "review": "real_but_minor",
+   "review_note": "blind review by an LLM subagent (round 2), not human: This is FlexGen's own check against combining cache compression with its top-k sparse attention (attn_sparsity<1); it is not the InfiniGen KV selection path as claimed.",
+   "limitations": [
+    {
+     "schema_version": "0.1.0",
+     "limitation_id": "CL-B011",
+     "artifact_id": "infinigen",
+     "origin": "code",
+     "level": null,
+     "condition_text": "args.compress_cache and args.attn_sparsity < 1.0",
+     "condition": {
+      "expr": "args.compress_cache and args.attn_sparsity < 1.0",
+      "params": [
+       "args"
+      ],
+      "path_prefix": []
+     },
+     "effect_type": "reject",
+     "effect_text": "Combining cache compression with attention sparsity (the InfiniGen KV selection path) is not implemented; the run aborts.",
+     "paper_evidence": [],
+     "code_evidence": [
+      {
+       "file": "speedup/flexgen/infinigen/flex_opt.py",
+       "line_start": 1359,
+       "line_end": null,
+       "function": "speedup/flexgen/infinigen/flex_opt.py::run_flexgen",
+       "snippet": "assert not (args.compress_cache and args.attn_sparsity < 1.0), \"Not implemented\""
+      }
+     ],
+     "region_ids": [
+      "B011"
+     ],
+     "provenance": "llm",
+     "notes": null
+    }
+   ],
+   "verifications": [
+    {
+     "schema_version": "0.1.0",
+     "verification_id": "V015",
+     "limitation_id": "CL-B011",
+     "direction": "code_to_paper",
+     "result": "not_found",
+     "documented_in": [],
+     "matching_evidence": [],
+     "matching_code": [],
+     "scope_status": "unknown",
+     "evaluated_in_paper": null,
+     "verifier": "llm:deepseek-v4.1-flash-1017",
+     "rationale": "paper: not_found; elsewhere: not_found. No passage states that combining cache compression with attention sparsity (attn_sparsity < 1.0) is unimplemented or aborts. The related passages only describe the individual features (KV cache quantization, attention sparsity) or the general InfiniGen approach, without documenting this restriction. Scope: no Binding connects this condition to a scope item."
+    }
+   ]
+  },
+  {
+   "schema_version": "0.2.0",
+   "finding_id": "infinigen-F006",
+   "artifact_id": "infinigen",
+   "category": "undisclosed",
+   "level": "L2",
+   "limitation_ids": [
+    "CL-X005"
+   ],
+   "verification_ids": [
+    "V004"
+   ],
+   "scope_status": "unknown",
+   "evaluated_in_paper": null,
+   "effect_type": "reject",
+   "summary": "When not (attn_sparsity >= 1.0): AssertionError (speedup/flexgen/infinigen/pytorch_backend.py:464)",
+   "witness_hint": {
+    "format": "witness-v2",
+    "kind": "input_value",
+    "status": "solved",
+    "condition": "not (attn_sparsity >= 1.0)",
+    "path_prefix": [
+     "not (isinstance(k_cache, TorchTensor))"
+    ],
+    "dropped_prefix": [],
+    "trigger": {
+     "attn_sparsity": 0.999,
+     "isinstance(k_cache, TorchTensor)": false
+    },
+    "contrast": {
+     "attn_sparsity": 1,
+     "isinstance(k_cache, TorchTensor)": false
+    },
+    "atoms": {
+     "attn_sparsity": {
+      "kind": "input",
+      "sort": "real"
+     },
+     "isinstance(k_cache, TorchTensor)": {
+      "kind": "predicate",
+      "sort": "bool"
+     }
+    },
+    "location": "speedup/flexgen/infinigen/pytorch_backend.py:464",
+    "function": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha_gen"
+   },
+   "confidence": "llm_assisted",
+   "priority": 1,
+   "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+   "review": "unreviewed",
+   "review_note": null,
+   "limitations": [
+    {
+     "schema_version": "0.1.0",
+     "limitation_id": "CL-X005",
+     "artifact_id": "infinigen",
+     "origin": "code",
+     "level": null,
+     "condition_text": "not (attn_sparsity >= 1.0)",
+     "condition": {
+      "expr": "not (attn_sparsity >= 1.0)",
+      "params": [
+       "attn_sparsity"
+      ],
+      "path_prefix": [
+       "not (isinstance(k_cache, TorchTensor))"
+      ]
+     },
+     "effect_type": "reject",
+     "effect_text": "AssertionError",
+     "paper_evidence": [],
+     "code_evidence": [
+      {
+       "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+       "line_start": 464,
+       "line_end": 464,
+       "function": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha_gen",
+       "snippet": "assert attn_sparsity >= 1.0"
+      }
+     ],
+     "region_ids": [
+      "X005"
+     ],
+     "provenance": "ast",
+     "notes": null
+    }
+   ],
+   "verifications": [
+    {
+     "schema_version": "0.1.0",
+     "verification_id": "V004",
+     "limitation_id": "CL-X005",
+     "direction": "code_to_paper",
+     "result": "not_found",
+     "documented_in": [],
+     "matching_evidence": [],
+     "matching_code": [],
+     "scope_status": "unknown",
+     "evaluated_in_paper": null,
+     "verifier": "llm:deepseek-v4.1-flash-1017",
+     "rationale": "paper: not_found; elsewhere: not_found. No passage states that attn_sparsity must be >= 1.0 or that an AssertionError occurs otherwise. D0019 only labels a sparsity comment, and D0125/D0126 are unrelated code comments. Scope: no Binding connects this condition to a scope item."
+    }
+   ]
+  },
+  {
+   "schema_version": "0.2.0",
+   "finding_id": "infinigen-F007",
+   "artifact_id": "infinigen",
+   "category": "undisclosed",
+   "level": "L2",
+   "limitation_ids": [
+    "CL-X002"
+   ],
+   "verification_ids": [
+    "V001"
+   ],
+   "scope_status": "unknown",
+   "evaluated_in_paper": null,
+   "effect_type": "reject",
+   "summary": "When not (src.device.device_type != DeviceType.MIXED): AssertionError (speedup/flexgen/infinigen/pytorch_backend.py:823)",
+   "witness_hint": {
+    "format": "witness-v2",
+    "kind": "input_value",
+    "status": "solved",
+    "condition": "not (src.device.device_type != DeviceType.MIXED)",
+    "path_prefix": [
+     "isinstance(k_cache, TorchTensor)",
+     "not (attn_sparsity >= 1.0)",
+     "k.is_cuda",
+     "dst.device.device_type == DeviceType.MIXED"
+    ],
+    "dropped_prefix": [],
+    "trigger": {
+     "src.device.device_type": "DeviceType.MIXED",
+     "isinstance(k_cache, TorchTensor)": true,
+     "attn_sparsity": 0.652,
+     "k.is_cuda": true,
+     "dst.device.device_type": "DeviceType.MIXED"
+    },
+    "contrast": {
+     "src.device.device_type": {
+      "not_in": [
+       "DeviceType.MIXED"
+      ]
+     },
+     "isinstance(k_cache, TorchTensor)": true,
+     "attn_sparsity": 0.652,
+     "k.is_cuda": true,
+     "dst.device.device_type": "DeviceType.MIXED"
+    },
+    "atoms": {
+     "attn_sparsity": {
+      "kind": "input",
+      "sort": "real"
+     },
+     "dst.device.device_type": {
+      "kind": "category",
+      "sort": "str"
+     },
+     "isinstance(k_cache, TorchTensor)": {
+      "kind": "predicate",
+      "sort": "bool"
+     },
+     "k.is_cuda": {
+      "kind": "predicate",
+      "sort": "bool"
+     },
+     "src.device.device_type": {
+      "kind": "category",
+      "sort": "str"
+     }
+    },
+    "location": "speedup/flexgen/infinigen/pytorch_backend.py:823",
+    "function": "speedup/flexgen/infinigen/pytorch_backend.py::general_copy"
+   },
+   "confidence": "llm_assisted",
+   "priority": 1,
+   "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+   "review": "unreviewed",
+   "review_note": null,
+   "limitations": [
+    {
+     "schema_version": "0.1.0",
+     "limitation_id": "CL-X002",
+     "artifact_id": "infinigen",
+     "origin": "code",
+     "level": null,
+     "condition_text": "not (src.device.device_type != DeviceType.MIXED)",
+     "condition": {
+      "expr": "not (src.device.device_type != DeviceType.MIXED)",
+      "params": [
+       "DeviceType",
+       "src"
+      ],
+      "path_prefix": [
+       "isinstance(k_cache, TorchTensor)",
+       "not (attn_sparsity >= 1.0)",
+       "k.is_cuda",
+       "dst.device.device_type == DeviceType.MIXED"
+      ]
+     },
+     "effect_type": "reject",
+     "effect_text": "AssertionError",
+     "paper_evidence": [],
+     "code_evidence": [
+      {
+       "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+       "line_start": 823,
+       "line_end": 823,
+       "function": "speedup/flexgen/infinigen/pytorch_backend.py::general_copy",
+       "snippet": "assert src.device.device_type != DeviceType.MIXED"
+      }
+     ],
+     "region_ids": [
+      "X002"
+     ],
+     "provenance": "ast",
+     "notes": null
+    }
+   ],
+   "verifications": [
+    {
+     "schema_version": "0.1.0",
+     "verification_id": "V001",
+     "limitation_id": "CL-X002",
+     "direction": "code_to_paper",
+     "result": "not_found",
+     "documented_in": [],
+     "matching_evidence": [],
+     "matching_code": [],
+     "scope_status": "unknown",
+     "evaluated_in_paper": null,
+     "verifier": "llm:deepseek-v4.1-flash-1017",
+     "rationale": "paper: not_found; elsewhere: not_found. The passages mention mixed devices and recursive handling for TorchMixedDevice, but none state that general_copy rejects a mixed-device source with an AssertionError. D0151/D0152 even describe recursive calls for mixed devices, which is about handling rather than rejecting, and no passage documents the assertion boundary. Scope: no Binding connects this condition to a scope item."
+    }
+   ]
+  },
+  {
+   "schema_version": "0.2.0",
+   "finding_id": "infinigen-F008",
+   "artifact_id": "infinigen",
+   "category": "undisclosed",
+   "level": "L2",
+   "limitation_ids": [
+    "CL-X003"
+   ],
+   "verification_ids": [
+    "V002"
+   ],
+   "scope_status": "unknown",
+   "evaluated_in_paper": null,
+   "effect_type": "reject",
+   "summary": "When not (all((x.step is None for x in indices))): AssertionError (speedup/flexgen/infinigen/pytorch_backend.py:881)",
+   "witness_hint": {
+    "format": "witness-v2",
+    "kind": "input_value",
+    "status": "solved",
+    "condition": "not (all((x.step is None for x in indices)))",
+    "path_prefix": [
+     "isinstance(k_cache, TorchTensor)",
+     "not (attn_sparsity >= 1.0)",
+     "k.is_cuda",
+     "dst.device.device_type == DeviceType.MIXED",
+     "src.device.device_type != DeviceType.MIXED"
+    ],
+    "dropped_prefix": [],
+    "trigger": {
+     "all((x.step is None for x in indices))": false,
+     "isinstance(k_cache, TorchTensor)": true,
+     "attn_sparsity": 0.935,
+     "k.is_cuda": true,
+     "dst.device.device_type": "DeviceType.MIXED",
+     "src.device.device_type": {
+      "not_in": [
+       "DeviceType.MIXED"
+      ]
+     }
+    },
+    "contrast": {
+     "all((x.step is None for x in indices))": true,
+     "isinstance(k_cache, TorchTensor)": true,
+     "attn_sparsity": 0.935,
+     "k.is_cuda": true,
+     "dst.device.device_type": "DeviceType.MIXED",
+     "src.device.device_type": {
+      "not_in": [
+       "DeviceType.MIXED"
+      ]
+     }
+    },
+    "atoms": {
+     "all((x.step is None for x in indices))": {
+      "kind": "predicate",
+      "sort": "bool"
+     },
+     "attn_sparsity": {
+      "kind": "input",
+      "sort": "real"
+     },
+     "dst.device.device_type": {
+      "kind": "category",
+      "sort": "str"
+     },
+     "isinstance(k_cache, TorchTensor)": {
+      "kind": "predicate",
+      "sort": "bool"
+     },
+     "k.is_cuda": {
+      "kind": "predicate",
+      "sort": "bool"
+     },
+     "src.device.device_type": {
+      "kind": "category",
+      "sort": "str"
+     }
+    },
+    "location": "speedup/flexgen/infinigen/pytorch_backend.py:881",
+    "function": "speedup/flexgen/infinigen/pytorch_backend.py::cut_indices"
+   },
+   "confidence": "llm_assisted",
+   "priority": 1,
+   "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+   "review": "unreviewed",
+   "review_note": null,
+   "limitations": [
+    {
+     "schema_version": "0.1.0",
+     "limitation_id": "CL-X003",
+     "artifact_id": "infinigen",
+     "origin": "code",
+     "level": null,
+     "condition_text": "not (all((x.step is None for x in indices)))",
+     "condition": {
+      "expr": "not (all((x.step is None for x in indices)))",
+      "params": [
+       "all",
+       "indices",
+       "x"
+      ],
+      "path_prefix": [
+       "isinstance(k_cache, TorchTensor)",
+       "not (attn_sparsity >= 1.0)",
+       "k.is_cuda",
+       "dst.device.device_type == DeviceType.MIXED",
+       "src.device.device_type != DeviceType.MIXED"
+      ]
+     },
+     "effect_type": "reject",
+     "effect_text": "AssertionError",
+     "paper_evidence": [],
+     "code_evidence": [
+      {
+       "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+       "line_start": 881,
+       "line_end": 881,
+       "function": "speedup/flexgen/infinigen/pytorch_backend.py::cut_indices",
+       "snippet": "assert all((x.step is None for x in indices))"
+      }
+     ],
+     "region_ids": [
+      "X003"
+     ],
+     "provenance": "ast",
+     "notes": null
+    }
+   ],
+   "verifications": [
+    {
+     "schema_version": "0.1.0",
+     "verification_id": "V002",
+     "limitation_id": "CL-X003",
+     "direction": "code_to_paper",
+     "result": "not_found",
+     "documented_in": [],
+     "matching_evidence": [],
+     "matching_code": [],
+     "scope_status": "unknown",
+     "evaluated_in_paper": null,
+     "verifier": "llm:deepseek-v4.1-flash-1017",
+     "rationale": "paper: not_found; elsewhere: not_found. The passages describe general_copy behavior, TorchTensor wrapping, and disk/CPU copy dispatch, but none state the assertion that indices must have step None (i.e., that non-None step indices are rejected with AssertionError). Scope: no Binding connects this condition to a scope item."
+    }
+   ]
+  },
+  {
+   "schema_version": "0.2.0",
+   "finding_id": "infinigen-F009",
+   "artifact_id": "infinigen",
+   "category": "stated_differently",
+   "level": "L2",
+   "limitation_ids": [
+    "CL-B001"
+   ],
+   "verification_ids": [
+    "V005"
+   ],
+   "scope_status": "unknown",
+   "evaluated_in_paper": null,
+   "effect_type": "path_change",
+   "summary": "When self.layer_id > 1: partial_weight_ratio is only set for layers with layer_id > 1; layer 0 and 1 get None, so the partial-weight speculation path is disabled for the first two layers. (speedup/flexgen/infinigen/flex_opt.py:287)",
+   "witness_hint": {
+    "format": "witness-v2",
+    "kind": "input_value",
+    "status": "solved",
+    "condition": "self.layer_id > 1",
+    "path_prefix": [],
+    "dropped_prefix": [],
+    "trigger": {
+     "self.layer_id": 2
+    },
+    "contrast": {
+     "self.layer_id": 1
+    },
+    "atoms": {
+     "self.layer_id": {
+      "kind": "derived",
+      "sort": "int"
+     }
+    },
+    "location": "speedup/flexgen/infinigen/flex_opt.py:287",
+    "function": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention.__init__"
+   },
+   "confidence": "llm_assisted",
+   "priority": 2,
+   "rationale": "3b: boundary_mismatch in paper; 3b boundary_mismatch; priority 2: stated_differently",
+   "review": "worth_testing",
+   "review_note": "blind review by an LLM subagent (round 1), not human: Layers 0 and 1 always get partial_weight_ratio=None (and are excluded from prefetched cache loading), so InfiniGen speculation/selection never applies to the first two layers, which always use the full KV cache.",
+   "limitations": [
+    {
+     "schema_version": "0.1.0",
+     "limitation_id": "CL-B001",
+     "artifact_id": "infinigen",
+     "origin": "code",
+     "level": null,
+     "condition_text": "self.layer_id > 1",
+     "condition": {
+      "expr": "self.layer_id > 1",
+      "params": [
+       "self"
+      ],
+      "path_prefix": []
+     },
+     "effect_type": "path_change",
+     "effect_text": "partial_weight_ratio is only set for layers with layer_id > 1; layer 0 and 1 get None, so the partial-weight speculation path is disabled for the first two layers.",
+     "paper_evidence": [],
+     "code_evidence": [
+      {
+       "file": "speedup/flexgen/infinigen/flex_opt.py",
+       "line_start": 287,
+       "line_end": null,
+       "function": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention.__init__",
+       "snippet": "if self.layer_id > 1:"
+      }
+     ],
+     "region_ids": [
+      "B001"
+     ],
+     "provenance": "llm",
+     "notes": null
+    }
+   ],
+   "verifications": [
+    {
+     "schema_version": "0.1.0",
+     "verification_id": "V005",
+     "limitation_id": "CL-B001",
+     "direction": "code_to_paper",
+     "result": "boundary_mismatch",
+     "documented_in": [
+      "paper"
+     ],
+     "matching_evidence": [
+      {
+       "quote": "InfiniGen initiates speculation and prefetching from Layer 1 because the outliers, which are essential for exploiting input similarity, emerge during the computation in Layer 0.",
+       "source": "paper",
+       "locator": "4.3 Efficiently Prefetching KV Cache, p.10"
+      }
+     ],
+     "matching_code": [],
+     "scope_status": "unknown",
+     "evaluated_in_paper": null,
+     "verifier": "llm:deepseek-v4.1-flash-1017",
+     "rationale": "paper: boundary_mismatch; elsewhere: not_found. The passage documents the same effect (speculation/prefetching disabled for early layers) but places the boundary at starting from Layer 1, whereas the code condition self.layer_id > 1 disables the path for layers 0 and 1 (starting from Layer 2). The boundary differs. Scope: no Binding connects this condition to a scope item."
+    }
+   ]
+  },
+  {
+   "schema_version": "0.2.0",
+   "finding_id": "infinigen-F010",
+   "artifact_id": "infinigen",
+   "category": "undisclosed",
+   "level": "L2",
+   "limitation_ids": [
+    "CL-B002"
+   ],
+   "verification_ids": [
+    "V006"
+   ],
+   "scope_status": "unknown",
+   "evaluated_in_paper": null,
+   "effect_type": "path_change",
+   "summary": "When self.policy.attn_sparsity >= 1.0: When sparsity >= 1.0 the full V cache is copied; otherwise V is deferred (v_home, False) for later selection, changing the data movement path. (speedup/flexgen/infinigen/flex_opt.py:389)",
+   "witness_hint": {
+    "format": "witness-v2",
+    "kind": "input_value",
+    "status": "solved",
+    "condition": "self.policy.attn_sparsity >= 1.0",
+    "path_prefix": [
+     "path == 0"
+    ],
+    "dropped_prefix": [],
+    "trigger": {
+     "self.policy.attn_sparsity": 1,
+     "path": 0
+    },
+    "contrast": {
+     "self.policy.attn_sparsity": 0.999,
+     "path": 0
+    },
+    "atoms": {
+     "path": {
+      "kind": "input",
+      "sort": "int"
+     },
+     "self.policy.attn_sparsity": {
+      "kind": "derived",
+      "sort": "real"
+     }
+    },
+    "location": "speedup/flexgen/infinigen/flex_opt.py:389",
+    "function": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention.load_cache"
+   },
+   "confidence": "llm_assisted",
+   "priority": 2,
+   "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+   "review": "real_but_minor",
+   "review_note": "blind review by an LLM subagent (round 2), not human: attn_sparsity<1 picks FlexGen's top-k sparse attention baseline rather than InfiniGen's KV selection; same branch logic as infinigen-f04.",
+   "limitations": [
+    {
+     "schema_version": "0.1.0",
+     "limitation_id": "CL-B002",
+     "artifact_id": "infinigen",
+     "origin": "code",
+     "level": null,
+     "condition_text": "self.policy.attn_sparsity >= 1.0",
+     "condition": {
+      "expr": "self.policy.attn_sparsity >= 1.0",
+      "params": [
+       "self"
+      ],
+      "path_prefix": [
+       "path == 0"
+      ]
+     },
+     "effect_type": "path_change",
+     "effect_text": "When sparsity >= 1.0 the full V cache is copied; otherwise V is deferred (v_home, False) for later selection, changing the data movement path.",
+     "paper_evidence": [],
+     "code_evidence": [
+      {
+       "file": "speedup/flexgen/infinigen/flex_opt.py",
+       "line_start": 389,
+       "line_end": null,
+       "function": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention.load_cache",
+       "snippet": "if self.policy.attn_sparsity >= 1.0:"
+      }
+     ],
+     "region_ids": [
+      "B002"
+     ],
+     "provenance": "llm",
+     "notes": null
+    }
+   ],
+   "verifications": [
+    {
+     "schema_version": "0.1.0",
+     "verification_id": "V006",
+     "limitation_id": "CL-B002",
+     "direction": "code_to_paper",
+     "result": "not_found",
+     "documented_in": [],
+     "matching_evidence": [],
+     "matching_code": [],
+     "scope_status": "unknown",
+     "evaluated_in_paper": null,
+     "verifier": "llm:deepseek-v4.1-flash-1017",
+     "rationale": "paper: not_found; elsewhere: not_found. No passage states the attn_sparsity >= 1.0 condition or the full-V-copy versus deferred-V data movement effect. D0019 only labels the sparsity of attention weights, and D0159 mentions a sparse v_cache case without any threshold or copy behavior. Scope: no Binding connects this condition to a scope item."
+    }
+   ]
+  },
+  {
+   "schema_version": "0.2.0",
+   "finding_id": "infinigen-F011",
+   "artifact_id": "infinigen",
+   "category": "undisclosed",
+   "level": "L2",
+   "limitation_ids": [
+    "CL-B006"
+   ],
+   "verification_ids": [
+    "V010"
+   ],
+   "scope_status": "unknown",
+   "evaluated_in_paper": null,
+   "effect_type": "path_change",
+   "summary": "When self.enable_prefetching: When prefetching is enabled, mha_gen is called with p_w_q, partial_k_cache, speculation_stream, alpha and max_num_kv; otherwise those are passed as None, disabling the speculation/prefetch mechanism. (speedup/flexgen/infinigen/flex_opt.py:528)",
+   "witness_hint": {
+    "format": "witness-v2",
+    "kind": "input_value",
+    "status": "solved",
+    "condition": "self.enable_prefetching",
+    "path_prefix": [],
+    "dropped_prefix": [],
+    "trigger": {
+     "self.enable_prefetching": true
+    },
+    "contrast": {
+     "self.enable_prefetching": false
+    },
+    "atoms": {
+     "self.enable_prefetching": {
+      "kind": "predicate",
+      "sort": "bool"
+     }
+    },
+    "location": "speedup/flexgen/infinigen/flex_opt.py:528",
+    "function": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention.forward"
+   },
+   "confidence": "llm_assisted",
+   "priority": 2,
+   "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+   "review": "real_but_minor",
+   "review_note": "blind review by an LLM subagent (round 2), not human: enable_prefetching is fixed per layer in OptLM.__init__ (off only for the first and last layers), so it is an internal design detail rather than a user-reachable switch.",
+   "limitations": [
+    {
+     "schema_version": "0.1.0",
+     "limitation_id": "CL-B006",
+     "artifact_id": "infinigen",
+     "origin": "code",
+     "level": null,
+     "condition_text": "self.enable_prefetching",
+     "condition": {
+      "expr": "self.enable_prefetching",
+      "params": [
+       "self"
+      ],
+      "path_prefix": []
+     },
+     "effect_type": "path_change",
+     "effect_text": "When prefetching is enabled, mha_gen is called with p_w_q, partial_k_cache, speculation_stream, alpha and max_num_kv; otherwise those are passed as None, disabling the speculation/prefetch mechanism.",
+     "paper_evidence": [],
+     "code_evidence": [
+      {
+       "file": "speedup/flexgen/infinigen/flex_opt.py",
+       "line_start": 528,
+       "line_end": null,
+       "function": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention.forward",
+       "snippet": "if self.enable_prefetching:"
+      }
+     ],
+     "region_ids": [
+      "B006"
+     ],
+     "provenance": "llm",
+     "notes": null
+    }
+   ],
+   "verifications": [
+    {
+     "schema_version": "0.1.0",
+     "verification_id": "V010",
+     "limitation_id": "CL-B006",
+     "direction": "code_to_paper",
+     "result": "not_found",
+     "documented_in": [],
+     "matching_evidence": [],
+     "matching_code": [],
+     "scope_status": "unknown",
+     "evaluated_in_paper": null,
+     "verifier": "llm:deepseek-v4.1-flash-1017",
+     "rationale": "paper: not_found; elsewhere: not_found. No passage documents the enable_prefetching branch that passes speculation parameters (p_w_q, partial_k_cache, speculation_stream, alpha, max_num_kv) versus None. D0041 mentions prefetching only as a code comment about starting self-attention, and D0005 describes prefetching conceptually without stating this conditional behavior. Scope: no Binding connects this condition to a scope item."
+    }
+   ]
+  },
+  {
+   "schema_version": "0.2.0",
+   "finding_id": "infinigen-F012",
+   "artifact_id": "infinigen",
+   "category": "undisclosed",
+   "level": "L2",
+   "limitation_ids": [
+    "CL-B007"
+   ],
+   "verification_ids": [
+    "V011"
+   ],
+   "scope_status": "unknown",
+   "evaluated_in_paper": null,
+   "effect_type": "path_change",
+   "summary": "When prev_partial_cache_read_buf is not None and self.layer_id > 1: Partial cache accumulation for the next layer only happens for layer_id > 1; earlier layers skip it. (speedup/flexgen/infinigen/flex_opt.py:541)",
+   "witness_hint": {
+    "format": "witness-v2",
+    "kind": "input_value",
+    "status": "solved",
+    "condition": "prev_partial_cache_read_buf is not None and self.layer_id > 1",
+    "path_prefix": [],
+    "dropped_prefix": [],
+    "trigger": {
+     "prev_partial_cache_read_buf is None": false,
+     "self.layer_id": 2
+    },
+    "contrast": {
+     "prev_partial_cache_read_buf is None": false,
+     "self.layer_id": 1
+    },
+    "atoms": {
+     "prev_partial_cache_read_buf is None": {
+      "kind": "predicate",
+      "sort": "bool"
+     },
+     "self.layer_id": {
+      "kind": "derived",
+      "sort": "int"
+     }
+    },
+    "location": "speedup/flexgen/infinigen/flex_opt.py:541",
+    "function": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention.forward"
+   },
+   "confidence": "llm_assisted",
+   "priority": 2,
+   "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+   "review": "unreviewed",
+   "review_note": null,
+   "limitations": [
+    {
+     "schema_version": "0.1.0",
+     "limitation_id": "CL-B007",
+     "artifact_id": "infinigen",
+     "origin": "code",
+     "level": null,
+     "condition_text": "prev_partial_cache_read_buf is not None and self.layer_id > 1",
+     "condition": {
+      "expr": "prev_partial_cache_read_buf is not None and self.layer_id > 1",
+      "params": [
+       "prev_partial_cache_read_buf",
+       "self"
+      ],
+      "path_prefix": []
+     },
+     "effect_type": "path_change",
+     "effect_text": "Partial cache accumulation for the next layer only happens for layer_id > 1; earlier layers skip it.",
+     "paper_evidence": [],
+     "code_evidence": [
+      {
+       "file": "speedup/flexgen/infinigen/flex_opt.py",
+       "line_start": 541,
+       "line_end": null,
+       "function": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention.forward",
+       "snippet": "if (prev_partial_cache_read_buf is not None) and (self.layer_id > 1):"
+      }
+     ],
+     "region_ids": [
+      "B007"
+     ],
+     "provenance": "llm",
+     "notes": null
+    }
+   ],
+   "verifications": [
+    {
+     "schema_version": "0.1.0",
+     "verification_id": "V011",
+     "limitation_id": "CL-B007",
+     "direction": "code_to_paper",
+     "result": "not_found",
+     "documented_in": [],
+     "matching_evidence": [],
+     "matching_code": [],
+     "scope_status": "unknown",
+     "evaluated_in_paper": null,
+     "verifier": "llm:deepseek-v4.1-flash-1017",
+     "rationale": "paper: not_found; elsewhere: not_found. No passage mentions the condition that partial cache accumulation for the next layer only happens for layer_id > 1. The related passages discuss cache buffers and layer loading but do not state this restriction or effect. Scope: no Binding connects this condition to a scope item."
+    }
+   ]
+  },
+  {
+   "schema_version": "0.2.0",
+   "finding_id": "infinigen-F013",
+   "artifact_id": "infinigen",
+   "category": "undisclosed",
+   "level": "L2",
+   "limitation_ids": [
+    "CL-B010"
+   ],
+   "verification_ids": [
+    "V014"
+   ],
+   "scope_status": "unknown",
+   "evaluated_in_paper": null,
+   "effect_type": "path_change",
+   "summary": "When j not in self.attn_layer[2:]: Cache loading is skipped for all attention layers except the first two (attn_layer[0], attn_layer[1]); those layers' KV caches are not loaded from cache_home, so the InfiniGen cache-load path only runs for the first two attention layers. (speedup/flexgen/infinigen/flex_opt.py:799)",
+   "witness_hint": {
+    "format": "witness-v2",
+    "kind": "input_value",
+    "status": "solved",
+    "condition": "j not in self.attn_layer[2:]",
+    "path_prefix": [],
+    "dropped_prefix": [],
+    "trigger": {
+     "j in self.attn_layer[2:]": false
+    },
+    "contrast": {
+     "j in self.attn_layer[2:]": true
+    },
+    "atoms": {
+     "j in self.attn_layer[2:]": {
+      "kind": "predicate",
+      "sort": "bool"
+     }
+    },
+    "location": "speedup/flexgen/infinigen/flex_opt.py:799",
+    "function": "speedup/flexgen/infinigen/flex_opt.py::OptLM.load_cache"
+   },
+   "confidence": "llm_assisted",
+   "priority": 2,
+   "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+   "review": "real_but_minor",
+   "review_note": "blind review by an LLM subagent (round 2), not human: Skipping load_cache for attention layers after the first two is a fixed internal schedule (those layers get KV via prefetch), not a condition a user can trigger.",
+   "limitations": [
+    {
+     "schema_version": "0.1.0",
+     "limitation_id": "CL-B010",
+     "artifact_id": "infinigen",
+     "origin": "code",
+     "level": null,
+     "condition_text": "j not in self.attn_layer[2:]",
+     "condition": {
+      "expr": "j not in self.attn_layer[2:]",
+      "params": [
+       "j",
+       "self"
+      ],
+      "path_prefix": []
+     },
+     "effect_type": "path_change",
+     "effect_text": "Cache loading is skipped for all attention layers except the first two (attn_layer[0], attn_layer[1]); those layers' KV caches are not loaded from cache_home, so the InfiniGen cache-load path only runs for the first two attention layers.",
+     "paper_evidence": [],
+     "code_evidence": [
+      {
+       "file": "speedup/flexgen/infinigen/flex_opt.py",
+       "line_start": 799,
+       "line_end": null,
+       "function": "speedup/flexgen/infinigen/flex_opt.py::OptLM.load_cache",
+       "snippet": "if j not in self.attn_layer[2:]:"
+      }
+     ],
+     "region_ids": [
+      "B010"
+     ],
+     "provenance": "llm",
+     "notes": null
+    }
+   ],
+   "verifications": [
+    {
+     "schema_version": "0.1.0",
+     "verification_id": "V014",
+     "limitation_id": "CL-B010",
+     "direction": "code_to_paper",
+     "result": "not_found",
+     "documented_in": [],
+     "matching_evidence": [],
+     "matching_code": [],
+     "scope_status": "unknown",
+     "evaluated_in_paper": null,
+     "verifier": "llm:deepseek-v4.1-flash-1017",
+     "rationale": "paper: not_found; elsewhere: not_found. No passage states that cache loading is skipped for all attention layers except the first two. The related comments only describe loading from cache_home to cache_read_buf or loading from the last layer, without mentioning the attn_layer[2:] restriction. Scope: no Binding connects this condition to a scope item."
+    }
+   ]
+  },
+  {
+   "schema_version": "0.2.0",
+   "finding_id": "infinigen-F014",
+   "artifact_id": "infinigen",
+   "category": "undisclosed",
+   "level": "L2",
+   "limitation_ids": [
+    "CL-B013"
+   ],
+   "verification_ids": [
+    "V017"
+   ],
+   "scope_status": "unknown",
+   "evaluated_in_paper": null,
+   "effect_type": "path_change",
+   "summary": "When p_w_q is None: In TorchDevice.mha_gen, the InfiniGen KV speculation (speculate_attention) only runs when the caller passes a partial-weight query tensor p_w_q. When p_w_q is None, prefetch_idx stays None (line 400) and the whole dynamic KV selection / prefetch mechanism is skipped, so the run degrades to plain dense attention over the full KV cache. (speedup/flexgen/infinigen/pytorch_backe...",
+   "witness_hint": {
+    "format": "witness-v2",
+    "kind": "input_value",
+    "status": "solved",
+    "condition": "p_w_q is None",
+    "path_prefix": [
+     "def mha_gen"
+    ],
+    "dropped_prefix": [
+     "def mha_gen"
+    ],
+    "trigger": {
+     "p_w_q is None": true
+    },
+    "contrast": {
+     "p_w_q is None": false
+    },
+    "atoms": {
+     "p_w_q is None": {
+      "kind": "predicate",
+      "sort": "bool"
+     }
+    },
+    "location": "speedup/flexgen/infinigen/pytorch_backend.py:401",
+    "function": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha_gen"
+   },
+   "confidence": "llm_assisted",
+   "priority": 2,
+   "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+   "review": "real_but_minor",
+   "review_note": "blind review by an LLM subagent (round 1), not human: p_w_q is None only for layers built with enable_prefetching=False, so this is the same 'early layers get no speculation/full KV' limitation already covered by infinigen-10.",
+   "limitations": [
+    {
+     "schema_version": "0.1.0",
+     "limitation_id": "CL-B013",
+     "artifact_id": "infinigen",
+     "origin": "code",
+     "level": null,
+     "condition_text": "p_w_q is None",
+     "condition": {
+      "expr": "p_w_q is None",
+      "params": [
+       "p_w_q"
+      ],
+      "path_prefix": [
+       "def mha_gen"
+      ]
+     },
+     "effect_type": "path_change",
+     "effect_text": "In TorchDevice.mha_gen, the InfiniGen KV speculation (speculate_attention) only runs when the caller passes a partial-weight query tensor p_w_q. When p_w_q is None, prefetch_idx stays None (line 400) and the whole dynamic KV selection / prefetch mechanism is skipped, so the run degrades to plain dense attention over the full KV cache.",
+     "paper_evidence": [],
+     "code_evidence": [
+      {
+       "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+       "line_start": 401,
+       "line_end": null,
+       "function": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha_gen",
+       "snippet": "if p_w_q is not None:"
+      }
+     ],
+     "region_ids": [
+      "B013"
+     ],
+     "provenance": "llm",
+     "notes": null
+    }
+   ],
+   "verifications": [
+    {
+     "schema_version": "0.1.0",
+     "verification_id": "V017",
+     "limitation_id": "CL-B013",
+     "direction": "code_to_paper",
+     "result": "not_found",
+     "documented_in": [],
+     "matching_evidence": [],
+     "matching_code": [],
+     "scope_status": "unknown",
+     "evaluated_in_paper": null,
+     "verifier": "llm:deepseek-v4.1-flash-1017",
+     "rationale": "paper: not_found; elsewhere: not_found. No passage states that InfiniGen KV speculation is skipped when p_w_q is None or that the run degrades to dense attention. D0112 is only a code comment 'Speculate attention', and D0005 describes the speculation mechanism generally without stating this condition or fallback effect. Scope: no Binding connects this condition to a scope item."
+    }
+   ]
+  },
+  {
+   "schema_version": "0.2.0",
+   "finding_id": "infinigen-F015",
+   "artifact_id": "infinigen",
+   "category": "undisclosed",
+   "level": "L2",
+   "limitation_ids": [
+    "CL-B014"
+   ],
+   "verification_ids": [
+    "V018"
+   ],
+   "scope_status": "unknown",
+   "evaluated_in_paper": null,
+   "effect_type": "path_change",
+   "summary": "When attn_sparsity >= 1.0: Caller-supplied attn_sparsity selects dense attention (decompress full k/v cache and dense bmm) versus sparse attention (top-k selection in _sparse_attention_value). (speedup/flexgen/infinigen/pytorch_backend.py:422)",
+   "witness_hint": {
+    "format": "witness-v2",
+    "kind": "input_value",
+    "status": "solved",
+    "condition": "attn_sparsity >= 1.0",
+    "path_prefix": [
+     "isinstance(k_cache, TorchTensor)"
+    ],
+    "dropped_prefix": [],
+    "trigger": {
+     "attn_sparsity": 1,
+     "isinstance(k_cache, TorchTensor)": true
+    },
+    "contrast": {
+     "attn_sparsity": 0.999,
+     "isinstance(k_cache, TorchTensor)": true
+    },
+    "atoms": {
+     "attn_sparsity": {
+      "kind": "input",
+      "sort": "real"
+     },
+     "isinstance(k_cache, TorchTensor)": {
+      "kind": "predicate",
+      "sort": "bool"
+     }
+    },
+    "location": "speedup/flexgen/infinigen/pytorch_backend.py:422",
+    "function": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha_gen"
+   },
+   "confidence": "llm_assisted",
+   "priority": 2,
+   "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+   "review": "real_but_minor",
+   "review_note": "blind review by an LLM subagent (round 1), not human: The dense vs attn_sparsity<1 switch selects FlexGen's own top-k sparse attention baseline, not a variant of InfiniGen.",
+   "limitations": [
+    {
+     "schema_version": "0.1.0",
+     "limitation_id": "CL-B014",
+     "artifact_id": "infinigen",
+     "origin": "code",
+     "level": null,
+     "condition_text": "attn_sparsity >= 1.0",
+     "condition": {
+      "expr": "attn_sparsity >= 1.0",
+      "params": [
+       "attn_sparsity"
+      ],
+      "path_prefix": [
+       "isinstance(k_cache, TorchTensor)"
+      ]
+     },
+     "effect_type": "path_change",
+     "effect_text": "Caller-supplied attn_sparsity selects dense attention (decompress full k/v cache and dense bmm) versus sparse attention (top-k selection in _sparse_attention_value).",
+     "paper_evidence": [],
+     "code_evidence": [
+      {
+       "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+       "line_start": 422,
+       "line_end": null,
+       "function": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha_gen",
+       "snippet": "if attn_sparsity >= 1.0:  # Dense attention"
+      }
+     ],
+     "region_ids": [
+      "B014"
+     ],
+     "provenance": "llm",
+     "notes": null
+    }
+   ],
+   "verifications": [
+    {
+     "schema_version": "0.1.0",
+     "verification_id": "V018",
+     "limitation_id": "CL-B014",
+     "direction": "code_to_paper",
+     "result": "not_found",
+     "documented_in": [],
+     "matching_evidence": [],
+     "matching_code": [],
+     "scope_status": "unknown",
+     "evaluated_in_paper": null,
+     "verifier": "llm:deepseek-v4.1-flash-1017",
+     "rationale": "paper: not_found; elsewhere: not_found. No passage states that attn_sparsity >= 1.0 selects dense attention versus sparse top-k selection. D0118 only labels the branch 'Dense attention' without stating the condition or the sparse alternative, and D0019/D0123/D0125/D0159 discuss sparsity or sparse attention without documenting this threshold behavior. Scope: no Binding connects this condition to a scope item."
+    }
+   ]
+  },
+  {
+   "schema_version": "0.2.0",
+   "finding_id": "infinigen-F016",
+   "artifact_id": "infinigen",
+   "category": "undisclosed",
+   "level": "L2",
+   "limitation_ids": [
+    "CL-B015"
+   ],
+   "verification_ids": [
+    "V019"
+   ],
+   "scope_status": "unknown",
+   "evaluated_in_paper": null,
+   "effect_type": "path_change",
+   "summary": "When comp_config.group_dim == 0: Caller-supplied comp_config.group_dim decides whether k_new/v_new are re-sliced to a group-aligned boundary before compression. (speedup/flexgen/infinigen/pytorch_backend.py:479)",
+   "witness_hint": {
+    "format": "witness-v2",
+    "kind": "input_value",
+    "status": "solved",
+    "condition": "comp_config.group_dim == 0",
+    "path_prefix": [
+     "compress_cache"
+    ],
+    "dropped_prefix": [],
+    "trigger": {
+     "comp_config.group_dim": 0,
+     "compress_cache": true
+    },
+    "contrast": {
+     "comp_config.group_dim": 1,
+     "compress_cache": true
+    },
+    "atoms": {
+     "comp_config.group_dim": {
+      "kind": "derived",
+      "sort": "int"
+     },
+     "compress_cache": {
+      "kind": "input",
+      "sort": "bool"
+     }
+    },
+    "location": "speedup/flexgen/infinigen/pytorch_backend.py:479",
+    "function": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha_gen"
+   },
+   "confidence": "llm_assisted",
+   "priority": 2,
+   "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+   "review": "real_but_minor",
+   "review_note": "blind review by an LLM subagent (round 1), not human: group_dim rounding is an internal detail of FlexGen cache compression whose config is hardcoded in run_flexgen (group_dim=2), not a user-facing variant of InfiniGen.",
+   "limitations": [
+    {
+     "schema_version": "0.1.0",
+     "limitation_id": "CL-B015",
+     "artifact_id": "infinigen",
+     "origin": "code",
+     "level": null,
+     "condition_text": "comp_config.group_dim == 0",
+     "condition": {
+      "expr": "comp_config.group_dim == 0",
+      "params": [
+       "comp_config"
+      ],
+      "path_prefix": [
+       "compress_cache"
+      ]
+     },
+     "effect_type": "path_change",
+     "effect_text": "Caller-supplied comp_config.group_dim decides whether k_new/v_new are re-sliced to a group-aligned boundary before compression.",
+     "paper_evidence": [],
+     "code_evidence": [
+      {
+       "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+       "line_start": 479,
+       "line_end": null,
+       "function": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha_gen",
+       "snippet": "if comp_config.group_dim == 0:"
+      }
+     ],
+     "region_ids": [
+      "B015"
+     ],
+     "provenance": "llm",
+     "notes": null
+    }
+   ],
+   "verifications": [
+    {
+     "schema_version": "0.1.0",
+     "verification_id": "V019",
+     "limitation_id": "CL-B015",
+     "direction": "code_to_paper",
+     "result": "not_found",
+     "documented_in": [],
+     "matching_evidence": [],
+     "matching_code": [],
+     "scope_status": "unknown",
+     "evaluated_in_paper": null,
+     "verifier": "llm:deepseek-v4.1-flash-1017",
+     "rationale": "paper: not_found; elsewhere: not_found. The passages mention group-wise quantization for weights and KV cache and describe CompressionConfig as part of TorchCompressedDevice data, but none state that comp_config.group_dim == 0 controls whether k_new/v_new are re-sliced to a group-aligned boundary before compression. Scope: no Binding connects this condition to a scope item."
+    }
+   ]
+  },
+  {
+   "schema_version": "0.2.0",
+   "finding_id": "infinigen-F017",
+   "artifact_id": "infinigen",
+   "category": "undisclosed",
+   "level": "L2",
+   "limitation_ids": [
+    "CL-B016"
+   ],
+   "verification_ids": [
+    "V020"
+   ],
+   "scope_status": "unknown",
+   "evaluated_in_paper": null,
+   "effect_type": "path_change",
+   "summary": "When policy.cache_disk_percent == 0: When the configured disk cache percent is zero, the KV cache is split only between GPU and CPU (len_disk=0, len_cpu=shape-len_gpu), so no disk segment is allocated; otherwise the split uses cache_gpu_percent/cache_cpu_percent and the remainder goes to disk. The caller's policy config selects which cache layout the mechanism uses. (speedup/flexgen/infinigen/p...",
+   "witness_hint": {
+    "format": "witness-v2",
+    "kind": "input_value",
+    "status": "solved",
+    "condition": "policy.cache_disk_percent == 0",
+    "path_prefix": [],
+    "dropped_prefix": [],
+    "trigger": {
+     "policy.cache_disk_percent": 0
+    },
+    "contrast": {
+     "policy.cache_disk_percent": 1
+    },
+    "atoms": {
+     "policy.cache_disk_percent": {
+      "kind": "derived",
+      "sort": "int"
+     }
+    },
+    "location": "speedup/flexgen/infinigen/pytorch_backend.py:767",
+    "function": "speedup/flexgen/infinigen/pytorch_backend.py::TorchMixedDevice.init_cache_one_gpu_batch"
+   },
+   "confidence": "llm_assisted",
+   "priority": 2,
+   "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+   "review": "real_but_minor",
+   "review_note": "blind review by an LLM subagent (round 2), not human: GPU/CPU/disk KV-cache segment sizing is FlexGen offloading plumbing, not a change to the mechanism.",
+   "limitations": [
+    {
+     "schema_version": "0.1.0",
+     "limitation_id": "CL-B016",
+     "artifact_id": "infinigen",
+     "origin": "code",
+     "level": null,
+     "condition_text": "policy.cache_disk_percent == 0",
+     "condition": {
+      "expr": "policy.cache_disk_percent == 0",
+      "params": [
+       "policy"
+      ],
+      "path_prefix": []
+     },
+     "effect_type": "path_change",
+     "effect_text": "When the configured disk cache percent is zero, the KV cache is split only between GPU and CPU (len_disk=0, len_cpu=shape-len_gpu), so no disk segment is allocated; otherwise the split uses cache_gpu_percent/cache_cpu_percent and the remainder goes to disk. The caller's policy config selects which cache layout the mechanism uses.",
+     "paper_evidence": [],
+     "code_evidence": [
+      {
+       "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+       "line_start": 767,
+       "line_end": null,
+       "function": "speedup/flexgen/infinigen/pytorch_backend.py::TorchMixedDevice.init_cache_one_gpu_batch",
+       "snippet": "if policy.cache_disk_percent == 0:"
+      }
+     ],
+     "region_ids": [
+      "B016"
+     ],
+     "provenance": "llm",
+     "notes": null
+    }
+   ],
+   "verifications": [
+    {
+     "schema_version": "0.1.0",
+     "verification_id": "V020",
+     "limitation_id": "CL-B016",
+     "direction": "code_to_paper",
+     "result": "not_found",
+     "documented_in": [],
+     "matching_evidence": [],
+     "matching_code": [],
+     "scope_status": "unknown",
+     "evaluated_in_paper": null,
+     "verifier": "llm:deepseek-v4.1-flash-1017",
+     "rationale": "paper: not_found; elsewhere: not_found. No passage states that a disk cache percent of zero causes the KV cache to be split only between GPU and CPU with no disk segment. The related passages discuss percent usage, cache placement across GPU/CPU/disk, and file deletion, but none document this condition-effect behavior. Scope: no Binding connects this condition to a scope item."
+    }
+   ]
+  },
+  {
+   "schema_version": "0.2.0",
+   "finding_id": "infinigen-F018",
+   "artifact_id": "infinigen",
+   "category": "impl_deviates",
+   "level": "L2",
+   "limitation_ids": [
+    "infinigen-gap-M07-B03-R01"
+   ],
+   "verification_ids": [],
+   "scope_status": "unknown",
+   "evaluated_in_paper": null,
+   "effect_type": "other",
+   "summary": "论文要求覆盖受害者槽位；代码保留全部 K/V 只做注意力屏蔽（artifact 范围：无覆盖写步骤）",
+   "witness_hint": {
+    "format": "witness-v2",
+    "kind": "input_value",
+    "status": "solved",
+    "condition": "past_key_value is not None",
+    "path_prefix": [],
+    "dropped_prefix": [],
+    "trigger": {
+     "past_key_value is None": false
+    },
+    "contrast": {
+     "past_key_value is None": true
+    },
+    "atoms": {
+     "past_key_value is None": {
+      "kind": "predicate",
+      "sort": "bool"
+     }
+    },
+    "code_locations": [
+     "accuracy/perplexity/table2.sh:27-45",
+     "accuracy/src/modeling_opt_ours.py:259-269"
+    ],
+    "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+    "location": "accuracy/perplexity/table2.sh:27-45",
+    "function": null
+   },
+   "confidence": "llm_assisted",
+   "priority": 2,
+   "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 2: impl_deviates; related (candidate pair, judged different): infinigen-F019",
+   "review": "unreviewed",
+   "review_note": null,
+   "limitations": [
+    {
+     "schema_version": "0.1.0",
+     "limitation_id": "infinigen-gap-M07-B03-R01",
+     "artifact_id": "infinigen",
+     "origin": "paper",
+     "level": "L2",
+     "condition_text": "Pinned inspected artifact path: accuracy/perplexity/table2.sh 实验路径（opt.py/llama.py + modeling_*_ours.py，capacity=0.8/1.0，evict∈{fifo,lru,counter}）；speedup/ 路径未确认. Paper precondition: A victim KV entry has been selected for eviction.",
+     "condition": null,
+     "effect_type": "other",
+     "effect_text": "同上：无覆盖写步骤",
+     "paper_evidence": [
+      {
+       "quote": "the manager overwrites\nthe selected victim with the newly generated key and value",
+       "source": "paper",
+       "locator": "PDF p.10"
+      }
+     ],
+     "code_evidence": [
+      {
+       "file": "accuracy/perplexity/table2.sh",
+       "line_start": 27,
+       "line_end": 45,
+       "function": null,
+       "snippet": null
+      },
+      {
+       "file": "accuracy/src/modeling_opt_ours.py",
+       "line_start": 259,
+       "line_end": 269,
+       "function": null,
+       "snippet": null
+      }
+     ],
+     "region_ids": [],
+     "provenance": "llm",
+     "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M07-B03-R01; external repo refs stay in code_evidence_registry.json. Equivalence: 同上：掩码可能等效，未验证; effect_status=not_established"
+    }
+   ],
+   "verifications": []
+  },
+  {
+   "schema_version": "0.2.0",
+   "finding_id": "infinigen-F019",
+   "artifact_id": "infinigen",
+   "category": "impl_deviates",
+   "level": "L2",
+   "limitation_ids": [
+    "infinigen-gap-M07-B03-R02"
+   ],
+   "verification_ids": [],
+   "scope_status": "unknown",
+   "evaluated_in_paper": null,
+   "effect_type": "other",
+   "summary": "论文要求淘汰后更新 GPU 部分 key cache；代码无该步骤（artifact 范围：缺更新步骤）",
+   "witness_hint": {
+    "format": "witness-v2",
+    "kind": "input_value",
+    "status": "solved",
+    "condition": "past_key_value is not None",
+    "path_prefix": [],
+    "dropped_prefix": [],
+    "trigger": {
+     "past_key_value is None": false
+    },
+    "contrast": {
+     "past_key_value is None": true
+    },
+    "atoms": {
+     "past_key_value is None": {
+      "kind": "predicate",
+      "sort": "bool"
+     }
+    },
+    "code_locations": [
+     "accuracy/perplexity/table2.sh:27-45",
+     "accuracy/src/modeling_opt_ours.py:259-269"
+    ],
+    "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+    "location": "accuracy/perplexity/table2.sh:27-45",
+    "function": null
+   },
+   "confidence": "llm_assisted",
+   "priority": 2,
+   "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 2: impl_deviates; related (candidate pair, judged different): infinigen-F018",
+   "review": "unreviewed",
+   "review_note": null,
+   "limitations": [
+    {
+     "schema_version": "0.1.0",
+     "limitation_id": "infinigen-gap-M07-B03-R02",
+     "artifact_id": "infinigen",
+     "origin": "paper",
+     "level": "L2",
+     "condition_text": "Pinned inspected artifact path: accuracy/perplexity/table2.sh 实验路径（opt.py/llama.py + modeling_*_ours.py，capacity=0.8/1.0，evict∈{fifo,lru,counter}）；speedup/ 路径未确认. Paper precondition: A victim KV entry has been overwritten with the newly generated key and value.",
+     "condition": null,
+     "effect_type": "other",
+     "effect_text": "同上：缺更新步骤",
+     "paper_evidence": [
+      {
+       "quote": "KV entry for eviction. Subsequently, the manager overwrites\nthe selected victim with the newly generated key and value,\nalong with updating the corresponding partial key cache re-\nsiding in the GPU. It is noted that the order of KV entries can",
+       "source": "paper",
+       "locator": "PDF p.10, text lines 31-34"
+      }
+     ],
+     "code_evidence": [
+      {
+       "file": "accuracy/perplexity/table2.sh",
+       "line_start": 27,
+       "line_end": 45,
+       "function": null,
+       "snippet": null
+      },
+      {
+       "file": "accuracy/src/modeling_opt_ours.py",
+       "line_start": 259,
+       "line_end": 269,
+       "function": null,
+       "snippet": null
+      }
+     ],
+     "region_ids": [],
+     "provenance": "llm",
+     "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M07-B03-R02; external repo refs stay in code_evidence_registry.json. Equivalence: 同上：可能等效，未验证; effect_status=not_established"
+    }
+   ],
+   "verifications": []
+  },
+  {
+   "schema_version": "0.2.0",
+   "finding_id": "infinigen-F020",
+   "artifact_id": "infinigen",
+   "category": "impl_deviates",
+   "level": "L2",
+   "limitation_ids": [
+    "infinigen-gap-M08-B04",
+    "infinigen-gap-M08-A01"
+   ],
+   "verification_ids": [],
+   "scope_status": "unknown",
+   "evaluated_in_paper": null,
+   "effect_type": "other",
+   "summary": "控制平面组件集合不完整（缺Pool Manager）",
+   "witness_hint": {
+    "format": "witness-v2",
+    "kind": "input_value",
+    "status": "always",
+    "condition": null,
+    "path_prefix": [],
+    "code_locations": [
+     "speedup/flexgen/infinigen/flex_opt.py:282-282",
+     "speedup/flexgen/infinigen/flex_opt.py:430-430"
+    ],
+    "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The control-plane component set is incomplete (Pool Manager missing) regardless of runtime inputs, so the gap manifests on every execution of the Infinigen FlexGen path.",
+    "location": "speedup/flexgen/infinigen/flex_opt.py:282",
+    "function": null
+   },
+   "confidence": "llm_assisted",
+   "priority": 2,
+   "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; merged (LLM: same issue): infinigen-gap-M08-B04; priority 2: impl_deviates",
+   "review": "unreviewed",
+   "review_note": null,
+   "limitations": [
+    {
+     "schema_version": "0.1.0",
+     "limitation_id": "infinigen-gap-M08-B04",
+     "artifact_id": "infinigen",
+     "origin": "paper",
+     "level": "L2",
+     "condition_text": "Pinned inspected artifact path: speedup/flexgen/infinigen/flex_opt.py + pytorch_backend.py 的Infinigen执行路径（FlexGen OPT offloading运行时，含prefetch_cache与KV池拷贝），依赖speedup/infinigen/infinigen/*控制器. Paper precondition: CPU memory pressure exists.",
+     "condition": null,
+     "effect_type": "other",
+     "effect_text": "同上：无CPU内存压力下的池管理控制流",
+     "paper_evidence": [
+      {
+       "quote": "weights. We explain each operation in Section 4.3. The sec-\nond component is the Pool Manager. It manages the KV cache\npool on CPU memory under CPU memory pressure, which\nwe discuss in Section 4.4.",
+       "source": "paper",
+       "locator": "PDF p.7, text lines 112-115"
+      }
+     ],
+     "code_evidence": [
+      {
+       "file": "speedup/flexgen/infinigen/flex_opt.py",
+       "line_start": 430,
+       "line_end": 430,
+       "function": null,
+       "snippet": null
+      },
+      {
+       "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+       "line_start": 291,
+       "line_end": 300,
+       "function": null,
+       "snippet": null
+      }
+     ],
+     "region_ids": [],
+     "provenance": "llm",
+     "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=absent; behavior=M08-B04; external repo refs stay in code_evidence_registry.json. Equivalence: 调度层仅按索引拷贝，无池管理器等价物; effect_status=not_established"
+    },
+    {
+     "schema_version": "0.1.0",
+     "limitation_id": "infinigen-gap-M08-A01",
+     "artifact_id": "infinigen",
+     "origin": "paper",
+     "level": "L2",
+     "condition_text": "Pinned inspected artifact path: speedup/flexgen/infinigen/flex_opt.py + pytorch_backend.py 的Infinigen执行路径（FlexGen OPT offloading运行时，含prefetch_cache与KV池拷贝），依赖speedup/infinigen/infinigen/*控制器. Paper precondition: 系统按图6所示概览组织。",
+     "condition": null,
+     "effect_type": "other",
+     "effect_text": "控制平面组件集合不完整（缺Pool Manager）",
+     "paper_evidence": [
+      {
+       "quote": "GPU\nMemory\nCPU Memory",
+       "source": "paper",
+       "locator": "PDF p.7"
+      },
+      {
+       "quote": "Modified\nQK \nWeights",
+       "source": "paper",
+       "locator": "PDF p.7"
+      },
+      {
+       "quote": "Other\nModel\nWeights",
+       "source": "paper",
+       "locator": "PDF p.7"
+      },
+      {
+       "quote": "Partial\nWeight\nand \nCache",
+       "source": "paper",
+       "locator": "PDF p.7"
+      },
+      {
+       "quote": "KV Cache Pool",
+       "source": "paper",
+       "locator": "PDF p.7"
+      }
+     ],
+     "code_evidence": [
+      {
+       "file": "speedup/flexgen/infinigen/flex_opt.py",
+       "line_start": 282,
+       "line_end": 282,
+       "function": null,
+       "snippet": null
+      },
+      {
+       "file": "speedup/flexgen/infinigen/flex_opt.py",
+       "line_start": 430,
+       "line_end": 430,
+       "function": null,
+       "snippet": null
+      }
+     ],
+     "region_ids": [],
+     "provenance": "llm",
+     "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M08-A01; external repo refs stay in code_evidence_registry.json. Equivalence: 调度层无池管理器等价物; effect_status=not_established"
+    }
+   ],
+   "verifications": []
+  },
+  {
+   "schema_version": "0.2.0",
+   "finding_id": "infinigen-F021",
+   "artifact_id": "infinigen",
+   "category": "impl_deviates",
+   "level": "L2",
+   "limitation_ids": [
+    "infinigen-gap-M01-B03"
+   ],
+   "verification_ids": [],
+   "scope_status": "unknown",
+   "evaluated_in_paper": null,
+   "effect_type": "other",
+   "summary": "论文要求A=V；代码A为V列按σq·σk排序重排，A≠V（artifact 范围：A为排序重排后的V，非论文所述A=V）",
+   "witness_hint": {
+    "format": "witness-v2",
+    "kind": "input_value",
+    "status": "solved",
+    "condition": "warmup",
+    "path_prefix": [
+     "i == 0"
+    ],
+    "dropped_prefix": [],
+    "trigger": {
+     "warmup": true,
+     "i": 0
+    },
+    "contrast": {
+     "warmup": false,
+     "i": 0
+    },
+    "atoms": {
+     "i": {
+      "kind": "input",
+      "sort": "int"
+     },
+     "warmup": {
+      "kind": "input",
+      "sort": "bool"
+     }
+    },
+    "code_locations": [
+     "speedup/flexgen/infinigen/flex_opt.py:513-524",
+     "speedup/infinigen/infinigen/skewing_controller.py:48-84"
+    ],
+    "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+    "location": "speedup/flexgen/infinigen/flex_opt.py:513-524",
+    "function": null
+   },
+   "confidence": "llm_assisted",
+   "priority": 2,
+   "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 2: impl_deviates",
+   "review": "unreviewed",
+   "review_note": null,
+   "limitations": [
+    {
+     "schema_version": "0.1.0",
+     "limitation_id": "infinigen-gap-M01-B03",
+     "artifact_id": "infinigen",
+     "origin": "paper",
+     "level": "L2",
+     "condition_text": "Pinned inspected artifact path: speedup/flexgen/infinigen/flex_opt.py::run_flexgen 的 warmup generate → compute_layer → mha(warmup=True) → skew，并回写weight_home. Paper precondition: SVD of the layer's query matrix has been computed.",
+     "condition": null,
+     "effect_type": "other",
+     "effect_text": "同上：A为排序重排后的V，非论文所述A=V",
+     "paper_evidence": [
+      {
+       "quote": "We then set A to orthogonal\nmatrix V",
+       "source": "paper",
+       "locator": "PDF p.9"
+      }
+     ],
+     "code_evidence": [
+      {
+       "file": "speedup/flexgen/infinigen/flex_opt.py",
+       "line_start": 513,
+       "line_end": 524,
+       "function": null,
+       "snippet": null
+      },
+      {
+       "file": "speedup/infinigen/infinigen/skewing_controller.py",
+       "line_start": 48,
+       "line_end": 84,
+       "function": null,
+       "snippet": null
+      }
+     ],
+     "region_ids": [],
+     "provenance": "llm",
+     "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M01-B03; external repo refs stay in code_evidence_registry.json. Equivalence: 正交性保留，等价性仅限QK^T不变；偏斜列选择与论文不同; effect_status=not_established"
+    }
+   ],
+   "verifications": []
+  },
+  {
+   "schema_version": "0.2.0",
+   "finding_id": "infinigen-F022",
+   "artifact_id": "infinigen",
+   "category": "impl_deviates",
+   "level": "L2",
+   "limitation_ids": [
+    "infinigen-gap-M05-B01-R02"
+   ],
+   "verification_ids": [],
+   "scope_status": "unknown",
+   "evaluated_in_paper": null,
+   "effect_type": "other",
+   "summary": "预取集合由 top-k(均值) 决定，而非严格 >max−alpha 的令牌集合",
+   "witness_hint": {
+    "format": "witness-v2",
+    "kind": "input_value",
+    "status": "trigger_only",
+    "condition": "True",
+    "path_prefix": [
+     "i != 0",
+     "not self.policy.compress_cache",
+     "self.policy.attn_sparsity >= 1.0"
+    ],
+    "dropped_prefix": [],
+    "trigger": {
+     "i": 1,
+     "self.policy.compress_cache": false,
+     "self.policy.attn_sparsity": 1
+    },
+    "note": "the condition holds on every point that reaches it; no contrast point exists",
+    "atoms": {
+     "i": {
+      "kind": "input",
+      "sort": "int"
+     },
+     "self.policy.attn_sparsity": {
+      "kind": "derived",
+      "sort": "real"
+     },
+     "self.policy.compress_cache": {
+      "kind": "predicate",
+      "sort": "bool"
+     }
+    },
+    "code_locations": [
+     "speedup/infinigen/infinigen/kv_selection_controller.py:28-63",
+     "speedup/flexgen/infinigen/flex_opt.py:430-465"
+    ],
+    "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+    "location": "speedup/infinigen/infinigen/kv_selection_controller.py:28-63",
+    "function": null
+   },
+   "confidence": "llm_assisted",
+   "priority": 2,
+   "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates; related (candidate pair, judged different): infinigen-F002",
+   "review": "unreviewed",
+   "review_note": null,
+   "limitations": [
+    {
+     "schema_version": "0.1.0",
+     "limitation_id": "infinigen-gap-M05-B01-R02",
+     "artifact_id": "infinigen",
+     "origin": "paper",
+     "level": "L2",
+     "condition_text": "Pinned inspected artifact path: speedup/flexgen/infinigen 的 FlexGen+OPT 加速路径：flex_opt.py 参数(--alpha/--max-num-kv) → SelfAttention.forward → mha_gen → speculate_attention → prefetch_cache/select_kv；accuracy/ 下 Llama-2 为独立实现，不在本 artifact 判定内. Paper precondition: 该头的阈值已计算完成。",
+     "condition": null,
+     "effect_type": "other",
+     "effect_text": "预取集合由 top-k(均值) 决定，而非严格 >max−alpha 的令牌集合",
+     "paper_evidence": [
+      {
+       "quote": "We select only the tokens with\nan attention score greater than the maximum score subtracted\nby alpha",
+       "source": "paper",
+       "locator": "PDF p.9"
+      },
+      {
+       "quote": "InfiniGen only prefetches the keys and\nvalues of the tokens with an attention score larger than the\nhighest attention score minus alpha",
+       "source": "paper",
+       "locator": "PDF p.10"
+      }
+     ],
+     "code_evidence": [
+      {
+       "file": "speedup/infinigen/infinigen/kv_selection_controller.py",
+       "line_start": 28,
+       "line_end": 63,
+       "function": null,
+       "snippet": null
+      },
+      {
+       "file": "speedup/flexgen/infinigen/flex_opt.py",
+       "line_start": 430,
+       "line_end": 465,
+       "function": null,
+       "snippet": null
+      }
+     ],
+     "region_ids": [],
+     "provenance": "llm",
+     "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M05-B01-R02; external repo refs stay in code_evidence_registry.json. Equivalence: 同上，仅边界情形等价; effect_status=not_established"
+    }
+   ],
+   "verifications": []
+  },
+  {
+   "schema_version": "0.2.0",
+   "finding_id": "infinigen-F023",
+   "artifact_id": "infinigen",
+   "category": "impl_deviates",
+   "level": "L2",
+   "limitation_ids": [
+    "infinigen-gap-M05-B03"
+   ],
+   "verification_ids": [],
+   "scope_status": "unknown",
+   "evaluated_in_paper": null,
+   "effect_type": "other",
+   "summary": "实验路径以绝对令牌数封顶，未实现 20% 比例上限",
+   "witness_hint": {
+    "format": "witness-v2",
+    "kind": "input_value",
+    "status": "solved",
+    "condition": "mean > max_num_kv",
+    "path_prefix": [],
+    "dropped_prefix": [],
+    "trigger": {
+     "mean": 2,
+     "max_num_kv": 1
+    },
+    "contrast": {
+     "mean": 1,
+     "max_num_kv": 1
+    },
+    "atoms": {
+     "max_num_kv": {
+      "kind": "input",
+      "sort": "int"
+     },
+     "mean": {
+      "kind": "input",
+      "sort": "int"
+     }
+    },
+    "code_locations": [
+     "speedup/infinigen/infinigen/kv_selection_controller.py:28-63",
+     "speedup/flexgen/infinigen/flex_opt.py:1445-1447"
+    ],
+    "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+    "location": "speedup/infinigen/infinigen/kv_selection_controller.py:28-63",
+    "function": null
+   },
+   "confidence": "llm_assisted",
+   "priority": 2,
+   "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates",
+   "review": "unreviewed",
+   "review_note": null,
+   "limitations": [
+    {
+     "schema_version": "0.1.0",
+     "limitation_id": "infinigen-gap-M05-B03",
+     "artifact_id": "infinigen",
+     "origin": "paper",
+     "level": "L2",
+     "condition_text": "Pinned inspected artifact path: speedup/flexgen/infinigen 的 FlexGen+OPT 加速路径：flex_opt.py 参数(--alpha/--max-num-kv) → SelfAttention.forward → mha_gen → speculate_attention → prefetch_cache/select_kv；accuracy/ 下 Llama-2 为独立实现，不在本 artifact 判定内. Paper precondition: A layer has more candidate tokens than 20% of the total KV cache.",
+     "condition": null,
+     "effect_type": "other",
+     "effect_text": "实验路径以绝对令牌数封顶，未实现 20% 比例上限",
+     "paper_evidence": [
+      {
+       "quote": "For each layer, we allow sending up to 20% of\nthe total KV cache to the GPU if it contains more candidates.",
+       "source": "paper",
+       "locator": "PDF p.10"
+      }
+     ],
+     "code_evidence": [
+      {
+       "file": "speedup/infinigen/infinigen/kv_selection_controller.py",
+       "line_start": 28,
+       "line_end": 63,
+       "function": null,
+       "snippet": null
+      },
+      {
+       "file": "speedup/flexgen/infinigen/flex_opt.py",
+       "line_start": 1445,
+       "line_end": 1447,
+       "function": null,
+       "snippet": null
+      }
+     ],
+     "region_ids": [],
+     "provenance": "llm",
+     "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M05-B03; external repo refs stay in code_evidence_registry.json. Equivalence: 同上，仅特定序列长度下数值近似; effect_status=not_established"
+    }
+   ],
+   "verifications": []
+  },
+  {
+   "schema_version": "0.2.0",
+   "finding_id": "infinigen-F024",
+   "artifact_id": "infinigen",
+   "category": "impl_deviates",
+   "level": "L2",
+   "limitation_ids": [
+    "infinigen-gap-M02-B01"
+   ],
+   "verification_ids": [],
+   "scope_status": "unknown",
+   "evaluated_in_paper": null,
+   "effect_type": "other",
+   "summary": "实验路径缺少K的逐元素绝对值",
+   "witness_hint": {
+    "format": "witness-v2",
+    "kind": "input_value",
+    "status": "solved",
+    "condition": "partial_weight_ratio is not None and not warmup",
+    "path_prefix": [],
+    "dropped_prefix": [],
+    "trigger": {
+     "partial_weight_ratio is None": false,
+     "warmup": false
+    },
+    "contrast": {
+     "partial_weight_ratio is None": true,
+     "warmup": false
+    },
+    "atoms": {
+     "partial_weight_ratio is None": {
+      "kind": "predicate",
+      "sort": "bool"
+     },
+     "warmup": {
+      "kind": "input",
+      "sort": "bool"
+     }
+    },
+    "code_locations": [
+     "speedup/infinigen/infinigen/partial_weight_generation_controller.py:5-39",
+     "speedup/flexgen/infinigen/pytorch_backend.py:320-335",
+     "speedup/scripts/figure17b/run.sh:1-12"
+    ],
+    "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+    "location": "speedup/infinigen/infinigen/partial_weight_generation_controller.py:5-39",
+    "function": null
+   },
+   "confidence": "llm_assisted",
+   "priority": 2,
+   "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates; related (candidate pair, judged different): infinigen-F025, infinigen-F026, infinigen-F028, infinigen-F031",
+   "review": "unreviewed",
+   "review_note": null,
+   "limitations": [
+    {
+     "schema_version": "0.1.0",
+     "limitation_id": "infinigen-gap-M02-B01",
+     "artifact_id": "infinigen",
+     "origin": "paper",
+     "level": "L2",
+     "condition_text": "Pinned inspected artifact path: speedup实验路径：speedup/scripts/figure17b/run.sh 符号链接替换 flex_opt.py/pytorch_backend.py 后运行 python -m flexgen.flex_opt（--partial-weight-ratio 0.1..1.0）；accuracy/setup路径(modeling_opt_ours_setup.py/modeling_llama_ours_setup.py 214-224)作等价对照. Paper precondition: Prefill stage; skewed query and key matrices are available.",
+     "condition": null,
+     "effect_type": "other",
+     "effect_text": "实验路径缺少K的逐元素绝对值",
+     "paper_evidence": [
+      {
+       "quote": "we first take the element-wise absolute values of the\nskewed query and key matrices",
+       "source": "paper",
+       "locator": "PDF p.9"
+      }
+     ],
+     "code_evidence": [
+      {
+       "file": "speedup/infinigen/infinigen/partial_weight_generation_controller.py",
+       "line_start": 5,
+       "line_end": 39,
+       "function": null,
+       "snippet": null
+      },
+      {
+       "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+       "line_start": 320,
+       "line_end": 335,
+       "function": null,
+       "snippet": null
+      },
+      {
+       "file": "speedup/scripts/figure17b/run.sh",
+       "line_start": 1,
+       "line_end": 12,
+       "function": null,
+       "snippet": null
+      }
+     ],
+     "region_ids": [],
+     "provenance": "llm",
+     "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M02-B01; external repo refs stay in code_evidence_registry.json. Equivalence: accuracy/setup路径含K的abs，但不在speedup实验路径; effect_status=not_established"
+    }
+   ],
+   "verifications": []
+  },
+  {
+   "schema_version": "0.2.0",
+   "finding_id": "infinigen-F025",
+   "artifact_id": "infinigen",
+   "category": "impl_deviates",
+   "level": "L2",
+   "limitation_ids": [
+    "infinigen-gap-M02-B03"
+   ],
+   "verification_ids": [],
+   "scope_status": "unknown",
+   "evaluated_in_paper": null,
+   "effect_type": "other",
+   "summary": "求和对象缺少K_abs项",
+   "witness_hint": {
+    "format": "witness-v2",
+    "kind": "input_value",
+    "status": "always",
+    "condition": null,
+    "path_prefix": [],
+    "code_locations": [
+     "speedup/infinigen/infinigen/partial_weight_generation_controller.py:5-39",
+     "accuracy/src/modeling_opt_ours_setup.py:218-230",
+     "speedup/scripts/figure17b/run.sh:1-12"
+    ],
+    "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The code sums only the absolute query columns and never adds the absolute key columns (K_abs), so the top-k selection always omits the K_abs term regardless of inputs.",
+    "location": "speedup/infinigen/infinigen/partial_weight_generation_controller.py:5-39",
+    "function": null
+   },
+   "confidence": "llm_assisted",
+   "priority": 2,
+   "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates; related (candidate pair, judged different): infinigen-F024, infinigen-F026, infinigen-F031",
+   "review": "unreviewed",
+   "review_note": null,
+   "limitations": [
+    {
+     "schema_version": "0.1.0",
+     "limitation_id": "infinigen-gap-M02-B03",
+     "artifact_id": "infinigen",
+     "origin": "paper",
+     "level": "L2",
+     "condition_text": "Pinned inspected artifact path: speedup实验路径：speedup/scripts/figure17b/run.sh 符号链接替换 flex_opt.py/pytorch_backend.py 后运行 python -m flexgen.flex_opt（--partial-weight-ratio 0.1..1.0）；accuracy/setup路径(modeling_opt_ours_setup.py/modeling_llama_ours_setup.py 214-224)作等价对照. Paper precondition: After adding the absolute-valued query and key matrices.",
+     "condition": null,
+     "effect_type": "other",
+     "effect_text": "求和对象缺少K_abs项",
+     "paper_evidence": [
+      {
+       "quote": "We then sum\nthe elements in each column",
+       "source": "paper",
+       "locator": "PDF p.9"
+      }
+     ],
+     "code_evidence": [
+      {
+       "file": "speedup/infinigen/infinigen/partial_weight_generation_controller.py",
+       "line_start": 5,
+       "line_end": 39,
+       "function": null,
+       "snippet": null
+      },
+      {
+       "file": "accuracy/src/modeling_opt_ours_setup.py",
+       "line_start": 218,
+       "line_end": 230,
+       "function": null,
+       "snippet": null
+      },
+      {
+       "file": "speedup/scripts/figure17b/run.sh",
+       "line_start": 1,
+       "line_end": 12,
+       "function": null,
+       "snippet": null
+      }
+     ],
+     "region_ids": [],
+     "provenance": "llm",
+     "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M02-B03; external repo refs stay in code_evidence_registry.json. Equivalence: accuracy路径以两次独立列和+并集替代，speedup路径无此替代; effect_status=not_established"
+    }
+   ],
+   "verifications": []
+  },
+  {
+   "schema_version": "0.2.0",
+   "finding_id": "infinigen-F026",
+   "artifact_id": "infinigen",
+   "category": "impl_deviates",
+   "level": "L2",
+   "limitation_ids": [
+    "infinigen-gap-M02-B05"
+   ],
+   "verification_ids": [],
+   "scope_status": "unknown",
+   "evaluated_in_paper": null,
+   "effect_type": "other",
+   "summary": "单次topk未容纳K离群列",
+   "witness_hint": {
+    "format": "witness-v2",
+    "kind": "input_value",
+    "status": "always",
+    "condition": null,
+    "path_prefix": [],
+    "code_locations": [
+     "speedup/infinigen/infinigen/partial_weight_generation_controller.py:5-39",
+     "accuracy/src/modeling_opt_ours_setup.py:218-230",
+     "speedup/scripts/figure17b/run.sh:1-12"
+    ],
+    "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The code only top-k selects columns from the query matrix (and separately from key in the accuracy variant), never from the combined absolute-sum matrix, so the single top-k never accommodates K outlier columns as the paper describes; this holds on every call.",
+    "location": "speedup/infinigen/infinigen/partial_weight_generation_controller.py:5-39",
+    "function": null
+   },
+   "confidence": "llm_assisted",
+   "priority": 2,
+   "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates; related (candidate pair, judged different): infinigen-F024, infinigen-F025, infinigen-F031",
+   "review": "unreviewed",
+   "review_note": null,
+   "limitations": [
+    {
+     "schema_version": "0.1.0",
+     "limitation_id": "infinigen-gap-M02-B05",
+     "artifact_id": "infinigen",
+     "origin": "paper",
+     "level": "L2",
+     "condition_text": "Pinned inspected artifact path: speedup实验路径：speedup/scripts/figure17b/run.sh 符号链接替换 flex_opt.py/pytorch_backend.py 后运行 python -m flexgen.flex_opt（--partial-weight-ratio 0.1..1.0）；accuracy/setup路径(modeling_opt_ours_setup.py/modeling_llama_ours_setup.py 214-224)作等价对照. Paper precondition: Combined absolute-sum matrix is used.",
+     "condition": null,
+     "effect_type": "other",
+     "effect_text": "单次topk未容纳K离群列",
+     "paper_evidence": [
+      {
+       "quote": "perform top-k operation only once while accommodating the\noutlier columns of both query and key matrices",
+       "source": "paper",
+       "locator": "PDF p.9"
+      }
+     ],
+     "code_evidence": [
+      {
+       "file": "speedup/infinigen/infinigen/partial_weight_generation_controller.py",
+       "line_start": 5,
+       "line_end": 39,
+       "function": null,
+       "snippet": null
+      },
+      {
+       "file": "accuracy/src/modeling_opt_ours_setup.py",
+       "line_start": 218,
+       "line_end": 230,
+       "function": null,
+       "snippet": null
+      },
+      {
+       "file": "speedup/scripts/figure17b/run.sh",
+       "line_start": 1,
+       "line_end": 12,
+       "function": null,
+       "snippet": null
+      }
+     ],
+     "region_ids": [],
+     "provenance": "llm",
+     "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M02-B05; external repo refs stay in code_evidence_registry.json. Equivalence: accuracy路径以两次topk+并集覆盖两者，但非speedup实验路径; effect_status=not_established"
+    }
+   ],
+   "verifications": []
+  },
+  {
+   "schema_version": "0.2.0",
+   "finding_id": "infinigen-F027",
+   "artifact_id": "infinigen",
+   "category": "undisclosed",
+   "level": "L2",
+   "limitation_ids": [
+    "CL-B008"
+   ],
+   "verification_ids": [
+    "V012"
+   ],
+   "scope_status": "unknown",
+   "evaluated_in_paper": null,
+   "effect_type": "path_change",
+   "summary": "When (i == 0) or (i == (self.config.num_hidden_layers - 1)): When sep_layer is set, the first and last layers are constructed as SelfAttention with the flag False (no InfiniGen KV selection), while all middle layers get True. So the InfiniGen mechanism is only applied to interior layers; boundary layers run the plain attention path. (speedup/flexgen/infinigen/flex_opt.py:690)",
+   "witness_hint": {
+    "format": "witness-v2",
+    "kind": "input_value",
+    "status": "solved",
+    "condition": "(i == 0) or (i == (self.config.num_hidden_layers - 1))",
+    "path_prefix": [
+     "policy.sep_layer"
+    ],
+    "dropped_prefix": [],
+    "trigger": {
+     "i": 1,
+     "self.config.num_hidden_layers": 2,
+     "policy.sep_layer": true
+    },
+    "contrast": {
+     "i": 1,
+     "self.config.num_hidden_layers": 3,
+     "policy.sep_layer": true
+    },
+    "atoms": {
+     "i": {
+      "kind": "input",
+      "sort": "int"
+     },
+     "policy.sep_layer": {
+      "kind": "predicate",
+      "sort": "bool"
+     },
+     "self.config.num_hidden_layers": {
+      "kind": "derived",
+      "sort": "int"
+     }
+    },
+    "aliases_not_applied": {
+     "layers": "[]"
+    },
+    "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+    "location": "speedup/flexgen/infinigen/flex_opt.py:690",
+    "function": "speedup/flexgen/infinigen/flex_opt.py::OptLM.__init__"
+   },
+   "confidence": "llm_assisted",
+   "priority": 3,
+   "rationale": "3b: not_found; priority 3: reviewed as wrong",
+   "review": "wrong",
+   "review_note": "blind review by an LLM subagent (round 1), not human: The last layer still has its KV selected by the previous layer's speculation and layer 1 also runs on full KV, so 'boundary layers run plain attention, interior layers get InfiniGen' misstates the effect (the real limitation is item 10).",
+   "limitations": [
+    {
+     "schema_version": "0.1.0",
+     "limitation_id": "CL-B008",
+     "artifact_id": "infinigen",
+     "origin": "code",
+     "level": null,
+     "condition_text": "(i == 0) or (i == (self.config.num_hidden_layers - 1))",
+     "condition": {
+      "expr": "(i == 0) or (i == (self.config.num_hidden_layers - 1))",
+      "params": [
+       "i",
+       "self"
+      ],
+      "path_prefix": [
+       "policy.sep_layer"
+      ]
+     },
+     "effect_type": "path_change",
+     "effect_text": "When sep_layer is set, the first and last layers are constructed as SelfAttention with the flag False (no InfiniGen KV selection), while all middle layers get True. So the InfiniGen mechanism is only applied to interior layers; boundary layers run the plain attention path.",
+     "paper_evidence": [],
+     "code_evidence": [
+      {
+       "file": "speedup/flexgen/infinigen/flex_opt.py",
+       "line_start": 690,
+       "line_end": null,
+       "function": "speedup/flexgen/infinigen/flex_opt.py::OptLM.__init__",
+       "snippet": "if (i == 0) or (i == (self.config.num_hidden_layers - 1)):"
+      }
+     ],
+     "region_ids": [
+      "B008"
+     ],
+     "provenance": "llm",
+     "notes": null
+    }
+   ],
+   "verifications": [
+    {
+     "schema_version": "0.1.0",
+     "verification_id": "V012",
+     "limitation_id": "CL-B008",
+     "direction": "code_to_paper",
+     "result": "not_found",
+     "documented_in": [],
+     "matching_evidence": [],
+     "matching_code": [],
+     "scope_status": "unknown",
+     "evaluated_in_paper": null,
+     "verifier": "llm:deepseek-v4.1-flash-1017",
+     "rationale": "paper: not_found; elsewhere: not_found. No passage states that when sep_layer is set, the first and last layers skip InfiniGen KV selection while middle layers apply it. The related passages discuss separating attention/MLP layers, prefetching, and buffer clearing, but none document this boundary-layer behavior. Scope: no Binding connects this condition to a scope item."
+    }
+   ]
+  },
+  {
+   "schema_version": "0.2.0",
+   "finding_id": "infinigen-F028",
+   "artifact_id": "infinigen",
+   "category": "undisclosed",
+   "level": "L2",
+   "limitation_ids": [
+    "CL-B012"
+   ],
+   "verification_ids": [
+    "V016"
+   ],
+   "scope_status": "unknown",
+   "evaluated_in_paper": null,
+   "effect_type": "path_change",
+   "summary": "When warmup or partial_weight_ratio is None: In TorchDevice.mha, the partial-weight index (which heads/rows of the query projection are used for the InfiniGen speculation) is only computed when warmup is False and partial_weight_ratio is not None. Otherwise partial_weight_index stays None (line 325) and is returned as None (line 379), so mha_gen receives p_w_q=None and the KV speculation is sil...",
+   "witness_hint": {
+    "format": "witness-v2",
+    "kind": "input_value",
+    "status": "solved",
+    "condition": "warmup or partial_weight_ratio is None",
+    "path_prefix": [
+     "def mha"
+    ],
+    "dropped_prefix": [
+     "def mha"
+    ],
+    "trigger": {
+     "warmup": true,
+     "partial_weight_ratio is None": false
+    },
+    "contrast": {
+     "warmup": false,
+     "partial_weight_ratio is None": false
+    },
+    "atoms": {
+     "partial_weight_ratio is None": {
+      "kind": "predicate",
+      "sort": "bool"
+     },
+     "warmup": {
+      "kind": "input",
+      "sort": "bool"
+     }
+    },
+    "location": "speedup/flexgen/infinigen/pytorch_backend.py:326",
+    "function": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha"
+   },
+   "confidence": "llm_assisted",
+   "priority": 3,
+   "rationale": "3b: not_found; priority 3: reviewed as wrong; related (candidate pair, judged different): infinigen-F024",
+   "review": "wrong",
+   "review_note": "blind review by an LLM subagent (round 1), not human: partial_weight_index being None does not make mha_gen get p_w_q=None; p_w_q comes from partial_weight_read_buf (filled by the next layer) whenever enable_prefetching is set, so speculation is not skipped as claimed.",
+   "limitations": [
+    {
+     "schema_version": "0.1.0",
+     "limitation_id": "CL-B012",
+     "artifact_id": "infinigen",
+     "origin": "code",
+     "level": null,
+     "condition_text": "warmup or partial_weight_ratio is None",
+     "condition": {
+      "expr": "warmup or partial_weight_ratio is None",
+      "params": [
+       "partial_weight_ratio",
+       "warmup"
+      ],
+      "path_prefix": [
+       "def mha"
+      ]
+     },
+     "effect_type": "path_change",
+     "effect_text": "In TorchDevice.mha, the partial-weight index (which heads/rows of the query projection are used for the InfiniGen speculation) is only computed when warmup is False and partial_weight_ratio is not None. Otherwise partial_weight_index stays None (line 325) and is returned as None (line 379), so mha_gen receives p_w_q=None and the KV speculation is silently skipped, running dense attention instead.",
+     "paper_evidence": [],
+     "code_evidence": [
+      {
+       "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+       "line_start": 326,
+       "line_end": null,
+       "function": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha",
+       "snippet": "if (not warmup) and (partial_weight_ratio is not None):"
+      }
+     ],
+     "region_ids": [
+      "B012"
+     ],
+     "provenance": "llm",
+     "notes": null
+    }
+   ],
+   "verifications": [
+    {
+     "schema_version": "0.1.0",
+     "verification_id": "V016",
+     "limitation_id": "CL-B012",
+     "direction": "code_to_paper",
+     "result": "not_found",
+     "documented_in": [],
+     "matching_evidence": [],
+     "matching_code": [],
+     "scope_status": "unknown",
+     "evaluated_in_paper": null,
+     "verifier": "llm:deepseek-v4.1-flash-1017",
+     "rationale": "paper: not_found; elsewhere: not_found. The passages only contain code comments about generating the partial weight index and skewing matrix; none state that the partial-weight index is skipped (leaving p_w_q=None and running dense attention) when warmup is True or partial_weight_ratio is None. Scope: no Binding connects this condition to a scope item."
+    }
+   ]
+  },
+  {
+   "schema_version": "0.2.0",
+   "finding_id": "infinigen-F029",
+   "artifact_id": "infinigen",
+   "category": "undisclosed",
+   "level": "L2",
+   "limitation_ids": [
+    "CL-X004"
+   ],
+   "verification_ids": [
+    "V003"
+   ],
+   "scope_status": "unknown",
+   "evaluated_in_paper": null,
+   "effect_type": "reject",
+   "summary": "When not (dst.device.device_type != DeviceType.MIXED): AssertionError (speedup/flexgen/infinigen/pytorch_backend.py:837)",
+   "witness_hint": {
+    "format": "witness-v2",
+    "kind": "input_value",
+    "status": "infeasible",
+    "condition": "not (dst.device.device_type != DeviceType.MIXED)",
+    "path_prefix": [
+     "isinstance(k_cache, TorchTensor)",
+     "not (attn_sparsity >= 1.0)",
+     "k.is_cuda",
+     "not (dst.device.device_type == DeviceType.MIXED)",
+     "src.device.device_type == DeviceType.MIXED"
+    ],
+    "dropped_prefix": [],
+    "note": "no values satisfy path prefix, condition and scope together",
+    "location": "speedup/flexgen/infinigen/pytorch_backend.py:837",
+    "function": "speedup/flexgen/infinigen/pytorch_backend.py::general_copy"
+   },
+   "confidence": "llm_assisted",
+   "priority": 3,
+   "rationale": "3b: not_found; priority 3: unreachable: condition contradicts its path prefix",
+   "review": "unreviewed",
+   "review_note": null,
+   "limitations": [
+    {
+     "schema_version": "0.1.0",
+     "limitation_id": "CL-X004",
+     "artifact_id": "infinigen",
+     "origin": "code",
+     "level": null,
+     "condition_text": "not (dst.device.device_type != DeviceType.MIXED)",
+     "condition": {
+      "expr": "not (dst.device.device_type != DeviceType.MIXED)",
+      "params": [
+       "DeviceType",
+       "dst"
+      ],
+      "path_prefix": [
+       "isinstance(k_cache, TorchTensor)",
+       "not (attn_sparsity >= 1.0)",
+       "k.is_cuda",
+       "not (dst.device.device_type == DeviceType.MIXED)",
+       "src.device.device_type == DeviceType.MIXED"
+      ]
+     },
+     "effect_type": "reject",
+     "effect_text": "AssertionError",
+     "paper_evidence": [],
+     "code_evidence": [
+      {
+       "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+       "line_start": 837,
+       "line_end": 837,
+       "function": "speedup/flexgen/infinigen/pytorch_backend.py::general_copy",
+       "snippet": "assert dst.device.device_type != DeviceType.MIXED"
+      }
+     ],
+     "region_ids": [
+      "X004"
+     ],
+     "provenance": "ast",
+     "notes": null
+    }
+   ],
+   "verifications": [
+    {
+     "schema_version": "0.1.0",
+     "verification_id": "V003",
+     "limitation_id": "CL-X004",
+     "direction": "code_to_paper",
+     "result": "not_found",
+     "documented_in": [],
+     "matching_evidence": [],
+     "matching_code": [],
+     "scope_status": "unknown",
+     "evaluated_in_paper": null,
+     "verifier": "llm:deepseek-v4.1-flash-1017",
+     "rationale": "paper: not_found; elsewhere: not_found. No passage states that a destination tensor on a mixed device is rejected with an AssertionError. The related passages only describe mixed-device handling (recursive calls, TorchMixedDevice representation) and general copy behavior, without documenting this restriction or its effect. Scope: no Binding connects this condition to a scope item."
+    }
+   ]
+  },
+  {
+   "schema_version": "0.2.0",
+   "finding_id": "infinigen-F030",
+   "artifact_id": "infinigen",
+   "category": "not_implemented",
+   "level": "L2",
+   "limitation_ids": [
+    "infinigen-gap-M07-B07"
+   ],
+   "verification_ids": [],
+   "scope_status": "unknown",
+   "evaluated_in_paper": null,
+   "effect_type": "other",
+   "summary": "论文要求饱和时全体减半；代码无该步骤（artifact 范围：无饱和减半）",
+   "witness_hint": {
+    "format": "witness-v2",
+    "kind": "input_value",
+    "status": "solved",
+    "condition": "self.eviction_policy == \"counter\"",
+    "path_prefix": [],
+    "dropped_prefix": [],
+    "trigger": {
+     "self.eviction_policy": "counter"
+    },
+    "contrast": {
+     "self.eviction_policy": {
+      "not_in": [
+       "counter"
+      ]
+     }
+    },
+    "atoms": {
+     "self.eviction_policy": {
+      "kind": "category",
+      "sort": "str"
+     }
+    },
+    "code_locations": [
+     "accuracy/perplexity/table2.sh:27-45",
+     "accuracy/src/modeling_opt_ours.py:224-228"
+    ],
+    "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+    "location": "accuracy/perplexity/table2.sh:27-45",
+    "function": null
+   },
+   "confidence": "llm_assisted",
+   "priority": 3,
+   "rationale": "paper side (3a static): absent; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 3: not_implemented, other effect",
+   "review": "unreviewed",
+   "review_note": null,
+   "limitations": [
+    {
+     "schema_version": "0.1.0",
+     "limitation_id": "infinigen-gap-M07-B07",
+     "artifact_id": "infinigen",
+     "origin": "paper",
+     "level": "L2",
+     "condition_text": "Pinned inspected artifact path: accuracy/perplexity/table2.sh 实验路径（opt.py/llama.py + modeling_*_ours.py，capacity=0.8/1.0，evict∈{fifo,lru,counter}）；speedup/ 路径未确认. Paper precondition: Any counter becomes saturated.",
+     "condition": null,
+     "effect_type": "other",
+     "effect_text": "同上：无饱和减半",
+     "paper_evidence": [
+      {
+       "quote": "If any counter becomes saturated, all the counter values\nare reduced by half.",
+       "source": "paper",
+       "locator": "PDF p.10"
+      }
+     ],
+     "code_evidence": [
+      {
+       "file": "accuracy/perplexity/table2.sh",
+       "line_start": 27,
+       "line_end": 45,
+       "function": null,
+       "snippet": null
+      },
+      {
+       "file": "accuracy/src/modeling_opt_ours.py",
+       "line_start": 224,
+       "line_end": 228,
+       "function": null,
+       "snippet": null
+      }
+     ],
+     "region_ids": [],
+     "provenance": "llm",
+     "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=absent; behavior=M07-B07; external repo refs stay in code_evidence_registry.json. Equivalence: 同上; effect_status=not_established"
+    }
+   ],
+   "verifications": []
+  },
+  {
+   "schema_version": "0.2.0",
+   "finding_id": "infinigen-F031",
+   "artifact_id": "infinigen",
+   "category": "not_implemented",
+   "level": "L2",
+   "limitation_ids": [
+    "infinigen-gap-M02-B02"
+   ],
+   "verification_ids": [],
+   "scope_status": "unknown",
+   "evaluated_in_paper": null,
+   "effect_type": "other",
+   "summary": "实验路径缺少论文指定的相加步骤",
+   "witness_hint": {
+    "format": "witness-v2",
+    "kind": "input_value",
+    "status": "always",
+    "condition": null,
+    "path_prefix": [],
+    "code_locations": [
+     "speedup/infinigen/infinigen/partial_weight_generation_controller.py:5-39",
+     "accuracy/src/modeling_opt_ours_setup.py:218-230",
+     "speedup/scripts/figure17b/run.sh:1-12"
+    ],
+    "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The code computes top-k indices from the query matrix alone and never adds the query and key matrices together as the paper specifies, so the missing addition step occurs on every call.",
+    "location": "speedup/infinigen/infinigen/partial_weight_generation_controller.py:5-39",
+    "function": null
+   },
+   "confidence": "llm_assisted",
+   "priority": 3,
+   "rationale": "paper side (3a static): absent; not a confirmed runtime effect; priority 3: not_implemented, other effect; related (candidate pair, judged different): infinigen-F024, infinigen-F025, infinigen-F026",
+   "review": "unreviewed",
+   "review_note": null,
+   "limitations": [
+    {
+     "schema_version": "0.1.0",
+     "limitation_id": "infinigen-gap-M02-B02",
+     "artifact_id": "infinigen",
+     "origin": "paper",
+     "level": "L2",
+     "condition_text": "Pinned inspected artifact path: speedup实验路径：speedup/scripts/figure17b/run.sh 符号链接替换 flex_opt.py/pytorch_backend.py 后运行 python -m flexgen.flex_opt（--partial-weight-ratio 0.1..1.0）；accuracy/setup路径(modeling_opt_ours_setup.py/modeling_llama_ours_setup.py 214-224)作等价对照. Paper precondition: After taking element-wise absolute values.",
+     "condition": null,
+     "effect_type": "other",
+     "effect_text": "实验路径缺少论文指定的相加步骤",
+     "paper_evidence": [
+      {
+       "quote": "then add these two matrices\ntogether",
+       "source": "paper",
+       "locator": "PDF p.9"
+      }
+     ],
+     "code_evidence": [
+      {
+       "file": "speedup/infinigen/infinigen/partial_weight_generation_controller.py",
+       "line_start": 5,
+       "line_end": 39,
+       "function": null,
+       "snippet": null
+      },
+      {
+       "file": "accuracy/src/modeling_opt_ours_setup.py",
+       "line_start": 218,
+       "line_end": 230,
+       "function": null,
+       "snippet": null
+      },
+      {
+       "file": "speedup/scripts/figure17b/run.sh",
+       "line_start": 1,
+       "line_end": 12,
+       "function": null,
+       "snippet": null
+      }
+     ],
+     "region_ids": [],
+     "provenance": "llm",
+     "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=absent; behavior=M02-B02; external repo refs stay in code_evidence_registry.json. Equivalence: accuracy/setup路径的并集掩码是等价替代，但不在speedup实验路径; effect_status=not_established"
+    }
+   ],
+   "verifications": []
+  }
+ ]
+}

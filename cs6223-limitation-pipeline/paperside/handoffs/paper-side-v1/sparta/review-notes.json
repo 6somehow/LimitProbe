@@ -1,0 +1,171 @@
+{
+  "reviewer": "independent automated read-only handoff review; not human gold",
+  "reviewed_at_utc": "2026-11-11T07:55:00.896569+00:00",
+  "reviewed_paper_side_sha256": "502ba9f238adb1e14566036c9a1dfd46623900b0f0408fdf29da21620785bc11",
+  "method": {
+    "model_api_calls": 0,
+    "target_execution": "not_run",
+    "source_or_handoff_mutations": 0,
+    "checks": "Actual consumer load, Pydantic validation against actual shared model definitions, generated JSON-schema inspection, ID resolution, exact source span checks, pinned git source comparison, ZIP/index byte integrity, focused semantic sampling. Separate jsonschema package unavailable; no standalone JSON Schema validator was run."
+  },
+  "confirmed_errors": [
+    {
+      "id": "IR-001",
+      "severity": "high",
+      "file": "handoffs/paper-side-v1/sparta/paper_side.json",
+      "record": "sparta-eval_points-022",
+      "field": "config.sparsity_ratio",
+      "actual_config": {
+        "model": "mobilenet",
+        "sparsity_pattern": "structured",
+        "sparsity_ratio": 0.3,
+        "hardware": "nvidia_rtx_2080ti"
+      },
+      "evidence": {
+        "paper_page": 14,
+        "text_lines": "43-45",
+        "quote": "In this experiment, we use Simulated Annealing [58] to prune MobileNet to reduce 30% and 40% inference latency, respectively",
+        "context": "The two dashed lines in Figure 19 are latency targets. The following paragraph separately describes a FLOPS-based filter whose FLOPS may not exceed 70% of original."
+      },
+      "problem": "A 30% inference-latency reduction target was encoded as a 30% sparsity ratio. These are different quantities; the active joint evaluation config is unsupported.",
+      "suggested_action": "Remove sparsity_ratio; if retaining this eval point, use a correctly named latency-reduction target field and review its structured pattern classification, or keep the original record in pending with explanation. Preserve the model original and adjustment provenance."
+    }
+  ],
+  "manual_semantic_review_candidates": [
+    {
+      "id": "IR-S01",
+      "record": "sparta-eval_points-021",
+      "field": "config.sparsity_pattern",
+      "evidence": "PDF p13 Table4 first best block size is 32x128. PDF p14 lines1-6 says five sparse tensors with different sparsity patterns in BERT, originally 32x32 block size.",
+      "concern": "The config calls this a BERT structured evaluation without identifying tensor/pattern 1. The table concerns selected tensors, not necessarily an end-to-end structured model.",
+      "suggested_action": "Review the tensor identity and pattern label; record pattern index=1 or a tensor-specific experiment key and cite the p14 prose. This is a semantic review candidate, not a demonstrated false value."
+    },
+    {
+      "id": "IR-S02",
+      "records": [
+        "sparta-eval_points-014",
+        "sparta-eval_points-015",
+        "sparta-eval_points-016",
+        "sparta-eval_points-017",
+        "sparta-eval_points-018",
+        "sparta-eval_points-019"
+      ],
+      "concern": "Joint configs contain hardware and/or shape not fully supported by their own attached evidence spans, although nearby figure captions and artifact appendix plausibly supply them.",
+      "suggested_action": "Add the exact figure caption and hardware appendix spans to those eval records to make each joint config independently auditable; do not call them disproven merely because the original record uses a short quote."
+    }
+  ],
+  "operational_findings": [
+    {
+      "id": "IR-O01",
+      "file": "handoffs/paper-side-v1/sparta/repositories.json",
+      "problem": "Cross-repository commits are recorded with machine-local paths but no canonical fetch URLs. The manifest report_index and binding provenance also point to local absolute report paths. Source reads include several URLs, including different forks, so those do not uniquely document alias origin.",
+      "suggested_action": "For portable reproduction, add canonical fetch URL per alias and optionally embed the source report/input provenance or relative portable pointers. Current supplied code snippets remain independently checkable at the locally available pins."
+    },
+    {
+      "id": "IR-O02",
+      "file": "handoffs/paper-side-v1/sparta/evidence/full-audit.html",
+      "problem": "This HTML is 62,966,851 bytes; bundle uncompressed total is 75,579,375 bytes and compressed ZIP is 29,957,138 bytes. It dominates delivery size.",
+      "suggested_action": "Optional: deliver it as a separate audit appendix or remove duplicate embedded media only if full retained evidence remains accessible. Size is not a correctness blocker."
+    }
+  ],
+  "passed_checks": {
+    "native_top_level_arrays": [
+      "claims",
+      "scope",
+      "eval_points",
+      "bindings"
+    ],
+    "counts": {
+      "claims": 204,
+      "scope": 26,
+      "eval_points": 24,
+      "bindings": 26,
+      "conformance": 206,
+      "completed_artifact": 199,
+      "pending_artifact": 7,
+      "pending_paper": 2
+    },
+    "binding_kinds": "26 mechanism_entry; all certain=False; actual ScopeChecker.by_symbol is empty",
+    "actual_consumer_existing_conditions": {
+      "CL-B001": "unknown",
+      "CL-B002": "unknown",
+      "CL-B003": "unknown"
+    },
+    "scope_guard": "No active scalar solver bindings. Non-numeric mappings stay inactive. This prevents unsupported scope conclusions and is not a scope adjudication.",
+    "focused_scope_check": "Quantization widths remain free_text without invented interval; 256 samples and 1% threshold are free_text explicit=False; CUDA Driver Larger than 11.2 remains exact free_text with strictness preserved; appendix hardware distinguishes A100 Figure17 and 2080Ti other figures. AMD/CPU mixed-BERT eval configs are supported by p12 with general end-to-end batch32 on p10; no cross-hardware Cartesian-product error observed.",
+    "shared_schema": "All native rows validated with current shared Pydantic models; snapshot and validation SHA equal actual schema/models.py SHA.",
+    "ids": "All 206 conformance references to present claims resolve, except the two explicitly null unresolved records; all conformance evidence_registry_ids resolve. Per-array native IDs unique.",
+    "unresolved_records": [
+      "M04-A03",
+      "M09-B04"
+    ],
+    "paper_quotes": "Every active paper_side evidence quote exists verbatim in the stated PDF page in paper-input.json; copied PDF hash equals original team third_party/papers/sparta.pdf.",
+    "git_evidence": "All 179 registry repo commits match repository pins; commits exist locally; all 88 source-read numbered text snippets match pinned git contents exactly. Some ranges include the trailing empty line or an empty-file line1, consistent with source-read convention rather than fabricated content.",
+    "navigation": "All 26 active bindings identify matching function/class definitions at stated first lines; certain=False and rationale does not claim implementation support.",
+    "zip_integrity": "58 files; no missing/extra/archive-vs-directory differences; all bundle-index hashes match.",
+    "secret_scan": "Strong token/private-key patterns scanned; no hits. No secret values printed. This bounded pattern scan is not a guarantee of absence."
+  },
+  "script_review": {
+    "finalizer": "Current finalizer numeric/certain guard is applied before navigation additions; navigation derives from each mechanism local_entry and pinned indexed definitions. Current output has no scalar bindings.",
+    "base_build_guard": "build_paper_handoff alone checks certain/free_text/simple scalar names, but does not comprehensively reject boolean or string-set scopes. Finalize must remain mandatory; do not hand off an intermediate build output as current final deliverable.",
+    "readme": "Current README/RUN_WITH_WANTING distinguish static discrepancy candidates, pending independent review and no target execution. They do not promise confirmed bugs or completed scope adjudication."
+  },
+  "followup_semantic_clarification": {
+    "eval021": {
+      "original_config": {
+        "model": "bert",
+        "sparsity_pattern": "structured",
+        "hardware": "nvidia_rtx_2080ti",
+        "block_size": "32x128"
+      },
+      "recommended_minimal_config": {
+        "source_model": "bert",
+        "sparsity_pattern_id": 1,
+        "best_block_size": "32x128"
+      },
+      "evidence": [
+        "PDF p13 line96: Sparsity Pattern 1 2 3 4 5",
+        "PDF p13 line99: Best Block Size 32x128 128x32 32x128 32x64 128x64",
+        "PDF p14 lines1-4: five sparse tensors with different sparsity patterns in BERT, apply WeightedBlockCover to find best block size."
+      ],
+      "interpretation": "Pattern index 1 is explicit column ordering; no tensor symbol/name is given. Remove structured/hardware; use source_model rather than implying an end-to-end BERT model trial."
+    },
+    "eval014": {
+      "remaining_config_joint_support": "model=mobilenet, sparsity_pattern=structured, sparsity_ratio=0.5; PDF p12 lines117-129",
+      "hardware": "May be removed conservatively if no hardware evidence is attached."
+    },
+    "eval015": {
+      "remaining_config_joint_support": "model=mobilenet, sparsity_pattern=unstructured, sparsity_ratio=0.9; PDF p12 lines117-124 and137-140",
+      "hardware": "May be removed conservatively if no hardware evidence is attached."
+    },
+    "eval016": {
+      "remaining_config_joint_support": "model=mobilenet, sparsity_pattern=quantization_mixed_precision; PDF p12 lines143-146 and p13 lines21-29 describe MobileNet quantization candidate widths0-8 and changed per-layer bit widths",
+      "hardware": "May be removed conservatively if no hardware evidence is attached."
+    },
+    "eval022": {
+      "acceptable_replacement_configs": [
+        {
+          "model": "mobilenet",
+          "pruning_algorithm": "simulated_annealing",
+          "target_latency_reduction_ratio": 0.3
+        },
+        {
+          "model": "mobilenet",
+          "pruning_algorithm": "simulated_annealing",
+          "target_latency_reduction_ratio": 0.4
+        }
+      ],
+      "evidence": "PDF p14 lines43-45. Preserve original whole config in a held review record. Remove unestablished structured/hardware fields."
+    },
+    "status": "Recommendations only; independent reviewer has not modified the source or handoff and has not verified any subsequent parent adjustments."
+  },
+  "parent_planned_source_assisted_agent_corrections": {
+    "classification": "Source-assisted agent corrections, not human gold. Parent read the identified original source spans. Independent reviewer assessed the proposed logic but has not validated a revised package.",
+    "eval014_to_016": "Remove hardware and add the paper context establishing model/pattern/ratio together.",
+    "eval021": "Keep original record held. Replace with five configs model=bert, benchmark_unit=sparse_tensor, tensor_case_id=1..5, original_block_shape=32x32; table case numbers are paper-local identifiers, not source tensor symbols. Do not treat optimized best block sizes as evaluated input settings.",
+    "eval022": "Keep original record held. Replace with two minimal simulated-annealing MobileNet configs bearing inference-latency reduction targets0.3 and0.4, not sparsity ratios; no structured/hardware.",
+    "expected_eval_points": 29,
+    "logic_assessment": "No logical error identified in the conservative proposal. 24-1+5-1+2=29.",
+    "revalidation_required": "Run current consumer/schema/ID/hash/ZIP checks again after parent changes; passed checks and reviewed SHA in this note refer only to the original24-point package."
+  }
+}

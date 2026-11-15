@@ -1,0 +1,3664 @@
+[
+  {
+    "id": "M01-B01",
+    "claim_type": "mechanism_step",
+    "requirement": "离线用样本输入前向一次并逐层收集查询矩阵",
+    "paper": {
+      "page": 9,
+      "quote": "InfiniGen first runs the forward pass of the model once with a sample input."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "mha在warmup分支取当前层q(0,:,h)作为查询矩阵",
+      "discrepancy": "",
+      "equivalence": "warmup前向即样本输入前向，逐层调用mha即逐层收集",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E3"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "run_flexgen先以warmup_inputs跑max_new_tokens=1的warmup generate，再跑正式生成",
+      "discrepancy": "",
+      "equivalence": "warmup generate对应论文离线一次前向，样本取自warmup_input_path",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E4",
+        "E3"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M01-B01",
+    "mechanism_id": "M01",
+    "scope_definition": {
+      "local_entry": "speedup/infinigen/infinigen/skewing_controller.py::skew（由pytorch_backend.py::TorchDevice.mha 的warmup分支调用）",
+      "artifact": "speedup/flexgen/infinigen/flex_opt.py::run_flexgen 的 warmup generate → compute_layer → mha(warmup=True) → skew，并回写weight_home"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M01:E2",
+        "M01:E3"
+      ],
+      "artifact": [
+        "M01:E4",
+        "M01:E3"
+      ]
+    }
+  },
+  {
+    "id": "M01-B02",
+    "claim_type": "mechanism_step",
+    "requirement": "对每层查询矩阵做SVD得U、Σ、V",
+    "paper": {
+      "page": 9,
+      "quote": "performs singular value decomposition (SVD) of each query matrix"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "torch.svd(query[0,:,h_idx])取V，另对key做SVD取奇异值",
+      "discrepancy": "",
+      "equivalence": "逐头SVD等价于逐层SVD（头为列块），额外key SVD仅用于排序",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "warmup路径经mha调用skew，逐层逐头执行SVD",
+      "discrepancy": "",
+      "equivalence": "调用链warmup→mha→skew成立",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E3",
+        "E1"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M01-B02",
+    "mechanism_id": "M01",
+    "scope_definition": {
+      "local_entry": "speedup/infinigen/infinigen/skewing_controller.py::skew（由pytorch_backend.py::TorchDevice.mha 的warmup分支调用）",
+      "artifact": "speedup/flexgen/infinigen/flex_opt.py::run_flexgen 的 warmup generate → compute_layer → mha(warmup=True) → skew，并回写weight_home"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M01:E1"
+      ],
+      "artifact": [
+        "M01:E3",
+        "M01:E1"
+      ]
+    }
+  },
+  {
+    "id": "M01-B03",
+    "claim_type": "mechanism_step",
+    "requirement": "令A为该层正交矩阵V",
+    "paper": {
+      "page": 9,
+      "quote": "We then set A to orthogonal matrix V"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "A由vq按sq*sk排序后scatter重排列得到，非直接V",
+      "discrepancy": "论文要求A=V；代码A为V列按σq·σk排序重排，A≠V",
+      "equivalence": "重排后A仍正交，A A^T=I，QK^T不变；但列对齐方向与论文V不同",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E1"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "warmup→mha→skew实际执行该重排A",
+      "discrepancy": "同上：A为排序重排后的V，非论文所述A=V",
+      "equivalence": "正交性保留，等价性仅限QK^T不变；偏斜列选择与论文不同",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E3",
+        "E1"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M01-B03",
+    "mechanism_id": "M01",
+    "scope_definition": {
+      "local_entry": "speedup/infinigen/infinigen/skewing_controller.py::skew（由pytorch_backend.py::TorchDevice.mha 的warmup分支调用）",
+      "artifact": "speedup/flexgen/infinigen/flex_opt.py::run_flexgen 的 warmup generate → compute_layer → mha(warmup=True) → skew，并回写weight_home"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M01:E1"
+      ],
+      "artifact": [
+        "M01:E3",
+        "M01:E1"
+      ]
+    }
+  },
+  {
+    "id": "M01-B04",
+    "claim_type": "mechanism_step",
+    "requirement": "将A乘入该层WQ与WK",
+    "paper": {
+      "page": 9,
+      "quote": "This matrix is then multiplied with each of the query and key weight matrices in the corresponding layer."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "wq[start:end]=A.t()@wq[start:end]，wk同理，按头行块",
+      "discrepancy": "",
+      "equivalence": "A^T乘入行块等价于WQ·A（列侧），同一A同时用于Q与K",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "mha返回偏斜w_q/w_k，flex_opt在warmup时回写weight_home[0]/[2]",
+      "discrepancy": "",
+      "equivalence": "偏斜权重持久化到weight_home，后续层/迭代复用",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E3",
+        "E2"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M01-B04",
+    "mechanism_id": "M01",
+    "scope_definition": {
+      "local_entry": "speedup/infinigen/infinigen/skewing_controller.py::skew（由pytorch_backend.py::TorchDevice.mha 的warmup分支调用）",
+      "artifact": "speedup/flexgen/infinigen/flex_opt.py::run_flexgen 的 warmup generate → compute_layer → mha(warmup=True) → skew，并回写weight_home"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M01:E1"
+      ],
+      "artifact": [
+        "M01:E3",
+        "M01:E2"
+      ]
+    }
+  },
+  {
+    "id": "M01-B05",
+    "claim_type": "semantic_effect",
+    "requirement": "乘A后权重矩阵维度不变",
+    "paper": {
+      "page": 9,
+      "quote": "after the multiplication, the dimensions of the weight matrices remain unchanged"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "A为head_dim×head_dim，A.t()@wq[start:end]形状不变",
+      "discrepancy": "",
+      "equivalence": "方阵左乘不改变行块形状，整体(D,D+1)不变",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "回写weight_home的w_q/w_k形状与分配一致",
+      "discrepancy": "",
+      "equivalence": "smart_copy回写不改变形状",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E3"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M01-B05",
+    "mechanism_id": "M01",
+    "scope_definition": {
+      "local_entry": "speedup/infinigen/infinigen/skewing_controller.py::skew（由pytorch_backend.py::TorchDevice.mha 的warmup分支调用）",
+      "artifact": "speedup/flexgen/infinigen/flex_opt.py::run_flexgen 的 warmup generate → compute_layer → mha(warmup=True) → skew，并回写weight_home"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M01:E1"
+      ],
+      "artifact": [
+        "M01:E3"
+      ]
+    }
+  },
+  {
+    "id": "M01-B06-R01",
+    "claim_type": "guarantee",
+    "requirement": "A正交且同一A乘入WQ、WK，故Q̃K̃^T=QK^T，数学等价非近似",
+    "paper": {
+      "page": 8,
+      "quote": "this is mathematically equivalent to QKT , not an approximation"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "A由V列重排构成，正交；WQ、WK同用A^T",
+      "discrepancy": "",
+      "equivalence": "A A^T=I成立，代数推导与论文式(2)一致；重排不破坏正交性",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "偏斜权重用于mha/mha_gen的q、k线性投影",
+      "discrepancy": "",
+      "equivalence": "同一A作用于Q与K投影，等价性在实现路径成立",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E5"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M01-B06-R01",
+    "mechanism_id": "M01",
+    "scope_definition": {
+      "local_entry": "speedup/infinigen/infinigen/skewing_controller.py::skew（由pytorch_backend.py::TorchDevice.mha 的warmup分支调用）",
+      "artifact": "speedup/flexgen/infinigen/flex_opt.py::run_flexgen 的 warmup generate → compute_layer → mha(warmup=True) → skew，并回写weight_home"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M01:E1"
+      ],
+      "artifact": [
+        "M01:E2",
+        "M01:E5"
+      ]
+    }
+  },
+  {
+    "id": "M01-B06-R02",
+    "claim_type": "semantic_effect",
+    "requirement": "偏斜不改变注意力层功能，计算结果相同",
+    "paper": {
+      "page": 9,
+      "quote": "Even with the skewing, the attention layer produces identical computation results."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "skew仅改权重，注意力计算式未变",
+      "discrepancy": "",
+      "equivalence": "由正交性推得注意力分数不变，代码未引入额外近似",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2"
+      ]
+    },
+    "artifact": {
+      "review_state": "pending",
+      "verdict": null,
+      "actual": "已读mha/mha_gen投影与注意力路径；未运行，fp16舍入及偏斜后top-k列选择对prefetch的影响未验证",
+      "discrepancy": "",
+      "equivalence": "",
+      "effect_status": "not_established",
+      "pending_reason": "需实测偏斜前后注意力输出/精度是否一致（含fp16舍入）",
+      "refs": [
+        "E2",
+        "E5"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M01-B06-R02",
+    "mechanism_id": "M01",
+    "scope_definition": {
+      "local_entry": "speedup/infinigen/infinigen/skewing_controller.py::skew（由pytorch_backend.py::TorchDevice.mha 的warmup分支调用）",
+      "artifact": "speedup/flexgen/infinigen/flex_opt.py::run_flexgen 的 warmup generate → compute_layer → mha(warmup=True) → skew，并回写weight_home"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M01:E1",
+        "M01:E2"
+      ],
+      "artifact": [
+        "M01:E2",
+        "M01:E5"
+      ]
+    }
+  },
+  {
+    "id": "M01-B07",
+    "claim_type": "mechanism_step",
+    "requirement": "偏斜为一次性离线过程，无运行时开销，因权重运行时不变",
+    "paper": {
+      "page": 9,
+      "quote": "the skewing is a one-time offline process and does not incur any runtime overhead"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "skew仅在warmup分支调用，非warmup不执行",
+      "discrepancy": "",
+      "equivalence": "warmup=True条件保证一次性；正式生成路径无skew调用",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E3"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "run_flexgen先warmup generate一次，再正式generate；偏斜权重回写weight_home",
+      "discrepancy": "",
+      "equivalence": "离线一次+warmup后权重不变，符合无运行时开销",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E4",
+        "E3"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M01-B07",
+    "mechanism_id": "M01",
+    "scope_definition": {
+      "local_entry": "speedup/infinigen/infinigen/skewing_controller.py::skew（由pytorch_backend.py::TorchDevice.mha 的warmup分支调用）",
+      "artifact": "speedup/flexgen/infinigen/flex_opt.py::run_flexgen 的 warmup generate → compute_layer → mha(warmup=True) → skew，并回写weight_home"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M01:E2",
+        "M01:E3"
+      ],
+      "artifact": [
+        "M01:E4",
+        "M01:E3"
+      ]
+    }
+  },
+  {
+    "id": "M01-A01",
+    "claim_type": "mechanism_step",
+    "requirement": "推理时Q̃=Xa·WQ·A，K̃=Xa·WK·A，同一A作用于Q与K",
+    "paper": {
+      "page": 8,
+      "quote": "˜Q = Xa×WQ× A, ˜K = Xa×WK× A"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "q=F.linear(new_h,w_q)，k=F.linear(new_h,w_k)，w_q/w_k已含A^T",
+      "discrepancy": "",
+      "equivalence": "权重侧预乘A^T等价于输出侧乘A，同一A用于Q与K",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E1"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "mha与mha_gen均用偏斜后w_q/w_k做投影",
+      "discrepancy": "",
+      "equivalence": "prefill与decode两阶段一致使用偏斜权重",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E5"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M01-A01",
+    "mechanism_id": "M01",
+    "scope_definition": {
+      "local_entry": "speedup/infinigen/infinigen/skewing_controller.py::skew（由pytorch_backend.py::TorchDevice.mha 的warmup分支调用）",
+      "artifact": "speedup/flexgen/infinigen/flex_opt.py::run_flexgen 的 warmup generate → compute_layer → mha(warmup=True) → skew，并回写weight_home"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M01:E2",
+        "M01:E1"
+      ],
+      "artifact": [
+        "M01:E2",
+        "M01:E5"
+      ]
+    }
+  },
+  {
+    "id": "M01-A02",
+    "claim_type": "semantic_effect",
+    "requirement": "偏斜后少数列幅度远大于其他列，少量列即可显著影响注意力",
+    "paper": {
+      "page": 8,
+      "quote": "if we make a few columns in the query and key matrices have much larger magnitude than others, a much smaller number of columns significantly affects the attention pattern."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "A按σq·σk排序对齐最大拉伸方向，使列幅度集中",
+      "discrepancy": "",
+      "equivalence": "排序重排正是为放大少数列，机制上实现列幅度偏斜",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1"
+      ]
+    },
+    "artifact": {
+      "review_state": "pending",
+      "verdict": null,
+      "actual": "已读top-k列选择实现；未运行，偏斜后列幅度分布与top-k(30%)列对注意力模式的覆盖度未实测",
+      "discrepancy": "",
+      "equivalence": "",
+      "effect_status": "not_established",
+      "pending_reason": "需实测偏斜后列幅度偏斜度及top-k列近似注意力效果",
+      "refs": [
+        "E6",
+        "E1"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M01-A02",
+    "mechanism_id": "M01",
+    "scope_definition": {
+      "local_entry": "speedup/infinigen/infinigen/skewing_controller.py::skew（由pytorch_backend.py::TorchDevice.mha 的warmup分支调用）",
+      "artifact": "speedup/flexgen/infinigen/flex_opt.py::run_flexgen 的 warmup generate → compute_layer → mha(warmup=True) → skew，并回写weight_home"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M01:E1"
+      ],
+      "artifact": [
+        "M01:E6",
+        "M01:E1"
+      ]
+    }
+  },
+  {
+    "id": "M01-A03",
+    "claim_type": "semantic_effect",
+    "requirement": "偏斜源于模型内在列模式而非输入，不同输入下仍高度偏斜",
+    "paper": {
+      "page": 9,
+      "quote": "whenever we compute the query and key for different inputs after the skewing, the values exhibit a high degree of skewness"
+    },
+    "local_entry": {
+      "review_state": "pending",
+      "verdict": null,
+      "actual": "已读skew：A由单个样本输入SVD得到并固化进权重，代码层面支持跨输入复用；跨输入偏斜度未验证",
+      "discrepancy": "",
+      "equivalence": "",
+      "effect_status": "not_established",
+      "pending_reason": "需用不同输入实测偏斜后Q/K列幅度偏斜度",
+      "refs": [
+        "E1",
+        "E3"
+      ]
+    },
+    "artifact": {
+      "review_state": "pending",
+      "verdict": null,
+      "actual": "已读run_flexgen：warmup样本与测试输入不同（warmup_input_path vs test_input_path），但未运行验证偏斜保持",
+      "discrepancy": "",
+      "equivalence": "",
+      "effect_status": "not_established",
+      "pending_reason": "需运行不同输入对比偏斜度",
+      "refs": [
+        "E4"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M01-A03",
+    "mechanism_id": "M01",
+    "scope_definition": {
+      "local_entry": "speedup/infinigen/infinigen/skewing_controller.py::skew（由pytorch_backend.py::TorchDevice.mha 的warmup分支调用）",
+      "artifact": "speedup/flexgen/infinigen/flex_opt.py::run_flexgen 的 warmup generate → compute_layer → mha(warmup=True) → skew，并回写weight_home"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M01:E1",
+        "M01:E3"
+      ],
+      "artifact": [
+        "M01:E4"
+      ]
+    }
+  },
+  {
+    "id": "M02-B01",
+    "claim_type": "mechanism_step",
+    "requirement": "对偏斜后的Q与K矩阵取逐元素绝对值",
+    "paper": {
+      "page": 9,
+      "quote": "we first take the element-wise absolute values of the skewed query and key matrices"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "E1第34行仅对query取torch.abs；E2第327行只传q，key未进入该函数",
+      "discrepancy": "论文要求Q与K均取绝对值，代码只对Q取",
+      "equivalence": "accuracy路径E6/E7对Q、K分别取abs后各自topk再并集，可视为对K也取abs，但speedup入口未调用",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2",
+        "E6"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "E8脚本驱动的flex_opt路径即E1/E2，仅Q取abs",
+      "discrepancy": "实验路径缺少K的逐元素绝对值",
+      "equivalence": "accuracy/setup路径含K的abs，但不在speedup实验路径",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2",
+        "E8"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M02-B01",
+    "mechanism_id": "M02",
+    "scope_definition": {
+      "local_entry": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha(324-327)→partial_weight_generation_controller.py::partial_weight_index_generation；消费方 flex_opt.py::Attention.forward(515-521)",
+      "artifact": "speedup实验路径：speedup/scripts/figure17b/run.sh 符号链接替换 flex_opt.py/pytorch_backend.py 后运行 python -m flexgen.flex_opt（--partial-weight-ratio 0.1..1.0）；accuracy/setup路径(modeling_opt_ours_setup.py/modeling_llama_ours_setup.py 214-224)作等价对照"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M02:E1",
+        "M02:E2",
+        "M02:E6"
+      ],
+      "artifact": [
+        "M02:E1",
+        "M02:E2",
+        "M02:E8"
+      ]
+    }
+  },
+  {
+    "id": "M02-B02",
+    "claim_type": "mechanism_step",
+    "requirement": "将取绝对值后的Q与K矩阵相加",
+    "paper": {
+      "page": 9,
+      "quote": "then add these two matrices together"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "absent",
+      "actual": "E1无Q_abs+K_abs加法，仅torch.sum(torch.abs(query[...]),dim=-2)",
+      "discrepancy": "论文要求先逐元素相加再按列求和，代码直接对Q_abs按列求和，无相加步骤",
+      "equivalence": "accuracy路径E6/E7以两次独立topk+scatter取并集，等价于二值掩码并集，可替代相加；speedup入口未实现该替代",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E6",
+        "E7"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "absent",
+      "actual": "E8驱动的speedup路径无Q_abs+K_abs相加",
+      "discrepancy": "实验路径缺少论文指定的相加步骤",
+      "equivalence": "accuracy/setup路径的并集掩码是等价替代，但不在speedup实验路径",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E6",
+        "E8"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M02-B02",
+    "mechanism_id": "M02",
+    "scope_definition": {
+      "local_entry": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha(324-327)→partial_weight_generation_controller.py::partial_weight_index_generation；消费方 flex_opt.py::Attention.forward(515-521)",
+      "artifact": "speedup实验路径：speedup/scripts/figure17b/run.sh 符号链接替换 flex_opt.py/pytorch_backend.py 后运行 python -m flexgen.flex_opt（--partial-weight-ratio 0.1..1.0）；accuracy/setup路径(modeling_opt_ours_setup.py/modeling_llama_ours_setup.py 214-224)作等价对照"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M02:E1",
+        "M02:E6",
+        "M02:E7"
+      ],
+      "artifact": [
+        "M02:E1",
+        "M02:E6",
+        "M02:E8"
+      ]
+    }
+  },
+  {
+    "id": "M02-B03",
+    "claim_type": "mechanism_step",
+    "requirement": "对组合矩阵按列求和",
+    "paper": {
+      "page": 9,
+      "quote": "We then sum the elements in each column"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "E1第34行沿dim=-2求和得每列和，但输入仅为Q_abs",
+      "discrepancy": "按列求和动作存在，作用对象是Q_abs而非Q_abs+K_abs",
+      "equivalence": "若K_abs列和可忽略则近似等价，但代码未计算K项，无法确认",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E1"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "同E1，speedup实验路径列和仅基于Q",
+      "discrepancy": "求和对象缺少K_abs项",
+      "equivalence": "accuracy路径以两次独立列和+并集替代，speedup路径无此替代",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E6",
+        "E8"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M02-B03",
+    "mechanism_id": "M02",
+    "scope_definition": {
+      "local_entry": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha(324-327)→partial_weight_generation_controller.py::partial_weight_index_generation；消费方 flex_opt.py::Attention.forward(515-521)",
+      "artifact": "speedup实验路径：speedup/scripts/figure17b/run.sh 符号链接替换 flex_opt.py/pytorch_backend.py 后运行 python -m flexgen.flex_opt（--partial-weight-ratio 0.1..1.0）；accuracy/setup路径(modeling_opt_ours_setup.py/modeling_llama_ours_setup.py 214-224)作等价对照"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M02:E1"
+      ],
+      "artifact": [
+        "M02:E1",
+        "M02:E6",
+        "M02:E8"
+      ]
+    }
+  },
+  {
+    "id": "M02-B04",
+    "claim_type": "mechanism_step",
+    "requirement": "按列和选top-k列，k为列数的30%",
+    "paper": {
+      "page": 9,
+      "quote": "select the top-k columns in the matrix; we choose 30% of the columns in our work"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "E1第33-36行torch.topk(列和,int(head_dim*partial_weight_ratio))，逐head选列；比例由参数传入",
+      "discrepancy": "",
+      "equivalence": "30%为论文可调参数，代码以partial_weight_ratio参数化，语义等价；具体取值由脚本设定",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2",
+        "E8"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "E8脚本以--partial-weight-ratio 0.1..1.0驱动同一topk逻辑",
+      "discrepancy": "",
+      "equivalence": "比例可调，符合论文“we choose 30%”的可调表述",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E8"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M02-B04",
+    "mechanism_id": "M02",
+    "scope_definition": {
+      "local_entry": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha(324-327)→partial_weight_generation_controller.py::partial_weight_index_generation；消费方 flex_opt.py::Attention.forward(515-521)",
+      "artifact": "speedup实验路径：speedup/scripts/figure17b/run.sh 符号链接替换 flex_opt.py/pytorch_backend.py 后运行 python -m flexgen.flex_opt（--partial-weight-ratio 0.1..1.0）；accuracy/setup路径(modeling_opt_ours_setup.py/modeling_llama_ours_setup.py 214-224)作等价对照"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M02:E1",
+        "M02:E2",
+        "M02:E8"
+      ],
+      "artifact": [
+        "M02:E1",
+        "M02:E8"
+      ]
+    }
+  },
+  {
+    "id": "M02-B05",
+    "claim_type": "mechanism_step",
+    "requirement": "只执行一次top-k，同时覆盖Q与K的离群列",
+    "paper": {
+      "page": 9,
+      "quote": "perform top-k operation only once while accommodating the outlier columns of both query and key matrices"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "E1每head只调用一次topk，但输入仅Q_abs列和，K离群列未纳入",
+      "discrepancy": "论文要求单次topk同时容纳Q与K离群列；代码单次topk只反映Q",
+      "equivalence": "accuracy路径E6/E7对Q、K各做一次topk再并集，能覆盖两者但为两次topk，违反“只一次”；speedup路径两者皆不满足",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E6",
+        "E7"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "speedup实验路径单次topk仅基于Q",
+      "discrepancy": "单次topk未容纳K离群列",
+      "equivalence": "accuracy路径以两次topk+并集覆盖两者，但非speedup实验路径",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E6",
+        "E8"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M02-B05",
+    "mechanism_id": "M02",
+    "scope_definition": {
+      "local_entry": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha(324-327)→partial_weight_generation_controller.py::partial_weight_index_generation；消费方 flex_opt.py::Attention.forward(515-521)",
+      "artifact": "speedup实验路径：speedup/scripts/figure17b/run.sh 符号链接替换 flex_opt.py/pytorch_backend.py 后运行 python -m flexgen.flex_opt（--partial-weight-ratio 0.1..1.0）；accuracy/setup路径(modeling_opt_ours_setup.py/modeling_llama_ours_setup.py 214-224)作等价对照"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M02:E1",
+        "M02:E6",
+        "M02:E7"
+      ],
+      "artifact": [
+        "M02:E1",
+        "M02:E6",
+        "M02:E8"
+      ]
+    }
+  },
+  {
+    "id": "M02-A01",
+    "claim_type": "semantic_effect",
+    "requirement": "输出单一共享列索引集，同时用于部分查询权重与部分键缓存",
+    "paper": {
+      "page": 9,
+      "quote": "it is essential to select the same column indices in the query weight matrix and the key cache to obtain a proper approximation of the attention score."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "E3第515行保存self.partial_index，第520-521行同一索引分别传入set_partial_cache与set_partial_weight；E4两者均按该索引gather",
+      "discrepancy": "",
+      "equivalence": "索引形状(b,h,d')，set_partial_weight用head偏移展开，set_partial_cache按head gather，语义一致",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E3",
+        "E4"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "E8脚本运行的flex_opt路径即E3/E4，共享同一partial_index",
+      "discrepancy": "",
+      "equivalence": "accuracy路径E6/E7以同一weight_mask同时作用于Wq与K，亦为共享索引",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E3",
+        "E4",
+        "E6",
+        "E8"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M02-A01",
+    "mechanism_id": "M02",
+    "scope_definition": {
+      "local_entry": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha(324-327)→partial_weight_generation_controller.py::partial_weight_index_generation；消费方 flex_opt.py::Attention.forward(515-521)",
+      "artifact": "speedup实验路径：speedup/scripts/figure17b/run.sh 符号链接替换 flex_opt.py/pytorch_backend.py 后运行 python -m flexgen.flex_opt（--partial-weight-ratio 0.1..1.0）；accuracy/setup路径(modeling_opt_ours_setup.py/modeling_llama_ours_setup.py 214-224)作等价对照"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M02:E3",
+        "M02:E4"
+      ],
+      "artifact": [
+        "M02:E3",
+        "M02:E4",
+        "M02:E6",
+        "M02:E8"
+      ]
+    }
+  },
+  {
+    "id": "M02-A02",
+    "claim_type": "semantic_effect",
+    "requirement": "索引为查询权重矩阵与键缓存的列索引，而非token索引",
+    "paper": {
+      "page": 9,
+      "quote": "InfiniGen selects several important columns from the query weight matrix and the key cache"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "E1返回head内列偏移(d')；E4 set_partial_weight以F.embedding取w_q行（对应列），set_partial_cache以dim=3 gather键缓存head维",
+      "discrepancy": "",
+      "equivalence": "索引作用于head_dim列维，非序列token维；token选择在E5 speculate_attention中另行完成",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E4",
+        "E5"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "speedup实验路径同E1/E4；accuracy路径E6/E7的weight_mask作用于Wq列与K列",
+      "discrepancy": "",
+      "equivalence": "均为列维索引",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E4",
+        "E6",
+        "E8"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M02-A02",
+    "mechanism_id": "M02",
+    "scope_definition": {
+      "local_entry": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha(324-327)→partial_weight_generation_controller.py::partial_weight_index_generation；消费方 flex_opt.py::Attention.forward(515-521)",
+      "artifact": "speedup实验路径：speedup/scripts/figure17b/run.sh 符号链接替换 flex_opt.py/pytorch_backend.py 后运行 python -m flexgen.flex_opt（--partial-weight-ratio 0.1..1.0）；accuracy/setup路径(modeling_opt_ours_setup.py/modeling_llama_ours_setup.py 214-224)作等价对照"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M02:E1",
+        "M02:E4",
+        "M02:E5"
+      ],
+      "artifact": [
+        "M02:E1",
+        "M02:E4",
+        "M02:E6",
+        "M02:E8"
+      ]
+    }
+  },
+  {
+    "id": "M02-A03",
+    "claim_type": "semantic_effect",
+    "requirement": "按列求和捕捉每列全局趋势并最小化行方差影响",
+    "paper": {
+      "page": 9,
+      "quote": "Using the sum of column values captures the global trend of each column while minimizing the effect of variance in each row."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "E1第34行沿序列维(dim=-2)求和，即对每列跨行求和",
+      "discrepancy": "",
+      "equivalence": "跨行求和即论文所述列和语义；该性质为设计理由，代码实现与之一致",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "speedup路径同E1；accuracy路径E6/E7亦沿dim=-2求和",
+      "discrepancy": "",
+      "equivalence": "一致",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E6",
+        "E8"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M02-A03",
+    "mechanism_id": "M02",
+    "scope_definition": {
+      "local_entry": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha(324-327)→partial_weight_generation_controller.py::partial_weight_index_generation；消费方 flex_opt.py::Attention.forward(515-521)",
+      "artifact": "speedup实验路径：speedup/scripts/figure17b/run.sh 符号链接替换 flex_opt.py/pytorch_backend.py 后运行 python -m flexgen.flex_opt（--partial-weight-ratio 0.1..1.0）；accuracy/setup路径(modeling_opt_ours_setup.py/modeling_llama_ours_setup.py 214-224)作等价对照"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M02:E1"
+      ],
+      "artifact": [
+        "M02:E1",
+        "M02:E6",
+        "M02:E8"
+      ]
+    }
+  },
+  {
+    "id": "M02-A04",
+    "claim_type": "semantic_effect",
+    "requirement": "将索引传递给后续步骤，构建解码阶段使用的部分查询权重与部分键缓存",
+    "paper": {
+      "page": 9,
+      "quote": "generates partial query weight and key cache matrices used in the decoding stage"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "E3第520-521行写入prev_partial_cache_read_buf/prev_partial_weight_read_buf；解码阶段第529-534行partial_k_cache与p_w_q传入mha_gen，E5 speculate_attention用其计算推测注意力分数",
+      "discrepancy": "",
+      "equivalence": "部分键缓存在解码时按层追加（第542行），部分查询权重为层i+1的Wq子集，符合论文跨层预取用法",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E3",
+        "E5"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "E8脚本运行的flex_opt路径即E3/E5，解码阶段消费部分矩阵",
+      "discrepancy": "",
+      "equivalence": "accuracy路径E6/E7将partial_weight_q用于后续注意力计算，亦为传递",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E3",
+        "E5",
+        "E6",
+        "E8"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M02-A04",
+    "mechanism_id": "M02",
+    "scope_definition": {
+      "local_entry": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha(324-327)→partial_weight_generation_controller.py::partial_weight_index_generation；消费方 flex_opt.py::Attention.forward(515-521)",
+      "artifact": "speedup实验路径：speedup/scripts/figure17b/run.sh 符号链接替换 flex_opt.py/pytorch_backend.py 后运行 python -m flexgen.flex_opt（--partial-weight-ratio 0.1..1.0）；accuracy/setup路径(modeling_opt_ours_setup.py/modeling_llama_ours_setup.py 214-224)作等价对照"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M02:E3",
+        "M02:E5"
+      ],
+      "artifact": [
+        "M02:E3",
+        "M02:E5",
+        "M02:E6",
+        "M02:E8"
+      ]
+    }
+  },
+  {
+    "id": "M03-B01",
+    "claim_type": "mechanism_step",
+    "requirement": "部分查询权重与部分键缓存必须使用同一组选定列索引，才能正确近似注意力分数。",
+    "paper": {
+      "page": 9,
+      "quote": "it is essential to select the same column indices in the query weight matrix and the key cache"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "flex_opt.py:515 保存 self.partial_index，520-521 行将同一 self.partial_index 分别传给 set_partial_cache 与 set_partial_weight；两者均按该索引 gather/embedding 取列。",
+      "discrepancy": "",
+      "equivalence": "索引按 head 分段（h*head_dim+idx），对 w_q 行与 k_cache 的 head_dim 维取相同列，语义等价于论文的同一列索引。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E3",
+        "E6"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "mha 返回 partial_weight_index（pytorch_backend.py:327,379），flex_opt 预填充分支用同一索引构建部分权重与部分缓存；解码时 p_w_q 与 partial_k_cache 一起进入 speculate_attention（pytorch_backend.py:401-403）。",
+      "discrepancy": "",
+      "equivalence": "索引生成仅用 query 列绝对和（未按论文合并 key 的绝对和），但本行为只要求两矩阵索引一致，该一致性成立；索引选择质量属 B02 范围。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E4",
+        "E5",
+        "E6"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M03-B01",
+    "mechanism_id": "M03",
+    "scope_definition": {
+      "local_entry": "speedup/flexgen/infinigen/flex_opt.py::Attention.forward 预填充分支（i==0）调用 compute.mha 与 set_partial_cache/set_partial_weight，是主仓库中与本机制直接对齐的入口。",
+      "artifact": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha（生成索引并返回 partial_weight_index）+ speedup/infinigen/infinigen/partial_weight_generation_controller.py 的 set_partial_weight/set_partial_cache + flex_opt.py 缓冲传递至 mha_gen/speculate_attention 的推测路径（依赖 FlexGen 缓冲/调度，未执行）。"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M03:E2",
+        "M03:E3",
+        "M03:E6"
+      ],
+      "artifact": [
+        "M03:E1",
+        "M03:E4",
+        "M03:E5",
+        "M03:E6"
+      ]
+    }
+  },
+  {
+    "id": "M03-B02-R01",
+    "claim_type": "mechanism_step",
+    "requirement": "按选定索引保留查询权重矩阵的对应列，形成部分查询权重矩阵。",
+    "paper": {
+      "page": 9,
+      "quote": "generates partial query weight and key cache matrices used in the decoding stage"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "set_partial_weight 用 F.embedding 按 partial_index[0]+h*head_dim 取 w_q 行（即转置后的列），返回 (D', D) 部分权重；flex_opt.py:521 存入 prev_partial_weight_read_buf。",
+      "discrepancy": "",
+      "equivalence": "以行索引实现列选择，形状与论文部分查询权重一致。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E3",
+        "E6"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "部分权重在预填充阶段构建，解码阶段经 partial_weight_read_buf 作为 p_w_q 用于 F.linear(hidden, p_w_q) 推测（kv_selection_controller.py:48）。",
+      "discrepancy": "",
+      "equivalence": "部分权重仅保留选定列，符合论文紧凑表示；未执行验证数值等价。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E3",
+        "E5",
+        "E7"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M03-B02-R01",
+    "mechanism_id": "M03",
+    "scope_definition": {
+      "local_entry": "speedup/flexgen/infinigen/flex_opt.py::Attention.forward 预填充分支（i==0）调用 compute.mha 与 set_partial_cache/set_partial_weight，是主仓库中与本机制直接对齐的入口。",
+      "artifact": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha（生成索引并返回 partial_weight_index）+ speedup/infinigen/infinigen/partial_weight_generation_controller.py 的 set_partial_weight/set_partial_cache + flex_opt.py 缓冲传递至 mha_gen/speculate_attention 的推测路径（依赖 FlexGen 缓冲/调度，未执行）。"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M03:E3",
+        "M03:E6"
+      ],
+      "artifact": [
+        "M03:E3",
+        "M03:E5",
+        "M03:E7"
+      ]
+    }
+  },
+  {
+    "id": "M03-B02-R02",
+    "claim_type": "mechanism_step",
+    "requirement": "用与部分查询权重相同的选定索引保留键缓存对应条目，形成部分键缓存（转置形式）。",
+    "paper": {
+      "page": 9,
+      "quote": "Partial Key Cache (Transposed)"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "set_partial_cache 对 k_cache.view(n,-1,n_head,head_dim) 在 dim=3 按 partial_index gather，返回 (n,bh,d')；预填充时存入 prev_partial_cache_read_buf（flex_opt.py:520），解码时追加新 token 的部分键（542 行）。",
+      "discrepancy": "",
+      "equivalence": "gather 保留选定 head_dim 列，等价于部分键缓存；转置在 speculate_attention 的 permute(1,2,0) 中体现。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E6",
+        "E7"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "partial_k_cache 经 partial_cache_read_buf 传入 mha_gen 的 speculate_attention，与 p_q 做 bmm 得推测注意力分数。",
+      "discrepancy": "",
+      "equivalence": "部分键缓存仅含选定列，符合论文；未执行验证内存/数值。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E5",
+        "E7"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M03-B02-R02",
+    "mechanism_id": "M03",
+    "scope_definition": {
+      "local_entry": "speedup/flexgen/infinigen/flex_opt.py::Attention.forward 预填充分支（i==0）调用 compute.mha 与 set_partial_cache/set_partial_weight，是主仓库中与本机制直接对齐的入口。",
+      "artifact": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha（生成索引并返回 partial_weight_index）+ speedup/infinigen/infinigen/partial_weight_generation_controller.py 的 set_partial_weight/set_partial_cache + flex_opt.py 缓冲传递至 mha_gen/speculate_attention 的推测路径（依赖 FlexGen 缓冲/调度，未执行）。"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M03:E2",
+        "M03:E6",
+        "M03:E7"
+      ],
+      "artifact": [
+        "M03:E2",
+        "M03:E5",
+        "M03:E7"
+      ]
+    }
+  },
+  {
+    "id": "M04-B01",
+    "claim_type": "mechanism_step",
+    "requirement": "Layer i-1 的注意力输入 × Layer i 的部分查询权重 → Layer i 的部分查询",
+    "paper": {
+      "page": 9,
+      "quote": "At Layer i− 1, we use the partial query weight matrix and key cache of Layer i ... along with the attention input of Layeri−1."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "mha_gen 先 layer_norm 并 reform_hidden_states，再 F.linear(new_h, p_w_q) 得部分查询（E2）；p_w_q 来自上一层 set_partial_weight(w_q)（E3,E5）。",
+      "discrepancy": "",
+      "equivalence": "LayerNorm 后注意力输入（含偏置拼接列）乘部分权重，与 X_a×W_Q 语义等价；偏置由拼接列吸收。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2",
+        "E3",
+        "E5"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "flex_opt 在 i>0 时把 partial_weight_read_buf.val 作为 p_w_q 传入 mha_gen；预填充阶段由 set_partial_weight 生成。",
+      "discrepancy": "",
+      "equivalence": "部分权重按 head 内 top-k 列选取，与论文按列选取一致。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E3",
+        "E5"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M04-B01",
+    "mechanism_id": "M04",
+    "scope_definition": {
+      "local_entry": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha_gen + speedup/infinigen/infinigen/kv_selection_controller.py::speculate_attention（由 flex_opt.py::SelfAttention.forward 调用）",
+      "artifact": "speedup/flexgen/infinigen 的 FlexGen+OPT 速度评估路径：flex_opt.py 层调度、pytorch_backend.py 计算、partial_weight_generation_controller.py 预填充部分矩阵生成、kv_selection_controller.py 推测与 select_kv 预取"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M04:E1",
+        "M04:E2",
+        "M04:E3",
+        "M04:E5"
+      ],
+      "artifact": [
+        "M04:E2",
+        "M04:E3",
+        "M04:E5"
+      ]
+    }
+  },
+  {
+    "id": "M04-B02",
+    "claim_type": "mechanism_step",
+    "requirement": "部分查询 × Layer i 部分键缓存（转置）→ 推测注意力分数",
+    "paper": {
+      "page": 9,
+      "quote": "After multiplying the partial query and partial key cache, InfiniGen selects tokens with high attention scores."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "p_attn = bmm(p_q, p_k_c.permute(1,2,0))，p_q 按 head 重排为 (b*h,1,d')，p_k_c 为 (n,bh,d')（E1）。",
+      "discrepancy": "",
+      "equivalence": "维度与论文部分列点积一致；未乘 1/sqrt(d) 缩放，但阈值选择基于同一分数，选择语义等价。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "partial_k_cache 由 set_partial_cache 用同一 partial_index 从 k_cache 抽取（E3,E5），与部分查询列索引一致。",
+      "discrepancy": "",
+      "equivalence": "同一索引集合用于权重与键缓存，满足论文 same column indices 要求。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E3",
+        "E5"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M04-B02",
+    "mechanism_id": "M04",
+    "scope_definition": {
+      "local_entry": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha_gen + speedup/infinigen/infinigen/kv_selection_controller.py::speculate_attention（由 flex_opt.py::SelfAttention.forward 调用）",
+      "artifact": "speedup/flexgen/infinigen 的 FlexGen+OPT 速度评估路径：flex_opt.py 层调度、pytorch_backend.py 计算、partial_weight_generation_controller.py 预填充部分矩阵生成、kv_selection_controller.py 推测与 select_kv 预取"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M04:E1",
+        "M04:E2"
+      ],
+      "artifact": [
+        "M04:E1",
+        "M04:E3",
+        "M04:E5"
+      ]
+    }
+  },
+  {
+    "id": "M04-B03",
+    "claim_type": "semantic_effect",
+    "requirement": "推测分数仅用于选 token 预取，不作为实际注意力输出",
+    "paper": {
+      "page": 7,
+      "quote": "we use the attention input of the previous Transformer layer to speculate and prefetch the keys and values of the important tokens for the current layer."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "speculate_attention 只返回 prefetch_idx（E1）；mha_gen 的实际注意力用 q/k/v 与 k_cache 计算（E2 后续行），推测分数不进入输出。",
+      "discrepancy": "",
+      "equivalence": "推测分数仅经 topk 生成索引，实际 attention 独立计算。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "prefetch_idx 经 select_kv 从 CPU 缓存取 KV 并拷入 attention_compute（E6），不参与 softmax 输出。",
+      "discrepancy": "",
+      "equivalence": "预取路径与计算路径分离。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E6"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M04-B03",
+    "mechanism_id": "M04",
+    "scope_definition": {
+      "local_entry": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha_gen + speedup/infinigen/infinigen/kv_selection_controller.py::speculate_attention（由 flex_opt.py::SelfAttention.forward 调用）",
+      "artifact": "speedup/flexgen/infinigen 的 FlexGen+OPT 速度评估路径：flex_opt.py 层调度、pytorch_backend.py 计算、partial_weight_generation_controller.py 预填充部分矩阵生成、kv_selection_controller.py 推测与 select_kv 预取"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M04:E1",
+        "M04:E2"
+      ],
+      "artifact": [
+        "M04:E1",
+        "M04:E6"
+      ]
+    }
+  },
+  {
+    "id": "M04-B04",
+    "claim_type": "mechanism_step",
+    "requirement": "从 Layer 1 开始推测与预取，Layer 0 不推测",
+    "paper": {
+      "page": 10,
+      "quote": "InfiniGen initiates speculation and prefetching from Layer 1 because the outliers, which are essential for exploiting input similarity, emerge during the computation in Layer 0."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "SelfAttention 在 layer_id>1 才设 partial_weight_ratio，否则 None（E4）；forward 中 i>0 才取 p_w_q（E3），i==0 走 mha 预填充不推测。",
+      "discrepancy": "",
+      "equivalence": "layer_id 从 0 计，layer_id>1 即 Layer 1 起启用，与论文一致。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E3",
+        "E4"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "层构建时对 i<=1 传 enable_prefetching=False（E4 上下文），预取从 Layer 1 开始。",
+      "discrepancy": "",
+      "equivalence": "与论文起始层一致。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E3",
+        "E4"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M04-B04",
+    "mechanism_id": "M04",
+    "scope_definition": {
+      "local_entry": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha_gen + speedup/infinigen/infinigen/kv_selection_controller.py::speculate_attention（由 flex_opt.py::SelfAttention.forward 调用）",
+      "artifact": "speedup/flexgen/infinigen 的 FlexGen+OPT 速度评估路径：flex_opt.py 层调度、pytorch_backend.py 计算、partial_weight_generation_controller.py 预填充部分矩阵生成、kv_selection_controller.py 推测与 select_kv 预取"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M04:E3",
+        "M04:E4"
+      ],
+      "artifact": [
+        "M04:E3",
+        "M04:E4"
+      ]
+    }
+  },
+  {
+    "id": "M04-A01",
+    "claim_type": "mechanism_step",
+    "requirement": "部分查询权重与部分键缓存使用相同列索引，构成注意力分数的近似",
+    "paper": {
+      "page": 9,
+      "quote": "it is essential to select the same column indices in the query weight matrix and the key cache to obtain a proper approximation of the attention score"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "partial_index 由 partial_weight_index_generation 生成一次，set_partial_weight 与 set_partial_cache 共用（E5）；speculate_attention 用该部分矩阵（E1）。",
+      "discrepancy": "",
+      "equivalence": "索引生成基于 query 列绝对和 top-k（按 head），与论文列和 top-k 语义等价（论文用 query+key 绝对和，此处仅 query，属实现差异但索引共享成立）。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E5"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "预填充阶段生成 partial_index 并分别存 partial weight 与 partial cache（E3,E5）。",
+      "discrepancy": "",
+      "equivalence": "同一索引集合用于两侧，近似语义成立。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E3",
+        "E5"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M04-A01",
+    "mechanism_id": "M04",
+    "scope_definition": {
+      "local_entry": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha_gen + speedup/infinigen/infinigen/kv_selection_controller.py::speculate_attention（由 flex_opt.py::SelfAttention.forward 调用）",
+      "artifact": "speedup/flexgen/infinigen 的 FlexGen+OPT 速度评估路径：flex_opt.py 层调度、pytorch_backend.py 计算、partial_weight_generation_controller.py 预填充部分矩阵生成、kv_selection_controller.py 推测与 select_kv 预取"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M04:E1",
+        "M04:E5"
+      ],
+      "artifact": [
+        "M04:E3",
+        "M04:E5"
+      ]
+    }
+  },
+  {
+    "id": "M04-A02",
+    "claim_type": "guarantee",
+    "requirement": "依赖连续层注意力输入高相似（Table 1 余弦相似度）",
+    "paper": {
+      "page": 8,
+      "quote": "Our prefetching module builds on the key observation that the attention inputs of consecutive attention layers are highly similar in LLMs."
+    },
+    "local_entry": {
+      "review_state": "pending",
+      "verdict": null,
+      "actual": "代码使用 LayerNorm 后输入做推测，但未在源码中验证相似性数值。",
+      "discrepancy": "",
+      "equivalence": "",
+      "effect_status": "not_established",
+      "pending_reason": "需运行/测量连续层注意力输入余弦相似度（Table 1 复现）以确认经验前提；源码检查不能建立该经验保证。",
+      "refs": [
+        "E2"
+      ]
+    },
+    "artifact": {
+      "review_state": "pending",
+      "verdict": null,
+      "actual": "速度路径未包含相似性测量脚本。",
+      "discrepancy": "",
+      "equivalence": "",
+      "effect_status": "not_established",
+      "pending_reason": "需在 OPT 模型上测量 Tblock_in 相邻层余弦相似度并与 Table 1 对比。",
+      "refs": [
+        "E2"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M04-A02",
+    "mechanism_id": "M04",
+    "scope_definition": {
+      "local_entry": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha_gen + speedup/infinigen/infinigen/kv_selection_controller.py::speculate_attention（由 flex_opt.py::SelfAttention.forward 调用）",
+      "artifact": "speedup/flexgen/infinigen 的 FlexGen+OPT 速度评估路径：flex_opt.py 层调度、pytorch_backend.py 计算、partial_weight_generation_controller.py 预填充部分矩阵生成、kv_selection_controller.py 推测与 select_kv 预取"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M04:E2"
+      ],
+      "artifact": [
+        "M04:E2"
+      ]
+    }
+  },
+  {
+    "id": "M04-A03",
+    "claim_type": "mechanism_step",
+    "requirement": "在 Layer i-1 执行对 Layer i 的推测，使预取与当前层计算重叠",
+    "paper": {
+      "page": 7,
+      "quote": "The speculation is done by performing a minimal rehearsal of attention computation of the current layer in the preceding layer."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "mha_gen 在计算本层 q/k/v 前，用 speculation_stream 异步执行 speculate_attention（E2）；flex_opt 在 i>0 时传入 p_w_q 与 partial_k_cache（E3）。",
+      "discrepancy": "",
+      "equivalence": "推测在 Layer i-1 的 mha_gen 内、使用 Layer i 的部分矩阵，与论文前一层的轻量重演一致；异步流实现重叠。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E3"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "prefetch 使用 prefetch_cache_stream 与 attention_compute 分离（E6），推测与预取在层间流水。",
+      "discrepancy": "",
+      "equivalence": "调度顺序与论文 Figure 8 一致。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E3",
+        "E6"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M04-A03",
+    "mechanism_id": "M04",
+    "scope_definition": {
+      "local_entry": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha_gen + speedup/infinigen/infinigen/kv_selection_controller.py::speculate_attention（由 flex_opt.py::SelfAttention.forward 调用）",
+      "artifact": "speedup/flexgen/infinigen 的 FlexGen+OPT 速度评估路径：flex_opt.py 层调度、pytorch_backend.py 计算、partial_weight_generation_controller.py 预填充部分矩阵生成、kv_selection_controller.py 推测与 select_kv 预取"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M04:E2",
+        "M04:E3"
+      ],
+      "artifact": [
+        "M04:E3",
+        "M04:E6"
+      ]
+    }
+  },
+  {
+    "id": "M05-B01-R01",
+    "claim_type": "mechanism_step",
+    "requirement": "每头阈值 = 该头推测注意力分数最大值 − alpha",
+    "paper": {
+      "page": 9,
+      "quote": "We select only the tokens with an attention score greater than the maximum score subtracted by alpha."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "p_attn 按 b*n_head 逐头计算，max_=torch.max(dim=-1)，thr_=max_-alpha 广播到全部令牌位置",
+      "discrepancy": "",
+      "equivalence": "逐头独立阈值，与论文表述一致",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "alpha 由 --alpha 传入 SelfAttention.alpha，经 mha_gen 传入 speculate_attention；默认 4",
+      "discrepancy": "",
+      "equivalence": "alpha 可配置整数，OPT 路径取 4，符合论文",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E3",
+        "E4",
+        "E6"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M05-B01-R01",
+    "mechanism_id": "M05",
+    "scope_definition": {
+      "local_entry": "speedup/infinigen/infinigen/kv_selection_controller.py::speculate_attention（由 pytorch_backend.py::TorchDevice.mha_gen 调用，flex_opt.py::SelfAttention.forward 传入 alpha/max_num_kv）",
+      "artifact": "speedup/flexgen/infinigen 的 FlexGen+OPT 加速路径：flex_opt.py 参数(--alpha/--max-num-kv) → SelfAttention.forward → mha_gen → speculate_attention → prefetch_cache/select_kv；accuracy/ 下 Llama-2 为独立实现，不在本 artifact 判定内"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M05:E1",
+        "M05:E2"
+      ],
+      "artifact": [
+        "M05:E1",
+        "M05:E3",
+        "M05:E4",
+        "M05:E6"
+      ]
+    }
+  },
+  {
+    "id": "M05-B01-R02",
+    "claim_type": "mechanism_step",
+    "requirement": "仅选分数严格大于阈值的令牌，等于或低于者排除",
+    "paper": {
+      "page": 9,
+      "quote": "We select only the tokens with an attention score greater than the maximum score subtracted by alpha"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "count 用 p_attn > thr_ 得候选数，但 prefetch_idx 由 torch.topk(p_attn, k) 取分数最高 k 个位置，k 为各头候选数均值（受 max_num_kv 截断）",
+      "discrepancy": "论文要求按 >max−alpha 掩码选令牌；代码只用阈值计数，实际按 top-k 选取：候选少于均值时取到 ≤thr_ 令牌，多于均值时丢弃部分 >thr_ 令牌",
+      "equivalence": "仅当各头候选数恰等于均值且无并列时 top-k 与阈值掩码相同；一般情形不等价，未找到等价实现",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E1"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "prefetch_cache 直接消费 speculate_attention 返回的 top-k 索引做 select_kv 预取，无二次阈值过滤",
+      "discrepancy": "预取集合由 top-k(均值) 决定，而非严格 >max−alpha 的令牌集合",
+      "equivalence": "同上，仅边界情形等价",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E5"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M05-B01-R02",
+    "mechanism_id": "M05",
+    "scope_definition": {
+      "local_entry": "speedup/infinigen/infinigen/kv_selection_controller.py::speculate_attention（由 pytorch_backend.py::TorchDevice.mha_gen 调用，flex_opt.py::SelfAttention.forward 传入 alpha/max_num_kv）",
+      "artifact": "speedup/flexgen/infinigen 的 FlexGen+OPT 加速路径：flex_opt.py 参数(--alpha/--max-num-kv) → SelfAttention.forward → mha_gen → speculate_attention → prefetch_cache/select_kv；accuracy/ 下 Llama-2 为独立实现，不在本 artifact 判定内"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M05:E1"
+      ],
+      "artifact": [
+        "M05:E1",
+        "M05:E5"
+      ]
+    }
+  },
+  {
+    "id": "M05-B02",
+    "claim_type": "mechanism_step",
+    "requirement": "对各头 max 与阈值之间的令牌数取平均，使同层每头取相同数量",
+    "paper": {
+      "page": 10,
+      "quote": "we ensure that each head in the same layer fetches the same number of tokens by averaging the number of tokens between the maximum score and the threshold across the heads."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "mean = torch.mean(torch.sum(count, dim=-1)).item()，对 batch*head 候选计数取标量均值，topk 的 k 即该均值，故所有头取相同数量",
+      "discrepancy": "",
+      "equivalence": "均值对 batch 与 head 一起取（论文只提 head），但每头取数相同这一效果成立",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "prefetch_idx 形状 (k,1,bh)，prefetch_cache 按 prefetch_idx.shape[0] 统一预取 k 个令牌给所有头",
+      "discrepancy": "",
+      "equivalence": "每头同数预取，符合论文",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E5"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M05-B02",
+    "mechanism_id": "M05",
+    "scope_definition": {
+      "local_entry": "speedup/infinigen/infinigen/kv_selection_controller.py::speculate_attention（由 pytorch_backend.py::TorchDevice.mha_gen 调用，flex_opt.py::SelfAttention.forward 传入 alpha/max_num_kv）",
+      "artifact": "speedup/flexgen/infinigen 的 FlexGen+OPT 加速路径：flex_opt.py 参数(--alpha/--max-num-kv) → SelfAttention.forward → mha_gen → speculate_attention → prefetch_cache/select_kv；accuracy/ 下 Llama-2 为独立实现，不在本 artifact 判定内"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M05:E1"
+      ],
+      "artifact": [
+        "M05:E1",
+        "M05:E5"
+      ]
+    }
+  },
+  {
+    "id": "M05-B03",
+    "claim_type": "mechanism_step",
+    "requirement": "若候选超过总 KV cache 的 20%，每层最多发送 20% 的 KV cache 到 GPU",
+    "paper": {
+      "page": 10,
+      "quote": "For each layer, we allow sending up to 20% of the total KV cache to the GPU if it contains more candidates."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "上限为 min(int(mean), max_num_kv)，max_num_kv 为绝对令牌数（默认 400），非总 KV cache 的 20%",
+      "discrepancy": "论文要求上限为总 KV cache 的 20%（随序列长度变化）；代码用固定绝对上限，与 20% 比例无计算关系",
+      "equivalence": "仅当 max_num_kv 恰等于 0.2*总 KV 时数值相同；未找到比例实现",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E3",
+        "E6"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "--max-num-kv 由脚本显式传入（400/409/(prompt_len+128)/5），作为绝对上限",
+      "discrepancy": "实验路径以绝对令牌数封顶，未实现 20% 比例上限",
+      "equivalence": "同上，仅特定序列长度下数值近似",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E6"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M05-B03",
+    "mechanism_id": "M05",
+    "scope_definition": {
+      "local_entry": "speedup/infinigen/infinigen/kv_selection_controller.py::speculate_attention（由 pytorch_backend.py::TorchDevice.mha_gen 调用，flex_opt.py::SelfAttention.forward 传入 alpha/max_num_kv）",
+      "artifact": "speedup/flexgen/infinigen 的 FlexGen+OPT 加速路径：flex_opt.py 参数(--alpha/--max-num-kv) → SelfAttention.forward → mha_gen → speculate_attention → prefetch_cache/select_kv；accuracy/ 下 Llama-2 为独立实现，不在本 artifact 判定内"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M05:E1",
+        "M05:E3",
+        "M05:E6"
+      ],
+      "artifact": [
+        "M05:E1",
+        "M05:E6"
+      ]
+    }
+  },
+  {
+    "id": "M05-A01",
+    "claim_type": "semantic_effect",
+    "requirement": "分数减 alpha 等价于 softmax 后权重除以 e^alpha，被排除令牌权重 < 最大权重/e^alpha，故精度损失可忽略",
+    "paper": {
+      "page": 9,
+      "quote": "subtraction from the attention score results in division after softmax"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "阈值在 softmax 前的分数域施加（max−alpha），与论文分数域表述一致；该等价为 softmax 性质，代码不改变分数域",
+      "discrepancy": "",
+      "equivalence": "pre-softmax 减法正是论文所述等价关系的前提",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "推测分数与真实注意力同为 pre-softmax 点积，阈值语义一致",
+      "discrepancy": "",
+      "equivalence": "同上，分数域一致",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M05-A01",
+    "mechanism_id": "M05",
+    "scope_definition": {
+      "local_entry": "speedup/infinigen/infinigen/kv_selection_controller.py::speculate_attention（由 pytorch_backend.py::TorchDevice.mha_gen 调用，flex_opt.py::SelfAttention.forward 传入 alpha/max_num_kv）",
+      "artifact": "speedup/flexgen/infinigen 的 FlexGen+OPT 加速路径：flex_opt.py 参数(--alpha/--max-num-kv) → SelfAttention.forward → mha_gen → speculate_attention → prefetch_cache/select_kv；accuracy/ 下 Llama-2 为独立实现，不在本 artifact 判定内"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M05:E1"
+      ],
+      "artifact": [
+        "M05:E1",
+        "M05:E2"
+      ]
+    }
+  },
+  {
+    "id": "M05-A02",
+    "claim_type": "mechanism_step",
+    "requirement": "alpha 为可调旋钮，OPT 取 4、Llama-2 取 5",
+    "paper": {
+      "page": 10,
+      "quote": "We set alpha to 4 for OPT and 5 for Llama-2, resulting in using less than 10% of the KV cache on average across the layers."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "speculate_attention 接受 alpha 参数无硬编码；flex_opt 默认 4 且可经 --alpha 覆盖",
+      "discrepancy": "",
+      "equivalence": "alpha 可调，OPT 路径取 4，符合论文",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E3",
+        "E6"
+      ]
+    },
+    "artifact": {
+      "review_state": "pending",
+      "verdict": null,
+      "actual": "speedup 路径仅 OPT（flex_opt.py，alpha 默认 4）；Llama-2 仅存在于 accuracy/ 独立实现，其 alpha=5 配置未读",
+      "discrepancy": "",
+      "equivalence": "",
+      "effect_status": "not_established",
+      "pending_reason": "需读 accuracy/ 下 Llama-2 脚本/配置确认 alpha=5 是否生效",
+      "refs": [
+        "E3",
+        "E6"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M05-A02",
+    "mechanism_id": "M05",
+    "scope_definition": {
+      "local_entry": "speedup/infinigen/infinigen/kv_selection_controller.py::speculate_attention（由 pytorch_backend.py::TorchDevice.mha_gen 调用，flex_opt.py::SelfAttention.forward 传入 alpha/max_num_kv）",
+      "artifact": "speedup/flexgen/infinigen 的 FlexGen+OPT 加速路径：flex_opt.py 参数(--alpha/--max-num-kv) → SelfAttention.forward → mha_gen → speculate_attention → prefetch_cache/select_kv；accuracy/ 下 Llama-2 为独立实现，不在本 artifact 判定内"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M05:E1",
+        "M05:E3",
+        "M05:E6"
+      ],
+      "artifact": [
+        "M05:E3",
+        "M05:E6"
+      ]
+    }
+  },
+  {
+    "id": "M05-A03",
+    "claim_type": "semantic_effect",
+    "requirement": "产出每层/每迭代选中令牌 ID 集合供预取消费，且为临时选择、不驱逐未选中 KV",
+    "paper": {
+      "page": 9,
+      "quote": "Selected Token IDs"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "speculate_attention 返回 prefetch_idx（每迭代重算），prefetch_cache 用其做 select_kv 预取；store_cache 仍写入全部新 KV，无驱逐逻辑",
+      "discrepancy": "",
+      "equivalence": "选择为临时索引集合，未选中条目保留在 cache 池中",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E4",
+        "E5"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "SelfAttention.prefetch_idx 每步由 mha_gen 更新并被 prefetch_cache 消费；4.4 节驱逐为独立机制，不在此路径",
+      "discrepancy": "",
+      "equivalence": "同上，临时选择语义一致",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E4",
+        "E5"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M05-A03",
+    "mechanism_id": "M05",
+    "scope_definition": {
+      "local_entry": "speedup/infinigen/infinigen/kv_selection_controller.py::speculate_attention（由 pytorch_backend.py::TorchDevice.mha_gen 调用，flex_opt.py::SelfAttention.forward 传入 alpha/max_num_kv）",
+      "artifact": "speedup/flexgen/infinigen 的 FlexGen+OPT 加速路径：flex_opt.py 参数(--alpha/--max-num-kv) → SelfAttention.forward → mha_gen → speculate_attention → prefetch_cache/select_kv；accuracy/ 下 Llama-2 为独立实现，不在本 artifact 判定内"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M05:E1",
+        "M05:E4",
+        "M05:E5"
+      ],
+      "artifact": [
+        "M05:E4",
+        "M05:E5"
+      ]
+    }
+  },
+  {
+    "id": "M06-B01",
+    "claim_type": "mechanism_step",
+    "requirement": "按 Layer i 的选中 token 索引，仅从 CPU 常驻 KV 池预取这些 KV 条目到 GPU 供 Layer i 注意力使用。",
+    "paper": {
+      "page": 7,
+      "quote": "load and compute with only the keys and values of a few important tokens, dropping other unimportant ones dynamically."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "mha_gen 在 speculation_stream 上调用 speculate_attention 得 prefetch_idx（E1,E3）；select_kv 用 F.embedding 按索引 gather 选中条目（E2）。",
+      "discrepancy": "",
+      "equivalence": "索引选择+gather 等价于仅取选中条目，未取全量。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2",
+        "E3"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "prefetch_cache 用 select_kv 取选中 KV 写入 prefetch_kv 缓冲，再在 prefetch_cache_stream 上 smart_copy 到 attention_compute（E4）；forward 在 enable_prefetching 且 i>0 时把 prefetch_idx 传入 mha_gen（E5）。",
+      "discrepancy": "",
+      "equivalence": "CPU 池→GPU 显式拷贝由 FlexGen smart_copy 完成，语义一致。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E4",
+        "E5",
+        "E2"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M06-B01",
+    "mechanism_id": "M06",
+    "scope_definition": {
+      "local_entry": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha_gen（配合 kv_selection_controller.py::speculate_attention/select_kv）",
+      "artifact": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention（prefetch_cache/load_cache/forward）+ 上述 mha_gen，即 FlexGen 卸载式 OPT 推理路径"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M06:E1",
+        "M06:E2",
+        "M06:E3"
+      ],
+      "artifact": [
+        "M06:E4",
+        "M06:E5",
+        "M06:E2"
+      ]
+    }
+  },
+  {
+    "id": "M06-B02-R01",
+    "claim_type": "mechanism_step",
+    "requirement": "不把整个 KV cache 搬到 GPU，只加载少量重要 token 的 K/V 参与注意力。",
+    "paper": {
+      "page": 7,
+      "quote": "we do not bring the entire KV cache to the GPU for attention computation, but load and compute with only the keys and values of a few important tokens"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "稀疏路径下 k 仅取 k_cache[:src_s] 并替换末位，v 用 v_new 与 v_cache 经 _sparse_attention_value 按 attn_sparsity 选择（E7）；全量路径仅 attn_sparsity>=1.0 时启用。",
+      "discrepancy": "",
+      "equivalence": "稀疏注意力只对选中条目做 value 聚合，等价于不全量搬运。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E7"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "prefetch_cache 只拷贝 prefetch_idx.shape[0] 条（≤max_num_kv）到 GPU 缓冲（E4,E6），而非 prompt_len+i 全量。",
+      "discrepancy": "",
+      "equivalence": "拷贝量受 max_num_kv 限制，符合少量重要 token。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E4",
+        "E6"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M06-B02-R01",
+    "mechanism_id": "M06",
+    "scope_definition": {
+      "local_entry": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha_gen（配合 kv_selection_controller.py::speculate_attention/select_kv）",
+      "artifact": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention（prefetch_cache/load_cache/forward）+ 上述 mha_gen，即 FlexGen 卸载式 OPT 推理路径"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M06:E7"
+      ],
+      "artifact": [
+        "M06:E4",
+        "M06:E6"
+      ]
+    }
+  },
+  {
+    "id": "M06-B02-R02",
+    "claim_type": "semantic_effect",
+    "requirement": "未选中 KV 条目不被永久驱逐，仅本次迭代跳过，仍保留在 CPU 池供后续迭代使用。",
+    "paper": {
+      "page": 7,
+      "quote": "we need to dynamically select critical tokens from the KV cache while avoiding the outright eviction of less important ones."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "select_kv 只做只读 gather，不修改 k_cache/v_cache（E2）；store_cache 仅按位置写入新 token（E8）。",
+      "discrepancy": "",
+      "equivalence": "无删除/压缩操作，未选中条目保留。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E8"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "prefetch_cache 只读 cache_home 并写 prefetch_kv 缓冲（E4）；store_cache 按 pos 追加新 KV，不驱逐旧条目（E8）。",
+      "discrepancy": "",
+      "equivalence": "CPU 池条目后续迭代仍可被重新选中。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E4",
+        "E8"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M06-B02-R02",
+    "mechanism_id": "M06",
+    "scope_definition": {
+      "local_entry": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha_gen（配合 kv_selection_controller.py::speculate_attention/select_kv）",
+      "artifact": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention（prefetch_cache/load_cache/forward）+ 上述 mha_gen，即 FlexGen 卸载式 OPT 推理路径"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M06:E2",
+        "M06:E8"
+      ],
+      "artifact": [
+        "M06:E4",
+        "M06:E8"
+      ]
+    }
+  },
+  {
+    "id": "M06-B03",
+    "claim_type": "mechanism_step",
+    "requirement": "Layer i 的预取与 Layer i-1 的计算重叠（在 Layer i-1 计算期间调度预取）。",
+    "paper": {
+      "page": 9,
+      "quote": "Figure 8: Operation flow of the prefetching module of InfiniGen."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "mha_gen 在 speculation_stream 上执行 speculate_attention（E1），但该调用只产生索引，不发起任何 CPU→GPU 的 KV 拷贝；拷贝发生在 artifact 的 prefetch_cache 中。",
+      "discrepancy": "论文要求 Layer i-1 计算期间完成 Layer i 的 KV 预取；local_entry 的 mha_gen 仅做索引推测，无预取传输步骤，故该入口不实现预取重叠。",
+      "equivalence": "索引推测与传输分离，推测本身不构成预取；重叠语义需由 artifact 的 prefetch_cache 承担。",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E1"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "prefetch_cache 在独立 prefetch_cache_stream 上发起 smart_copy（E4）；forward 中 prefetch_idx 由上一层 mha_gen 返回后用于本层预取（E5）。",
+      "discrepancy": "",
+      "equivalence": "独立 CUDA stream 提供与计算重叠的调度；实际重叠程度未做运行时测量。",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E4",
+        "E5"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M06-B03",
+    "mechanism_id": "M06",
+    "scope_definition": {
+      "local_entry": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha_gen（配合 kv_selection_controller.py::speculate_attention/select_kv）",
+      "artifact": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention（prefetch_cache/load_cache/forward）+ 上述 mha_gen，即 FlexGen 卸载式 OPT 推理路径"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M06:E1"
+      ],
+      "artifact": [
+        "M06:E4",
+        "M06:E5"
+      ]
+    }
+  },
+  {
+    "id": "M06-A01",
+    "claim_type": "semantic_effect",
+    "requirement": "仅传输关键 KV 以减少 PCIe 带宽浪费，同时保持模型精度（注意力结果不变）。",
+    "paper": {
+      "page": 7,
+      "quote": "This allows for reducing the waste of PCIe bandwidth by only transferring the keys and values critical for attention computation while preserving model accuracy."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "传输量由 prefetch_idx 长度决定（E2,E4）；精度保持属经验性结论，代码中无断言。",
+      "discrepancy": "",
+      "equivalence": "带宽减少由选择性 gather 直接体现；精度保持为论文实验结论，源码不构成证明。",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E4"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "prefetch_cache 仅拷贝 ≤max_num_kv 条（E4,E6），减少 CPU→GPU 传输；精度需运行 accuracy 实验验证。",
+      "discrepancy": "",
+      "equivalence": "传输量减少可支持；精度保持未在本次静态检查中建立。",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E4",
+        "E6"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M06-A01",
+    "mechanism_id": "M06",
+    "scope_definition": {
+      "local_entry": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha_gen（配合 kv_selection_controller.py::speculate_attention/select_kv）",
+      "artifact": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention（prefetch_cache/load_cache/forward）+ 上述 mha_gen，即 FlexGen 卸载式 OPT 推理路径"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M06:E2",
+        "M06:E4"
+      ],
+      "artifact": [
+        "M06:E4",
+        "M06:E6"
+      ]
+    }
+  },
+  {
+    "id": "M06-A02",
+    "claim_type": "mechanism_step",
+    "requirement": "依赖卸载式推理系统（FlexGen 式后端）执行显式 CPU→GPU 传输。",
+    "paper": {
+      "page": 7,
+      "quote": "which builds on the offloading-based inference systems"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "mha_gen 位于 FlexGen 的 TorchDevice 中，使用 FlexGen 的 TorchTensor/smart_copy 与 device 抽象（E1,E7）。",
+      "discrepancy": "",
+      "equivalence": "显式传输由 FlexGen 设备抽象承担。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E7"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "SelfAttention 使用 FlexGen policy（cache_cpu_percent、cpu_cache_compute）与 smart_copy/general_copy 完成 CPU 池到 GPU 的搬运（E4,E5,E6）。",
+      "discrepancy": "",
+      "equivalence": "与 FlexGen 卸载后端耦合，符合声明。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E4",
+        "E5",
+        "E6"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M06-A02",
+    "mechanism_id": "M06",
+    "scope_definition": {
+      "local_entry": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha_gen（配合 kv_selection_controller.py::speculate_attention/select_kv）",
+      "artifact": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention（prefetch_cache/load_cache/forward）+ 上述 mha_gen，即 FlexGen 卸载式 OPT 推理路径"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M06:E1",
+        "M06:E7"
+      ],
+      "artifact": [
+        "M06:E4",
+        "M06:E5",
+        "M06:E6"
+      ]
+    }
+  },
+  {
+    "id": "M07-B01",
+    "claim_type": "mechanism_step",
+    "requirement": "KV 池受用户定义内存上限约束",
+    "paper": {
+      "page": 10,
+      "quote": "We extend the design to incorporate a user-defined memory size limit."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "capacity 由 --capacity 设定，store_max=int(src_len*capacity)，超出即进入淘汰分支",
+      "discrepancy": "",
+      "equivalence": "以序列长度比例表达上限，语义等价于容量约束",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2",
+        "E7"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "table2.sh 以 --capacity 0.8/1.0 运行 opt/llama 路径",
+      "discrepancy": "",
+      "equivalence": "脚本参数与代码 capacity 字段一致",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E8",
+        "E10"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M07-B01",
+    "mechanism_id": "M07",
+    "scope_definition": {
+      "local_entry": "accuracy/src/modeling_opt_ours.py::OPTAttention.kv_cache_mask（及 modeling_llama_ours.py 对应实现），由 accuracy/perplexity/opt.py 注入 capacity/eviction_policy",
+      "artifact": "accuracy/perplexity/table2.sh 实验路径（opt.py/llama.py + modeling_*_ours.py，capacity=0.8/1.0，evict∈{fifo,lru,counter}）；speedup/ 路径未确认"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M07:E1",
+        "M07:E2",
+        "M07:E7"
+      ],
+      "artifact": [
+        "M07:E8",
+        "M07:E10"
+      ]
+    }
+  },
+  {
+    "id": "M07-B02",
+    "claim_type": "mechanism_step",
+    "requirement": "达到上限时选出受害者条目",
+    "paper": {
+      "page": 10,
+      "quote": "when the size of the CPU memory reaches a user-defined limit, the KV cache pool manager selects a victim KV entry for eviction"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "i>=store_max 时每步在 fifo/lru/counter 分支选一个 ind 作为受害者",
+      "discrepancy": "",
+      "equivalence": "以 mask 列置 -10000 表示淘汰，非物理搬移，选择语义一致",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E3",
+        "E4"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "80% 容量下三策略均进入淘汰分支",
+      "discrepancy": "",
+      "equivalence": "脚本 capacity=0.8 触发 store_max<tgt_len",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E8"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M07-B02",
+    "mechanism_id": "M07",
+    "scope_definition": {
+      "local_entry": "accuracy/src/modeling_opt_ours.py::OPTAttention.kv_cache_mask（及 modeling_llama_ours.py 对应实现），由 accuracy/perplexity/opt.py 注入 capacity/eviction_policy",
+      "artifact": "accuracy/perplexity/table2.sh 实验路径（opt.py/llama.py + modeling_*_ours.py，capacity=0.8/1.0，evict∈{fifo,lru,counter}）；speedup/ 路径未确认"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M07:E2",
+        "M07:E3",
+        "M07:E4"
+      ],
+      "artifact": [
+        "M07:E8"
+      ]
+    }
+  },
+  {
+    "id": "M07-B03-R01",
+    "claim_type": "mechanism_step",
+    "requirement": "用新生成 K/V 覆盖受害者",
+    "paper": {
+      "page": 10,
+      "quote": "the manager overwrites the selected victim with the newly generated key and value"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "淘汰仅把 attn 该列置 -10000；key_states/value_states 仍 torch.cat 追加，无覆盖写",
+      "discrepancy": "论文要求覆盖受害者槽位；代码保留全部 K/V 只做注意力屏蔽",
+      "equivalence": "屏蔽列与覆盖槽位对注意力输出可能等价（被淘汰 token 不参与 softmax），效果未证伪",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E4",
+        "E5",
+        "E6"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "table2.sh 路径同样走掩码淘汰，无覆盖写",
+      "discrepancy": "同上：无覆盖写步骤",
+      "equivalence": "同上：掩码可能等效，未验证",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E8",
+        "E5"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M07-B03-R01",
+    "mechanism_id": "M07",
+    "scope_definition": {
+      "local_entry": "accuracy/src/modeling_opt_ours.py::OPTAttention.kv_cache_mask（及 modeling_llama_ours.py 对应实现），由 accuracy/perplexity/opt.py 注入 capacity/eviction_policy",
+      "artifact": "accuracy/perplexity/table2.sh 实验路径（opt.py/llama.py + modeling_*_ours.py，capacity=0.8/1.0，evict∈{fifo,lru,counter}）；speedup/ 路径未确认"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M07:E2",
+        "M07:E4",
+        "M07:E5",
+        "M07:E6"
+      ],
+      "artifact": [
+        "M07:E8",
+        "M07:E5"
+      ]
+    }
+  },
+  {
+    "id": "M07-B03-R02",
+    "claim_type": "mechanism_step",
+    "requirement": "同步更新 GPU 上的部分 key cache",
+    "paper": {
+      "page": 10,
+      "quote": "along with updating the corresponding partial key cache residing in the GPU"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "partial_weight_q/previous_hidden_states 仅用于推测注意力；淘汰后无对 GPU 部分 key cache 的更新",
+      "discrepancy": "论文要求淘汰后更新 GPU 部分 key cache；代码无该步骤",
+      "equivalence": "若部分 key cache 仅用于推测且结果被掩码覆盖，可能无功能差异，未验证",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E5",
+        "E6"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "实验路径无该更新步骤",
+      "discrepancy": "同上：缺更新步骤",
+      "equivalence": "同上：可能等效，未验证",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E8",
+        "E5"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M07-B03-R02",
+    "mechanism_id": "M07",
+    "scope_definition": {
+      "local_entry": "accuracy/src/modeling_opt_ours.py::OPTAttention.kv_cache_mask（及 modeling_llama_ours.py 对应实现），由 accuracy/perplexity/opt.py 注入 capacity/eviction_policy",
+      "artifact": "accuracy/perplexity/table2.sh 实验路径（opt.py/llama.py + modeling_*_ours.py，capacity=0.8/1.0，evict∈{fifo,lru,counter}）；speedup/ 路径未确认"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M07:E5",
+        "M07:E6"
+      ],
+      "artifact": [
+        "M07:E8",
+        "M07:E5"
+      ]
+    }
+  },
+  {
+    "id": "M07-B04",
+    "claim_type": "mechanism_step",
+    "requirement": "条目顺序任意，只要同 token 的 K/V 相对位置一致",
+    "paper": {
+      "page": 10,
+      "quote": "the order of KV entries can be arbitrary, as long as the key and value of the same token maintain the same relative location in the KV cache pool"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "K/V 同列索引存储，掩码按列同时作用于两者",
+      "discrepancy": "",
+      "equivalence": "固定顺序是许可条件的更严格实例",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E5",
+        "E6"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "实验路径同样按列索引对齐 K/V",
+      "discrepancy": "",
+      "equivalence": "同上",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E8"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M07-B04",
+    "mechanism_id": "M07",
+    "scope_definition": {
+      "local_entry": "accuracy/src/modeling_opt_ours.py::OPTAttention.kv_cache_mask（及 modeling_llama_ours.py 对应实现），由 accuracy/perplexity/opt.py 注入 capacity/eviction_policy",
+      "artifact": "accuracy/perplexity/table2.sh 实验路径（opt.py/llama.py + modeling_*_ours.py，capacity=0.8/1.0，evict∈{fifo,lru,counter}）；speedup/ 路径未确认"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M07:E5",
+        "M07:E6"
+      ],
+      "artifact": [
+        "M07:E8"
+      ]
+    }
+  },
+  {
+    "id": "M07-B05",
+    "claim_type": "mechanism_step",
+    "requirement": "每次预取某 KV 条目即递增其计数器",
+    "paper": {
+      "page": 10,
+      "quote": "the pool manager increments a counter for each prefetched KV entry"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "counter=sum(fetch_mask[:, :i+1, :i/2], dim=1)，即该条目被预取次数",
+      "discrepancy": "",
+      "equivalence": "掩码求和等价于逐次自增",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E4"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "table2.sh 启用 counter 策略",
+      "discrepancy": "",
+      "equivalence": "脚本 evict=counter 走该分支",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E8",
+        "E4"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M07-B05",
+    "mechanism_id": "M07",
+    "scope_definition": {
+      "local_entry": "accuracy/src/modeling_opt_ours.py::OPTAttention.kv_cache_mask（及 modeling_llama_ours.py 对应实现），由 accuracy/perplexity/opt.py 注入 capacity/eviction_policy",
+      "artifact": "accuracy/perplexity/table2.sh 实验路径（opt.py/llama.py + modeling_*_ours.py，capacity=0.8/1.0，evict∈{fifo,lru,counter}）；speedup/ 路径未确认"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M07:E4"
+      ],
+      "artifact": [
+        "M07:E8",
+        "M07:E4"
+      ]
+    }
+  },
+  {
+    "id": "M07-B06",
+    "claim_type": "mechanism_step",
+    "requirement": "选计数最小的条目为受害者",
+    "paper": {
+      "page": 10,
+      "quote": "selects a victim with the smallest count in the KV cache pool"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "torch.min(counter) 取最小计数索引为受害者",
+      "discrepancy": "",
+      "equivalence": "仅在前半段候选列搜索（避免淘汰新加入者），属实现细节",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E4"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "同上",
+      "discrepancy": "",
+      "equivalence": "同上",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E8",
+        "E4"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M07-B06",
+    "mechanism_id": "M07",
+    "scope_definition": {
+      "local_entry": "accuracy/src/modeling_opt_ours.py::OPTAttention.kv_cache_mask（及 modeling_llama_ours.py 对应实现），由 accuracy/perplexity/opt.py 注入 capacity/eviction_policy",
+      "artifact": "accuracy/perplexity/table2.sh 实验路径（opt.py/llama.py + modeling_*_ours.py，capacity=0.8/1.0，evict∈{fifo,lru,counter}）；speedup/ 路径未确认"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M07:E4"
+      ],
+      "artifact": [
+        "M07:E8",
+        "M07:E4"
+      ]
+    }
+  },
+  {
+    "id": "M07-B07",
+    "claim_type": "mechanism_step",
+    "requirement": "任一计数器饱和时全部减半",
+    "paper": {
+      "page": 10,
+      "quote": "If any counter becomes saturated, all the counter values are reduced by half."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "absent",
+      "actual": "counter 每次由 fetch_mask 重算，无饱和检测与减半逻辑",
+      "discrepancy": "论文要求饱和时全体减半；代码无该步骤",
+      "equivalence": "计数上限受序列长度约束可能永不饱和，但规则未实现",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E4"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "absent",
+      "actual": "实验路径同样无减半",
+      "discrepancy": "同上：无饱和减半",
+      "equivalence": "同上",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E8",
+        "E4"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M07-B07",
+    "mechanism_id": "M07",
+    "scope_definition": {
+      "local_entry": "accuracy/src/modeling_opt_ours.py::OPTAttention.kv_cache_mask（及 modeling_llama_ours.py 对应实现），由 accuracy/perplexity/opt.py 注入 capacity/eviction_policy",
+      "artifact": "accuracy/perplexity/table2.sh 实验路径（opt.py/llama.py + modeling_*_ours.py，capacity=0.8/1.0，evict∈{fifo,lru,counter}）；speedup/ 路径未确认"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M07:E4"
+      ],
+      "artifact": [
+        "M07:E8",
+        "M07:E4"
+      ]
+    }
+  },
+  {
+    "id": "M07-B08-R01",
+    "claim_type": "mechanism_step",
+    "requirement": "选计数器策略以避免原子更新、提升并行度",
+    "paper": {
+      "page": 10,
+      "quote": "to avoid atomic memory updates for better parallelism"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "默认 eviction_policy=\"counter\"；counter 分支为纯张量求和/最小值，无锁或原子操作",
+      "discrepancy": "",
+      "equivalence": "无原子更新与论文动机一致",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E4"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "table2.sh 比较三策略，counter 为论文选择",
+      "discrepancy": "",
+      "equivalence": "脚本覆盖 counter 配置",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E8"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M07-B08-R01",
+    "mechanism_id": "M07",
+    "scope_definition": {
+      "local_entry": "accuracy/src/modeling_opt_ours.py::OPTAttention.kv_cache_mask（及 modeling_llama_ours.py 对应实现），由 accuracy/perplexity/opt.py 注入 capacity/eviction_policy",
+      "artifact": "accuracy/perplexity/table2.sh 实验路径（opt.py/llama.py + modeling_*_ours.py，capacity=0.8/1.0，evict∈{fifo,lru,counter}）；speedup/ 路径未确认"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M07:E1",
+        "M07:E4"
+      ],
+      "artifact": [
+        "M07:E8"
+      ]
+    }
+  },
+  {
+    "id": "M07-B08-R02",
+    "claim_type": "mechanism_step",
+    "requirement": "选计数器策略因其设计更简单",
+    "paper": {
+      "page": 10,
+      "quote": "We opt for a counter-based approach due to its simpler design"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "counter 分支仅两行张量运算，较 lru 分支（构造索引、max/min）更简单",
+      "discrepancy": "",
+      "equivalence": "实现复杂度与论文陈述一致",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E4"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "同上",
+      "discrepancy": "",
+      "equivalence": "同上",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E8",
+        "E4"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M07-B08-R02",
+    "mechanism_id": "M07",
+    "scope_definition": {
+      "local_entry": "accuracy/src/modeling_opt_ours.py::OPTAttention.kv_cache_mask（及 modeling_llama_ours.py 对应实现），由 accuracy/perplexity/opt.py 注入 capacity/eviction_policy",
+      "artifact": "accuracy/perplexity/table2.sh 实验路径（opt.py/llama.py + modeling_*_ours.py，capacity=0.8/1.0，evict∈{fifo,lru,counter}）；speedup/ 路径未确认"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M07:E4"
+      ],
+      "artifact": [
+        "M07:E8",
+        "M07:E4"
+      ]
+    }
+  },
+  {
+    "id": "M07-A01",
+    "claim_type": "mechanism_step",
+    "requirement": "KV cache 作为池卸载到 CPU，仅预取必要量到 GPU",
+    "paper": {
+      "page": 10,
+      "quote": "We manage the KV cache as a pool, offloading to the CPU memory and prefetching only the essential amount to the GPU."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "accuracy 路径 K/V 全量驻留 GPU 张量，仅用 fetch_mask 限制参与注意力的列；无 CPU 池与预取搬移",
+      "discrepancy": "论文要求 CPU 池+按需预取；代码为 GPU 常驻+掩码选择",
+      "equivalence": "掩码选择在数值上可能等价于只计算必要 KV，但池/预取语义未实现",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E5",
+        "E6"
+      ]
+    },
+    "artifact": {
+      "review_state": "pending",
+      "verdict": null,
+      "actual": "speedup/ 路径（FlexGen+InfiniGen）的 mha/mha_gen 与存储分配未在本次检查中确认",
+      "discrepancy": "",
+      "equivalence": "",
+      "effect_status": "not_established",
+      "pending_reason": "需检查 speedup/flexgen/infinigen/pytorch_backend.py 的 mha/mha_gen 与 FlexGen 存储分配，确认是否存在容量受限 CPU 池与按需预取",
+      "refs": [
+        "E2"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M07-A01",
+    "mechanism_id": "M07",
+    "scope_definition": {
+      "local_entry": "accuracy/src/modeling_opt_ours.py::OPTAttention.kv_cache_mask（及 modeling_llama_ours.py 对应实现），由 accuracy/perplexity/opt.py 注入 capacity/eviction_policy",
+      "artifact": "accuracy/perplexity/table2.sh 实验路径（opt.py/llama.py + modeling_*_ours.py，capacity=0.8/1.0，evict∈{fifo,lru,counter}）；speedup/ 路径未确认"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M07:E2",
+        "M07:E5",
+        "M07:E6"
+      ],
+      "artifact": [
+        "M07:E2"
+      ]
+    }
+  },
+  {
+    "id": "M07-A02",
+    "claim_type": "semantic_effect",
+    "requirement": "FIFO 淘汰最老 token，易实现但精度下降较大",
+    "paper": {
+      "page": 10,
+      "quote": "The FIFO-based policy is easy to implement with low overhead but results in a relatively large accuracy drop since it simply evicts the oldest residing token."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "fifo 分支 evict_idx=i-store_max，按加入顺序淘汰最老条目",
+      "discrepancy": "",
+      "equivalence": "淘汰顺序与论文描述一致",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2"
+      ]
+    },
+    "artifact": {
+      "review_state": "pending",
+      "verdict": null,
+      "actual": "table2.sh 含 80-FIFO 配置但未执行",
+      "discrepancy": "",
+      "equivalence": "",
+      "effect_status": "not_established",
+      "pending_reason": "需运行 table2.sh 的 80-FIFO 配置比对 perplexity（目标执行未运行）",
+      "refs": [
+        "E8"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M07-A02",
+    "mechanism_id": "M07",
+    "scope_definition": {
+      "local_entry": "accuracy/src/modeling_opt_ours.py::OPTAttention.kv_cache_mask（及 modeling_llama_ours.py 对应实现），由 accuracy/perplexity/opt.py 注入 capacity/eviction_policy",
+      "artifact": "accuracy/perplexity/table2.sh 实验路径（opt.py/llama.py + modeling_*_ours.py，capacity=0.8/1.0，evict∈{fifo,lru,counter}）；speedup/ 路径未确认"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M07:E2"
+      ],
+      "artifact": [
+        "M07:E8"
+      ]
+    }
+  },
+  {
+    "id": "M07-A03",
+    "claim_type": "semantic_effect",
+    "requirement": "LRU 精度下降较小但运行时开销更高（双链表+锁/原子更新）",
+    "paper": {
+      "page": 10,
+      "quote": "the LRU-based policy generally exhibits a smaller decrease in accuracy but often entails a higher runtime overhead."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "lru 分支按最近预取索引淘汰；实现为张量运算而非双链表加锁",
+      "discrepancy": "",
+      "equivalence": "以索引最大值模拟最近使用，语义等价；未用锁不违反策略语义",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2"
+      ]
+    },
+    "artifact": {
+      "review_state": "pending",
+      "verdict": null,
+      "actual": "未运行 80-LRU 配置",
+      "discrepancy": "",
+      "equivalence": "",
+      "effect_status": "not_established",
+      "pending_reason": "需运行 table2.sh 的 80-LRU 配置并测量运行时开销",
+      "refs": [
+        "E8"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M07-A03",
+    "mechanism_id": "M07",
+    "scope_definition": {
+      "local_entry": "accuracy/src/modeling_opt_ours.py::OPTAttention.kv_cache_mask（及 modeling_llama_ours.py 对应实现），由 accuracy/perplexity/opt.py 注入 capacity/eviction_policy",
+      "artifact": "accuracy/perplexity/table2.sh 实验路径（opt.py/llama.py + modeling_*_ours.py，capacity=0.8/1.0，evict∈{fifo,lru,counter}）；speedup/ 路径未确认"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M07:E2"
+      ],
+      "artifact": [
+        "M07:E8"
+      ]
+    }
+  },
+  {
+    "id": "M07-A04",
+    "claim_type": "semantic_effect",
+    "requirement": "counter 与 LRU 精度相当",
+    "paper": {
+      "page": 10,
+      "quote": "We observe that the counter-based policy and the LRU-based one show comparable model accuracy"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "两策略分别按使用频率/最近性选受害者，机制上可比",
+      "discrepancy": "",
+      "equivalence": "两分支均基于 fetch_mask 历史，可比性成立",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E4"
+      ]
+    },
+    "artifact": {
+      "review_state": "pending",
+      "verdict": null,
+      "actual": "未运行对比",
+      "discrepancy": "",
+      "equivalence": "",
+      "effect_status": "not_established",
+      "pending_reason": "需运行 table2.sh 的 80-LRU 与 80-Counter 并比较 perplexity",
+      "refs": [
+        "E8"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M07-A04",
+    "mechanism_id": "M07",
+    "scope_definition": {
+      "local_entry": "accuracy/src/modeling_opt_ours.py::OPTAttention.kv_cache_mask（及 modeling_llama_ours.py 对应实现），由 accuracy/perplexity/opt.py 注入 capacity/eviction_policy",
+      "artifact": "accuracy/perplexity/table2.sh 实验路径（opt.py/llama.py + modeling_*_ours.py，capacity=0.8/1.0，evict∈{fifo,lru,counter}）；speedup/ 路径未确认"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M07:E2",
+        "M07:E4"
+      ],
+      "artifact": [
+        "M07:E8"
+      ]
+    }
+  },
+  {
+    "id": "M07-A05",
+    "claim_type": "semantic_effect",
+    "requirement": "80% 限制下 FIFO 性能最差",
+    "paper": {
+      "page": 12,
+      "quote": "The FIFO-based approach shows the worst model performance because it simply deletes the oldest KV entry regardless of its importance."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "fifo 分支忽略重要性、按序淘汰",
+      "discrepancy": "",
+      "equivalence": "淘汰规则与论文解释一致",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E2"
+      ]
+    },
+    "artifact": {
+      "review_state": "pending",
+      "verdict": null,
+      "actual": "未运行",
+      "discrepancy": "",
+      "equivalence": "",
+      "effect_status": "not_established",
+      "pending_reason": "需运行 table2.sh 三策略 80% 配置并复现 Table 2",
+      "refs": [
+        "E8"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M07-A05",
+    "mechanism_id": "M07",
+    "scope_definition": {
+      "local_entry": "accuracy/src/modeling_opt_ours.py::OPTAttention.kv_cache_mask（及 modeling_llama_ours.py 对应实现），由 accuracy/perplexity/opt.py 注入 capacity/eviction_policy",
+      "artifact": "accuracy/perplexity/table2.sh 实验路径（opt.py/llama.py + modeling_*_ours.py，capacity=0.8/1.0，evict∈{fifo,lru,counter}）；speedup/ 路径未确认"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M07:E2"
+      ],
+      "artifact": [
+        "M07:E8"
+      ]
+    }
+  },
+  {
+    "id": "M07-A06",
+    "claim_type": "semantic_effect",
+    "requirement": "80% 限制下 LRU 与 Counter 的 perplexity 接近无限制",
+    "paper": {
+      "page": 12,
+      "quote": "The LRU and Counter-based approaches show perplexity that is almost similar to that with no memory limit."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "两策略保留高频/近期条目，机制上可接近全缓存",
+      "discrepancy": "",
+      "equivalence": "选择规则与论文解释一致",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E4"
+      ]
+    },
+    "artifact": {
+      "review_state": "pending",
+      "verdict": null,
+      "actual": "未运行",
+      "discrepancy": "",
+      "equivalence": "",
+      "effect_status": "not_established",
+      "pending_reason": "需运行 table2.sh 的 100% 与 80-LRU/80-Counter 配置并比较 perplexity",
+      "refs": [
+        "E8",
+        "E10"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M07-A06",
+    "mechanism_id": "M07",
+    "scope_definition": {
+      "local_entry": "accuracy/src/modeling_opt_ours.py::OPTAttention.kv_cache_mask（及 modeling_llama_ours.py 对应实现），由 accuracy/perplexity/opt.py 注入 capacity/eviction_policy",
+      "artifact": "accuracy/perplexity/table2.sh 实验路径（opt.py/llama.py + modeling_*_ours.py，capacity=0.8/1.0，evict∈{fifo,lru,counter}）；speedup/ 路径未确认"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M07:E2",
+        "M07:E4"
+      ],
+      "artifact": [
+        "M07:E8",
+        "M07:E10"
+      ]
+    }
+  },
+  {
+    "id": "M08-B01-R01",
+    "claim_type": "mechanism_step",
+    "requirement": "运行时划分为GPU数据平面与CPU控制平面两部分",
+    "paper": {
+      "page": 7,
+      "quote": "Data Plane Control Plane"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "mha/mha_gen在GPU执行注意力/FFN，控制器函数在CPU侧调度；KV池在CPU内存分配（E4）",
+      "discrepancy": "",
+      "equivalence": "无显式plane类型，但计算与调度/池管理分处GPU张量路径与CPU控制函数，语义等价",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E3",
+        "E4"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "flex_opt.py调度层（prefetch_cache、任务图）与pytorch_backend GPU kernel分离，KV home在CPU",
+      "discrepancy": "",
+      "equivalence": "组织划分以模块/设备边界体现，非显式类",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E8",
+        "E9"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M08-B01-R01",
+    "mechanism_id": "M08",
+    "scope_definition": {
+      "local_entry": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha / mha_gen（含导入的infinigen三控制器函数），主仓库中与M08对齐的推理入口",
+      "artifact": "speedup/flexgen/infinigen/flex_opt.py + pytorch_backend.py 的Infinigen执行路径（FlexGen OPT offloading运行时，含prefetch_cache与KV池拷贝），依赖speedup/infinigen/infinigen/*控制器"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M08:E2",
+        "M08:E3",
+        "M08:E4"
+      ],
+      "artifact": [
+        "M08:E8",
+        "M08:E9"
+      ]
+    }
+  },
+  {
+    "id": "M08-B02",
+    "claim_type": "mechanism_step",
+    "requirement": "PWIGen、KVSel、Inference控制器协作，在推理中推测并预取关键KV条目",
+    "paper": {
+      "page": 7,
+      "quote": "The first includes the Partial Weight Index Generation Controller, KV Selection Controller, and Inference Controller. These controllers cooperate to speculate and prefetch the critical KV cache entries while serving LLM inference."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "mha调用partial_weight_index_generation（E2:327），mha_gen在speculation_stream调用speculate_attention（E3:401-403）返回prefetch_idx；推理由mha/mha_gen承担",
+      "discrepancy": "",
+      "equivalence": "控制器为函数而非类，协作经返回值传递（partial_weight_index→p_w_q/partial_k_cache→prefetch_idx），语义等价",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E3",
+        "E5",
+        "E6"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "flex_opt.py消费prefetch_idx并调用prefetch_cache从CPU home预取KV（E8,E9）",
+      "discrepancy": "",
+      "equivalence": "预取由调度层完成而非控制器直接发起，属实现分工",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E8",
+        "E9"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M08-B02",
+    "mechanism_id": "M08",
+    "scope_definition": {
+      "local_entry": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha / mha_gen（含导入的infinigen三控制器函数），主仓库中与M08对齐的推理入口",
+      "artifact": "speedup/flexgen/infinigen/flex_opt.py + pytorch_backend.py 的Infinigen执行路径（FlexGen OPT offloading运行时，含prefetch_cache与KV池拷贝），依赖speedup/infinigen/infinigen/*控制器"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M08:E2",
+        "M08:E3",
+        "M08:E5",
+        "M08:E6"
+      ],
+      "artifact": [
+        "M08:E8",
+        "M08:E9"
+      ]
+    }
+  },
+  {
+    "id": "M08-B03",
+    "claim_type": "mechanism_step",
+    "requirement": "Skewing Controller在离线阶段修改模型权重以辅助预取",
+    "paper": {
+      "page": 7,
+      "quote": "the Skewing Controller performs offline modifications on the model weights"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "mha在warmup=True时调用skew()，用SVD/MatMul就地改写w_q/w_k（E2:334-335；E7）",
+      "discrepancy": "",
+      "equivalence": "'离线'以warmup标志实现（首轮预填充），非独立离线脚本；权重修改语义一致",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E7"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "warmup路径在flex_opt执行图中先于正式生成运行，修改后w_q/w_k被后续层复用",
+      "discrepancy": "",
+      "equivalence": "warmup即离线阶段，权重改写后供后续推理复用",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E7"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M08-B03",
+    "mechanism_id": "M08",
+    "scope_definition": {
+      "local_entry": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha / mha_gen（含导入的infinigen三控制器函数），主仓库中与M08对齐的推理入口",
+      "artifact": "speedup/flexgen/infinigen/flex_opt.py + pytorch_backend.py 的Infinigen执行路径（FlexGen OPT offloading运行时，含prefetch_cache与KV池拷贝），依赖speedup/infinigen/infinigen/*控制器"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M08:E2",
+        "M08:E7"
+      ],
+      "artifact": [
+        "M08:E2",
+        "M08:E7"
+      ]
+    }
+  },
+  {
+    "id": "M08-B04",
+    "claim_type": "mechanism_step",
+    "requirement": "Pool Manager在CPU内存压力下管理CPU内存中的KV缓存池",
+    "paper": {
+      "page": 7,
+      "quote": "The second component is the Pool Manager. It manages the KV cache pool on CPU memory under CPU memory pressure"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "absent",
+      "actual": "mha/mha_gen仅分配/读写k_cache、v_cache张量（E4），无池大小管理、内存压力检测或驱逐/回收逻辑；仓库中无Pool Manager模块",
+      "discrepancy": "论文要求存在在CPU内存压力下管理KV池大小的Pool Manager；对齐入口只有固定形状缓存分配与拷贝，无压力响应或池容量管理",
+      "equivalence": "FlexGen的offloading张量分配可提供池存储，但不实现'under CPU memory pressure'的池管理；未找到等价实现",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E4",
+        "E2",
+        "E3"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "absent",
+      "actual": "flex_opt.py的prefetch_cache与general_copy只做按索引拷贝，未见池容量/压力管理",
+      "discrepancy": "同上：无CPU内存压力下的池管理控制流",
+      "equivalence": "调度层仅按索引拷贝，无池管理器等价物",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E9",
+        "E4"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M08-B04",
+    "mechanism_id": "M08",
+    "scope_definition": {
+      "local_entry": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha / mha_gen（含导入的infinigen三控制器函数），主仓库中与M08对齐的推理入口",
+      "artifact": "speedup/flexgen/infinigen/flex_opt.py + pytorch_backend.py 的Infinigen执行路径（FlexGen OPT offloading运行时，含prefetch_cache与KV池拷贝），依赖speedup/infinigen/infinigen/*控制器"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M08:E4",
+        "M08:E2",
+        "M08:E3"
+      ],
+      "artifact": [
+        "M08:E9",
+        "M08:E4"
+      ]
+    }
+  },
+  {
+    "id": "M08-A01",
+    "claim_type": "mechanism_step",
+    "requirement": "数据平面含GPU内存中修改后QK权重、其他模型权重、部分权重与缓存，CPU内存含KV池；控制平面含五个控制器",
+    "paper": {
+      "page": 7,
+      "quote": "Modified QK Weights ... Other Model Weights ... Partial Weight and Cache ... KV Cache Pool ... PWIGen Controller KVSel Controller Inference Controller Skewing Controller Pool Manager"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "修改后QK权重、部分权重/缓存、KV池均存在（E2,E3,E4,E5,E6）；但控制平面缺Pool Manager，Inference Controller无独立实体，由mha/mha_gen兼任",
+      "discrepancy": "论文图6要求控制平面包含Pool Manager；代码无该组件，图6组件分解不完整",
+      "equivalence": "Inference Controller由后端方法承担可视为等价；Pool Manager无等价物",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E3",
+        "E4",
+        "E5",
+        "E6"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "同上，flex_opt调度层亦无Pool Manager",
+      "discrepancy": "控制平面组件集合不完整（缺Pool Manager）",
+      "equivalence": "调度层无池管理器等价物",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E8",
+        "E9"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M08-A01",
+    "mechanism_id": "M08",
+    "scope_definition": {
+      "local_entry": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha / mha_gen（含导入的infinigen三控制器函数），主仓库中与M08对齐的推理入口",
+      "artifact": "speedup/flexgen/infinigen/flex_opt.py + pytorch_backend.py 的Infinigen执行路径（FlexGen OPT offloading运行时，含prefetch_cache与KV池拷贝），依赖speedup/infinigen/infinigen/*控制器"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M08:E2",
+        "M08:E3",
+        "M08:E4",
+        "M08:E5",
+        "M08:E6"
+      ],
+      "artifact": [
+        "M08:E8",
+        "M08:E9"
+      ]
+    }
+  },
+  {
+    "id": "M08-A02",
+    "claim_type": "mechanism_step",
+    "requirement": "PWIGen控制器触发数据平面Partial Weight Index Generation，产生Selected Indices",
+    "paper": {
+      "page": 7,
+      "quote": "Partial Weight Index Generation ... Launch ... Selected Indices ... PWIGen Controller"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "mha在非warmup时调用partial_weight_index_generation生成top-k列索引并返回（E2:324-327,379；E5）",
+      "discrepancy": "",
+      "equivalence": "'Launch'以函数调用实现，索引经返回值传出",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E5"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "partial_weight_index随mha返回值进入执行图，用于构造p_w_q/partial_k_cache",
+      "discrepancy": "",
+      "equivalence": "索引经返回值进入执行图，等价于Launch→Selected Indices",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E5"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": null,
+    "mechanism_id": "M08",
+    "scope_definition": {
+      "local_entry": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha / mha_gen（含导入的infinigen三控制器函数），主仓库中与M08对齐的推理入口",
+      "artifact": "speedup/flexgen/infinigen/flex_opt.py + pytorch_backend.py 的Infinigen执行路径（FlexGen OPT offloading运行时，含prefetch_cache与KV池拷贝），依赖speedup/infinigen/infinigen/*控制器"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M08:E2",
+        "M08:E5"
+      ],
+      "artifact": [
+        "M08:E2",
+        "M08:E5"
+      ]
+    }
+  },
+  {
+    "id": "M08-A03",
+    "claim_type": "mechanism_step",
+    "requirement": "KVSel控制器驱动KV Selection，消费部分注意力分数与(max-alpha)阈值产生Selected Tokens",
+    "paper": {
+      "page": 7,
+      "quote": "KV Selection ... Partial Attn ... >(max-alpha) ... Selected Tokens ... KVSel Controller"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "speculate_attention计算p_attn，以max_-alpha为阈值计数并取topk（E6:52-61），mha_gen在speculation_stream调用（E3:401-403）",
+      "discrepancy": "",
+      "equivalence": "阈值比较与topk组合实现'>(max-alpha)'选择，语义等价",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E3",
+        "E6"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "prefetch_idx被flex_opt.prefetch_cache消费以取Selected Tokens",
+      "discrepancy": "",
+      "equivalence": "prefetch_idx即Selected Tokens索引，语义等价",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E6",
+        "E9"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": null,
+    "mechanism_id": "M08",
+    "scope_definition": {
+      "local_entry": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha / mha_gen（含导入的infinigen三控制器函数），主仓库中与M08对齐的推理入口",
+      "artifact": "speedup/flexgen/infinigen/flex_opt.py + pytorch_backend.py 的Infinigen执行路径（FlexGen OPT offloading运行时，含prefetch_cache与KV池拷贝），依赖speedup/infinigen/infinigen/*控制器"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M08:E3",
+        "M08:E6"
+      ],
+      "artifact": [
+        "M08:E6",
+        "M08:E9"
+      ]
+    }
+  },
+  {
+    "id": "M08-A04",
+    "claim_type": "mechanism_step",
+    "requirement": "Inference Controller驱动数据平面LLM Inference（Attention与FFN）",
+    "paper": {
+      "page": 7,
+      "quote": "LLM Inference ... Attention ... FFN ... Inference Controller"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "mha/mha_gen实现Attention（E2,E3），FFN由FlexGen的mlp/线性层路径执行，由执行图调度",
+      "discrepancy": "",
+      "equivalence": "无独立Inference Controller类，后端方法+执行图承担该角色",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E3"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "flex_opt.py构建并执行attention/FFN任务图",
+      "discrepancy": "",
+      "equivalence": "执行图调度等价于Inference Controller驱动",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E8"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": null,
+    "mechanism_id": "M08",
+    "scope_definition": {
+      "local_entry": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha / mha_gen（含导入的infinigen三控制器函数），主仓库中与M08对齐的推理入口",
+      "artifact": "speedup/flexgen/infinigen/flex_opt.py + pytorch_backend.py 的Infinigen执行路径（FlexGen OPT offloading运行时，含prefetch_cache与KV池拷贝），依赖speedup/infinigen/infinigen/*控制器"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M08:E2",
+        "M08:E3"
+      ],
+      "artifact": [
+        "M08:E8"
+      ]
+    }
+  },
+  {
+    "id": "M08-A05",
+    "claim_type": "mechanism_step",
+    "requirement": "Skewing控制器驱动Skewing阶段，用SVD与MatMul产生修改后QK权重",
+    "paper": {
+      "page": 7,
+      "quote": "Skewing ... SVD ... MatMul ... Skewing Controller"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "skew()对每头做torch.svd，构造A后以A.t()@wq、A.t()@wk改写权重（E7:73-83），由mha warmup调用（E2:335）",
+      "discrepancy": "",
+      "equivalence": "SVD+矩阵乘语义一致",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E7"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "warmup路径在执行图中运行，修改后权重供后续推理",
+      "discrepancy": "",
+      "equivalence": "warmup阶段SVD+MatMul改写权重，与图6一致",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E7"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": null,
+    "mechanism_id": "M08",
+    "scope_definition": {
+      "local_entry": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha / mha_gen（含导入的infinigen三控制器函数），主仓库中与M08对齐的推理入口",
+      "artifact": "speedup/flexgen/infinigen/flex_opt.py + pytorch_backend.py 的Infinigen执行路径（FlexGen OPT offloading运行时，含prefetch_cache与KV池拷贝），依赖speedup/infinigen/infinigen/*控制器"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M08:E2",
+        "M08:E7"
+      ],
+      "artifact": [
+        "M08:E2",
+        "M08:E7"
+      ]
+    }
+  },
+  {
+    "id": "M08-A06",
+    "claim_type": "mechanism_step",
+    "requirement": "Pool Manager控制CPU内存KV池，选中KV条目从池传输到GPU数据平面",
+    "paper": {
+      "page": 7,
+      "quote": "KV Cache Pool ... Selected KV Cache ... Pool Manager"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "选中条目传输由flex_opt.prefetch_cache/general_copy按prefetch_idx完成（E9），KV池为CPU张量（E4）；但无Pool Manager组件控制该池",
+      "discrepancy": "论文要求Pool Manager控制KV池并驱动选中KV传输；代码中传输由调度层直接发起，池无管理器实体",
+      "equivalence": "传输效果存在，但'Pool Manager控制'这一指定组件/控制关系缺失",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E4",
+        "E9"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "prefetch_cache直接按索引拷贝，无池管理器中介",
+      "discrepancy": "同上：缺Pool Manager控制关系",
+      "equivalence": "调度层直接拷贝，无池管理器等价物",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E9"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": null,
+    "mechanism_id": "M08",
+    "scope_definition": {
+      "local_entry": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha / mha_gen（含导入的infinigen三控制器函数），主仓库中与M08对齐的推理入口",
+      "artifact": "speedup/flexgen/infinigen/flex_opt.py + pytorch_backend.py 的Infinigen执行路径（FlexGen OPT offloading运行时，含prefetch_cache与KV池拷贝），依赖speedup/infinigen/infinigen/*控制器"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M08:E4",
+        "M08:E9"
+      ],
+      "artifact": [
+        "M08:E9"
+      ]
+    }
+  },
+  {
+    "id": "M08-A07",
+    "claim_type": "semantic_effect",
+    "requirement": "多数KV token保留在CPU内存不被丢弃，仅少量重要token的K/V加载到GPU参与注意力",
+    "paper": {
+      "page": 7,
+      "quote": "the majority of the tokens for the KV cache are kept in the CPU memory as we generate new tokens, not completely discarding them unlike prior works"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "KV home在CPU（E4），mha_gen按prefetch_idx仅取选中条目（E3:401-403,489），未做永久驱逐",
+      "discrepancy": "",
+      "equivalence": "保留+选择性加载语义一致",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E3",
+        "E4"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "prefetch_cache从CPU home按索引取少量条目到GPU缓冲，其余保留",
+      "discrepancy": "",
+      "equivalence": "按索引取少量条目、其余留CPU，语义一致",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E9"
+      ]
+    },
+    "artifact_id": "infinigen",
+    "claim_id": "infinigen:M08-A07",
+    "mechanism_id": "M08",
+    "scope_definition": {
+      "local_entry": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha / mha_gen（含导入的infinigen三控制器函数），主仓库中与M08对齐的推理入口",
+      "artifact": "speedup/flexgen/infinigen/flex_opt.py + pytorch_backend.py 的Infinigen执行路径（FlexGen OPT offloading运行时，含prefetch_cache与KV池拷贝），依赖speedup/infinigen/infinigen/*控制器"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M08:E3",
+        "M08:E4"
+      ],
+      "artifact": [
+        "M08:E9"
+      ]
+    }
+  }
+]

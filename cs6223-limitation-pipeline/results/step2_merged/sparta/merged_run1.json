@@ -1,0 +1,138 @@
+[
+  {
+    "schema_version": "0.1.0",
+    "region_id": "X001",
+    "artifact_id": "sparta",
+    "entry_point": "sparta/propagation/propagate.py::propagate_sparsity",
+    "condition": {
+      "expr": "otherwise",
+      "params": [
+        "otherwise"
+      ],
+      "path_prefix": []
+    },
+    "outcome": "mechanism",
+    "outcome_detail": "default path of the entry function",
+    "location": {
+      "file": "sparta/propagation/propagate.py",
+      "line_start": 30,
+      "line_end": 30,
+      "function": "sparta/propagation/propagate.py::propagate_sparsity",
+      "snippet": "return post_sparsity"
+    },
+    "call_chain": [
+      "sparta/propagation/propagate.py::propagate_sparsity"
+    ],
+    "provenance": "ast",
+    "notes": "All guards above passed."
+  },
+  {
+    "schema_version": "0.1.0",
+    "region_id": "X002",
+    "artifact_id": "sparta",
+    "entry_point": "sparta/propagation/talgebra.py::propagate_matmul",
+    "condition": {
+      "expr": "otherwise",
+      "params": [
+        "otherwise"
+      ],
+      "path_prefix": []
+    },
+    "outcome": "mechanism",
+    "outcome_detail": "default path of the entry function",
+    "location": {
+      "file": "sparta/propagation/talgebra.py",
+      "line_start": 62,
+      "line_end": 62,
+      "function": "sparta/propagation/talgebra.py::propagate_matmul",
+      "snippet": "return (tesa_in1, tesa_in2, tesa_out)"
+    },
+    "call_chain": [
+      "sparta/propagation/talgebra.py::propagate_matmul"
+    ],
+    "provenance": "ast",
+    "notes": "All guards above passed."
+  },
+  {
+    "schema_version": "0.1.0",
+    "region_id": "B001",
+    "artifact_id": "sparta",
+    "entry_point": "sparta/propagation/propagate.py::propagate_sparsity",
+    "condition": {
+      "expr": "info.module_name in self.modules_info",
+      "params": [
+        "info",
+        "self"
+      ],
+      "path_prefix": []
+    },
+    "outcome": "suspicious",
+    "outcome_detail": "When a module name is already present, the merge branch is an empty ellipsis body, so the new SparseModuleInfo (and its updated TeSA attributes) is silently discarded and the earlier state is kept. The mechanism therefore depends on earlier update() calls and ignores later sparsity info for the same module.",
+    "location": {
+      "file": "sparta/common/sparsity.py",
+      "line_start": 57,
+      "line_end": null,
+      "function": "sparta/common/sparsity.py::ModelSparsityInfo.update",
+      "snippet": "if info.module_name in self.modules_info:"
+    },
+    "call_chain": [],
+    "provenance": "llm",
+    "notes": "sweep: outside the static walk"
+  },
+  {
+    "schema_version": "0.1.0",
+    "region_id": "B002",
+    "artifact_id": "sparta",
+    "entry_point": "sparta/propagation/propagate.py::propagate_sparsity",
+    "condition": {
+      "expr": "cover_sizes[(1, 1)] < ordered_pricing[0][0]",
+      "params": [
+        "cover_sizes",
+        "ordered_pricing"
+      ],
+      "path_prefix": [
+        "def weighted_block_cover"
+      ]
+    },
+    "outcome": "mechanism_variant",
+    "outcome_detail": "The choice of covering algorithm is driven by the caller's sparsity pattern: if the cheapest block price exceeds the (1,1) element price, the whole weighted-set-cover is skipped and the function returns `None, {(1,1)}` — i.e. the tensor is treated as fully element-wise (no block covering), which then flows into wbc_matmul setting w_tesa.block_size = (1,1). Also, ordered_pricing[0] is indexed without checking that any block was added, so an all-pruned/empty tesa raises IndexError.",
+    "location": {
+      "file": "sparta/transformation/weighted_block_cover.py",
+      "line_start": 77,
+      "line_end": null,
+      "function": "sparta/transformation/weighted_block_cover.py::weighted_block_cover",
+      "snippet": "if cover_sizes[(1, 1)] < ordered_pricing[0][0]:"
+    },
+    "call_chain": [],
+    "provenance": "llm",
+    "notes": "agent: outside the static walk"
+  },
+  {
+    "schema_version": "0.1.0",
+    "region_id": "B003",
+    "artifact_id": "sparta",
+    "entry_point": "sparta/propagation/propagate.py::propagate_sparsity",
+    "condition": {
+      "expr": "len(unique_block_sizes) != 1",
+      "params": [
+        "len",
+        "unique_block_sizes"
+      ],
+      "path_prefix": [
+        "for w_tesa in w_tesas"
+      ]
+    },
+    "outcome": "reject",
+    "outcome_detail": "wbc_matmul only supports a single block size for the weight tesa. If the weighted block cover (driven by the caller's sparsity pattern / TeSA values) selects more than one block size, decompose_blocked_tesas is a no-op stub (`...`) and then a bare `raise` aborts the whole transformation. So a sparsity pattern that mixes block sizes is rejected rather than handled.",
+    "location": {
+      "file": "sparta/transformation/weighted_block_cover.py",
+      "line_start": 123,
+      "line_end": null,
+      "function": "sparta/transformation/weighted_block_cover.py::wbc_matmul",
+      "snippet": "raise"
+    },
+    "call_chain": [],
+    "provenance": "llm",
+    "notes": "agent: outside the static walk"
+  }
+]

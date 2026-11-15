@@ -1,0 +1,125 @@
+{
+  "test_id": "A-flexprefill-F029",
+  "finding_id": "flexprefill-F029",
+  "strategy": "S1",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "batch_size",
+        "value": 1,
+        "why": "witness does not fix the batch; one batch keeps the CPU run minimal and the target condition reads only seq_len"
+      },
+      {
+        "name": "num_heads",
+        "value": 1,
+        "why": "witness does not fix the query head count; one head keeps the pre-target top-k work small and the branch does not read it"
+      },
+      {
+        "name": "num_kv_heads",
+        "value": 1,
+        "why": "witness does not fix the KV head count; one KV head equals one query head so no GQA expansion is needed before the target"
+      },
+      {
+        "name": "head_dim",
+        "value": 16,
+        "why": "smallest head_dim accepted by the function's guard, keeps the pre-target einsum small; the branch does not read it"
+      },
+      {
+        "name": "block_size",
+        "value": 128,
+        "why": "largest accepted block size; the early-return guard and the target both use seq_len only, and 128 keeps the pre-target top-k cheap"
+      },
+      {
+        "name": "vertical_size",
+        "value": 1024,
+        "why": "with block_size 128 this gives 8 vertical blocks, so the early-return guard (seq_len <= min(vertical,slash)*block_size) is false as required to reach the target"
+      },
+      {
+        "name": "slash_size",
+        "value": 8192,
+        "why": "repository example value; with block_size 128 it keeps the early-return guard false and does not affect the target condition"
+      },
+      {
+        "name": "gqa_interleave",
+        "value": false,
+        "why": "function default; the branch at the target does not read it and one KV head means no interleave difference"
+      },
+      {
+        "name": "dtype",
+        "value": "float32",
+        "why": "CPU-only run; float32 is supported by every op before the target. The GPU launchers after the target reject it, which only stops the run below the decision"
+      },
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "fixed random seed so q/k/v construction is deterministic across repeats and replay"
+      }
+    ],
+    "positive_input": {
+      "seq_len": 16384
+    },
+    "negative_input": {
+      "seq_len": 16385
+    },
+    "boundary_variable": "seq_len",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at flex_prefill/ops/vertical_slash_attention.py:570",
+      "signal_location": "flex_prefill/ops/vertical_slash_attention.py:570"
+    },
+    "expected": {
+      "positive": "branch taken at flex_prefill/ops/vertical_slash_attention.py:570",
+      "negative": "branch not taken at flex_prefill/ops/vertical_slash_attention.py:570"
+    }
+  },
+  "execution": {
+    "entry_called": "flex_prefill/ops/vertical_slash_attention.py::vertical_slash_attention",
+    "entry_reason": "The recorded call_chain[0] (flex_prefill_attention) never calls this op in the pinned source: it computes its own block indices and calls triton_block_wise_attention directly. vertical_slash_attention is the public op that contains the Region and is called by the llama/glm/qwen2 vertical-slash forwards, so it is the closest real entry on the path to the target.",
+    "call_chain_index": 1,
+    "repo_files_modified": [],
+    "mocks": [
+      {
+        "symbol": "flash_attn",
+        "kind": "fake_module",
+        "behavior": "return_first_arg",
+        "reason": "the optional GPU flash-attention package is not installed on the CPU box but the module under test imports it at module level; this shell only lets the import succeed and is not called before the target"
+      },
+      {
+        "symbol": "flash_attn.flash_attn_func",
+        "kind": "patch",
+        "behavior": "sim",
+        "impl": "sim.py::flash_attn_sim",
+        "sim_class": "independent_native",
+        "reason": "GPU-only flash-attention launcher reached only by the early-return branch that the witness inputs do not take; replaced by plain torch so the run would stay on CPU if it were reached"
+      },
+      {
+        "symbol": "transformers.utils.is_flash_attn_2_available",
+        "kind": "patch",
+        "behavior": "sim",
+        "impl": "sim.py::flash_attn_available",
+        "sim_class": "independent_native",
+        "reason": "availability probe called while the repository module imports; a plain Python function reports false, which is what the genuine absence of the package on this CPU box means. It only selects the module's GPU fallback binding"
+      }
+    ],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "false",
+      "true"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at flex_prefill/ops/vertical_slash_attention.py:570",
+    "negative_observed": "branch not taken at flex_prefill/ops/vertical_slash_attention.py:570"
+  },
+  "evidence": {}
+}

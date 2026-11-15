@@ -1,0 +1,95 @@
+{
+  "schema_version": "1.0",
+  "selection_mode": "manually_frozen_repository_component_scope",
+  "frozen_before_model_generation": true,
+  "selection_basis": "Repository component roles and paper-version compatibility; no issue labels, known-bug locations, condition IDs, source line filters, or generated candidate outcomes are used.",
+  "comparison_policy": "All methods scan the same include_paths and receive the same bounded code-condition pool. Full and Direct also receive the same bounded paper-evidence pool.",
+  "coverage_claim": "Guided candidate synthesis within manually scoped repository components; not fully automatic discovery across whole repositories.",
+  "scopes": {
+    "minference": {
+      "repository_commit": "29ef1974fcb5a1440ccf92d7d7996900230fddcf",
+      "include_paths": [
+        "minference/ops/pit_sparse_flash_attention.py",
+        "minference/ops/pit_sparse_flash_attention_v2.py",
+        "minference/ops/block_sparse_flash_attention.py",
+        "minference/ops/streaming_kernel.py",
+        "csrc"
+      ],
+      "justification": "只检查 MInference 1.0 的 vertical/slash、block sparse、streaming/A-shape pattern family 对应的稀疏 kernel 和 CUDA index-conversion 组件。当前 minference_forward.py 同时集成多种后续算法，故不作为条件发现输入。",
+      "excluded_roles": ["LeanK", "XAttention", "MMInference", "distributed attention", "SCBench", "其他 KV compression 算法", "benchmark/test/example/CLI"],
+      "coverage_limitations": [
+        "保留固定的当前 commit；v2 有 2024–2025 的 kernel integration 更新，不能声称等于 NeurIPS 2024 实验提交版本。",
+        "只覆盖原论文算法 family 的现有 kernel，不覆盖 offline per-head pattern search、模型 patch 或后续算法。",
+        "不等于已验证所有保留 kernel 路径都由原论文模型配置调用；相关性、合法 shape、输入映射与可达性仍需复核。"
+      ]
+    },
+    "sparta": {
+      "repository_commit": "183513c5b721fa8b970e19fd95887bad9a16c1fe",
+      "include_paths": [
+        "sparta/tesa",
+        "sparta/specializer/kernels",
+        "sparta/specializer/operators",
+        "sparta/specializer/funtional"
+      ],
+      "justification": "保留 TeSA/block-compressed 属性及 sparse operator specialization 的库组件；拼写 funtional 是该 snapshot 的实际目录名。排除 tuner、testing、examples 和模型级实验脚本。",
+      "excluded_roles": ["sparta/testing", "tuning/benchmark helpers", "tests/examples", "CLI"],
+      "coverage_limitations": [
+        "这是作者当前独立仓库的 TeSA/specializer 子集，不宣称包含 OSDI 2022 完整 sparsity propagation pass。",
+        "当前 scanner 不解析 .j2 CUDA 模板，因此保留 kernels 目录不代表已扫描全部 kernel implementation。"
+      ]
+    },
+    "infinigen": {
+      "repository_commit": "3754f52d131c30ab7a310e3c4cf356e8e3326ac3",
+      "include_paths": [
+        "speedup/infinigen/infinigen",
+        "accuracy/src/modeling_llama_ours.py",
+        "accuracy/src/modeling_opt_ours.py"
+      ],
+      "justification": "保留作者独立 InfiniGen controller library 与 ours 的 LLaMA/OPT attention/cache 集成实现；它们对应 partial weight/key cache、skewing、KV selection 与论文中的缓存预算/驱逐配置。排除 UVM microbenchmark、H2O、original model、FlexGen 基础 engine 和 evaluation loops。",
+      "excluded_roles": ["H2O/reference implementations", "original model implementations", "FlexGen allocation/engine helpers", "UVM microbenchmarks", "accuracy evaluation drivers", "tests/examples/CLI"],
+      "coverage_limitations": [
+        "核心 controller 中的 torch.where/topk/gather/SVD 是数据流算子；当前 literal-condition scanner 对这些主要机制的发现覆盖率很低。",
+        "ours 模型模块仍继承模型框架代码，不保证每条抽取条件都特属于 InfiniGen；必须独立复核论文相关性。"
+      ]
+    },
+    "alex": {
+      "repository_commit": "4370da6aa8b509fdc9b0d2c49faa0624b0078589",
+      "include_paths": ["src/core"],
+      "justification": "保留 ALEX header-only index 的核心 model、node、fanout 与 insertion/splitting 组件；排除benchmark、examples、测试数据及驱动。",
+      "excluded_roles": ["benchmarks", "examples", "tests", "CLI"],
+      "coverage_limitations": [
+        "当前 commit 不是 SIGMOD 2020 原论文实验 commit。",
+        "核心 gate 多为内部计数、bitmap offset、model slope；必须通过合法公开 API 操作序列间接触发，不能当作可直接写入的外部参数。",
+        "C++ lexical fallback 不解析完整模板、宏、跨 header 类型或函数作用域。"
+      ]
+    },
+    "flashattention2": {
+      "repository_commit": "87a1277653fc55cd615f5341255e00c69d5c00a1",
+      "include_paths": [
+        "csrc/flash_attn/flash_api.cpp",
+        "csrc/flash_attn/src/flash.h",
+        "csrc/flash_attn/src/flash_fwd_kernel.h",
+        "csrc/flash_attn/src/flash_fwd_launch_template.h",
+        "csrc/flash_attn/src/flash_bwd_kernel.h",
+        "csrc/flash_attn/src/flash_bwd_launch_template.h",
+        "csrc/flash_attn/src/flash_bwd_preprocess_kernel.h",
+        "csrc/flash_attn/src/block_info.h",
+        "csrc/flash_attn/src/kernel_traits.h",
+        "csrc/flash_attn/src/mask.h",
+        "csrc/flash_attn/src/softmax.h",
+        "csrc/flash_attn/src/utils.h",
+        "csrc/flash_attn/src/alibi.h",
+        "csrc/flash_attn/src/dropout.h",
+        "csrc/flash_attn/src/philox.cuh",
+        "flash_attn/flash_attn_interface.py"
+      ],
+      "justification": "固定 v2.5.5 中 FlashAttention API 和通用 forward/backward kernel、mask、softmax、launch、RNG 等库实现组件。采用文件级组件清单，以排除同目录的 generate_kernels.py 和无条件实例化的 generated CUDA stubs；清单按实现角色确定，不按目标 condition/行号选择。",
+      "excluded_roles": ["ft_attention", "xentropy", "linear and unrelated operators", "generate_kernels.py", "generated instantiation stubs", "benchmarks/tests/examples/CLI"],
+      "coverage_limitations": [
+        "v2.5.5 固定版本仍不保证等同 ICLR 2024 原论文实验 commit。",
+        "多条 gate 依赖 GPU block/thread index 或 compile-time flags；这些不是直接外部输入，需 shape/configuration 到 kernel state 的映射。",
+        "TORCH_CHECK 和 template/static-switch 宏的契约不由当前 if/while lexical scanner 完整提取，邻近合法 shape 约束仍需检查。"
+      ]
+    }
+  }
+}

@@ -1,0 +1,110 @@
+[
+  {
+    "proposal": {
+      "paper_term": "max_kv_fraction_per_layer",
+      "kind": "parameter",
+      "code_symbol": "max_num_kv",
+      "repo": "primary",
+      "path": "speedup/flexgen/infinigen/flex_opt.py",
+      "line_start": 269,
+      "line_end": 286,
+      "certain": false,
+      "rationale": "max_num_kv (default 400) caps the number of prefetched KV entries per layer in speculate_attention (min(int(mean), max_num_kv)). It is an absolute token count, not a fraction of total KV cache; the paper's 20% cap is expressed as a fraction, so units differ. Not a direct semantic match."
+    },
+    "reason": "Uncertain or nonnumeric/nonliteral scope mapping is inactive for solver"
+  },
+  {
+    "proposal": {
+      "paper_term": "kv_cache_pool_memory_limit",
+      "kind": "parameter",
+      "code_symbol": "capacity",
+      "repo": "primary",
+      "path": "accuracy/src/modeling_opt_ours.py",
+      "line_start": 164,
+      "line_end": 164,
+      "certain": false,
+      "rationale": "self.capacity (default 1.0) is the fraction of KV cache stored in CPU; store_max = int(src_len*capacity) drives eviction. Paper describes a user-defined memory size limit; capacity is a fraction, not a byte limit, so unit mismatch. Not a direct scalar match."
+    },
+    "reason": "Uncertain or nonnumeric/nonliteral scope mapping is inactive for solver"
+  },
+  {
+    "proposal": {
+      "schema_version": "0.1.0",
+      "binding_id": "infinigen-binding-004",
+      "artifact_id": "infinigen",
+      "paper_term": "victim_selection_policy",
+      "kind": "parameter",
+      "code_symbol": "eviction_policy",
+      "location": {
+        "file": "accuracy/src/modeling_opt_ours.py",
+        "line_start": 166,
+        "line_end": 166,
+        "function": null,
+        "snippet": null
+      },
+      "certain": true,
+      "rationale": "LLM-assisted static mapping, independent review pending. self.eviction_policy = \"counter\" default; kv_cache_mask branches on 'fifo','lru','counter' matching paper's three policies. Set from --eviction_policy in opt.py."
+    },
+    "reason": "Actual ScopeChecker ignores nonnumeric/free-text domains; do not activate an unconstrained or uncertain binding"
+  },
+  {
+    "proposal": {
+      "schema_version": "0.1.0",
+      "binding_id": "infinigen-binding-001",
+      "artifact_id": "infinigen",
+      "paper_term": "partial_weight_ratio",
+      "kind": "parameter",
+      "code_symbol": "partial_weight_ratio",
+      "location": {
+        "file": "speedup/flexgen/infinigen/flex_opt.py",
+        "line_start": 269,
+        "line_end": 290,
+        "function": null,
+        "snippet": null
+      },
+      "certain": true,
+      "rationale": "LLM-assisted static mapping, independent review pending. SelfAttention.__init__ takes partial_weight_ratio (default 0.2) and stores it as self.partial_weight_ratio for layers >1; passed to mha() which forwards to partial_weight_index_generation where it scales int(head_dim*ratio) top-k columns. Unit is fraction of columns, matching paper."
+    },
+    "reason": "Actual ScopeChecker ignores nonnumeric/free-text domains; do not activate an unconstrained or uncertain binding"
+  },
+  {
+    "proposal": {
+      "schema_version": "0.1.0",
+      "binding_id": "infinigen-binding-002",
+      "artifact_id": "infinigen",
+      "paper_term": "alpha_threshold",
+      "kind": "parameter",
+      "code_symbol": "alpha",
+      "location": {
+        "file": "speedup/flexgen/infinigen/flex_opt.py",
+        "line_start": 269,
+        "line_end": 285,
+        "function": null,
+        "snippet": null
+      },
+      "certain": true,
+      "rationale": "LLM-assisted static mapping, independent review pending. SelfAttention stores self.alpha (default 4) and passes it to mha_gen -> speculate_attention, where thr_ = max_ - alpha selects tokens. Matches paper's alpha threshold semantics."
+    },
+    "reason": "Actual ScopeChecker ignores nonnumeric/free-text domains; do not activate an unconstrained or uncertain binding"
+  },
+  {
+    "proposal": {
+      "schema_version": "0.1.0",
+      "binding_id": "infinigen-binding-006",
+      "artifact_id": "infinigen",
+      "paper_term": "speculation_start_layer",
+      "kind": "parameter",
+      "code_symbol": "layer_id",
+      "location": {
+        "file": "speedup/flexgen/infinigen/flex_opt.py",
+        "line_start": 287,
+        "line_end": 290,
+        "function": null,
+        "snippet": null
+      },
+      "certain": true,
+      "rationale": "LLM-assisted static mapping, independent review pending. Condition `if self.layer_id > 1` enables partial_weight_ratio (speculation) only for layers after layer 1, matching paper's 'initiates speculation from Layer 1' (0-indexed layer 1)."
+    },
+    "reason": "Actual ScopeChecker ignores nonnumeric/free-text domains; do not activate an unconstrained or uncertain binding"
+  }
+]
