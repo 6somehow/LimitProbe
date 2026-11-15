@@ -50,7 +50,7 @@
 
 | 来源 | p1 | p2 | p3 | 合计 |
 |---|---|---|---|---|
-| 代码侧 | 19 | 22 | 9 | 50 |
+| 代码侧 | 14 | 21 | 15 | 50 |
 | 论文侧 | 0 | 15 | 8 | 23 |
 | 两侧合并 | 0 | 0 | 0 | 0 |
 
@@ -58,7 +58,7 @@
 
 | 来源 | reject | path_change | state | accuracy | resource | performance | other | 合计 |
 |---|---|---|---|---|---|---|---|---|
-| 代码侧 | 15 | 23 | 5 | 0 | 0 | 0 | 7 | 50 |
+| 代码侧 | 11 | 22 | 4 | 0 | 0 | 0 | 13 | 50 |
 | 论文侧 | 0 | 0 | 0 | 0 | 0 | 0 | 23 | 23 |
 | 两侧合并 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 
@@ -112,12 +112,26 @@
 | solved_contrast_outside_scope | contrast 只能取在论文 scope 外 | 同上，注意 contrast 不在论文范围内 |
 | trigger_only | 条件在路径上总是成立，没有对照点 | 只用 trigger |
 | always | 论文侧：每次走到引用代码都会出现 | 任意走到 `code_locations` 的输入 |
-| infeasible | 条件和路径前缀矛盾，从入口很可能走不到 | 已降为 p3；可能是误报 |
+| infeasible | 条件和路径前缀矛盾，从入口走不到。`infeasible_because: call_chain` 表示是把被调函数的名字换成入口函数的名字之后才矛盾的（见下面“调用链”） | 已降为 p3，不用花预算 |
 | no_condition | 论文侧：没有可用条件 | 读 `note` 和 summary，人工判断 |
 | untranslatable / unknown | 条件翻译不了 / 求解超时 | 读 condition 原文 |
 
+调用链（`call_chain_status`）：
+
+| 值 | 意思 |
+|---|---|
+| resolved | `call_chain` 是从入口函数到目标所在函数的真实调用链（入口在前）。`call_sites` 逐层给出调用所在行、解析方式（`resolved_by`）和参数对应 `args`（被调函数的形参 -> 调用者里的表达式） |
+| entry_is_target | 目标就在入口函数里 |
+| module_level | 目标是模块级语句，import 时执行，没有调用链 |
+| not_found | 静态分析找不到从入口到目标的调用链（动态分发、回调，或目标不在入口的路径上）。有 `calls_entry` 时表示这个函数是调用入口的一方（如框架集成），要直接驱动它 |
+
+- `uncertain_steps` 列出靠猜解析的调用（方法名在仓库里唯一、子类覆盖、嵌套函数被传出去）。
+- `other_chains` 是其它调用链（例如同一个函数有两个调用点）。
+- `entry_terms`：条件和路径前缀换成入口函数名字后的写法，以及每个名字对应的入口表达式（如 `d` -> `k.shape[3]`）。有它时 `aliases` 也是用入口函数的名字写的。
+
 已知不足：
-- `path_prefix` 混着调用链上各层函数的条件。同一个名字在调用者和被调用者里可能不是同一个东西（例如两层里的 `q`）。所以别名只在单层时参与求解，其余只列在 `aliases_not_applied` 里。
+- 没有调用链（not_found）时，`path_prefix` 仍混着各层函数的条件，同一个名字在调用者和被调用者里可能不是同一个东西。这时别名只在单层时参与求解，其余只列在 `aliases_not_applied` 里。
+- 多行语句的 `snippet` 是 `ast.unparse` 后的第一行：并成一行、去掉 assert 消息、去掉多余括号，最多 200 字符。请按解析后的条件比较，不要逐字比较。
 - 论文侧条件由 LLM 写出，只核对过“名字都出现在引用的代码里”，**语义不一定对**，要当提示用。
 - 所有值都没有实际执行验证过。
 
@@ -136,132 +150,75 @@
 
 每个例子是一条 Finding 的精简版，长字段已截断；完整内容在 json 里。例子是按规则自动挑的第一条，不是挑好看的。“论文侧 · LLM 写出条件”那条正好说明了它的局限：条件在形式上能解，但不一定抓住了论文差异的本质，所以论文侧条件只当提示用。
 
-### 代码侧 · undisclosed · p1 · 有别名：`minference-F010`
+### 代码侧 · state（事件序列）：`minference-F003`
 
 ```json
 {
- "finding_id": "minference-F010",
- "category": "undisclosed",
- "priority": 1,
- "effect_type": "reject",
- "scope_status": "unknown",
- "review": "unreviewed",
- "summary": "When not (Lq == Lk and Lk == Lv): AssertionError (minference/ops/block_sparse_flash_attention.py:126)",
- "witness_hint": {
-  "kind": "input_value",
-  "status": "solved",
-  "condition": "not (Lq == Lk and Lk == Lv)",
-  "path_prefix": [],
-  "aliases": {
-   "Lq": "q.shape[-1]",
-   "Lk": "k.shape[-1]",
-   "Lv": "v.shape[-1]"
-  },
-  "trigger": {
-   "Lq": 2,
-   "Lk": 2,
-   "Lv": 1,
-   "q.shape[-1]": 2,
-   "k.shape[-1]": 2,
-   "v.shape[-1]": 1
-  },
-  "contrast": {
-   "Lq": 2,
-   "Lk": 2,
-   "Lv": 2,
-   "q.shape[-1]": 2,
-   "k.shape[-1]": 2,
-   "v.shape[-1]": 2
-  },
-  "atoms": {
-   "Lk": {
-    "kind": "local",
-    "sort": "int"
-   },
-   "Lq": {
-    "kind": "local",
-    "sort": "int"
-   },
-   "Lv": {
-    "kind": "local",
-    "sort": "int"
-   },
-   "k.shape[-1]": {
-    "kind": "derived",
-    "sort": "int"
-   },
-   "q.shape[-1]": {
-    "kind": "derived",
-    "sort": "int"
-   },
-   "v.shape[-1]": {
-    "kind": "derived",
-    "sort": "int"
-   }
-  },
-  "location": "minference/ops/block_sparse_flash_attention.py:126"
- },
- "limitations": [
-  {
-   "limitation_id": "CL-X003",
-   "origin": "code",
-   "condition_text": "not (Lq == Lk and Lk == Lv)",
-   "effect_text": "AssertionError",
-   "code_evidence": [
-    "minference/ops/block_sparse_flash_attention.py:126-126"
-   ],
-   "paper_quote": null
-  }
- ],
- "verifications": [
-  {
-   "result": "not_found",
-   "documented_in": [],
-   "quote": null
-  }
- ],
- "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it"
-}
-```
-
-### 代码侧 · state（事件序列）：`minference-F002`
-
-```json
-{
- "finding_id": "minference-F002",
+ "finding_id": "minference-F003",
  "category": "undisclosed",
  "priority": 1,
  "effect_type": "state",
  "scope_status": "unknown",
- "review": "real_but_minor",
- "summary": "When ROPE_TYPE is not None: `ROPE_TYPE` is a module-level global computed once from the *first* attention module's `rotary_emb.forward` signature and then reused for every model/layer in the process (`if ROPE_TYPE is not None: return`). Loading a second model with a different RoPE signature in the same process keeps the first model's convention, and `get_cos_sin` then calls `self.rotary_emb` wi...",
+ "review": "unreviewed",
+ "summary": "When SEARCH_MASK is None  # first call only: module-level cache initialised on first call and reused (minference/modules/minference_forward.py:165)",
  "witness_hint": {
   "kind": "event_sequence",
   "status": "solved",
-  "condition": "ROPE_TYPE is not None",
-  "path_prefix": [],
+  "condition": "SEARCH_MASK is None  # first call only",
+  "path_prefix": [
+   "q_len != 1",
+   "self.is_search"
+  ],
+  "entry_terms": {
+   "path_prefix": {
+    "q_len != 1": "hidden_states.size()[1] != 1"
+   }
+  },
   "trigger": {
-   "ROPE_TYPE is None": false
+   "SEARCH_MASK is None": true,
+   "q_len": 2,
+   "self.is_search": true,
+   "hidden_states.size()[1]": 2
   },
   "contrast": {
-   "ROPE_TYPE is None": true
+   "SEARCH_MASK is None": false,
+   "q_len": 2,
+   "self.is_search": true,
+   "hidden_states.size()[1]": 2
   },
   "atoms": {
-   "ROPE_TYPE is None": {
+   "SEARCH_MASK is None": {
+    "kind": "predicate",
+    "sort": "bool"
+   },
+   "hidden_states.size()[1]": {
+    "kind": "derived",
+    "sort": "int"
+   },
+   "q_len": {
+    "kind": "input",
+    "sort": "int"
+   },
+   "self.is_search": {
     "kind": "predicate",
     "sort": "bool"
    }
   },
-  "location": "minference/modules/minference_forward.py:30"
+  "call_chain_status": "resolved",
+  "call_chain": [
+   "minference/modules/minference_forward.py::minference_forward.forward",
+   "minference/modules/minference_forward.py::search_pattern"
+  ],
+  "location": "minference/modules/minference_forward.py:165-172"
  },
  "limitations": [
   {
-   "limitation_id": "CL-B003",
+   "limitation_id": "CL-X011",
    "origin": "code",
-   "condition_text": "ROPE_TYPE is not None",
-   "effect_text": "`ROPE_TYPE` is a module-level global computed once from the *first* attention module's `rotary_emb.forward` signature and then reused for every model/layer in …",
+   "condition_text": "SEARCH_MASK is None # first call only",
+   "effect_text": "module-level cache initialised on first call and reused",
    "code_evidence": [
-    "minference/modules/minference_forward.py:30-30"
+    "minference/modules/minference_forward.py:165-172"
    ],
    "paper_quote": null
   }
@@ -273,7 +230,7 @@
    "quote": null
   }
  ],
- "rationale": "3b: not_found; priority 1: undisclosed, state effect, witness reaches it"
+ "rationale": "3b: not_found; priority 1: undisclosed, state effect, witness reaches it; related (candidate pair, judged different): minference-F043, minference-F044, minference-F045, minference-F050, minference-F051, minference-F052, minference-F053, minference-F054, minference-F069, minference-F070, minference-…"
 }
 ```
 
@@ -298,6 +255,7 @@
    "minference/modules/minference_forward.py:99-197"
   ],
   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The A-shape candidate set is hardcoded in search_pattern (vertical_size/slash_size derived from fixed values li…",
+  "call_chain_status": "not_found",
   "location": "experiments/README.md:13-30"
  },
  "limitations": [
@@ -393,6 +351,7 @@
    "csrc/kernels.cpp:7-18"
   ],
   "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+  "call_chain_status": "not_found",
   "location": "csrc/vertical_slash_index.cu:27-99"
  },
  "limitations": [
@@ -446,6 +405,7 @@
    "experiments/infinite_bench/args.py:60-81"
   ],
   "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+  "call_chain_status": "not_found",
   "location": "experiments/README.md:13-30"
  },
  "limitations": [
@@ -487,6 +447,11 @@
    "minference/modules/minference_forward.py:199-246"
   ],
   "note": "LLM gave no usable condition: names not in the cited code: is_search",
+  "call_chain_status": "resolved",
+  "call_chain": [
+   "minference/modules/minference_forward.py::minference_forward.forward",
+   "minference/modules/minference_forward.py::search_pattern"
+  ],
   "location": "minference/modules/minference_forward.py:99-197"
  },
  "limitations": [
@@ -527,14 +492,10 @@
 | ID | 侧 | 类别 | P | effect | witness | 审 | 位置 | 内容 |
 |---|---|---|---|---|---|---|---|---|
 | F001 | 代 | undisclosed | 1 | reject | solved |  | `minference/minference_configuration.py:56` | When config_path is None and model_name not in MODEL2PATH: If no `config_path` is given, the model … |
-| F002 | 代 | undisclosed | 1 | state | solved | ~ | `minference/modules/minference_forward.py:30` | When ROPE_TYPE is not None: `ROPE_TYPE` is a module-level global computed once from the *first* att… |
 | F003 | 代 | undisclosed | 1 | state | solved |  | `minference/modules/minference_forward.py:165-172` | When SEARCH_MASK is None # first call only: module-level cache initialised on first call and reused |
 | F004 | 代 | undisclosed | 1 | state | solved |  | `minference/modules/minference_forward.py:390` | When "vs" in self.__dict__: Static pattern reuses vertical_topk/slash cached in self.vs from an ear… |
-| F005 | 代 | undisclosed | 1 | reject | solved |  | `minference/modules/minference_forward.py:441` | When ty not in {"stream_llm", "vertical_and_slash", "block_sparse"}: The implementation is chosen b… |
 | F006 | 代 | undisclosed | 1 | reject | trigger_only |  | `minference/modules/minference_forward.py:484-488` | When True: raise ValueError(f'The cache structure has changed since version v4.36. If you are using… |
-| F007 | 代 | undisclosed | 1 | reject | solved | ✓ | `minference/modules/minference_forward.py:504` | When self.is_search and os.path.exists(self.config_path) and self.layer_idx < len(config_list): Wit… |
 | F008 | 代 | undisclosed | 1 | state | solved |  | `minference/modules/minference_forward.py:681` | When key_states.shape[-2] != kv_seq_len: Whether SnapKV compression runs depends on `self.kv_seq_le… |
-| F009 | 代 | undisclosed | 1 | reject | solved |  | `minference/modules/minference_forward.py:754` | When head_id not in self.best_pattern: The vLLM variant indexes `self.best_pattern[head_id]` direct… |
 | F010 | 代 | undisclosed | 1 | reject | solved |  | `minference/ops/block_sparse_flash_attention.py:126` | When not (Lq == Lk and Lk == Lv): AssertionError |
 | F011 | 代 | undisclosed | 1 | reject | solved |  | `minference/ops/block_sparse_flash_attention.py:127` | When not (Lk in {16, 32, 64, 128}): AssertionError |
 | F012 | 代 | undisclosed | 1 | reject | solved |  | `minference/ops/pit_sparse_flash_attention_v2.py:149` | When not (Lq == Lk and Lk == Lv): AssertionError |
@@ -543,7 +504,6 @@
 | F015 | 代 | undisclosed | 1 | reject | solved |  | `minference/ops/streaming_kernel.py:605` | When not (q.dim() == 4): AssertionError |
 | F016 | 代 | undisclosed | 1 | reject | solved |  | `minference/ops/streaming_kernel.py:606` | When not (q.shape == k.shape == v.shape): AssertionError |
 | F017 | 代 | undisclosed | 1 | reject | solved |  | `minference/patch.py:207` | When output_attentions: If the caller requests attention outputs, execution is aborted by the asser… |
-| F018 | 代 | undisclosed | 1 | reject | solved |  | `minference/patch.py:1252` | When not isinstance(model, |
 | F019 | 代 | undisclosed | 1 | reject | solved | ~ | `minference/patch.py:1253` | When not |
 | F020 | 代 | undisclosed | 2 | path_change | solved | ✓ | `minference/minference_configuration.py:52` | When self.attn_type in self.STASTIC_ATTENTION_TYPES: For any `attn_type` in `STASTIC_ATTENTION_TYPE… |
 | F021 | 代 | undisclosed | 2 | path_change | solved | ✓ | `minference/modules/minference_forward.py:63` | When not (self.config_path is not None and os.path.exists(self.config_path) and self.layer_idx < le… |
@@ -561,7 +521,6 @@
 | F033 | 代 | undisclosed | 2 | path_change | solved | ✓ | `minference/modules/minference_forward.py:864` | When kv_cache is None or prefill_meta.block_tables.numel() == 0: Only when there is no KV cache or … |
 | F034 | 代 | undisclosed | 2 | path_change | solved | ~ | `minference/modules/snap_kv.py:321` | When q_len < self.max_capacity_prompt: When the prompt length is below max_capacity_prompt, update_… |
 | F035 | 代 | undisclosed | 2 | path_change | solved |  | `minference/modules/snap_kv.py:347` | When self.pooling == "avgpool": The pooling attribute (set from config.pooling in init_snapkv) sele… |
-| F036 | 代 | undisclosed | 2 | path_change | solved | ~ | `minference/ops/block_sparse_flash_attention.py:130` | When q.dtype != torch.bfloat16: The Triton kernel's compute dtype is chosen from the input dtype: b… |
 | F037 | 代 | undisclosed | 2 | path_change | solved | ~ | `minference/ops/streaming_kernel.py:609` | When head_dim not in [16, 32, 64, 128, 256, 512]: For head dimensions not in the hard-coded list, q… |
 | F038 | 代 | undisclosed | 2 | path_change | solved | ~ | `minference/ops/streaming_kernel.py:620` | When k_len > n_local: The streaming (StreamingLLM) variant only keeps the `n_init` sink tokens when… |
 | F039 | 代 | undisclosed | 2 | path_change | solved | ~ | `minference/ops/streaming_kernel.py:701` | When len_k <= n_local + n_init: The KV cache kept for subsequent decoding is either the full h_k/h_… |
@@ -582,15 +541,21 @@
 | F054 | 论 | impl_deviates | 2 | other | always |  | `minference/modules/minference_forward.py:99-197` | 论文要求空集初始化；代码以数值 0 与空字符串初始化，且该初值使负分候选永不被选 |
 | F055 | 论 | impl_deviates | 2 | other | always |  | `minference/modules/minference_forward.py:199-246` | 论文要求最小化 t_sparse(M)+t_overhead(M)；artifact 执行路径未实现该时间目标。 |
 | F056 | 论 | impl_deviates | 2 | other | always |  | `minference/ops/block_sparse_flash_attention.py:150-165` | 论文要求块级 logits 先 softmax（并除 √d）得 Â；代码省略 softmax 与缩放，仅用因果掩码后的原始点积排序（artifact 范围：无 softmax/√d 的块级注意力矩阵） |
+| F002 | 代 | undisclosed | 3 | other | solved | ~ | `minference/modules/minference_forward.py:30` | When ROPE_TYPE is not None: `ROPE_TYPE` is a module-level global computed once from the *first* att… |
 | F057 | 代 | undisclosed | 3 | other | solved | ~ | `minference/modules/minference_forward.py:34` | When "seq_len" in inspect.signature(self.rotary_emb.forward).parameters: ROPE_TYPE is chosen by int… |
 | F058 | 代 | undisclosed | 3 | state | solved | ✗ | `minference/modules/minference_forward.py:74` | When "apply_rotary_pos_emb" not in self.__dict__: `apply_rotary_pos_emb` is rebound as a module-lev… |
 | F059 | 代 | undisclosed | 3 | other | solved | ✓ | `minference/modules/minference_forward.py:194` | When best_ty == "block_sparse": If block_sparse wins, it is replaced by hard-coded vertical_and_sla… |
 | F060 | 代 | undisclosed | 3 | other | solved | ✓ | `minference/modules/minference_forward.py:430` | When head_id not in self.best_pattern: When the per-layer pattern file |
+| F005 | 代 | undisclosed | 3 | other | solved |  | `minference/modules/minference_forward.py:441` | When ty not in {"stream_llm", "vertical_and_slash", "block_sparse"}: The implementation is chosen b… |
+| F007 | 代 | undisclosed | 3 | other | solved | ✓ | `minference/modules/minference_forward.py:504` | When self.is_search and os.path.exists(self.config_path) and self.layer_idx < len(config_list): Wit… |
 | F061 | 代 | undisclosed | 3 | other | solved |  | `minference/modules/minference_forward.py:523` | When is_flash_attn_2_available(): When the sparse path is not taken, availability of flash-attn 2 d… |
 | F062 | 代 | undisclosed | 3 | other | solved |  | `minference/modules/minference_forward.py:526` | When not (is_flash_attn_2_available()): attn_output = gather_qkv(q, k, v, attention_mask) |
+| F009 | 代 | undisclosed | 3 | other | solved |  | `minference/modules/minference_forward.py:754` | When head_id not in self.best_pattern: The vLLM variant indexes `self.best_pattern[head_id]` direct… |
+| F036 | 代 | undisclosed | 3 | other | solved | ~ | `minference/ops/block_sparse_flash_attention.py:130` | When q.dtype != torch.bfloat16: The Triton kernel's compute dtype is chosen from the input dtype: b… |
 | F063 | 代 | undisclosed | 3 | other | solved | ~ | `minference/ops/block_sparse_flash_attention.py:164` | When top_k > context_size // block_size_N: The requested `top_k` (derived from the searched `slash_… |
 | F064 | 代 | undisclosed | 3 | other | solved |  | `minference/ops/pit_sparse_flash_attention.py:150` | When q.dtype != torch.bfloat16: Any query dtype other than bfloat16 (float32, float64, float16 is f… |
 | F065 | 代 | undisclosed | 3 | path_change | solved | ✗ | `minference/ops/pit_sparse_flash_attention_v2.py:188` | When head_dim not in [16, 32, 64, 128, 256, 512]: For head dims outside the power-of-two list |
+| F018 | 代 | undisclosed | 3 | other | solved |  | `minference/patch.py:1252` | When not isinstance(model, |
 | F066 | 论 | not_implemented | 3 | other | solved |  | `experiments/README.md:13-30` | 实验入口未暴露或设定步长50 |
 | F067 | 论 | not_implemented | 3 | other | always |  | `experiments/infinite_bench/args.py:63-78` | 无变体配置，无法复现Table7的only vertical行。 |
 | F068 | 论 | not_implemented | 3 | other | solved |  | `experiments/infinite_bench/args.py:63-78` | 无换算配置入口。 |

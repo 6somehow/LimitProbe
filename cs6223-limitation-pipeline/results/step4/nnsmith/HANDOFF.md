@@ -50,17 +50,17 @@
 
 | 来源 | p1 | p2 | p3 | 合计 |
 |---|---|---|---|---|
-| 代码侧 | 7 | 18 | 8 | 33 |
+| 代码侧 | 3 | 14 | 16 | 33 |
 | 论文侧 | 0 | 3 | 0 | 3 |
-| 两侧合并 | 1 | 1 | 0 | 2 |
+| 两侧合并 | 0 | 2 | 0 | 2 |
 
 按 effect_type：
 
 | 来源 | reject | path_change | state | accuracy | resource | performance | other | 合计 |
 |---|---|---|---|---|---|---|---|---|
-| 代码侧 | 7 | 25 | 0 | 0 | 0 | 0 | 1 | 33 |
+| 代码侧 | 3 | 19 | 0 | 0 | 0 | 0 | 11 | 33 |
 | 论文侧 | 0 | 0 | 0 | 0 | 0 | 0 | 3 | 3 |
-| 两侧合并 | 1 | 0 | 0 | 0 | 0 | 0 | 1 | 2 |
+| 两侧合并 | 0 | 0 | 0 | 0 | 0 | 0 | 2 | 2 |
 
 按 witness 状态：
 
@@ -74,7 +74,7 @@
 
 | 来源 | worth_testing | real_but_minor | wrong | unreviewed | 合计 |
 |---|---|---|---|---|---|
-| 代码侧 | 6 | 6 | 8 | 13 | 33 |
+| 代码侧 | 6 | 5 | 8 | 14 | 33 |
 | 论文侧 | 0 | 0 | 0 | 3 | 3 |
 | 两侧合并 | 1 | 0 | 0 | 1 | 2 |
 
@@ -112,12 +112,26 @@
 | solved_contrast_outside_scope | contrast 只能取在论文 scope 外 | 同上，注意 contrast 不在论文范围内 |
 | trigger_only | 条件在路径上总是成立，没有对照点 | 只用 trigger |
 | always | 论文侧：每次走到引用代码都会出现 | 任意走到 `code_locations` 的输入 |
-| infeasible | 条件和路径前缀矛盾，从入口很可能走不到 | 已降为 p3；可能是误报 |
+| infeasible | 条件和路径前缀矛盾，从入口走不到。`infeasible_because: call_chain` 表示是把被调函数的名字换成入口函数的名字之后才矛盾的（见下面“调用链”） | 已降为 p3，不用花预算 |
 | no_condition | 论文侧：没有可用条件 | 读 `note` 和 summary，人工判断 |
 | untranslatable / unknown | 条件翻译不了 / 求解超时 | 读 condition 原文 |
 
+调用链（`call_chain_status`）：
+
+| 值 | 意思 |
+|---|---|
+| resolved | `call_chain` 是从入口函数到目标所在函数的真实调用链（入口在前）。`call_sites` 逐层给出调用所在行、解析方式（`resolved_by`）和参数对应 `args`（被调函数的形参 -> 调用者里的表达式） |
+| entry_is_target | 目标就在入口函数里 |
+| module_level | 目标是模块级语句，import 时执行，没有调用链 |
+| not_found | 静态分析找不到从入口到目标的调用链（动态分发、回调，或目标不在入口的路径上）。有 `calls_entry` 时表示这个函数是调用入口的一方（如框架集成），要直接驱动它 |
+
+- `uncertain_steps` 列出靠猜解析的调用（方法名在仓库里唯一、子类覆盖、嵌套函数被传出去）。
+- `other_chains` 是其它调用链（例如同一个函数有两个调用点）。
+- `entry_terms`：条件和路径前缀换成入口函数名字后的写法，以及每个名字对应的入口表达式（如 `d` -> `k.shape[3]`）。有它时 `aliases` 也是用入口函数的名字写的。
+
 已知不足：
-- `path_prefix` 混着调用链上各层函数的条件。同一个名字在调用者和被调用者里可能不是同一个东西（例如两层里的 `q`）。所以别名只在单层时参与求解，其余只列在 `aliases_not_applied` 里。
+- 没有调用链（not_found）时，`path_prefix` 仍混着各层函数的条件，同一个名字在调用者和被调用者里可能不是同一个东西。这时别名只在单层时参与求解，其余只列在 `aliases_not_applied` 里。
+- 多行语句的 `snippet` 是 `ast.unparse` 后的第一行：并成一行、去掉 assert 消息、去掉多余括号，最多 200 字符。请按解析后的条件比较，不要逐字比较。
 - 论文侧条件由 LLM 写出，只核对过“名字都出现在引用的代码里”，**语义不一定对**，要当提示用。
 - 所有值都没有实际执行验证过。
 
@@ -170,6 +184,12 @@
     "sort": "int"
    }
   },
+  "call_chain_status": "resolved",
+  "call_chain": [
+   "nnsmith/graph_gen.py::random_model_gen",
+   "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+   "nnsmith/graph_gen.py::SimpleGenerator.try_insert_node_type"
+  ],
   "location": "nnsmith/graph_gen.py:556"
  },
  "limitations": [
@@ -203,8 +223,8 @@
 {
  "finding_id": "nnsmith-F006",
  "category": "undisclosed",
- "priority": 1,
- "effect_type": "reject",
+ "priority": 2,
+ "effect_type": "other",
  "scope_status": "unknown",
  "review": "worth_testing",
  "summary": "When p.grad is not None and torch.any(p.grad != 0): If all parameter gradients are zero, ConstraintCheck.true(nonzero, ...) raises, aborting the backward step ('Gradients are all zero. Cannot make progress.'). (nnsmith/materialize/torch/symbolnet.py:188)",
@@ -231,6 +251,13 @@
     "sort": "bool"
    }
   },
+  "call_chain_status": "resolved",
+  "call_chain": [
+   "nnsmith/materialize/torch/input_gen.py::PracticalHybridSearch.search_one",
+   "nnsmith/materialize/torch/input_gen.py::GradSearch.search_one",
+   "nnsmith/materialize/torch/symbolnet.py::SymbolNet.grad_input_gen",
+   "nnsmith/materialize/torch/symbolnet.py::SymbolNet.backward"
+  ],
   "location": "nnsmith/materialize/torch/symbolnet.py:188"
  },
  "limitations": [
@@ -291,7 +318,7 @@
    "quote": null
   }
  ],
- "rationale": "3b: not_found; merged (LLM: same issue): CL-B029, nnsmith-gap-M08-B06, nnsmith-gap-M08-B08; paper side also reports: impl_deviates; priority 1: undisclosed, reject effect, witness reaches it; related (candidate pair, judged different): nnsmith-F024, nnsmith-F025"
+ "rationale": "3b: not_found; merged (LLM: same issue): CL-B029, nnsmith-gap-M08-B06, nnsmith-gap-M08-B08; paper side also reports: impl_deviates; priority 2: impl_deviates; related (candidate pair, judged different): nnsmith-F024, nnsmith-F025"
 }
 ```
 
@@ -334,6 +361,10 @@
    "nnsmith/graph_gen.py:50-70"
   ],
   "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+  "call_chain_status": "module_level",
+  "call_chain": [
+   "nnsmith/abstract/op.py::<module>"
+  ],
   "location": "nnsmith/abstract/op.py:1053-1080"
  },
  "limitations": [
@@ -363,40 +394,40 @@
 | ID | 侧 | 类别 | P | effect | witness | 审 | 位置 | 内容 |
 |---|---|---|---|---|---|---|---|---|
 | F001 | 代 | undisclosed | 1 | reject | trigger_only | ~ | `nnsmith/abstract/op.py:1563` | When gres_config not in ("3", "4", "5"): An unrecognized NNSMITH_GRES environment value causes a Va… |
-| F002 | 代 | undisclosed | 1 | reject | solved |  | `nnsmith/abstract/op.py:2083` | When not check_sat(): If the requested output rank cannot be satisfied by the rank-increment loop (… |
-| F003 | 代 | undisclosed | 1 | reject | solved | ~ | `nnsmith/cli/fuzz.py:179` | When isinstance(e, InternalError): InternalError from make_testcase is propagated, aborting the fuz… |
+| F003 | 代 | undisclosed | 1 | reject | solved |  | `nnsmith/cli/fuzz.py:180` | When isinstance(e, InternalError): InternalError from make_testcase is propagated, aborting the fuz… |
 | F004 | 代 | contradicts_docs | 1 | reject | solved |  | `nnsmith/graph_gen.py:260` | When self.check_sat() != z3.sat: After adding the memory-limit constraint, an unsatisfiable (or unk… |
-| F005 | 代 | undisclosed | 1 | reject | solved | ~ | `nnsmith/graph_gen.py:524` | When isinstance(op, Expand) and oshape.ndims < op.expand_last_dim: Placeholder shapes with fewer di… |
-| F006 | 合 | undisclosed | 1 | reject | solved | ✓ | `nnsmith/materialize/torch/symbolnet.py:188` | When p.grad is not None and torch.any(p.grad != 0): If all parameter gradients are zero, Constraint… |
-| F007 | 代 | undisclosed | 1 | reject | solved | ✓ | `nnsmith/materialize/torch/symbolnet.py:385` | When loss_fn.dispatch(type(op)) is not None: If an op produces NaN/Inf but has no registered loss f… |
-| F008 | 代 | undisclosed | 1 | reject | solved |  | `nnsmith/materialize/torch/symbolnet.py:421` | When self.loss is not None: If two vulnerable ops both produce NaN/Inf in the same forward pass, th… |
 | F009 | 代 | undisclosed | 2 | path_change | solved | ~ | `nnsmith/abstract/arith.py:74` | When carry and max(left_size, right_size) >= ARITH_MAX_WIDTH: For addition, the extra carry bit is … |
 | F010 | 代 | undisclosed | 2 | path_change | solved | ~ | `nnsmith/abstract/arith.py:79` | When mult and (right.size() + left.size()) >= ARITH_MAX_WIDTH: For multiplication, when the combine… |
 | F011 | 代 | undisclosed | 2 | path_change | solved |  | `nnsmith/abstract/op.py:25` | When FLOPS_LIM == "off": Setting NNSMITH_FLOPS_LIM=off sets FLOPS_LIM to None, disabling the FLOPs … |
 | F012 | 代 | undisclosed | 2 | path_change | solved | ✓ | `nnsmith/abstract/op.py:910` | When Z3_CONS_FLOPS: A module-level flag decides whether the FLOPS upper-bound constraint is added t… |
-| F013 | 代 | undisclosed | 2 | path_change | solved |  | `nnsmith/abstract/op.py:1552` | When gres_config != "4": The environment variable NNSMITH_GRES selects the reshape grouping strateg… |
 | F014 | 代 | undisclosed | 2 | path_change | solved | ✓ | `nnsmith/abstract/op.py:1587` | When os.getenv("NNSMITH_CONS_RESHAPE", "off") != "off": The environment variable NNSMITH_CONS_RESHA… |
 | F015 | 代 | undisclosed | 2 | path_change | solved |  | `nnsmith/cli/fuzz.py:60` | When not self.crash_safe and self.test_timeout is not None: Setting fuzz.test_timeout without crash… |
 | F016 | 代 | undisclosed | 2 | path_change | solved |  | `nnsmith/cli/model_gen.py:31` | When cfg["backend"]["type"] is not None: A caller-supplied backend type decides whether a BackendFa… |
 | F017 | 代 | undisclosed | 2 | path_change | solved | ✓ | `nnsmith/graph_gen.py:256` | When NNSMITH_LIMNF_V == "0": Branches the memory-limit constraint: v0 adds nnsmith_le(self.n_floats… |
-| F018 | 代 | undisclosed | 2 | path_change | solved |  | `nnsmith/graph_gen.py:259` | When NNSMITH_LIMNF_V == "1": With NNSMITH_LIMNF_V=1 the per-op float-count constraints accumulated … |
+| F018 | 代 | undisclosed | 2 | path_change | solved |  | `nnsmith/graph_gen.py:258` | When NNSMITH_LIMNF_V == "1": With NNSMITH_LIMNF_V=1 the per-op float-count constraints accumulated … |
 | F019 | 代 | stated_differently | 2 | path_change | solved | ~ | `nnsmith/graph_gen.py:556` | When random.uniform(0, 1) < self.forward_prob: A caller-configured forward_prob attribute decides w… |
 | F020 | 代 | undisclosed | 2 | path_change | solved |  | `nnsmith/graph_gen.py:944` | When idx in disable: For each reshape group, one randomly chosen destination dimension is disabled … |
 | F021 | 代 | undisclosed | 2 | path_change | solved | ✓ | `nnsmith/materialize/torch/__init__.py:47` | When self.sat_inputs is None: When no satisfying inputs were found (sat_inputs is None), make_oracl… |
 | F022 | 代 | undisclosed | 2 | path_change | solved |  | `nnsmith/materialize/torch/input_gen.py:93` | When all([DType.is_float(v.dtype) for _, v in self.net.input_like.items()]): Whether all model inpu… |
-| F023 | 代 | undisclosed | 2 | path_change | solved |  | `nnsmith/materialize/torch/input_gen.py:98` | When self.differentiable is False: The variant is decided by a single probe forward pass on random … |
+| F006 | 合 | undisclosed | 2 | other | solved | ✓ | `nnsmith/materialize/torch/symbolnet.py:188` | When p.grad is not None and torch.any(p.grad != 0): If all parameter gradients are zero, Constraint… |
 | F024 | 合 | undisclosed | 2 | other | solved |  | `nnsmith/materialize/torch/symbolnet.py:234` | When max_time is None: The gradient-based input search budget is taken from the environment (NNSMIT… |
 | F025 | 代 | undisclosed | 2 | path_change | solved | ✓ | `nnsmith/materialize/torch/symbolnet.py:238` | When tensor.data.dtype.is_floating_point: Only floating-point input tensors are wrapped as trainabl… |
-| F026 | 代 | undisclosed | 2 | path_change | solved |  | `nnsmith/materialize/torch/symbolnet.py:358` | When output_tensors[i].grad_fn is None: `differentiable` is reset to True at the start of every for… |
-| F027 | 代 | undisclosed | 2 | path_change | solved |  | `nnsmith/materialize/torch/symbolnet.py:403` | When vul_op_loss is None: When an op produces NaN/Inf but has no registered loss function (`loss_fn… |
 | F028 | 论 | impl_deviates | 2 | other | solved |  | `nnsmith/abstract/op.py:1053-1080` | artifact 路径不存在 pad 的 0 箱/负箱特化 |
 | F029 | 论 | impl_deviates | 2 | other | always |  | `nnsmith/abstract/op.py:1332-1360` | artifact 路径不存在 Conv2d padding 的 0 箱特化 |
 | F030 | 论 | impl_deviates | 2 | other | solved |  | `nnsmith/graph_gen.py:1029-1058` | 论文要求每轮随机选一半；代码仅首轮随机，后续轮固定丢弃后半段 |
-| F031 | 代 | undisclosed | 3 | path_change | solved | ✗ | `nnsmith/graph_gen.py:190` | When int(os.getenv("NNSMITH_BITS", 30)) != 30: The number of bits used to split the integer-domain … |
+| F013 | 代 | undisclosed | 3 | other | solved |  | `nnsmith/abstract/op.py:1552` | When gres_config != "4": The environment variable NNSMITH_GRES selects the reshape grouping strateg… |
+| F002 | 代 | undisclosed | 3 | other | solved |  | `nnsmith/abstract/op.py:2083` | When not check_sat(): If the requested output rank cannot be satisfied by the rank-increment loop (… |
+| F031 | 代 | undisclosed | 3 | other | solved | ✗ | `nnsmith/graph_gen.py:190` | When int(os.getenv("NNSMITH_BITS", 30)) != 30: The number of bits used to split the integer-domain … |
+| F005 | 代 | undisclosed | 3 | other | solved | ~ | `nnsmith/graph_gen.py:524` | When isinstance(op, Expand) and oshape.ndims < op.expand_last_dim: Placeholder shapes with fewer di… |
 | F032 | 代 | undisclosed | 3 | other | solved | ✗ | `nnsmith/graph_gen.py:834` | When os.getenv("NNSMITH_LB", "off") == "off": The upper-bound constraint on slice start/end paramet… |
-| F033 | 代 | undisclosed | 3 | path_change | solved | ✗ | `nnsmith/graph_gen.py:984` | When os.getenv("NNSMITH_G_CONFIG", "1") != "1": The environment variable NNSMITH_G_CONFIG selects w… |
+| F033 | 代 | undisclosed | 3 | other | solved | ✗ | `nnsmith/graph_gen.py:984` | When os.getenv("NNSMITH_G_CONFIG", "1") != "1": The environment variable NNSMITH_G_CONFIG selects w… |
 | F034 | 代 | undisclosed | 3 | path_change | solved | ✗ | `nnsmith/graph_gen.py:1016` | When config is None: If the op class has no entry in param_config, extra_constraints returns an emp… |
 | F035 | 代 | undisclosed | 3 | path_change | solved | ✗ | `nnsmith/graph_gen.py:1044` | When len(cons) == 0 or random.uniform(0, 1) > self.constrain_prob: Guidance constraints for a node … |
 | F036 | 代 | paper_stated | 3 | path_change | solved | ✗ | `nnsmith/graph_gen.py:1052` | When self.check_sat(*cur_cons) != z3.sat: If the collected guidance constraints are unsatisfiable, … |
 | F037 | 代 | undisclosed | 3 | path_change | solved | ✗ | `nnsmith/graph_gen.py:1054` | When len(cur_cons) == 0: When all guidance constraints are dropped due to unsat, the loop breaks an… |
+| F023 | 代 | undisclosed | 3 | other | solved |  | `nnsmith/materialize/torch/input_gen.py:98` | When self.differentiable is False: The variant is decided by a single probe forward pass on random … |
+| F026 | 代 | undisclosed | 3 | other | solved |  | `nnsmith/materialize/torch/symbolnet.py:358` | When output_tensors[i].grad_fn is None: `differentiable` is reset to True at the start of every for… |
 | F038 | 代 | undisclosed | 3 | path_change | solved | ✗ | `nnsmith/materialize/torch/symbolnet.py:382` | When self.check_intermediate_numeric or (self.use_gradient and not self.stop_updating_loss): Constr… |
+| F007 | 代 | undisclosed | 3 | other | solved | ✓ | `nnsmith/materialize/torch/symbolnet.py:385` | When loss_fn.dispatch(type(op)) is not None: If an op produces NaN/Inf but has no registered loss f… |
+| F027 | 代 | undisclosed | 3 | other | solved |  | `nnsmith/materialize/torch/symbolnet.py:403` | When vul_op_loss is None: When an op produces NaN/Inf but has no registered loss function (`loss_fn… |
+| F008 | 代 | undisclosed | 3 | other | solved |  | `nnsmith/materialize/torch/symbolnet.py:421` | When self.loss is not None: If two vulnerable ops both produce NaN/Inf in the same forward pass, th… |

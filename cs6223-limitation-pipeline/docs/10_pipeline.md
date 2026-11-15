@@ -23,6 +23,9 @@ python -m pipeline status mypaper
 
 # 3. 跑（会调模型、花钱；论文侧最贵，要显式加 --run-paper-side）
 python -m pipeline run mypaper --pdf /path/to/paper.pdf --run-paper-side
+
+# 4. 测试侧（Shanghao 的 checklimits）：每条 Finding 一份 report.json，汇总成 LIMITATIONS.md
+python -m pipeline test mypaper [--run-agent] [--strict]
 ```
 
 结果：
@@ -32,6 +35,9 @@ python -m pipeline run mypaper --pdf /path/to/paper.pdf --run-paper-side
 | `results/step4/<id>/limitations_for_tests.json` | 这篇论文两侧的全部 limitation（去重、分类、priority、witness_hint 之后） |
 | `results/step4/<id>/HANDOFF.md` | 给测试侧的说明 |
 | `results/step4/limitations_for_tests.json`、`HANDOFF.md` | 所有论文合在一起（每次自动刷新） |
+| `results/tests/<id>/<finding_id>/report.json` | `pipeline test`：每条 Finding 的测试记录（测了的有判定和档位，没测的有原因代码） |
+| `results/tests/<id>/index.json`、`ENV.json`、`pipeline_test.log` | 汇总和 1:1 检查、环境预检、测试侧的完整输出 |
+| `results/report/<id>/LIMITATIONS.md` | 汇总报告，档位标明未校准 |
 
 也可以在 Python 里调：`from pipeline.run import run`。
 
@@ -45,6 +51,18 @@ python -m pipeline run mypaper --pdf /path/to/paper.pdf --run-paper-side
 | verify3b | 步骤 3b：代码侧每条在论文 / README / docstring 里有没有写 | Wanting | `out/pipeline_ps/<id>/3b.json` | 是 |
 | step4 | 去重、分类、priority、witness_hint | Wanting | `results/step4/<id>/` | 是（有缓存） |
 | doc | 生成说明 | Wanting | `HANDOFF.md` | 否 |
+
+**test**（`python -m pipeline test <id>`，2026-11-15）：在 `checklimits/` 目录下调用
+`python -m checklimits test <id> --results-root <pipeline 根>/results`，接口见 `checklimits/CONTRACT_TEST_REPORT.md`。
+它不是 `run` 的一步：开 `--run-agent` 时每条 Finding 要跑一个 code agent（5 到 15 分钟）。
+
+- 不开 `--run-agent` 时只重新审计 `checklimits/agent_results/` 和 `results/tests/<id>/` 里已有的测试包，
+  能判断但没有测试包的记为 `not_run(not_attempted)`。
+- 退出码按契约第 6 节：0 报告完整（有 `not_run` 也算）；2 输入错误、3 条目对不上、1 测试侧异常时停下并说明原因；
+  4（只在 `--strict` 下）报告已写出，但有环境、agent 或 harness 原因的 `not_run`，也按失败退出。
+- `status` 里 test 一行：`done` 报告完整且由当前的步骤 4 文件生成；`stale` 步骤 4 重跑过，要重测；`todo` 还没有报告。
+- 被测仓库的环境由测试侧预检（`ENV.json`），不安装任何东西。缺依赖时能判断的 Finding 都记为 `not_run(env_unavailable)`，
+  原因写在报告里。
 
 顺序是 code → paper → verify3b：Zhaopeng 的 `finalize_handoff.py` 会读代码侧的 limitation
 （`results/pipeline/<id>/limitations.json`，pipeline 自动放好），3b 又要用论文侧的 `paper_side.json`。
