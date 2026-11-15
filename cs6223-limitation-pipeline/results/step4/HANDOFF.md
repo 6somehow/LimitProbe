@@ -70,8 +70,8 @@
 
 | 来源 | solved | solved_contrast_outside_scope | trigger_only | always | infeasible | untranslatable | unknown | no_condition | 合计 |
 |---|---|---|---|---|---|---|---|---|---|
-| 代码侧 | 137 | 0 | 2 | 0 | 12 | 0 | 0 | 0 | 151 |
-| 论文侧 | 33 | 0 | 4 | 89 | 0 | 0 | 0 | 9 | 135 |
+| 代码侧 | 139 | 0 | 0 | 0 | 12 | 0 | 0 | 0 | 151 |
+| 论文侧 | 37 | 0 | 0 | 89 | 0 | 0 | 0 | 9 | 135 |
 | 两侧合并 | 3 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 3 |
 
 按审阅状态（盲审由 LLM 子代理做，不是人工；只覆盖了部分代码侧条目）：
@@ -953,7 +953,7 @@
 | F019 | 论 | impl_deviates | 2 | other | solved |  | `accuracy/perplexity/table2.sh:27-45` | 论文要求淘汰后更新 GPU 部分 key cache；代码无该步骤（artifact 范围：缺更新步骤） |
 | F020 | 论 | impl_deviates | 2 | other | always |  | `speedup/flexgen/infinigen/flex_opt.py:282` | 控制平面组件集合不完整（缺Pool Manager） |
 | F021 | 论 | impl_deviates | 2 | other | solved |  | `speedup/flexgen/infinigen/flex_opt.py:513-524` | 论文要求A=V；代码A为V列按σq·σk排序重排，A≠V（artifact 范围：A为排序重排后的V，非论文所述A=V） |
-| F022 | 论 | impl_deviates | 2 | other | trigger_only |  | `speedup/infinigen/infinigen/kv_selection_controller.py:28-63` | 预取集合由 top-k(均值) 决定，而非严格 >max−alpha 的令牌集合 |
+| F022 | 论 | impl_deviates | 2 | other | solved |  | `speedup/infinigen/infinigen/kv_selection_controller.py:28-63` | 预取集合由 top-k(均值) 决定，而非严格 >max−alpha 的令牌集合 |
 | F023 | 论 | impl_deviates | 2 | other | solved |  | `speedup/infinigen/infinigen/kv_selection_controller.py:28-63` | 实验路径以绝对令牌数封顶，未实现 20% 比例上限 |
 | F024 | 论 | impl_deviates | 2 | other | solved |  | `speedup/infinigen/infinigen/partial_weight_generation_contr…` | 实验路径缺少K的逐元素绝对值 |
 | F025 | 论 | impl_deviates | 2 | other | always |  | `speedup/infinigen/infinigen/partial_weight_generation_contr…` | 求和对象缺少K_abs项 |
@@ -971,7 +971,7 @@
 | F001 | 代 | undisclosed | 1 | reject | solved |  | `minference/minference_configuration.py:56` | When config_path is None and model_name not in MODEL2PATH: If no `config_path` is given, the model … |
 | F003 | 代 | undisclosed | 1 | state | solved |  | `minference/modules/minference_forward.py:165-172` | When SEARCH_MASK is None # first call only: module-level cache initialised on first call and reused |
 | F004 | 代 | undisclosed | 1 | state | solved |  | `minference/modules/minference_forward.py:390` | When "vs" in self.__dict__: Static pattern reuses vertical_topk/slash cached in self.vs from an ear… |
-| F006 | 代 | undisclosed | 1 | reject | trigger_only |  | `minference/modules/minference_forward.py:484-488` | When True: raise ValueError(f'The cache structure has changed since version v4.36. If you are using… |
+| F006 | 代 | undisclosed | 1 | reject | solved |  | `minference/modules/minference_forward.py:484-488` | When True: raise ValueError(f'The cache structure has changed since version v4.36. If you are using… |
 | F008 | 代 | undisclosed | 1 | state | solved |  | `minference/modules/minference_forward.py:681` | When key_states.shape[-2] != kv_seq_len: Whether SnapKV compression runs depends on `self.kv_seq_le… |
 | F010 | 代 | undisclosed | 1 | reject | solved |  | `minference/ops/block_sparse_flash_attention.py:126` | When not (Lq == Lk and Lk == Lv): AssertionError |
 | F011 | 代 | undisclosed | 1 | reject | solved |  | `minference/ops/block_sparse_flash_attention.py:127` | When not (Lk in {16, 32, 64, 128}): AssertionError |
@@ -1036,7 +1036,7 @@
 | F066 | 论 | not_implemented | 3 | other | solved |  | `experiments/README.md:13-30` | 实验入口未暴露或设定步长50 |
 | F067 | 论 | not_implemented | 3 | other | always |  | `experiments/infinite_bench/args.py:63-78` | 无变体配置，无法复现Table7的only vertical行。 |
 | F068 | 论 | not_implemented | 3 | other | solved |  | `experiments/infinite_bench/args.py:63-78` | 无换算配置入口。 |
-| F069 | 论 | not_implemented | 3 | other | trigger_only |  | `minference/modules/minference_forward.py:99-197` | 论文要求每候选计算真实 kernel FLOPs；代码不计算任何 FLOPs |
+| F069 | 论 | not_implemented | 3 | other | solved |  | `minference/modules/minference_forward.py:99-197` | 论文要求每候选计算真实 kernel FLOPs；代码不计算任何 FLOPs |
 | F070 | 论 | not_implemented | 3 | other | always |  | `minference/modules/minference_forward.py:99-197` | 论文要求以目标 FLOPs 为停止条件的迭代调整；代码无该循环与调整算子 |
 | F071 | 论 | not_implemented | 3 | other | always |  | `minference/modules/minference_forward.py:99-197` | 论文要求累积 FLOPs 对齐后的候选到 ρ；代码无该累积步骤 |
 | F072 | 论 | not_implemented | 3 | other | no_condition |  | `minference/modules/minference_forward.py:99-197` | 论文要求 FlashAttention 与 V 信息参与选择；代码为稠密权重计算且完全不含 V |
@@ -1046,7 +1046,7 @@
 
 | ID | 侧 | 类别 | P | effect | witness | 审 | 位置 | 内容 |
 |---|---|---|---|---|---|---|---|---|
-| F001 | 代 | undisclosed | 1 | reject | trigger_only | ~ | `nnsmith/abstract/op.py:1563` | When gres_config not in ("3", "4", "5"): An unrecognized NNSMITH_GRES environment value causes a Va… |
+| F001 | 代 | undisclosed | 1 | reject | solved | ~ | `nnsmith/abstract/op.py:1563` | When gres_config not in ("3", "4", "5"): An unrecognized NNSMITH_GRES environment value causes a Va… |
 | F003 | 代 | undisclosed | 1 | reject | solved |  | `nnsmith/cli/fuzz.py:180` | When isinstance(e, InternalError): InternalError from make_testcase is propagated, aborting the fuz… |
 | F004 | 代 | contradicts_docs | 1 | reject | solved |  | `nnsmith/graph_gen.py:260` | When self.check_sat() != z3.sat: After adding the memory-limit constraint, an unsatisfiable (or unk… |
 | F009 | 代 | undisclosed | 2 | path_change | solved | ~ | `nnsmith/abstract/arith.py:74` | When carry and max(left_size, right_size) >= ARITH_MAX_WIDTH: For addition, the extra carry bit is … |
@@ -1102,7 +1102,7 @@
 | F011 | 论 | impl_deviates | 2 | other | always |  | `script/figure14/search_finetune_fit_qat.py:301-335` | 论文要求对算子所有张量（输入/权重/输出）逐一评估；代码只对 weight 张量做位宽搜索，input/output 未评估 |
 | F012 | 论 | impl_deviates | 2 | other | no_condition |  | `script/figure14/search_finetune_fit_qat.py:496-538` | 论文要求精度下降小于预定义阈值（1%）才接受；代码用 best_acc<original_acc 即任何下降都拒绝，无 1% 阈值 |
 | F013 | 论 | impl_deviates | 2 | other | always |  | `script/figure14/search_finetune_fit_qat.py:496-538` | 论文要求拓扑序并缓存激活；代码按模块注册顺序遍历且无激活缓存 |
-| F014 | 论 | impl_deviates | 2 | other | trigger_only |  | `script/figure14/search_finetune_fit_qat.py:571-664` | 论文要求同时更新 S 与 Supdated；代码只更新全局位设置，无 Supdated 累积 |
+| F014 | 论 | impl_deviates | 2 | other | solved |  | `script/figure14/search_finetune_fit_qat.py:571-664` | 论文要求同时更新 S 与 Supdated；代码只更新全局位设置，无 Supdated 累积 |
 | F015 | 论 | impl_deviates | 2 | other | always |  | `script/figure14/search_finetune_fit_qat.py:571-664` | 论文以 Tupdated==T 跳过；代码以精度下降 break，语义不同 |
 | F016 | 论 | impl_deviates | 2 | other | always |  | `script/figure16/a100/sparta.cu:118-140` | 论文报告第二 sub-Matmul 的具体残余稀疏度；实验路径无该测量/输出，且底层分派规则与数值趋势不符。 |
 | F017 | 论 | impl_deviates | 2 | other | no_condition |  | `script/figure16/a100/sparta.cu:266-311` | 实验路径的第二部分内核依赖为 Sputnik，而非 SparTA 专用稀疏内核。 |
@@ -1155,7 +1155,7 @@
 | F064 | 论 | not_implemented | 3 | other | always |  | `script/figure19/run.sh:1-7` | artifact 路径无真实延迟过滤。 |
 | F065 | 论 | not_implemented | 3 | other | always |  | `script/figure19/run.sh:1-7` | artifact 无编译迭代。 |
 | F066 | 论 | not_implemented | 3 | other | always |  | `script/figure19/run.sh:1-7` | artifact 无 FLOPs 过滤基线。 |
-| F067 | 论 | not_implemented | 3 | other | trigger_only |  | `sparta/core/sparta.py:16-24` | 论文要求对每个 (sub)operator 执行量化特化；artifact 链中特化调用被注释、重建为直通，未执行任何循环级特化。 |
+| F067 | 论 | not_implemented | 3 | other | solved |  | `sparta/core/sparta.py:16-24` | 论文要求对每个 (sub)operator 执行量化特化；artifact 链中特化调用被注释、重建为直通，未执行任何循环级特化。 |
 | F068 | 论 | not_implemented | 3 | other | always |  | `sparta/propagation/talgebra.py:4-17` | 论文要求可注册新算子规则；代码无注册机制，新增算子需改源码 |
 | F069 | 论 | not_implemented | 3 | other | always |  | `sparta/specialization/specialize_kernel.py:18-42` | 无 TransformOp 级 S 初始化 |
 | F070 | 论 | not_implemented | 3 | other | always |  | `sparta/specialization/specialize_kernel.py:18-42` | 论文要求组合为图 G；代码无图构造步骤 |

@@ -376,8 +376,41 @@ def solve(cond: Optional[Condition], checker: Optional[ScopeChecker], effect_typ
     return hint
 
 
+def decision(cond: Condition) -> tuple[Condition, dict]:
+    """The condition that decides the effect, and what was changed to get it (empty if nothing).
+
+    Two shapes from route B have no contrast point although the check has one:
+      * the condition is also the last (innermost) path-prefix entry: it was copied into its own path, so every
+        point that reaches it satisfies it. The copy is dropped. Earlier entries with the same text are kept: they
+        come from other functions of the call chain (e.g. the entry's own guard);
+      * the condition is `True` (an unconditional `raise` inside a branch): the decision is the innermost
+        path-prefix entry, so that entry becomes the condition.
+    """
+    from codeside.dedup import normalise
+    prefix = list(cond.path_prefix)
+    if prefix and normalise(prefix[-1]) == normalise(cond.expr):
+        return cond.model_copy(update={"path_prefix": prefix[:-1]}), {"prefix_dropped": [prefix[-1]],
+                "decision_note": "the last path-prefix entry repeated the condition; dropped"}
+    if prefix and normalise(cond.expr) == "True":
+        return cond.model_copy(update={"expr": prefix[-1], "path_prefix": prefix[:-1]}), {
+            "condition_original": cond.expr,
+            "decision_note": "unconditional statement inside a branch: the innermost path-prefix entry decides it"}
+    return cond, {}
+
+
 def _solve(cond: Optional[Condition], checker: Optional[ScopeChecker], effect_type: str,
            aliases: Optional[dict[str, str]], binder=None) -> dict:
+    changed: dict = {}
+    if cond is not None:
+        cond, changed = decision(cond)
+    hint = _solve_one(cond, checker, effect_type, aliases, binder)
+    if changed:
+        hint.update(changed)
+    return hint
+
+
+def _solve_one(cond: Optional[Condition], checker: Optional[ScopeChecker], effect_type: str,
+               aliases: Optional[dict[str, str]], binder=None) -> dict:
     kind = "event_sequence" if effect_type == "state" else "input_value"
     hint: dict[str, Any] = {"format": FORMAT, "kind": kind, "status": "untranslatable",
                             "condition": cond.expr if cond else None,

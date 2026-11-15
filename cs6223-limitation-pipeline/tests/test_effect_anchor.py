@@ -76,3 +76,15 @@ def test_moved_target_is_reported_as_effect_location_in_the_hint():
     h = f.witness_hint
     assert h["effect_location"] == f"{FILE}:{line_of('raise e')}" == h["location"]
     assert h["labelled_location"] == f"{FILE}:{line_of('except ValueError')}"
+
+
+def test_snippets_are_written_in_one_form():
+    from codeside.effect_anchor import canonical_snippet, normalise_snippet
+    import ast
+    tree = ast.parse((REPO / FILE).read_text())
+    at = lambda text: next(n for n in ast.walk(tree) if isinstance(n, ast.stmt) and n.lineno == line_of(text))
+    assert canonical_snippet(at("assert x >= 0")) == "assert x >= 0"  # message dropped
+    assert canonical_snippet(at("elif mode == ")) == "if mode == 'fast':"
+    l = lim("if x > 100", "reject").model_copy()
+    l.code_evidence[0].snippet = "if ("
+    assert normalise_snippet(l, REPO).code_evidence[0].snippet == "if x > 100:"

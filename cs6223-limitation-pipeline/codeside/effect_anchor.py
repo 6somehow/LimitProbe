@@ -145,7 +145,7 @@ def check_effect(lim: Limitation, repo: Path) -> tuple[Limitation, Optional[dict
     if move_to is not None:
         header_end = move_to.test.end_lineno if isinstance(move_to, (ast.If, ast.While)) else move_to.end_lineno
         new_loc = loc.model_copy(update={"line_start": move_to.lineno, "line_end": header_end,
-                                         "snippet": ast.unparse(move_to).splitlines()[0][:200]})
+                                         "snippet": canonical_snippet(move_to)})
         update["code_evidence"] = [new_loc, *lim.code_evidence[1:]]
         record.update(action="moved", to_effect=effect, to_location=f"{loc.file}:{move_to.lineno}")
         text = f"effect check: target moved from line {line} to line {move_to.lineno} ({why})"
@@ -157,14 +157,47 @@ def check_effect(lim: Limitation, repo: Path) -> tuple[Limitation, Optional[dict
     return lim.model_copy(update=update), record
 
 
+def canonical_snippet(node: ast.stmt) -> str:
+    """The snippet convention (docs/09_step4_findings.md): one line, no assert message, no redundant parentheses.
+
+    assert       `assert <test>`
+    if / while   `if <test>:` / `while <test>:` (the header; an `elif` is written as `if`)
+    otherwise    the first line of `ast.unparse` of the statement
+    Cut to 200 characters. The same for route A and route B, so a multi-line statement is never cut at `if (`.
+    """
+    if isinstance(node, ast.Assert):
+        text = f"assert {ast.unparse(node.test)}"
+    elif isinstance(node, (ast.If, ast.While)):
+        text = f"{'if' if isinstance(node, ast.If) else 'while'} {ast.unparse(node.test)}:"
+    else:
+        text = ast.unparse(node).splitlines()[0]
+    return text[:200]
+
+
+def normalise_snippet(lim: Limitation, repo: Path) -> Limitation:
+    """Rewrite code_evidence[0].snippet in the canonical form (nothing else changes)."""
+    if lim.origin != "code" or not lim.code_evidence:
+        return lim
+    loc = lim.code_evidence[0]
+    tree = _tree(str(Path(repo) / loc.file))
+    node = _statement_at(tree, loc.line_start) if tree is not None else None
+    if node is None:
+        return lim
+    text = canonical_snippet(node)
+    if text == loc.snippet:
+        return lim
+    return lim.model_copy(update={"code_evidence": [loc.model_copy(update={"snippet": text}), *lim.code_evidence[1:]]})
+
+
 def check_effects(lims: list[Limitation], repo: Optional[Path]) -> tuple[list[Limitation], list[dict]]:
-    """Apply `check_effect` to every limitation. Without a repo nothing is changed."""
+    """Apply `check_effect` to every limitation, then write every snippet in the canonical form.
+    Without a repo nothing is changed."""
     if repo is None or not Path(repo).is_dir():
         return list(lims), []
     out, records = [], []
     for lim in lims:
         fixed, rec = check_effect(lim, Path(repo))
-        out.append(fixed)
+        out.append(normalise_snippet(fixed, Path(repo)))
         if rec:
             records.append(rec)
     return out, records

@@ -215,8 +215,27 @@ python -m codeside.cli validate results/step4/*/findings.json
 
 **5. 多行语句的 snippet 约定**
 
-`snippet` 是 `ast.unparse(语句)` 的第一行：并成一行、去掉 assert 消息、去掉多余括号，最多 200 字符。
-使用方按解析后的条件比较，不要逐字比较。这个约定以后要改会先通知。
+步骤 4 把每条代码侧 Limitation 的 `snippet` 统一重写成一种形式（`codeside/effect_anchor.py::canonical_snippet`），
+路线 A 和路线 B 一样：
+
+| 语句 | snippet |
+|---|---|
+| `assert` | `assert <条件>`（去掉消息） |
+| `if` / `while`（含 `elif`） | `if <条件>:` / `while <条件>:`，只有头部 |
+| 其它 | `ast.unparse(语句)` 的第一行 |
+
+都是一行、去掉多余括号、最多 200 字符。之前路线 B 的 snippet 是源码原样的第一行，多行语句会只剩 `if (`；
+路线 A 的 assert 带着消息。现在不会了。使用方按解析后的条件比较，不要逐字比较。这个约定以后要改会先通知。
+
+**6. 没有对照点的两种写法（`trigger_only`）**
+
+路线 B 有两种条件写法会让 witness 没有 contrast，测试侧因此记 `witness_unusable`。求解前先改写（`witness.decision`）：
+
+* 条件又被抄进了自己的路径前缀（最后一条）：去掉这条，记 `prefix_dropped`。更前面同样文字的前缀条目来自调用链上的
+  其它函数（如入口函数自己的检查），保留。
+* 条件是 `True`（分支里无条件的 `raise`）：真正的判定是最内层的路径前缀条目，用它作条件，原来的记在 `condition_original`。
+
+五篇原来的 6 条 `trigger_only` 都因此有了 contrast（代码侧 nnsmith-F001、minference-F006，其余 4 条是论文侧）。
 
 **这次重跑的变化（五篇 289 条，编号不变，模型调用全部命中缓存）**
 
@@ -225,7 +244,7 @@ python -m codeside.cli validate results/step4/*/findings.json
 | 效果标签修正 | 2 条 | 14 条（其中 2 条移动目标） |
 | 测试侧“目标不能判断”（标签和语句不符） | 2 → 0 | 13 → 0 |
 | 改成 `other` 的（需要别的 oracle） | 2 | 12 |
-| 测试侧能判断的条数（`batch --list` 的规则） | 32 → 29 | 19 → 21 |
+| 测试侧能判断的条数（`batch --list` 的规则） | 32 → 29 | 19 → 22 |
 | witness 新变成 infeasible | 4（F004、F005、F010、F011） | 0 |
 | 调用链 resolved / entry_is_target / module_level / not_found | 34 / 6 / 1 / 24 | 19 / 0 / 3 / 16 |
 

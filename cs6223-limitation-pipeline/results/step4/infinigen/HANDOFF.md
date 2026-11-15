@@ -67,7 +67,7 @@
 | 来源 | solved | solved_contrast_outside_scope | trigger_only | always | infeasible | untranslatable | unknown | no_condition | 合计 |
 |---|---|---|---|---|---|---|---|---|---|
 | 代码侧 | 19 | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 20 |
-| 论文侧 | 6 | 0 | 1 | 4 | 0 | 0 | 0 | 0 | 11 |
+| 论文侧 | 7 | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 11 |
 | 两侧合并 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 
 按审阅状态（盲审由 LLM 子代理做，不是人工；只覆盖了部分代码侧条目）：
@@ -526,7 +526,7 @@
 | F019 | 论 | impl_deviates | 2 | other | solved |  | `accuracy/perplexity/table2.sh:27-45` | 论文要求淘汰后更新 GPU 部分 key cache；代码无该步骤（artifact 范围：缺更新步骤） |
 | F020 | 论 | impl_deviates | 2 | other | always |  | `speedup/flexgen/infinigen/flex_opt.py:282` | 控制平面组件集合不完整（缺Pool Manager） |
 | F021 | 论 | impl_deviates | 2 | other | solved |  | `speedup/flexgen/infinigen/flex_opt.py:513-524` | 论文要求A=V；代码A为V列按σq·σk排序重排，A≠V（artifact 范围：A为排序重排后的V，非论文所述A=V） |
-| F022 | 论 | impl_deviates | 2 | other | trigger_only |  | `speedup/infinigen/infinigen/kv_selection_controller.py:28-63` | 预取集合由 top-k(均值) 决定，而非严格 >max−alpha 的令牌集合 |
+| F022 | 论 | impl_deviates | 2 | other | solved |  | `speedup/infinigen/infinigen/kv_selection_controller.py:28-63` | 预取集合由 top-k(均值) 决定，而非严格 >max−alpha 的令牌集合 |
 | F023 | 论 | impl_deviates | 2 | other | solved |  | `speedup/infinigen/infinigen/kv_selection_controller.py:28-63` | 实验路径以绝对令牌数封顶，未实现 20% 比例上限 |
 | F024 | 论 | impl_deviates | 2 | other | solved |  | `speedup/infinigen/infinigen/partial_weight_generation_contr…` | 实验路径缺少K的逐元素绝对值 |
 | F025 | 论 | impl_deviates | 2 | other | always |  | `speedup/infinigen/infinigen/partial_weight_generation_contr…` | 求和对象缺少K_abs项 |

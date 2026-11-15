@@ -48,11 +48,14 @@ NNSmith 里的反例：`while not check_sat():`（F002）和 `if ...: continue`�
 |---|---|
 | 1 调用链 | `witness_hint.call_chain`（入口在前，到目标所在函数为止）和 `call_sites`（每层调用所在行、解析方式、参数对应 `args`：被调函数形参 -> 调用者里的表达式），状态在 `call_chain_status`。静态找不到的标 `not_found`，不猜；靠猜解析的步骤列在 `uncertain_steps`。`adapter.py` 有 `call_chain` 时用它构造 Region（`tests/test_adapter_chain.py`），没有时保持原来的两层 |
 | 2 F010 | 求解时把被调函数的名字换成入口函数的名字（`entry_terms`）。F010 现在是 `infeasible`、`infeasible_because: call_chain`，priority 3。同样被证明走不到的还有 F004、F005、F011 |
-| 3 snippet | 约定写进了 `docs/09_step4_findings.md` 和 HANDOFF：`ast.unparse` 的第一行，并成一行、去 assert 消息、去多余括号，最多 200 字符 |
+| 3 snippet | 步骤 4 现在把所有代码侧 snippet 统一写成一种形式：`assert <条件>`（去消息）、`if <条件>:` / `while <条件>:`（只有头部）、其它语句取 `ast.unparse` 的第一行；一行、去多余括号、最多 200 字符。约定写在 `docs/09_step4_findings.md` 和 HANDOFF。之前路线 B 的多行语句会只剩 `if (`（如 F020），现在不会了；你的 D12 比较两种都接受 |
 | 4 | `outer.inner` 保持不变（调用链也用这个写法） |
 | 5 效果标签 | 按上表检查（`codeside/effect_anchor.py`）。不满足的改 `other`，原因写在 Limitation 的 `notes` 和 `findings.report.json` 的 `effect_checks`。能找到真正产生效果的语句时（`except` 行 -> 处理块里的 `raise`；赋值 -> 条件相同的外层 `if`），目标移过去，`witness_hint` 里给 `effect_location` 和原来的 `labelled_location`；`code_evidence[0]` 也已经是新位置，所以现在的选取不用改就能用 |
 
-另外：finding_id 跨运行不变了（由同一组 Limitation 组成的 Finding 沿用上一次的编号），已归档的 attempt 不会对错条目。
+另外：
+
+* finding_id 跨运行不变了（由同一组 Limitation 组成的 Finding 沿用上一次的编号），已归档的 attempt 不会对错条目。
+* 契约里 `witness_unusable` 归我的部分：原来的 6 条 `trigger_only` 都有了 contrast（nnsmith-F001 的条件被抄进了自己的路径前缀；minference-F006 是分支里无条件的 `raise`，现在用最内层的分支条件作判定）。剩下的 `witness_unusable` 都是 `infeasible`（FlexPrefill 11 条、InfiniGen 1 条），是有意的：从入口走不到，不用花预算。
 
 效果（按你的 `classify_finding` 规则）：
 
@@ -60,6 +63,6 @@ NNSmith 里的反例：`while not check_sat():`（F002）和 `if ...: continue`�
 |---|---|---|
 | `outcome_unsupported`（标签和语句不符） | 2 -> 0 | 13 -> 0 |
 | 改成 `other` | 2 | 12 |
-| 能判断 | 32 -> 29 | 19 -> 21 |
+| 能判断 | 32 -> 29 | 19 -> 22 |
 
 `pipeline test`（W6）已接上，按 `CONTRACT_TEST_REPORT.md` 调用和解释退出码，`pipeline status` 显示 test 阶段（done / stale / todo）。在我这台机器上 NNSmith 预检是 `not_ok`（缺 `multipledispatch`），所以没有产出可比的判定，归档的报告样例需要你在有环境的机器上重新生成。

@@ -9,5 +9,5 @@
 rules: {"strict_scope": false}; schema 0.2.0; witness-v2
 p1 by review: {'worth_testing': 3, 'unreviewed': 26, 'real_but_minor': 8}
 all findings by review: {'worth_testing': 29, 'unreviewed': 207, 'real_but_minor': 40, 'wrong': 13}
-witness status: {'solved': 173, 'trigger_only': 6, 'always': 89, 'no_condition': 9, 'infeasible': 12}
+witness status: {'solved': 179, 'always': 89, 'no_condition': 9, 'infeasible': 12}
 LLM usage (this run): {'max_tokens': 10000, 'cache_hits': 1244}
