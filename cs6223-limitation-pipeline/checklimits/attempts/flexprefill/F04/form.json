@@ -1,0 +1,130 @@
+{
+  "test_id": "T04",
+  "finding_id": "F04",
+  "strategy": "S1",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "batch_size",
+        "value": 1,
+        "why": "witness_hint does not give it; the assert at :1824 requires 1, and path_prefix of R04 says batch_size == 1"
+      },
+      {
+        "name": "num_heads",
+        "value": 2,
+        "why": "witness_hint does not give a head count; the target assert runs before any head-dependent code"
+      },
+      {
+        "name": "dtype",
+        "value": "bfloat16",
+        "why": "README says the sparse path was tested with bfloat16"
+      },
+      {
+        "name": "gamma",
+        "value": 0.9,
+        "why": "required positional argument; 0.9 is the value in the module's __main__ example"
+      },
+      {
+        "name": "tau",
+        "value": 0.1,
+        "why": "same example"
+      },
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "T6: fixed random seed"
+      },
+      {
+        "name": "block_size",
+        "value": 128,
+        "why": "the function's own default; the witness_hint does not give it"
+      }
+    ],
+    "positive_input": {
+      "q_len": 512,
+      "head_dim": 96
+    },
+    "negative_input": {
+      "q_len": 512,
+      "head_dim": 128
+    },
+    "boundary_variable": "head_dim",
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "exception",
+      "spec": "AssertionError raised at flex_prefill/ops/flex_prefill_attention.py:1837",
+      "signal_location": "flex_prefill/ops/flex_prefill_attention.py:1837"
+    },
+    "expected": {
+      "positive": "AssertionError at flex_prefill/ops/flex_prefill_attention.py:1837",
+      "negative": "no exception at flex_prefill/ops/flex_prefill_attention.py:1837"
+    },
+    "scale": {
+      "factor": 0.125,
+      "scaled": [
+        "q_len"
+      ],
+      "reason": "no GPU: the downstream kernels are simulated on CPU, so the run is shrunk; only the control flow is judged, not the numerics",
+      "invariance_argument": "the target is a set-membership guard on head_dim, evaluated after the shape asserts; it does not read q_len except through the earlier q_len == k_len check, which holds at every scale"
+    },
+    "extra_negatives": [
+      {
+        "q_len": 512,
+        "head_dim": 16
+      },
+      {
+        "q_len": 512,
+        "head_dim": 32
+      },
+      {
+        "q_len": 512,
+        "head_dim": 64
+      }
+    ]
+  },
+  "execution": {
+    "entry_called": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention",
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [
+      {
+        "symbol": "flex_prefill.ops.flex_prefill_attention.triton_bnhd_pool",
+        "kind": "patch",
+        "behavior": "sim",
+        "impl": "sim.py::bnhd_pool",
+        "sim_class": "independent_native",
+        "reason": "Triton kernel used by get_active_blocks (after the target); no GPU. Plain-torch avg pool."
+      },
+      {
+        "symbol": "flex_prefill.ops.flex_prefill_attention.triton_block_wise_attention",
+        "kind": "patch",
+        "behavior": "sim",
+        "impl": "sim.py::block_wise_attention",
+        "sim_class": "repo_reference",
+        "reason": "Triton kernel launcher (after the target); no GPU. Calls the repository's own torch_block_wise_attention."
+      }
+    ],
+    "hooks": [],
+    "replay_commands": [
+      "cd cs6223-limitation-pipeline/checklimits && python -m checklimits run --attempt attempts/flexprefill/F04"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "false",
+      "true"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "AssertionError at flex_prefill/ops/flex_prefill_attention.py:1837",
+    "negative_observed": "no exception at flex_prefill/ops/flex_prefill_attention.py:1837"
+  },
+  "evidence": {
+    "trace_file": "runs/flexprefill/T04.raw.json",
+    "stdout_file": null,
+    "diff_file": null
+  }
+}

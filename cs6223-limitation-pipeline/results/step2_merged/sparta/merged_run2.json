@@ -1,0 +1,169 @@
+[
+  {
+    "schema_version": "0.1.0",
+    "region_id": "X001",
+    "artifact_id": "sparta",
+    "entry_point": "sparta/propagation/propagate.py::propagate_sparsity",
+    "condition": {
+      "expr": "otherwise",
+      "params": [
+        "otherwise"
+      ],
+      "path_prefix": []
+    },
+    "outcome": "mechanism",
+    "outcome_detail": "default path of the entry function",
+    "location": {
+      "file": "sparta/propagation/propagate.py",
+      "line_start": 30,
+      "line_end": 30,
+      "function": "sparta/propagation/propagate.py::propagate_sparsity",
+      "snippet": "return post_sparsity"
+    },
+    "call_chain": [
+      "sparta/propagation/propagate.py::propagate_sparsity"
+    ],
+    "provenance": "ast",
+    "notes": "All guards above passed."
+  },
+  {
+    "schema_version": "0.1.0",
+    "region_id": "X002",
+    "artifact_id": "sparta",
+    "entry_point": "sparta/propagation/talgebra.py::propagate_matmul",
+    "condition": {
+      "expr": "otherwise",
+      "params": [
+        "otherwise"
+      ],
+      "path_prefix": []
+    },
+    "outcome": "mechanism",
+    "outcome_detail": "default path of the entry function",
+    "location": {
+      "file": "sparta/propagation/talgebra.py",
+      "line_start": 62,
+      "line_end": 62,
+      "function": "sparta/propagation/talgebra.py::propagate_matmul",
+      "snippet": "return (tesa_in1, tesa_in2, tesa_out)"
+    },
+    "call_chain": [
+      "sparta/propagation/talgebra.py::propagate_matmul"
+    ],
+    "provenance": "ast",
+    "notes": "All guards above passed."
+  },
+  {
+    "schema_version": "0.1.0",
+    "region_id": "B001",
+    "artifact_id": "sparta",
+    "entry_point": "sparta/propagation/propagate.py::propagate_sparsity",
+    "condition": {
+      "expr": "info.module_name in self.modules_info",
+      "params": [
+        "info",
+        "self"
+      ],
+      "path_prefix": []
+    },
+    "outcome": "suspicious",
+    "outcome_detail": "When a module name is already present, the merge branch is an empty ellipsis (line 59), so the new SparseModuleInfo is silently dropped and the earlier state is kept; the update is a no-op for repeated module names.",
+    "location": {
+      "file": "sparta/common/sparsity.py",
+      "line_start": 57,
+      "line_end": null,
+      "function": "sparta/common/sparsity.py::ModelSparsityInfo.update",
+      "snippet": "if info.module_name in self.modules_info:"
+    },
+    "call_chain": [],
+    "provenance": "llm",
+    "notes": "sweep: outside the static walk"
+  },
+  {
+    "schema_version": "0.1.0",
+    "region_id": "B002",
+    "artifact_id": "sparta",
+    "entry_point": "sparta/propagation/propagate.py::propagate_sparsity",
+    "condition": {
+      "expr": "self.device_info is not None",
+      "params": [
+        "self"
+      ],
+      "path_prefix": [
+        "class TransformPolicy",
+        "def hardware_bit_precisions(self)"
+      ]
+    },
+    "outcome": "suspicious",
+    "outcome_detail": "`hardware_bit_precisions` returns a fixed list `[4, 8, 16, 32]` regardless of `self.device_info` (set in `__init__` at line 24 and never read elsewhere). `bit_align` (line 138) uses this list as `bit_options` to decide how tensors are decomposed/aligned, so the algorithm variant chosen is driven by a constant rather than the caller-supplied device description.",
+    "location": {
+      "file": "sparta/transformation/transform_policy.py",
+      "line_start": 30,
+      "line_end": null,
+      "function": "sparta/transformation/transform_policy.py::TransformPolicy.hardware_bit_precisions",
+      "snippet": "return [4, 8, 16, 32]"
+    },
+    "call_chain": [],
+    "provenance": "llm",
+    "notes": "agent: outside the static walk"
+  },
+  {
+    "schema_version": "0.1.0",
+    "region_id": "B003",
+    "artifact_id": "sparta",
+    "entry_point": "sparta/propagation/propagate.py::propagate_sparsity",
+    "condition": {
+      "expr": "not isinstance(module_sparsity.module_obj, (nn.Linear, nn.Conv2d))",
+      "params": [
+        "isinstance",
+        "module_sparsity",
+        "nn"
+      ],
+      "path_prefix": [
+        "class TransformPolicy",
+        "def get_kernels(self, module_sparsity)"
+      ]
+    },
+    "outcome": "reject",
+    "outcome_detail": "`get_kernels` dispatches on the module type: `nn.Linear` and `nn.Conv2d` get their kernel lists, but any other module type (the `SparseAttention` branch is commented out at line 50) leaves `kernels`/`aggr_type` unset, so the function falls through to `return TransformedModule(module_sparsity, kernels, aggr_type)` and raises `UnboundLocalError` instead of transforming the module. The module type is caller-supplied, so a model containing any other layer type is rejected.",
+    "location": {
+      "file": "sparta/transformation/transform_policy.py",
+      "line_start": 43,
+      "line_end": null,
+      "function": "sparta/transformation/transform_policy.py::TransformPolicy.transform_module",
+      "snippet": "if isinstance(module_sparsity.module_obj, nn.Linear):"
+    },
+    "call_chain": [],
+    "provenance": "llm",
+    "notes": "agent: outside the static walk"
+  },
+  {
+    "schema_version": "0.1.0",
+    "region_id": "B004",
+    "artifact_id": "sparta",
+    "entry_point": "sparta/propagation/propagate.py::propagate_sparsity",
+    "condition": {
+      "expr": "len(aligned_bits) > 2",
+      "params": [
+        "aligned_bits",
+        "len"
+      ],
+      "path_prefix": [
+        "class TransformPolicy",
+        "def bit_align(self, tesa, n_candidates=1, decompose=True)"
+      ]
+    },
+    "outcome": "reject",
+    "outcome_detail": "In `bit_align`, when `decompose` is True and the aligned bit set has more than two distinct hardware precisions (e.g. a TeSA whose elements use 4-, 8- and 16-bit), the code falls through to `assert len(aligned_bits) == 2` and aborts the transformation instead of handling the case. The number of distinct bits comes from the caller-supplied TeSA, so a caller with a mixed-precision sparsity attribute gets an AssertionError.",
+    "location": {
+      "file": "sparta/transformation/transform_policy.py",
+      "line_start": 155,
+      "line_end": null,
+      "function": "sparta/transformation/transform_policy.py::TransformPolicy.bit_align",
+      "snippet": "assert len(aligned_bits) == 2"
+    },
+    "call_chain": [],
+    "provenance": "llm",
+    "notes": "agent: outside the static walk"
+  }
+]

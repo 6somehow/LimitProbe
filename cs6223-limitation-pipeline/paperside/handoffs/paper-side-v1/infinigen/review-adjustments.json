@@ -1,0 +1,921 @@
+{
+  "method": "Independent static source-assisted agent review/corrections proposed, not human gold; no API/target execution; no changes to original outputs or conformance judgments.",
+  "source_paper_side_sha256": "a4ec07df36667eede33a0ce30d2e25430706590dcddb694ce93d0f24c1a85f2f",
+  "scope_replacements": [
+    {
+      "original_id": "infinigen-scope-001",
+      "reason": "Conservative role clarification: OPT/Llama-2 are evaluated architectures, Llama-2-7B-32K is a long-context perplexity experiment, and Llama-3-8B-1048K is an attention-pattern analysis. Preserve those source distinctions as free_text, not an exhaustive supported family set or evidence that the entire implementation handles every MHA/GQA variant.",
+      "records": [
+        {
+          "schema_version": "0.1.0",
+          "scope_id": "infinigen-scope-001",
+          "artifact_id": "infinigen",
+          "param": "model_family",
+          "kind": "free_text",
+          "lower": null,
+          "upper": null,
+          "values": null,
+          "unit": null,
+          "explicit": false,
+          "evidence": [
+            {
+              "quote": "Model and System Configuration. We use Open Pre-trained\nTransformer (OPT) models [77] with 6.7B, 13B, and 30B\nparameters for evaluation. The 7B and 13B models of Llama-\n2 [60] are also used to demonstrate that InfiniGen works\neffectively across different model architectures. We run the",
+              "source": "paper",
+              "locator": "PDF p.10, text lines 59-63"
+            },
+            {
+              "quote": "Figure 19: Perplexity of Llama-2-7B-32K across (a) relative KV\ncache sizes with a sequence length of 32768 and (b) sequence lengths\nwhile retaining 64 tokens. Lower is better. Llama-2-7B-32K is a fine-\ntuned version capable of processing up to 32K tokens using position\ninterpolation [12]. Quantization is omitted in (b) since the KV cache\ncannot be compressed below 6.25% (i.e., 1 bit).",
+              "source": "paper",
+              "locator": "PDF p.14, text lines 72-77"
+            },
+            {
+              "quote": "Figure 20: Analysis of 1 million tokens using Llama-3-8B-1048K.\n(a) Percentage of query tokens that attend to less than 1% of the\nkey tokens across the sequence lengths. (b) Attention weight of\nsampled key tokens from different layers and heads across the last\n16K iterations out of 1 million tokens.",
+              "source": "paper",
+              "locator": "PDF p.15, text lines 26-30"
+            }
+          ]
+        }
+      ],
+      "hold_original": true
+    },
+    {
+      "original_id": "infinigen-scope-002",
+      "reason": "Confirmed inventory omission: the attached p10 lines59-63 explicitly includes Llama-2-7B, missing from [6.7,13,30]. Add7, and classify evaluated model sizes as experimental rather than exhaustive supported sizes.",
+      "records": [
+        {
+          "schema_version": "0.1.0",
+          "scope_id": "infinigen-scope-002",
+          "artifact_id": "infinigen",
+          "param": "model_parameters_b",
+          "kind": "set",
+          "lower": null,
+          "upper": null,
+          "values": [
+            6.7,
+            7,
+            13,
+            30
+          ],
+          "unit": "billion_params",
+          "explicit": false,
+          "evidence": [
+            {
+              "quote": "Model and System Configuration. We use Open Pre-trained\nTransformer (OPT) models [77] with 6.7B, 13B, and 30B\nparameters for evaluation. The 7B and 13B models of Llama-\n2 [60] are also used to demonstrate that InfiniGen works\neffectively across different model architectures. We run the",
+              "source": "paper",
+              "locator": "PDF p.10, text lines 59-63"
+            }
+          ]
+        }
+      ],
+      "hold_original": true
+    },
+    {
+      "original_id": "infinigen-scope-007",
+      "reason": "Confirmed scope-role/continuity error: Figure17(b) plots discrete partial weight ratios .1,.3,.5,.7,.9; p14 lines12-23 discusses tuning and choosing .3, not universal support bounds[.1,.9]. Preserve evaluated set explicit=False so the strict guard deactivates the scalar mapping.",
+      "records": [
+        {
+          "schema_version": "0.1.0",
+          "scope_id": "infinigen-scope-007",
+          "artifact_id": "infinigen",
+          "param": "partial_weight_ratio",
+          "kind": "set",
+          "lower": null,
+          "upper": null,
+          "values": [
+            0.1,
+            0.3,
+            0.5,
+            0.7,
+            0.9
+          ],
+          "unit": "fraction_of_columns",
+          "explicit": false,
+          "evidence": [
+            {
+              "quote": "the elements in each column and select the top-k columns in\nthe matrix; we choose 30% of the columns in our work. Using",
+              "source": "paper",
+              "locator": "PDF p.9, text lines 110-111"
+            },
+            {
+              "quote": "Figure 17: Accuracy and inference latency across (a) alpha values\nand (b) partial weight ratios.",
+              "source": "paper",
+              "locator": "PDF p.13, text lines 89-90"
+            },
+            {
+              "quote": "0.1 0.3 0.5 0.7 0.9\nLatency (s)\nAccuracy (%)\nAccuracy Latency\n(b) Partial Weight Ratio",
+              "source": "paper",
+              "locator": "PDF p.13, text lines 71-75"
+            },
+            {
+              "quote": "inference latency across different partial weight ratios with an\nalpha value of 4. As shown in the figure, the amount of partial\nweights has a negligible impact on inference latency because\nthe cost for computing the speculated attention score is rela-\ntively small. Note that the amount of KV cache to transfer is\nnot related to the partial weight ratio. However, increasing the\npartial weight ratio results in higher memory consumption for\npartial weights and key cache (e.g., doubling the ratio doubles\nthe memory consumption overhead). The accuracy also does\nnot noticeably differ beyond a ratio of 0.3. In our work, we\nopt for a partial weight ratio of 0.3 to achieve better accuracy\nwhile considering memory consumption overhead.",
+              "source": "paper",
+              "locator": "PDF p.14, text lines 12-23"
+            }
+          ]
+        }
+      ],
+      "hold_original": true
+    },
+    {
+      "original_id": "infinigen-scope-008",
+      "reason": "Confirmed scope-role error: p13 lines119-121 reports nine tested alpha values and tuning trade-offs, while p10 lines99-103 chooses OPT4/Llama-2 5. These are experiments, not a universal supported interval[1,9]. Preserve the nine tested values explicit=False; do not transfer Llama-2 alpha5 to Llama-3 analysis.",
+      "records": [
+        {
+          "schema_version": "0.1.0",
+          "scope_id": "infinigen-scope-008",
+          "artifact_id": "infinigen",
+          "param": "alpha_threshold",
+          "kind": "set",
+          "lower": null,
+          "upper": null,
+          "values": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9
+          ],
+          "unit": "attention_score_units",
+          "explicit": false,
+          "evidence": [
+            {
+              "quote": "set to 0.3. We set alpha to 4 for OPT and 5 for Llama-2, result-\ning in using less than 10% of the KV cache on average across\nthe layers. For each layer, we allow sending up to 20% of",
+              "source": "paper",
+              "locator": "PDF p.10, text lines 100-102"
+            },
+            {
+              "quote": "Figure 17: Accuracy and inference latency across (a) alpha values\nand (b) partial weight ratios.",
+              "source": "paper",
+              "locator": "PDF p.13, text lines 89-90"
+            },
+            {
+              "quote": "We use the OPT-6.7B model with 1920 input tokens, 128\noutput tokens, and a batch size of 8. The accuracy is evaluated\nwith the WinoGrande task in lm-evaluation-harness.\nThreshold and Alpha. As discussed in Section 4.3, we load\nthe KV cache of the tokens with a speculated attention score\ngreater than the threshold (i.e., the maximum attention score\nminus alpha). Increasing alpha results in fetching more KV\nentries to the GPU, thus increasing inference latency but also\nimproving accuracy. Figure 17(a) shows such trade-offs be-\ntween accuracy and inference latency for nine different alpha\nvalues with a partial weight ratio of 0.3. The results show that\nmore KV entries are fetched and involved in attention compu-\ntation as alpha increases, thereby leading to better accuracy.\nFor the alpha values beyond 4, however, since most important\ntokens are already included, the accuracy does not further\nincrease, while the cost for KV transfers and attention com-\nputation keeps increasing. This trend is similarly observed in\nother models, and we thus opt for an alpha value of 4 or 5 to\nstrike a balance between inference latency and accuracy.",
+              "source": "paper",
+              "locator": "PDF p.13, text lines 111-129"
+            }
+          ]
+        }
+      ],
+      "hold_original": true
+    },
+    {
+      "original_id": "infinigen-scope-009",
+      "reason": "Conservative scope-role clarification: the20% cap is an experimental resource policy in p10 lines99-103, not an exhaustive global algorithm-supported domain. Mark evaluation-only so it cannot later activate a hard exclusion.",
+      "records": [
+        {
+          "schema_version": "0.1.0",
+          "scope_id": "infinigen-scope-009",
+          "artifact_id": "infinigen",
+          "param": "max_kv_fraction_per_layer",
+          "kind": "interval",
+          "lower": 0.0,
+          "upper": 0.2,
+          "values": null,
+          "unit": "fraction_of_total_kv_cache",
+          "explicit": false,
+          "evidence": [
+            {
+              "quote": "the layers. For each layer, we allow sending up to 20% of\nthe total KV cache to the GPU if it contains more candidates.",
+              "source": "paper",
+              "locator": "PDF p.10, text lines 102-103"
+            }
+          ]
+        }
+      ],
+      "hold_original": true
+    },
+    {
+      "original_id": "infinigen-scope-012",
+      "reason": "Confirmed evidence attribution error: the attached quote describes baseline INT4/quantization, FlexGen FP16, or H2O budget rather than an InfiniGen supported input domain. Hold as baseline evidence; do not reject the baseline observation or turn it into InfiniGen scope.",
+      "records": [],
+      "hold_original": true
+    },
+    {
+      "original_id": "infinigen-scope-013",
+      "reason": "Confirmed evidence attribution error: the attached quote describes baseline INT4/quantization, FlexGen FP16, or H2O budget rather than an InfiniGen supported input domain. Hold as baseline evidence; do not reject the baseline observation or turn it into InfiniGen scope.",
+      "records": [],
+      "hold_original": true
+    },
+    {
+      "original_id": "infinigen-scope-026",
+      "reason": "Confirmed evidence attribution error: the attached quote describes baseline INT4/quantization, FlexGen FP16, or H2O budget rather than an InfiniGen supported input domain. Hold as baseline evidence; do not reject the baseline observation or turn it into InfiniGen scope.",
+      "records": [],
+      "hold_original": true
+    },
+    {
+      "original_id": "infinigen-scope-029",
+      "reason": "Confirmed evidence attribution error: the attached quote describes baseline INT4/quantization, FlexGen FP16, or H2O budget rather than an InfiniGen supported input domain. Hold as baseline evidence; do not reject the baseline observation or turn it into InfiniGen scope.",
+      "records": [],
+      "hold_original": true
+    },
+    {
+      "original_id": "infinigen-scope-014",
+      "reason": "Conservative scope-role clarification: p10 lines64-67 gives the experimental machine (A6000 48GB, CPU96GB, PCIe3.0x16), not exhaustive hardware/memory support bounds. Mark evaluation-only; no device/version exclusion is inferred.",
+      "records": [
+        {
+          "schema_version": "0.1.0",
+          "scope_id": "infinigen-scope-014",
+          "artifact_id": "infinigen",
+          "param": "gpu_memory_gb",
+          "kind": "interval",
+          "lower": 48.0,
+          "upper": 48.0,
+          "values": null,
+          "unit": "GB",
+          "explicit": false,
+          "evidence": [
+            {
+              "quote": "experiments on a system equipped with an NVIDIA RTX\nA6000 GPU [44] with 48GB of memory and an Intel Xeon\nGold 6136 processor with 96GB of DDR4-2666 memory.",
+              "source": "paper",
+              "locator": "PDF p.10, text lines 64-66"
+            }
+          ]
+        }
+      ],
+      "hold_original": true
+    },
+    {
+      "original_id": "infinigen-scope-015",
+      "reason": "Conservative scope-role clarification: p10 lines64-67 gives the experimental machine (A6000 48GB, CPU96GB, PCIe3.0x16), not exhaustive hardware/memory support bounds. Mark evaluation-only; no device/version exclusion is inferred.",
+      "records": [
+        {
+          "schema_version": "0.1.0",
+          "scope_id": "infinigen-scope-015",
+          "artifact_id": "infinigen",
+          "param": "cpu_memory_gb",
+          "kind": "interval",
+          "lower": 96.0,
+          "upper": 96.0,
+          "values": null,
+          "unit": "GB",
+          "explicit": false,
+          "evidence": [
+            {
+              "quote": "A6000 GPU [44] with 48GB of memory and an Intel Xeon\nGold 6136 processor with 96GB of DDR4-2666 memory.",
+              "source": "paper",
+              "locator": "PDF p.10, text lines 65-66"
+            }
+          ]
+        }
+      ],
+      "hold_original": true
+    },
+    {
+      "original_id": "infinigen-scope-016",
+      "reason": "Conservative scope-role clarification: p10 lines64-67 gives the experimental machine (A6000 48GB, CPU96GB, PCIe3.0x16), not exhaustive hardware/memory support bounds. Mark evaluation-only; no device/version exclusion is inferred.",
+      "records": [
+        {
+          "schema_version": "0.1.0",
+          "scope_id": "infinigen-scope-016",
+          "artifact_id": "infinigen",
+          "param": "pcie_generation",
+          "kind": "set",
+          "lower": null,
+          "upper": null,
+          "values": [
+            3
+          ],
+          "unit": null,
+          "explicit": false,
+          "evidence": [
+            {
+              "quote": "PCIe 3.0×16 interconnects the CPU and GPU.",
+              "source": "paper",
+              "locator": "PDF p.10, text lines 67-67"
+            }
+          ]
+        }
+      ],
+      "hold_original": true
+    },
+    {
+      "original_id": "infinigen-scope-017",
+      "reason": "Confirmed attribution distinction: p10 calls CUDA UVM and FlexGen baseline environments, whereas p15 lines54-59 directly states InfiniGen can work in conjunction with FlexGen. Preserve that explicit compatibility only; do not infer InfiniGen-on-UVM support from a UVM baseline.",
+      "records": [
+        {
+          "schema_version": "0.1.0",
+          "scope_id": "infinigen-scope-017",
+          "artifact_id": "infinigen",
+          "param": "offloading_backend",
+          "kind": "set",
+          "lower": null,
+          "upper": null,
+          "values": [
+            "FlexGen"
+          ],
+          "unit": null,
+          "explicit": true,
+          "evidence": [
+            {
+              "quote": "as needed for computation [29, 30, 48, 72, 73]. FlexGen [57]\nis a recent LLM serving system that enables high-throughput\ninference on a single GPU by offloading weights and KV\ncache to CPU memory and disk. InfiniGen is orthogonal to\nFlexGen and can work in conjunction with it to efficiently\noffload and prefetch the KV cache.",
+              "source": "paper",
+              "locator": "PDF p.15, text lines 54-59"
+            }
+          ]
+        }
+      ],
+      "hold_original": true
+    },
+    {
+      "original_id": "infinigen-scope-019",
+      "reason": "Confirmed semantic binding mismatch: paper start-layer1 is a design boundary, not the current iteration layer_id constrained to exactly1. The cited code stores current self.layer_id and gates partial_weight_ratio at layer_id>1; this does not establish the binding rationale claiming exact index equivalence. Preserve complete paper rationale in free_text and deactivate scalar mapping; no missing-feature/runtime-bug verdict is inferred.",
+      "records": [
+        {
+          "schema_version": "0.1.0",
+          "scope_id": "infinigen-scope-019",
+          "artifact_id": "infinigen",
+          "param": "speculation_start_layer",
+          "kind": "free_text",
+          "lower": null,
+          "upper": null,
+          "values": null,
+          "unit": "layer_index",
+          "explicit": true,
+          "evidence": [
+            {
+              "quote": "PCI interconnect bandwidth. InfiniGen initiates speculation\nand prefetching from Layer 1 because the outliers, which are\nessential for exploiting input similarity, emerge during the\ncomputation in Layer 0.",
+              "source": "paper",
+              "locator": "PDF p.10, text lines 16-19"
+            }
+          ]
+        }
+      ],
+      "hold_original": true
+    },
+    {
+      "original_id": "infinigen-scope-024",
+      "reason": "Confirmed task-count/shot-count confusion: p10 lines69-70 says five few-shot tasks, not five shots per task. Remove numeric few_shot_count5 from active scope and retain original held; no shot count is guessed.",
+      "records": [],
+      "hold_original": true
+    }
+  ],
+  "evaluation_replacements": [
+    {
+      "original_id": "infinigen-eval_points-001",
+      "reason": "Confirmed experiment-role mismatch: Table2 100% is explicitly no memory limit, whereas FIFO/LRU/Counter are compared at80% (p12 lines41-47). A Counter victim policy is not an operative joint setting for no eviction. Conservative removal of batch8 and backend because this accuracy table does not establish them. Keep the no-limit regime as an explicit mode, not an implicit policy combination.",
+      "records": [
+        {
+          "schema_version": "0.1.0",
+          "eval_id": "infinigen-eval_points-001",
+          "artifact_id": "infinigen",
+          "config": {
+            "model_family": "OPT-6.7B",
+            "sequence_length_tokens": 2048,
+            "partial_weight_ratio": 0.3,
+            "alpha_threshold": 4,
+            "max_kv_fraction_per_layer": 0.2,
+            "gpu_memory_gb": 48,
+            "cpu_memory_gb": 96,
+            "pcie_generation": 3,
+            "kv_cache_pool_memory_limit_mode": "no_memory_limit",
+            "evaluation": "language_modeling_perplexity"
+          },
+          "evidence": [
+            {
+              "quote": "set to 0.3. We set alpha to 4 for OPT and 5 for Llama-2, result-\ning in using less than 10% of the KV cache on average across\nthe layers. For each layer, we allow sending up to 20% of",
+              "source": "paper",
+              "locator": "PDF p.10, text lines 100-102"
+            },
+            {
+              "quote": "Table 2: Perplexity on WikiText-2 and PTB with 2048 sequence\nlength with or without KV cache memory limits. Lower is better.",
+              "source": "paper",
+              "locator": "PDF p.12, text lines 1-2"
+            },
+            {
+              "quote": "Table 2: Perplexity on WikiText-2 and PTB with 2048 sequence\nlength with or without KV cache memory limits. Lower is better.\nScheme OPT-6.7B OPT-13B OPT-30B Llama-2-7B Llama-2-13B\nWiki PTB Wiki PTB Wiki PTB Wiki PTB Wiki PTB\n100% 11.68 13.86 10.55 12.78 10.14 12.31 5.69 22.53 5.25 31.94\n80-FIFO% 19.64 16.82 30.99 33.84 30.66 35.45 22.26 61.88 21.41 32.34\n80-LRU% 11.68 13.85 10.55 12.78 10.14 12.31 5.69 22.53 5.25 31.94\n80-Counter% 11.68 13.86 10.55 12.78 10.14 12.31 5.69 22.53 5.25 31.94",
+              "source": "paper",
+              "locator": "PDF p.12, text lines 1-8"
+            },
+            {
+              "quote": "KV Cache Pool Management. Table 2 shows the perplexity\nof five different models with or without limiting the memory\ncapacity for WikiText-2 and PTB. We compare FIFO-based,\nLRU-based, and Counter-based victim selection policies in\nSection 4.4 under the 80% memory limit of a full KV cache.\nWe also present the perplexity results with no memory limit\n(100%). The FIFO-based approach shows the worst model",
+              "source": "paper",
+              "locator": "PDF p.12, text lines 41-47"
+            }
+          ]
+        }
+      ],
+      "hold_original": true
+    },
+    {
+      "original_id": "infinigen-eval_points-004",
+      "reason": "Source-context completion only: p13 lines37-42 jointly gives OPT-13B, batch8 and the1920input/128output case among the four total sequence lengths. sequence_length2048 means input+output, not prefill length.",
+      "records": [
+        {
+          "schema_version": "0.1.0",
+          "eval_id": "infinigen-eval_points-004",
+          "artifact_id": "infinigen",
+          "config": {
+            "model_family": "OPT-13B",
+            "sequence_length_tokens": 2048,
+            "batch_size": 8,
+            "input_tokens": 1920,
+            "output_tokens": 128,
+            "partial_weight_ratio": 0.3,
+            "alpha_threshold": 4,
+            "max_kv_fraction_per_layer": 0.2,
+            "offloading_backend": "FlexGen"
+          },
+          "evidence": [
+            {
+              "quote": "ferent sequence lengths. With a batch size of 8, we use four\ndifferent input/output configurations. Each configuration com-",
+              "source": "paper",
+              "locator": "PDF p.13, text lines 39-40"
+            },
+            {
+              "quote": "Sequence Length. Figure 16(a) shows the speedup of INT4,\nH2O, and InfiniGen over FlexGen on OPT-13B across dif-\nferent sequence lengths. With a batch size of 8, we use four\ndifferent input/output configurations. Each configuration com-\nprises 128 output tokens and 384, 896, 1408, 1920 input to-\nkens (i.e., a total number of tokens ranging from 512 to 2048).",
+              "source": "paper",
+              "locator": "PDF p.13, text lines 37-42"
+            }
+          ]
+        }
+      ],
+      "hold_original": true
+    },
+    {
+      "original_id": "infinigen-eval_points-006",
+      "reason": "Conservative experiment identification: retain the actual partial-ratio .3 point at alpha4 in the ratio-sensitivity experiment, rather than an unspecified joint point across two independently swept variables. The model/batch/input/output are p13 lines111-113, fixed alpha4 and ratio.3 point are p14 lines12-23.",
+      "records": [
+        {
+          "schema_version": "0.1.0",
+          "eval_id": "infinigen-eval_points-006",
+          "artifact_id": "infinigen",
+          "config": {
+            "model_family": "OPT-6.7B",
+            "sequence_length_tokens": 2048,
+            "batch_size": 8,
+            "input_tokens": 1920,
+            "output_tokens": 128,
+            "partial_weight_ratio": 0.3,
+            "alpha_threshold": 4,
+            "max_kv_fraction_per_layer": 0.2,
+            "offloading_backend": "FlexGen",
+            "experiment": "partial_weight_ratio_sensitivity",
+            "benchmark": "WinoGrande"
+          },
+          "evidence": [
+            {
+              "quote": "We use the OPT-6.7B model with 1920 input tokens, 128\noutput tokens, and a batch size of 8. The accuracy is evaluated",
+              "source": "paper",
+              "locator": "PDF p.13, text lines 111-112"
+            },
+            {
+              "quote": "We use the OPT-6.7B model with 1920 input tokens, 128\noutput tokens, and a batch size of 8. The accuracy is evaluated\nwith the WinoGrande task in lm-evaluation-harness.",
+              "source": "paper",
+              "locator": "PDF p.13, text lines 111-113"
+            },
+            {
+              "quote": "inference latency across different partial weight ratios with an\nalpha value of 4. As shown in the figure, the amount of partial\nweights has a negligible impact on inference latency because\nthe cost for computing the speculated attention score is rela-\ntively small. Note that the amount of KV cache to transfer is\nnot related to the partial weight ratio. However, increasing the\npartial weight ratio results in higher memory consumption for\npartial weights and key cache (e.g., doubling the ratio doubles\nthe memory consumption overhead). The accuracy also does\nnot noticeably differ beyond a ratio of 0.3. In our work, we\nopt for a partial weight ratio of 0.3 to achieve better accuracy\nwhile considering memory consumption overhead.",
+              "source": "paper",
+              "locator": "PDF p.14, text lines 12-23"
+            }
+          ]
+        }
+      ],
+      "hold_original": true
+    },
+    {
+      "original_id": "infinigen-eval_points-007",
+      "reason": "Confirmed regime mismatch: p12 lines27-30 fixes KV budget20% instead of the dynamic approach. Remove default alpha/max-dynamic-fraction plus unsupported sequence/batch/backend settings. Preserve the actually compared with-skewing and without-skewing variants as two joint records.",
+      "records": [
+        {
+          "schema_version": "0.1.0",
+          "eval_id": "infinigen-eval_points-007-review-1",
+          "artifact_id": "infinigen",
+          "config": {
+            "model_family": "OPT-6.7B",
+            "benchmark": "lm-evaluation-harness",
+            "experiment": "skewing_ablation",
+            "fixed_kv_cache_budget_fraction": 0.2,
+            "skewing": true
+          },
+          "evidence": [
+            {
+              "quote": "Figure 13: Accuracy on the lm-evaluation-harness benchmark with\nor without skewing on OPT-6.7B.",
+              "source": "paper",
+              "locator": "PDF p.12, text lines 18-19"
+            },
+            {
+              "quote": "COPA OpenBookQAWinoGrande PIQA RTE\nAccuracy (%)\nFull Cache w/o Skewing w/ Skewing\nFigure 13: Accuracy on the lm-evaluation-harness benchmark with\nor without skewing on OPT-6.7B.",
+              "source": "paper",
+              "locator": "PDF p.12, text lines 15-19"
+            },
+            {
+              "quote": "Effect of Skewing. Figure 13 shows the accuracy with or\nwithout key/query skewing on the OPT-6.7B model. For the\nexperiment, we use a fixed KV cache budget of 20%, in-\nstead of using a dynamic approach, to clearly show the effect\nof skewing. We observe that several language models (e.g.,\nLlama-2) show a small drop in accuracy without skewing. For\nsome models such as OPT-6.7B, however, we see a large ac-\ncuracy drop if we do not apply the skewing method as shown\nin Figure 13. This indicates that in the case of OPT-6.7B, the\npartial weight does not adequately represent the original ma-\ntrix without skewing. After applying our skewing method, we\nachieve accuracy similar to the full-cache baseline. Our skew-\ning method effectively skews key and query matrices such\nthat a few columns can better represent the original matrices.",
+              "source": "paper",
+              "locator": "PDF p.12, text lines 27-40"
+            }
+          ]
+        },
+        {
+          "schema_version": "0.1.0",
+          "eval_id": "infinigen-eval_points-007-review-2",
+          "artifact_id": "infinigen",
+          "config": {
+            "model_family": "OPT-6.7B",
+            "benchmark": "lm-evaluation-harness",
+            "experiment": "skewing_ablation",
+            "fixed_kv_cache_budget_fraction": 0.2,
+            "skewing": false
+          },
+          "evidence": [
+            {
+              "quote": "Figure 13: Accuracy on the lm-evaluation-harness benchmark with\nor without skewing on OPT-6.7B.",
+              "source": "paper",
+              "locator": "PDF p.12, text lines 18-19"
+            },
+            {
+              "quote": "COPA OpenBookQAWinoGrande PIQA RTE\nAccuracy (%)\nFull Cache w/o Skewing w/ Skewing\nFigure 13: Accuracy on the lm-evaluation-harness benchmark with\nor without skewing on OPT-6.7B.",
+              "source": "paper",
+              "locator": "PDF p.12, text lines 15-19"
+            },
+            {
+              "quote": "Effect of Skewing. Figure 13 shows the accuracy with or\nwithout key/query skewing on the OPT-6.7B model. For the\nexperiment, we use a fixed KV cache budget of 20%, in-\nstead of using a dynamic approach, to clearly show the effect\nof skewing. We observe that several language models (e.g.,\nLlama-2) show a small drop in accuracy without skewing. For\nsome models such as OPT-6.7B, however, we see a large ac-\ncuracy drop if we do not apply the skewing method as shown\nin Figure 13. This indicates that in the case of OPT-6.7B, the\npartial weight does not adequately represent the original ma-\ntrix without skewing. After applying our skewing method, we\nachieve accuracy similar to the full-cache baseline. Our skew-\ning method effectively skews key and query matrices such\nthat a few columns can better represent the original matrices.",
+              "source": "paper",
+              "locator": "PDF p.12, text lines 27-40"
+            }
+          ]
+        }
+      ],
+      "hold_original": true
+    },
+    {
+      "original_id": "infinigen-eval_points-008",
+      "reason": "Conservative missing joint provenance: the p11 perplexity experiment fixes Llama-2-13B sequence4096 and256-token decoding chunks, not batch8 or a FlexGen execution backend. Remove those unsupported assignments; do not reinterpret the4096 total evaluation length as generation length.",
+      "records": [
+        {
+          "schema_version": "0.1.0",
+          "eval_id": "infinigen-eval_points-008",
+          "artifact_id": "infinigen",
+          "config": {
+            "model_family": "Llama-2-13B",
+            "sequence_length_tokens": 4096,
+            "partial_weight_ratio": 0.3,
+            "alpha_threshold": 5,
+            "max_kv_fraction_per_layer": 0.2,
+            "evaluation": "language_modeling_perplexity",
+            "decoding_chunk_tokens": 256
+          },
+          "evidence": [
+            {
+              "quote": "sequence lengths are 2048 and 4096 for OPT-13B and Llama-\n2-13B, respectively. For a clearer view, we evaluate perplexity",
+              "source": "paper",
+              "locator": "PDF p.11, text lines 215-216"
+            },
+            {
+              "quote": "Sequence Length. Figure 12 shows the perplexity of two\ndifferent models with InfiniGen and the baselines, as the se-\nquence length increases. In this experiment, H 2O is config-\nured to use the same amount of KV cache as InfiniGen. The\nsequence lengths are 2048 and 4096 for OPT-13B and Llama-\n2-13B, respectively. For a clearer view, we evaluate perplexity\nwith consecutive 256 tokens as a group, which is referred\nto as a decoding chunk in the figure. The results show that",
+              "source": "paper",
+              "locator": "PDF p.11, text lines 211-218"
+            }
+          ]
+        }
+      ],
+      "hold_original": true
+    },
+    {
+      "original_id": "infinigen-eval_points-009",
+      "reason": "Conservative joint-config preservation: Figure19(a) varies relative KV cache sizes at sequence32768; no source here establishes the transplanted default alpha/partial-ratio/max-fraction/backend jointly with every point in that ablation. Keep the directly supported model/length/dataset/experiment; do not confuse Fig19(b) retained64tokens with32768-token input.",
+      "records": [
+        {
+          "schema_version": "0.1.0",
+          "eval_id": "infinigen-eval_points-009",
+          "artifact_id": "infinigen",
+          "config": {
+            "model_family": "Llama-2-7B-32K",
+            "sequence_length_tokens": 32768,
+            "dataset": "WikiText-2",
+            "evaluation": "language_modeling_perplexity",
+            "experiment": "relative_kv_cache_size"
+          },
+          "evidence": [
+            {
+              "quote": "Figure 19: Perplexity of Llama-2-7B-32K across (a) relative KV\ncache sizes with a sequence length of 32768 and (b) sequence lengths\nwhile retaining 64 tokens. Lower is better. Llama-2-7B-32K is a fine-",
+              "source": "paper",
+              "locator": "PDF p.14, text lines 72-74"
+            },
+            {
+              "quote": "Figure 19: Perplexity of Llama-2-7B-32K across (a) relative KV\ncache sizes with a sequence length of 32768 and (b) sequence lengths\nwhile retaining 64 tokens. Lower is better. Llama-2-7B-32K is a fine-\ntuned version capable of processing up to 32K tokens using position\ninterpolation [12]. Quantization is omitted in (b) since the KV cache\ncannot be compressed below 6.25% (i.e., 1 bit).",
+              "source": "paper",
+              "locator": "PDF p.14, text lines 72-77"
+            },
+            {
+              "quote": "6.3 Long Context Window\nFigure 19 shows the perplexity of the Llama-2-7B-32K model,\nwhich can process up to 32K tokens, across the relative cache\nsizes and sequence lengths. We use the WikiText-2 dataset\nfor the experiment. As the context window size increases for",
+              "source": "paper",
+              "locator": "PDF p.14, text lines 84-88"
+            }
+          ]
+        }
+      ],
+      "hold_original": true
+    },
+    {
+      "original_id": "infinigen-eval_points-011",
+      "reason": "Confirmed source-type/consumer-boundary correction: this record describes a baseline or attention-pattern/motivation observation, not an InfiniGen evaluation point. Current ScopeChecker does not filter method labels; keeping even a method-tagged record active could falsely count these settings as InfiniGen test coverage. Hold original and preserve source-backed analysis configurations separately in reported_observations, outside active EvalPoint. Conservative method labeling: this is an explicitly evaluated baseline, not evidence of an InfiniGen configuration using this backend/compression policy. Attach common OPT-13B input/output/batch setup to retain the actual jointly evaluated baseline regime.",
+      "records": [],
+      "hold_original": true
+    },
+    {
+      "original_id": "infinigen-eval_points-012",
+      "reason": "Confirmed source-type/consumer-boundary correction: this record describes a baseline or attention-pattern/motivation observation, not an InfiniGen evaluation point. Current ScopeChecker does not filter method labels; keeping even a method-tagged record active could falsely count these settings as InfiniGen test coverage. Hold original and preserve source-backed analysis configurations separately in reported_observations, outside active EvalPoint. Conservative method labeling: this is an explicitly evaluated baseline, not evidence of an InfiniGen configuration using this backend/compression policy. Attach common OPT-13B input/output/batch setup to retain the actual jointly evaluated baseline regime.",
+      "records": [],
+      "hold_original": true
+    },
+    {
+      "original_id": "infinigen-eval_points-013",
+      "reason": "Confirmed source-type/consumer-boundary correction: this record describes a baseline or attention-pattern/motivation observation, not an InfiniGen evaluation point. Current ScopeChecker does not filter method labels; keeping even a method-tagged record active could falsely count these settings as InfiniGen test coverage. Hold original and preserve source-backed analysis configurations separately in reported_observations, outside active EvalPoint. Conservative method labeling: this is an explicitly evaluated baseline, not evidence of an InfiniGen configuration using this backend/compression policy. Attach common OPT-13B input/output/batch setup to retain the actual jointly evaluated baseline regime.",
+      "records": [],
+      "hold_original": true
+    },
+    {
+      "original_id": "infinigen-eval_points-014",
+      "reason": "Confirmed source-type/consumer-boundary correction: this record describes a baseline or attention-pattern/motivation observation, not an InfiniGen evaluation point. Current ScopeChecker does not filter method labels; keeping even a method-tagged record active could falsely count these settings as InfiniGen test coverage. Hold original and preserve source-backed analysis configurations separately in reported_observations, outside active EvalPoint. Confirmed attribution error: Figure4 analyzes H2O and an Optimal selection baseline, each using200tokens on a random PG-19 sentence of2000tokens. It is not an InfiniGen run with default alpha/partial-ratio/cap. Replace with the two directly described baseline-analysis configurations.",
+      "records": [],
+      "hold_original": true
+    },
+    {
+      "original_id": "infinigen-eval_points-015",
+      "reason": "Confirmed source-type/consumer-boundary correction: this record describes a baseline or attention-pattern/motivation observation, not an InfiniGen evaluation point. Current ScopeChecker does not filter method labels; keeping even a method-tagged record active could falsely count these settings as InfiniGen test coverage. Hold original and preserve source-backed analysis configurations separately in reported_observations, outside active EvalPoint. Confirmed analysis/input-role mismatch: Figure5 is a histogram of attention-weight concentration for OPT-6.7B layers0/18, not an InfiniGen alpha/partial-ratio evaluation. Remove transplanted defaults and a2000-token length not jointly stated in this caption; preserve a minimal source-backed observational analysis.",
+      "records": [],
+      "hold_original": true
+    },
+    {
+      "original_id": "infinigen-eval_points-016",
+      "reason": "Confirmed source-type/consumer-boundary correction: this record describes a baseline or attention-pattern/motivation observation, not an InfiniGen evaluation point. Current ScopeChecker does not filter method labels; keeping even a method-tagged record active could falsely count these settings as InfiniGen test coverage. Hold original and preserve source-backed analysis configurations separately in reported_observations, outside active EvalPoint. Confirmed analysis/input-role mismatch: Figure7(b) observes the Layer18 query matrix of OPT-13B; it does not establish batch8/length2048 or InfiniGen alpha/partial-ratio/cap. Preserve this minimal observational analysis rather than inventing a joint runtime configuration.",
+      "records": [],
+      "hold_original": true
+    },
+    {
+      "original_id": "infinigen-eval_points-017",
+      "reason": "Confirmed source-type/consumer-boundary correction: this record describes a baseline or attention-pattern/motivation observation, not an InfiniGen evaluation point. Current ScopeChecker does not filter method labels; keeping even a method-tagged record active could falsely count these settings as InfiniGen test coverage. Hold original and preserve source-backed analysis configurations separately in reported_observations, outside active EvalPoint. Confirmed analysis/input-role mismatch: Figure20 observes million-token attention patterns in Llama-3-8B-1048K. The paper does not jointly demonstrate an InfiniGen run with partial-ratio .3/alpha5/cap.2; alpha5 was specified for Llama-2, not Llama-3. Preserve only the model, exact printed1million-token length and observational analysis. This does not establish GQA/other-head implementation support or deny the observed sparse patterns.",
+      "records": [],
+      "hold_original": true
+    }
+  ],
+  "proposed_result_summary": {
+    "claims_unchanged": 65,
+    "scope": 25,
+    "eval_points": 11,
+    "expected_solver_bindings_after_strict_finalize": 0,
+    "navigation_bindings_unchanged": 12,
+    "expected_total_bindings_after_strict_finalize": 12,
+    "scope_replacements": 15,
+    "active_scope_removals": 5,
+    "evaluation_replacements": 13,
+    "conformance_unchanged": true,
+    "not_applied": true,
+    "active_evaluation_removals": 7,
+    "reported_observation_groups": 7,
+    "reported_observation_records": 8
+  },
+  "reported_observations": [
+    {
+      "original_id": "infinigen-eval_points-011",
+      "source_type": "baseline_comparison",
+      "consumer_status": "not_active_EvalPoint; observations only",
+      "reason": "Retain exact source-backed reported configurations as contextual observations. Current ScopeChecker does not filter method/analysis, so these cannot establish InfiniGen test coverage or supported input domains.",
+      "records": [
+        {
+          "schema_version": "0.1.0",
+          "eval_id": "infinigen-eval_points-011",
+          "artifact_id": "infinigen",
+          "config": {
+            "model_family": "OPT-13B",
+            "sequence_length_tokens": 2048,
+            "batch_size": 20,
+            "input_tokens": 1920,
+            "output_tokens": 128,
+            "offloading_backend": "CUDA UVM",
+            "method": "CUDA UVM baseline"
+          },
+          "evidence": [
+            {
+              "quote": "UVM shows an extremely long latency because the work-\ning set size (i.e., the size of the model parameters and KV\ncache) is larger than the GPU memory capacity, thereby lead-",
+              "source": "paper",
+              "locator": "PDF p.12, text lines 92-94"
+            },
+            {
+              "quote": "In this section, we refer to H2O (with a KV cache budget of\n20%) and 4-bit quantization implemented on top of FlexGen\nas H2O and INT4.\nInference Latency. Figure 14 shows the inference latency\nincluding the prefill and decoding stages. We use the OPT-\n13B model with 1920 input tokens, 128 output tokens, and a\nbatch size of 20. InfiniGen achieves 1.63×-32.93× speedups",
+              "source": "paper",
+              "locator": "PDF p.12, text lines 82-88"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "original_id": "infinigen-eval_points-012",
+      "source_type": "baseline_comparison",
+      "consumer_status": "not_active_EvalPoint; observations only",
+      "reason": "Retain exact source-backed reported configurations as contextual observations. Current ScopeChecker does not filter method/analysis, so these cannot establish InfiniGen test coverage or supported input domains.",
+      "records": [
+        {
+          "schema_version": "0.1.0",
+          "eval_id": "infinigen-eval_points-012",
+          "artifact_id": "infinigen",
+          "config": {
+            "model_family": "OPT-13B",
+            "sequence_length_tokens": 2048,
+            "batch_size": 20,
+            "input_tokens": 1920,
+            "output_tokens": 128,
+            "quantization_bits": 4,
+            "offloading_backend": "FlexGen",
+            "method": "INT4 baseline"
+          },
+          "evidence": [
+            {
+              "quote": "In this section, we refer to H2O (with a KV cache budget of\n20%) and 4-bit quantization implemented on top of FlexGen\nas H2O and INT4.",
+              "source": "paper",
+              "locator": "PDF p.12, text lines 82-84"
+            },
+            {
+              "quote": "In this section, we refer to H2O (with a KV cache budget of\n20%) and 4-bit quantization implemented on top of FlexGen\nas H2O and INT4.\nInference Latency. Figure 14 shows the inference latency\nincluding the prefill and decoding stages. We use the OPT-\n13B model with 1920 input tokens, 128 output tokens, and a\nbatch size of 20. InfiniGen achieves 1.63×-32.93× speedups",
+              "source": "paper",
+              "locator": "PDF p.12, text lines 82-88"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "original_id": "infinigen-eval_points-013",
+      "source_type": "baseline_comparison",
+      "consumer_status": "not_active_EvalPoint; observations only",
+      "reason": "Retain exact source-backed reported configurations as contextual observations. Current ScopeChecker does not filter method/analysis, so these cannot establish InfiniGen test coverage or supported input domains.",
+      "records": [
+        {
+          "schema_version": "0.1.0",
+          "eval_id": "infinigen-eval_points-013",
+          "artifact_id": "infinigen",
+          "config": {
+            "model_family": "OPT-13B",
+            "sequence_length_tokens": 2048,
+            "batch_size": 20,
+            "input_tokens": 1920,
+            "output_tokens": 128,
+            "h2o_kv_budget": 0.2,
+            "offloading_backend": "FlexGen",
+            "method": "H2O baseline"
+          },
+          "evidence": [
+            {
+              "quote": "In this section, we refer to H2O (with a KV cache budget of\n20%) and 4-bit quantization implemented on top of FlexGen",
+              "source": "paper",
+              "locator": "PDF p.12, text lines 82-83"
+            },
+            {
+              "quote": "In this section, we refer to H2O (with a KV cache budget of\n20%) and 4-bit quantization implemented on top of FlexGen\nas H2O and INT4.\nInference Latency. Figure 14 shows the inference latency\nincluding the prefill and decoding stages. We use the OPT-\n13B model with 1920 input tokens, 128 output tokens, and a\nbatch size of 20. InfiniGen achieves 1.63×-32.93× speedups",
+              "source": "paper",
+              "locator": "PDF p.12, text lines 82-88"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "original_id": "infinigen-eval_points-014",
+      "source_type": "baseline_comparison",
+      "consumer_status": "not_active_EvalPoint; observations only",
+      "reason": "Retain exact source-backed reported configurations as contextual observations. Current ScopeChecker does not filter method/analysis, so these cannot establish InfiniGen test coverage or supported input domains.",
+      "records": [
+        {
+          "schema_version": "0.1.0",
+          "eval_id": "infinigen-eval_points-014-review-1",
+          "artifact_id": "infinigen",
+          "config": {
+            "model_family": "OPT-6.7B",
+            "sequence_length_tokens": 2000,
+            "dataset": "PG-19",
+            "analysis": "attention_weight_cosine_similarity",
+            "retained_attention_tokens": 200,
+            "method": "H2O"
+          },
+          "evidence": [
+            {
+              "quote": "use 200 tokens for attention computation. We use OPT-6.7B and a\nrandom sentence with 2000 tokens from the PG-19 dataset [52].",
+              "source": "paper",
+              "locator": "PDF p.5, text lines 103-104"
+            },
+            {
+              "quote": "Figure 4: Cosine similarity between the attention weights of the base\nmodel with full cache and (a) H2O or (b) Optimal. H2O and Optimal\nuse 200 tokens for attention computation. We use OPT-6.7B and a\nrandom sentence with 2000 tokens from the PG-19 dataset [52].",
+              "source": "paper",
+              "locator": "PDF p.5, text lines 101-104"
+            }
+          ]
+        },
+        {
+          "schema_version": "0.1.0",
+          "eval_id": "infinigen-eval_points-014-review-2",
+          "artifact_id": "infinigen",
+          "config": {
+            "model_family": "OPT-6.7B",
+            "sequence_length_tokens": 2000,
+            "dataset": "PG-19",
+            "analysis": "attention_weight_cosine_similarity",
+            "retained_attention_tokens": 200,
+            "method": "Optimal"
+          },
+          "evidence": [
+            {
+              "quote": "use 200 tokens for attention computation. We use OPT-6.7B and a\nrandom sentence with 2000 tokens from the PG-19 dataset [52].",
+              "source": "paper",
+              "locator": "PDF p.5, text lines 103-104"
+            },
+            {
+              "quote": "Figure 4: Cosine similarity between the attention weights of the base\nmodel with full cache and (a) H2O or (b) Optimal. H2O and Optimal\nuse 200 tokens for attention computation. We use OPT-6.7B and a\nrandom sentence with 2000 tokens from the PG-19 dataset [52].",
+              "source": "paper",
+              "locator": "PDF p.5, text lines 101-104"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "original_id": "infinigen-eval_points-015",
+      "source_type": "attention_motivation_analysis",
+      "consumer_status": "not_active_EvalPoint; observations only",
+      "reason": "Retain exact source-backed reported configurations as contextual observations. Current ScopeChecker does not filter method/analysis, so these cannot establish InfiniGen test coverage or supported input domains.",
+      "records": [
+        {
+          "schema_version": "0.1.0",
+          "eval_id": "infinigen-eval_points-015",
+          "artifact_id": "infinigen",
+          "config": {
+            "model_family": "OPT-6.7B",
+            "analysis": "attention_weight_concentration_histogram"
+          },
+          "evidence": [
+            {
+              "quote": "Figure 5: Histogram that shows the number of key tokens needed\nto achieve 0.9 out of 1.0 total attention weight for (a) Layer 0 and\n(b) Layer 18 of the OPT-6.7B model. The bin width is set to 16. We",
+              "source": "paper",
+              "locator": "PDF p.6, text lines 72-74"
+            },
+            {
+              "quote": "Figure 5: Histogram that shows the number of key tokens needed\nto achieve 0.9 out of 1.0 total attention weight for (a) Layer 0 and\n(b) Layer 18 of the OPT-6.7B model. The bin width is set to 16. We\nobserve that the distribution dynamically changes across the layers.",
+              "source": "paper",
+              "locator": "PDF p.6, text lines 72-75"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "original_id": "infinigen-eval_points-016",
+      "source_type": "attention_motivation_analysis",
+      "consumer_status": "not_active_EvalPoint; observations only",
+      "reason": "Retain exact source-backed reported configurations as contextual observations. Current ScopeChecker does not filter method/analysis, so these cannot establish InfiniGen test coverage or supported input domains.",
+      "records": [
+        {
+          "schema_version": "0.1.0",
+          "eval_id": "infinigen-eval_points-016",
+          "artifact_id": "infinigen",
+          "config": {
+            "model_family": "OPT-13B",
+            "analysis": "query_matrix_observation",
+            "layer_index": 18
+          },
+          "evidence": [
+            {
+              "quote": "Figure 7: (a) Visualization of input similarity between consecutive\nTransformer blocks. (b) Query matrix of Layer 18 of the OPT-13B\nmodel. We only show channels from 3000 to 4000 for a clearer view",
+              "source": "paper",
+              "locator": "PDF p.8, text lines 16-18"
+            },
+            {
+              "quote": "Figure 7: (a) Visualization of input similarity between consecutive\nTransformer blocks. (b) Query matrix of Layer 18 of the OPT-13B\nmodel. We only show channels from 3000 to 4000 for a clearer view\nof column-wise patterns.",
+              "source": "paper",
+              "locator": "PDF p.8, text lines 16-19"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "original_id": "infinigen-eval_points-017",
+      "source_type": "attention_motivation_analysis",
+      "consumer_status": "not_active_EvalPoint; observations only",
+      "reason": "Retain exact source-backed reported configurations as contextual observations. Current ScopeChecker does not filter method/analysis, so these cannot establish InfiniGen test coverage or supported input domains.",
+      "records": [
+        {
+          "schema_version": "0.1.0",
+          "eval_id": "infinigen-eval_points-017",
+          "artifact_id": "infinigen",
+          "config": {
+            "model_family": "Llama-3-8B-1048K",
+            "sequence_length_tokens": 1000000,
+            "analysis": "attention_pattern_observation"
+          },
+          "evidence": [
+            {
+              "quote": "Figure 20: Analysis of 1 million tokens using Llama-3-8B-1048K.\n(a) Percentage of query tokens that attend to less than 1% of the\nkey tokens across the sequence lengths. (b) Attention weight of\nsampled key tokens from different layers and heads across the last\n16K iterations out of 1 million tokens.",
+              "source": "paper",
+              "locator": "PDF p.15, text lines 26-30"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

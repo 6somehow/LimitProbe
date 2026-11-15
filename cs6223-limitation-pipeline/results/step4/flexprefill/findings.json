@@ -1,0 +1,4356 @@
+[
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F001",
+  "artifact_id": "flexprefill",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B003"
+  ],
+  "verification_ids": [
+   "V032"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When not isinstance(model, LlamaForCausalLM): Patching a non-LlamaForCausalLM model with a non-default pattern triggers an assertion failure. (flex_prefill/modules/patch.py:123)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "not isinstance(model, LlamaForCausalLM)",
+   "path_prefix": [
+    "pattern != \"default\""
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "isinstance(model, LlamaForCausalLM)": false,
+    "pattern": {
+     "not_in": [
+      "default"
+     ]
+    }
+   },
+   "contrast": {
+    "isinstance(model, LlamaForCausalLM)": true,
+    "pattern": {
+     "not_in": [
+      "default"
+     ]
+    }
+   },
+   "atoms": {
+    "isinstance(model, LlamaForCausalLM)": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "pattern": {
+     "kind": "category",
+     "sort": "str"
+    }
+   },
+   "location": "flex_prefill/modules/patch.py:123",
+   "function": "flex_prefill/modules/patch.py::patch_llama_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 3), not human: Even among llama-named HF models, only LlamaForCausalLM instances are accepted, so other Llama heads such as LlamaModel or sequence classification fail the assertion; this is a narrower check than m02."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F002",
+  "artifact_id": "flexprefill",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B004"
+  ],
+  "verification_ids": [
+   "V033"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When not isinstance(model, Qwen2ForCausalLM): Patching a non-Qwen2ForCausalLM model with a non-default pattern triggers an assertion failure. (flex_prefill/modules/patch.py:241)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "not isinstance(model, Qwen2ForCausalLM)",
+   "path_prefix": [
+    "pattern != \"default\""
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "isinstance(model, Qwen2ForCausalLM)": false,
+    "pattern": {
+     "not_in": [
+      "default"
+     ]
+    }
+   },
+   "contrast": {
+    "isinstance(model, Qwen2ForCausalLM)": true,
+    "pattern": {
+     "not_in": [
+      "default"
+     ]
+    }
+   },
+   "atoms": {
+    "isinstance(model, Qwen2ForCausalLM)": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "pattern": {
+     "kind": "category",
+     "sort": "str"
+    }
+   },
+   "location": "flex_prefill/modules/patch.py:241",
+   "function": "flex_prefill/modules/patch.py::patch_qwen2_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F003",
+  "artifact_id": "flexprefill",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B009"
+  ],
+  "verification_ids": [
+   "V038"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When num_q_heads % num_kv_heads != 0: GQA requires the number of query heads to be a multiple of KV heads; otherwise execution stops. (flex_prefill/ops/flex_prefill_attention.py:247)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "num_q_heads % num_kv_heads != 0",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "aliases": {
+    "num_q_heads": "q.shape[2]",
+    "num_kv_heads": "k.shape[2]"
+   },
+   "trigger": {
+    "num_q_heads": 5,
+    "num_kv_heads": 4,
+    "q.shape[2]": 5,
+    "k.shape[2]": 4
+   },
+   "contrast": {
+    "num_q_heads": 5,
+    "num_kv_heads": 5,
+    "q.shape[2]": 5,
+    "k.shape[2]": 5
+   },
+   "atoms": {
+    "k.shape[2]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "num_kv_heads": {
+     "kind": "local",
+     "sort": "int"
+    },
+    "num_q_heads": {
+     "kind": "local",
+     "sort": "int"
+    },
+    "q.shape[2]": {
+     "kind": "derived",
+     "sort": "int"
+    }
+   },
+   "location": "flex_prefill/ops/flex_prefill_attention.py:247",
+   "function": "flex_prefill/ops/flex_prefill_attention.py::triton_flash_prefill"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 2), not human: Requiring q heads to be a multiple of kv heads is a GQA shape invariant that every real model satisfies, not a mechanism limitation."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F004",
+  "artifact_id": "flexprefill",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X024"
+  ],
+  "verification_ids": [
+   "V024"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When not (q_len == 1): AssertionError (flex_prefill/ops/flex_prefill_attention.py:865)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "trigger_only",
+   "condition": "not (q_len == 1)",
+   "path_prefix": [
+    "batch_size == 1",
+    "not (q_len == 1)",
+    "q.shape[1] == k.shape[1]",
+    "head_dim in {16, 32, 64, 128}",
+    "block_size in {16, 32, 64, 128}",
+    "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
+    "not (q.shape[1] > 1)"
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "q_len": 385,
+    "batch_size": 1,
+    "q.shape[1]": 1,
+    "k.shape[1]": 1,
+    "head_dim": 32,
+    "block_size": 128,
+    "min_budget": 384
+   },
+   "note": "the condition holds on every point that reaches it; no contrast point exists",
+   "atoms": {
+    "batch_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "block_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "head_dim": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "k.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "min_budget": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "q.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "q_len": {
+     "kind": "input",
+     "sort": "int"
+    }
+   },
+   "eval_preference": {
+    "block_size": 128
+   },
+   "aliases_not_applied": {
+    "q_len": "q.shape[1]"
+   },
+   "location": "flex_prefill/ops/flex_prefill_attention.py:865",
+   "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_decode_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F005",
+  "artifact_id": "flexprefill",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X014"
+  ],
+  "verification_ids": [
+   "V014"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When not (q_len == k_len): AssertionError (flex_prefill/ops/flex_prefill_attention.py:1219)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "not (q_len == k_len)",
+   "path_prefix": [
+    "batch_size == 1",
+    "not (q_len == 1)",
+    "q.shape[1] == k.shape[1]",
+    "head_dim in {16, 32, 64, 128}",
+    "block_size in {16, 32, 64, 128}",
+    "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
+    "q.shape[1] > 1",
+    "q.dtype == torch.bfloat16"
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "q_len": 641,
+    "k_len": 642,
+    "batch_size": 1,
+    "q.shape[1]": 2,
+    "k.shape[1]": 2,
+    "head_dim": 32,
+    "block_size": 128,
+    "min_budget": 640,
+    "q.dtype": "torch.bfloat16"
+   },
+   "contrast": {
+    "q_len": 642,
+    "k_len": 642,
+    "batch_size": 1,
+    "q.shape[1]": 2,
+    "k.shape[1]": 2,
+    "head_dim": 32,
+    "block_size": 128,
+    "min_budget": 640,
+    "q.dtype": "torch.bfloat16"
+   },
+   "atoms": {
+    "batch_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "block_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "head_dim": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "k.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "k_len": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "min_budget": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "q.dtype": {
+     "kind": "category",
+     "sort": "str"
+    },
+    "q.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "q_len": {
+     "kind": "input",
+     "sort": "int"
+    }
+   },
+   "eval_preference": {
+    "block_size": 128
+   },
+   "aliases_not_applied": {
+    "q_len": "q.shape[1]",
+    "k_len": "k.shape[1]",
+    "num_kv_heads": "k.shape[2]"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "flex_prefill/ops/flex_prefill_attention.py:1219",
+   "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F006",
+  "artifact_id": "flexprefill",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X018"
+  ],
+  "verification_ids": [
+   "V018"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When not (isinstance(block_idx, list) and isinstance(block_idx[0], list) and isinstance(block_idx[0][0], torch.Tensor)): AssertionError (flex_prefill/ops/flex_prefill_attention.py:1240)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "not (isinstance(block_idx, list) and isinstance(block_idx[0], list) and isinstance(block_idx[0][0], torch.Tensor))",
+   "path_prefix": [
+    "batch_size == 1",
+    "not (q_len == 1)",
+    "q.shape[1] == k.shape[1]",
+    "head_dim in {16, 32, 64, 128}",
+    "block_size in {16, 32, 64, 128}",
+    "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
+    "q.shape[1] > 1",
+    "q.dtype == torch.bfloat16",
+    "q_len == k_len",
+    "head_dim <= 256",
+    "not isinstance(block_idx, torch.Tensor)"
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "isinstance(block_idx, list)": true,
+    "isinstance(block_idx[0], list)": false,
+    "isinstance(block_idx[0][0], torch.Tensor)": true,
+    "batch_size": 1,
+    "q_len": 257,
+    "q.shape[1]": 2,
+    "k.shape[1]": 2,
+    "head_dim": 32,
+    "block_size": 128,
+    "min_budget": 256,
+    "q.dtype": "torch.bfloat16",
+    "k_len": 257,
+    "isinstance(block_idx, torch.Tensor)": false
+   },
+   "contrast": {
+    "isinstance(block_idx, list)": true,
+    "isinstance(block_idx[0], list)": true,
+    "isinstance(block_idx[0][0], torch.Tensor)": true,
+    "batch_size": 1,
+    "q_len": 257,
+    "q.shape[1]": 2,
+    "k.shape[1]": 2,
+    "head_dim": 32,
+    "block_size": 128,
+    "min_budget": 256,
+    "q.dtype": "torch.bfloat16",
+    "k_len": 257,
+    "isinstance(block_idx, torch.Tensor)": false
+   },
+   "atoms": {
+    "batch_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "block_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "head_dim": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "isinstance(block_idx, list)": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "isinstance(block_idx, torch.Tensor)": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "isinstance(block_idx[0], list)": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "isinstance(block_idx[0][0], torch.Tensor)": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "k.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "k_len": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "min_budget": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "q.dtype": {
+     "kind": "category",
+     "sort": "str"
+    },
+    "q.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "q_len": {
+     "kind": "input",
+     "sort": "int"
+    }
+   },
+   "eval_preference": {
+    "block_size": 128
+   },
+   "aliases_not_applied": {
+    "q_len": "q.shape[1]",
+    "k_len": "k.shape[1]",
+    "num_kv_heads": "k.shape[2]",
+    "total_q_blocks": "triton.cdiv(grid_offset, block_size) + triton.cdiv(q_len - grid_offset, block_size)",
+    "total_k_blocks": "triton.cdiv(grid_offset, block_size) + triton.cdiv(k_len - grid_offset, block_size)"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "flex_prefill/ops/flex_prefill_attention.py:1240-1244",
+   "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F007",
+  "artifact_id": "flexprefill",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X019"
+  ],
+  "verification_ids": [
+   "V019"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When not (len(block_idx) == batch_size and len(block_idx[0]) == num_q_heads): AssertionError (flex_prefill/ops/flex_prefill_attention.py:1245)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "not (len(block_idx) == batch_size and len(block_idx[0]) == num_q_heads)",
+   "path_prefix": [
+    "batch_size == 1",
+    "not (q_len == 1)",
+    "q.shape[1] == k.shape[1]",
+    "head_dim in {16, 32, 64, 128}",
+    "block_size in {16, 32, 64, 128}",
+    "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
+    "q.shape[1] > 1",
+    "q.dtype == torch.bfloat16",
+    "q_len == k_len",
+    "head_dim <= 256",
+    "not isinstance(block_idx, torch.Tensor)",
+    "isinstance(block_idx, list) and isinstance(block_idx[0], list) and isinstance(block_idx[0][0], torch.Tensor)"
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "len(block_idx)": 1,
+    "batch_size": 1,
+    "len(block_idx[0])": 2,
+    "num_q_heads": 1,
+    "q_len": 2177,
+    "q.shape[1]": 2,
+    "k.shape[1]": 2,
+    "head_dim": 64,
+    "block_size": 128,
+    "min_budget": 2112,
+    "q.dtype": "torch.bfloat16",
+    "k_len": 2177,
+    "isinstance(block_idx, torch.Tensor)": false,
+    "isinstance(block_idx, list)": true,
+    "isinstance(block_idx[0], list)": true,
+    "isinstance(block_idx[0][0], torch.Tensor)": true
+   },
+   "contrast": {
+    "len(block_idx)": 1,
+    "batch_size": 1,
+    "len(block_idx[0])": 2,
+    "num_q_heads": 2,
+    "q_len": 2177,
+    "q.shape[1]": 2,
+    "k.shape[1]": 2,
+    "head_dim": 64,
+    "block_size": 128,
+    "min_budget": 2112,
+    "q.dtype": "torch.bfloat16",
+    "k_len": 2177,
+    "isinstance(block_idx, torch.Tensor)": false,
+    "isinstance(block_idx, list)": true,
+    "isinstance(block_idx[0], list)": true,
+    "isinstance(block_idx[0][0], torch.Tensor)": true
+   },
+   "atoms": {
+    "batch_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "block_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "head_dim": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "isinstance(block_idx, list)": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "isinstance(block_idx, torch.Tensor)": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "isinstance(block_idx[0], list)": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "isinstance(block_idx[0][0], torch.Tensor)": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "k.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "k_len": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "len(block_idx)": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "len(block_idx[0])": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "min_budget": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "num_q_heads": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "q.dtype": {
+     "kind": "category",
+     "sort": "str"
+    },
+    "q.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "q_len": {
+     "kind": "input",
+     "sort": "int"
+    }
+   },
+   "eval_preference": {
+    "block_size": 128
+   },
+   "aliases_not_applied": {
+    "q_len": "q.shape[1]",
+    "k_len": "k.shape[1]",
+    "num_kv_heads": "k.shape[2]",
+    "total_q_blocks": "triton.cdiv(grid_offset, block_size) + triton.cdiv(q_len - grid_offset, block_size)",
+    "total_k_blocks": "triton.cdiv(grid_offset, block_size) + triton.cdiv(k_len - grid_offset, block_size)"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "flex_prefill/ops/flex_prefill_attention.py:1245",
+   "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F008",
+  "artifact_id": "flexprefill",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X020"
+  ],
+  "verification_ids": [
+   "V020"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When not (num_block <= total_q_blocks * (total_q_blocks + 1) // 2): AssertionError (flex_prefill/ops/flex_prefill_attention.py:1256)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "not (num_block <= total_q_blocks * (total_q_blocks + 1) // 2)",
+   "path_prefix": [
+    "batch_size == 1",
+    "not (q_len == 1)",
+    "q.shape[1] == k.shape[1]",
+    "head_dim in {16, 32, 64, 128}",
+    "block_size in {16, 32, 64, 128}",
+    "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
+    "q.shape[1] > 1",
+    "q.dtype == torch.bfloat16",
+    "q_len == k_len",
+    "head_dim <= 256",
+    "q_len == k_len"
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "num_block": 4,
+    "total_q_blocks": 2,
+    "batch_size": 1,
+    "q_len": 257,
+    "q.shape[1]": 2,
+    "k.shape[1]": 2,
+    "head_dim": 16,
+    "block_size": 128,
+    "min_budget": 64,
+    "q.dtype": "torch.bfloat16",
+    "k_len": 257
+   },
+   "contrast": {
+    "num_block": 3,
+    "total_q_blocks": 2,
+    "batch_size": 1,
+    "q_len": 257,
+    "q.shape[1]": 2,
+    "k.shape[1]": 2,
+    "head_dim": 16,
+    "block_size": 128,
+    "min_budget": 64,
+    "q.dtype": "torch.bfloat16",
+    "k_len": 257
+   },
+   "atoms": {
+    "batch_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "block_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "head_dim": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "k.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "k_len": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "min_budget": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "num_block": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "q.dtype": {
+     "kind": "category",
+     "sort": "str"
+    },
+    "q.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "q_len": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "total_q_blocks": {
+     "kind": "input",
+     "sort": "int"
+    }
+   },
+   "eval_preference": {
+    "block_size": 128
+   },
+   "aliases_not_applied": {
+    "q_len": "q.shape[1]",
+    "k_len": "k.shape[1]",
+    "num_kv_heads": "k.shape[2]",
+    "total_q_blocks": "triton.cdiv(grid_offset, block_size) + triton.cdiv(q_len - grid_offset, block_size)",
+    "total_k_blocks": "triton.cdiv(grid_offset, block_size) + triton.cdiv(k_len - grid_offset, block_size)",
+    "num_block": "block_idx.shape[2]"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "flex_prefill/ops/flex_prefill_attention.py:1256",
+   "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F009",
+  "artifact_id": "flexprefill",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X021"
+  ],
+  "verification_ids": [
+   "V021"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When not (num_q_heads % num_kv_heads == 0): AssertionError (flex_prefill/ops/flex_prefill_attention.py:1258)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "not (num_q_heads % num_kv_heads == 0)",
+   "path_prefix": [
+    "batch_size == 1",
+    "not (q_len == 1)",
+    "q.shape[1] == k.shape[1]",
+    "head_dim in {16, 32, 64, 128}",
+    "block_size in {16, 32, 64, 128}",
+    "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
+    "q.shape[1] > 1",
+    "q.dtype == torch.bfloat16",
+    "q_len == k_len",
+    "head_dim <= 256",
+    "q_len == k_len",
+    "num_block <= total_q_blocks * (total_q_blocks + 1) // 2"
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "num_q_heads": 3,
+    "num_kv_heads": 2,
+    "batch_size": 1,
+    "q_len": 257,
+    "q.shape[1]": 2,
+    "k.shape[1]": 2,
+    "head_dim": 64,
+    "block_size": 128,
+    "min_budget": 128,
+    "q.dtype": "torch.bfloat16",
+    "k_len": 257,
+    "num_block": 1,
+    "total_q_blocks": 2
+   },
+   "contrast": {
+    "num_q_heads": 4,
+    "num_kv_heads": 2,
+    "batch_size": 1,
+    "q_len": 257,
+    "q.shape[1]": 2,
+    "k.shape[1]": 2,
+    "head_dim": 64,
+    "block_size": 128,
+    "min_budget": 128,
+    "q.dtype": "torch.bfloat16",
+    "k_len": 257,
+    "num_block": 1,
+    "total_q_blocks": 2
+   },
+   "atoms": {
+    "batch_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "block_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "head_dim": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "k.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "k_len": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "min_budget": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "num_block": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "num_kv_heads": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "num_q_heads": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "q.dtype": {
+     "kind": "category",
+     "sort": "str"
+    },
+    "q.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "q_len": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "total_q_blocks": {
+     "kind": "input",
+     "sort": "int"
+    }
+   },
+   "eval_preference": {
+    "block_size": 128
+   },
+   "aliases_not_applied": {
+    "q_len": "q.shape[1]",
+    "k_len": "k.shape[1]",
+    "num_kv_heads": "k.shape[2]",
+    "total_q_blocks": "triton.cdiv(grid_offset, block_size) + triton.cdiv(q_len - grid_offset, block_size)",
+    "total_k_blocks": "triton.cdiv(grid_offset, block_size) + triton.cdiv(k_len - grid_offset, block_size)",
+    "num_block": "block_idx.shape[2]"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "flex_prefill/ops/flex_prefill_attention.py:1258",
+   "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F010",
+  "artifact_id": "flexprefill",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X010"
+  ],
+  "verification_ids": [
+   "V010"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When not (d in {16, 32, 64, 128}): AssertionError (flex_prefill/ops/flex_prefill_attention.py:1450)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "not (d in {16, 32, 64, 128})",
+   "path_prefix": [
+    "batch_size == 1",
+    "not (q_len == 1)",
+    "q.shape[1] == k.shape[1]",
+    "head_dim in {16, 32, 64, 128}",
+    "block_size in {16, 32, 64, 128}",
+    "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
+    "not gqa_interleave"
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "d": 15,
+    "batch_size": 1,
+    "q_len": 257,
+    "q.shape[1]": 1,
+    "k.shape[1]": 1,
+    "head_dim": 16,
+    "block_size": 128,
+    "min_budget": 64,
+    "gqa_interleave": false
+   },
+   "contrast": {
+    "d": 16,
+    "batch_size": 1,
+    "q_len": 257,
+    "q.shape[1]": 1,
+    "k.shape[1]": 1,
+    "head_dim": 16,
+    "block_size": 128,
+    "min_budget": 64,
+    "gqa_interleave": false
+   },
+   "atoms": {
+    "batch_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "block_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "d": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "gqa_interleave": {
+     "kind": "input",
+     "sort": "bool"
+    },
+    "head_dim": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "k.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "min_budget": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "q.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "q_len": {
+     "kind": "input",
+     "sort": "int"
+    }
+   },
+   "eval_preference": {
+    "block_size": 128
+   },
+   "aliases_not_applied": {
+    "b": "x.shape[0]",
+    "n": "x.shape[1]",
+    "h": "x.shape[2]",
+    "d": "x.shape[3]"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "flex_prefill/ops/flex_prefill_attention.py:1450",
+   "function": "flex_prefill/ops/flex_prefill_attention.py::triton_bnhd_pool"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F011",
+  "artifact_id": "flexprefill",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X011"
+  ],
+  "verification_ids": [
+   "V011"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When not (kernel_size in {16, 32, 64, 128, 256, 512}): AssertionError (flex_prefill/ops/flex_prefill_attention.py:1451)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "not (kernel_size in {16, 32, 64, 128, 256, 512})",
+   "path_prefix": [
+    "batch_size == 1",
+    "not (q_len == 1)",
+    "q.shape[1] == k.shape[1]",
+    "head_dim in {16, 32, 64, 128}",
+    "block_size in {16, 32, 64, 128}",
+    "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
+    "not gqa_interleave",
+    "d in {16, 32, 64, 128}"
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "kernel_size": 15,
+    "batch_size": 1,
+    "q_len": 385,
+    "q.shape[1]": 1,
+    "k.shape[1]": 1,
+    "head_dim": 32,
+    "block_size": 128,
+    "min_budget": 320,
+    "gqa_interleave": false,
+    "d": 16
+   },
+   "contrast": {
+    "kernel_size": 16,
+    "batch_size": 1,
+    "q_len": 385,
+    "q.shape[1]": 1,
+    "k.shape[1]": 1,
+    "head_dim": 32,
+    "block_size": 128,
+    "min_budget": 320,
+    "gqa_interleave": false,
+    "d": 16
+   },
+   "atoms": {
+    "batch_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "block_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "d": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "gqa_interleave": {
+     "kind": "input",
+     "sort": "bool"
+    },
+    "head_dim": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "k.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "kernel_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "min_budget": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "q.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "q_len": {
+     "kind": "input",
+     "sort": "int"
+    }
+   },
+   "eval_preference": {
+    "block_size": 128
+   },
+   "aliases_not_applied": {
+    "b": "x.shape[0]",
+    "n": "x.shape[1]",
+    "h": "x.shape[2]",
+    "d": "x.shape[3]"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "flex_prefill/ops/flex_prefill_attention.py:1451",
+   "function": "flex_prefill/ops/flex_prefill_attention.py::triton_bnhd_pool"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F012",
+  "artifact_id": "flexprefill",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X008"
+  ],
+  "verification_ids": [
+   "V008"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "state",
+  "summary": "When causal_mask is None  # first call only: module-level cache initialised on first call and reused (flex_prefill/ops/flex_prefill_attention.py:1695)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "event_sequence",
+   "status": "solved",
+   "condition": "causal_mask is None  # first call only",
+   "path_prefix": [
+    "batch_size == 1",
+    "not (q_len == 1)",
+    "q.shape[1] == k.shape[1]",
+    "head_dim in {16, 32, 64, 128}",
+    "block_size in {16, 32, 64, 128}",
+    "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))"
+   ],
+   "sequence_note": "state-dependent: earlier calls must leave the program in the trigger state; the values below describe that state at the checked call",
+   "dropped_prefix": [],
+   "trigger": {
+    "causal_mask is None": true,
+    "batch_size": 1,
+    "q_len": 385,
+    "q.shape[1]": 1,
+    "k.shape[1]": 1,
+    "head_dim": 32,
+    "block_size": 128,
+    "min_budget": 384
+   },
+   "contrast": {
+    "causal_mask is None": false,
+    "batch_size": 1,
+    "q_len": 385,
+    "q.shape[1]": 1,
+    "k.shape[1]": 1,
+    "head_dim": 32,
+    "block_size": 128,
+    "min_budget": 384
+   },
+   "atoms": {
+    "batch_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "block_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "causal_mask is None": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "head_dim": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "k.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "min_budget": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "q.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "q_len": {
+     "kind": "input",
+     "sort": "int"
+    }
+   },
+   "eval_preference": {
+    "block_size": 128
+   },
+   "aliases_not_applied": {
+    "batch_size": "q.shape[0]",
+    "seq_len": "q.shape[1]",
+    "num_heads": "q.shape[2]",
+    "head_dim": "q.shape[3]",
+    "num_share_q_heads": "num_heads // k.shape[2]",
+    "num_blocks": "math.ceil(seq_len / block_size)",
+    "last_q": "q[:, -block_size:, :, :] / math.sqrt(head_dim)"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "flex_prefill/ops/flex_prefill_attention.py:1695-1698",
+   "function": "flex_prefill/ops/flex_prefill_attention.py::get_active_blocks"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, state effect, witness reaches it; related (candidate pair, judged different): flexprefill-F031, flexprefill-F032, flexprefill-F033, flexprefill-F034",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F013",
+  "artifact_id": "flexprefill",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X004"
+  ],
+  "verification_ids": [
+   "V004"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When not (q.shape[1] == k.shape[1]): AssertionError (flex_prefill/ops/flex_prefill_attention.py:1836)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "not (q.shape[1] == k.shape[1])",
+   "path_prefix": [
+    "batch_size == 1",
+    "not (q_len == 1)"
+   ],
+   "dropped_prefix": [],
+   "aliases": {
+    "q_len": "q.shape[1]",
+    "k_len": "k.shape[1]"
+   },
+   "trigger": {
+    "q.shape[1]": 2,
+    "k.shape[1]": 3,
+    "batch_size": 1,
+    "q_len": 2,
+    "k_len": 3
+   },
+   "contrast": {
+    "q.shape[1]": 3,
+    "k.shape[1]": 3,
+    "batch_size": 1,
+    "q_len": 3,
+    "k_len": 3
+   },
+   "atoms": {
+    "batch_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "k.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "k_len": {
+     "kind": "local",
+     "sort": "int"
+    },
+    "q.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "q_len": {
+     "kind": "local",
+     "sort": "int"
+    }
+   },
+   "location": "flex_prefill/ops/flex_prefill_attention.py:1836",
+   "function": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F014",
+  "artifact_id": "flexprefill",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X005"
+  ],
+  "verification_ids": [
+   "V005"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When not (head_dim in {16, 32, 64, 128}): AssertionError (flex_prefill/ops/flex_prefill_attention.py:1837)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "not (head_dim in {16, 32, 64, 128})",
+   "path_prefix": [
+    "batch_size == 1",
+    "not (q_len == 1)",
+    "q.shape[1] == k.shape[1]"
+   ],
+   "dropped_prefix": [],
+   "aliases": {
+    "q_len": "q.shape[1]",
+    "k_len": "k.shape[1]"
+   },
+   "trigger": {
+    "head_dim": 127,
+    "batch_size": 1,
+    "q_len": 2,
+    "q.shape[1]": 2,
+    "k.shape[1]": 2,
+    "k_len": 2
+   },
+   "contrast": {
+    "head_dim": 128,
+    "batch_size": 1,
+    "q_len": 2,
+    "q.shape[1]": 2,
+    "k.shape[1]": 2,
+    "k_len": 2
+   },
+   "atoms": {
+    "batch_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "head_dim": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "k.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "k_len": {
+     "kind": "local",
+     "sort": "int"
+    },
+    "q.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "q_len": {
+     "kind": "local",
+     "sort": "int"
+    }
+   },
+   "location": "flex_prefill/ops/flex_prefill_attention.py:1837",
+   "function": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F015",
+  "artifact_id": "flexprefill",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B013"
+  ],
+  "verification_ids": [
+   "V042"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When q_len != k_len: Rejects inputs where query and key sequence lengths differ, so no cross-length (e.g. decode-style) attention is supported. (flex_prefill/ops/vertical_slash_attention.py:265)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "q_len != k_len",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "aliases": {
+    "q_len": "q.shape[1]",
+    "k_len": "k.shape[1]"
+   },
+   "trigger": {
+    "q_len": 1,
+    "k_len": 2,
+    "q.shape[1]": 1,
+    "k.shape[1]": 2
+   },
+   "contrast": {
+    "q_len": 2,
+    "k_len": 2,
+    "q.shape[1]": 2,
+    "k.shape[1]": 2
+   },
+   "atoms": {
+    "k.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "k_len": {
+     "kind": "local",
+     "sort": "int"
+    },
+    "q.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "q_len": {
+     "kind": "local",
+     "sort": "int"
+    }
+   },
+   "location": "flex_prefill/ops/vertical_slash_attention.py:265",
+   "function": "flex_prefill/ops/vertical_slash_attention.py::triton_vertical_slash_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 2), not human: vertical_slash_attention.py is the separate vertical-slash (MInference-style) baseline pattern, not the FlexPrefill path, which uses triton_block_wise_attention."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F016",
+  "artifact_id": "flexprefill",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B014"
+  ],
+  "verification_ids": [
+   "V043"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When head_dim not in {16, 32, 64, 128}: Caller-supplied head_dim outside the fixed set aborts execution via assertion. (flex_prefill/ops/vertical_slash_attention.py:552)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "head_dim not in {16, 32, 64, 128}",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "aliases": {
+    "head_dim": "q.shape[3]"
+   },
+   "trigger": {
+    "head_dim": 129,
+    "q.shape[3]": 129
+   },
+   "contrast": {
+    "head_dim": 128,
+    "q.shape[3]": 128
+   },
+   "atoms": {
+    "head_dim": {
+     "kind": "local",
+     "sort": "int"
+    },
+    "q.shape[3]": {
+     "kind": "derived",
+     "sort": "int"
+    }
+   },
+   "location": "flex_prefill/ops/vertical_slash_attention.py:552",
+   "function": "flex_prefill/ops/vertical_slash_attention.py::vertical_slash_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 1,
+  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 3), not human: The head_dim assert is in the vertical_slash baseline op, not in FlexPrefill's mechanism."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F017",
+  "artifact_id": "flexprefill",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B001"
+  ],
+  "verification_ids": [
+   "V030"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When pattern == \"minfer\": For minfer, the config is loaded from a hard-coded JSON file chosen by cfg['model_type'] and stored as model.config.minfer_config, rather than merging ATTENTION_CONFIG_EXAMPLE defaults. (flex_prefill/modules/patch.py:69)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "pattern == \"minfer\"",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "pattern": "minfer"
+   },
+   "contrast": {
+    "pattern": {
+     "not_in": [
+      "minfer"
+     ]
+    }
+   },
+   "atoms": {
+    "pattern": {
+     "kind": "category",
+     "sort": "str"
+    }
+   },
+   "location": "flex_prefill/modules/patch.py:69",
+   "function": "flex_prefill/modules/patch.py::patch_model_config"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 3), not human: The minfer config loading belongs to the MInference baseline, not to FlexPrefill."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F018",
+  "artifact_id": "flexprefill",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B005"
+  ],
+  "verification_ids": [
+   "V034"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When \"llama\" in model_name.lower(): Model class name selects which patch_*_attention implementation is applied; non-llama/glm/qwen2 models are rejected. (flex_prefill/modules/patch.py:313)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "\"llama\" in model_name.lower()",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "'llama' in model_name.lower()": true
+   },
+   "contrast": {
+    "'llama' in model_name.lower()": false
+   },
+   "atoms": {
+    "'llama' in model_name.lower()": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "location": "flex_prefill/modules/patch.py:313",
+   "function": "flex_prefill/modules/patch.py::patch_hf_model"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 3), not human: patch_hf_model raises ValueError for any HF model whose class name does not contain llama, glm or qwen2, so FlexPrefill only supports those model families."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F019",
+  "artifact_id": "flexprefill",
+  "category": "stated_differently",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B006"
+  ],
+  "verification_ids": [
+   "V035"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When not (\"llama\" in model_name.lower() or \"glm\" in model_name.lower() or \"qwen2\" in model_name.lower()): Any HF model whose class name lacks llama/glm/qwen2 is rejected outright. (flex_prefill/modules/patch.py:320)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "not (\"llama\" in model_name.lower() or \"glm\" in model_name.lower() or \"qwen2\" in model_name.lower())",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "'llama' in model_name.lower()": false,
+    "'glm' in model_name.lower()": false,
+    "'qwen2' in model_name.lower()": false
+   },
+   "contrast": {
+    "'llama' in model_name.lower()": true,
+    "'glm' in model_name.lower()": false,
+    "'qwen2' in model_name.lower()": false
+   },
+   "atoms": {
+    "'glm' in model_name.lower()": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "'llama' in model_name.lower()": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "'qwen2' in model_name.lower()": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "location": "flex_prefill/modules/patch.py:320",
+   "function": "flex_prefill/modules/patch.py::patch_hf_model"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: weaker in readme; 3b weaker; priority 2: stated_differently",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 2), not human: patch_hf_model raises ValueError for any model class whose name lacks llama/glm/qwen2, so other architectures cannot use FlexPrefill."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F020",
+  "artifact_id": "flexprefill",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B007"
+  ],
+  "verification_ids": [
+   "V036"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When kv_cache is None or prefill_meta.block_tables is None or prefill_meta.block_tables.numel() == 0: Only when there is no prefix cache does the code call flex_prefill_attention; otherwise it falls back to flash_attn_varlen_func. (flex_prefill/modules/patch.py:424)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "kv_cache is None or prefill_meta.block_tables is None or prefill_meta.block_tables.numel() == 0",
+   "path_prefix": [
+    "prefill_meta := attn_metadata.prefill_metadata"
+   ],
+   "dropped_prefix": [
+    "prefill_meta := attn_metadata.prefill_metadata"
+   ],
+   "trigger": {
+    "kv_cache is None": false,
+    "prefill_meta.block_tables is None": true,
+    "prefill_meta.block_tables.numel()": 1
+   },
+   "contrast": {
+    "kv_cache is None": false,
+    "prefill_meta.block_tables is None": false,
+    "prefill_meta.block_tables.numel()": 1
+   },
+   "atoms": {
+    "kv_cache is None": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "prefill_meta.block_tables is None": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "prefill_meta.block_tables.numel()": {
+     "kind": "derived",
+     "sort": "int"
+    }
+   },
+   "aliases_not_applied": {
+    "num_tokens": "query.shape[0]",
+    "hidden_size": "query.shape[1]",
+    "num_prefill_tokens": "attn_metadata.num_prefill_tokens",
+    "num_decode_tokens": "attn_metadata.num_decode_tokens",
+    "output": "torch.empty_like(query)",
+    "decode_query": "query[num_prefill_tokens:]",
+    "key_cache": "kv_cache[0]",
+    "value_cache": "kv_cache[1]"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "flex_prefill/modules/patch.py:424",
+   "function": "flex_prefill/modules/patch.py::patch_vllm_model.flex_prefill_forward"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 3), not human: In vLLM, when the prefill has non-empty block tables (e.g. prefix caching hits), the code silently runs dense flash_attn_varlen_func instead of flex_prefill_attention."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F021",
+  "artifact_id": "flexprefill",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B008"
+  ],
+  "verification_ids": [
+   "V037"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When \"attention\" in type(m).__name__.lower() and hasattr(m, \"impl\"): Only modules whose class name contains 'attention' and expose an 'impl' attribute get their forward replaced; others keep the original implementation. (flex_prefill/modules/patch.py:501)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "\"attention\" in type(m).__name__.lower() and hasattr(m, \"impl\")",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "'attention' in type(m).__name__.lower()": true,
+    "hasattr(m, 'impl')": true
+   },
+   "contrast": {
+    "'attention' in type(m).__name__.lower()": false,
+    "hasattr(m, 'impl')": true
+   },
+   "atoms": {
+    "'attention' in type(m).__name__.lower()": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "hasattr(m, 'impl')": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "location": "flex_prefill/modules/patch.py:501",
+   "function": "flex_prefill/modules/patch.py::patch_vllm_model"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 3), not human: Matching modules by class name to patch vLLM attention is internal plumbing that every attention layer satisfies; no user condition is involved."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F022",
+  "artifact_id": "flexprefill",
+  "category": "stated_differently",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B010"
+  ],
+  "verification_ids": [
+   "V039"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When q.dtype != torch.bfloat16: triton_flash_attention rejects non-bfloat16 queries before dispatching to prefill or decode. (flex_prefill/ops/flex_prefill_attention.py:672)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "q.dtype != torch.bfloat16",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "q.dtype": {
+     "not_in": [
+      "torch.bfloat16"
+     ]
+    }
+   },
+   "contrast": {
+    "q.dtype": "torch.bfloat16"
+   },
+   "atoms": {
+    "q.dtype": {
+     "kind": "category",
+     "sort": "str"
+    }
+   },
+   "location": "flex_prefill/ops/flex_prefill_attention.py:672",
+   "function": "flex_prefill/ops/flex_prefill_attention.py::triton_flash_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: weaker in readme; 3b weaker; priority 2: stated_differently",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 2), not human: triton_flash_attention (used for decode/short-sequence dense paths when gqa_interleave is set or flash-attn is missing) rejects non-bf16 inputs; the sparse block-wise kernel also asserts bf16, so fp16/fp32 models cannot run."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F023",
+  "artifact_id": "flexprefill",
+  "category": "stated_differently",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X013"
+  ],
+  "verification_ids": [
+   "V013"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When not (q.dtype == torch.bfloat16): AssertionError (flex_prefill/ops/flex_prefill_attention.py:1218)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "not (q.dtype == torch.bfloat16)",
+   "path_prefix": [
+    "batch_size == 1",
+    "not (q_len == 1)",
+    "q.shape[1] == k.shape[1]",
+    "head_dim in {16, 32, 64, 128}",
+    "block_size in {16, 32, 64, 128}",
+    "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
+    "q.shape[1] > 1"
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "q.dtype": {
+     "not_in": [
+      "torch.bfloat16"
+     ]
+    },
+    "batch_size": 1,
+    "q_len": 257,
+    "q.shape[1]": 2,
+    "k.shape[1]": 2,
+    "head_dim": 32,
+    "block_size": 128,
+    "min_budget": 1
+   },
+   "contrast": {
+    "q.dtype": "torch.bfloat16",
+    "batch_size": 1,
+    "q_len": 257,
+    "q.shape[1]": 2,
+    "k.shape[1]": 2,
+    "head_dim": 32,
+    "block_size": 128,
+    "min_budget": 1
+   },
+   "atoms": {
+    "batch_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "block_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "head_dim": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "k.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "min_budget": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "q.dtype": {
+     "kind": "category",
+     "sort": "str"
+    },
+    "q.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "q_len": {
+     "kind": "input",
+     "sort": "int"
+    }
+   },
+   "eval_preference": {
+    "block_size": 128
+   },
+   "aliases_not_applied": {
+    "q_len": "q.shape[1]",
+    "k_len": "k.shape[1]",
+    "num_kv_heads": "k.shape[2]"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "flex_prefill/ops/flex_prefill_attention.py:1218",
+   "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: weaker in readme; 3b weaker; priority 2: stated_differently",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F024",
+  "artifact_id": "flexprefill",
+  "category": "stated_differently",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X016"
+  ],
+  "verification_ids": [
+   "V016"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When not (block_size in {32, 64, 128}): 'only support block size in {32, 64, 128} if head_dim <= 128' (flex_prefill/ops/flex_prefill_attention.py:1222)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "not (block_size in {32, 64, 128})",
+   "path_prefix": [
+    "batch_size == 1",
+    "not (q_len == 1)",
+    "q.shape[1] == k.shape[1]",
+    "head_dim in {16, 32, 64, 128}",
+    "block_size in {16, 32, 64, 128}",
+    "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
+    "q.shape[1] > 1",
+    "q.dtype == torch.bfloat16",
+    "q_len == k_len",
+    "head_dim <= 256",
+    "head_dim <= 128"
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "block_size": 16,
+    "batch_size": 1,
+    "q_len": 65,
+    "q.shape[1]": 2,
+    "k.shape[1]": 2,
+    "head_dim": 32,
+    "min_budget": 15,
+    "q.dtype": "torch.bfloat16",
+    "k_len": 65
+   },
+   "contrast": {
+    "block_size": 32,
+    "batch_size": 1,
+    "q_len": 65,
+    "q.shape[1]": 2,
+    "k.shape[1]": 2,
+    "head_dim": 32,
+    "min_budget": 15,
+    "q.dtype": "torch.bfloat16",
+    "k_len": 65
+   },
+   "atoms": {
+    "batch_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "block_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "head_dim": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "k.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "k_len": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "min_budget": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "q.dtype": {
+     "kind": "category",
+     "sort": "str"
+    },
+    "q.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "q_len": {
+     "kind": "input",
+     "sort": "int"
+    }
+   },
+   "eval_preference": {
+    "block_size": 128
+   },
+   "aliases_not_applied": {
+    "q_len": "q.shape[1]",
+    "k_len": "k.shape[1]",
+    "num_kv_heads": "k.shape[2]"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "flex_prefill/ops/flex_prefill_attention.py:1222-1226",
+   "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: boundary_mismatch in docstring; 3b boundary_mismatch; priority 2: stated_differently",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F025",
+  "artifact_id": "flexprefill",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X012"
+  ],
+  "verification_ids": [
+   "V012"
+  ],
+  "scope_status": "in_scope",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When kl_div < tau: per-element branch stored in block_sparse_mask (flex_prefill/ops/flex_prefill_attention.py:1727)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "kl_div < tau",
+   "path_prefix": [
+    "batch_size == 1",
+    "not (q_len == 1)",
+    "q.shape[1] == k.shape[1]",
+    "head_dim in {16, 32, 64, 128}",
+    "block_size in {16, 32, 64, 128}",
+    "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))"
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "kl_div": 0.099,
+    "tau": 0.1,
+    "batch_size": 1,
+    "q_len": 257,
+    "q.shape[1]": 1,
+    "k.shape[1]": 1,
+    "head_dim": 64,
+    "block_size": 128,
+    "min_budget": 128
+   },
+   "contrast": {
+    "kl_div": 0.1,
+    "tau": 0.1,
+    "batch_size": 1,
+    "q_len": 257,
+    "q.shape[1]": 1,
+    "k.shape[1]": 1,
+    "head_dim": 64,
+    "block_size": 128,
+    "min_budget": 128
+   },
+   "atoms": {
+    "batch_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "block_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "head_dim": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "k.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "kl_div": {
+     "kind": "input",
+     "sort": "real"
+    },
+    "min_budget": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "q.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "q_len": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "tau": {
+     "kind": "input",
+     "sort": "real"
+    }
+   },
+   "from_paper": {
+    "tau": "scope sparse_pattern_threshold_tau: [0.0, 1.0]"
+   },
+   "eval_preference": {
+    "tau": 0.1,
+    "block_size": 128
+   },
+   "aliases_not_applied": {
+    "batch_size": "q.shape[0]",
+    "seq_len": "q.shape[1]",
+    "num_heads": "q.shape[2]",
+    "head_dim": "q.shape[3]",
+    "num_share_q_heads": "num_heads // k.shape[2]",
+    "num_blocks": "math.ceil(seq_len / block_size)",
+    "last_q": "q[:, -block_size:, :, :] / math.sqrt(head_dim)",
+    "kl_div": "square_root_js_divergence(avg_qk, vertical)"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "flex_prefill/ops/flex_prefill_attention.py:1727",
+   "function": "flex_prefill/ops/flex_prefill_attention.py::get_active_blocks"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect; related (candidate pair, judged different): flexprefill-F031, flexprefill-F032, flexprefill-F033, flexprefill-F034, flexprefill-F036, flexprefill-F037, flexprefill-F038",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F026",
+  "artifact_id": "flexprefill",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X007"
+  ],
+  "verification_ids": [
+   "V007"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size): returns via flash_attn_func, triton_flash_attention (flex_prefill/ops/flex_prefill_attention.py:1842)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size)",
+   "path_prefix": [
+    "batch_size == 1",
+    "not (q_len == 1)",
+    "q.shape[1] == k.shape[1]",
+    "head_dim in {16, 32, 64, 128}",
+    "block_size in {16, 32, 64, 128}"
+   ],
+   "dropped_prefix": [],
+   "aliases": {
+    "q_len": "q.shape[1]",
+    "k_len": "k.shape[1]"
+   },
+   "trigger": {
+    "q_len": 257,
+    "block_size": 128,
+    "min_budget": 257,
+    "batch_size": 1,
+    "q.shape[1]": 257,
+    "k.shape[1]": 257,
+    "head_dim": 128,
+    "k_len": 257
+   },
+   "contrast": {
+    "q_len": 257,
+    "block_size": 128,
+    "min_budget": 256,
+    "batch_size": 1,
+    "q.shape[1]": 257,
+    "k.shape[1]": 257,
+    "head_dim": 128,
+    "k_len": 257
+   },
+   "atoms": {
+    "batch_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "block_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "head_dim": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "k.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "k_len": {
+     "kind": "local",
+     "sort": "int"
+    },
+    "min_budget": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "q.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "q_len": {
+     "kind": "local",
+     "sort": "int"
+    }
+   },
+   "eval_preference": {
+    "block_size": 128
+   },
+   "location": "flex_prefill/ops/flex_prefill_attention.py:1842-1854",
+   "function": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F027",
+  "artifact_id": "flexprefill",
+  "category": "stated_differently",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B012"
+  ],
+  "verification_ids": [
+   "V041"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When q.dtype != torch.bfloat16: Rejects any query tensor not in bfloat16, so callers using fp16/fp32 cannot run this kernel. (flex_prefill/ops/vertical_slash_attention.py:264)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "q.dtype != torch.bfloat16",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "q.dtype": {
+     "not_in": [
+      "torch.bfloat16"
+     ]
+    }
+   },
+   "contrast": {
+    "q.dtype": "torch.bfloat16"
+   },
+   "atoms": {
+    "q.dtype": {
+     "kind": "category",
+     "sort": "str"
+    }
+   },
+   "location": "flex_prefill/ops/vertical_slash_attention.py:264",
+   "function": "flex_prefill/ops/vertical_slash_attention.py::triton_vertical_slash_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: weaker in readme; 3b weaker; priority 2: stated_differently",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 2), not human: bf16 assert sits in the vertical-slash baseline kernel, not the FlexPrefill path."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F028",
+  "artifact_id": "flexprefill",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B016"
+  ],
+  "verification_ids": [
+   "V045"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When seq_len <= min(vertical_size, slash_size) * block_size: For short sequences the sparse vertical/slash path is skipped and dense causal flash_attn_func is run instead. (flex_prefill/ops/vertical_slash_attention.py:557)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "seq_len <= min(vertical_size, slash_size) * block_size",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "aliases": {
+    "seq_len": "q.shape[1]"
+   },
+   "trigger": {
+    "seq_len": 129,
+    "vertical_size": 2,
+    "slash_size": 3,
+    "block_size": 128,
+    "q.shape[1]": 129
+   },
+   "contrast": {
+    "seq_len": 129,
+    "vertical_size": 1,
+    "slash_size": 3,
+    "block_size": 128,
+    "q.shape[1]": 129
+   },
+   "atoms": {
+    "block_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "q.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "seq_len": {
+     "kind": "local",
+     "sort": "int"
+    },
+    "slash_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "vertical_size": {
+     "kind": "input",
+     "sort": "int"
+    }
+   },
+   "eval_preference": {
+    "block_size": 128
+   },
+   "location": "flex_prefill/ops/vertical_slash_attention.py:557",
+   "function": "flex_prefill/ops/vertical_slash_attention.py::vertical_slash_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 2), not human: The short-sequence dense fallback is in the vertical-slash baseline function, not in flex_prefill_attention."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F029",
+  "artifact_id": "flexprefill",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B017"
+  ],
+  "verification_ids": [
+   "V046"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When seq_len <= 16 * 1024: Sequence length selects between the vertical/slash Triton kernel (<=16k) and the block-wise attention kernel (>16k) with transformed block indices. (flex_prefill/ops/vertical_slash_attention.py:570)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "seq_len <= 16 * 1024",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "aliases": {
+    "seq_len": "q.shape[1]"
+   },
+   "trigger": {
+    "seq_len": 16384,
+    "q.shape[1]": 16384
+   },
+   "contrast": {
+    "seq_len": 16385,
+    "q.shape[1]": 16385
+   },
+   "atoms": {
+    "q.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "seq_len": {
+     "kind": "local",
+     "sort": "int"
+    }
+   },
+   "location": "flex_prefill/ops/vertical_slash_attention.py:570",
+   "function": "flex_prefill/ops/vertical_slash_attention.py::vertical_slash_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "3b: found in code_comment; 3b found, but only a code comment (rule: does not count as stated); priority 2: undisclosed, path_change effect",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 3), not human: The 16k switch is a performance choice inside the vertical_slash baseline op, not in FlexPrefill."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F030",
+  "artifact_id": "flexprefill",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "flexprefill-gap-M08-B05",
+   "flexprefill-gap-M08-B06"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求最小 k 使累计≥γ；代码取累计>γ 的最小 k（累计恰等于 γ 时多选一条），且 //128+1 放大、min/max_budget 覆盖，K_v 不再是论文定义的最小前缀（artifact 范围：>γ 而非 ≥γ，且 //128+1 与预算截断改变前缀长度）",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "torch.any(torch.cumsum(torch.sort(vertical, dim=-1, descending=True).values, dim=-1) == gamma) or torch.any(torch.cumsum(torch.sort(slash, dim=-1, descending=True).values, dim=-1) == gamma) or torch.any(score_cover_topk(vertical, gamma) // 128 + 1 != score_cover_topk(vertical, gamma)) or torch.any(score_cover_topk(slash, gamma) // 128 + 1 != score_cover_topk(slash, gamma)) or torch.any(score_cover_topk(vertical, gamma) // 128 + 1 < min_budget) or torch.any(score_cover_topk(vertical, gamma) // 128 + 1 > max_budget) or torch.any(score_cover_topk(slash, gamma) // 128 + 1 < min_budget) or torch.any(score_cover_topk(slash, gamma) // 128 + 1 > max_budget)",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "torch.any(torch.cumsum(torch.sort(vertical, dim=-1, descending=True).values, dim=-1) == gamma)": false,
+    "torch.any(torch.cumsum(torch.sort(slash, dim=-1, descending=True).values, dim=-1) == gamma)": true,
+    "torch.any(score_cover_topk(vertical, gamma) // 128 + 1 != score_cover_topk(vertical, gamma))": false,
+    "torch.any(score_cover_topk(slash, gamma) // 128 + 1 != score_cover_topk(slash, gamma))": false,
+    "torch.any(score_cover_topk(vertical, gamma) // 128 + 1 < min_budget)": false,
+    "torch.any(score_cover_topk(vertical, gamma) // 128 + 1 > max_budget)": false,
+    "torch.any(score_cover_topk(slash, gamma) // 128 + 1 < min_budget)": false,
+    "torch.any(score_cover_topk(slash, gamma) // 128 + 1 > max_budget)": false
+   },
+   "contrast": {
+    "torch.any(torch.cumsum(torch.sort(vertical, dim=-1, descending=True).values, dim=-1) == gamma)": false,
+    "torch.any(torch.cumsum(torch.sort(slash, dim=-1, descending=True).values, dim=-1) == gamma)": false,
+    "torch.any(score_cover_topk(vertical, gamma) // 128 + 1 != score_cover_topk(vertical, gamma))": false,
+    "torch.any(score_cover_topk(slash, gamma) // 128 + 1 != score_cover_topk(slash, gamma))": false,
+    "torch.any(score_cover_topk(vertical, gamma) // 128 + 1 < min_budget)": false,
+    "torch.any(score_cover_topk(vertical, gamma) // 128 + 1 > max_budget)": false,
+    "torch.any(score_cover_topk(slash, gamma) // 128 + 1 < min_budget)": false,
+    "torch.any(score_cover_topk(slash, gamma) // 128 + 1 > max_budget)": false
+   },
+   "atoms": {
+    "torch.any(score_cover_topk(slash, gamma) // 128 + 1 != score_cover_topk(slash, gamma))": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "torch.any(score_cover_topk(slash, gamma) // 128 + 1 < min_budget)": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "torch.any(score_cover_topk(slash, gamma) // 128 + 1 > max_budget)": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "torch.any(score_cover_topk(vertical, gamma) // 128 + 1 != score_cover_topk(vertical, gamma))": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "torch.any(score_cover_topk(vertical, gamma) // 128 + 1 < min_budget)": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "torch.any(score_cover_topk(vertical, gamma) // 128 + 1 > max_budget)": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "torch.any(torch.cumsum(torch.sort(slash, dim=-1, descending=True).values, dim=-1) == gamma)": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "torch.any(torch.cumsum(torch.sort(vertical, dim=-1, descending=True).values, dim=-1) == gamma)": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "code_locations": [
+    "flex_prefill/ops/flex_prefill_attention.py:1588-1591",
+    "flex_prefill/ops/flex_prefill_attention.py:1707-1716",
+    "flex_prefill/ops/flex_prefill_attention.py:1730-1758"
+   ],
+   "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "location": "flex_prefill/ops/flex_prefill_attention.py:1588-1591",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; merged (LLM: same issue): flexprefill-gap-M08-B06; priority 2: impl_deviates; related (candidate pair, judged different): flexprefill-F050",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F031",
+  "artifact_id": "flexprefill",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "flexprefill-gap-M07-B03"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求先除以 Σ¯A 再展平；代码未归一化，改以放大阈值补偿",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "flex_prefill/ops/flex_prefill_attention.py:1661-1779",
+    "flex_prefill/ops/flex_prefill_attention.py:1588-1598"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The code never normalizes the estimated attention map by its sum before flattening/thresholding, so the paper-code mismatch applies on every call to get_active_blocks/score_cover_idx regardless of input values.",
+   "location": "flex_prefill/ops/flex_prefill_attention.py:1661-1779",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 2: impl_deviates; related (candidate pair, judged different): flexprefill-F012, flexprefill-F025, flexprefill-F032, flexprefill-F050",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F032",
+  "artifact_id": "flexprefill",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "flexprefill-gap-M07-B05"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文取累计和 ≥γ 的最小前缀长度 K；代码保留累计和 ≤γ*num_blocks 的项，边界条件与阈值尺度均不同，且未显式求 K",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "gamma != gamma * num_blocks",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "gamma": 2,
+    "num_blocks": 2
+   },
+   "contrast": {
+    "gamma": 2,
+    "num_blocks": 1
+   },
+   "atoms": {
+    "gamma": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "num_blocks": {
+     "kind": "input",
+     "sort": "int"
+    }
+   },
+   "eval_preference": {
+    "gamma": 0
+   },
+   "code_locations": [
+    "flex_prefill/ops/flex_prefill_attention.py:1661-1779",
+    "flex_prefill/ops/flex_prefill_attention.py:1588-1598"
+   ],
+   "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "location": "flex_prefill/ops/flex_prefill_attention.py:1661-1779",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 2: impl_deviates; related (candidate pair, judged different): flexprefill-F012, flexprefill-F025, flexprefill-F031, flexprefill-F050",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F033",
+  "artifact_id": "flexprefill",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "flexprefill-gap-M07-B06-R01"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求 S 为 Ia 前 K 项；代码把 query-aware 前缀与 vertical/slash 索引取并集，S 不是纯 Ia[1:K]",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "flex_prefill/ops/flex_prefill_attention.py:1661-1779",
+    "flex_prefill/ops/flex_prefill_attention.py:1611-1632"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The union of query-aware prefix indices with vertical/slash indices always makes S differ from pure Ia[1:K] whenever get_active_blocks/transform_veritcal_slash_idx run, independent of specific input values.",
+   "location": "flex_prefill/ops/flex_prefill_attention.py:1661-1779",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 2: impl_deviates; related (candidate pair, judged different): flexprefill-F012, flexprefill-F025, flexprefill-F050",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F034",
+  "artifact_id": "flexprefill",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "flexprefill-gap-M05-A02"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求 pool(Q̂)（块池化，保留每块一个向量）与 pool(K) 相乘；代码把 Q̂ 的 block_size 行压成单一均值向量，得到 1×num_blocks 的分布，而非 num_blocks×num_blocks 的块级分布（artifact 范围：ā 的构造为 mean(Q̂)·pool(K) 而非 pool(Q̂)·pool(K)）",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "flex_prefill/ops/flex_prefill_attention.py:1676-1706",
+    "flex_prefill/ops/flex_prefill_attention.py:1714-1729",
+    "flex_prefill/ops/flex_prefill_attention.py:1855-1885"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The code always computes avg_qk from last_q.mean(1) (a single mean vector) times pooled K, producing a 1×num_blocks distribution instead of the paper's pool(Q̂)·pool(K) block-level num_blocks×num_blocks distribution, regardless of inputs.",
+   "location": "flex_prefill/ops/flex_prefill_attention.py:1676-1706",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 2: impl_deviates; related (candidate pair, judged different): flexprefill-F012, flexprefill-F025",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F035",
+  "artifact_id": "flexprefill",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "flexprefill-gap-M04-B03-R01"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "池化内核无法表达论文二维 sumpool(softmax 矩阵)，实际 â 为列和向量",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "flex_prefill/ops/flex_prefill_attention.py:1705-1716",
+    "flex_prefill/ops/flex_prefill_attention.py:1545-1585"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The pooling kernels only accept 1-D (b,h,n) tensors and sum along the last axis, so they can never express the paper's 2-D sumpool over the softmax matrix; the code instead pools the already-reduced column-mean vector `vertical = qk.mean(-2)`.",
+   "location": "flex_prefill/ops/flex_prefill_attention.py:1705-1716",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates; related (candidate pair, judged different): flexprefill-F037, flexprefill-F050",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F036",
+  "artifact_id": "flexprefill",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "flexprefill-gap-M10-B02"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "实验配置的 1024 预算未转化为每 head 最终激活 token 数下限，Query-Aware 头无下限",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "min_budget == 1024",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "min_budget": 1024
+   },
+   "contrast": {
+    "min_budget": 1025
+   },
+   "atoms": {
+    "min_budget": {
+     "kind": "input",
+     "sort": "int"
+    }
+   },
+   "code_locations": [
+    "flex_prefill/ops/flex_prefill_attention.py:1707-1713",
+    "flex_prefill/ops/flex_prefill_attention.py:1727-1732",
+    "flex_prefill/ops/flex_prefill_attention.py:1734-1758",
+    "experiments/scripts/flex_prefill/ruler.sh:16-30",
+    "flex_prefill/modules/patch.py:446-454"
+   ],
+   "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "location": "flex_prefill/ops/flex_prefill_attention.py:1707-1713",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates; related (candidate pair, judged different): flexprefill-F025, flexprefill-F050",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F037",
+  "artifact_id": "flexprefill",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "flexprefill-gap-M04-A02"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "ā 角色正确；â 角色由 vertical 承担，但 vertical 非论文 sumpool(softmax(Q̂Kᵀ/√d)) 块和，真实分布操作数被替换（artifact 范围：â 操作数非论文块和）",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "flex_prefill/ops/flex_prefill_attention.py:1718-1729",
+    "flex_prefill/ops/flex_prefill_attention.py:1654-1658"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The code always passes `vertical` as the second argument (true distribution) to square_root_js_divergence, but `vertical` is not the paper's sumpool(softmax(Q̂Kᵀ/√d)) block sum, so the true-distribution operand is replaced on every call.",
+   "location": "flex_prefill/ops/flex_prefill_attention.py:1718-1729",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 2: impl_deviates; related (candidate pair, judged different): flexprefill-F025, flexprefill-F035",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F038",
+  "artifact_id": "flexprefill",
+  "category": "impl_deviates",
+  "level": "L2",
+  "limitation_ids": [
+   "flexprefill-gap-M04-A03"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文 Algorithm 2 以 JSD<τ 返回 pattern(query_specific/vertical_slash)；代码不返回模式，而用同一阈值改写预算并继续 vertical/slash 索引，阈值判定与索引选择在本机制内耦合",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "flex_prefill/ops/flex_prefill_attention.py:1718-1729",
+    "flex_prefill/ops/flex_prefill_attention.py:1856-1866"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. Whenever the JSD comparison runs, the code uses the tau threshold to rewrite budgets and continue vertical/slash indexing instead of returning a pattern as Algorithm 2 describes, so the divergence appears on every execution of this path.",
+   "location": "flex_prefill/ops/flex_prefill_attention.py:1718-1729",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 2,
+  "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 2: impl_deviates; related (candidate pair, judged different): flexprefill-F025",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F039",
+  "artifact_id": "flexprefill",
+  "category": "docs_only",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B002"
+  ],
+  "verification_ids": [
+   "V031"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When pattern == \"default\": For the default pattern, patch_llama_attention returns without patching, leaving the original dense attention implementation in place. (flex_prefill/modules/patch.py:114)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "pattern == \"default\"",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "pattern": "default"
+   },
+   "contrast": {
+    "pattern": {
+     "not_in": [
+      "default"
+     ]
+    }
+   },
+   "atoms": {
+    "pattern": {
+     "kind": "category",
+     "sort": "str"
+    }
+   },
+   "location": "flex_prefill/modules/patch.py:114",
+   "function": "flex_prefill/modules/patch.py::patch_llama_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: found in docstring; priority 3: docs_only, path_change effect",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 3), not human: pattern=='default' is the user explicitly choosing the unpatched baseline, not a fallback of the mechanism."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F040",
+  "artifact_id": "flexprefill",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X023"
+  ],
+  "verification_ids": [
+   "V023"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "When not ('h100' in gpu_name) and not ('a100' in gpu_name) and not ('4090' in gpu_name): if head_large and block_large: (flex_prefill/ops/flex_prefill_attention.py:88)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "not ('h100' in gpu_name) and not ('a100' in gpu_name) and not ('4090' in gpu_name)",
+   "path_prefix": [
+    "batch_size == 1",
+    "not (q_len == 1)",
+    "q.shape[1] == k.shape[1]",
+    "head_dim in {16, 32, 64, 128}",
+    "block_size in {16, 32, 64, 128}",
+    "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
+    "q.shape[1] > 1",
+    "q.dtype == torch.bfloat16",
+    "q_len == k_len",
+    "head_dim <= 256",
+    "q_len == k_len",
+    "num_block <= total_q_blocks * (total_q_blocks + 1) // 2",
+    "num_q_heads % num_kv_heads == 0"
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "'h100' in gpu_name": false,
+    "'a100' in gpu_name": false,
+    "'4090' in gpu_name": false,
+    "batch_size": 1,
+    "q_len": 257,
+    "q.shape[1]": 2,
+    "k.shape[1]": 2,
+    "head_dim": 32,
+    "block_size": 128,
+    "min_budget": 1,
+    "q.dtype": "torch.bfloat16",
+    "k_len": 257,
+    "num_block": 1,
+    "total_q_blocks": 1,
+    "num_q_heads": 4,
+    "num_kv_heads": 2
+   },
+   "contrast": {
+    "'h100' in gpu_name": false,
+    "'a100' in gpu_name": false,
+    "'4090' in gpu_name": true,
+    "batch_size": 1,
+    "q_len": 257,
+    "q.shape[1]": 2,
+    "k.shape[1]": 2,
+    "head_dim": 32,
+    "block_size": 128,
+    "min_budget": 1,
+    "q.dtype": "torch.bfloat16",
+    "k_len": 257,
+    "num_block": 1,
+    "total_q_blocks": 1,
+    "num_q_heads": 4,
+    "num_kv_heads": 2
+   },
+   "atoms": {
+    "'4090' in gpu_name": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "'a100' in gpu_name": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "'h100' in gpu_name": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "batch_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "block_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "head_dim": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "k.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "k_len": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "min_budget": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "num_block": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "num_kv_heads": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "num_q_heads": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "q.dtype": {
+     "kind": "category",
+     "sort": "str"
+    },
+    "q.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "q_len": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "total_q_blocks": {
+     "kind": "input",
+     "sort": "int"
+    }
+   },
+   "eval_preference": {
+    "block_size": 128
+   },
+   "aliases_not_applied": {
+    "head_large": "head_dim > 64",
+    "block_large": "block_size > 64"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "flex_prefill/ops/flex_prefill_attention.py:88-96",
+   "function": "flex_prefill/ops/flex_prefill_attention.py::get_num_warps_stages"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: undisclosed, other effect",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F041",
+  "artifact_id": "flexprefill",
+  "category": "stated_differently",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X025"
+  ],
+  "verification_ids": [
+   "V025"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When not (q.dtype == torch.bfloat16): AssertionError (flex_prefill/ops/flex_prefill_attention.py:868)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "infeasible",
+   "condition": "not (q.dtype == torch.bfloat16)",
+   "path_prefix": [
+    "batch_size == 1",
+    "not (q_len == 1)",
+    "q.shape[1] == k.shape[1]",
+    "head_dim in {16, 32, 64, 128}",
+    "block_size in {16, 32, 64, 128}",
+    "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
+    "not (q.shape[1] > 1)",
+    "q_len == 1"
+   ],
+   "dropped_prefix": [],
+   "note": "no values satisfy path prefix, condition and scope together",
+   "aliases_not_applied": {
+    "q_len": "q.shape[1]",
+    "k_len": "k.shape[1]",
+    "num_kv_heads": "k.shape[2]",
+    "num_blocks": "block_idx.shape[2]"
+   },
+   "location": "flex_prefill/ops/flex_prefill_attention.py:868",
+   "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_decode_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: weaker in readme; 3b weaker; priority 3: unreachable: condition contradicts its path prefix",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F042",
+  "artifact_id": "flexprefill",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X026"
+  ],
+  "verification_ids": [
+   "V026"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When not (head_dim in {16, 32, 64, 128}): 'only support head_dim in {16, 32, 64, 128}' (flex_prefill/ops/flex_prefill_attention.py:869)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "infeasible",
+   "condition": "not (head_dim in {16, 32, 64, 128})",
+   "path_prefix": [
+    "batch_size == 1",
+    "not (q_len == 1)",
+    "q.shape[1] == k.shape[1]",
+    "head_dim in {16, 32, 64, 128}",
+    "block_size in {16, 32, 64, 128}",
+    "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
+    "not (q.shape[1] > 1)",
+    "q_len == 1",
+    "q.dtype == torch.bfloat16"
+   ],
+   "dropped_prefix": [],
+   "note": "no values satisfy path prefix, condition and scope together",
+   "aliases_not_applied": {
+    "q_len": "q.shape[1]",
+    "k_len": "k.shape[1]",
+    "num_kv_heads": "k.shape[2]",
+    "num_blocks": "block_idx.shape[2]"
+   },
+   "location": "flex_prefill/ops/flex_prefill_attention.py:869",
+   "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_decode_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: unreachable: condition contradicts its path prefix",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F043",
+  "artifact_id": "flexprefill",
+  "category": "docs_only",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X027"
+  ],
+  "verification_ids": [
+   "V027"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When not (block_size in {16, 32, 64, 128}): 'only support block size in {16, 32, 64, 128}' (flex_prefill/ops/flex_prefill_attention.py:870)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "infeasible",
+   "condition": "not (block_size in {16, 32, 64, 128})",
+   "path_prefix": [
+    "batch_size == 1",
+    "not (q_len == 1)",
+    "q.shape[1] == k.shape[1]",
+    "head_dim in {16, 32, 64, 128}",
+    "block_size in {16, 32, 64, 128}",
+    "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
+    "not (q.shape[1] > 1)",
+    "q_len == 1",
+    "q.dtype == torch.bfloat16",
+    "head_dim in {16, 32, 64, 128}"
+   ],
+   "dropped_prefix": [],
+   "note": "no values satisfy path prefix, condition and scope together",
+   "aliases_not_applied": {
+    "q_len": "q.shape[1]",
+    "k_len": "k.shape[1]",
+    "num_kv_heads": "k.shape[2]",
+    "num_blocks": "block_idx.shape[2]"
+   },
+   "location": "flex_prefill/ops/flex_prefill_attention.py:870-875",
+   "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_decode_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: found in docstring; priority 3: unreachable: condition contradicts its path prefix",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F044",
+  "artifact_id": "flexprefill",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X028"
+  ],
+  "verification_ids": [
+   "V028"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When not (num_blocks <= triton.cdiv(k_len, block_size)): AssertionError (flex_prefill/ops/flex_prefill_attention.py:876)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "infeasible",
+   "condition": "not (num_blocks <= triton.cdiv(k_len, block_size))",
+   "path_prefix": [
+    "batch_size == 1",
+    "not (q_len == 1)",
+    "q.shape[1] == k.shape[1]",
+    "head_dim in {16, 32, 64, 128}",
+    "block_size in {16, 32, 64, 128}",
+    "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
+    "not (q.shape[1] > 1)",
+    "q_len == 1",
+    "q.dtype == torch.bfloat16",
+    "head_dim in {16, 32, 64, 128}",
+    "block_size in {16, 32, 64, 128}"
+   ],
+   "dropped_prefix": [],
+   "note": "no values satisfy path prefix, condition and scope together",
+   "aliases_not_applied": {
+    "q_len": "q.shape[1]",
+    "k_len": "k.shape[1]",
+    "num_kv_heads": "k.shape[2]",
+    "num_blocks": "block_idx.shape[2]"
+   },
+   "location": "flex_prefill/ops/flex_prefill_attention.py:876",
+   "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_decode_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: unreachable: condition contradicts its path prefix",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F045",
+  "artifact_id": "flexprefill",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X029"
+  ],
+  "verification_ids": [
+   "V029"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When not (num_q_heads % num_kv_heads == 0): AssertionError (flex_prefill/ops/flex_prefill_attention.py:878)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "infeasible",
+   "condition": "not (num_q_heads % num_kv_heads == 0)",
+   "path_prefix": [
+    "batch_size == 1",
+    "not (q_len == 1)",
+    "q.shape[1] == k.shape[1]",
+    "head_dim in {16, 32, 64, 128}",
+    "block_size in {16, 32, 64, 128}",
+    "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
+    "not (q.shape[1] > 1)",
+    "q_len == 1",
+    "q.dtype == torch.bfloat16",
+    "head_dim in {16, 32, 64, 128}",
+    "block_size in {16, 32, 64, 128}",
+    "num_blocks <= triton.cdiv(k_len, block_size)"
+   ],
+   "dropped_prefix": [],
+   "note": "no values satisfy path prefix, condition and scope together",
+   "aliases_not_applied": {
+    "q_len": "q.shape[1]",
+    "k_len": "k.shape[1]",
+    "num_kv_heads": "k.shape[2]",
+    "num_blocks": "block_idx.shape[2]"
+   },
+   "location": "flex_prefill/ops/flex_prefill_attention.py:878",
+   "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_decode_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: unreachable: condition contradicts its path prefix",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F046",
+  "artifact_id": "flexprefill",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X015"
+  ],
+  "verification_ids": [
+   "V015"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When not (head_dim <= 256): 'only support head_dim <= 256' (flex_prefill/ops/flex_prefill_attention.py:1220)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "infeasible",
+   "condition": "not (head_dim <= 256)",
+   "path_prefix": [
+    "batch_size == 1",
+    "not (q_len == 1)",
+    "q.shape[1] == k.shape[1]",
+    "head_dim in {16, 32, 64, 128}",
+    "block_size in {16, 32, 64, 128}",
+    "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
+    "q.shape[1] > 1",
+    "q.dtype == torch.bfloat16",
+    "q_len == k_len"
+   ],
+   "dropped_prefix": [],
+   "note": "no values satisfy path prefix, condition and scope together",
+   "aliases_not_applied": {
+    "q_len": "q.shape[1]",
+    "k_len": "k.shape[1]",
+    "num_kv_heads": "k.shape[2]"
+   },
+   "location": "flex_prefill/ops/flex_prefill_attention.py:1220",
+   "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: unreachable: condition contradicts its path prefix",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F047",
+  "artifact_id": "flexprefill",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B011"
+  ],
+  "verification_ids": [
+   "V040"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When head_dim <= 128: For head_dim <= 128 only block_size in {32,64,128} is allowed; otherwise (128 < head_dim <= 256) only {32,64} is allowed, so the accepted block_size set depends on head_dim. (flex_prefill/ops/flex_prefill_attention.py:1221)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "head_dim <= 128",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "head_dim": 128
+   },
+   "contrast": {
+    "head_dim": 129
+   },
+   "atoms": {
+    "head_dim": {
+     "kind": "input",
+     "sort": "int"
+    }
+   },
+   "location": "flex_prefill/ops/flex_prefill_attention.py:1221",
+   "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: reviewed as wrong",
+  "review": "wrong",
+  "review_note": "blind review by an LLM subagent (round 1), not human: flex_prefill_attention already asserts head_dim in {16,32,64,128}, so the head_dim>128 branch with its {32,64} restriction is unreachable through the mechanism."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F048",
+  "artifact_id": "flexprefill",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X017"
+  ],
+  "verification_ids": [
+   "V017"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When not (block_size in {32, 64}): 'only support block size in {32, 64} if 128 < head_dim <= 256' (flex_prefill/ops/flex_prefill_attention.py:1228)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "infeasible",
+   "condition": "not (block_size in {32, 64})",
+   "path_prefix": [
+    "batch_size == 1",
+    "not (q_len == 1)",
+    "q.shape[1] == k.shape[1]",
+    "head_dim in {16, 32, 64, 128}",
+    "block_size in {16, 32, 64, 128}",
+    "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
+    "q.shape[1] > 1",
+    "q.dtype == torch.bfloat16",
+    "q_len == k_len",
+    "head_dim <= 256",
+    "not (head_dim <= 128)"
+   ],
+   "dropped_prefix": [],
+   "note": "no values satisfy path prefix, condition and scope together",
+   "aliases_not_applied": {
+    "q_len": "q.shape[1]",
+    "k_len": "k.shape[1]",
+    "num_kv_heads": "k.shape[2]"
+   },
+   "location": "flex_prefill/ops/flex_prefill_attention.py:1228-1231",
+   "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: unreachable: condition contradicts its path prefix",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F049",
+  "artifact_id": "flexprefill",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X022"
+  ],
+  "verification_ids": [
+   "V022"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "When not (int(triton.__version__.split('.')[0]) >= 3): warnings.warn('triton version greater than 3.0.0 is required for faster attention') (flex_prefill/ops/flex_prefill_attention.py:1270)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "not (int(triton.__version__.split('.')[0]) >= 3)",
+   "path_prefix": [
+    "batch_size == 1",
+    "not (q_len == 1)",
+    "q.shape[1] == k.shape[1]",
+    "head_dim in {16, 32, 64, 128}",
+    "block_size in {16, 32, 64, 128}",
+    "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
+    "q.shape[1] > 1",
+    "q.dtype == torch.bfloat16",
+    "q_len == k_len",
+    "head_dim <= 256",
+    "q_len == k_len",
+    "num_block <= total_q_blocks * (total_q_blocks + 1) // 2",
+    "num_q_heads % num_kv_heads == 0"
+   ],
+   "dropped_prefix": [],
+   "closest": false,
+   "trigger": {
+    "int(triton.__version__.split('.')[0])": 2,
+    "batch_size": 1,
+    "q_len": 385,
+    "q.shape[1]": 2,
+    "k.shape[1]": 2,
+    "head_dim": 128,
+    "block_size": 128,
+    "min_budget": 320,
+    "q.dtype": "torch.bfloat16",
+    "k_len": 385,
+    "num_block": 0,
+    "total_q_blocks": 0,
+    "num_q_heads": -1,
+    "num_kv_heads": 0
+   },
+   "contrast": {
+    "int(triton.__version__.split('.')[0])": 3,
+    "batch_size": 1,
+    "q_len": 49,
+    "q.shape[1]": 2,
+    "k.shape[1]": 2,
+    "head_dim": 16,
+    "block_size": 16,
+    "min_budget": 40,
+    "q.dtype": "torch.bfloat16",
+    "k_len": 49,
+    "num_block": 0,
+    "total_q_blocks": 0,
+    "num_q_heads": 1,
+    "num_kv_heads": 0
+   },
+   "atoms": {
+    "batch_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "block_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "head_dim": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "int(triton.__version__.split('.')[0])": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "k.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "k_len": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "min_budget": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "num_block": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "num_kv_heads": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "num_q_heads": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "q.dtype": {
+     "kind": "category",
+     "sort": "str"
+    },
+    "q.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "q_len": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "total_q_blocks": {
+     "kind": "input",
+     "sort": "int"
+    }
+   },
+   "eval_preference": {
+    "block_size": 128
+   },
+   "aliases_not_applied": {
+    "q_len": "q.shape[1]",
+    "k_len": "k.shape[1]",
+    "num_kv_heads": "k.shape[2]",
+    "total_q_blocks": "triton.cdiv(grid_offset, block_size) + triton.cdiv(q_len - grid_offset, block_size)",
+    "total_k_blocks": "triton.cdiv(grid_offset, block_size) + triton.cdiv(k_len - grid_offset, block_size)",
+    "num_block": "block_idx.shape[2]",
+    "num_share_q_heads": "num_q_heads // num_kv_heads"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "flex_prefill/ops/flex_prefill_attention.py:1270-1272",
+   "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: undisclosed, other effect",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F050",
+  "artifact_id": "flexprefill",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X009"
+  ],
+  "verification_ids": [
+   "V009"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "When block_size != 128: hard-coded 128 in `score_cover_topk(vertical, gamma) // 128` while parameter `block_size` is in scope (flex_prefill/ops/flex_prefill_attention.py:1708)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "block_size != 128",
+   "path_prefix": [
+    "batch_size == 1",
+    "not (q_len == 1)",
+    "q.shape[1] == k.shape[1]",
+    "head_dim in {16, 32, 64, 128}",
+    "block_size in {16, 32, 64, 128}",
+    "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))"
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "block_size": 64,
+    "batch_size": 1,
+    "q_len": 769,
+    "q.shape[1]": 1,
+    "k.shape[1]": 1,
+    "head_dim": 128,
+    "min_budget": 642
+   },
+   "contrast": {
+    "block_size": 128,
+    "batch_size": 1,
+    "q_len": 769,
+    "q.shape[1]": 1,
+    "k.shape[1]": 1,
+    "head_dim": 128,
+    "min_budget": 642
+   },
+   "atoms": {
+    "batch_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "block_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "head_dim": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "k.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "min_budget": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "q.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "q_len": {
+     "kind": "input",
+     "sort": "int"
+    }
+   },
+   "eval_preference": {
+    "block_size": 128
+   },
+   "aliases_not_applied": {
+    "batch_size": "q.shape[0]",
+    "seq_len": "q.shape[1]",
+    "num_heads": "q.shape[2]",
+    "head_dim": "q.shape[3]",
+    "num_share_q_heads": "num_heads // k.shape[2]",
+    "num_blocks": "math.ceil(seq_len / block_size)",
+    "last_q": "q[:, -block_size:, :, :] / math.sqrt(head_dim)"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "location": "flex_prefill/ops/flex_prefill_attention.py:1708",
+   "function": "flex_prefill/ops/flex_prefill_attention.py::get_active_blocks"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: undisclosed, other effect; related (candidate pair, judged different): flexprefill-F030, flexprefill-F031, flexprefill-F032, flexprefill-F033, flexprefill-F035, flexprefill-F036",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F051",
+  "artifact_id": "flexprefill",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X001"
+  ],
+  "verification_ids": [
+   "V001"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "When not (is_flash_attn_2_available()): flash_attn_func = triton_flash_attention (flex_prefill/ops/flex_prefill_attention.py:1787)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "not (is_flash_attn_2_available())",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "is_flash_attn_2_available()": false
+   },
+   "contrast": {
+    "is_flash_attn_2_available()": true
+   },
+   "atoms": {
+    "is_flash_attn_2_available()": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "location": "flex_prefill/ops/flex_prefill_attention.py:1787",
+   "function": "flex_prefill/ops/flex_prefill_attention.py::<module>"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: undisclosed, other effect",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F052",
+  "artifact_id": "flexprefill",
+  "category": "docs_only",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X002"
+  ],
+  "verification_ids": [
+   "V002"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When not (batch_size == 1): 'only support batch size 1 for now' (flex_prefill/ops/flex_prefill_attention.py:1824)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "not (batch_size == 1)",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "batch_size": 2
+   },
+   "contrast": {
+    "batch_size": 1
+   },
+   "atoms": {
+    "batch_size": {
+     "kind": "input",
+     "sort": "int"
+    }
+   },
+   "location": "flex_prefill/ops/flex_prefill_attention.py:1824",
+   "function": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: found in readme; priority 3: docs_only, reject effect",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F053",
+  "artifact_id": "flexprefill",
+  "category": "docs_only",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X003"
+  ],
+  "verification_ids": [
+   "V003"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "path_change",
+  "summary": "When q_len == 1: returns via flash_attn_func, triton_flash_attention (flex_prefill/ops/flex_prefill_attention.py:1825)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "q_len == 1",
+   "path_prefix": [
+    "batch_size == 1"
+   ],
+   "dropped_prefix": [],
+   "aliases": {
+    "q_len": "q.shape[1]"
+   },
+   "trigger": {
+    "q_len": 1,
+    "batch_size": 1,
+    "q.shape[1]": 1
+   },
+   "contrast": {
+    "q_len": 2,
+    "batch_size": 1,
+    "q.shape[1]": 2
+   },
+   "atoms": {
+    "batch_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "q.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "q_len": {
+     "kind": "local",
+     "sort": "int"
+    }
+   },
+   "location": "flex_prefill/ops/flex_prefill_attention.py:1825-1835",
+   "function": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: found in docstring; priority 3: docs_only, path_change effect",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F054",
+  "artifact_id": "flexprefill",
+  "category": "docs_only",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-X006"
+  ],
+  "verification_ids": [
+   "V006"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When not (block_size in {16, 32, 64, 128}): AssertionError (flex_prefill/ops/flex_prefill_attention.py:1838)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "not (block_size in {16, 32, 64, 128})",
+   "path_prefix": [
+    "batch_size == 1",
+    "not (q_len == 1)",
+    "q.shape[1] == k.shape[1]",
+    "head_dim in {16, 32, 64, 128}"
+   ],
+   "dropped_prefix": [],
+   "aliases": {
+    "q_len": "q.shape[1]",
+    "k_len": "k.shape[1]"
+   },
+   "trigger": {
+    "block_size": 127,
+    "batch_size": 1,
+    "q_len": 2,
+    "q.shape[1]": 2,
+    "k.shape[1]": 2,
+    "head_dim": 128,
+    "k_len": 2
+   },
+   "contrast": {
+    "block_size": 128,
+    "batch_size": 1,
+    "q_len": 2,
+    "q.shape[1]": 2,
+    "k.shape[1]": 2,
+    "head_dim": 128,
+    "k_len": 2
+   },
+   "atoms": {
+    "batch_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "block_size": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "head_dim": {
+     "kind": "input",
+     "sort": "int"
+    },
+    "k.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "k_len": {
+     "kind": "local",
+     "sort": "int"
+    },
+    "q.shape[1]": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "q_len": {
+     "kind": "local",
+     "sort": "int"
+    }
+   },
+   "eval_preference": {
+    "block_size": 128
+   },
+   "location": "flex_prefill/ops/flex_prefill_attention.py:1838",
+   "function": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: found in docstring; priority 3: docs_only, reject effect",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F055",
+  "artifact_id": "flexprefill",
+  "category": "docs_only",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B015"
+  ],
+  "verification_ids": [
+   "V044"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "reject",
+  "summary": "When block_size not in {16, 32, 64, 128}: Caller-supplied block_size outside the fixed set aborts execution via assertion. (flex_prefill/ops/vertical_slash_attention.py:553)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "block_size not in {16, 32, 64, 128}",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "block_size": 129
+   },
+   "contrast": {
+    "block_size": 128
+   },
+   "atoms": {
+    "block_size": {
+     "kind": "input",
+     "sort": "int"
+    }
+   },
+   "eval_preference": {
+    "block_size": 128
+   },
+   "location": "flex_prefill/ops/vertical_slash_attention.py:553",
+   "function": "flex_prefill/ops/vertical_slash_attention.py::vertical_slash_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: found in docstring; priority 3: docs_only, reject effect",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 3), not human: The assert is in vertical_slash_attention, the MInference-style vertical_slash baseline, not on FlexPrefill's own path (flex_prefill_attention)."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F056",
+  "artifact_id": "flexprefill",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "flexprefill-gap-M12-A05"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求单卡 A100 80GB；脚本未固定设备数量或型号，accelerate 可多进程运行",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "no_condition",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "experiments/scripts/flex_prefill/ruler.sh:16-45",
+    "experiments/scripts/flex_prefill/infinitebench.sh:20-65"
+   ],
+   "note": "not decided by input values: The gap concerns hardware/device configuration (single A100 80GB vs. accelerate multi-process/multi-GPU), which is not determined by any input value in the shown code.",
+   "location": "experiments/scripts/flex_prefill/ruler.sh:16-45",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; priority 3: not_implemented, other effect",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F057",
+  "artifact_id": "flexprefill",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "flexprefill-gap-M11-B01",
+   "flexprefill-gap-M11-A04"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求的上界推导在实验路径无对应实现或检验",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "experiments/scripts/flex_prefill/ruler.sh:21-29"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The paper's upper-bound derivation (single query position, a_k ≤ a_S / a_k ≤ 1−a_S) has no corresponding implementation or check anywhere in the flex_prefill experiment path, so the gap is present on every run of ruler.sh.",
+   "location": "experiments/scripts/flex_prefill/ruler.sh:21-29",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; merged (LLM: same issue): flexprefill-gap-M11-A04; priority 3: not_implemented, other effect; related (candidate pair, judged different): flexprefill-F058, flexprefill-F059, flexprefill-F060, flexprefill-F061, flexprefill-F062, flexprefill-F063, flexprefill-F064, flexprefill-F065",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F058",
+  "artifact_id": "flexprefill",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "flexprefill-gap-M11-B03"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求显式连续松弛步骤；代码无该步骤",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "experiments/scripts/flex_prefill/ruler.sh:21-29"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The paper's Step 2 continuous relaxation is absent from the code entirely, so the gap appears on every run of the flex_prefill experiment path regardless of input values.",
+   "location": "experiments/scripts/flex_prefill/ruler.sh:21-29",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 3: not_implemented, other effect; related (candidate pair, judged different): flexprefill-F057, flexprefill-F059, flexprefill-F060, flexprefill-F061, flexprefill-F062, flexprefill-F063, flexprefill-F064, flexprefill-F065",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F059",
+  "artifact_id": "flexprefill",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "flexprefill-gap-M11-B04"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求构造 Lagrangian；代码无",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "experiments/scripts/flex_prefill/ruler.sh:21-29"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The paper's Step 3 Lagrangian formulation has no corresponding code in the pinned flex_prefill experiment path, so the gap is present on every run regardless of inputs.",
+   "location": "experiments/scripts/flex_prefill/ruler.sh:21-29",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 3: not_implemented, other effect; related (candidate pair, judged different): flexprefill-F057, flexprefill-F058, flexprefill-F060, flexprefill-F061, flexprefill-F062, flexprefill-F063, flexprefill-F064, flexprefill-F065",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F060",
+  "artifact_id": "flexprefill",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "flexprefill-gap-M11-B05"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求 KKT 条件；代码无",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "experiments/scripts/flex_prefill/ruler.sh:21-29"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The paper's Step 4 KKT conditions are a theoretical derivation step with no corresponding implementation in the pinned flex_prefill code path, so the gap is present on every run regardless of inputs.",
+   "location": "experiments/scripts/flex_prefill/ruler.sh:21-29",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 3: not_implemented, other effect; related (candidate pair, judged different): flexprefill-F057, flexprefill-F058, flexprefill-F059, flexprefill-F061, flexprefill-F062, flexprefill-F063, flexprefill-F064, flexprefill-F065",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F061",
+  "artifact_id": "flexprefill",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "flexprefill-gap-M11-A03"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求该代数表达；代码无",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "experiments/scripts/flex_prefill/ruler.sh:21-29"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The paper's algebraic expression for the single-query attention output is never implemented in the pinned flex_prefill code path, so the gap exists on every run regardless of input values.",
+   "location": "experiments/scripts/flex_prefill/ruler.sh:21-29",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 3: not_implemented, other effect; related (candidate pair, judged different): flexprefill-F057, flexprefill-F058, flexprefill-F059, flexprefill-F060, flexprefill-F062, flexprefill-F063, flexprefill-F064, flexprefill-F065",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F062",
+  "artifact_id": "flexprefill",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "flexprefill-gap-M11-A05"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求陈述该约束问题；代码无对应形式化",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "experiments/scripts/flex_prefill/ruler.sh:21-29"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The paper's constrained subset-selection optimization (Eq. 4 with tolerance γ_S) has no formalized counterpart in the code; the script only passes flex_prefill_gamma=0.95 as a config flag, so the gap is present on every run regardless of inputs.",
+   "location": "experiments/scripts/flex_prefill/ruler.sh:21-29",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 3: not_implemented, other effect; related (candidate pair, judged different): flexprefill-F057, flexprefill-F058, flexprefill-F059, flexprefill-F060, flexprefill-F061, flexprefill-F063, flexprefill-F064, flexprefill-F065",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F063",
+  "artifact_id": "flexprefill",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "flexprefill-gap-M11-A06"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求二值变量重写；代码无",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "experiments/scripts/flex_prefill/ruler.sh:21-29"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The paper's binary-variable reformulation (Eq.7) is never implemented in the code; the flex_prefill path always uses the gamma/tau budget heuristic regardless of inputs, so the gap is a design/formula difference present on every call.",
+   "location": "experiments/scripts/flex_prefill/ruler.sh:21-29",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 3: not_implemented, other effect; related (candidate pair, judged different): flexprefill-F057, flexprefill-F058, flexprefill-F059, flexprefill-F060, flexprefill-F061, flexprefill-F062, flexprefill-F064, flexprefill-F065",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F064",
+  "artifact_id": "flexprefill",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "flexprefill-gap-M11-A07"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求平稳性条件；代码无",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "experiments/scripts/flex_prefill/ruler.sh:21-29"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The paper's stationarity condition (∂L/∂zj = 0 with multipliers λ, µj, νj) is a theoretical derivation requirement that the code never implements or checks, so the gap exists on every run of the flex_prefill experiment path regardless of input values.",
+   "location": "experiments/scripts/flex_prefill/ruler.sh:21-29",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 3: not_implemented, other effect; related (candidate pair, judged different): flexprefill-F057, flexprefill-F058, flexprefill-F059, flexprefill-F060, flexprefill-F061, flexprefill-F062, flexprefill-F063, flexprefill-F065",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "flexprefill-F065",
+  "artifact_id": "flexprefill",
+  "category": "not_implemented",
+  "level": "L2",
+  "limitation_ids": [
+   "flexprefill-gap-M11-A08"
+  ],
+  "verification_ids": [],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "论文要求互补松弛；代码无",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "always",
+   "condition": null,
+   "path_prefix": [],
+   "code_locations": [
+    "experiments/scripts/flex_prefill/ruler.sh:21-29"
+   ],
+   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The paper's complementary slackness conditions are a mathematical property of the optimization derivation, but the code path only launches RULER benchmark runs with flex_prefill config and contains no implementation of the Lagrangian/complementary slackness constraints, so the gap is present on every run regardless of inputs.",
+   "location": "experiments/scripts/flex_prefill/ruler.sh:21-29",
+   "function": null
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "paper side (3a static): absent; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 3: not_implemented, other effect; related (candidate pair, judged different): flexprefill-F057, flexprefill-F058, flexprefill-F059, flexprefill-F060, flexprefill-F061, flexprefill-F062, flexprefill-F063, flexprefill-F064",
+  "review": "unreviewed",
+  "review_note": null
+ }
+]

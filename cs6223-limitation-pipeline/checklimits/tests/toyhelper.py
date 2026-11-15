@@ -1,0 +1,279 @@
+"""Builds a throw-away repository + data dir + attempt package for harness tests."""
+import json
+import subprocess
+from pathlib import Path
+
+CORE_WITH_EXT = '''import extlib_before
+import extlib_after
+
+
+def pre(n):
+    return n + 1
+
+
+def check(n, m):
+    extlib_before.touch()
+    base = pre(n)
+    assert n == 1, "n must be 1"
+    extlib_after.touch()
+    if m > 3:
+        return "big"
+    return "small"
+
+
+def entry(n, m):
+    return check(n, m)
+'''
+
+CORE_IMPORT_TOUCH = CORE_WITH_EXT.replace("    extlib_before.touch()\n", "").replace(
+    "import extlib_after\n", "import extlib_after\n\n_CFG = extlib_before.CONFIG   # touched at import time only\n")
+
+CORE_PLAIN = '''def pre(n):
+    return n + 1
+
+
+def check(n, m):
+    base = pre(n)
+    assert n == 1, "n must be 1"
+    if m > 3:
+        return "big"
+    return "small"
+
+
+def entry(n, m):
+    return check(n, m)
+'''
+
+DRIVER = '''import os, sys
+from toypkg.core import entry, check
+
+
+def run(inputs):
+    if inputs.get("sleep"):
+        import time
+        time.sleep(inputs["sleep"])
+    if inputs.get("leak_probe"):
+        return len([k for k in os.environ if k.startswith(("SOCLAAS_", "OPENAI_")) or k.lower().endswith("_proxy")])
+    if inputs.get("direct"):
+        return check(inputs["n"], inputs["m"])
+    out = entry(inputs["n"], inputs["m"])
+    if inputs.get("probe_sensitive") and sys.monitoring.get_tool(2) is not None:
+        return out + "-seen-by-tracer"   # behaves differently when a monitoring tool is registered
+    return out
+'''
+
+
+CORE_BRANCH = '''def pre(n):
+    return n + 1
+
+
+def check(n, m):
+    base = pre(n)
+    if n > 3:
+        return "fallback"
+    return "main"
+
+
+def entry(n, m):
+    return check(n, m)
+'''
+
+CORE_STATE = '''_STATE = {}
+
+
+def check(n, m):
+    cache = _STATE.get("v")
+    if cache is None:
+        _STATE["v"] = n
+        return "initialised"
+    return "reused"
+
+
+def entry(n, m):
+    return check(n, m)
+'''
+
+CORE_MULTILINE = '''def pre(n):
+    return n + 1
+
+
+def check(n, m):
+    base = pre(n)
+    assert (
+        n == 1
+        and m >= 0
+    ), "n must be 1"
+    if (
+        n > 3
+        and m > 100
+    ):
+        return "fallback"
+    return "main"
+
+
+def entry(n, m):
+    return check(n, m)
+'''
+
+CORE_NESTED = '''def make():
+    def check(n, m):
+        base = n + 1
+        assert n == 1, "n must be 1"
+        return "ok"
+    return check
+
+
+def entry(n, m):
+    return make()(n, m)
+'''
+
+CORE_IFRAISE = '''def check(n, m):
+    base = n + 1
+    if n != 1:
+        raise ValueError("n must be 1")
+    return "ok"
+
+
+def entry(n, m):
+    return check(n, m)
+'''
+
+CORE_IFSKIP = '''def check(n, m):
+    out = []
+    for i in range(3):
+        if i == n:
+            continue
+        out.append(i)
+    return out
+
+
+def entry(n, m):
+    return check(n, m)
+'''
+
+CORE_STAMP = '''import random
+import time
+
+
+def check(n, m):
+    stamp = time.time()          # differs on every run, unrelated to the condition
+    jitter = random.random()     # same
+    noisy = n + (jitter > 2)     # reads n only
+    assert n == 1, "n must be 1"
+    return "ok"
+
+
+def entry(n, m):
+    return check(n, m)
+'''
+
+CORE_MODULE = '''import os
+
+LIMIT = os.getenv("TOY_LIMIT", "auto")
+if LIMIT == "off":
+    LIMIT = None
+else:
+    LIMIT = 5
+
+
+def entry(n, m):
+    return LIMIT
+'''
+
+FUNC = {"nested": "make.check", "module": "<module>"}     # Region.location.function, when it is not simply `check`
+
+KINDS = {
+    "stamp": (CORE_STAMP, "assert n == 1", "reject", "n != 1", 'assert n == 1, "n must be 1"'),
+    "ifraise": (CORE_IFRAISE, "if n != 1:", "reject", "n != 1", "if n != 1:"),
+    "ifskip": (CORE_IFSKIP, "if i == n:", "reject", "i == n", "if i == n:"),
+    "module": (CORE_MODULE, 'if LIMIT == "off":', "fallback", 'LIMIT == "off"', 'if LIMIT == "off":'),
+    "nested": (CORE_NESTED, "assert n == 1", "reject", "n != 1", 'assert n == 1, "n must be 1"'),   # kind -> (source, text that starts the target line, outcome, condition expr, snippet)
+    "reject": (None, "assert n == 1", "reject", "n != 1", 'assert n == 1, "n must be 1"'),
+    "multiline": (CORE_MULTILINE, "assert (", "reject", "n != 1 or m < 0", "assert n == 1 and m >= 0"),
+    "branch": (CORE_BRANCH, "if n > 3:", "fallback", "n > 3", "if n > 3:"),
+    "state": (CORE_STATE, "if cache is None:", "state_dependent", "cache is None", "if cache is None:"),
+}
+
+
+def git(repo, *a):
+    subprocess.run(["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@t", *a],
+                   check=True, capture_output=True)
+
+
+def target_line(src, marker="assert n == 1"):
+    return next(i for i, l in enumerate(src.splitlines(), 1) if l.strip().startswith(marker))
+
+
+def build(tmp: Path, with_ext=True, form_overrides=None, driver_src=DRIVER, manifest_overrides=None,
+          pos=None, neg=None, scale=None, mocks_override=None, entry_reason=None, kind="reject",
+          design_extra=None, witness=None):
+    repo = tmp / "repo"
+    (repo / "toypkg").mkdir(parents=True)
+    ksrc, marker, outcome, cond_expr, snippet = KINDS[kind]
+    src = ksrc or (CORE_IMPORT_TOUCH if with_ext == "import" else CORE_WITH_EXT if with_ext else CORE_PLAIN)
+    (repo / "toypkg" / "__init__.py").write_text("")
+    (repo / "toypkg" / "core.py").write_text(src)
+    git(repo, "init", "-q")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-q", "-m", "init")
+    commit = subprocess.run(["git", "-C", str(repo), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+    line = target_line(src, marker)
+    loc = f"toypkg/core.py:{line}"
+    data = tmp / "data"
+    data.mkdir()
+    region = {"schema_version": "0.1.0", "region_id": "R1", "artifact_id": "toy", "entry_point": "toypkg/core.py::entry",
+              "condition": {"expr": cond_expr, "params": ["n"], "path_prefix": []}, "outcome": outcome,
+              "location": {"file": "toypkg/core.py", "line_start": line, "function": "toypkg/core.py::" + FUNC.get(kind, "check"),
+                           "snippet": snippet},
+              "call_chain": ["toypkg/core.py::entry", "toypkg/core.py::" + FUNC.get(kind, "check")], "provenance": "manual"}
+    lim = {"schema_version": "0.1.0", "limitation_id": "CL1", "artifact_id": "toy", "origin": "code",
+           "condition_text": "n != 1", "effect_type": "reject", "effect_text": "assert", "region_ids": ["R1"],
+           "provenance": "manual"}
+    fnd = {"schema_version": "0.1.0", "finding_id": "F1", "artifact_id": "toy", "category": "undisclosed",
+           "level": "L2", "limitation_ids": ["CL1"], "scope_status": "scope_edge", "effect_type": "reject",
+           "summary": "n must be 1", "witness_hint": witness or ({"n": 4, "m": 1} if kind == "branch" else {"n": 1} if kind == "state" else {"n": 2, "m": 1}),
+           "confidence": "mechanical"}
+    (data / "gold_regions.json").write_text(json.dumps([region]))
+    (data / "gold_code_limitations.json").write_text(json.dumps([lim]))
+    (data / "draft_findings.json").write_text(json.dumps([fnd]))
+    att = tmp / "attempt"
+    att.mkdir()
+    (att / "driver.py").write_text(driver_src)
+    mocks = mocks_override if mocks_override is not None else ([{"symbol": "extlib_before", "kind": "fake_module", "reason": "touched before the target", "behavior": "return_none"},
+              {"symbol": "extlib_after", "kind": "fake_module", "reason": "touched after the target", "behavior": "return_none"}]
+             if with_ext else [])
+    form = {
+        "test_id": "T1", "finding_id": "F1", "strategy": "S1" if with_ext else "S0",
+        "design": {"witness_source": "witness_hint", "free_parameters": [{"name": "m", "value": 1, "why": "unused by the toy guard"}],
+                   "positive_input": pos or {"n": 2}, "negative_input": neg or {"n": 1}, "boundary_variable": "n",
+                   "condition_predicate_file": None,
+                   "oracle": {"tier": "O4", "type": "exception", "spec": f"AssertionError raised at {loc}",
+                              "signal_location": loc},
+                   "expected": {"positive": f"AssertionError at {loc}", "negative": f"no exception at {loc}"}},
+        "execution": {"entry_called": "toypkg/core.py::entry", "entry_reason": entry_reason, "call_chain_index": 0,
+                      "repo_files_modified": [],
+                      "mocks": mocks, "hooks": [], "replay_commands": []},
+        "claims": {"target_reached": True, "decision_outcomes_seen": ["false", "true"],
+                   "condition_true_on_positive": True, "condition_false_on_negative": True,
+                   "positive_observed": f"AssertionError at {loc}", "negative_observed": f"no exception at {loc}"},
+    }
+    if scale:
+        form["design"]["scale"] = scale
+    if kind not in ("reject", "multiline", "nested", "ifraise", "ifskip"):
+        form["design"]["oracle"].update(type="path_hook", spec=f"branch taken at {loc}", signal_location=loc)
+        form["design"]["expected"] = {"positive": f"branch taken at {loc}", "negative": f"branch not taken at {loc}"}
+        form["claims"]["positive_observed"] = f"branch taken at {loc}"
+        form["claims"]["negative_observed"] = f"branch not taken at {loc}"
+        if pos is None:
+            form["design"]["positive_input"] = {"n": 4} if kind == "branch" else {"n": 1}
+        if neg is None:
+            form["design"]["negative_input"] = {"n": 3} if kind == "branch" else {"n": 1}
+    form["design"].update(design_extra or {})
+    for k, v in (form_overrides or {}).items():
+        form[k] = v
+    manifest = {"test_id": "T1", "finding_id": "F1", "artifact_id": "toy", "region_id": "R1", "repo_dir": "repo",
+                "repo_commit": commit, "data_dir": "data", "timeout_s": 60}
+    manifest.update(manifest_overrides or {})
+    (att / "form.json").write_text(json.dumps(form))
+    (att / "manifest.json").write_text(json.dumps(manifest))
+    return {"root": tmp, "repo": repo, "attempt": att, "line": line, "loc": loc, "form": form, "commit": commit}

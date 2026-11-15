@@ -1,0 +1,136 @@
+{
+  "test_id": "A-F07",
+  "finding_id": "F07",
+  "strategy": "S1",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "gamma",
+        "value": 0.9,
+        "why": "required positional coverage ratio; must lie in (0,1); the target guard does not use it"
+      },
+      {
+        "name": "num_q_heads",
+        "value": 2,
+        "why": "smallest non-degenerate head count for the shape checks after the target"
+      },
+      {
+        "name": "num_kv_heads",
+        "value": 2,
+        "why": "equal to num_q_heads so the later GQA divisibility check is trivially satisfied"
+      },
+      {
+        "name": "head_dim",
+        "value": 16,
+        "why": "smallest head_dim accepted by the downstream head_dim checks"
+      },
+      {
+        "name": "block_size",
+        "value": 128,
+        "why": "repository default block size, accepted by the downstream block-size checks"
+      },
+      {
+        "name": "dtype",
+        "value": "bfloat16",
+        "why": "the dtype the downstream kernels require; irrelevant before the batch-size assertion"
+      },
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "fixed RNG seed for deterministic tensor construction"
+      },
+      {
+        "name": "tau",
+        "value": 0.0,
+        "why": "repository default query-aware head threshold; unused by the target guard"
+      },
+      {
+        "name": "min_budget",
+        "value": null,
+        "why": "repository default (becomes 1 inside the function); unused by the target guard"
+      },
+      {
+        "name": "max_budget",
+        "value": null,
+        "why": "repository default (becomes 2^31-1 inside the function); unused by the target guard"
+      },
+      {
+        "name": "gqa_interleave",
+        "value": false,
+        "why": "repository default GQA pattern; unused by the target guard"
+      },
+      {
+        "name": "softmax_scale",
+        "value": null,
+        "why": "repository default (sqrt(head_dim)); unused by the target guard"
+      },
+      {
+        "name": "return_computational_ratio",
+        "value": false,
+        "why": "repository default; only changes the return value after the target"
+      }
+    ],
+    "positive_input": {
+      "batch_size": 2,
+      "q_len": 4096
+    },
+    "negative_input": {
+      "batch_size": 1,
+      "q_len": 4096
+    },
+    "boundary_variable": "batch_size",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "exception",
+      "spec": "AssertionError raised at flex_prefill/ops/flex_prefill_attention.py:1824",
+      "signal_location": "flex_prefill/ops/flex_prefill_attention.py:1824"
+    },
+    "expected": {
+      "positive": "AssertionError at flex_prefill/ops/flex_prefill_attention.py:1824",
+      "negative": "no exception at flex_prefill/ops/flex_prefill_attention.py:1824"
+    }
+  },
+  "execution": {
+    "entry_called": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [
+      {
+        "symbol": "flex_prefill.ops.flex_prefill_attention.triton_bnhd_pool",
+        "kind": "patch",
+        "reason": "GPU-only block-pool launcher, reached in get_active_blocks after the target assertion on the batch_size==1 run; replaced by a plain-torch average pool",
+        "behavior": "sim",
+        "impl": "sim.py::bnhd_pool",
+        "sim_class": "independent_native"
+      },
+      {
+        "symbol": "flex_prefill.ops.flex_prefill_attention.triton_block_wise_attention",
+        "kind": "patch",
+        "reason": "GPU-only attention launcher, reached at the end of flex_prefill_attention after the target assertion; replaced by the repository's own torch_block_wise_attention reference",
+        "behavior": "sim",
+        "impl": "sim.py::block_wise_attention",
+        "sim_class": "repo_reference"
+      }
+    ],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "false",
+      "true"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "AssertionError at flex_prefill/ops/flex_prefill_attention.py:1824",
+    "negative_observed": "no exception at flex_prefill/ops/flex_prefill_attention.py:1824"
+  },
+  "evidence": {}
+}

@@ -1,0 +1,555 @@
+{
+  "behaviors": [
+    {
+      "behavior": "TransformTeSA 调用 BitRounding，传入 TeSA T 和由 SampleBitOption 采样的位宽选项，得到 k 个 TeSA T1..Tk。",
+      "precondition": "TransformTeSA(T) 被调用，且策略可采样位宽选项。",
+      "basis": "explicit",
+      "kind": "mechanism",
+      "search_terms": [
+        "BitRounding",
+        "SampleBitOption",
+        "TransformTeSA"
+      ],
+      "evidence": [
+        {
+          "page": 7,
+          "quote": "T1, . . . ,Tk = self.BitRounding(T , self.SampleBitOption());"
+        }
+      ],
+      "id": "M09-B01-R01",
+      "origin_id": "M09-B01",
+      "mechanism_id": "M09",
+      "semantic_review": "pending"
+    },
+    {
+      "behavior": "BitRounding 基于 TeSA 所含的量化位宽和硬件支持的量化位宽来分解 TeSA。",
+      "precondition": "BitRounding 被调用并传入 TeSA 与采样位宽选项。",
+      "basis": "explicit",
+      "kind": "mechanism",
+      "search_terms": [
+        "BitRounding",
+        "quantization bit width",
+        "hardware supported"
+      ],
+      "evidence": [
+        {
+          "page": 7,
+          "quote": "It ﬁrst decomposes TeSA in BitRounding, based on both the quantization bit width that the TeSA contains and the possible quantization bit width supported by the hardware."
+        }
+      ],
+      "id": "M09-B01-R02",
+      "origin_id": "M09-B01",
+      "mechanism_id": "M09",
+      "semantic_review": "pending"
+    },
+    {
+      "behavior": "对 BitRounding 返回的每个 TeSA Ti，TransformTeSA 调用 WeightedBlockCover(Ti) 得到 j 个分解后的 TeSA。",
+      "precondition": "Ti 是 BitRounding 返回的 k 个 TeSA 之一。",
+      "basis": "explicit",
+      "kind": "mechanism",
+      "search_terms": [
+        "WeightedBlockCover",
+        "foreach",
+        "Ti"
+      ],
+      "evidence": [
+        {
+          "page": 7,
+          "quote": "foreach i∈ 1, . . . ,k do"
+        },
+        {
+          "page": 7,
+          "quote": "T 1 i , . . . ,T j i = self.WeightedBlockCover(Ti);"
+        }
+      ],
+      "id": "M09-B02-R01",
+      "origin_id": "M09-B02",
+      "mechanism_id": "M09",
+      "semantic_review": "pending"
+    },
+    {
+      "behavior": "TransformTeSA 将 WeightedBlockCover 为每个 Ti 产生的所有 TeSA 追加到 transformed 列表。",
+      "precondition": "WeightedBlockCover(Ti) 已返回 T1_i..Tj_i。",
+      "basis": "explicit",
+      "kind": "mechanism",
+      "search_terms": [
+        "Extend",
+        "Ttransformed"
+      ],
+      "evidence": [
+        {
+          "page": 7,
+          "quote": "Ttrans f ormed.Extend(T 1 i , . . . ,T j i );"
+        }
+      ],
+      "id": "M09-B02-R02",
+      "origin_id": "M09-B02",
+      "mechanism_id": "M09",
+      "semantic_review": "pending"
+    },
+    {
+      "id": "M09-B03",
+      "claim": "BitRounding and WeightedBlockCover",
+      "behavior": "TransformTeSA returns the list of transformed TeSAs produced by the bit-rounding and block-cover steps.",
+      "precondition": "All BitRounding outputs have been processed.",
+      "basis": "explicit",
+      "kind": "mechanism",
+      "search_terms": [
+        "return",
+        "Ttransformed"
+      ],
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.7",
+          "quote": "return Ttrans f ormed;"
+        }
+      ],
+      "mechanism_id": "M09",
+      "semantic_review": "pending",
+      "review_issues": []
+    },
+    {
+      "id": "M09-B04",
+      "claim": "BitRounding and WeightedBlockCover",
+      "behavior": "A regular sparsity pattern is defined as a TeSA showing only one type of quantization attribute and one block size of pruning attribute.",
+      "precondition": "Used as the target of execution-plan transformation.",
+      "basis": "explicit",
+      "kind": "mechanism",
+      "search_terms": [
+        "regular sparsity pattern",
+        "one type of quantization",
+        "one block size"
+      ],
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.7",
+          "quote": "a regular sparsity pattern means the TeSA of a tensor shows only one type of quantization attribute and one block size of pruning attribute."
+        }
+      ],
+      "mechanism_id": "M09",
+      "semantic_review": "pending",
+      "review_issues": [
+        "scope_drift"
+      ]
+    },
+    {
+      "obligation_ids": [
+        "O7"
+      ],
+      "behavior": "当硬件同时支持 4-bit 和 8-bit 指令时，BitRounding 提供“按 4-bit 和 8-bit 分别舍入”的选项。",
+      "precondition": "硬件原生支持 4-bit 和 8-bit 指令。",
+      "basis": "explicit",
+      "kind": "mechanism",
+      "search_terms": [
+        "BitRounding",
+        "4-bit",
+        "8-bit",
+        "rounding option"
+      ],
+      "evidence": [
+        {
+          "page": 7,
+          "quote": "For example, if the hardware supports both 4-bit and 8-bit instructions, there are at least two rounding options: (i) rounding to 4-bit and 8-bit accordingly, (ii) all rounding"
+        },
+        {
+          "page": 8,
+          "quote": "to 8-bit."
+        }
+      ],
+      "id": "M09-A01",
+      "mechanism_id": "M09",
+      "origin": "local_source_addition",
+      "semantic_review": "pending"
+    },
+    {
+      "obligation_ids": [
+        "O8"
+      ],
+      "behavior": "当硬件同时支持 4-bit 和 8-bit 指令时，BitRounding 提供“全部舍入到 8-bit”的备选选项。",
+      "precondition": "硬件原生支持 4-bit 和 8-bit 指令。",
+      "basis": "explicit",
+      "kind": "mechanism",
+      "search_terms": [
+        "BitRounding",
+        "all rounding",
+        "8-bit"
+      ],
+      "evidence": [
+        {
+          "page": 7,
+          "quote": "(ii) all rounding"
+        },
+        {
+          "page": 8,
+          "quote": "to 8-bit."
+        }
+      ],
+      "id": "M09-A02",
+      "mechanism_id": "M09",
+      "origin": "local_source_addition",
+      "semantic_review": "pending"
+    },
+    {
+      "obligation_ids": [
+        "O9"
+      ],
+      "behavior": "WeightedBlockCover 在覆盖前初始化空的已选块列表 Bchosen。",
+      "precondition": "WeightedBlockCover(T) 被调用。",
+      "basis": "explicit",
+      "kind": "mechanism",
+      "search_terms": [
+        "Bchosen",
+        "initialize"
+      ],
+      "evidence": [
+        {
+          "page": 7,
+          "quote": "57 Bchosen = [];"
+        }
+      ],
+      "id": "M09-A03",
+      "mechanism_id": "M09",
+      "origin": "local_source_addition",
+      "semantic_review": "pending"
+    },
+    {
+      "obligation_ids": [
+        "O10"
+      ],
+      "behavior": "WeightedBlockCover 用所有可用块大小覆盖非剪枝元素，计算候选块集合 B。",
+      "precondition": "T 是 BitRounding 返回的 TeSA；可用块大小已知。",
+      "basis": "explicit",
+      "kind": "mechanism",
+      "search_terms": [
+        "AllCoveredBlocks",
+        "AvailableBlockSizes",
+        "weighted set cover"
+      ],
+      "evidence": [
+        {
+          "page": 7,
+          "quote": "58 B = self.AllCoveredBlocks(T , self.AvailableBlockSizes());"
+        },
+        {
+          "page": 8,
+          "quote": "WeightedBlockCover chooses one or multiple proper block sizes to cover the non-pruned elements, which we treat as a weighted set cover problem [19]."
+        }
+      ],
+      "id": "M09-A04",
+      "mechanism_id": "M09",
+      "origin": "local_source_addition",
+      "semantic_review": "pending"
+    },
+    {
+      "obligation_ids": [
+        "O11"
+      ],
+      "behavior": "WeightedBlockCover 在 Bchosen 尚未覆盖 T 的所有元素时循环。",
+      "precondition": "Bchosen 和 B 已初始化。",
+      "basis": "explicit",
+      "kind": "mechanism",
+      "search_terms": [
+        "AllElementsCovered",
+        "while"
+      ],
+      "evidence": [
+        {
+          "page": 7,
+          "quote": "59 while not AllElementsCovered(T , Bchosen) do"
+        }
+      ],
+      "id": "M09-A05",
+      "mechanism_id": "M09",
+      "origin": "local_source_addition",
+      "semantic_review": "pending"
+    },
+    {
+      "obligation_ids": [
+        "O12"
+      ],
+      "behavior": "在循环内，WeightedBlockCover 更新剩余候选块 B 的块代价。",
+      "precondition": "循环条件（未全部覆盖）成立。",
+      "basis": "explicit",
+      "kind": "mechanism",
+      "search_terms": [
+        "UpdateBlockCost",
+        "Bcost"
+      ],
+      "evidence": [
+        {
+          "page": 7,
+          "quote": "60 Bcost = self.UpdateBlockCost(B);"
+        }
+      ],
+      "id": "M09-A06",
+      "mechanism_id": "M09",
+      "origin": "local_source_addition",
+      "semantic_review": "pending"
+    },
+    {
+      "obligation_ids": [
+        "O13"
+      ],
+      "behavior": "WeightedBlockCover 从 Bcost 中选择代价最小的块。",
+      "precondition": "块代价已更新。",
+      "basis": "explicit",
+      "kind": "mechanism",
+      "search_terms": [
+        "BlockWithMinCost",
+        "minimum cost"
+      ],
+      "evidence": [
+        {
+          "page": 7,
+          "quote": "61 b = BlockWithMinCost(Bcost);"
+        }
+      ],
+      "id": "M09-A07",
+      "mechanism_id": "M09",
+      "origin": "local_source_addition",
+      "semantic_review": "pending"
+    },
+    {
+      "obligation_ids": [
+        "O14"
+      ],
+      "behavior": "WeightedBlockCover 将选中的块 b 追加到 Bchosen。",
+      "precondition": "已选出最小代价块 b。",
+      "basis": "explicit",
+      "kind": "mechanism",
+      "search_terms": [
+        "Bchosen.Append",
+        "append"
+      ],
+      "evidence": [
+        {
+          "page": 7,
+          "quote": "62 Bchosen.Append(b);"
+        }
+      ],
+      "id": "M09-A08",
+      "mechanism_id": "M09",
+      "origin": "local_source_addition",
+      "semantic_review": "pending"
+    },
+    {
+      "obligation_ids": [
+        "O15"
+      ],
+      "behavior": "WeightedBlockCover 从候选集 B 中移除选中的块 b。",
+      "precondition": "b 已追加到 Bchosen。",
+      "basis": "explicit",
+      "kind": "mechanism",
+      "search_terms": [
+        "B = B - b",
+        "remove block"
+      ],
+      "evidence": [
+        {
+          "page": 7,
+          "quote": "63 B = B− b;"
+        }
+      ],
+      "id": "M09-A09",
+      "mechanism_id": "M09",
+      "origin": "local_source_addition",
+      "semantic_review": "pending"
+    },
+    {
+      "obligation_ids": [
+        "O16"
+      ],
+      "behavior": "贪心选择准则为最低代价，代价定义为 block_weight 除以 num_covered_elements。",
+      "precondition": "正在比较候选块的代价。",
+      "basis": "explicit",
+      "kind": "mechanism",
+      "search_terms": [
+        "block_weight",
+        "num_covered_elements",
+        "lowest cost"
+      ],
+      "evidence": [
+        {
+          "page": 8,
+          "quote": "We use a simple greedy algorithm to pick the blocks with the lowest cost (i.e., block_weight num_covered_elements ), until all non-pruned elements are covered (line 56)."
+        }
+      ],
+      "id": "M09-A10",
+      "mechanism_id": "M09",
+      "origin": "local_source_addition",
+      "semantic_review": "pending"
+    },
+    {
+      "obligation_ids": [
+        "O17"
+      ],
+      "behavior": "每个块大小的权重对应该块大小在底层硬件上的计算代价。",
+      "precondition": "正在计算块代价。",
+      "basis": "explicit",
+      "kind": "mechanism",
+      "search_terms": [
+        "block size weight",
+        "computation cost",
+        "hardware"
+      ],
+      "evidence": [
+        {
+          "page": 8,
+          "quote": "The weight of each block size corresponds to the cost of computation with the block size on the underlying hardware (see §4 for details)."
+        }
+      ],
+      "id": "M09-A11",
+      "mechanism_id": "M09",
+      "origin": "local_source_addition",
+      "semantic_review": "pending"
+    },
+    {
+      "obligation_ids": [
+        "O18"
+      ],
+      "behavior": "覆盖循环终止后，WeightedBlockCover 基于 Bchosen 将 T 分解为不同块大小的 TeSA 并返回。",
+      "precondition": "AllElementsCovered(T, Bchosen) 为真。",
+      "basis": "explicit",
+      "kind": "mechanism",
+      "search_terms": [
+        "DecomposedTeSAs",
+        "Bchosen",
+        "return"
+      ],
+      "evidence": [
+        {
+          "page": 7,
+          "quote": "64 return DecomposedTeSAs(T , Bchosen);"
+        }
+      ],
+      "id": "M09-A12",
+      "mechanism_id": "M09",
+      "origin": "local_source_addition",
+      "semantic_review": "pending"
+    },
+    {
+      "obligation_ids": [
+        "O19"
+      ],
+      "behavior": "算法可能决定不分解张量而选择 1x1 块大小，表示该 TeSA 具有难以转换为规则稀疏的细粒度稀疏。",
+      "precondition": "TeSA 具有无法规则化的细粒度稀疏。",
+      "basis": "explicit",
+      "kind": "mechanism",
+      "search_terms": [
+        "1x1 block size",
+        "fine-grained sparsity",
+        "not decompose"
+      ],
+      "evidence": [
+        {
+          "page": 7,
+          "quote": "Note that the algorithm may decide not to decompose a tensor and choose a block size of 1x1, indicating that the TeSA has a ﬁne-grained sparsity that is hard to be transformed to regular sparsity."
+        }
+      ],
+      "id": "M09-A13",
+      "mechanism_id": "M09",
+      "origin": "local_source_addition",
+      "semantic_review": "pending"
+    },
+    {
+      "obligation_ids": [
+        "O20"
+      ],
+      "behavior": "每个变换后的 TeSA 附带位宽和块大小信息作为 specialization hints，传给第二遍编译。",
+      "precondition": "TeSA 已由 TransformTeSA 变换。",
+      "basis": "explicit",
+      "kind": "mechanism",
+      "search_terms": [
+        "specialization hints",
+        "bit width",
+        "block size",
+        "second pass"
+      ],
+      "evidence": [
+        {
+          "page": 8,
+          "quote": "To help codegen, each transformed TeSA is attached with the information about the bit width and block size, named as specialization hints (illustrated in Figure 6). The hints will be passed to the second pass, elaborated next."
+        }
+      ],
+      "id": "M09-A14",
+      "mechanism_id": "M09",
+      "origin": "local_source_addition",
+      "semantic_review": "pending"
+    },
+    {
+      "obligation_ids": [
+        "O21"
+      ],
+      "behavior": "TransformTeSA 可能为给定 TeSA 产生多个变换方案，调用方迭代每个方案以找到满足的方案。",
+      "precondition": "TeSA 被提供给 TransformTeSA。",
+      "basis": "explicit",
+      "kind": "mechanism",
+      "search_terms": [
+        "multiple transformation plans",
+        "iterate",
+        "satisfied"
+      ],
+      "evidence": [
+        {
+          "page": 7,
+          "quote": "Given a TeSA, TransformTeSA may have multiple transfor- mation plans. The process iterates over each plan to ﬁnd the satisﬁed one (line 38)."
+        }
+      ],
+      "id": "M09-A15",
+      "mechanism_id": "M09",
+      "origin": "local_source_addition",
+      "semantic_review": "pending"
+    },
+    {
+      "obligation_ids": [
+        "O22"
+      ],
+      "behavior": "TransformTeSA 每次运行返回一个新的变换选项（而非一次返回全部选项）。",
+      "precondition": "TransformTeSA 被搜索循环重复调用。",
+      "basis": "explicit",
+      "kind": "mechanism",
+      "search_terms": [
+        "return a new transformation option per run"
+      ],
+      "evidence": [
+        {
+          "page": 7,
+          "quote": "/* return a new transformation option per run */"
+        }
+      ],
+      "id": "M09-A16",
+      "mechanism_id": "M09",
+      "origin": "local_source_addition",
+      "semantic_review": "pending"
+    }
+  ],
+  "changes": [
+    {
+      "origin_id": "M09-B01",
+      "issues": [
+        "compound"
+      ],
+      "replacement_ids": [
+        "M09-B01-R01",
+        "M09-B01-R02"
+      ],
+      "reason": "该行为把“TransformTeSA 调用 BitRounding”与“BitRounding 基于 TeSA 位宽和硬件支持位宽分解”两个可独立验证的动作合并；且未明确 SampleBitOption 的采样动作。"
+    },
+    {
+      "origin_id": "M09-B02",
+      "issues": [
+        "compound"
+      ],
+      "replacement_ids": [
+        "M09-B02-R01",
+        "M09-B02-R02"
+      ],
+      "reason": "该行为把“对每个 BitRounding 返回的 TeSA 调用 WeightedBlockCover”与“将结果 extend 到 transformed 列表”两个可独立验证的动作合并。"
+    }
+  ],
+  "held_additions": [],
+  "publication_status": "draft",
+  "semantic_review": "pending"
+}

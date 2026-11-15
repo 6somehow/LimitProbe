@@ -1,0 +1,78 @@
+# CLAUDE.md — Zhaopeng 论文侧
+
+供接手本模块的 coding agent 使用。先读本文件，再读 [README.md](README.md)；需要命令和接口字段时查 [HANDOFF.md](HANDOFF.md)。不要把根目录代码侧的旧状态当作论文侧最新状态。
+
+## 负责什么
+
+CS6223 小组项目，输入为论文和对应仓库。Zhaopeng 负责步骤 1 论文语义拆解、步骤 3a 论文 → 代码静态核验。Wanting 负责代码侧发现和代码 → 论文核验；Shanghao 负责测试生成和执行。当前模块不运行目标系统。
+
+问题是：论文承诺的机制行为，在指定源码路径和条件下是否实现。不要先读源码，再把论文要求改写成代码已有的行为。
+
+## 固定的方法
+
+1. 只给模型论文文字与原始页面图像，独立发现机制 k=2；两个请求互不看结果。
+2. 合并别名、保留职责与父子关系，确定统一机制。
+3. 每机制初次拆行为；另一请求不看初次清单，仅从相关原页独立列步骤。
+4. 对账、补机制内遗漏、拆复合项、检查前提，冻结行为 ID 与论文证据。
+5. 每机制一个 Pi coding-agent 会话，输入机制、原文、冻结行为及固定 commit 的仓库；自主搜索、读代码、追静态调用关系。
+6. 模型语义复核，程序核对 ID、字段、来源与已读行范围；分别记录 `local_entry` 和 `artifact` 路径结果。
+7. 组织差异候选、源码证据与论文接口，交给 Wanting。图见 README。
+
+完成项仅三类：`supports` 支持、`deviates` 实现不符、`absent` 该路径未实现。`review_state=pending, verdict=null` 是未完成状态，不能强行判 absent，也不进入差异候选。没搜到名字不证明没有实现；需要检查路径、条件及等价实现。
+
+## 目录与代码入口
+
+| 目录或入口 | 用途 |
+|---|---|
+| `src/paperprobe/independent_discovery.py` | 论文侧两次独立发现与合并 |
+| `src/paperprobe/mechanism_continuation.py` | 行为拆分、独立步骤和机制内对账 |
+| `src/paperprobe/delivery.py` | 原文片段、接口 prompt、调用留档、消费者定位 |
+| `tools/pi-mechanism-agent/prepare_corpus.py` | 固定仓库、符号与源码输入准备 |
+| `tools/pi-mechanism-agent/run-adjudication.mjs` | Pi 工具探索与判断 |
+| `tools/pi-mechanism-agent/conformance.mjs` | 判断记录的结构校验 |
+| `scripts/run_complete_corpus.py` | 多论文编排；会调用模型，使用固定运行目录 |
+| `scripts/build_paper_handoff.py`、`scripts/finalize_handoff.py` | 共享接口导出、映射门控与交接打包 |
+| `scripts/validate_delivery.py` | 已入库两篇的离线消费者和快照检查 |
+| `scripts/validate_corpus.mjs` | 完整本地运行的 ID、源码及用量验收 |
+| `handoffs/paper-side-v1/<paper>/` | 对外的轻量交接结果 |
+
+## 下一步
+
+状态核对日期：2026-11-11。五篇交接包均已验收、发布到 `zhaopeng/paper-side-v1`。这指接口/证据/归档验收；人工语义评审和目标运行仍未完成。不要因旧文档或原始失败记录而重新跑整篇 API。
+
+| 已入库结果 | 机制 / 行为 | artifact 已判断 / 待办 | 原生接口 claim / scope / eval / binding |
+|---|---|---|---|
+| SparTA | 20 / 206 | 199 / 7 | 204 / 26 / 29 / 26 |
+| FlexPrefill | 12 / 104 | 96 / 8 | 104 / 16 / 23 / 24 |
+| MInference | 13 / 141 | 108 / 33 | 139 / 23 / 22 / 24 |
+| InfiniGen | 8 / 70 | 59 / 11 | 65 / 25 / 11 / 12 |
+| NNSmith | 13 / 140 | 113 / 27 | 139 / 22 / 8 / 24 |
+
+共 661 行、575 已判断、86 待办。后三篇均有 `frozen-behaviors.json` 与 `mechanisms.json`，以及完整本地包的 `archive-acceptance.json`；旧两包的轻量离线检查使用 manifest/claim 关联，明确报告未独立提供冻结清单的限制。
+
+接手顺序：
+
+1. 核对所在分支与 Git 状态，按 HANDOFF 安装并运行 `scripts/validate_delivery.py`，应发现并通过五篇；无需 API。
+2. Wanting 整合时读取各包 `paper_side.json`，通过行为 ID/claim_id 联接 `conformance.json`、`limitations.json` 和源码 registry。先做候选审阅及父子/重复机制去重，再交给测试侧。
+3. 源码待办在 conformance 的两种 scope 中分别记录；论文引文未闭合的条目在 `pending_records.json`。逐条补证，不把两个列表机械相加或当作缺陷。
+4. `limitations.json` 只包含有论文 claim、已完成的不符/未实现项。InfiniGen 的 M08-A06 有代码侧不符判断，但论文 claim 未闭合，故只留 conformance，未导出为可整合 limitation。先处理其论文依据，再决定是否新增候选。
+5. 若修改方法或 prompt，另建实验身份/输出目录，不覆盖已有记录。现有编排入口使用固定路径，先修改并核对路径再启动；小范围验证后再扩大。
+
+已完成的修订不要再重做：InfiniGen 的实验值/基线/耗时等没有被当作全局输入域；8 条背景/基线观测另存。NNSmith 的样例 dtype、平台条件、约21h复现时间已修订，4 条基线评估另存，最后保留22scope/8eval。MInference 的上下文标签、默认版本及实验配置拼接问题已按来源修订。原始审阅提案中的 `not_applied` 描述的是审阅当时；应用状态以每包 `validation.json.interface_review` 为准。
+
+恢复历史：MInference M05/M09 复用实际 Pi 源码读取，进行非流式语义收尾（无新工具）；NNSmith 已完成一次 binding 字段结构修正。原始失败仍保留，不代表任务还在运行。不要直接重跑旧 builder 或导入历史 `close_corpus_nonstream.py`：后者是针对当次运行的可执行恢复脚本，导入也可能触发操作。
+
+完整资产在维护者本机 `/Users/pp/Desktop/nus/cs6223/paper-guided-testing`；发布工作树为 `/Users/pp/Desktop/nus/cs6223/paperside-publish-v1`。另一台机器不具备这些路径，须下载固定资产或向维护者取得归档。原始 API 日志和完整 ZIP 不在 Git；每包分发清单记录省略项。28条传输异常的未知用量/远端状态留在 `transport-uncertainty.json`，不能算零消耗。
+
+## 开发与验收规则
+
+- 修改范围以 `paperside/` 为主。不改 Wanting 的 README、根 `CLAUDE.md`、`codeside/` 或共享 schema 来迁就论文侧输出；共享字段变更须团队协调。
+- 不修改固定的目标仓库，不覆盖 gold、原始请求、返回或失败记录。更改输入、prompt、模型或预算后创建独立实验记录。
+- `paper_side.json` 严格保留四数组接口。三类判断留在 `conformance.json`，不机械映射成共享五类 `Verification`。
+- `mechanism_entry` 是入口导航，不是支持证明或标量映射。仅作者明确支持的数值域与确定标量映射可激活；实验点不是穷尽支持范围。当前消费者可能将文本域当作无约束，必须保留现有门控。
+- 主仓库和依赖分别保留 repo/commit；引用须对应实际读过的代码。代码引用及结构检查不替代语义核验，也不证明运行缺陷。
+- 使用 SoCLaaS `x-test-2` 路由，模型身份以返回为准。凭据从本机环境加载；不打印、不提交 key，不把认证 header 放进调用记录。
+- 离线检查、安装、付费复跑的命令见 HANDOFF。重跑前判断是否已有缓存，不自动重新支付整篇调用。
+- 提交使用用户 Git 身份及 `zhaopeng/` 分支，不使用 `codex/` 名称或 Codex coauthor。
+
+交付完成的条件：共享接口能被实际消费者加载；行为 IDs 与冻结列表对齐；源码证据、修订及 pending 保留；轻量包哈希一致；README 数量与实际发布文件一致。源码支持、不符、未实现均是静态路径判断，目标运行与人工语义评审单独报告。

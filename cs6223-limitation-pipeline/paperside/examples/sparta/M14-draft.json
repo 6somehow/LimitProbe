@@ -1,0 +1,270 @@
+{
+  "behaviors": [
+    {
+      "id": "M14-B01",
+      "claim": "dismantle schedule primitive (loop unrolling + DCE)",
+      "behavior": "Apply dismantle on a loop to unroll that loop and all its outer loops and specialize them with the given sparsity attribute.",
+      "precondition": "dismantle is applied on a loop; a sparsity attribute is given.",
+      "basis": "explicit",
+      "kind": "mechanism",
+      "search_terms": [
+        "dismantle",
+        "loop unrolling",
+        "sparsity attribute"
+      ],
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.8",
+          "quote": "When dismantle is applied on a loop, this loop and all its outer loops are unrolled and specialized with the given sparsity attribute."
+        }
+      ],
+      "mechanism_id": "M14",
+      "semantic_review": "pending",
+      "review_issues": []
+    },
+    {
+      "id": "M14-B02",
+      "claim": "dismantle schedule primitive (loop unrolling + DCE)",
+      "behavior": "Jointly perform loop unrolling and dead code elimination (DCE) via dismantle.",
+      "precondition": "dismantle is applied to a loop nest.",
+      "basis": "explicit",
+      "kind": "mechanism",
+      "search_terms": [
+        "dismantle",
+        "DCE",
+        "loop unrolling"
+      ],
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.8",
+          "quote": "we introduce a new schedule primitive dismantle that jointly performs loop unrolling and DCE."
+        }
+      ],
+      "mechanism_id": "M14",
+      "semantic_review": "pending",
+      "review_issues": [
+        "insufficient_evidence",
+        "duplicate"
+      ]
+    },
+    {
+      "behavior": "Eliminate dead computation runs of the loop body within level l according to the sparsity pattern.",
+      "precondition": "dismantle has unrolled the loop and its outer loops; the pruning sparsity attribute is specified at block-size granularity; the loop body at level l aligns with the block size; unrolled body instances correspond to pruned blocks.",
+      "basis": "explicit",
+      "kind": "mechanism",
+      "search_terms": [
+        "dead computation",
+        "sparsity pattern",
+        "block size",
+        "unrolled loop body"
+      ],
+      "evidence": [
+        {
+          "page": 8,
+          "quote": "many runs of the loop body within level l are dead computation"
+        },
+        {
+          "page": 8,
+          "quote": "According to the sparsity pattern in Figure 7(a), six of them are dead computation and can be eliminated."
+        }
+      ],
+      "id": "M14-B03-R01",
+      "origin_id": "M14-B03",
+      "mechanism_id": "M14",
+      "semantic_review": "pending"
+    },
+    {
+      "id": "M14-B04",
+      "claim": "dismantle schedule primitive (loop unrolling + DCE)",
+      "behavior": "Embed a specific sparsity pattern into the code, eliminating the need for sparsity encoding such as CSR.",
+      "precondition": "dismantle specializes code with a given sparsity attribute.",
+      "basis": "explicit",
+      "kind": "mechanism",
+      "search_terms": [
+        "sparsity encoding",
+        "CSR",
+        "dismantle"
+      ],
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.8",
+          "quote": "dismantle embeds a specific sparsity pattern into the code, which eliminates the need of sparsity encoding, e.g., compressed sparse row (CSR)"
+        }
+      ],
+      "mechanism_id": "M14",
+      "semantic_review": "pending",
+      "review_issues": []
+    },
+    {
+      "id": "M14-B05",
+      "claim": "dismantle schedule primitive (loop unrolling + DCE)",
+      "behavior": "Remove indirect addressing overhead on the index because indices to non-pruned blocks/elements are specialized in the code.",
+      "precondition": "The index to non-pruned blocks/elements is specialized in the code.",
+      "basis": "explicit",
+      "kind": "mechanism",
+      "search_terms": [
+        "indirect addressing",
+        "index",
+        "specialized"
+      ],
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.8",
+          "quote": "the overhead of indirect addressing on the index is removed"
+        }
+      ],
+      "mechanism_id": "M14",
+      "semantic_review": "pending",
+      "review_issues": []
+    },
+    {
+      "obligation_ids": [
+        "M14-O6"
+      ],
+      "behavior": "Produce differently specialized code when given a different transformation plan and specialization hints (e.g., a smaller block size yields a smaller loop-body Matmul and more DCEs).",
+      "precondition": "A different transformation plan and corresponding specialization hints are provided.",
+      "basis": "explicit",
+      "kind": "mechanism",
+      "search_terms": [
+        "different transformation plan",
+        "specialization hints",
+        "smaller block size",
+        "more DCEs"
+      ],
+      "evidence": [
+        {
+          "page": 8,
+          "quote": "Given a different transformation plan (and the specification hints), the code can be specialized differently."
+        },
+        {
+          "page": 8,
+          "quote": "The hint in Figure 7(c) show a smaller block size. In this case, the loop body is a smaller Matmul (i.e., [2,1]x[1,1]), which enables more DCEs."
+        }
+      ],
+      "id": "M14-A01",
+      "mechanism_id": "M14",
+      "origin": "local_source_addition",
+      "semantic_review": "pending"
+    },
+    {
+      "obligation_ids": [
+        "M14-O7"
+      ],
+      "behavior": "Directly specialize a single value of W into the code without maintaining a sparse tensor W in memory when the small Matmul accesses only that one value.",
+      "precondition": "The chosen block size makes the loop body access a single value of W.",
+      "basis": "explicit",
+      "kind": "mechanism",
+      "search_terms": [
+        "single value of W",
+        "directly specialized",
+        "without maintaining sparse tensor"
+      ],
+      "evidence": [
+        {
+          "page": 8,
+          "quote": "Furthermore, as the small Matmul only accesses one value in W, the value can be directly specialized to the code (i.e., Wx,y) without maintaining a sparse tensor W in memory."
+        }
+      ],
+      "id": "M14-A02",
+      "mechanism_id": "M14",
+      "origin": "local_source_addition",
+      "semantic_review": "pending"
+    },
+    {
+      "obligation_ids": [
+        "M14-O8"
+      ],
+      "behavior": "Fall back to existing general sparse kernels (cuSPARSE, taco) or a dense kernel if it performs better when a specialization hint specifies block size equal to the tensor's shape.",
+      "precondition": "Specialization hint specifies block size equal to the whole tensor shape (one block covers the whole tensor).",
+      "basis": "explicit",
+      "kind": "mechanism",
+      "search_terms": [
+        "block size equal to tensor shape",
+        "cuSPARSE",
+        "taco",
+        "dense kernel"
+      ],
+      "evidence": [
+        {
+          "page": 8,
+          "quote": "A specialization hint could also specify the block size equal to the tensor’s shape (i.e., one block covers the whole tensor). In this case, SparTA can directly use the existing state-of-the-art general sparse kernel implementation (e.g., cuSPARSE [3], taco [53]) or even use the dense kernel implementation if it perform better."
+        }
+      ],
+      "id": "M14-A03",
+      "mechanism_id": "M14",
+      "origin": "local_source_addition",
+      "semantic_review": "pending"
+    },
+    {
+      "obligation_ids": [
+        "M14-O9"
+      ],
+      "behavior": "Incorporate any sparsity-aware technique, including off-the-shelf sparse kernels and their dense versions, into the specialization framework.",
+      "precondition": "A sparsity-aware technique/kernel is available to be incorporated.",
+      "basis": "explicit",
+      "kind": "mechanism",
+      "search_terms": [
+        "sparsity-aware techniques",
+        "off-the-shelf sparse kernel",
+        "dense version"
+      ],
+      "evidence": [
+        {
+          "page": 8,
+          "quote": "SparTA’s specialization framework is general to incorporate any sparsity-aware techniques, including the off-the-shelf sparse kernel and even its dense version."
+        }
+      ],
+      "id": "M14-A04",
+      "mechanism_id": "M14",
+      "origin": "local_source_addition",
+      "semantic_review": "pending"
+    },
+    {
+      "obligation_ids": [
+        "M14-O10"
+      ],
+      "behavior": "Search from the outermost loop until the level l where the inner loop body aligns with the block size, then apply dismantle at that loop level.",
+      "precondition": "Specialization starts from a dense multi-level loop nest and a block size is given in the specialization hints.",
+      "basis": "explicit",
+      "kind": "mechanism",
+      "search_terms": [
+        "search from outermost loop",
+        "inner loop body aligns with block size",
+        "dismantle applied on third loop"
+      ],
+      "evidence": [
+        {
+          "page": 8,
+          "quote": "It searches from the outermost loop until the level (say l) of inner loop body aligns with the block size."
+        },
+        {
+          "page": 8,
+          "quote": "dismantle is applied on the third loop, thus the top three loops are unrolled, generating eight small Matmuls (i.e., [2,2]x[2,2])."
+        }
+      ],
+      "id": "M14-A05",
+      "mechanism_id": "M14",
+      "origin": "local_source_addition",
+      "semantic_review": "pending"
+    }
+  ],
+  "changes": [
+    {
+      "origin_id": "M14-B03",
+      "issues": [
+        "missing_precondition"
+      ],
+      "replacement_ids": [
+        "M14-B03-R01"
+      ],
+      "reason": "行为本身可独立成立，但前置条件未明确“死计算来自 dismantle 展开后的循环体实例”，仅说 level l 循环体对齐 block size，缺少与展开动作的关联。"
+    }
+  ],
+  "held_additions": [],
+  "publication_status": "draft",
+  "semantic_review": "pending"
+}
