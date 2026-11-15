@@ -66,8 +66,8 @@
 
 | 来源 | solved | solved_contrast_outside_scope | trigger_only | always | infeasible | untranslatable | unknown | no_condition | 合计 |
 |---|---|---|---|---|---|---|---|---|---|
-| 代码侧 | 49 | 0 | 1 | 0 | 0 | 0 | 0 | 0 | 50 |
-| 论文侧 | 7 | 0 | 1 | 12 | 0 | 0 | 0 | 3 | 23 |
+| 代码侧 | 50 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 50 |
+| 论文侧 | 8 | 0 | 0 | 12 | 0 | 0 | 0 | 3 | 23 |
 | 两侧合并 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 
 按审阅状态（盲审由 LLM 子代理做，不是人工；只覆盖了部分代码侧条目）：
@@ -319,14 +319,14 @@
   "trigger": {
    "s_idx": 1,
    "end_m": 2,
-   "start_m": 3,
-   "seqlen": 4
+   "start_m": 1,
+   "seqlen": 2
   },
   "contrast": {
-   "s_idx": 2,
-   "end_m": 2,
-   "start_m": 3,
-   "seqlen": 4
+   "s_idx": 1,
+   "end_m": 1,
+   "start_m": 1,
+   "seqlen": 2
   },
   "atoms": {
    "end_m": {
@@ -494,7 +494,7 @@
 | F001 | 代 | undisclosed | 1 | reject | solved |  | `minference/minference_configuration.py:56` | When config_path is None and model_name not in MODEL2PATH: If no `config_path` is given, the model … |
 | F003 | 代 | undisclosed | 1 | state | solved |  | `minference/modules/minference_forward.py:165-172` | When SEARCH_MASK is None # first call only: module-level cache initialised on first call and reused |
 | F004 | 代 | undisclosed | 1 | state | solved |  | `minference/modules/minference_forward.py:390` | When "vs" in self.__dict__: Static pattern reuses vertical_topk/slash cached in self.vs from an ear… |
-| F006 | 代 | undisclosed | 1 | reject | trigger_only |  | `minference/modules/minference_forward.py:484-488` | When True: raise ValueError(f'The cache structure has changed since version v4.36. If you are using… |
+| F006 | 代 | undisclosed | 1 | reject | solved |  | `minference/modules/minference_forward.py:484-488` | When True: raise ValueError(f'The cache structure has changed since version v4.36. If you are using… |
 | F008 | 代 | undisclosed | 1 | state | solved |  | `minference/modules/minference_forward.py:681` | When key_states.shape[-2] != kv_seq_len: Whether SnapKV compression runs depends on `self.kv_seq_le… |
 | F010 | 代 | undisclosed | 1 | reject | solved |  | `minference/ops/block_sparse_flash_attention.py:126` | When not (Lq == Lk and Lk == Lv): AssertionError |
 | F011 | 代 | undisclosed | 1 | reject | solved |  | `minference/ops/block_sparse_flash_attention.py:127` | When not (Lk in {16, 32, 64, 128}): AssertionError |
@@ -559,7 +559,7 @@
 | F066 | 论 | not_implemented | 3 | other | solved |  | `experiments/README.md:13-30` | 实验入口未暴露或设定步长50 |
 | F067 | 论 | not_implemented | 3 | other | always |  | `experiments/infinite_bench/args.py:63-78` | 无变体配置，无法复现Table7的only vertical行。 |
 | F068 | 论 | not_implemented | 3 | other | solved |  | `experiments/infinite_bench/args.py:63-78` | 无换算配置入口。 |
-| F069 | 论 | not_implemented | 3 | other | trigger_only |  | `minference/modules/minference_forward.py:99-197` | 论文要求每候选计算真实 kernel FLOPs；代码不计算任何 FLOPs |
+| F069 | 论 | not_implemented | 3 | other | solved |  | `minference/modules/minference_forward.py:99-197` | 论文要求每候选计算真实 kernel FLOPs；代码不计算任何 FLOPs |
 | F070 | 论 | not_implemented | 3 | other | always |  | `minference/modules/minference_forward.py:99-197` | 论文要求以目标 FLOPs 为停止条件的迭代调整；代码无该循环与调整算子 |
 | F071 | 论 | not_implemented | 3 | other | always |  | `minference/modules/minference_forward.py:99-197` | 论文要求累积 FLOPs 对齐后的候选到 ρ；代码无该累积步骤 |
 | F072 | 论 | not_implemented | 3 | other | no_condition |  | `minference/modules/minference_forward.py:99-197` | 论文要求 FlashAttention 与 V 信息参与选择；代码为稠密权重计算且完全不含 V |

@@ -66,7 +66,7 @@
 
 | 来源 | solved | solved_contrast_outside_scope | trigger_only | always | infeasible | untranslatable | unknown | no_condition | 合计 |
 |---|---|---|---|---|---|---|---|---|---|
-| 代码侧 | 32 | 0 | 1 | 0 | 0 | 0 | 0 | 0 | 33 |
+| 代码侧 | 33 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 33 |
 | 论文侧 | 2 | 0 | 0 | 1 | 0 | 0 | 0 | 0 | 3 |
 | 两侧合并 | 2 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 2 |
 
@@ -393,7 +393,7 @@
 
 | ID | 侧 | 类别 | P | effect | witness | 审 | 位置 | 内容 |
 |---|---|---|---|---|---|---|---|---|
-| F001 | 代 | undisclosed | 1 | reject | trigger_only | ~ | `nnsmith/abstract/op.py:1563` | When gres_config not in ("3", "4", "5"): An unrecognized NNSMITH_GRES environment value causes a Va… |
+| F001 | 代 | undisclosed | 1 | reject | solved | ~ | `nnsmith/abstract/op.py:1563` | When gres_config not in ("3", "4", "5"): An unrecognized NNSMITH_GRES environment value causes a Va… |
 | F003 | 代 | undisclosed | 1 | reject | solved |  | `nnsmith/cli/fuzz.py:180` | When isinstance(e, InternalError): InternalError from make_testcase is propagated, aborting the fuz… |
 | F004 | 代 | contradicts_docs | 1 | reject | solved |  | `nnsmith/graph_gen.py:260` | When self.check_sat() != z3.sat: After adding the memory-limit constraint, an unsatisfiable (or unk… |
 | F009 | 代 | undisclosed | 2 | path_change | solved | ~ | `nnsmith/abstract/arith.py:74` | When carry and max(left_size, right_size) >= ARITH_MAX_WIDTH: For addition, the extra carry bit is … |
