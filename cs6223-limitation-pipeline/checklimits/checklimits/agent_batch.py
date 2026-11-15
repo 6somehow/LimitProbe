@@ -22,32 +22,61 @@ USABLE_WITNESS = ("solved", "solved_contrast_outside_scope")
 
 
 def artifact_paths(artifact: str) -> tuple[str, str, str]:
-    """(data_dir, findings_file, repo dir) of an artifact, relative to the pipeline root. FlexPrefill keeps its
-    pilot data directory; every other artifact uses data/<artifact> and results/step4/<artifact>."""
-    data = "data/pilot_flexprefill" if artifact == "flexprefill" else f"data/{artifact}"
+    """(data_dir, findings_file, repo dir) of an artifact, relative to the pipeline root. The data directory is the
+    one whose artifact.json has this artifact_id (FlexPrefill keeps its pilot directory `data/pilot_flexprefill`);
+    the findings file is results/step4/<artifact>/limitations_for_tests.json."""
+    data = None
+    for p in sorted((PIPELINE_ROOT / "data").glob("*/artifact.json")):
+        if json.loads(p.read_text()).get("artifact_id") == artifact:
+            data = p.parent.relative_to(PIPELINE_ROOT).as_posix()
+            break
+    if data is None:
+        raise FileNotFoundError(f"no data/*/artifact.json with artifact_id {artifact!r} (python -m pipeline init)")
     art = json.loads((PIPELINE_ROOT / data / "artifact.json").read_text())
     repo = "third_party/" + art["repo_url"].rstrip("/").split("/")[-1].removesuffix(".git")
     return data, f"results/step4/{artifact}/limitations_for_tests.json", repo
 
 
+# Reason codes for a Finding the harness does not judge. They are part of the test-report contract
+# (CONTRACT_TEST_REPORT.md); keep them stable.
+NOT_RUN_CODES = ("no_code_location", "outcome_unsupported", "witness_unusable", "env_unavailable",
+                 "input_unreadable", "not_attempted", "agent_failed", "harness_error")
+
+
+def classify_finding(fid: str, data_dir: str, findings_file: str, repo_rel: str, root: Path = PIPELINE_ROOT
+                     ) -> Optional[tuple[str, str]]:
+    """None if the harness can judge the Finding; otherwise (reason code, reason text)."""
+    ff = root / findings_file
+    try:
+        t = load_task(fid, root / data_dir, ff)
+    except Exception as e:  # a malformed Finding is a result for that Finding, not a reason to stop
+        return "input_unreadable", f"{type(e).__name__}: {e}"[:300]
+    if not t.regions:
+        return "no_code_location", "no code location (paper-side finding or no code evidence)"
+    if not (root / repo_rel).is_dir():
+        return "env_unavailable", f"repository {repo_rel} is not checked out"
+    try:
+        ok, why = outcome_support(t.regions[0], root / repo_rel)
+    except Exception as e:
+        return "input_unreadable", f"target not readable: {type(e).__name__}: {e}"[:300]
+    if not ok:
+        return "outcome_unsupported", why
+    if t.witness.status not in USABLE_WITNESS or not t.witness.trigger:
+        return "witness_unusable", f"witness status {t.witness.status!r}"
+    return None
+
+
 def select(findings_file: str, data_dir: str = "data/pilot_flexprefill", repo_rel: str = "third_party/FlexPrefill"
            ) -> tuple[list[str], dict[str, str]]:
-    ff = PIPELINE_ROOT / findings_file
-    ids = [r["finding_id"] for r in json.loads(ff.read_text())["findings"]]
+    ids = [r["finding_id"] for r in json.loads((PIPELINE_ROOT / findings_file).read_text())["findings"]]
     chosen: list[str] = []
     skipped: dict[str, str] = {}
     for fid in ids:
-        t = load_task(fid, PIPELINE_ROOT / data_dir, ff)
-        if not t.regions:
-            skipped[fid] = "no code location (paper-side or no code evidence)"
-            continue
-        ok, why = outcome_support(t.regions[0], PIPELINE_ROOT / repo_rel)
-        if not ok:
-            skipped[fid] = why
-        elif t.witness.status not in USABLE_WITNESS or not t.witness.trigger:
-            skipped[fid] = f"witness status {t.witness.status!r}"
-        else:
+        c = classify_finding(fid, data_dir, findings_file, repo_rel)
+        if c is None:
             chosen.append(fid)
+        else:
+            skipped[fid] = c[1]
     return chosen, skipped
 
 
