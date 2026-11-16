@@ -137,6 +137,7 @@ def canonical_hash(raw: dict, obs: Observation, relevant: Optional[set[str]] = N
         "hits": [[h["outcome"], h["condition_value"],
                   {k: v for k, v in h["locals"].items() if relevant is None or k in relevant}]
                  for h in trace.get("target_hits", [])],
+        "guard": [h["condition_value"] for h in trace.get("decision_hits", [])],
         "starts": [[s["file"], s["fn"]] for s in trace.get("starts", [])],
         "lines": trace.get("lines", {}),
         "effect": obs.effect,
@@ -329,6 +330,7 @@ def run_attempt(attempt_dir: Path, pipeline_root: Path = PIPELINE_ROOT, options:
     mock_recs = fidelity.mock_records(
         ctx.mocks, [(raw_p["mock_events"], first_hit(raw_p)), (raw_n["mock_events"], first_hit(raw_n))], chain)
     entry_idx = fidelity.entry_index(chain, pos.entry_first_started)
+    entry_on_stack = fidelity.entry_on_stack(chain, region.location.function, pos)
     fid = Fidelity(strategy=form.strategy, ast_diff=ad, mocks=mock_recs, entry_index=entry_idx,
                    call_chain_len=len(chain), probe_effect_free=bool(probe_ok), probe_note=probe_note)
     if entry_idx is None or chain[entry_idx] != form.execution.entry_called:
@@ -384,11 +386,12 @@ def run_attempt(attempt_dir: Path, pipeline_root: Path = PIPELINE_ROOT, options:
         main_positive_effect=pos.effect, main_negative_effect=neg.effect,
         target_intact=ad.target_statement_intact, stmts_changed=ad.statements_changed, stmts_total=ad.statements_total,
         snippet_matches=ad.snippet_matches_region, scope_status=str(task.finding.scope_status),
-        entry_index=entry_idx, entry_reason=form.execution.entry_reason)
+        entry_index=entry_idx, entry_on_stack=entry_on_stack, entry_reason=form.execution.entry_reason)
     conf, final_verdict = confidence.build(m, profile)
     exec_result = v.exec_result
     if final_verdict == "inconclusive" and v.verdict != "inconclusive":
-        exec_result = "test_error"
+        if conf.level == "invalid":
+            exec_result = "test_error"
         notes.append("verdict forced to inconclusive: " + conf.level_note)
     skipped = [n for n, on in (("probe effect", options.probe_effect), ("boundary probes", options.bva),
                                ("mutation", options.mutation), ("replay", options.replay)) if not on]

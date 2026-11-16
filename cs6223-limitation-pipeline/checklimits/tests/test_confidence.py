@@ -102,14 +102,18 @@ def test_inconclusive_verdict_gets_no_level():
     assert (conf.level, final) == ("n/a", "inconclusive")
 
 
-def test_no_verdict_needs_oracle_sensitivity_for_more_than_L1():
-    ok, _, _ = run(ideal(verdict="no", controls_differ=False, bva=None))
-    assert ok.level == "L2" or ok.level == "L3"
-    weak, _, st = run(ideal(verdict="no", controls_differ=False, bva=None,
-                            mutation=MutationResult(generated=4, killed=2, wilson_lower=0.15)))
-    assert st["D3"] == "refuted" and weak.level == "L1"
-    none, _, _ = run(ideal(verdict="no", controls_differ=False, bva=None, mutation=None))
-    assert none.level == "L1"
+def test_no_verdict_is_only_reported_when_the_oracle_was_shown_to_see_the_effect():
+    ok, final, _ = run(ideal(verdict="no", controls_differ=False, bva=None))
+    assert final == "no" and ok.level in ("L2", "L3")
+    for mut, state in ((MutationResult(generated=4, killed=2, wilson_lower=0.15), "refuted"),     # oracle misses mutants
+                       (MutationResult(generated=2, killed=2, wilson_lower=0.34), "residual"),    # too few mutants to say
+                       (None, "open")):                                                           # mutation not run
+        conf, final, st = run(ideal(verdict="no", controls_differ=False, bva=None, mutation=mut))
+        assert st["D3"] == state and final == "inconclusive" and conf.level == "n/a", state
+        assert "needs the oracle shown to see the effect" in conf.level_note and state in conf.level_note
+    # a `yes` is not held to this rule: the effect itself was observed
+    conf, final, st = run(ideal(verdict="yes", mutation=MutationResult(generated=2, killed=2, wilson_lower=0.34)))
+    assert final == "yes" and st["D3"] == "residual" and conf.level == "L1"
 
 
 def test_level_is_deterministic():

@@ -169,11 +169,19 @@ def counts(records: list[TestRecord]) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- LIMITATIONS.md
-_VERDICT_TEXT = {
-    "yes": "the effect was observed with the trigger and not with the contrast: the limitation reproduces",
-    "no": "the effect was not observed where the Finding says it should be: the limitation did not reproduce",
-    "inconclusive": "no verdict: the test was invalid or could not separate the cases",
-}
+def _verdict_text(verdict: Optional[str], effect_type: Optional[str]) -> str:
+    """What a verdict means for this effect type. For a branch effect the harness only observes that the branch at the
+    location is taken, so the report says that and not more (an LLM reviewer pointed this out on 3 of 20 sampled items)."""
+    if verdict == "yes":
+        if effect_type in ("path_change", "state"):
+            return ("with the trigger the branch at the location is taken and with the contrast it is not; "
+                    "what the claim says happens after the branch was not checked")
+        if effect_type == "reject":
+            return "with the trigger the exception is raised at the location and with the contrast it is not"
+        return "the effect was observed with the trigger and not with the contrast"
+    if verdict == "no":
+        return "the effect was not observed where the Finding says it should be, and the oracle was shown to see it when it exists"
+    return "no verdict: the test was invalid or could not separate the cases"
 
 
 _LEVEL_TEXT = {
@@ -257,7 +265,7 @@ def render_markdown(artifact: dict[str, Any], records: list[TestRecord], env: Op
             A(f"**Not tested** (`{r.not_run.code}`): {r.not_run.reason}")
             A("")
             continue
-        A(f"**Verdict `{r.verdict}`**: {_VERDICT_TEXT.get(r.verdict or '', '')}.")
+        A(f"**Verdict `{r.verdict}`**: {_verdict_text(r.verdict, r.finding.get('effect_type'))}.")
         if r.verdict_reason:
             A(f"  {_cut(r.verdict_reason, 400)}")
         A("")

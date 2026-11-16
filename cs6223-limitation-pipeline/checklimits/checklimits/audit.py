@@ -79,9 +79,11 @@ def observed_matches(claim: str, obs: Observation) -> bool:
 
 def cond_value(obs: Observation, want: bool) -> Optional[bool]:
     """Claim value for 'condition is `want`' on this run; None if not evaluable."""
-    if not obs.target_hits:
+    # a bare `raise` target only runs when its guard holds, so the guard's evaluation is the evidence for both runs
+    hits = obs.decision_hits or obs.target_hits
+    if not hits:
         return False
-    last = obs.target_hits[-1]
+    last = hits[-1]
     if last.condition_value is None:
         return None
     return last.condition_value is want
