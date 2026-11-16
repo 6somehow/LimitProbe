@@ -2,6 +2,7 @@
 import json
 import shutil
 import stat
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -232,3 +233,67 @@ def test_feedback_text_lists_next_steps(tmp_path):
     r = harness.run_attempt(b["attempt"], pipeline_root=b["root"], options=FAST)["report"]
     t = agent_loop.feedback_text(r)
     assert "level=L0" in t and "next_steps:" in t and "D3" in t and "form_integrity=1.0" in t
+
+
+# --- call chain section (step 4 witness_hint.call_chain / call_sites) -------------------------------------------
+def test_chain_section_lists_call_sites_and_name_mapping():
+    hint = {"call_chain_status": "resolved",
+            "call_chain": ["a.py::entry", "a.py::mid", "a.py::target"],
+            "call_sites": [{"caller": "a.py::entry", "callee": "a.py::mid", "line": 10, "resolved_by": "direct",
+                            "args": {"x": "k", "size": "block_size"}},
+                           {"caller": "a.py::mid", "callee": "a.py::target", "line": 20, "resolved_by": "unique_name",
+                            "args": {"d": "x.shape[3]"}}],
+            "uncertain_steps": ["a.py::mid -> a.py::target"],
+            "entry_terms": {"names": {"d": "k.shape[3]"}}}
+    t = "\n".join(agent_cli.chain_section(hint))
+    assert "`entry` calls `mid` at line 10 (direct): x=k, size=block_size" in t
+    assert "`mid` calls `target` at line 20 (unique_name): d=x.shape[3]" in t
+    assert "`d` = `k.shape[3]`" in t and "resolved by a guess" in t and "call `call_chain[0]`" in t
+
+
+def test_chain_section_without_a_chain_allows_a_deeper_entry_with_a_reason():
+    t = "\n".join(agent_cli.chain_section({"call_chain_status": "not_found"}))
+    assert "entry_reason" in t and "no call chain" in t
+    assert agent_cli.chain_section({}) == []                     # pilot data has no chain information
+    assert "directly" in "\n".join(agent_cli.chain_section({"call_chain_status": "entry_is_target"}))
+
+
+@pytest.mark.skipif(not (PIPELINE_ROOT / STEP4).exists() or not PILOT_OK, reason="step 4 hand-off or checkout missing")
+def test_task_text_for_a_real_finding_has_the_chain_section():
+    t = agent_cli.task_text("flexprefill-F007", findings_file=STEP4)
+    assert "## How the entry reaches the target" in t and "triton_block_wise_attention" in t
+
+
+# --- what the agent cannot see ---------------------------------------------------------------------------------
+def test_archived_results_are_hidden_from_the_agent():
+    cmd = " ".join(agent_loop.sandbox_cmd(Path("/tmp/run"), ["x"]))
+    assert f"--tmpfs {agent_loop.PROJECT_ROOT / 'agent_results'}" in cmd
+    assert f"--ro-bind /dev/null {agent_loop.PROJECT_ROOT / 'BATCH_RESULTS.md'}" in cmd
+    # the rule documents and the harness source stay readable unless the run is blind
+    assert "CONFIDENCE_SPEC.md" not in cmd and "blind_pkg" not in cmd
+
+
+def test_blind_mode_hides_the_rules_and_swaps_the_source_for_compiled_modules():
+    cmd = " ".join(agent_loop.sandbox_cmd(Path("/tmp/run"), ["x"], blind=True))
+    assert f"--ro-bind /dev/null {agent_loop.PROJECT_ROOT / 'CONFIDENCE_SPEC.md'}" in cmd
+    assert f"--ro-bind {agent_loop.BLIND_PKG / 'checklimits'} {agent_loop.PROJECT_ROOT / 'checklimits'}" in cmd
+
+
+def test_blind_package_has_no_source(tmp_path, monkeypatch):
+    monkeypatch.setattr(agent_loop, "BLIND_PKG", tmp_path / "blind")
+    out = agent_loop.build_blind_package()
+    assert not list(out.glob("*.py")) and (out / "harness.pyc").exists() and (out / "__main__.pyc").exists()
+    assert agent_loop.build_blind_package() == out                       # second call reuses it
+
+
+@pytest.mark.skipif(shutil.which("bwrap") is None, reason="bwrap missing")
+def test_blind_sandbox_really_hides_the_source_and_the_spec_but_cl_still_runs(tmp_path):
+    run = tmp_path / "run"
+    run.mkdir()
+    root = agent_loop.PROJECT_ROOT
+    inner = ["sh", "-c", f"ls {root}/checklimits/*.py 2>&1 | head -1; cat {root}/CONFIDENCE_SPEC.md 2>/dev/null | wc -c; "
+             f"ls {root}/agent_results | wc -l; {root}/agent/cl lint --help | head -1"]
+    out = subprocess.run(agent_loop.sandbox_cmd(run, inner, blind=True), capture_output=True, text=True).stdout.split("\n")
+    assert "No such file" in out[0] and out[1].strip() == "0" and out[2].strip() == "0" and out[3].startswith("usage")
+    out = subprocess.run(agent_loop.sandbox_cmd(run, inner, blind=False), capture_output=True, text=True).stdout.split("\n")
+    assert out[0].endswith(".py") and int(out[1]) > 1000 and out[2].strip() == "0" and out[3].startswith("usage")

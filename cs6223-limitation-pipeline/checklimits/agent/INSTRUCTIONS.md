@@ -88,6 +88,10 @@ the defeaters you let the harness eliminate. Your design decides this:
 9. **Free parameters (T3).** Every value your driver chooses that is not in the witness_hint (head count, dtype,
    seed, defaults) goes into `design.free_parameters` with a reason. `lint` finds the ones you forgot.
 10. **Official entry (D14, T4).** Call `call_chain[0]`. A deeper function needs `execution.entry_reason`.
+    When the task has a section "How the entry reaches the target", it lists every call site with the mapping from
+    the callee's parameter names to the caller's expressions. The trigger and contrast are written in the target's
+    names; use that mapping to get the entry's inputs, then check that the target is reached with the values you
+    intended (the harness checks the same).
 11. **Offline, deterministic, pinned (T6, D8, D9).** No network, fixed seeds, single thread. The harness repeats
     the run in fresh processes and replays it in a fresh checkout of the pinned commit.
 12. **Scope (T9, D13).** If the task says `out_of_scope`, only record it.
