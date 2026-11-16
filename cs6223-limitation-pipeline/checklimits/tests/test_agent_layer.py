@@ -273,27 +273,32 @@ def test_archived_results_are_hidden_from_the_agent():
     assert "CONFIDENCE_SPEC.md" not in cmd and "blind_pkg" not in cmd
 
 
-def test_blind_mode_hides_the_rules_and_swaps_the_source_for_compiled_modules():
+def test_blind_mode_has_no_harness_in_the_sandbox_and_a_socket_to_the_service():
     cmd = " ".join(agent_loop.sandbox_cmd(Path("/tmp/run"), ["x"], blind=True))
     assert f"--ro-bind /dev/null {agent_loop.PROJECT_ROOT / 'CONFIDENCE_SPEC.md'}" in cmd
-    assert f"--ro-bind {agent_loop.BLIND_PKG / 'checklimits'} {agent_loop.PROJECT_ROOT / 'checklimits'}" in cmd
+    assert f"--tmpfs {agent_loop.PROJECT_ROOT / 'checklimits'}" in cmd and " /tmp/cl" in cmd
+    assert agent_loop.agent_env(Path("/tmp/run"), blind=True)["CL_SOCKET"] == "/tmp/cl/sock"
+    assert "CL_SOCKET" not in agent_loop.agent_env(Path("/tmp/run"))
 
 
-def test_blind_package_has_no_source(tmp_path, monkeypatch):
-    monkeypatch.setattr(agent_loop, "BLIND_PKG", tmp_path / "blind")
-    out = agent_loop.build_blind_package()
-    assert not list(out.glob("*.py")) and (out / "harness.pyc").exists() and (out / "__main__.pyc").exists()
-    assert agent_loop.build_blind_package() == out                       # second call reuses it
-
-
-@pytest.mark.skipif(shutil.which("bwrap") is None, reason="bwrap missing")
-def test_blind_sandbox_really_hides_the_source_and_the_spec_but_cl_still_runs(tmp_path):
-    run = tmp_path / "run"
-    run.mkdir()
+@pytest.mark.skipif(shutil.which("bwrap") is None or not PILOT_OK, reason="needs bubblewrap and the FlexPrefill checkout")
+def test_blind_sandbox_hides_the_harness_but_cl_works_through_the_service():
+    from checklimits.agent_service import ClService
+    base = agent_loop.PROJECT_ROOT / "scratch" / "pytest_blind"     # a run directory the sandbox can write to
+    shutil.rmtree(base, ignore_errors=True)
+    run = base / "t-blind"
+    (run / "workspace").mkdir(parents=True)
+    (run / "out").mkdir()
     root = agent_loop.PROJECT_ROOT
     inner = ["sh", "-c", f"ls {root}/checklimits/*.py 2>&1 | head -1; cat {root}/CONFIDENCE_SPEC.md 2>/dev/null | wc -c; "
-             f"ls {root}/agent_results | wc -l; {root}/agent/cl lint --help | head -1"]
-    out = subprocess.run(agent_loop.sandbox_cmd(run, inner, blind=True), capture_output=True, text=True).stdout.split("\n")
-    assert "No such file" in out[0] and out[1].strip() == "0" and out[2].strip() == "0" and out[3].startswith("usage")
-    out = subprocess.run(agent_loop.sandbox_cmd(run, inner, blind=False), capture_output=True, text=True).stdout.split("\n")
-    assert out[0].endswith(".py") and int(out[1]) > 1000 and out[2].strip() == "0" and out[3].startswith("usage")
+             f"ls {root}/agent_results | wc -l; {root}/agent/cl task F07 | head -1; "
+             f"{root}/agent/cl run --attempt /etc --out /etc 2>&1 | head -1; {root}/agent/cl score 2>&1 | head -1"]
+    try:
+        with ClService(run):
+            out = subprocess.run(agent_loop.sandbox_cmd(run, inner, blind=True), env=agent_loop.agent_env(run, True),
+                                 capture_output=True, text=True).stdout.split("\n")
+    finally:
+        shutil.rmtree(base, ignore_errors=True)
+    assert "No such file" in out[0] and out[1].strip() == "0" and out[2].strip() == "0"
+    assert out[3].startswith("# Task: verify finding F07")          # the real task text, produced outside the sandbox
+    assert "must be inside" in out[4] and "must be one of" in out[5]   # paths and commands are restricted
