@@ -258,8 +258,14 @@ D1 到 D14 对三类效果通用，只有"什么算效果"不同（`runner.outco
 * 不同族的结果一致：手写 pilot 31 个 case、NNSmith 30 个、FlexPrefill step 4 测试包 21 个，假阳性都是 0。
 * 全部是确定性的小故障。这仍是冒烟测试，**不是校准**。档位的含义要靠人工标注（`labels` 命令）才能有经验依据。
 
-## 17. agent 的可见范围（2026-11-16）
+## 17. agent 的可见范围（2026-11-16，11-17 更新）
 
 * 沙箱里不可读：`attempts/`、`results/`、`locks/`、`runs/`、`tests/`、`scripts/`、`scratch/`、`agent_results/`，git 历史，凭据，`PLAN.md`、`ENV.md`、`KICKOFF_PROMPT.md`、`scoring_prototype.py`，以及 `AGENT_RESULTS.md`、`BATCH_RESULTS.md`、`NNSMITH_RESULTS.md`、`PREFLIGHT_FLEXPOSIT.md`。`agent_results/` 在 11-16 之前是可读的（`BATCH_RESULTS.md` 补记三）。
 * 白盒（默认）：可读 `checklimits/` 的源码、`CONFIDENCE_SPEC.md`、`SCORECARD.md`。
-* `--blind`：源码换成只有 `.pyc` 的副本，规则文档读不到。**字节码仍可读**，5 次运行都用 `strings`、`marshal`、`dis` 去看了，所以这是"半盲"（`EXPERIMENTS.md`）。
+* `--blind`（干净盲测）：沙箱里没有 harness（包目录是空 tmpfs），规则文档和实验记录读不到。`cl` 是客户端，`task`、`init`、`lint`、`run` 由沙箱外的服务（`agent_service.py`）执行，在同一个 bwrap 沙箱里跑，只返回输出。11-16 的第一版"盲测"只把源码换成 `.pyc`，五次运行都用 `strings`、`marshal`、`dis` 读了字节码，所以那一版只算半盲（`EXPERIMENTS.md`）。
+
+## 19. D14 要求目标在入口里执行（2026-11-17）
+
+原来 D14 只看 `call_chain[0]` 是不是最先开始的函数。现在还要求目标行执行时它仍在运行（追踪器给每次命中记下当时的调用栈，`fidelity.entry_on_stack`）。入口先开始、目标却在入口之外执行（先调一次入口，再直接调目标函数）时：写了 `entry_reason` 是 residual，没写是 refuted。模块级目标和无调用栈记录时不检查。发现的经过和对已有结果的影响见 `EXPERIMENTS.md`："D14 的漏洞"。
+
+对全部已有结果的影响（用新规则重新审计）：FlexPrefill F008 从 L3 到 L2；NNSmith F035 从 L3 到 L2；其余 e2e 结果的档位不变。基准的 82 个 case 没有重跑（它们是故障注入，不涉及入口），16 个决定、假阳性 0 的结论不受影响，但没有再验证一遍。

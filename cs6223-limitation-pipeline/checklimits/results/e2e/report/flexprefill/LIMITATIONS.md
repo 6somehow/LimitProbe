@@ -2,7 +2,7 @@
 
 - artifact: `flexprefill` (ICLR 2025 (Oral)), repository https://github.com/bytedance/FlexPrefill at `a24b27bf11`
 - input: `results/step4/flexprefill/limitations_for_tests.json` (sha256 `0b8539b75ec0`), 65 Findings
-- generated: 2026-11-16T19:35:43+08:00 by `checklimits test` (contract `checklimits-test-report/1`)
+- generated: 2026-11-17T02:18:11+08:00 by `checklimits test` (contract `checklimits-test-report/1`)
 - environment: **ok**
 
 ## How to read this
@@ -20,8 +20,8 @@
 | Findings | 65 |
 | tested | 29 |
 | not tested | 36 |
-| verdicts | inconclusive 1, yes 28 |
-| levels | L1 15, L2 6, L3 7, invalid 1 |
+| verdicts | yes 29 |
+| levels | L1 16, L2 7, L3 6 |
 | not tested, by reason | `no_code_location` 19, `outcome_unsupported` 6, `witness_unusable` 11 |
 
 | Finding | category | effect | location | result |
@@ -31,7 +31,7 @@
 | [flexprefill-F003](#flexprefill-f003) | undisclosed | reject | `flex_prefill/ops/flex_prefill_attention.py:247` | **yes** / L3 (uncalibrated) |
 | [flexprefill-F006](#flexprefill-f006) | undisclosed | reject | `flex_prefill/ops/flex_prefill_attention.py:1240-1244` | **yes** / L1 (uncalibrated) |
 | [flexprefill-F007](#flexprefill-f007) | undisclosed | reject | `flex_prefill/ops/flex_prefill_attention.py:1245` | **yes** / L2 (uncalibrated) |
-| [flexprefill-F008](#flexprefill-f008) | undisclosed | reject | `flex_prefill/ops/flex_prefill_attention.py:1256` | **yes** / L3 (uncalibrated) |
+| [flexprefill-F008](#flexprefill-f008) | undisclosed | reject | `flex_prefill/ops/flex_prefill_attention.py:1256` | **yes** / L2 (uncalibrated) |
 | [flexprefill-F009](#flexprefill-f009) | undisclosed | reject | `flex_prefill/ops/flex_prefill_attention.py:1258` | **yes** / L2 (uncalibrated) |
 | [flexprefill-F012](#flexprefill-f012) | undisclosed | state | `flex_prefill/ops/flex_prefill_attention.py:1695-1698` | **yes** / L1 (uncalibrated) |
 | [flexprefill-F013](#flexprefill-f013) | undisclosed | reject | `flex_prefill/ops/flex_prefill_attention.py:1836` | **yes** / L3 (uncalibrated) |
@@ -40,7 +40,7 @@
 | [flexprefill-F016](#flexprefill-f016) | undisclosed | reject | `flex_prefill/ops/vertical_slash_attention.py:552` | **yes** / L2 (uncalibrated) |
 | [flexprefill-F017](#flexprefill-f017) | undisclosed | path_change | `flex_prefill/modules/patch.py:69` | **yes** / L1 (uncalibrated) |
 | [flexprefill-F018](#flexprefill-f018) | undisclosed | path_change | `flex_prefill/modules/patch.py:313` | **yes** / L1 (uncalibrated) |
-| [flexprefill-F019](#flexprefill-f019) | stated_differently | reject | `flex_prefill/modules/patch.py:320` | **inconclusive** / invalid (uncalibrated) |
+| [flexprefill-F019](#flexprefill-f019) | stated_differently | reject | `flex_prefill/modules/patch.py:320` | **yes** / L1 (uncalibrated) |
 | [flexprefill-F020](#flexprefill-f020) | undisclosed | path_change | `flex_prefill/modules/patch.py:424` | **yes** / L2 (uncalibrated) |
 | [flexprefill-F021](#flexprefill-f021) | undisclosed | path_change | `flex_prefill/modules/patch.py:501` | **yes** / L1 (uncalibrated) |
 | [flexprefill-F022](#flexprefill-f022) | stated_differently | reject | `flex_prefill/ops/flex_prefill_attention.py:672` | **yes** / L1 (uncalibrated) |
@@ -102,7 +102,7 @@
 - step 4 review: `worth_testing`: blind review by an LLM subagent (round 3), not human: Even among llama-named HF models, only LlamaForCausalLM instances are accepted, so other Llama heads such as LlamaModel or sequence classification fail the assertion; this is a narrower check than m02.
 - code snippet (`flex_prefill/modules/patch.py:123`): `assert isinstance(model, LlamaForCausalLM)`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
@@ -126,7 +126,7 @@
 - condition: `not isinstance(model, Qwen2ForCausalLM)`
 - code snippet (`flex_prefill/modules/patch.py:241`): `assert isinstance(model, Qwen2ForCausalLM)`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
@@ -150,7 +150,7 @@
 - step 4 review: `real_but_minor`: blind review by an LLM subagent (round 2), not human: Requiring q heads to be a multiple of kv heads is a GQA shape invariant that every real model satisfies, not a mechanism limitation.
 - code snippet (`flex_prefill/ops/flex_prefill_attention.py:247`): `assert num_q_heads % num_kv_heads == 0`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
 **Level L3, uncalibrated.** established: every defeater was measured and ruled out.
@@ -170,7 +170,7 @@
 - condition: `not (isinstance(block_idx, list) and isinstance(block_idx[0], list) and isinstance(block_idx[0][0], torch.Tensor))`
 - code snippet (`flex_prefill/ops/flex_prefill_attention.py:1240`): `assert isinstance(block_idx, list) and isinstance(block_idx[0], list) and isinstance(block_idx[0][0], torch.Tensor)`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
@@ -193,7 +193,7 @@
 - condition: `not (len(block_idx) == batch_size and len(block_idx[0]) == num_q_heads)`
 - code snippet (`flex_prefill/ops/flex_prefill_attention.py:1245`): `assert len(block_idx) == batch_size and len(block_idx[0]) == num_q_heads`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
 **Level L2, uncalibrated.** supported: fatal checks, mutation, repeat runs and clean-checkout replay passed; some checks are residual.
@@ -215,15 +215,17 @@
 - condition: `not (num_block <= total_q_blocks * (total_q_blocks + 1) // 2)`
 - code snippet (`flex_prefill/ops/flex_prefill_attention.py:1256`): `assert num_block <= total_q_blocks * (total_q_blocks + 1) // 2`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
-**Level L3, uncalibrated.** established: every defeater was measured and ruled out.
+**Level L2, uncalibrated.** supported: fatal checks, mutation, repeat runs and clean-checkout replay passed; some checks are residual.
 
 - trigger run: AssertionError at flex_prefill/ops/flex_prefill_attention.py:1256
 - contrast run: no exception at flex_prefill/ops/flex_prefill_attention.py:1256 (later RuntimeError at triton/runtime/driver.py:8)
 - open doubts:
   - D13 inputs inside the paper's scope: *residual*. scope_status=unknown
+  - D14 official entry point was called: *residual*. the official entry started first but the target line did not run inside it; reason recorded: The official entry flex_prefill_attention is called first. On CPU it reaches get_active_blocks, which launches Triton GPU kern…
+- what would raise the level: D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)
 - evidence: `tests/flexprefill/flexprefill-F008/execution_report.json`
 
 ## flexprefill-F009
@@ -235,7 +237,7 @@
 - condition: `not (num_q_heads % num_kv_heads == 0)`
 - code snippet (`flex_prefill/ops/flex_prefill_attention.py:1258`): `assert num_q_heads % num_kv_heads == 0`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
 **Level L2, uncalibrated.** supported: fatal checks, mutation, repeat runs and clean-checkout replay passed; some checks are residual.
@@ -257,7 +259,7 @@
 - condition: `causal_mask is None # first call only`
 - code snippet (`flex_prefill/ops/flex_prefill_attention.py:1695`): `if causal_mask is None:`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
@@ -281,7 +283,7 @@
 - condition: `not (q.shape[1] == k.shape[1])`
 - code snippet (`flex_prefill/ops/flex_prefill_attention.py:1836`): `assert q.shape[1] == k.shape[1]`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
 **Level L3, uncalibrated.** established: every defeater was measured and ruled out.
@@ -301,7 +303,7 @@
 - condition: `not (head_dim in {16, 32, 64, 128})`
 - code snippet (`flex_prefill/ops/flex_prefill_attention.py:1837`): `assert head_dim in {16, 32, 64, 128}`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
 **Level L3, uncalibrated.** established: every defeater was measured and ruled out.
@@ -322,7 +324,7 @@
 - step 4 review: `real_but_minor`: blind review by an LLM subagent (round 2), not human: vertical_slash_attention.py is the separate vertical-slash (MInference-style) baseline pattern, not the FlexPrefill path, which uses triton_block_wise_attention.
 - code snippet (`flex_prefill/ops/vertical_slash_attention.py:265`): `assert q_len == k_len`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
@@ -346,7 +348,7 @@
 - step 4 review: `real_but_minor`: blind review by an LLM subagent (round 3), not human: The head_dim assert is in the vertical_slash baseline op, not in FlexPrefill's mechanism.
 - code snippet (`flex_prefill/ops/vertical_slash_attention.py:552`): `assert head_dim in {16, 32, 64, 128}`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
 **Level L2, uncalibrated.** supported: fatal checks, mutation, repeat runs and clean-checkout replay passed; some checks are residual.
@@ -369,7 +371,7 @@
 - step 4 review: `real_but_minor`: blind review by an LLM subagent (round 3), not human: The minfer config loading belongs to the MInference baseline, not to FlexPrefill.
 - code snippet (`flex_prefill/modules/patch.py:69`): `if pattern == 'minfer':`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
@@ -394,7 +396,7 @@
 - step 4 review: `worth_testing`: blind review by an LLM subagent (round 3), not human: patch_hf_model raises ValueError for any HF model whose class name does not contain llama, glm or qwen2, so FlexPrefill only supports those model families.
 - code snippet (`flex_prefill/modules/patch.py:313`): `if 'llama' in model_name.lower():`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
@@ -420,20 +422,19 @@
 - paper/docs (readme, README.md / Supported Models): “Currently, `flex_prefill.patch_model` only supports the following models: - LLaMA: [meta-llama/Meta-Llama-3.1-8B-Instruct](https://huggingface.co/meta-llama/Meta-Llama-3.1-8B-Instruct) - Qwen2: [Qwen/Qwen2-7B-Instruct](https://huggingface.co/Qwen/Qwen2-7B-Instruct) - ChatGLM4: [THUDM/glm-4-9b-chat-…”
 - code snippet (`flex_prefill/modules/patch.py:320`): `raise ValueError(f'unsupported model type: {model_name}')`
 
-**Verdict `inconclusive`**: no verdict: the test was invalid or could not separate the cases.
+**Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
-**Level invalid, uncalibrated.** a fatal defeater was refuted (for example the target line was not reached): no verdict is drawn. refuted fatal defeaters: D2
+**Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: ValueError at flex_prefill/modules/patch.py:320
 - contrast run: no exception at flex_prefill/modules/patch.py:320
 - open doubts:
-  - D2 condition holds on positive, fails on negative: *refuted*. condition does not hold on the positive or does not fail on the negative
   - D3 oracle can see the effect: *residual*. only 1 mutants (< n_min=4); killed 1
   - D5 control pair differs in one factor, negative adjacent to the boundary: *residual*. one factor differs; adjacency not measurable: boundary variable 'model_name' is not an integer (value 'LlamaForCausalLM')
   - D13 inputs inside the paper's scope: *residual*. scope_status=unknown
   - D14 official entry point was called: *residual*. deeper entry (index 1); reason recorded: step-4 hand-off builds call_chain=[artifact entry point flex_prefill_attention, patch_hf_model], but flex_prefill_attention never calls patch_hf_model; patch_hf_model is the only…
-- what would raise the level: D2 (refuted): pick inputs so the Region condition is true on the positive and false on the negative; write a predicate if it cannot be evaluated; D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location; D5 (residual): change exactly one factor between positive and negative, and make the negative the point next to the boundary
+- what would raise the level: D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location; D5 (residual): change exactly one factor between positive and negative, and make the negative the point next to the boundary; D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)
 - evidence: `tests/flexprefill/flexprefill-F019/execution_report.json`
 
 ## flexprefill-F020
@@ -446,7 +447,7 @@
 - step 4 review: `worth_testing`: blind review by an LLM subagent (round 3), not human: In vLLM, when the prefill has non-empty block tables (e.g. prefix caching hits), the code silently runs dense flash_attn_varlen_func instead of flex_prefill_attention.
 - code snippet (`flex_prefill/modules/patch.py:424`): `if kv_cache is None or prefill_meta.block_tables is None or prefill_meta.block_tables.numel() == 0:`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
 **Level L2, uncalibrated.** supported: fatal checks, mutation, repeat runs and clean-checkout replay passed; some checks are residual.
@@ -470,7 +471,7 @@
 - step 4 review: `real_but_minor`: blind review by an LLM subagent (round 3), not human: Matching modules by class name to patch vLLM attention is internal plumbing that every attention layer satisfies; no user condition is involved.
 - code snippet (`flex_prefill/modules/patch.py:501`): `if 'attention' in type(m).__name__.lower() and hasattr(m, 'impl'):`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
@@ -496,7 +497,7 @@
 - paper/docs (readme, README.md / FlexPrefill Sparse Attention Function): “Note: The current version only supports inference with a batch size of 1 and has only been tested with bfloat16 precision.”
 - code snippet (`flex_prefill/ops/flex_prefill_attention.py:672`): `assert q.dtype == torch.bfloat16`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
@@ -520,7 +521,7 @@
 - paper/docs (readme, README.md / FlexPrefill Sparse Attention Function): “Note: The current version only supports inference with a batch size of 1 and has only been tested with bfloat16 precision.”
 - code snippet (`flex_prefill/ops/flex_prefill_attention.py:1218`): `assert q.dtype == torch.bfloat16`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
@@ -545,7 +546,7 @@
 - paper/docs (docstring, flex_prefill/ops/flex_prefill_attention.py:850 (triton_block_wise_decode_attention)): “block_size (int): Block size, only support 16, 32, 64 and 128.”
 - code snippet (`flex_prefill/ops/flex_prefill_attention.py:1222`): `assert block_size in {32, 64, 128}`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
@@ -568,7 +569,7 @@
 - condition: `q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size)`
 - code snippet (`flex_prefill/ops/flex_prefill_attention.py:1842`): `if q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size):`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
 **Level L3, uncalibrated.** established: every defeater was measured and ruled out.
@@ -590,7 +591,7 @@
 - paper/docs (readme, README.md / FlexPrefill Sparse Attention Function): “Note: The current version only supports inference with a batch size of 1 and has only been tested with bfloat16 precision.”
 - code snippet (`flex_prefill/ops/vertical_slash_attention.py:264`): `assert q.dtype == torch.bfloat16`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
@@ -616,7 +617,7 @@
 - step 4 review: `real_but_minor`: blind review by an LLM subagent (round 2), not human: The short-sequence dense fallback is in the vertical-slash baseline function, not in flex_prefill_attention.
 - code snippet (`flex_prefill/ops/vertical_slash_attention.py:557`): `if seq_len <= min(vertical_size, slash_size) * block_size:`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
@@ -643,7 +644,7 @@
 - paper/docs (code_comment, flex_prefill/ops/vertical_slash_attention.py:589): “seq_len > 16k, use block wise attention to get faster speed”
 - code snippet (`flex_prefill/ops/vertical_slash_attention.py:570`): `if seq_len <= 16 * 1024:`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
 **Level L2, uncalibrated.** supported: fatal checks, mutation, repeat runs and clean-checkout replay passed; some checks are residual.
@@ -667,7 +668,7 @@
 - paper/docs (paper, PDF p.6, text lines 69-75): “# Sort vertical and slash attention scores Iv← argsort(av) Is← argsort(as) # Obtain the minimum computational budget making the sum of the scores exceedsγ Kv← min{k :P i∈Iv [1:k] av[i]≥γ}”
 - paper/docs (paper, PDF p.6, text lines 69-77): “# Sort vertical and slash attention scores Iv← argsort(av) Is← argsort(as) # Obtain the minimum computational budget making the sum of the scores exceedsγ Kv← min{k :P i∈Iv [1:k] av[i]≥γ} Ks← min{k :P i∈Is[1:k] as[i]≥γ}”
 
-**Not tested** (`no_code_location`): no code location (paper-side finding or no code evidence)
+**Not tested** (`no_code_location`): no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)
 
 ## flexprefill-F031
 
@@ -677,7 +678,7 @@
 - code: `flex_prefill/ops/flex_prefill_attention.py:1661-1779`
 - paper/docs (paper, PDF p.6, text lines 93-96): “# Flatten and normalize attention map ¯A← flatten( ¯A/P i, j ¯A[i,j ])”
 
-**Not tested** (`no_code_location`): no code location (paper-side finding or no code evidence)
+**Not tested** (`no_code_location`): no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)
 
 ## flexprefill-F032
 
@@ -688,7 +689,7 @@
 - condition: `gamma != gamma * num_blocks`
 - paper/docs (paper, PDF p.6, text lines 98-103): “Ia← argsort( ¯A) # Obtain the minimum computational budget making the sum of the scores exceedsγ K← min{k :P i∈Ia[1:k] ¯A[i]≥γ}”
 
-**Not tested** (`no_code_location`): no code location (paper-side finding or no code evidence)
+**Not tested** (`no_code_location`): no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)
 
 ## flexprefill-F033
 
@@ -698,7 +699,7 @@
 - code: `flex_prefill/ops/flex_prefill_attention.py:1661-1779`
 - paper/docs (paper, PDF p.6): “S← Ia[1 :K]”
 
-**Not tested** (`no_code_location`): no code location (paper-side finding or no code evidence)
+**Not tested** (`no_code_location`): no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)
 
 ## flexprefill-F034
 
@@ -708,7 +709,7 @@
 - code: `flex_prefill/ops/flex_prefill_attention.py:1676-1706`
 - paper/docs (paper, PDF p.4): “where the kernel size of the pooling operation is equal to block_size”
 
-**Not tested** (`no_code_location`): no code location (paper-side finding or no code evidence)
+**Not tested** (`no_code_location`): no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)
 
 ## flexprefill-F035
 
@@ -719,7 +720,7 @@
 - paper/docs (paper, PDF p.4, text lines 60-70): “ˆa = sumpool  softmax  ˆQK⊤/ √ d  , where the kernel size of the pooling operation is equal to block_size, ¯a represents the estimated distribution and ˆa represents the true distribution.”
 - paper/docs (paper, PDF p.6, text lines 31-38): “ˆa← pool  softmax  ˆQK⊤/ √ d ”
 
-**Not tested** (`no_code_location`): no code location (paper-side finding or no code evidence)
+**Not tested** (`no_code_location`): no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)
 
 ## flexprefill-F036
 
@@ -730,7 +731,7 @@
 - condition: `min_budget == 1024`
 - paper/docs (paper, PDF p.7): “requiring each attention head to compute at least 1024 tokens”
 
-**Not tested** (`no_code_location`): no code location (paper-side finding or no code evidence)
+**Not tested** (`no_code_location`): no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)
 
 ## flexprefill-F037
 
@@ -740,7 +741,7 @@
 - code: `flex_prefill/ops/flex_prefill_attention.py:1718-1729`
 - paper/docs (paper, PDF p.4): “¯a represents the estimated distribution and ˆa represents the true distribution”
 
-**Not tested** (`no_code_location`): no code location (paper-side finding or no code evidence)
+**Not tested** (`no_code_location`): no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)
 
 ## flexprefill-F038
 
@@ -750,7 +751,7 @@
 - code: `flex_prefill/ops/flex_prefill_attention.py:1718-1729`
 - paper/docs (paper, PDF p.4): “3. Distribution Comparison: We quantify the discrepancy between these distributions using the square root of the Jensen-Shannon divergence”
 
-**Not tested** (`no_code_location`): no code location (paper-side finding or no code evidence)
+**Not tested** (`no_code_location`): no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)
 
 ## flexprefill-F039
 
@@ -763,7 +764,7 @@
 - paper/docs (docstring, flex_prefill/modules/patch.py:506 (patch_model)): “- 'default': Default attention mechanism with no additional configuration.”
 - code snippet (`flex_prefill/modules/patch.py:114`): `if pattern == 'default':`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
@@ -787,7 +788,7 @@
 - condition: `not ('h100' in gpu_name) and not ('a100' in gpu_name) and not ('4090' in gpu_name)`
 - code snippet (`flex_prefill/ops/flex_prefill_attention.py:88`): `if head_large and block_large:`
 
-**Not tested** (`outcome_unsupported`): outcome 'suspicious' has no effect check yet
+**Not tested** (`outcome_unsupported`): effect type 'other': the branch has no raise in its body: the program rejects later, in code the target does not point to
 
 ## flexprefill-F004
 
@@ -889,7 +890,7 @@
 - step 4 review: `wrong`: blind review by an LLM subagent (round 1), not human: flex_prefill_attention already asserts head_dim in {16,32,64,128}, so the head_dim>128 branch with its {32,64} restriction is unreachable through the mechanism.
 - code snippet (`flex_prefill/ops/flex_prefill_attention.py:1221`): `if head_dim <= 128:`
 
-**Not tested** (`outcome_unsupported`): outcome 'suspicious' has no effect check yet
+**Not tested** (`outcome_unsupported`): effect type 'other': the branch has no raise in its body: the program rejects later, in code the target does not point to
 
 ## flexprefill-F048
 
@@ -911,7 +912,7 @@
 - condition: `not (int(triton.__version__.split('.')[0]) >= 3)`
 - code snippet (`flex_prefill/ops/flex_prefill_attention.py:1270`): `warnings.warn('triton version greater than 3.0.0 is required for faster attention')`
 
-**Not tested** (`outcome_unsupported`): outcome 'suspicious' has no effect check yet
+**Not tested** (`outcome_unsupported`): effect type 'other': the effect is a warning or log line; the harness has no oracle for emitted messages yet
 
 ## flexprefill-F010
 
@@ -944,7 +945,7 @@
 - condition: `block_size != 128`
 - code snippet (`flex_prefill/ops/flex_prefill_attention.py:1708`): `num_vertical_blocks = score_cover_topk(vertical, gamma) // 128 + 1`
 
-**Not tested** (`outcome_unsupported`): outcome 'suspicious' has no effect check yet
+**Not tested** (`outcome_unsupported`): effect type 'other': the target assigns a value; the claimed effect is what that value changes later, which needs a differential check of outputs (the assignment itself would differ trivially)
 
 ## flexprefill-F025
 
@@ -955,7 +956,7 @@
 - condition: `kl_div < tau`
 - code snippet (`flex_prefill/ops/flex_prefill_attention.py:1727`): `block_sparse_mask = kl_div < tau`
 
-**Not tested** (`outcome_unsupported`): outcome 'suspicious' has no effect check yet
+**Not tested** (`outcome_unsupported`): effect type 'other': the target assigns a value; the claimed effect is what that value changes later, which needs a differential check of outputs (the assignment itself would differ trivially)
 
 ## flexprefill-F051
 
@@ -966,7 +967,7 @@
 - condition: `not (is_flash_attn_2_available())`
 - code snippet (`flex_prefill/ops/flex_prefill_attention.py:1787`): `flash_attn_func = triton_flash_attention`
 
-**Not tested** (`outcome_unsupported`): outcome 'suspicious' has no effect check yet
+**Not tested** (`outcome_unsupported`): effect type 'other': the target assigns a value; the claimed effect is what that value changes later, which needs a differential check of outputs (the assignment itself would differ trivially)
 
 ## flexprefill-F052
 
@@ -978,7 +979,7 @@
 - paper/docs (readme, README.md / FlexPrefill Sparse Attention Function): “Note: The current version only supports inference with a batch size of 1 and has only been tested with bfloat16 precision.”
 - code snippet (`flex_prefill/ops/flex_prefill_attention.py:1824`): `assert batch_size == 1`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
 **Level L3, uncalibrated.** established: every defeater was measured and ruled out.
@@ -999,7 +1000,7 @@
 - paper/docs (docstring, flex_prefill/ops/flex_prefill_attention.py:1804 (flex_prefill_attention)): “If query length is 1, will use flash decoding attention.”
 - code snippet (`flex_prefill/ops/flex_prefill_attention.py:1825`): `if q_len == 1:`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
@@ -1022,7 +1023,7 @@
 - paper/docs (docstring, flex_prefill/ops/flex_prefill_attention.py:850 (triton_block_wise_decode_attention)): “block_size (int): Block size, only support 16, 32, 64 and 128.”
 - code snippet (`flex_prefill/ops/flex_prefill_attention.py:1838`): `assert block_size in {16, 32, 64, 128}`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
 **Level L3, uncalibrated.** established: every defeater was measured and ruled out.
@@ -1044,7 +1045,7 @@
 - paper/docs (docstring, flex_prefill/ops/flex_prefill_attention.py:850 (triton_block_wise_decode_attention)): “block_size (int): Block size, only support 16, 32, 64 and 128.”
 - code snippet (`flex_prefill/ops/vertical_slash_attention.py:553`): `assert block_size in {16, 32, 64, 128}`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
 **Level L2, uncalibrated.** supported: fatal checks, mutation, repeat runs and clean-checkout replay passed; some checks are residual.
@@ -1066,7 +1067,7 @@
 - code: `experiments/scripts/flex_prefill/ruler.sh:16-45`
 - paper/docs (paper, PDF p.7): “Our experiments are conducted in a computing environment equipped with a single NVIDIA A100 GPU with 80GB of memory.”
 
-**Not tested** (`no_code_location`): no code location (paper-side finding or no code evidence)
+**Not tested** (`no_code_location`): no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)
 
 ## flexprefill-F057
 
@@ -1077,7 +1078,7 @@
 - paper/docs (paper, PDF p.19): “= (1−aS) LX j=1 |vj|”
 - paper/docs (paper, PDF p.19): “LetaS =P j∈Saj. Then, ak≤ aS fork∈ S, and ak≤ 1−aS fork̸∈ S.”
 
-**Not tested** (`no_code_location`): no code location (paper-side finding or no code evidence)
+**Not tested** (`no_code_location`): no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)
 
 ## flexprefill-F058
 
@@ -1087,7 +1088,7 @@
 - code: `experiments/scripts/flex_prefill/ruler.sh:21-29`
 - paper/docs (paper, PDF p.20): “Step 2: Relax Binary Variables Relaxing to continuous variables:”
 
-**Not tested** (`no_code_location`): no code location (paper-side finding or no code evidence)
+**Not tested** (`no_code_location`): no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)
 
 ## flexprefill-F059
 
@@ -1097,7 +1098,7 @@
 - code: `experiments/scripts/flex_prefill/ruler.sh:21-29`
 - paper/docs (paper, PDF p.20): “Step 3: Lagrangian Formulation Let’s form the Lagrangian for the primal problem:”
 
-**Not tested** (`no_code_location`): no code location (paper-side finding or no code evidence)
+**Not tested** (`no_code_location`): no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)
 
 ## flexprefill-F060
 
@@ -1107,7 +1108,7 @@
 - code: `experiments/scripts/flex_prefill/ruler.sh:21-29`
 - paper/docs (paper, PDF p.20): “Step 4: KKT Conditions The KKT conditions give:”
 
-**Not tested** (`no_code_location`): no code location (paper-side finding or no code evidence)
+**Not tested** (`no_code_location`): no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)
 
 ## flexprefill-F061
 
@@ -1117,7 +1118,7 @@
 - code: `experiments/scripts/flex_prefill/ruler.sh:21-29`
 - paper/docs (paper, PDF p.19, text lines 51-61): “= X j̸∈S ajvj− 1P j∈Saj − 1 !X j′∈S aj′vj′”
 
-**Not tested** (`no_code_location`): no code location (paper-side finding or no code evidence)
+**Not tested** (`no_code_location`): no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)
 
 ## flexprefill-F062
 
@@ -1127,7 +1128,7 @@
 - code: `experiments/scripts/flex_prefill/ruler.sh:21-29`
 - paper/docs (paper, PDF p.19): “min S |A(Q, K, V )− A(Q, K, V, S)| subject to |S|≤ γS S⊆{ (i,j )| 1≤j≤i, i,j∈ Z} (4)”
 
-**Not tested** (`no_code_location`): no code location (paper-side finding or no code evidence)
+**Not tested** (`no_code_location`): no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)
 
 ## flexprefill-F063
 
@@ -1137,7 +1138,7 @@
 - code: `experiments/scripts/flex_prefill/ruler.sh:21-29`
 - paper/docs (paper, PDF p.20): “Step 1: Binary Variables Ifzj = 1 ifj∈S andzj = 0 otherwise, the primal objective is: max zj∈{0,1} LX j=1 zj exp(xj)PL j′=1 exp(xj′) , subject to LX j=1 zj≤γS”
 
-**Not tested** (`no_code_location`): no code location (paper-side finding or no code evidence)
+**Not tested** (`no_code_location`): no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)
 
 ## flexprefill-F064
 
@@ -1147,7 +1148,7 @@
 - code: `experiments/scripts/flex_prefill/ruler.sh:21-29`
 - paper/docs (paper, PDF p.20): “1. Stationarity: ∂L ∂zj =− exp(xj)PL j′=1 exp(xj′) +λ−µj +νj = 0”
 
-**Not tested** (`no_code_location`): no code location (paper-side finding or no code evidence)
+**Not tested** (`no_code_location`): no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)
 
 ## flexprefill-F065
 
@@ -1157,5 +1158,5 @@
 - code: `experiments/scripts/flex_prefill/ruler.sh:21-29`
 - paper/docs (paper, PDF p.20): “2. Complementary slackness: λ( LX j=1 zj−γS) = 0 µjzj = 0 νj(zj− 1) = 0”
 
-**Not tested** (`no_code_location`): no code location (paper-side finding or no code evidence)
+**Not tested** (`no_code_location`): no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)
 

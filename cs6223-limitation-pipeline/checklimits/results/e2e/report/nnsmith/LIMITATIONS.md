@@ -2,7 +2,7 @@
 
 - artifact: `nnsmith` (ASPLOS 2023), repository https://github.com/ise-uiuc/nnsmith at `a8307f2b80`
 - input: `results/step4/nnsmith/limitations_for_tests.json` (sha256 `3ec725e87dbd`), 38 Findings
-- generated: 2026-11-16T19:35:06+08:00 by `checklimits test` (contract `checklimits-test-report/1`)
+- generated: 2026-11-17T02:10:46+08:00 by `checklimits test` (contract `checklimits-test-report/1`)
 - environment: **ok**
 
 ## How to read this
@@ -20,13 +20,13 @@
 | Findings | 38 |
 | tested | 22 |
 | not tested | 16 |
-| verdicts | inconclusive 2, yes 20 |
-| levels | L1 19, L3 1, invalid 2 |
+| verdicts | inconclusive 1, yes 21 |
+| levels | L1 20, L2 1, invalid 1 |
 | not tested, by reason | `no_code_location` 3, `outcome_unsupported` 13 |
 
 | Finding | category | effect | location | result |
 |---|---|---|---|---|
-| [nnsmith-F001](#nnsmith-f001) | undisclosed | reject | `nnsmith/abstract/op.py:1563` | **inconclusive** / invalid (uncalibrated) |
+| [nnsmith-F001](#nnsmith-f001) | undisclosed | reject | `nnsmith/abstract/op.py:1563` | **yes** / L1 (uncalibrated) |
 | [nnsmith-F003](#nnsmith-f003) | undisclosed | reject | `nnsmith/cli/fuzz.py:180` | **inconclusive** / invalid (uncalibrated) |
 | [nnsmith-F004](#nnsmith-f004) | contradicts_docs | reject | `nnsmith/graph_gen.py:260` | **yes** / L1 (uncalibrated) |
 | [nnsmith-F009](#nnsmith-f009) | undisclosed | path_change | `nnsmith/abstract/arith.py:74` | **yes** / L1 (uncalibrated) |
@@ -55,7 +55,7 @@
 | [nnsmith-F032](#nnsmith-f032) | undisclosed | other | `nnsmith/graph_gen.py:834` | not tested: `outcome_unsupported` |
 | [nnsmith-F033](#nnsmith-f033) | undisclosed | other | `nnsmith/graph_gen.py:984` | not tested: `outcome_unsupported` |
 | [nnsmith-F034](#nnsmith-f034) | undisclosed | path_change | `nnsmith/graph_gen.py:1016` | **yes** / L1 (uncalibrated) |
-| [nnsmith-F035](#nnsmith-f035) | undisclosed | path_change | `nnsmith/graph_gen.py:1044` | **yes** / L3 (uncalibrated) |
+| [nnsmith-F035](#nnsmith-f035) | undisclosed | path_change | `nnsmith/graph_gen.py:1044` | **yes** / L2 (uncalibrated) |
 | [nnsmith-F036](#nnsmith-f036) | paper_stated | path_change | `nnsmith/graph_gen.py:1052` | **yes** / L1 (uncalibrated) |
 | [nnsmith-F037](#nnsmith-f037) | undisclosed | path_change | `nnsmith/graph_gen.py:1054` | **yes** / L1 (uncalibrated) |
 | [nnsmith-F023](#nnsmith-f023) | undisclosed | other | `nnsmith/materialize/torch/input_gen.py:98` | not tested: `outcome_unsupported` |
@@ -75,18 +75,17 @@
 - step 4 review: `real_but_minor`: blind review by an LLM subagent (round 2), not human: Rejecting an invalid value of an internal env knob is config validation, not a limit of what the mechanism supports.
 - code snippet (`nnsmith/abstract/op.py:1563`): `raise ValueError(f'NNSMITH_GRES={gres_config} is not recognized')`
 
-**Verdict `inconclusive`**: no verdict: the test was invalid or could not separate the cases.
+**Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
-**Level invalid, uncalibrated.** a fatal defeater was refuted (for example the target line was not reached): no verdict is drawn. refuted fatal defeaters: D2
+**Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: ValueError at nnsmith/abstract/op.py:1563
 - contrast run: no exception at nnsmith/abstract/op.py:1563
 - open doubts:
-  - D2 condition holds on positive, fails on negative: *refuted*. condition does not hold on the positive or does not fail on the negative
   - D3 oracle can see the effect: *residual*. only 1 mutants (< n_min=4); killed 1
   - D13 inputs inside the paper's scope: *residual*. scope_status=unknown
-- what would raise the level: D2 (refuted): pick inputs so the Region condition is true on the positive and false on the negative; write a predicate if it cannot be evaluated; D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location
+- what would raise the level: D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location
 - evidence: `tests/nnsmith/nnsmith-F001/execution_report.json`
 
 ## nnsmith-F003
@@ -126,7 +125,7 @@
 - paper/docs (paper, 3.2 Model Generation, p.6): “17 while ¬𝑀.solver.try_add_constraints(𝐶𝑏) do 18 𝐶𝑏←randomly select |𝐶𝑏| 2 constraints in 𝐶𝑏”
 - code snippet (`nnsmith/graph_gen.py:260`): `assert self.check_sat() == z3.sat`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
@@ -149,7 +148,7 @@
 - step 4 review: `real_but_minor`: blind review by an LLM subagent (round 1), not human: Internal carry-bit extension in the z3 helper.
 - code snippet (`nnsmith/abstract/arith.py:74`): `if carry and max(left_size, right_size) < ARITH_MAX_WIDTH:`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
@@ -175,7 +174,7 @@
 - step 4 review: `real_but_minor`: blind review by an LLM subagent (round 1), not human: Internal bit-width cap in the z3 multiplication helper.
 - code snippet (`nnsmith/abstract/arith.py:79`): `if max_val >= ARITH_MAX_WIDTH:`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
@@ -185,7 +184,8 @@
 - open doubts:
   - D3 oracle can see the effect: *residual*. only 2 mutants (< n_min=4); killed 2
   - D13 inputs inside the paper's scope: *residual*. scope_status=unknown
-- what would raise the level: D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location
+  - D14 official entry point was called: *refuted*. the official entry started first but the target line did not run inside it and no reason is recorded
+- what would raise the level: D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location; D14 (refuted): call the official entry, or record why a deeper function is called (execution.entry_reason)
 - evidence: `tests/nnsmith/nnsmith-F010/execution_report.json`
 
 ## nnsmith-F011
@@ -197,7 +197,7 @@
 - condition: `FLOPS_LIM == "off"`
 - code snippet (`nnsmith/abstract/op.py:25`): `if FLOPS_LIM == 'off':`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
@@ -221,7 +221,7 @@
 - step 4 review: `worth_testing`: blind review by an LLM subagent (round 1), not human: NNSMITH_Z3_CONS_FLOPS=off removes the FLOPS bound from the solver constraints (and other values fail an assert at import), an env-driven switch in how FLOPS are limited.
 - code snippet (`nnsmith/abstract/op.py:910`): `if Z3_CONS_FLOPS:`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
@@ -245,7 +245,7 @@
 - step 4 review: `worth_testing`: blind review by an LLM subagent (round 1), not human: The NNSMITH_CONS_RESHAPE env var adds per-dimension upper bounds to Reshape target shapes, changing which shapes the generator can produce.
 - code snippet (`nnsmith/abstract/op.py:1587`): `if os.getenv('NNSMITH_CONS_RESHAPE', 'off') != 'off':`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
@@ -268,7 +268,7 @@
 - condition: `not self.crash_safe and self.test_timeout is not None`
 - code snippet (`nnsmith/cli/fuzz.py:60`): `if not self.crash_safe and self.test_timeout is not None:`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
@@ -291,7 +291,7 @@
 - condition: `cfg["backend"]["type"] is not None`
 - code snippet (`nnsmith/cli/model_gen.py:31`): `if cfg['backend']['type'] is not None:`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
@@ -315,7 +315,7 @@
 - step 4 review: `worth_testing`: blind review by an LLM subagent (round 1), not human: The NNSMITH_LIMNF_V env var switches between one total float-count limit and per-node limits on tensor size.
 - code snippet (`nnsmith/graph_gen.py:256`): `if NNSMITH_LIMNF_V == '0':`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
@@ -338,7 +338,7 @@
 - condition: `NNSMITH_LIMNF_V == "1"`
 - code snippet (`nnsmith/graph_gen.py:258`): `if NNSMITH_LIMNF_V == '1':`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
@@ -364,7 +364,7 @@
 - paper/docs (paper, 3.2 Model Generation, p.4): “extending it by either (a) adding a new node whose input edges are connected to the output of an existing node (we refer to this as a forward insertion) or (b) replacing an existing placeholder node with an operator node whose input edges are connected to one or more placeholder nodes (we refer to …”
 - code snippet (`nnsmith/graph_gen.py:556`): `if random.uniform(0, 1) < self.forward_prob:`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
@@ -386,7 +386,7 @@
 - condition: `idx in disable`
 - code snippet (`nnsmith/graph_gen.py:944`): `if idx in disable:`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
@@ -411,7 +411,7 @@
 - paper/docs (code_comment, nnsmith/materialize/torch/__init__.py:46): “fall back to random inputs if no solution is found.”
 - code snippet (`nnsmith/materialize/torch/__init__.py:47`): `if self.sat_inputs is None:`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
@@ -421,7 +421,8 @@
 - open doubts:
   - D3 oracle can see the effect: *residual*. only 1 mutants (< n_min=4); killed 1
   - D13 inputs inside the paper's scope: *residual*. scope_status=unknown
-- what would raise the level: D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location
+  - D14 official entry point was called: *refuted*. the official entry started first but the target line did not run inside it and no reason is recorded
+- what would raise the level: D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location; D14 (refuted): call the official entry, or record why a deeper function is called (execution.entry_reason)
 - evidence: `tests/nnsmith/nnsmith-F021/execution_report.json`
 
 ## nnsmith-F022
@@ -434,7 +435,7 @@
 - paper/docs (code_comment, nnsmith/materialize/torch/input_gen.py:103): “if this model is purely differentiable -> GradSearch otherwise -> SamplingSearch FIXME: Estimate gradient (e.g., proxy gradient) for non-differentiable inputs.”
 - code snippet (`nnsmith/materialize/torch/input_gen.py:93`): `if all([DType.is_float(v.dtype) for _, v in self.net.input_like.items()]):`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
@@ -461,7 +462,7 @@
 - paper/docs (paper, PDF p.7): “⟨𝑋,𝑊⟩← randomly initialized values”
 - code snippet (`nnsmith/materialize/torch/symbolnet.py:188`): `if p.grad is not None and torch.any(p.grad != 0):`
 
-**Not tested** (`outcome_unsupported`): outcome 'suspicious' has no effect check yet
+**Not tested** (`outcome_unsupported`): effect type 'other': the branch has no raise in its body: the program rejects later, in code the target does not point to
 
 ## nnsmith-F024
 
@@ -473,7 +474,7 @@
 - paper/docs (paper, PDF p.7): “raise failed to find viable⟨𝑋,𝑊⟩”
 - code snippet (`nnsmith/materialize/torch/symbolnet.py:234`): `max_time = float(os.getenv('NNSMITH_GRAD_TIME', 0.5))`
 
-**Not tested** (`outcome_unsupported`): outcome 'suspicious' has no effect check yet
+**Not tested** (`outcome_unsupported`): effect type 'other': the target assigns a value; the claimed effect is what that value changes later, which needs a differential check of outputs (the assignment itself would differ trivially)
 
 ## nnsmith-F025
 
@@ -485,7 +486,7 @@
 - step 4 review: `worth_testing`: blind review by an LLM subagent (round 2), not human: Gradient-guided value search optimizes only floating-point inputs; integer inputs are never searched.
 - code snippet (`nnsmith/materialize/torch/symbolnet.py:238`): `if tensor.data.dtype.is_floating_point:`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
@@ -507,7 +508,7 @@
 - condition: `self.extra_attrs["type"] in ("ConstPad", "ReplicatePad", "ReflectPad")`
 - paper/docs (paper, PDF p.8): “for the “padding” attribute in ConstPad, ReplicatePad, and ReflectPad, we add both the 0-bin and negative bins”
 
-**Not tested** (`no_code_location`): no code location (paper-side finding or no code evidence)
+**Not tested** (`no_code_location`): no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)
 
 ## nnsmith-F029
 
@@ -517,7 +518,7 @@
 - code: `nnsmith/abstract/op.py:1332-1360`
 - paper/docs (paper, PDF p.8): “we add one extra bin that contains only one integer “0” for the “padding” attribute in Conv2d”
 
-**Not tested** (`no_code_location`): no code location (paper-side finding or no code evidence)
+**Not tested** (`no_code_location`): no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)
 
 ## nnsmith-F030
 
@@ -528,7 +529,7 @@
 - condition: `len(cur_cons) > 0 and self.check_sat(*cur_cons) != z3.sat`
 - paper/docs (paper, PDF p.6, text lines 48-49): “18 𝐶𝑏← randomly select |𝐶𝑏| 2 constraints in𝐶𝑏”
 
-**Not tested** (`no_code_location`): no code location (paper-side finding or no code evidence)
+**Not tested** (`no_code_location`): no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)
 
 ## nnsmith-F013
 
@@ -539,7 +540,7 @@
 - condition: `gres_config != "4"`
 - code snippet (`nnsmith/abstract/op.py:1552`): `gres_config = os.getenv('NNSMITH_GRES', '4')`
 
-**Not tested** (`outcome_unsupported`): outcome 'suspicious' has no effect check yet
+**Not tested** (`outcome_unsupported`): effect type 'other': the target assigns a value; the claimed effect is what that value changes later, which needs a differential check of outputs (the assignment itself would differ trivially)
 
 ## nnsmith-F002
 
@@ -550,7 +551,7 @@
 - condition: `not check_sat()`
 - code snippet (`nnsmith/abstract/op.py:2083`): `while not check_sat():`
 
-**Not tested** (`outcome_unsupported`): outcome 'suspicious' has no effect check yet
+**Not tested** (`outcome_unsupported`): effect type 'other': the branch has no raise in its body: the program rejects later, in code the target does not point to
 
 ## nnsmith-F031
 
@@ -562,7 +563,7 @@
 - step 4 review: `wrong`: blind review by an LLM subagent (round 1), not human: NNSMITH_BITS is only read when use_bitvec is True, which is hard-coded False, so this code is dead.
 - code snippet (`nnsmith/graph_gen.py:190`): `map(len, random_group(int(os.getenv("NNSMITH_BITS", 30)), len(names)))`
 
-**Not tested** (`outcome_unsupported`): outcome 'suspicious' has no effect check yet
+**Not tested** (`outcome_unsupported`): effect type 'other': the target is a call whose effect is not an exception at that line (for example a check that returns False)
 
 ## nnsmith-F005
 
@@ -574,7 +575,7 @@
 - step 4 review: `real_but_minor`: blind review by an LLM subagent (round 2), not human: Skipping placeholders whose rank is too low for Expand is an operator-specific shape-validity invariant, not a user-facing limitation.
 - code snippet (`nnsmith/graph_gen.py:524`): `if isinstance(op, Expand) and oshape.ndims < op.expand_last_dim:`
 
-**Not tested** (`outcome_unsupported`): outcome 'suspicious' has no effect check yet
+**Not tested** (`outcome_unsupported`): effect type 'other': the branch has no raise in its body: the program rejects later, in code the target does not point to
 
 ## nnsmith-F032
 
@@ -586,7 +587,7 @@
 - step 4 review: `wrong`: blind review by an LLM subagent (round 1), not human: range_constrain is only called from GuidedGen, which is never instantiated, so the NNSMITH_LB switch has no effect in practice.
 - code snippet (`nnsmith/graph_gen.py:834`): `if ub is not None and os.getenv('NNSMITH_LB', 'off') == 'off':`
 
-**Not tested** (`outcome_unsupported`): outcome 'suspicious' has no effect check yet
+**Not tested** (`outcome_unsupported`): effect type 'other': the branch has no raise in its body: the program rejects later, in code the target does not point to
 
 ## nnsmith-F033
 
@@ -598,7 +599,7 @@
 - step 4 review: `wrong`: blind review by an LLM subagent (round 3), not human: GuidedGen is never instantiated, so the NNSMITH_G_CONFIG selection is dead code.
 - code snippet (`nnsmith/graph_gen.py:984`): `}[os.getenv("NNSMITH_G_CONFIG", "1")]`
 
-**Not tested** (`outcome_unsupported`): outcome 'suspicious' has no effect check yet
+**Not tested** (`outcome_unsupported`): effect type 'other': the target statement has no effect check yet
 
 ## nnsmith-F034
 
@@ -610,7 +611,7 @@
 - step 4 review: `wrong`: blind review by an LLM subagent (round 3), not human: GuidedGen is never instantiated anywhere in the repo, so this branch is dead.
 - code snippet (`nnsmith/graph_gen.py:1016`): `if config is None:`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
@@ -634,15 +635,17 @@
 - step 4 review: `wrong`: blind review by an LLM subagent (round 1), not human: GuidedGen.post_process is never reached because GuidedGen is never instantiated.
 - code snippet (`nnsmith/graph_gen.py:1044`): `if len(cons) == 0 or random.uniform(0, 1) > self.constrain_prob:`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
-**Level L3, uncalibrated.** established: every defeater was measured and ruled out.
+**Level L2, uncalibrated.** supported: fatal checks, mutation, repeat runs and clean-checkout replay passed; some checks are residual.
 
 - trigger run: branch taken at nnsmith/graph_gen.py:1044
 - contrast run: branch not taken at nnsmith/graph_gen.py:1044
 - open doubts:
   - D13 inputs inside the paper's scope: *residual*. scope_status=unknown
+  - D14 official entry point was called: *residual*. the official entry started first but the target line did not run inside it; reason recorded: The official entry random_model_gen is called. It hardcodes PureSymbolGen, which inherits the no-op SimpleGenerator.post_proce…
+- what would raise the level: D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)
 - evidence: `tests/nnsmith/nnsmith-F035/execution_report.json`
 
 ## nnsmith-F036
@@ -657,7 +660,7 @@
 - paper/docs (paper, 3.2 Model Generation, p.6): “17 while ¬𝑀.solver.try_add_constraints(𝐶𝑏) do 18 𝐶𝑏←randomly select |𝐶𝑏| 2 constraints in 𝐶𝑏”
 - code snippet (`nnsmith/graph_gen.py:1052`): `while self.check_sat(*cur_cons) != z3.sat:`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
@@ -681,7 +684,7 @@
 - step 4 review: `wrong`: blind review by an LLM subagent (round 3), not human: GuidedGen.post_process is never reached because GuidedGen is never instantiated.
 - code snippet (`nnsmith/graph_gen.py:1054`): `if len(cur_cons) == 0:`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
@@ -704,7 +707,7 @@
 - condition: `self.differentiable is False`
 - code snippet (`nnsmith/materialize/torch/input_gen.py:98`): `self.differentiable = self.net.differentiable`
 
-**Not tested** (`outcome_unsupported`): outcome 'suspicious' has no effect check yet
+**Not tested** (`outcome_unsupported`): effect type 'other': the target assigns a value; the claimed effect is what that value changes later, which needs a differential check of outputs (the assignment itself would differ trivially)
 
 ## nnsmith-F026
 
@@ -715,7 +718,7 @@
 - condition: `output_tensors[i].grad_fn is None`
 - code snippet (`nnsmith/materialize/torch/symbolnet.py:358`): `self.differentiable &= output_tensors[i].grad_fn is not None`
 
-**Not tested** (`outcome_unsupported`): outcome 'suspicious' has no effect check yet
+**Not tested** (`outcome_unsupported`): effect type 'other': the target assigns a value; the claimed effect is what that value changes later, which needs a differential check of outputs (the assignment itself would differ trivially)
 
 ## nnsmith-F038
 
@@ -727,7 +730,7 @@
 - step 4 review: `wrong`: blind review by an LLM subagent (round 1), not human: The real condition is check_intermediate_numeric or (use_gradient and not stop_updating_loss), and invalid_found_last is reset to False at the start of every forward, so the claimed dependence on earlier state does not exist.
 - code snippet (`nnsmith/materialize/torch/symbolnet.py:382`): `if self.check_intermediate_numeric or (self.use_gradient and (not self.stop_updating_loss)):`
 
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+**Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
@@ -751,7 +754,7 @@
 - step 4 review: `worth_testing`: blind review by an LLM subagent (round 1), not human: When gradient search is running and an op with no registered loss function produces NaN/Inf, a ConstraintError ends the gradient search, so such ops cannot be repaired.
 - code snippet (`nnsmith/materialize/torch/symbolnet.py:385`): `if loss_fn.dispatch(type(op)) is not None:`
 
-**Not tested** (`outcome_unsupported`): outcome 'suspicious' has no effect check yet
+**Not tested** (`outcome_unsupported`): effect type 'other': the branch has no raise in its body: the program rejects later, in code the target does not point to
 
 ## nnsmith-F027
 
@@ -762,7 +765,7 @@
 - condition: `vul_op_loss is None`
 - code snippet (`nnsmith/materialize/torch/symbolnet.py:403`): `ConstraintCheck.true(vul_op_loss is not None, f'op={op} has no `torch_loss` but produces NaN or INF!')`
 
-**Not tested** (`outcome_unsupported`): outcome 'suspicious' has no effect check yet
+**Not tested** (`outcome_unsupported`): effect type 'other': the target is a call whose effect is not an exception at that line (for example a check that returns False)
 
 ## nnsmith-F008
 
@@ -773,5 +776,5 @@
 - condition: `self.loss is not None`
 - code snippet (`nnsmith/materialize/torch/symbolnet.py:421`): `ConstraintCheck.true(self.loss is None, 'Multiple loss detected!')`
 
-**Not tested** (`outcome_unsupported`): outcome 'suspicious' has no effect check yet
+**Not tested** (`outcome_unsupported`): effect type 'other': the target is a call whose effect is not an exception at that line (for example a check that returns False)
 
