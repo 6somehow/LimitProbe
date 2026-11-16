@@ -1,0 +1,187 @@
+{
+  "method": "Reviewed source-backed migration fixtures, not automatically discovered parameter mappings or executed target tests",
+  "mappings": [
+    {
+      "artifact": "flexprefill",
+      "paper_term": "sparse_pattern_threshold_tau",
+      "binding_id": "flexprefill-binding-001",
+      "scope_id": "flexprefill-scope-001",
+      "function": "flex_prefill_attention",
+      "path": "flex_prefill/ops/flex_prefill_attention.py",
+      "parameter": "tau",
+      "type": "real",
+      "unit": "dimensionless",
+      "paper_spans": [
+        {
+          "page": 6,
+          "start_line": 4,
+          "end_line": 5
+        }
+      ],
+      "role": "Sparse-pattern decision threshold; same scalar passed from the public attention entry to get_active_blocks.",
+      "source_checks": [
+        {
+          "function": "get_active_blocks",
+          "expression": "block_sparse_mask = kl_div < tau"
+        },
+        {
+          "function": "flex_prefill_attention",
+          "expression": "block_idx = get_active_blocks(q, k, v, block_size, gamma, math.ceil(min_budget / block_size), math.ceil(max_budget / block_size), tau, gqa_interleave)"
+        }
+      ],
+      "scope_qualifier": "flex_prefill_attention and its get_active_blocks call; not a proof that the code and paper use an identical divergence formula",
+      "cases": [
+        {
+          "expr": "tau > 0.1",
+          "expected_scope": "in_scope",
+          "expected_witness": "solved"
+        },
+        {
+          "expr": "tau == 2",
+          "expected_scope": "out_of_scope",
+          "expected_witness": "infeasible"
+        },
+        {
+          "expr": "tau == 0.1",
+          "expected_scope": "in_scope",
+          "expected_witness": "solved",
+          "known_upstream_failure": "Main witness encodes Fraction(float), so decimal equality can conflict with its 1/1000 integer grid. ScopeChecker accepts 0.1; do not classify the parameter mapping as absent."
+        }
+      ]
+    },
+    {
+      "artifact": "nnsmith",
+      "paper_term": "pool2d_kernel_width",
+      "binding_id": "nnsmith-parameter-pool2d-width",
+      "scope_id": "nnsmith-scope-pool2d-width",
+      "function": "Pool2d.__init__",
+      "path": "nnsmith/abstract/op.py",
+      "parameter": "kernel_w_size",
+      "type": "integer",
+      "unit": "elements",
+      "paper_spans": [
+        {
+          "page": 4,
+          "start_line": 8,
+          "end_line": 14
+        },
+        {
+          "page": 4,
+          "start_line": 58,
+          "end_line": 66
+        },
+        {
+          "page": 4,
+          "start_line": 79,
+          "end_line": 83
+        }
+      ],
+      "role": "Pool2d kernel width; paper kw is stored as self.kernel_w_size; requires() emits its positivity constraint.",
+      "scope": {
+        "kind": "interval",
+        "lower": 1,
+        "upper": null,
+        "explicit": true
+      },
+      "source_checks": [
+        {
+          "function": "Pool2d.__init__",
+          "expression": "self.kernel_w_size = kernel_w_size"
+        },
+        {
+          "function": "Pool2d.requires",
+          "expression": "cons.append(nnsmith_ge(self.kernel_w_size, 1))"
+        }
+      ],
+      "scope_qualifier": "Pool2d operator specification only; includes MaxPool2d/AvgPool2d inheritance, not a universal graph input bound. Positivity is necessary, not sufficient; shape/stride/padding constraints still apply.",
+      "cases": [
+        {
+          "expr": "kernel_w_size == 2",
+          "expected_scope": "in_scope",
+          "expected_witness": "solved",
+          "path_prefix": [
+            "kernel_w_size in {0, 1, 2, 3}"
+          ]
+        },
+        {
+          "expr": "kernel_w_size == 0",
+          "expected_scope": "out_of_scope",
+          "expected_witness": "infeasible",
+          "path_prefix": [
+            "kernel_w_size in {0, 1, 2, 3}"
+          ]
+        },
+        {
+          "expr": "kernel_w_size == 2",
+          "expected_scope": "in_scope",
+          "expected_witness": "solved",
+          "known_upstream_failure": "Shared schema interval bounds serialize to floats. Main witness infers real for this integer parameter and returns fractional contrast (e.g.1.999). Declared code_type must be preserved; do not execute this contrast."
+        }
+      ]
+    },
+    {
+      "artifact": "nnsmith",
+      "paper_term": "pool2d_kernel_height",
+      "binding_id": "nnsmith-parameter-pool2d-height",
+      "scope_id": "nnsmith-scope-pool2d-height",
+      "function": "Pool2d.__init__",
+      "path": "nnsmith/abstract/op.py",
+      "parameter": "kernel_h_size",
+      "type": "integer",
+      "unit": "elements",
+      "paper_spans": [
+        {
+          "page": 4,
+          "start_line": 8,
+          "end_line": 14
+        },
+        {
+          "page": 4,
+          "start_line": 58,
+          "end_line": 66
+        },
+        {
+          "page": 4,
+          "start_line": 79,
+          "end_line": 83
+        }
+      ],
+      "role": "Pool2d kernel height; paper kh is stored as self.kernel_h_size; requires() emits its positivity constraint.",
+      "scope": {
+        "kind": "interval",
+        "lower": 1,
+        "upper": null,
+        "explicit": true
+      },
+      "source_checks": [
+        {
+          "function": "Pool2d.__init__",
+          "expression": "self.kernel_h_size = kernel_h_size"
+        },
+        {
+          "function": "Pool2d.requires",
+          "expression": "cons.append(nnsmith_ge(self.kernel_h_size, 1))"
+        }
+      ],
+      "scope_qualifier": "Pool2d operator specification only; includes MaxPool2d/AvgPool2d inheritance, not a universal graph input bound. Positivity is necessary, not sufficient; shape/stride/padding constraints still apply.",
+      "cases": [
+        {
+          "expr": "kernel_h_size == 2",
+          "expected_scope": "in_scope",
+          "expected_witness": "solved",
+          "path_prefix": [
+            "kernel_h_size in {0, 1, 2, 3}"
+          ]
+        },
+        {
+          "expr": "kernel_h_size == 0",
+          "expected_scope": "out_of_scope",
+          "expected_witness": "infeasible",
+          "path_prefix": [
+            "kernel_h_size in {0, 1, 2, 3}"
+          ]
+        }
+      ]
+    }
+  ]
+}

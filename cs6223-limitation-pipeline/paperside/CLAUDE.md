@@ -32,9 +32,24 @@ CS6223 小组项目，输入为论文和对应仓库。Zhaopeng 负责步骤 1 �
 | `tools/pi-mechanism-agent/conformance.mjs` | 判断记录的结构校验 |
 | `scripts/run_complete_corpus.py` | 多论文编排；会调用模型，使用固定运行目录 |
 | `scripts/build_paper_handoff.py`、`scripts/finalize_handoff.py` | 共享接口导出、映射门控与交接打包 |
-| `scripts/validate_delivery.py` | 已入库两篇的离线消费者和快照检查 |
+| `scripts/validate_delivery.py` | 当前及历史交接包的离线消费者和快照检查 |
 | `scripts/validate_corpus.mjs` | 完整本地运行的 ID、源码及用量验收 |
 | `handoffs/paper-side-v1/<paper>/` | 对外的轻量交接结果 |
+
+## 最新接手状态：2026-11-16
+
+当前基于 main `9fce6e01de09cc1940df9ebd190acd7284ddcb96`，开发分支 `zhaopeng/paper-side-schema02`。本次工作树是 `/Users/pp/Desktop/nus/cs6223/paperside-schema02`，另一台机器不可直接使用这些绝对路径。
+
+- FlexPrefill 和 NNSmith 的 v2 包在 `handoffs/paper-side-v2/`，原生记录均为0.2.0；v1包完全保留。分别有1条tau映射、2条Pool2d核大小映射。
+- `parameter_mappings.json` 保存正式参数、存储/使用、原文、类型、单位、所属函数；`consumer_cases.json` 是真实下游接口探针，不是新Finding或目标测试。先看 `docs/parameter-mapping-cases.md`。
+- 8个探针：6通过，2保留为下游失败。使用 `--strict-consumer` 时退出码4，不把完整性成功冒充消费者全部通过。main witness把十进制float转成Fraction，导致 `tau == 0.1` 被误判无解；另外schema区间序列化成float，导致整数核宽的contrast出现1.999。不能把这些返回直接当成可执行测试。
+- 整数正向fixture使用显式有限输入域 `{0,1,2,3}`，这是测试输入约束，不是论文全集或真实调用前缀。完整整数域和函数帧隔离尚未由共享Binding表达。
+- 本次映射是源文/源码辅助审阅的规格，不是新自动抽取模型运行；适配器 `scripts/adapt_schema02.py` 核验PDF hash、仓库commit、正式参数、赋值/使用AST后生成包。
+- `scripts/validate_delivery.py` 默认优先v2，其余选历史v1。历史schema变化用AST比较共享记录定义（不执行旧schema），不是跳过哈希。旧三篇没有被宣称迁移为0.2.0。
+- 下一步先共同确认类型/函数上下文的下游契约，处理两个witness问题，再对真实step4输入联调；不要重跑五篇论文模型。Z3可测性提示、新论文P及人工复核仍待进行。
+- 未改共享schema或codeside。共享consumer变化需团队确认；不能把整数类型问题藏进浮点域，也不能把gamma开区间改成闭区间。
+
+以下为v1交付历史；其中“下一步”描述的是上一轮状态，以本节为当前工作优先级。
 
 ## 下一步
 
