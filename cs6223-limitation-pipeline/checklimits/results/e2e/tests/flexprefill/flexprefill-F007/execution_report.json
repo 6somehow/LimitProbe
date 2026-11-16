@@ -90,7 +90,7 @@
   "coverage": {
    "scope": "call_chain",
    "lines_executed": 12,
-   "lines_total": 65
+   "lines_total": 68
   },
   "stdout_tail": "",
   "wall_s": 0.002
@@ -187,10 +187,10 @@
   "coverage": {
    "scope": "call_chain",
    "lines_executed": 25,
-   "lines_total": 65
+   "lines_total": 68
   },
   "stdout_tail": "",
-  "wall_s": 0.004
+  "wall_s": 0.005
  },
  "extra_negatives": [
   {
@@ -272,7 +272,7 @@
    "observed_text": "no exception at flex_prefill/ops/flex_prefill_attention.py:1245 (later RuntimeError at flex_prefill/ops/flex_prefill_attention.py:1253)",
    "coverage": null,
    "stdout_tail": "",
-   "wall_s": 0.015
+   "wall_s": 0.023
   }
  ],
  "checks": {
@@ -402,15 +402,15 @@
     "flex_prefill/ops/flex_prefill_attention.py"
    ],
    "files_changed": [],
-   "statements_total": 65,
+   "statements_total": 68,
    "statements_changed": 0,
    "target_statement_intact": true,
    "snippet_matches_region": true,
    "git_status_clean": true
   },
   "mocks": [],
-  "entry_index": 1,
-  "call_chain_len": 2,
+  "entry_index": 2,
+  "call_chain_len": 3,
   "probe_effect_free": true,
   "probe_note": "traced and untraced runs show the same observable result"
  },
@@ -617,7 +617,7 @@
     "concept": "Fidelity of the test object",
     "severity": "fatal",
     "status": "eliminated",
-    "evidence": "target statement intact; 0/65 call-chain statements edited",
+    "evidence": "target statement intact; 0/68 call-chain statements edited",
     "measured": {}
    },
    {
@@ -644,7 +644,7 @@
     "concept": "Integration level (T4)",
     "severity": "important",
     "status": "residual",
-    "evidence": "deeper entry (index 1); reason recorded: The asserted value is block_idx, which is not a parameter of the official entry flex_prefill_attention: the entry builds it internally with get_active_blocks, which always returns exactly [batch_size, q.shape[2]] lists (transform_veritcal_slash_idx iterates range(q.shape[2])) and then passes it to the target unchanged. So len(block_idx)==batch_size and len(block_idx[0])==num_q_heads is an internal invariant and the target assertion cannot fire through flex_prefill_attention. Making the head counts non-divisible does not help: get_active_blocks fails earlier, before the target, on the q/k einsum/view shapes. The drivers still call the real target function with a real caller-supplied block_idx list; only the entry depth moves from call_chain[0] to call_chain[1] so the asserted block_idx width can be varied. This is why D14 stays residual and cannot be eliminated without mocking code before the target.",
+    "evidence": "deeper entry (index 2); reason recorded: The asserted value is block_idx, which is not a parameter of the official entry flex_prefill_attention: the entry builds it internally with get_active_blocks, which always returns exactly [batch_size, q.shape[2]] lists (transform_veritcal_slash_idx iterates range(q.shape[2])) and then passes it to the target unchanged. So len(block_idx)==batch_size and len(block_idx[0])==num_q_heads is an internal invariant and the target assertion cannot fire through flex_prefill_attention. Making the head counts non-divisible does not help: get_active_blocks fails earlier, before the target, on the q/k einsum/view shapes. The drivers still call the real target function with a real caller-supplied block_idx list; only the entry depth moves from call_chain[0] to call_chain[1] so the asserted block_idx width can be varied. This is why D14 stays residual and cannot be eliminated without mocking code before the target.",
     "measured": {}
    }
   ],
@@ -672,7 +672,12 @@
  "cost": {
   "llm_calls": 0,
   "tokens": 0,
-  "wall_seconds": 35.2
+  "wall_seconds": 33.2
  },
- "notes": []
+ "notes": [
+  "T3: positive_input['k_len']=2177 differs from the witness trigger value 385",
+  "T3: positive_input['min_budget']=2112 differs from the witness trigger value 320",
+  "T3: positive_input['num_q_heads']=1 differs from the witness trigger value 2",
+  "T3: positive_input['q_len']=2177 differs from the witness trigger value 385"
+ ]
 }

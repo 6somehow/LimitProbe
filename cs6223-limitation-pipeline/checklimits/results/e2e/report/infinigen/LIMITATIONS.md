@@ -1,8 +1,8 @@
 # Limitations report: InfiniGen: Efficient Generative Inference of Large Language Models with Dynamic KV Cache Management
 
 - artifact: `infinigen` (OSDI 2024), repository https://github.com/snu-comparch/InfiniGen at `3754f52d13`
-- input: `results/step4/infinigen/limitations_for_tests.json` (sha256 `913c346f51c3`), 31 Findings
-- generated: 2026-11-15T17:08:13+08:00 by `checklimits test` (contract `checklimits-test-report/1`)
+- input: `results/step4/infinigen/limitations_for_tests.json` (sha256 `51f6ee77be8f`), 31 Findings
+- generated: 2026-11-16T16:10:00+08:00 by `checklimits test` (contract `checklimits-test-report/1`)
 - environment: **not_ok** (repository third_party/InfiniGen is not checked out)
 
 ## How to read this
@@ -75,7 +75,7 @@
 - category `undisclosed`, effect `state`, step 4 level L2, priority 1, scope `unknown`
 - code: `speedup/flexgen/infinigen/flex_opt.py:442` in `speedup/flexgen/infinigen/flex_opt.py::SelfAttention.prefetch_cache`
 - condition: `k_home.device.device_type == DeviceType.MIXED and k_home.data[0][0] is not None`
-- code snippet (`speedup/flexgen/infinigen/flex_opt.py:442`): `if (k_home.device.device_type == DeviceType.MIXED and`
+- code snippet (`speedup/flexgen/infinigen/flex_opt.py:442`): `if k_home.device.device_type == DeviceType.MIXED and k_home.data[0][0] is not None:`
 
 **Not tested** (`env_unavailable`): repository third_party/InfiniGen is not checked out
 
@@ -87,7 +87,7 @@
 - code: `speedup/flexgen/infinigen/flex_opt.py:466` in `speedup/flexgen/infinigen/flex_opt.py::SelfAttention.prefetch_cache`
 - condition: `path == 1 or path == 2`
 - step 4 review: `worth_testing`: blind review by an LLM subagent (round 2), not human: prefetch_cache is called in the generation loop regardless of --cpu-cache-compute, and raises ValueError for CPU-compute paths 1/2, so InfiniGen prefetching cannot be combined with CPU attention compute.
-- code snippet (`speedup/flexgen/infinigen/flex_opt.py:466`): `elif path == 1 or path == 2:`
+- code snippet (`speedup/flexgen/infinigen/flex_opt.py:466`): `if path == 1 or path == 2:`
 
 **Not tested** (`env_unavailable`): repository third_party/InfiniGen is not checked out
 
@@ -111,7 +111,7 @@
 - code: `speedup/flexgen/infinigen/flex_opt.py:1359` in `speedup/flexgen/infinigen/flex_opt.py::run_flexgen`
 - condition: `args.compress_cache and args.attn_sparsity < 1.0`
 - step 4 review: `real_but_minor`: blind review by an LLM subagent (round 2), not human: This is FlexGen's own check against combining cache compression with its top-k sparse attention (attn_sparsity<1); it is not the InfiniGen KV selection path as claimed.
-- code snippet (`speedup/flexgen/infinigen/flex_opt.py:1359`): `assert not (args.compress_cache and args.attn_sparsity < 1.0), "Not implemented"`
+- code snippet (`speedup/flexgen/infinigen/flex_opt.py:1359`): `assert not (args.compress_cache and args.attn_sparsity < 1.0)`
 
 **Not tested** (`env_unavailable`): repository third_party/InfiniGen is not checked out
 
@@ -192,7 +192,7 @@
 - category `undisclosed`, effect `path_change`, step 4 level L2, priority 2, scope `unknown`
 - code: `speedup/flexgen/infinigen/flex_opt.py:541` in `speedup/flexgen/infinigen/flex_opt.py::SelfAttention.forward`
 - condition: `prev_partial_cache_read_buf is not None and self.layer_id > 1`
-- code snippet (`speedup/flexgen/infinigen/flex_opt.py:541`): `if (prev_partial_cache_read_buf is not None) and (self.layer_id > 1):`
+- code snippet (`speedup/flexgen/infinigen/flex_opt.py:541`): `if prev_partial_cache_read_buf is not None and self.layer_id > 1:`
 
 **Not tested** (`env_unavailable`): repository third_party/InfiniGen is not checked out
 
@@ -228,7 +228,7 @@
 - code: `speedup/flexgen/infinigen/pytorch_backend.py:422` in `speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha_gen`
 - condition: `attn_sparsity >= 1.0`
 - step 4 review: `real_but_minor`: blind review by an LLM subagent (round 1), not human: The dense vs attn_sparsity<1 switch selects FlexGen's own top-k sparse attention baseline, not a variant of InfiniGen.
-- code snippet (`speedup/flexgen/infinigen/pytorch_backend.py:422`): `if attn_sparsity >= 1.0: # Dense attention`
+- code snippet (`speedup/flexgen/infinigen/pytorch_backend.py:422`): `if attn_sparsity >= 1.0:`
 
 **Not tested** (`env_unavailable`): repository third_party/InfiniGen is not checked out
 
@@ -306,7 +306,7 @@
 
 - category `impl_deviates`, effect `other`, step 4 level L2, priority 2, scope `unknown`
 - code: `speedup/infinigen/infinigen/kv_selection_controller.py:28-63`
-- condition: `True`
+- condition: `self.policy.attn_sparsity >= 1.0`
 - paper/docs (paper, PDF p.9): “We select only the tokens with an attention score greater than the maximum score subtracted by alpha”
 - paper/docs (paper, PDF p.10): “InfiniGen only prefetches the keys and values of the tokens with an attention score larger than the highest attention score minus alpha”
 
@@ -362,7 +362,7 @@
 - code: `speedup/flexgen/infinigen/flex_opt.py:690` in `speedup/flexgen/infinigen/flex_opt.py::OptLM.__init__`
 - condition: `(i == 0) or (i == (self.config.num_hidden_layers - 1))`
 - step 4 review: `wrong`: blind review by an LLM subagent (round 1), not human: The last layer still has its KV selected by the previous layer's speculation and layer 1 also runs on full KV, so 'boundary layers run plain attention, interior layers get InfiniGen' misstates the effect (the real limitation is item 10).
-- code snippet (`speedup/flexgen/infinigen/flex_opt.py:690`): `if (i == 0) or (i == (self.config.num_hidden_layers - 1)):`
+- code snippet (`speedup/flexgen/infinigen/flex_opt.py:690`): `if i == 0 or i == self.config.num_hidden_layers - 1:`
 
 **Not tested** (`env_unavailable`): repository third_party/InfiniGen is not checked out
 
@@ -374,7 +374,7 @@
 - code: `speedup/flexgen/infinigen/pytorch_backend.py:326` in `speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha`
 - condition: `warmup or partial_weight_ratio is None`
 - step 4 review: `wrong`: blind review by an LLM subagent (round 1), not human: partial_weight_index being None does not make mha_gen get p_w_q=None; p_w_q comes from partial_weight_read_buf (filled by the next layer) whenever enable_prefetching is set, so speculation is not skipped as claimed.
-- code snippet (`speedup/flexgen/infinigen/pytorch_backend.py:326`): `if (not warmup) and (partial_weight_ratio is not None):`
+- code snippet (`speedup/flexgen/infinigen/pytorch_backend.py:326`): `if not warmup and partial_weight_ratio is not None:`
 
 **Not tested** (`env_unavailable`): repository third_party/InfiniGen is not checked out
 

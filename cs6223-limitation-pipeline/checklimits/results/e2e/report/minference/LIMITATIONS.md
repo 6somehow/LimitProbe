@@ -1,8 +1,8 @@
 # Limitations report: MInference 1.0: Accelerating Pre-filling for Long-Context LLMs via Dynamic Sparse Attention
 
 - artifact: `minference` (NeurIPS 2024), repository https://github.com/microsoft/MInference at `427b1ddbd2`
-- input: `results/step4/minference/limitations_for_tests.json` (sha256 `a8bffdb6d6f2`), 73 Findings
-- generated: 2026-11-15T17:08:14+08:00 by `checklimits test` (contract `checklimits-test-report/1`)
+- input: `results/step4/minference/limitations_for_tests.json` (sha256 `6f02cbec16ce`), 73 Findings
+- generated: 2026-11-16T16:10:00+08:00 by `checklimits test` (contract `checklimits-test-report/1`)
 - environment: **not_ok** (repository third_party/MInference is not checked out)
 
 ## How to read this
@@ -25,14 +25,10 @@
 | Finding | category | effect | location | result |
 |---|---|---|---|---|
 | [minference-F001](#minference-f001) | undisclosed | reject | `minference/minference_configuration.py:56` | not tested: `env_unavailable` |
-| [minference-F002](#minference-f002) | undisclosed | state | `minference/modules/minference_forward.py:30` | not tested: `env_unavailable` |
 | [minference-F003](#minference-f003) | undisclosed | state | `minference/modules/minference_forward.py:165-172` | not tested: `env_unavailable` |
 | [minference-F004](#minference-f004) | undisclosed | state | `minference/modules/minference_forward.py:390` | not tested: `env_unavailable` |
-| [minference-F005](#minference-f005) | undisclosed | reject | `minference/modules/minference_forward.py:441` | not tested: `env_unavailable` |
 | [minference-F006](#minference-f006) | undisclosed | reject | `minference/modules/minference_forward.py:484-488` | not tested: `env_unavailable` |
-| [minference-F007](#minference-f007) | undisclosed | reject | `minference/modules/minference_forward.py:504` | not tested: `env_unavailable` |
 | [minference-F008](#minference-f008) | undisclosed | state | `minference/modules/minference_forward.py:681` | not tested: `env_unavailable` |
-| [minference-F009](#minference-f009) | undisclosed | reject | `minference/modules/minference_forward.py:754` | not tested: `env_unavailable` |
 | [minference-F010](#minference-f010) | undisclosed | reject | `minference/ops/block_sparse_flash_attention.py:126` | not tested: `env_unavailable` |
 | [minference-F011](#minference-f011) | undisclosed | reject | `minference/ops/block_sparse_flash_attention.py:127` | not tested: `env_unavailable` |
 | [minference-F012](#minference-f012) | undisclosed | reject | `minference/ops/pit_sparse_flash_attention_v2.py:149` | not tested: `env_unavailable` |
@@ -41,7 +37,6 @@
 | [minference-F015](#minference-f015) | undisclosed | reject | `minference/ops/streaming_kernel.py:605` | not tested: `env_unavailable` |
 | [minference-F016](#minference-f016) | undisclosed | reject | `minference/ops/streaming_kernel.py:606` | not tested: `env_unavailable` |
 | [minference-F017](#minference-f017) | undisclosed | reject | `minference/patch.py:207` | not tested: `env_unavailable` |
-| [minference-F018](#minference-f018) | undisclosed | reject | `minference/patch.py:1252` | not tested: `env_unavailable` |
 | [minference-F019](#minference-f019) | undisclosed | reject | `minference/patch.py:1253` | not tested: `env_unavailable` |
 | [minference-F020](#minference-f020) | undisclosed | path_change | `minference/minference_configuration.py:52` | not tested: `env_unavailable` |
 | [minference-F021](#minference-f021) | undisclosed | path_change | `minference/modules/minference_forward.py:63` | not tested: `env_unavailable` |
@@ -59,7 +54,6 @@
 | [minference-F033](#minference-f033) | undisclosed | path_change | `minference/modules/minference_forward.py:864` | not tested: `env_unavailable` |
 | [minference-F034](#minference-f034) | undisclosed | path_change | `minference/modules/snap_kv.py:321` | not tested: `env_unavailable` |
 | [minference-F035](#minference-f035) | undisclosed | path_change | `minference/modules/snap_kv.py:347` | not tested: `env_unavailable` |
-| [minference-F036](#minference-f036) | undisclosed | path_change | `minference/ops/block_sparse_flash_attention.py:130` | not tested: `env_unavailable` |
 | [minference-F037](#minference-f037) | undisclosed | path_change | `minference/ops/streaming_kernel.py:609` | not tested: `env_unavailable` |
 | [minference-F038](#minference-f038) | undisclosed | path_change | `minference/ops/streaming_kernel.py:620` | not tested: `env_unavailable` |
 | [minference-F039](#minference-f039) | undisclosed | path_change | `minference/ops/streaming_kernel.py:701` | not tested: `env_unavailable` |
@@ -80,15 +74,21 @@
 | [minference-F054](#minference-f054) | impl_deviates | other | `minference/modules/minference_forward.py:99-197` | not tested: `no_code_location` |
 | [minference-F055](#minference-f055) | impl_deviates | other | `minference/modules/minference_forward.py:199-246` | not tested: `no_code_location` |
 | [minference-F056](#minference-f056) | impl_deviates | other | `minference/ops/block_sparse_flash_attention.py:150-165` | not tested: `no_code_location` |
+| [minference-F002](#minference-f002) | undisclosed | other | `minference/modules/minference_forward.py:30` | not tested: `env_unavailable` |
 | [minference-F057](#minference-f057) | undisclosed | other | `minference/modules/minference_forward.py:34` | not tested: `env_unavailable` |
 | [minference-F058](#minference-f058) | undisclosed | state | `minference/modules/minference_forward.py:74` | not tested: `env_unavailable` |
 | [minference-F059](#minference-f059) | undisclosed | other | `minference/modules/minference_forward.py:194` | not tested: `env_unavailable` |
 | [minference-F060](#minference-f060) | undisclosed | other | `minference/modules/minference_forward.py:430` | not tested: `env_unavailable` |
+| [minference-F005](#minference-f005) | undisclosed | other | `minference/modules/minference_forward.py:441` | not tested: `env_unavailable` |
+| [minference-F007](#minference-f007) | undisclosed | other | `minference/modules/minference_forward.py:504` | not tested: `env_unavailable` |
 | [minference-F061](#minference-f061) | undisclosed | other | `minference/modules/minference_forward.py:523` | not tested: `env_unavailable` |
 | [minference-F062](#minference-f062) | undisclosed | other | `minference/modules/minference_forward.py:526` | not tested: `env_unavailable` |
+| [minference-F009](#minference-f009) | undisclosed | other | `minference/modules/minference_forward.py:754` | not tested: `env_unavailable` |
+| [minference-F036](#minference-f036) | undisclosed | other | `minference/ops/block_sparse_flash_attention.py:130` | not tested: `env_unavailable` |
 | [minference-F063](#minference-f063) | undisclosed | other | `minference/ops/block_sparse_flash_attention.py:164` | not tested: `env_unavailable` |
 | [minference-F064](#minference-f064) | undisclosed | other | `minference/ops/pit_sparse_flash_attention.py:150` | not tested: `env_unavailable` |
 | [minference-F065](#minference-f065) | undisclosed | path_change | `minference/ops/pit_sparse_flash_attention_v2.py:188` | not tested: `env_unavailable` |
+| [minference-F018](#minference-f018) | undisclosed | other | `minference/patch.py:1252` | not tested: `env_unavailable` |
 | [minference-F066](#minference-f066) | not_implemented | other | `experiments/README.md:13-30` | not tested: `no_code_location` |
 | [minference-F067](#minference-f067) | not_implemented | other | `experiments/infinite_bench/args.py:63-78` | not tested: `no_code_location` |
 | [minference-F068](#minference-f068) | not_implemented | other | `experiments/infinite_bench/args.py:63-78` | not tested: `no_code_location` |
@@ -105,19 +105,7 @@
 - category `undisclosed`, effect `reject`, step 4 level L2, priority 1, scope `unknown`
 - code: `minference/minference_configuration.py:56` in `minference/minference_configuration.py::MInferenceConfig.update_config_path`
 - condition: `config_path is None and model_name not in MODEL2PATH`
-- code snippet (`minference/minference_configuration.py:56`): `assert (`
-
-**Not tested** (`env_unavailable`): repository third_party/MInference is not checked out
-
-## minference-F002
-
-**When ROPE_TYPE is not None: `ROPE_TYPE` is a module-level global computed once from the *first* attention module's `rotary_emb.forward` signature and then reused for every model/layer in the process (`if ROPE_TYPE is not None: return`). Loading a second model with a different RoPE signature in the same process keeps the first model's convention, and `get_cos_sin` then calls `self.rotary_emb` wi...**
-
-- category `undisclosed`, effect `state`, step 4 level L2, priority 1, scope `unknown`
-- code: `minference/modules/minference_forward.py:30` in `minference/modules/minference_forward.py::set_rope_type`
-- condition: `ROPE_TYPE is not None`
-- step 4 review: `real_but_minor`: blind review by an LLM subagent (round 3), not human: ROPE_TYPE caching only matters when mixing models with different RoPE signatures in one process; it is model-compat plumbing, not a limitation of the sparse mechanism.
-- code snippet (`minference/modules/minference_forward.py:30`): `def set_rope_type(self):`
+- code snippet (`minference/minference_configuration.py:56`): `assert model_name in MODEL2PATH`
 
 **Not tested** (`env_unavailable`): repository third_party/MInference is not checked out
 
@@ -139,18 +127,7 @@
 - category `undisclosed`, effect `state`, step 4 level L2, priority 1, scope `unknown`
 - code: `minference/modules/minference_forward.py:390` in `minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.vertical_and_slash_kernel_static`
 - condition: `"vs" in self.__dict__`
-- code snippet (`minference/modules/minference_forward.py:390`): `if "vs" in self.__dict__:`
-
-**Not tested** (`env_unavailable`): repository third_party/MInference is not checked out
-
-## minference-F005
-
-**When ty not in {"stream_llm", "vertical_and_slash", "block_sparse"}: The implementation is chosen by the `ty` string read from the user-supplied pattern JSON (`config_path`). Any other value in that file (e.g. a typo, or a pattern produced by a different search version) raises an uncaught `KeyError` at prefill time rather than falling back. (minference/modules/minference_forward.py:441)**
-
-- category `undisclosed`, effect `reject`, step 4 level L2, priority 1, scope `unknown`
-- code: `minference/modules/minference_forward.py:441` in `minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4`
-- condition: `ty not in {"stream_llm", "vertical_and_slash", "block_sparse"}`
-- code snippet (`minference/modules/minference_forward.py:441`): `}[ty]`
+- code snippet (`minference/modules/minference_forward.py:390`): `if 'vs' in self.__dict__:`
 
 **Not tested** (`env_unavailable`): repository third_party/MInference is not checked out
 
@@ -160,20 +137,8 @@
 
 - category `undisclosed`, effect `reject`, step 4 level L2, priority 1, scope `unknown`
 - code: `minference/modules/minference_forward.py:484-488` in `minference/modules/minference_forward.py::minference_forward.forward`
-- condition: `True`
+- condition: `self.layer_idx is None`
 - code snippet (`minference/modules/minference_forward.py:484`): `raise ValueError(f'The cache structure has changed since version v4.36. If you are using {self.__class__.__name__} for auto-regressive decoding with k/v caching, please make sure to initialize the att`
-
-**Not tested** (`env_unavailable`): repository third_party/MInference is not checked out
-
-## minference-F007
-
-**When self.is_search and os.path.exists(self.config_path) and self.layer_idx < len(config_list): With `is_search` enabled, if the output `config_path` already contains an entry for this layer, the forward pass hits a bare `assert False` and aborts — the search cannot be re-run into an existing file. Also, when `is_search` is true the sparse mechanism is never applied (`not self.is_search` in the...**
-
-- category `undisclosed`, effect `reject`, step 4 level L2, priority 1, scope `unknown`
-- code: `minference/modules/minference_forward.py:504` in `minference/modules/minference_forward.py::minference_forward.forward`
-- condition: `self.is_search and os.path.exists(self.config_path) and self.layer_idx < len(config_list)`
-- step 4 review: `worth_testing`: blind review by an LLM subagent (round 1), not human: In search mode the code hits assert False when the config file already has an entry for the layer (true by default, since config_path comes from the shipped MODEL2PATH file), and search mode runs dense attention.
-- code snippet (`minference/modules/minference_forward.py:504`): `if self.is_search:`
 
 **Not tested** (`env_unavailable`): repository third_party/MInference is not checked out
 
@@ -184,18 +149,7 @@
 - category `undisclosed`, effect `state`, step 4 level L2, priority 1, scope `unknown`
 - code: `minference/modules/minference_forward.py:681` in `minference/modules/minference_forward.py::minference_with_snapkv_forward.forward`
 - condition: `key_states.shape[-2] != kv_seq_len`
-- code snippet (`minference/modules/minference_forward.py:681`): `if key_states.shape[-2] == kv_seq_len: # [SnapKV] add kv_cluster`
-
-**Not tested** (`env_unavailable`): repository third_party/MInference is not checked out
-
-## minference-F009
-
-**When head_id not in self.best_pattern: The vLLM variant indexes `self.best_pattern[head_id]` directly (unlike the HF variant's `.get(..., default)`), so a pattern file whose per-layer dict lacks an entry for some head raises `KeyError` during prefill. `self.best_pattern` is rebuilt from the caller-supplied `pattern_config[layer_idx]` on every forward (line 790), so a short/mismatched pattern fi...**
-
-- category `undisclosed`, effect `reject`, step 4 level L2, priority 1, scope `unknown`
-- code: `minference/modules/minference_forward.py:754` in `minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_vllm`
-- condition: `head_id not in self.best_pattern`
-- code snippet (`minference/modules/minference_forward.py:754`): `ty, vertical_size, slash_size, _ = self.best_pattern[head_id]`
+- code snippet (`minference/modules/minference_forward.py:681`): `if key_states.shape[-2] == kv_seq_len:`
 
 **Not tested** (`env_unavailable`): repository third_party/MInference is not checked out
 
@@ -288,17 +242,6 @@
 
 **Not tested** (`env_unavailable`): repository third_party/MInference is not checked out
 
-## minference-F018
-
-**When not isinstance(model, (LlamaForCausalLM, MistralForCausalLM, Qwen2ForCausalLM)) and model.__class__.__name__ not in {"MiniCPMForCausalLM", "Phi3ForCausalLM", "ChatGLMForConditionalGeneration"}: `patch_hf` dispatches on the concrete model class and raises `ValueError("Only supports llama, mistral and qwen2 models.")` for anything else, so the mechanism cannot be applied to other architectur...**
-
-- category `undisclosed`, effect `reject`, step 4 level L2, priority 1, scope `unknown`
-- code: `minference/patch.py:1252` in `minference/patch.py::patch_hf`
-- condition: `not isinstance(model, (LlamaForCausalLM, MistralForCausalLM, Qwen2ForCausalLM)) and model.__class__.__name__ not in {"MiniCPMForCausalLM", "Phi3ForCausalLM", "ChatGLMForConditionalGeneration"}`
-- code snippet (`minference/patch.py:1252`): `else:`
-
-**Not tested** (`env_unavailable`): repository third_party/MInference is not checked out
-
 ## minference-F019
 
 **When not (isinstance(model, LlamaForCausalLM) or isinstance(model, MistralForCausalLM) or isinstance(model, Qwen2ForCausalLM) or model.__class__.__name__ == "MiniCPMForCausalLM" or model.__class__.__name__ == "Phi3ForCausalLM" or model.__class__.__name__ == "ChatGLMForConditionalGeneration"): If the caller passes a model that is not one of the recognized classes, patch_hf raises ValueError and ...**
@@ -307,7 +250,7 @@
 - code: `minference/patch.py:1253` in `minference/patch.py::patch_hf`
 - condition: `not (isinstance(model, LlamaForCausalLM) or isinstance(model, MistralForCausalLM) or isinstance(model, Qwen2ForCausalLM) or model.__class__.__name__ == "MiniCPMForCausalLM" or model.__class__.__name_…`
 - step 4 review: `real_but_minor`: blind review by an LLM subagent (round 1), not human: patch_hf is reached only for the inf_llm baseline (streaming2 is rejected by the config), while the MInference path goes through minference_patch, so this class whitelist limits baseline code, not the mechanism.
-- code snippet (`minference/patch.py:1253`): `raise ValueError("Only supports llama, mistral and qwen2 models.")`
+- code snippet (`minference/patch.py:1253`): `raise ValueError('Only supports llama, mistral and qwen2 models.')`
 
 **Not tested** (`env_unavailable`): repository third_party/MInference is not checked out
 
@@ -331,7 +274,7 @@
 - code: `minference/modules/minference_forward.py:63` in `minference/modules/minference_forward.py::init_minference_parameters`
 - condition: `not (self.config_path is not None and os.path.exists(self.config_path) and self.layer_idx < len(json.load(open(self.config_path))))`
 - step 4 review: `worth_testing`: blind review by an LLM subagent (round 2), not human: With a missing config_path, or one that has too few layers, best_pattern is empty and every head silently uses the default vertical_and_slash (1000, 6096) pattern instead of the searched per-head pattern.
-- code snippet (`minference/modules/minference_forward.py:63`): `if (`
+- code snippet (`minference/modules/minference_forward.py:63`): `if self.config_path is not None and os.path.exists(self.config_path) and (self.layer_idx < len(json.load(open(self.config_path)))):`
 
 **Not tested** (`env_unavailable`): repository third_party/MInference is not checked out
 
@@ -343,7 +286,7 @@
 - code: `minference/modules/minference_forward.py:192` in `minference/modules/minference_forward.py::search_pattern`
 - condition: `best_ty == "stream_llm"`
 - step 4 review: `worth_testing`: blind review by an LLM subagent (round 2), not human: The offline pattern search can never assign the A-shape (stream_llm) pattern; it is always remapped to vertical_and_slash, so one of the paper's three patterns is effectively unused.
-- code snippet (`minference/modules/minference_forward.py:192`): `if best_ty == "stream_llm":`
+- code snippet (`minference/modules/minference_forward.py:192`): `if best_ty == 'stream_llm':`
 
 **Not tested** (`env_unavailable`): repository third_party/MInference is not checked out
 
@@ -366,7 +309,7 @@
 - code: `minference/modules/minference_forward.py:421` in `minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4`
 - condition: `self.config.to_dict().get("dilated1", False)`
 - step 4 review: `real_but_minor`: blind review by an LLM subagent (round 2), not human: dilated1 is a baseline attention type selected by attn_type, not a variant of the paper's mechanism.
-- code snippet (`minference/modules/minference_forward.py:421`): `if self.config.to_dict().get("dilated1", False):`
+- code snippet (`minference/modules/minference_forward.py:421`): `if self.config.to_dict().get('dilated1', False):`
 
 **Not tested** (`env_unavailable`): repository third_party/MInference is not checked out
 
@@ -378,7 +321,7 @@
 - code: `minference/modules/minference_forward.py:423` in `minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4`
 - condition: `self.config.to_dict().get("dilated2", False)`
 - step 4 review: `real_but_minor`: blind review by an LLM subagent (round 2), not human: dilated2 is a baseline attention type selected by attn_type, not a variant of the paper's mechanism.
-- code snippet (`minference/modules/minference_forward.py:423`): `if self.config.to_dict().get("dilated2", False):`
+- code snippet (`minference/modules/minference_forward.py:423`): `if self.config.to_dict().get('dilated2', False):`
 
 **Not tested** (`env_unavailable`): repository third_party/MInference is not checked out
 
@@ -401,7 +344,7 @@
 - code: `minference/modules/minference_forward.py:427` in `minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4`
 - condition: `self.config.to_dict().get("streaming", False)`
 - step 4 review: `real_but_minor`: blind review by an LLM subagent (round 1), not human: The streaming flag is set only by attn_type='streaming', so this is the same config-driven variant switch already covered by minference-24.
-- code snippet (`minference/modules/minference_forward.py:427`): `if self.config.to_dict().get("streaming", False):`
+- code snippet (`minference/modules/minference_forward.py:427`): `if self.config.to_dict().get('streaming', False):`
 
 **Not tested** (`env_unavailable`): repository third_party/MInference is not checked out
 
@@ -413,7 +356,7 @@
 - code: `minference/modules/minference_forward.py:432` in `minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4`
 - condition: `self.config.to_dict().get("static_pattern", False)`
 - step 4 review: `worth_testing`: blind review by an LLM subagent (round 3), not human: The static_pattern config (attn_type='static') switches to a kernel that computes the vertical/slash indices once and reuses them, instead of estimating them online.
-- code snippet (`minference/modules/minference_forward.py:432`): `if self.config.to_dict().get("static_pattern", False):`
+- code snippet (`minference/modules/minference_forward.py:432`): `if self.config.to_dict().get('static_pattern', False):`
 
 **Not tested** (`env_unavailable`): repository third_party/MInference is not checked out
 
@@ -425,7 +368,7 @@
 - code: `minference/modules/minference_forward.py:434` in `minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4`
 - condition: `self.config.to_dict().get("vs_only", False)`
 - step 4 review: `real_but_minor`: blind review by an LLM subagent (round 2), not human: vs_only is real but is not exposed through MInferenceConfig/attn_type and is never set by the package, so it is a hidden debug flag.
-- code snippet (`minference/modules/minference_forward.py:434`): `if self.config.to_dict().get("vs_only", False):`
+- code snippet (`minference/modules/minference_forward.py:434`): `if self.config.to_dict().get('vs_only', False):`
 
 **Not tested** (`env_unavailable`): repository third_party/MInference is not checked out
 
@@ -437,7 +380,7 @@
 - code: `minference/modules/minference_forward.py:521` in `minference/modules/minference_forward.py::minference_forward.forward`
 - condition: `self.layer_idx >= self.starting_layer and not self.is_search`
 - step 4 review: `worth_testing`: blind review by an LLM subagent (round 1), not human: Layers below the configurable starting_layer silently run dense flash attention (or gather_qkv) instead of sparse attention.
-- code snippet (`minference/modules/minference_forward.py:521`): `if self.layer_idx >= self.starting_layer and not self.is_search:`
+- code snippet (`minference/modules/minference_forward.py:521`): `if self.layer_idx >= self.starting_layer and (not self.is_search):`
 
 **Not tested** (`env_unavailable`): repository third_party/MInference is not checked out
 
@@ -496,19 +439,7 @@
 - category `undisclosed`, effect `path_change`, step 4 level L2, priority 2, scope `unknown`
 - code: `minference/modules/snap_kv.py:347` in `minference/modules/snap_kv.py::SnapKVCluster.update_kv`
 - condition: `self.pooling == "avgpool"`
-- code snippet (`minference/modules/snap_kv.py:347`): `if self.pooling == "avgpool":`
-
-**Not tested** (`env_unavailable`): repository third_party/MInference is not checked out
-
-## minference-F036
-
-**When q.dtype != torch.bfloat16: The Triton kernel's compute dtype is chosen from the input dtype: bfloat16 inputs use tl.bfloat16, but any other dtype (e.g. float32 or float16) is silently forced to tl.float16, so the kernel runs a different precision path than the caller's tensor dtype. (minference/ops/block_sparse_flash_attention.py:130)**
-
-- category `undisclosed`, effect `path_change`, step 4 level L2, priority 2, scope `unknown`
-- code: `minference/ops/block_sparse_flash_attention.py:130` in `minference/ops/block_sparse_flash_attention.py::_triton_block_sparse_attention`
-- condition: `q.dtype != torch.bfloat16`
-- step 4 review: `real_but_minor`: blind review by an LLM subagent (round 1), not human: Choosing the Triton compute dtype (non-bf16 cast to fp16 inside the kernel) is a kernel precision detail, not a limit of the sparse-attention mechanism.
-- code snippet (`minference/ops/block_sparse_flash_attention.py:130`): `dtype = tl.bfloat16 if q.dtype == torch.bfloat16 else tl.float16`
+- code snippet (`minference/modules/snap_kv.py:347`): `if self.pooling == 'avgpool':`
 
 **Not tested** (`env_unavailable`): repository third_party/MInference is not checked out
 
@@ -732,6 +663,18 @@
 
 **Not tested** (`no_code_location`): no code location (paper-side finding or no code evidence)
 
+## minference-F002
+
+**When ROPE_TYPE is not None: `ROPE_TYPE` is a module-level global computed once from the *first* attention module's `rotary_emb.forward` signature and then reused for every model/layer in the process (`if ROPE_TYPE is not None: return`). Loading a second model with a different RoPE signature in the same process keeps the first model's convention, and `get_cos_sin` then calls `self.rotary_emb` wi...**
+
+- category `undisclosed`, effect `other`, step 4 level L2, priority 3, scope `unknown`
+- code: `minference/modules/minference_forward.py:30` in `minference/modules/minference_forward.py::set_rope_type`
+- condition: `ROPE_TYPE is not None`
+- step 4 review: `real_but_minor`: blind review by an LLM subagent (round 3), not human: ROPE_TYPE caching only matters when mixing models with different RoPE signatures in one process; it is model-compat plumbing, not a limitation of the sparse mechanism.
+- code snippet (`minference/modules/minference_forward.py:30`): `def set_rope_type(self):`
+
+**Not tested** (`env_unavailable`): repository third_party/MInference is not checked out
+
 ## minference-F057
 
 **When "seq_len" in inspect.signature(self.rotary_emb.forward).parameters: ROPE_TYPE is chosen by introspecting the installed transformers rotary embedding signature, so behavior depends on the transformers version. (minference/modules/minference_forward.py:34)**
@@ -740,7 +683,7 @@
 - code: `minference/modules/minference_forward.py:34` in `minference/modules/minference_forward.py::set_rope_type`
 - condition: `"seq_len" in inspect.signature(self.rotary_emb.forward).parameters`
 - step 4 review: `real_but_minor`: blind review by an LLM subagent (round 1), not human: Detecting the RoPE call signature only adapts to the model's rotary-embedding API and does not change the sparse mechanism.
-- code snippet (`minference/modules/minference_forward.py:34`): `if "seq_len" in inspect.signature(self.rotary_emb.forward).parameters:`
+- code snippet (`minference/modules/minference_forward.py:34`): `if 'seq_len' in inspect.signature(self.rotary_emb.forward).parameters:`
 
 **Not tested** (`env_unavailable`): repository third_party/MInference is not checked out
 
@@ -752,7 +695,7 @@
 - code: `minference/modules/minference_forward.py:74` in `minference/modules/minference_forward.py::init_minference_parameters`
 - condition: `"apply_rotary_pos_emb" not in self.__dict__`
 - step 4 review: `wrong`: blind review by an LLM subagent (round 3), not human: The check is not always true: the branch sets self.apply_rotary_pos_emb = True, so it runs once per module, and cross-model global overwrite is an internal multi-model detail.
-- code snippet (`minference/modules/minference_forward.py:74`): `if "apply_rotary_pos_emb" not in self.__dict__:`
+- code snippet (`minference/modules/minference_forward.py:74`): `if 'apply_rotary_pos_emb' not in self.__dict__:`
 
 **Not tested** (`env_unavailable`): repository third_party/MInference is not checked out
 
@@ -764,7 +707,7 @@
 - code: `minference/modules/minference_forward.py:194` in `minference/modules/minference_forward.py::search_pattern`
 - condition: `best_ty == "block_sparse"`
 - step 4 review: `worth_testing`: blind review by an LLM subagent (round 1), not human: The offline pattern search replaces a winning block_sparse (and stream_llm) result with vertical_and_slash 1000/6096, so searched configs can never contain those patterns.
-- code snippet (`minference/modules/minference_forward.py:194`): `if best_ty == "block_sparse":`
+- code snippet (`minference/modules/minference_forward.py:194`): `if best_ty == 'block_sparse':`
 
 **Not tested** (`env_unavailable`): repository third_party/MInference is not checked out
 
@@ -776,7 +719,30 @@
 - code: `minference/modules/minference_forward.py:430` in `minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4`
 - condition: `head_id not in self.best_pattern`
 - step 4 review: `worth_testing`: blind review by an LLM subagent (round 3), not human: Heads missing from the pattern config (or a missing/empty config_path) silently get a fixed default vertical_and_slash (1000, 6096) pattern; the 'whole sequence' claim only holds for q_len <= 6096.
-- code snippet (`minference/modules/minference_forward.py:430`): `ty, vertical_size, slash_size, _ = self.best_pattern.get(head_id, ("vertical_and_slash", 1000, 6096, 1))`
+- code snippet (`minference/modules/minference_forward.py:430`): `ty, vertical_size, slash_size, _ = self.best_pattern.get(head_id, ('vertical_and_slash', 1000, 6096, 1))`
+
+**Not tested** (`env_unavailable`): repository third_party/MInference is not checked out
+
+## minference-F005
+
+**When ty not in {"stream_llm", "vertical_and_slash", "block_sparse"}: The implementation is chosen by the `ty` string read from the user-supplied pattern JSON (`config_path`). Any other value in that file (e.g. a typo, or a pattern produced by a different search version) raises an uncaught `KeyError` at prefill time rather than falling back. (minference/modules/minference_forward.py:441)**
+
+- category `undisclosed`, effect `other`, step 4 level L2, priority 3, scope `unknown`
+- code: `minference/modules/minference_forward.py:441` in `minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4`
+- condition: `ty not in {"stream_llm", "vertical_and_slash", "block_sparse"}`
+- code snippet (`minference/modules/minference_forward.py:441`): `}[ty]`
+
+**Not tested** (`env_unavailable`): repository third_party/MInference is not checked out
+
+## minference-F007
+
+**When self.is_search and os.path.exists(self.config_path) and self.layer_idx < len(config_list): With `is_search` enabled, if the output `config_path` already contains an entry for this layer, the forward pass hits a bare `assert False` and aborts — the search cannot be re-run into an existing file. Also, when `is_search` is true the sparse mechanism is never applied (`not self.is_search` in the...**
+
+- category `undisclosed`, effect `other`, step 4 level L2, priority 3, scope `unknown`
+- code: `minference/modules/minference_forward.py:504` in `minference/modules/minference_forward.py::minference_forward.forward`
+- condition: `self.is_search and os.path.exists(self.config_path) and self.layer_idx < len(config_list)`
+- step 4 review: `worth_testing`: blind review by an LLM subagent (round 1), not human: In search mode the code hits assert False when the config file already has an entry for the layer (true by default, since config_path comes from the shipped MODEL2PATH file), and search mode runs dense attention.
+- code snippet (`minference/modules/minference_forward.py:504`): `if self.is_search:`
 
 **Not tested** (`env_unavailable`): repository third_party/MInference is not checked out
 
@@ -787,7 +753,7 @@
 - category `undisclosed`, effect `other`, step 4 level L2, priority 3, scope `unknown`
 - code: `minference/modules/minference_forward.py:523` in `minference/modules/minference_forward.py::minference_forward.forward`
 - condition: `is_flash_attn_2_available()`
-- code snippet (`minference/modules/minference_forward.py:523`): `elif is_flash_attn_2_available():`
+- code snippet (`minference/modules/minference_forward.py:523`): `if is_flash_attn_2_available():`
 
 **Not tested** (`env_unavailable`): repository third_party/MInference is not checked out
 
@@ -799,6 +765,29 @@
 - code: `minference/modules/minference_forward.py:526` in `minference/modules/minference_forward.py::minference_forward.forward`
 - condition: `not (is_flash_attn_2_available())`
 - code snippet (`minference/modules/minference_forward.py:526`): `attn_output = gather_qkv(q, k, v, attention_mask)`
+
+**Not tested** (`env_unavailable`): repository third_party/MInference is not checked out
+
+## minference-F009
+
+**When head_id not in self.best_pattern: The vLLM variant indexes `self.best_pattern[head_id]` directly (unlike the HF variant's `.get(..., default)`), so a pattern file whose per-layer dict lacks an entry for some head raises `KeyError` during prefill. `self.best_pattern` is rebuilt from the caller-supplied `pattern_config[layer_idx]` on every forward (line 790), so a short/mismatched pattern fi...**
+
+- category `undisclosed`, effect `other`, step 4 level L2, priority 3, scope `unknown`
+- code: `minference/modules/minference_forward.py:754` in `minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_vllm`
+- condition: `head_id not in self.best_pattern`
+- code snippet (`minference/modules/minference_forward.py:754`): `ty, vertical_size, slash_size, _ = self.best_pattern[head_id]`
+
+**Not tested** (`env_unavailable`): repository third_party/MInference is not checked out
+
+## minference-F036
+
+**When q.dtype != torch.bfloat16: The Triton kernel's compute dtype is chosen from the input dtype: bfloat16 inputs use tl.bfloat16, but any other dtype (e.g. float32 or float16) is silently forced to tl.float16, so the kernel runs a different precision path than the caller's tensor dtype. (minference/ops/block_sparse_flash_attention.py:130)**
+
+- category `undisclosed`, effect `other`, step 4 level L2, priority 3, scope `unknown`
+- code: `minference/ops/block_sparse_flash_attention.py:130` in `minference/ops/block_sparse_flash_attention.py::_triton_block_sparse_attention`
+- condition: `q.dtype != torch.bfloat16`
+- step 4 review: `real_but_minor`: blind review by an LLM subagent (round 1), not human: Choosing the Triton compute dtype (non-bf16 cast to fp16 inside the kernel) is a kernel precision detail, not a limit of the sparse-attention mechanism.
+- code snippet (`minference/ops/block_sparse_flash_attention.py:130`): `dtype = tl.bfloat16 if q.dtype == torch.bfloat16 else tl.float16`
 
 **Not tested** (`env_unavailable`): repository third_party/MInference is not checked out
 
@@ -834,6 +823,17 @@
 - condition: `head_dim not in [16, 32, 64, 128, 256, 512]`
 - step 4 review: `wrong`: blind review by an LLM subagent (round 3), not human: Zero-padding the head dim adds nothing to q.k dot products and sm_scale uses the original head_dim, so the softmax is unchanged, contrary to the claim.
 - code snippet (`minference/ops/pit_sparse_flash_attention_v2.py:188`): `if head_dim not in [16, 32, 64, 128, 256, 512]:`
+
+**Not tested** (`env_unavailable`): repository third_party/MInference is not checked out
+
+## minference-F018
+
+**When not isinstance(model, (LlamaForCausalLM, MistralForCausalLM, Qwen2ForCausalLM)) and model.__class__.__name__ not in {"MiniCPMForCausalLM", "Phi3ForCausalLM", "ChatGLMForConditionalGeneration"}: `patch_hf` dispatches on the concrete model class and raises `ValueError("Only supports llama, mistral and qwen2 models.")` for anything else, so the mechanism cannot be applied to other architectur...**
+
+- category `undisclosed`, effect `other`, step 4 level L2, priority 3, scope `unknown`
+- code: `minference/patch.py:1252` in `minference/patch.py::patch_hf`
+- condition: `not isinstance(model, (LlamaForCausalLM, MistralForCausalLM, Qwen2ForCausalLM)) and model.__class__.__name__ not in {"MiniCPMForCausalLM", "Phi3ForCausalLM", "ChatGLMForConditionalGeneration"}`
+- code snippet (`minference/patch.py:1252`): `else:`
 
 **Not tested** (`env_unavailable`): repository third_party/MInference is not checked out
 
@@ -876,7 +876,7 @@
 
 - category `not_implemented`, effect `other`, step 4 level L2, priority 3, scope `unknown`
 - code: `minference/modules/minference_forward.py:99-197`
-- condition: `True`
+- condition: `is_search`
 - paper/docs (paper, PDF p.5): “ti← FLOPs_in_kernel(σi)”
 - paper/docs (paper, PDF p.5, text lines 45-48): “have similar computational cost. Kernel-aware here in- dicates the computational cost reflects the real FLOPs in GPU kernels, instead of conceptual estimations, which is crucial to achieve the optimal acceleration.”
 
