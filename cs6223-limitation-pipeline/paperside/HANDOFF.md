@@ -2,6 +2,20 @@
 
 所有命令从 `paperside/` 目录运行。当前结果状态见 [README](README.md)，agent 开发规则见 [CLAUDE.md](CLAUDE.md)。
 
+## 当前应交给 Wanting 哪个包
+
+FlexPrefill、NNSmith 优先使用 `handoffs/paper-side-v2/<paper>/` 的 `paper_side.json` 和 `limitations.json`。配套看 `parameter_mappings.json` 的函数上下文/类型，以及 `consumer_cases.json` 的实际返回。原v1包仍保留，后三篇尚是历史0.1.0记录；默认验证会检查它们与当前共享记录的结构兼容性。
+
+[两个完整案例](docs/parameter-mapping-cases.md) 展示具体输入输出。新包接口/来源检查通过不等于所有消费者探针通过：8项中6通过，2个下游witness问题明确失败。不要直接执行缺少整数性或调用帧约束的值。
+
+```bash
+python scripts/validate_delivery.py --root handoffs/paper-side-v2
+# 严格消费者关口：当前预期退出码4，两个已知问题未通过。
+python scripts/validate_delivery.py --root handoffs/paper-side-v2 --strict-consumer
+```
+
+适配器可用 `python scripts/adapt_schema02.py --help` 查看输入参数；必须提供固定PDF与仓库，输出目录须不存在。它不调用模型、也不执行目标。正式参数与必需赋值/使用无法核对时拒绝生成。已审阅规格在 `workstreams/zhaopeng/parameter-mappings-v2.json`，新论文必须独立审核，不能套用这些样例。
+
 ## 先做离线检查
 
 需要 Python >=3.10、Git；Node.js >=20 用于 Pi 测试和运行。

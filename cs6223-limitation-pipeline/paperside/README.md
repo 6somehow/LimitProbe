@@ -6,7 +6,7 @@
 
 ## 先拿什么
 
-结果按论文放在 `handoffs/paper-side-v1/<paper>/`。接手只需先看三个文件：
+当前 FlexPrefill、NNSmith 在 `handoffs/paper-side-v2/<paper>/`；其余和历史结果在 `handoffs/paper-side-v1/<paper>/`。接手只需先看三个文件：
 
 | 文件 | 用来做什么 |
 |---|---|
@@ -16,15 +16,21 @@
 
 源码片段、待办、修订记录也在同目录，需要追溯时再查。[完整文件说明与接入方法](HANDOFF.md#交给-wanting)。
 
+## 本轮接口联调：schema 0.2.0
+
+已对照 main `9fce6e0`，为 [FlexPrefill](handoffs/paper-side-v2/flexprefill/) 与 [NNSmith](handoffs/paper-side-v2/nnsmith/) 新建 v2 包。先看[两个完整输入输出案例](docs/parameter-mapping-cases.md)：τ → tau、Pool2d 的 kw/kh → kernel_w_size/kernel_h_size。
+
+原生四数组接口保持不变，映射证据与类型/函数上下文另存 `parameter_mappings.json`，实际联调返回见 `consumer_cases.json`。8 个消费者探针中 6 个通过；2 个下游 witness 问题（十进制等值、整数类型）明确保留为失败，未运行目标系统。旧 v1 五包和原始判断保持不变。
+
 ## 当前交付
 
 | 论文 | 机制 / 行为 | 已判断 / 待办 | 交付状态 |
 |---|---|---|---|
 | [SparTA](handoffs/paper-side-v1/sparta/) | 20 / 206 | 199 / 7 | 已验收并入库 |
-| [FlexPrefill](handoffs/paper-side-v1/flexprefill/) | 12 / 104 | 96 / 8 | 已验收并入库 |
+| [FlexPrefill](handoffs/paper-side-v2/flexprefill/) | 12 / 104 | 96 / 8 | 已验收并入库 |
 | [MInference](handoffs/paper-side-v1/minference/) | 13 / 141 | 108 / 33 | 已验收并入库 |
 | [InfiniGen](handoffs/paper-side-v1/infinigen/) | 8 / 70 | 59 / 11 | 已验收并入库 |
-| [NNSmith](handoffs/paper-side-v1/nnsmith/) | 13 / 140 | 113 / 27 | 已验收并入库 |
+| [NNSmith](handoffs/paper-side-v2/nnsmith/) | 13 / 140 | 113 / 27 | 已验收并入库 |
 
 五篇交接包均已完成接口与证据验收；共 661 条行为，575 条已判断、86 条待办。验收指字段、来源和实际消费者检查，不等于人工确认研究结论。
 
