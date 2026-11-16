@@ -229,3 +229,37 @@ def test_artifact_without_a_checkout_still_reports_every_finding(tmp_path, capsy
     assert set(out["counts"]["not_run_by_code"]) <= {"no_code_location", "env_unavailable", "outcome_unsupported",
                                                      "witness_unusable"}
     assert cli.main(["test", "sparta", "--results-root", str(tmp_path), "--strict"]) in (0, e2e.EXIT_STRICT)
+
+
+def test_failed_agent_rerun_keeps_the_earlier_valid_test(toy, monkeypatch):
+    _run(toy)                                                  # toy-F1 is tested from the archived package
+    before = _records(toy)["toy-F1"]
+    assert before.status == "tested"
+    monkeypatch.setattr(e2e, "_agent_run", lambda *a, **k: (None, {"run_id": "x", "tokens": 1, "wall_s": 1}))
+    # toy-F5 has no package: the agent is asked for it and fails; toy-F1 is re-run from an empty root and fails too
+    out = _run(toy, attempts_roots=[toy["root"] / "empty"], run_agent=True, only=["toy-F1", "toy-F5"])
+    r = _records(toy)
+    assert r["toy-F5"].not_run.code == "agent_failed"
+    assert r["toy-F1"].status == "tested" and r["toy-F1"].verdict == before.verdict
+    assert "last_agent_rerun" in r["toy-F1"].provenance
+    assert out["one_to_one"]
+
+
+def test_other_effects_get_a_reason_that_says_what_would_be_needed():
+    from checklimits.agent_batch import describe_other
+    assert "reference implementation" in describe_other("Static discrepancy hypothesis, not a confirmed runtime effect", "")
+    assert "assigns a value" in describe_other("", "gres_config = os.getenv('X', '4')")
+    assert "assigns a value" in describe_other("", "self.ok &= y is not None")
+    assert "warning" in describe_other("", "warnings.warn('triton too old')")
+    assert "no raise in its body" in describe_other("", "if a > b:")
+    assert "returns False" in describe_other("", "ConstraintCheck.true(x is None, 'msg')")
+    assert "nothing to observe" in describe_other("", "")
+
+
+def test_find_attempts_works_for_a_root_below_a_directory_called_scratch(toy, tmp_path):
+    root = tmp_path / "scratch" / "staged"
+    shutil.copytree(toy["archive"], root)
+    assert list(e2e.find_attempts([root])) == ["toy-F1"]
+    # a nested scratch directory below the root is still skipped (agent run workspaces are not packages to judge)
+    shutil.copytree(toy["archive"] / "F1-run" / "attempt", root / "scratch" / "x" / "attempt")
+    assert len(e2e.find_attempts([root])["toy-F1"]) == 1
