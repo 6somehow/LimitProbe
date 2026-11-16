@@ -2,6 +2,19 @@
 
 所有命令从 `paperside/` 目录运行。当前结果状态见 [README](README.md)，agent 开发规则见 [CLAUDE.md](CLAUDE.md)。
 
+## Z3怎样交给Shanghao
+
+先读[两篇完整案例](docs/z3-two-paper-cases.md)。`handoffs/z3-v1/<paper>/limitations_for_tests.json`是可被真实loader读取的独立fixture；`testability_hints.json`才包含局部输入配方、精准位置、调用/参数链、oracle及阻塞。关联真实step4 ID另列，未覆盖生产输出。
+
+`consumer_contract_check.json`记录实际消费者读取；`contract_output/`是通过其报告库生成的未运行报告。现在被paper-origin Region及custom oracle能力卡住，不是目标测试已失败。不要把native reason的no_code_location理解成我们没有提供位置。
+
+```bash
+python scripts/validate_z3_handoff.py handoffs/z3-v1/flexprefill
+python scripts/validate_z3_handoff.py handoffs/z3-v1/nnsmith
+```
+
+可额外传 `--repo 固定commit仓库 --pdf 原PDF`，逐字核对源码和所选引文。`probe_z3_consumer.py --help`提供真实consumer checkout的读取/分类复跑入口；不要换成test/envcheck命令，否则会越过本模块“不执行目标”的边界。
+
 ## 当前应交给 Wanting 哪个包
 
 FlexPrefill、NNSmith 优先使用 `handoffs/paper-side-v2/<paper>/` 的 `paper_side.json` 和 `limitations.json`。配套看 `parameter_mappings.json` 的函数上下文/类型，以及 `consumer_cases.json` 的实际返回。原v1包仍保留，后三篇尚是历史0.1.0记录；默认验证会检查它们与当前共享记录的结构兼容性。

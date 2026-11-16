@@ -1,3 +1,16 @@
+# Z3首批交接验收（2026-11-16）
+
+实际读取Teams两个契约附件，并在Shanghao `1753dab` 的真实代码上调用loader、分类器、outcome_support和报告库；未运行target、agent、envcheck或harness。
+
+- FlexPrefill21条、NNSmith6条原负项完整triage；每篇1条详解，原三类判断与v1/v2包未改写。
+- 2条原生0.2.0契约fixture成功加载，paper来源、真实代码位置、论文引用与固定commit匹配；函数调用与逐层参数由AST核对。
+- 实际消费者均生成0个Region，分类no_code_location，因为adapter拒绝paper来源；旁表拟议Region是合法schema但当前效果检查不支持other/suspicious。
+- 每例报告status=not_run、verdict/level=null、calibrated=false，报告与输入1:1，不包含虚构观测或置信档位。
+- 完整论文侧回归：240项，238通过、2个外部资产相关跳过；其中13项Z3回归检查覆盖候选完整性、错误标签、虚构运行结果、来源片段和重要语义边界。
+- 原PDF hash和固定Git源码均验证。新Z3原文片段按当前pypdf提取，旧claim原文保留为archived_claim_evidence；不同提取版本的数学排版不混作新原文。
+
+入口详情见docs/z3-two-paper-cases.md。以下为前序接口/交付历史记录，不代表Z3已执行目标。
+
 # 0.2.0 接口适配验收（2026-11-16）
 
 基于 main `9fce6e01de09cc1940df9ebd190acd7284ddcb96`，在独立工作树和新虚拟环境安装 `paperside[team,vision,dev]`。仅修改论文侧，未更改共享 schema、codeside 或历史 v1 包。
