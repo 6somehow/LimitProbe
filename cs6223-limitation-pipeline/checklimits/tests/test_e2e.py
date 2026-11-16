@@ -17,6 +17,8 @@ def _finding(fid, line, snippet, status="solved", with_code=True, effect="reject
     wh = {"format": "witness-v2", "kind": "input_value", "status": status, "condition": "n != 1",
           "trigger": {"n": 2} if extra_trigger else None, "contrast": {"n": 1} if status == "solved" else None,
           "atoms": {"n": {"kind": "input", "sort": "int"}}, "location": f"toypkg/core.py:{line}"}
+    if status == "infeasible":
+        wh["infeasible_because"] = "call_chain"
     lim = {"schema_version": "0.1.0", "limitation_id": f"CL-{fid}", "artifact_id": "toy",
            "origin": "code" if with_code else "paper", "condition_text": "n != 1",
            "condition": {"expr": "n != 1", "params": ["n"], "path_prefix": []},
@@ -44,7 +46,7 @@ def toy(tmp_path):
         "execution_env": ["cpu"]}))
     fs = [_finding("toy-F1", assert_line, 'assert n == 1, "n must be 1"'),                    # judgeable, has a package
           _finding("toy-F2", 0, "", with_code=False, status="unknown"),                      # paper-side only
-          _finding("toy-F3", assert_line, 'assert n == 1, "n must be 1"', status="unsat", extra_trigger=False),
+          _finding("toy-F3", assert_line, 'assert n == 1, "n must be 1"', status="infeasible", extra_trigger=False),
           _finding("toy-F4", assign_line, "base = pre(n)"),                                  # reject on an assignment
           _finding("toy-F5", assert_line, 'assert n == 1, "n must be 1"')]                   # judgeable, no package
     ff = root / FF
@@ -85,6 +87,7 @@ def test_every_finding_gets_one_record_with_a_result_or_a_reason(toy):
     assert why == {"toy-F2": "no_code_location", "toy-F3": "witness_unusable", "toy-F4": "outcome_unsupported",
                    "toy-F5": "not_attempted"}
     assert all(v.not_run.reason for v in r.values() if v.not_run)
+    assert "infeasible" in r["toy-F3"].not_run.reason and "call_chain" in r["toy-F3"].not_run.reason
     assert out["counts"]["not_run_by_code"] == {"no_code_location": 1, "witness_unusable": 1,
                                                 "outcome_unsupported": 1, "not_attempted": 1}
 

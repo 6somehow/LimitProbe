@@ -62,7 +62,12 @@ def classify_finding(fid: str, data_dir: str, findings_file: str, repo_rel: str,
     if not ok:
         return "outcome_unsupported", why
     if t.witness.status not in USABLE_WITNESS or not t.witness.trigger:
-        return "witness_unusable", f"witness status {t.witness.status!r}"
+        hint = t.finding.witness_hint or {}
+        why = f" ({hint['infeasible_because']})" if hint.get("infeasible_because") else ""
+        more = (": step 4 shows the condition cannot hold together with the path to the target, so the official "
+                "entry cannot reach it; testing the inner function directly would not test the product"
+                if t.witness.status == "infeasible" else "")
+        return "witness_unusable", f"witness status {t.witness.status!r}{why}{more}"
     return None
 
 
