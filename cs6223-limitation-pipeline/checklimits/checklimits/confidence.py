@@ -14,7 +14,8 @@ same level.
   L1       fatal defeaters are eliminated or residual; important ones may be open or refuted
   L2       all fatal eliminated; D3 D8 D9 eliminated; D5 D6 D10 D14 eliminated or residual
   L3       everything eliminated (D13 scope may be residual or refuted: it is reported, not scored)
-A 'no' verdict needs D3 (the oracle can see the effect when it exists) eliminated for more than L1.
+A 'no' verdict is only reported when D3 (the oracle can see the effect when it exists) is eliminated; otherwise it
+becomes inconclusive (CONFIDENCE_SPEC.md section 18; before 2026-11-17 it was kept at level L1).
 """
 from __future__ import annotations
 
@@ -104,6 +105,7 @@ class Measurements:
     scope_status: str = "unknown"
     # D14
     entry_index: Optional[int] = None
+    entry_on_stack: Optional[bool] = None    # was call_chain[0] still running when the target line executed (None: not known)
     entry_reason: Optional[str] = None
 
 
@@ -234,8 +236,14 @@ def evaluate_defeaters(m: Measurements, p: Profile) -> list[DefeaterResult]:
     out.append(_d("D13", {"in_scope": "eliminated", "scope_edge": "eliminated", "out_of_scope": "refuted"}.get(m.scope_status, "residual"),
                   f"scope_status={m.scope_status}"))
 
-    if m.entry_index == 0:
-        out.append(_d("D14", "eliminated", "the official entry (call_chain[0]) started first"))
+    if m.entry_index == 0 and m.entry_on_stack is not False:
+        out.append(_d("D14", "eliminated", "the official entry (call_chain[0]) started first and was running when the target executed"))
+    elif m.entry_index == 0:
+        # the entry was called, but the target ran outside it (a call made first and then a direct call to the target
+        # function): the entry did not lead to the target
+        out.append(_d("D14", "residual" if m.entry_reason else "refuted",
+                      "the official entry started first but the target line did not run inside it"
+                      + (f"; reason recorded: {m.entry_reason}" if m.entry_reason else " and no reason is recorded")))
     elif m.entry_reason:
         out.append(_d("D14", "residual", f"deeper entry (index {m.entry_index}); reason recorded: {m.entry_reason}"))
     else:
@@ -252,6 +260,12 @@ def decide_level(defs: list[DefeaterResult], verdict: Verdict, outcome_supported
     fatal_refuted = [i for i in FATAL if st[i] == "refuted"]
     if fatal_refuted:
         return "invalid", "inconclusive", "refuted fatal defeaters: " + ", ".join(fatal_refuted)
+    if verdict == "no" and st["D3"] != "eliminated":
+        # "the effect was not there" is only worth reporting if the oracle was shown to see the effect when it is there
+        # (mutants of the target killed). In the 82-case benchmark half of the L1 `no` verdicts were wrong, all of them
+        # claims that were true but whose oracle was too narrow.
+        return "n/a", "inconclusive", (f"a 'no' verdict needs the oracle shown to see the effect (D3 eliminated); "
+                                       f"D3 is {st['D3']}: {next((d.evidence for d in defs if d.id == 'D3'), '')}")
     if any(st[i] == "open" for i in FATAL):
         level: Level = "L0"
         note = "open fatal defeaters: " + ", ".join(i for i in FATAL if st[i] == "open")
@@ -265,8 +279,6 @@ def decide_level(defs: list[DefeaterResult], verdict: Verdict, outcome_supported
             level = "L2"
         if l2 and all(st[i] == "eliminated" for i in FATAL + IMPORTANT):
             level = "L3"
-        if verdict == "no" and st["D3"] != "eliminated" and level in ("L2", "L3"):
-            level, note = "L1", "a 'no' verdict needs D3 eliminated for more than L1"
     if st["D13"] == "refuted":
         note = (note + "; " if note else "") + "out of scope: record only, not part of main results"
     return level, verdict, note

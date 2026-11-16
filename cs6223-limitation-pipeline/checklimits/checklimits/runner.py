@@ -174,12 +174,13 @@ def to_observation(raw: dict[str, Any], role: str, inputs: dict[str, Any], regio
     trace = raw.get("trace")
     final_call = raw.get("final_call", 0)
     hits = [TargetHit(**h) for h in (trace or {}).get("target_hits", []) if h.get("call", 0) == final_call]
+    dec = [TargetHit(**h) for h in (trace or {}).get("decision_hits", []) if h.get("call", 0) == final_call]
     reached = bool(hits)
     status = raw["status"]
     obs = Observation(role=role, inputs=inputs, status=status, exception=exc, target_reached=reached,
                       returned=raw.get("returned"), target_kind=raw.get("target_kind"),
                       target_span=list(span) if span else None,
-                      target_hits=hits, stdout_tail=(raw.get("stdout") or "")[-300:], wall_s=raw.get("wall_s", 0.0))
+                      target_hits=hits, decision_hits=dec, stdout_tail=(raw.get("stdout") or "")[-300:], wall_s=raw.get("wall_s", 0.0))
     starts = (trace or {}).get("starts", [])
     if starts:
         first = starts[0]

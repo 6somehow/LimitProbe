@@ -199,6 +199,7 @@ class TargetHit(_R):
     condition_value: Optional[bool] = None
     condition_error: Optional[str] = None
     locals: dict[str, str] = Field(default_factory=dict)
+    stack: list[str] = Field(default_factory=list, description="call-chain functions running at this hit, outermost first")
 
 
 class CoverageScope(_R):
@@ -215,6 +216,8 @@ class Observation(_R):
     exception: Optional[ExceptionInfo] = None
     target_reached: bool = False
     target_hits: list[TargetHit] = Field(default_factory=list)
+    decision_hits: list[TargetHit] = Field(
+        default_factory=list, description="evaluations of the guard of a bare `raise` target (the target only runs when it holds)")
     effect: Optional[bool] = Field(None, description="Region.outcome effect observed; None = cannot tell")
     effect_note: str = ""
     returned: Optional[str] = Field(None, description="summary of the return value, if the run returned")

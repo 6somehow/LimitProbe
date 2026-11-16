@@ -85,6 +85,9 @@ class TargetSpec:
     cond_expr: Optional[str] = None
     predicate: Optional[Callable[[dict], Any]] = None
     end_line: int = 0     # last line of the statement (assert) or of its header (if / while); 0 = same as line
+    # first and last line of the guard (the if / elif header) of a bare `raise` target; (0, 0) = none. The raise only
+    # runs when the guard holds, so the contrast run never reaches it: the condition is evaluated on the guard instead.
+    decision: tuple[int, int] = (0, 0)
 
 
 def target_span(repo_root: Path, file: str, line: int) -> tuple[int, int]:
@@ -98,6 +101,22 @@ def target_span(repo_root: Path, file: str, line: int) -> tuple[int, int]:
                 return line, node.test.end_lineno
             return line, node.end_lineno
     return line, line
+
+
+def decision_span(repo_root: Path, file: str, line: int) -> tuple[int, int]:
+    """For a `raise` that sits directly in the body or else-part of an `if` (an elif chain counts as one statement,
+    its first header is the guard): the lines of the guard's header. (0, 0) for any other target."""
+    tree = ast.parse((repo_root / file).read_text())
+    parent: dict[ast.AST, ast.AST] = {c: n for n in ast.walk(tree) for c in ast.iter_child_nodes(n)}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Raise) and node.lineno == line:
+            g = parent.get(node)
+            if not isinstance(g, ast.If):
+                return 0, 0
+            while isinstance(parent.get(g), ast.If) and g in parent[g].orelse and len(parent[g].orelse) == 1:
+                g = parent[g]                                        # `elif`: climb to the first `if` of the chain
+            return g.lineno, g.test.end_lineno
+    return 0, 0
 
 
 def statement_span(repo_root: Path, file: str, line: int) -> tuple[int, int]:
@@ -178,6 +197,9 @@ class _TracerBase:
         self.target_file_abs = str((self.repo_root / target.file).resolve())
         self.scope_names.add((self.target_file_abs, norm_qual(target.function)))
         self.hits: list[dict] = []
+        self.decision_hits: list[dict] = []
+        self._stack: list[str] = []          # in-scope functions currently running, outermost first
+        self._dec_frames: set[int] = set()
         self.starts: list[dict] = []
         self.lines: dict[str, set[int]] = {}
         self._pending: dict[int, _Pending] = {}
@@ -215,7 +237,15 @@ class _TracerBase:
             raise StopProbe()
 
     # -- shared handlers (frame is the monitored frame) ---------------------
+    def _pop(self, code) -> None:
+        q = norm_qual(getattr(code, "co_qualname", code.co_name))
+        for i in range(len(self._stack) - 1, -1, -1):
+            if self._stack[i] == q:
+                del self._stack[i]
+                return
+
     def handle_start(self, code) -> None:
+        self._stack.append(norm_qual(getattr(code, "co_qualname", code.co_name)))
         self.starts.append({"seq": fakes.next_seq(), "fn": norm_qual(getattr(code, "co_qualname", code.co_name)),
                             "file": os.path.realpath(code.co_filename)})
 
@@ -239,11 +269,23 @@ class _TracerBase:
             elif t.kind in ("if", "while"):
                 self._resolve(pend, "true" if t.body[0] <= line <= t.body[1] else "false")
         self.lines.setdefault(norm_qual(getattr(code, "co_qualname", code.co_name)), set()).add(line)
+        d0, d1 = self.target.decision
+        if d0 and info.has_target:
+            if d0 <= line <= d1:
+                if fid not in self._dec_frames:                        # first event of this execution of the guard
+                    self._dec_frames.add(fid)
+                    dh = {"seq": fakes.next_seq(), "outcome": None, "condition_value": None, "condition_error": None,
+                          "locals": {}, "call": self.call_index}
+                    self._eval_condition(dh, frame.f_locals, frame.f_globals)
+                    if len(self.decision_hits) < 50:
+                        self.decision_hits.append(dh)
+            else:
+                self._dec_frames.discard(fid)
         # The first LINE event inside the statement's span starts a hit. For a multi-line `assert (` or `if (` the
         # interpreter may report the first line of the condition instead of the keyword line (3.12+ does).
         if info.has_target and self._in_target_span(line):
             hit = {"seq": fakes.next_seq(), "outcome": None, "condition_value": None, "condition_error": None,
-                   "locals": {}, "call": self.call_index}
+                   "locals": {}, "call": self.call_index, "stack": list(self._stack)}
             f_locals = frame.f_locals
             self._eval_condition(hit, f_locals, frame.f_globals)
             root = str(self.repo_root)
@@ -261,11 +303,13 @@ class _TracerBase:
             self._pending[fid] = _Pending(hit, code)
 
     def handle_return(self, frame) -> None:
+        self._pop(frame.f_code)
         pend = self._pending.pop(id(frame), None)
         if pend is not None:
             self._resolve(pend, "true" if self.target.kind == "assert" else "false")
 
     def handle_unwind(self, frame, exc) -> None:
+        self._pop(frame.f_code)
         pend = self._pending.pop(id(frame), None)
         if pend is not None:
             at_target = self.target.line <= frame.f_lineno <= max(self.target.end_line, self.target.line)
@@ -278,6 +322,7 @@ class _TracerBase:
     def result(self) -> dict[str, Any]:
         return {
             "target_hits": self.hits,
+            "decision_hits": self.decision_hits,
             "starts": self.starts,
             "lines": {k: sorted(v) for k, v in self.lines.items()},
         }

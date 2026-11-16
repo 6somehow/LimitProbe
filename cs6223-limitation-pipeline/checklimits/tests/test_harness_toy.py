@@ -308,3 +308,39 @@ def test_condition_names():
     assert condition_names("n != 1 and m.shape[0] < k") == {"n", "m", "k"}
     assert condition_names("causal_mask is None  # first call only") == {"causal_mask"}
     assert condition_names("not a valid ((") is None and condition_names(None) is None
+
+
+# --- D14: the entry must be running when the target executes ---------------------------------------------------------
+DECOY = ("from toypkg.core import check, entry\n\n\ndef run(inputs):\n    entry(1, 0)                      # the official entry, called first\n"
+         "    return check(inputs['n'], inputs['m'])   # the target function, called directly\n")
+VIA_ENTRY = "from toypkg.core import entry\n\n\ndef run(inputs):\n    return entry(inputs['n'], inputs['m'])\n"
+
+
+def test_d14_is_eliminated_only_when_the_target_runs_inside_the_entry(tmp_path):
+    b = build(tmp_path, with_ext=False, driver_src=VIA_ENTRY, pos={"n": 2, "m": 0}, neg={"n": 1, "m": 0})
+    r = harness.run_attempt(b["attempt"], pipeline_root=b["root"], options=RunOptions.fast())["report"]
+    assert r.positive.target_hits[-1].stack == ["entry", "check"]
+    assert st(r)["D14"] == "eliminated"
+
+
+def test_an_entry_call_followed_by_a_direct_call_to_the_target_is_not_the_entry(tmp_path):
+    b = build(tmp_path, with_ext=False, driver_src=DECOY, pos={"n": 2, "m": 0}, neg={"n": 1, "m": 0})
+    r = harness.run_attempt(b["attempt"], pipeline_root=b["root"], options=RunOptions.fast())["report"]
+    assert r.fidelity.entry_index == 0                          # the entry did start first ...
+    assert r.positive.target_hits[-1].stack == ["check"]        # ... but the target ran outside it
+    assert st(r)["D14"] == "refuted" and "did not run inside it" in [d for d in r.confidence.defeaters if d.id == "D14"][0].evidence
+    b2 = build(tmp_path / "w", with_ext=False, driver_src=DECOY, pos={"n": 2, "m": 0}, neg={"n": 1, "m": 0},
+               manifest_overrides={}, entry_reason="the entry cannot reach the target: it is guarded by an earlier return")
+    (tmp_path / "w").mkdir(exist_ok=True)
+    r2 = harness.run_attempt(b2["attempt"], pipeline_root=b2["root"], options=RunOptions.fast())["report"]
+    assert st(r2)["D14"] == "residual"                           # a recorded reason makes it residual, as for a deeper entry
+
+
+def test_module_level_targets_do_not_need_the_entry_on_the_stack(tmp_path):
+    from checklimits import fidelity
+    from checklimits.models import Observation, TargetHit
+    pos = Observation(role="positive", inputs={}, status="ok", target_hits=[TargetHit(seq=1, stack=["<module>"])])
+    assert fidelity.entry_on_stack(["a.py::entry", "a.py::<module>"], "a.py::<module>", pos) is None
+    pos2 = Observation(role="positive", inputs={}, status="ok", target_hits=[TargetHit(seq=1, stack=["f.g"])])
+    assert fidelity.entry_on_stack(["a.py::f.g"], "a.py::f.g", pos2) is True                # entry is the target function
+    assert fidelity.entry_on_stack(["a.py::entry", "a.py::check"], "a.py::check", pos2) is False

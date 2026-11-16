@@ -263,3 +263,11 @@ def test_find_attempts_works_for_a_root_below_a_directory_called_scratch(toy, tm
     # a nested scratch directory below the root is still skipped (agent run workspaces are not packages to judge)
     shutil.copytree(toy["archive"] / "F1-run" / "attempt", root / "scratch" / "x" / "attempt")
     assert len(e2e.find_attempts([root])["toy-F1"]) == 1
+
+
+def test_a_branch_verdict_says_only_that_the_branch_was_taken():
+    from checklimits.testreport import _verdict_text
+    assert "what the claim says happens after the branch was not checked" in _verdict_text("yes", "path_change")
+    assert "exception is raised at the location" in _verdict_text("yes", "reject")
+    assert "oracle was shown to see it" in _verdict_text("no", "reject")
+    assert _verdict_text("inconclusive", None).startswith("no verdict")
