@@ -148,7 +148,8 @@ def find_attempts(roots: list[Path], max_depth: int = 4) -> dict[str, list[Path]
         if not root.is_dir():
             continue
         for m in sorted(root.rglob("manifest.json")):
-            if len(m.relative_to(root).parts) > max_depth or "scratch" in m.parts:
+            rel = m.relative_to(root).parts
+            if len(rel) > max_depth or "scratch" in rel:
                 continue
             try:
                 d = json.loads(m.read_text())
@@ -289,6 +290,15 @@ def run_test(artifact: str, *, findings_file: str, data_dir: str, repo_rel: str,
         rec = _test_one(raw, status=status[fid], env_ok=env_ok, env_reason=env_reason, attempts=found.get(fid, []), roots=roots,
                         results_root=results_root, artifact=artifact, findings_file=findings_file,
                         findings_sha=sha, data_dir=data_dir, run_agent=run_agent, fast=fast, root=root)
+        if rec.not_run and rec.not_run.code == "agent_failed":
+            # a re-run that produced nothing must not erase an earlier valid test of the same Finding
+            try:
+                prev = read_record(tdir / fid / "report.json")
+            except Exception:
+                prev = None
+            if prev is not None and prev.status == "tested":
+                prev.provenance = {**prev.provenance, "last_agent_rerun": rec.not_run.reason}
+                rec = prev
         write_record(tdir / fid, rec)
         return fid, rec
 

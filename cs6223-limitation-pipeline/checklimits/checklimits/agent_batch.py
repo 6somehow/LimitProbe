@@ -43,6 +43,32 @@ NOT_RUN_CODES = ("no_code_location", "outcome_unsupported", "witness_unusable", 
                  "input_unreadable", "not_attempted", "agent_failed", "harness_error")
 
 
+def describe_other(lim_notes: str, snippet: str) -> str:
+    """Why an `other` Finding (no effect check yet) cannot be judged today, by what its target is. See S4B_OTHER_EFFECTS.md."""
+    import ast
+    import re
+    snippet = (snippet or "").strip()
+    if not snippet:
+        if "Static discrepancy hypothesis" in lim_notes:
+            return ("a static discrepancy between the paper and the code (no executable claim): judging it needs a reference "
+                    "implementation of the paper's formula to compare against (differential oracle)")
+        return "no statement at the code location, so there is nothing to observe"
+    try:
+        kind = type(ast.parse(snippet if not snippet.endswith(":") else snippet + " pass").body[0]).__name__
+    except SyntaxError:
+        kind = "?"
+    if kind in ("Assign", "AugAssign", "AnnAssign"):
+        return ("the target assigns a value; the claimed effect is what that value changes later, which needs a "
+                "differential check of outputs (the assignment itself would differ trivially)")
+    if kind == "Expr" and re.search(r"warn|logging|print", snippet):
+        return "the effect is a warning or log line; the harness has no oracle for emitted messages yet"
+    if kind in ("If", "While"):
+        return "the branch has no raise in its body: the program rejects later, in code the target does not point to"
+    if kind == "Expr":
+        return "the target is a call whose effect is not an exception at that line (for example a check that returns False)"
+    return "the target statement has no effect check yet"
+
+
 def classify_finding(fid: str, data_dir: str, findings_file: str, repo_rel: str, root: Path = PIPELINE_ROOT
                      ) -> Optional[tuple[str, str]]:
     """None if the harness can judge the Finding; otherwise (reason code, reason text)."""
@@ -52,6 +78,9 @@ def classify_finding(fid: str, data_dir: str, findings_file: str, repo_rel: str,
     except Exception as e:  # a malformed Finding is a result for that Finding, not a reason to stop
         return "input_unreadable", f"{type(e).__name__}: {e}"[:300]
     if not t.regions:
+        notes = " ".join((l.notes or "") for l in t.limitations)
+        if "Static discrepancy hypothesis" in notes:
+            return "no_code_location", ("no code location: " + describe_other(notes, ""))
         return "no_code_location", "no code location (paper-side finding or no code evidence)"
     if not (root / repo_rel).is_dir():
         return "env_unavailable", f"repository {repo_rel} is not checked out"
@@ -60,6 +89,9 @@ def classify_finding(fid: str, data_dir: str, findings_file: str, repo_rel: str,
     except Exception as e:
         return "input_unreadable", f"target not readable: {type(e).__name__}: {e}"[:300]
     if not ok:
+        if str(getattr(t.regions[0].outcome, "value", t.regions[0].outcome)) == "suspicious":
+            notes = " ".join((l.notes or "") for l in t.limitations)
+            why = f"effect type 'other': {describe_other(notes, t.regions[0].location.snippet)}"
         return "outcome_unsupported", why
     if t.witness.status not in USABLE_WITNESS or not t.witness.trigger:
         hint = t.finding.witness_hint or {}
