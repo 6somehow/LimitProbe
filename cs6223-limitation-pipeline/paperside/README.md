@@ -22,6 +22,12 @@
 
 原生四数组接口保持不变，映射证据与类型/函数上下文另存 `parameter_mappings.json`，实际联调返回见 `consumer_cases.json`。8 个消费者探针中 6 个通过；2 个下游 witness 问题（十进制等值、整数类型）明确保留为失败，未运行目标系统。旧 v1 五包和原始判断保持不变。
 
+## Z3：给 Shanghao 的首批测试计划
+
+[两个完整案例与真实输入输出](docs/z3-two-paper-cases.md)：FlexPrefill 的累计阈值边界、NNSmith 的超时失败协议。共27条原负项留存triage，各展开1例，代码位置、调用链、触发/对照配方和oracle已附。
+
+[FlexPrefill交接](handoffs/z3-v1/flexprefill/) · [NNSmith交接](handoffs/z3-v1/nnsmith/)。实际消费者能读取，但目前拒绝paper-origin Region，且这两例需要自定义oracle；输出均为 `not_run`，不是测试通过或已确认bug。其他条目仍有语义/输入待办。
+
 ## 当前交付
 
 | 论文 | 机制 / 行为 | 已判断 / 待办 | 交付状态 |
