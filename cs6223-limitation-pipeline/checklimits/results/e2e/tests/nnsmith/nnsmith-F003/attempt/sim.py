@@ -1,18 +1,18 @@
-"""CPU stand-in for the failing `FuzzingLoop.make_testcase` call.
+"""Controlled make_testcase used to inject the exception the finding distinguishes.
 
-This is a stub, not a reference implementation: it exists only to produce the exception
-that the target `except InternalError as e:` statement inspects.  It returns no model.
+The harness installs it as a class attribute, so it is called as self.make_testcase(seed)
+without an implicit self.  The driver sets FLAG before calling FuzzingLoop.run.  The
+exceptions themselves are raised by the repository's own checkers (nnsmith.error), so the
+observed raise location is repository-relative and stable in a clean-checkout replay.
+This is still a canned test double (sim_class stub), not a real model generator.
 """
 
-import os
-import time
-
-from nnsmith.error import InternalError
+FLAG = {"internal": False}
 
 
 def make_testcase(seed):
-    mode = int(os.environ.get("CHECKLIMITS_SIM_MODE", "0"))
-    if mode == 1:
-        raise InternalError("simulated internal error from make_testcase")
-    time.sleep(float(os.environ.get("CHECKLIMITS_SIM_DELAY", "1.5")))
-    raise RuntimeError("simulated ordinary failure from make_testcase")
+    from nnsmith.error import ConstraintCheck, SanityCheck
+
+    if FLAG["internal"]:
+        SanityCheck.handler("synthetic internal error from make_testcase")
+    ConstraintCheck.handler("synthetic ordinary error from make_testcase")

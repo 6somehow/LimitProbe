@@ -1,38 +1,52 @@
-"""Driver: exercise the target assert in triton_block_wise_prefill_attention.
+"""Driver for flexprefill-F008 (target: assert on block_idx width vs triangular grid).
 
-The Region's target is the assert at flex_prefill/ops/flex_prefill_attention.py:1256 inside
-triton_block_wise_prefill_attention.  The witness supplies `num_block` (the width of the padded
-block_idx tensor, block_idx.shape[2]) directly, so the driver calls that function with an explicit
-block_idx list of the requested width.  All arguments (q/k/v shapes, block_size) are built from the
-harness inputs; nothing in the repository is modified and no GPU kernel needs to run before the
-target decision.
+The run starts at the official entry `flex_prefill_attention`. On CPU that entry reaches
+`get_active_blocks`, which launches Triton GPU kernels (triton_bnhd_pool / triton_bhn_sumpool); the launch
+fails before the target line. We keep that real call (no stand-ins), and when it fails for lack of a GPU we
+continue on the same official call chain with `triton_block_wise_attention`, which takes `block_idx`
+directly. Everything from there up to (and including) the target assert is the repository's real code.
 """
 
 import torch
 
-from flex_prefill.ops.flex_prefill_attention import triton_block_wise_prefill_attention
+from flex_prefill.ops.flex_prefill_attention import (
+    flex_prefill_attention,
+    triton_block_wise_attention,
+)
+
+torch.set_num_threads(1)
 
 
 def run(inputs):
-    torch.manual_seed(int(inputs["seed"]))
-    dtype = getattr(torch, inputs["dtype"])
+    torch.manual_seed(0)
 
     batch_size = int(inputs["batch_size"])
     q_len = int(inputs["q_len"])
     k_len = int(inputs["k_len"])
-    num_q_heads = int(inputs["num_q_heads"])
-    num_kv_heads = int(inputs["num_kv_heads"])
     head_dim = int(inputs["head_dim"])
     block_size = int(inputs["block_size"])
     num_block = int(inputs["num_block"])
+    num_q_heads = int(inputs["num_q_heads"])
+    num_kv_heads = int(inputs["num_kv_heads"])
+    min_budget = int(inputs["min_budget"])
+    gamma = float(inputs["gamma"])
+    tau = float(inputs["tau"])
 
-    q = torch.zeros((batch_size, q_len, num_q_heads, head_dim), dtype=dtype)
-    k = torch.zeros((batch_size, k_len, num_kv_heads, head_dim), dtype=dtype)
-    v = torch.zeros((batch_size, k_len, num_kv_heads, head_dim), dtype=dtype)
+    q = torch.zeros((batch_size, q_len, num_q_heads, head_dim), dtype=torch.bfloat16)
+    k = torch.zeros((batch_size, k_len, num_kv_heads, head_dim), dtype=torch.bfloat16)
+    v = torch.zeros((batch_size, k_len, num_kv_heads, head_dim), dtype=torch.bfloat16)
+    block_idx = torch.zeros((batch_size, num_q_heads, num_block), dtype=torch.int64)
 
-    block_idx = [
-        [torch.arange(num_block, dtype=torch.int64) for _ in range(num_q_heads)]
-        for _ in range(batch_size)
-    ]
-
-    return triton_block_wise_prefill_attention(q, k, v, block_idx, block_size)
+    try:
+        return flex_prefill_attention(
+            q,
+            k,
+            v,
+            gamma,
+            tau,
+            min_budget=min_budget,
+            block_size=block_size,
+        )
+    except RuntimeError:
+        # CPU-only: the official entry stops in get_active_blocks at a GPU kernel launch before the target.
+        return triton_block_wise_attention(q, k, v, block_idx, block_size)

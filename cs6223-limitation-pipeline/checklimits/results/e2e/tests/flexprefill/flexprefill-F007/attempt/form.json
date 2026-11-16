@@ -7,71 +7,50 @@
     "free_parameters": [
       {
         "name": "num_kv_heads",
+        "value": 2,
+        "why": "k.shape[2] is not fixed by the witness; equal to num_q_heads so the post-target GQA divisibility assert cannot fail"
+      },
+      {
+        "name": "block_idx_ids",
+        "value": [
+          0,
+          1,
+          2
+        ],
+        "why": "valid flattened block ids do not affect the length guard at the target; only the outer/inner list lengths matter"
+      },
+      {
+        "name": "torch_seed",
+        "value": 0,
+        "why": "manifest seed; makes the CPU tensor construction deterministic"
+      },
+      {
+        "name": "last_block_idx_heads",
         "value": 1,
-        "why": "witness does not name the KV head count; fixed at 1 so the post-target gqa assertion cannot fail before the GPU kernel and the target decision does not depend on it"
-      },
-      {
-        "name": "block_idx_head_width",
-        "value": 2,
-        "why": "the witness trigger and contrast both report len(block_idx[0]) == 2; the inner head-list width must stay 2 while num_q_heads is the single factor that changes"
-      },
-      {
-        "name": "block_idx_last_width",
-        "value": 2,
-        "why": "default last-row head width equals the first row for the main pair; the extra negative lowers it to 1 so block_idx[0] and block_idx[-1] are distinguishable and the 0->-1 mutant is not equivalent"
-      },
-      {
-        "name": "seed",
-        "value": 0,
-        "why": "fixed seed for reproducibility; tensors are zeros so the RNG is not otherwise used"
-      },
-      {
-        "name": "grid_offset",
-        "value": 0,
-        "why": "function default, not part of the asserted guard; kept fixed for both inputs"
-      },
-      {
-        "name": "softmax_scale",
-        "value": null,
-        "why": "function default; only used after the target line in the GPU kernel path"
-      },
-      {
-        "name": "gqa_interleave",
-        "value": false,
-        "why": "function default; block_idx is supplied directly, so the GQA layout is irrelevant to the target decision"
+        "why": "only used when batch_size>1; the extra negative makes the last batch group shorter than the first so block_idx[0] and block_idx[-1] differ"
       }
     ],
     "positive_input": {
       "batch_size": 1,
       "block_size": 128,
       "head_dim": 64,
-      "k_len": 2177,
-      "min_budget": 2112,
-      "num_q_heads": 1,
-      "q_len": 2177
+      "k_len": 385,
+      "min_budget": 320,
+      "num_q_heads": 2,
+      "q_len": 385,
+      "block_idx_heads": 1
     },
     "negative_input": {
       "batch_size": 1,
       "block_size": 128,
       "head_dim": 64,
-      "k_len": 2177,
-      "min_budget": 2112,
+      "k_len": 385,
+      "min_budget": 320,
       "num_q_heads": 2,
-      "q_len": 2177
+      "q_len": 385,
+      "block_idx_heads": 2
     },
-    "boundary_variable": "num_q_heads",
-    "extra_negatives": [
-      {
-        "batch_size": 2,
-        "block_size": 128,
-        "head_dim": 64,
-        "k_len": 2177,
-        "min_budget": 2112,
-        "num_q_heads": 2,
-        "q_len": 2177,
-        "block_idx_last_width": 1
-      }
-    ],
+    "boundary_variable": "block_idx_heads",
     "scale": null,
     "condition_predicate_file": null,
     "oracle": {
@@ -83,11 +62,30 @@
     "expected": {
       "positive": "AssertionError at flex_prefill/ops/flex_prefill_attention.py:1245",
       "negative": "no exception at flex_prefill/ops/flex_prefill_attention.py:1245"
-    }
+    },
+    "extra_negatives": [
+      {
+        "batch_size": 2,
+        "block_size": 128,
+        "head_dim": 64,
+        "k_len": 385,
+        "min_budget": 320,
+        "num_q_heads": 2,
+        "q_len": 385,
+        "block_idx_heads": 2,
+        "last_block_idx_heads": 1,
+        "block_idx_ids": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
+    ]
   },
   "execution": {
-    "entry_called": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention",
-    "entry_reason": "The asserted value is block_idx, which is not a parameter of the official entry flex_prefill_attention: the entry builds it internally with get_active_blocks, which always returns exactly [batch_size, q.shape[2]] lists (transform_veritcal_slash_idx iterates range(q.shape[2])) and then passes it to the target unchanged. So len(block_idx)==batch_size and len(block_idx[0])==num_q_heads is an internal invariant and the target assertion cannot fire through flex_prefill_attention. Making the head counts non-divisible does not help: get_active_blocks fails earlier, before the target, on the q/k einsum/view shapes. The drivers still call the real target function with a real caller-supplied block_idx list; only the entry depth moves from call_chain[0] to call_chain[1] so the asserted block_idx width can be varied. This is why D14 stays residual and cannot be eliminated without mocking code before the target.",
+    "entry_called": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_attention",
+    "entry_reason": "flex_prefill_attention (call_chain[0]) has no block_idx parameter: it calls get_active_blocks, whose transform_veritcal_slash_idx builds the list as [ [unique(...) for h in range(num_heads)] for b in range(batch_size) ], with num_heads taken from q.shape[2]. Therefore len(block_idx) is always batch_size and len(block_idx[0]) is always num_q_heads, so neither half of the guard at line 1245 can fail through the official entry. The guard constrains a caller-supplied list[list[Tensor]] block_idx, so the driver calls call_chain[1] (triton_block_wise_attention), which forwards block_idx unchanged to the target function.",
     "call_chain_index": 1,
     "repo_files_modified": [],
     "mocks": [],
@@ -98,7 +96,10 @@
   },
   "claims": {
     "target_reached": true,
-    "decision_outcomes_seen": ["false", "true"],
+    "decision_outcomes_seen": [
+      "false",
+      "true"
+    ],
     "condition_true_on_positive": true,
     "condition_false_on_negative": true,
     "positive_observed": "AssertionError at flex_prefill/ops/flex_prefill_attention.py:1245",

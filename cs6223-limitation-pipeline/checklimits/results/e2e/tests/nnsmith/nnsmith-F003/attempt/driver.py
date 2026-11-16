@@ -1,32 +1,27 @@
-"""Driver for nnsmith-F003: FuzzingLoop.run re-raises InternalError from make_testcase.
+"""Drive the real FuzzingLoop.run with a controlled `make_testcase`.
 
-Calls the target's own function `FuzzingLoop.run`.  The only stand-in is
-`FuzzingLoop.make_testcase`, declared as a patch mock in form.json: it is the failing
-callee that the target's try/except inspects, and constructing a full NNSmith backend on
-this CPU-only box would need a GPU toolchain.  It raises an InternalError when the input
-factor is 1 and an ordinary RuntimeError otherwise, so the one differing factor is the
-type of exception thrown by make_testcase.
+The finding is about what FuzzingLoop.run does with an exception from make_testcase:
+an InternalError is re-raised at fuzz.py:180, while any other exception is logged and
+the loop continues.  Building a whole model-generation pipeline to obtain a real
+InternalError on CPU is non-deterministic, so `make_testcase` is replaced (declared as
+a mock) and raises the exception selected by the witness predicate.  FuzzingLoop.run
+itself, its except clauses and the `raise e` statement are the real repository code.
 """
 
-import os
 import random
+import sys
 
-import nnsmith.cli.fuzz as fuzz
+from nnsmith.cli.fuzz import FuzzingLoop
 
 
 def run(inputs):
-    failure_code = inputs["failure_code"]
-    os.environ["CHECKLIMITS_SIM_MODE"] = str(failure_code)
-    os.environ["CHECKLIMITS_SIM_DELAY"] = str(inputs["negative_delay_s"])
-    random.seed(inputs["random_seed"])
-
-    loop = fuzz.FuzzingLoop.__new__(fuzz.FuzzingLoop)
-    loop.timeout_s = inputs["loop_timeout_s"]
-    loop.cfg = {
-        "model": {"type": "torch"},
-        "mgen": {"max_nodes": 1},
-        "backend": {"target": "cpu"},
-    }
-    loop.status = type("Status", (), {"n_testcases": 0, "n_bugs": 0})()
-    loop.validate_and_report = lambda testcase: True
+    internal = bool(inputs["isinstance(e, InternalError)"])
+    sim = sys.modules.get("_checklimits_sim_sim")
+    if sim is not None:
+        sim.FLAG["internal"] = internal
+    random.seed(int(inputs["seed"]))
+    loop = FuzzingLoop.__new__(FuzzingLoop)
+    loop.timeout_s = int(inputs["timeout_s"])
+    loop.cfg = {"model": {"type": "mock"}, "mgen": {"max_nodes": 0}, "backend": {"target": "cpu"}}
+    loop._checklimits_internal = internal
     return loop.run()

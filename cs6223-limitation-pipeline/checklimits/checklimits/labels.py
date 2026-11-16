@@ -46,6 +46,7 @@ def sample(results_root: Path, out_dir: Path, n: int = 20, raters: tuple[str, ..
     strata: dict[tuple, list[dict]] = defaultdict(list)
     for r in pool:
         strata[(r["record"]["verdict"], r["record"]["level"])].append(r)
+    pool_strata = {f"{k[0]}/{k[1]}": len(v) for k, v in strata.items()}
     rng = random.Random(seed)
     for v in strata.values():
         rng.shuffle(v)
@@ -80,7 +81,7 @@ def sample(results_root: Path, out_dir: Path, n: int = 20, raters: tuple[str, ..
                 w.writerow({**it, "q1_finding_true": "", "q2_test_valid": "", "notes": ""})
     (out_dir / "key.json").write_text(json.dumps({"seed": seed, "n_pool": len(pool), "items": key}, indent=1) + "\n")
     (out_dir / "README.md").write_text(README.format(n=len(items), pool=len(pool), q1="/".join(Q1), q2="/".join(Q2)))
-    return {"n": len(items), "n_pool": len(pool), "strata": {f"{k[0]}/{k[1]}": len(v) for k, v in strata.items()},
+    return {"n": len(items), "n_pool": len(pool), "strata": pool_strata, "sampled": dict(Counter(f"{v['verdict']}/{v['level']}" for v in key.values())),
             "files": sorted(p.name for p in out_dir.iterdir())}
 
 

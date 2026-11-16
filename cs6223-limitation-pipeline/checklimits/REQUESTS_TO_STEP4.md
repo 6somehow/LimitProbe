@@ -66,3 +66,11 @@ NNSmith 里的反例：`while not check_sat():`（F002）和 `if ...: continue`�
 | 能判断 | 32 -> 29 | 19 -> 22 |
 
 `pipeline test`（W6）已接上，按 `CONTRACT_TEST_REPORT.md` 调用和解释退出码，`pipeline status` 显示 test 阶段（done / stale / todo）。在我这台机器上 NNSmith 预检是 `not_ok`（缺 `multipledispatch`），所以没有产出可比的判定，归档的报告样例需要你在有环境的机器上重新生成。
+
+## 6. 调用链用起来之后看到的三件事（Shanghao，2026-11-16）
+
+用新调用链重跑 agent（`EXPERIMENTS.md`）：NNSmith F035 和 F012、FlexPrefill F008 的 D14 从 residual 变成 eliminated，所以调用链有用。同时有三处值得 Wanting 看：
+
+1. **`override` 步骤指向没有被实例化的类（nnsmith-F034、F036）。** 调用链 `random_model_gen -> SimpleGenerator.abstract_gen -> GuidedGen.post_process` 里最后一步是 `override`（你已经列在 `uncertain_steps`）。agent 读源码发现 `GuidedGen` 在整个仓库里只有定义，没有实例化（`grep GuidedGen` 只有 `class GuidedGen` 和它自己的 `super().__init__`）；官方入口构造的是 `PureSymbolGen`，它的 `post_process` 是空操作。所以这两条的目标代码从官方入口走不到。建议：`override` 步骤的子类若在仓库里从未被构造，就把这一步标成不可达，witness 状态记 `infeasible`（`infeasible_because: unreachable_class`）。
+2. **条件涉及列表长度时求解器不知道不可行（flexprefill-F007）。** 目标守卫是 `len(block_idx) == batch_size and len(block_idx[0]) == num_q_heads`（1245 行附近）。agent 读到官方入口调用 `get_active_blocks`，里面的 `transform_veritcal_slash_idx` 总是构造 `batch_size` 个、每个 `num_heads` 个元素的列表，所以守卫从官方入口不可能为假。step 4 现在记为 `solved`，因为这个构造不在入口参数的线性约束里。这类大概没法自动发现，请在 `HANDOFF.md` 里写明"`infeasible` 只覆盖入口参数可以线性表达的约束"。
+3. **目标是裸 `raise` 时测试侧会判 `invalid`（nnsmith-F001、F003，flexprefill-F019，另有 infinigen-F004、minference-F006、F019 同类，共 6 条）。** 守卫成立时才会执行到 `raise`，对照点执行不到目标行，所以 D2（"条件在对照点为假"）无法在目标行上求值。这是测试侧的缺口，不是 step 4 的错，**还没有修**：要让 harness 在 `raise` 的外层 `if` 头上求值条件，需要改追踪器（两个后端）、运行器和审计，还没排。在那之前这 6 条的测试只能是 `invalid`。不需要你改什么；只请保持这几条的 `code_evidence[0]` 指向 `raise` 语句，我按这个约定改。

@@ -11,19 +11,19 @@
  "level_note": "refuted fatal defeaters: D2",
  "verdict_reason": "no effect on either input",
  "observed": {
-  "positive": "no exception at nnsmith/cli/fuzz.py:180 (later InternalError at F003-n1-f003/attempt/sim.py:16)",
+  "positive": "no exception at nnsmith/cli/fuzz.py:180 (later InternalError at nnsmith/error.py:73)",
   "negative": "no exception at nnsmith/cli/fuzz.py:180"
  },
  "defeaters": {
   "D1": "eliminated",
   "D2": "refuted",
   "D3": "residual",
-  "D4": "residual",
+  "D4": "eliminated",
   "D5": "eliminated",
   "D6": "refuted",
   "D7": "eliminated",
-  "D8": "refuted",
-  "D9": "refuted",
+  "D8": "eliminated",
+  "D9": "eliminated",
   "D10": "eliminated",
   "D11": "eliminated",
   "D12": "eliminated",
@@ -44,28 +44,10 @@
    "evidence": "only 1 mutants (< n_min=4); killed 0"
   },
   {
-   "id": "D4",
-   "name": "oracle is specified, located, pre-registered",
-   "status": "residual",
-   "evidence": "tier O3 (location not named)"
-  },
-  {
    "id": "D6",
    "name": "verdict-bearing observations do not depend on stand-ins",
    "status": "refuted",
    "evidence": "verdict-bearing observations: positive simulated:stub, negative simulated:stub"
-  },
-  {
-   "id": "D8",
-   "name": "result is stable across independent runs",
-   "status": "refuted",
-   "evidence": "5 distinct canonical traces in 5 runs"
-  },
-  {
-   "id": "D9",
-   "name": "result reproduces in a clean checkout",
-   "status": "refuted",
-   "evidence": "fresh checkout gave different canonical traces: positive"
   },
   {
    "id": "D13",
@@ -77,16 +59,13 @@
    "id": "D14",
    "name": "official entry point was called",
    "status": "residual",
-   "evidence": "deeper entry (index 1); reason recorded: The target statement is inside FuzzingLoop.run. The Region's call_chain[0], PracticalHybridSearch.search_one, is not an ancestor of the target: it is reached inside make_testcase (via TorchModel.refine_weights), which runs before the try/except that contains the target, so calling search_one cannot execute line 179. The target's own function is called directly; only its failing callee is a declared stand-in."
+   "evidence": "deeper entry (index 1); reason recorded: The advertised call_chain[0] PracticalHybridSearch.search_one has no static path to FuzzingLoop.run (step 4 reports call_chain_status=not_found); FuzzingLoop.run is the target's own function and is driven directly, with the rest of the run loop left untouched."
   }
  ],
  "next_steps": [
   "D2 (refuted): pick inputs so the Region condition is true on the positive and false on the negative; write a predicate if it cannot be evaluated",
   "D3 (residual): 1 mutant(s) survived because no input separates them from the original: delete_statement (`pass  # propagate internal errors`). Add inputs that distinguish them (for a set-membership guard, one input per member), or strengthen the oracle if it cannot see the effect",
-  "D4 (residual): state the oracle as exception type + Region.location and register it before the first run",
   "D6 (refuted): move stand-ins after the target line, or replace stubs with a fake or the repository's own reference implementation",
-  "D8 (refuted): fix seeds and thread counts; find the source of non-determinism",
-  "D9 (refuted): make the attempt self-contained so a clean checkout reproduces it",
   "D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)"
  ],
  "finding": {
@@ -128,9 +107,9 @@
  "provenance": {
   "findings_file": "results/step4/nnsmith/limitations_for_tests.json",
   "findings_sha256": "3ec725e87dbddd4c992db2cb5e7881f511e70ce2ab61c81037bbb06a557aa5fb",
-  "generated_at": "2026-11-16T15:59:10+08:00",
+  "generated_at": "2026-11-16T19:34:49+08:00",
   "source": "reaudit",
-  "attempt_origin": "agent_results/batch_nnsmith/F003-n1-f003/attempt",
+  "attempt_origin": "scratch/chain_attempts/c2n-f003/attempt",
   "n_attempts_found": 1,
   "profile": "default-v1"
  }

@@ -37,6 +37,8 @@ def test_sample_hides_the_harness_answer_and_covers_the_strata(tmp_path):
     assert "a-skipped" not in text                                                              # only tested Findings
     assert (out / "sheet_r1.csv").read_text().splitlines()[0] == (out / "sheet_r2.csv").read_text().splitlines()[0]
     assert labels.sample(root, tmp_path / "again", n=4, raters=("r1",), seed=1)["strata"] == res["strata"]
+    assert res["strata"] == {"yes/L1": 8, "yes/L3": 1, "no/L1": 1}                    # the pool, not what is left after drawing
+    assert sum(res["sampled"].values()) == 4
 
 
 def test_kappa_values():

@@ -22,17 +22,21 @@
  "positive": {
   "role": "positive",
   "inputs": {
-   "seed": 0,
+   "seed": 3,
    "init_rank": 1,
+   "default_bins": 18,
+   "max_nodes": 0,
+   "opset": "relu",
    "constrain_prob": 1.0,
-   "conflict": 1
+   "timeout_ms": 500,
+   "megabyte_lim": 1
   },
   "status": "ok",
   "exception": null,
   "target_reached": true,
   "target_hits": [
    {
-    "seq": 2,
+    "seq": 3,
     "call": 0,
     "outcome": "true",
     "condition_value": true,
@@ -56,7 +60,7 @@
   "effect_note": "branch taken",
   "returned": "None",
   "post_target_exception": null,
-  "entry_first_started": "nnsmith/graph_gen.py::GuidedGen.post_process",
+  "entry_first_started": "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
   "target_span": [
    1052,
    1052
@@ -65,26 +69,30 @@
   "observed_text": "branch taken at nnsmith/graph_gen.py:1052",
   "coverage": {
    "scope": "call_chain",
-   "lines_executed": 22,
+   "lines_executed": 34,
    "lines_total": 51
   },
   "stdout_tail": "",
-  "wall_s": 0.011
+  "wall_s": 0.014
  },
  "negative": {
   "role": "negative",
   "inputs": {
-   "seed": 0,
+   "seed": 3,
    "init_rank": 1,
+   "default_bins": 18,
+   "max_nodes": 0,
+   "opset": "relu",
    "constrain_prob": 1.0,
-   "conflict": 0
+   "timeout_ms": 500,
+   "megabyte_lim": 2
   },
   "status": "ok",
   "exception": null,
   "target_reached": true,
   "target_hits": [
    {
-    "seq": 2,
+    "seq": 3,
     "call": 0,
     "outcome": "false",
     "condition_value": false,
@@ -108,7 +116,7 @@
   "effect_note": "branch not taken",
   "returned": "None",
   "post_target_exception": null,
-  "entry_first_started": "nnsmith/graph_gen.py::GuidedGen.post_process",
+  "entry_first_started": "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
   "target_span": [
    1052,
    1052
@@ -117,43 +125,43 @@
   "observed_text": "branch not taken at nnsmith/graph_gen.py:1052",
   "coverage": {
    "scope": "call_chain",
-   "lines_executed": 19,
+   "lines_executed": 31,
    "lines_total": 51
   },
   "stdout_tail": "",
-  "wall_s": 0.012
+  "wall_s": 0.02
  },
  "extra_negatives": [],
  "checks": {
   "controls_differ": true,
   "differing_factors": [
-   "conflict"
+   "megabyte_lim"
   ],
   "bva": {
    "applicable": true,
-   "boundary_variable": "conflict",
+   "boundary_variable": "megabyte_lim",
    "full_scale_positive": true,
    "full_scale_negative": false,
    "neighbours": [
     {
      "label": "neg+",
      "inputs": {
-      "conflict": 1
+      "megabyte_lim": 3
      },
-     "effect": true,
+     "effect": false,
      "note": ""
     },
     {
      "label": "neg-",
      "inputs": {
-      "conflict": -1
+      "megabyte_lim": 1
      },
      "effect": true,
      "note": ""
     }
    ],
    "adjacent": true,
-   "pattern": "effect on both sides: the no-effect region is a single point (a '!=' style guard)",
+   "pattern": "effect on one side: the negative input sits on a half-space boundary",
    "note": ""
   },
   "mutation": {
@@ -177,7 +185,7 @@
    "identical": true,
    "distinct_hashes": 1,
    "flake_bound": 0.6,
-   "trace_hash": "66f228c09cdbf9bd"
+   "trace_hash": "1a664d5d20fe2acf"
   },
   "replay": {
    "ok": true,
@@ -198,7 +206,7 @@
    "git_status_clean": true
   },
   "mocks": [],
-  "entry_index": 2,
+  "entry_index": 1,
   "call_chain_len": 3,
   "probe_effect_free": true,
   "probe_note": "traced and untraced runs show the same observable result"
@@ -347,7 +355,7 @@
     "concept": "Ceteris paribus; domain testing ON/OFF points; delta debugging",
     "severity": "important",
     "status": "eliminated",
-    "evidence": "one factor differs and a neighbour of the negative input shows the effect: effect on both sides: the no-effect region is a single point (a '!=' style guard)",
+    "evidence": "one factor differs and a neighbour of the negative input shows the effect: effect on one side: the negative input sits on a half-space boundary",
     "measured": {}
    },
    {
@@ -433,7 +441,7 @@
     "concept": "Integration level (T4)",
     "severity": "important",
     "status": "residual",
-    "evidence": "deeper entry (index 2); reason recorded: The official entry random_model_gen hardcodes PureSymbolGen and never instantiates GuidedGen, so the target GuidedGen.post_process is unreachable from that entry. The target function and its callee check_sat are invoked unmodified on a real GuidedGen instance.",
+    "evidence": "deeper entry (index 1); reason recorded: random_model_gen (call_chain[0]) constructs PureSymbolGen, whose post_process is the inherited no-op SimpleGenerator.post_process; the target GuidedGen.post_process is never reached under the official entry. The driver instead calls the real call-chain method SimpleGenerator.abstract_gen on a real GuidedGen instance, so the target code executes unmodified; no repository file or class is replaced.",
     "measured": {}
    }
   ],

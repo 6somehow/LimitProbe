@@ -257,3 +257,9 @@ D1 到 D14 对三类效果通用，只有"什么算效果"不同（`runner.outco
 * **弃权变多，不是错。** F07、F01、F04 的"删除守卫，Region snippet 已更新"三个 case 从 `no`/L1 变成 `inconclusive`/n/a：Region 说效果是 `reject`，目标语句已经是 `pass`，11-12 加的"`reject` 只在目标能抛异常时判断"（本文第 15 节）让它们弃权。这三个的可接受集是 `{no}`，所以在表里是"可接受集之外"，但没有错判。
 * 不同族的结果一致：手写 pilot 31 个 case、NNSmith 30 个、FlexPrefill step 4 测试包 21 个，假阳性都是 0。
 * 全部是确定性的小故障。这仍是冒烟测试，**不是校准**。档位的含义要靠人工标注（`labels` 命令）才能有经验依据。
+
+## 17. agent 的可见范围（2026-11-16）
+
+* 沙箱里不可读：`attempts/`、`results/`、`locks/`、`runs/`、`tests/`、`scripts/`、`scratch/`、`agent_results/`，git 历史，凭据，`PLAN.md`、`ENV.md`、`KICKOFF_PROMPT.md`、`scoring_prototype.py`，以及 `AGENT_RESULTS.md`、`BATCH_RESULTS.md`、`NNSMITH_RESULTS.md`、`PREFLIGHT_FLEXPOSIT.md`。`agent_results/` 在 11-16 之前是可读的（`BATCH_RESULTS.md` 补记三）。
+* 白盒（默认）：可读 `checklimits/` 的源码、`CONFIDENCE_SPEC.md`、`SCORECARD.md`。
+* `--blind`：源码换成只有 `.pyc` 的副本，规则文档读不到。**字节码仍可读**，5 次运行都用 `strings`、`marshal`、`dis` 去看了，所以这是"半盲"（`EXPERIMENTS.md`）。

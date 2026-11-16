@@ -1,31 +1,30 @@
-"""Driver for nnsmith-F012: the Z3_CONS_FLOPS guard in Pool2d.requires.
+"""Driver: call the official entry with the inputs the harness passes in.
 
-`PracticalHybridSearch.search_one` (call_chain[0]) is the input-search entry and never
-constructs operator constraints, so it cannot reach `Pool2d.requires`.  The target is the
-module-level flag read inside `requires`, so the driver calls that function directly and
-records the reason in the form.
+The finding is about the module-level flag nnsmith.abstract.op.Z3_CONS_FLOPS.  The flag is
+read inside Pool2d.requires; the official entry that reaches it is random_model_gen.  The
+driver maps the input value onto that module global, builds a one-op graph of Pool2d (the
+operator whose requires() holds the target) and calls the entry.
 """
 
 import random
 
-import numpy as np
-
-import nnsmith.abstract.op as op
-from nnsmith.abstract.dtype import DType
-from nnsmith.abstract.tensor import AbsTensor
+import nnsmith.abstract.op as op_mod
+from nnsmith.graph_gen import random_model_gen
 
 
 def run(inputs):
-    random.seed(0)
-    np.random.seed(0)
+    op_mod.Z3_CONS_FLOPS = bool(inputs["Z3_CONS_FLOPS"])
 
-    op.Z3_CONS_FLOPS = bool(inputs["Z3_CONS_FLOPS"])
+    opset = [getattr(op_mod, name) for name in inputs["opset"]]
+    seed = int(inputs["seed"])
+    random.seed(seed)
 
-    pool = op.Pool2d(
-        inputs["kernel_h_size"],
-        inputs["kernel_w_size"],
-        inputs["stride"],
-        inputs["padding"],
+    return random_model_gen(
+        opset=opset,
+        init_rank=int(inputs["init_rank"]),
+        max_nodes=int(inputs["max_nodes"]),
+        seed=seed,
+        timeout_ms=int(inputs["timeout_ms"]),
+        forward_prob=float(inputs["forward_prob"]),
+        init_fp=bool(inputs["init_fp"]),
     )
-    input_shapes = [AbsTensor(list(inputs["input_shape"]), DType.from_str(inputs["dtype"]))]
-    return pool.requires(input_shapes)

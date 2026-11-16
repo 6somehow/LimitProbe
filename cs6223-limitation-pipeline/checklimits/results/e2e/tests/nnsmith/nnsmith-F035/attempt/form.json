@@ -7,13 +7,23 @@
     "free_parameters": [
       {
         "name": "seed",
-        "value": 2,
-        "why": "Fixes Python's random stream so the uniform draw at the target is deterministic across runs; it is not part of the claim."
+        "value": 9,
+        "why": "fixes the deterministic pseudo-random sequence of torch/numpy/python random state"
       },
       {
         "name": "init_rank",
         "value": 1,
-        "why": "Gives the constructor's single placeholder one dimension, so gen_ph_cons yields exactly one constraint and len(cons) == 1."
+        "why": "rank of the single placeholder, so gen_ph_cons returns exactly one constraint (len(cons)==1)"
+      },
+      {
+        "name": "scale",
+        "value": "linear",
+        "why": "selects the simple linear guidance bins of GuidedGen instead of the log default"
+      },
+      {
+        "name": "opset_name",
+        "value": "MatMul",
+        "why": "any non-empty AbsOpBase opset satisfies the constructor assert; graph generation is not used"
       }
     ],
     "positive_input": {
@@ -27,13 +37,10 @@
     "condition_predicate_file": null,
     "extra_negatives": [
       {
-        "constrain_prob": 0.05655136772680869
+        "constrain_prob": 0.18614495446206514
       },
       {
-        "constrain_prob": 0.9
-      },
-      {
-        "constrain_prob": 0.08482705159021303
+        "constrain_prob": 0.2792174316930977
       }
     ],
     "oracle": {
@@ -48,9 +55,9 @@
     }
   },
   "execution": {
-    "entry_called": "nnsmith/graph_gen.py::GuidedGen.post_process",
-    "entry_reason": "The hand-off's official entry random_model_gen instantiates PureSymbolGen, whose post_process is a no-op; GuidedGen is never instantiated anywhere in the pinned repository, so the target cannot be reached through that entry. The target function GuidedGen.post_process is constructed directly (GuidedGen with one placeholder node) so the branch decision itself is exercised.",
-    "call_chain_index": 1,
+    "entry_called": "nnsmith/graph_gen.py::random_model_gen",
+    "entry_reason": "The official entry random_model_gen is called. It hardcodes PureSymbolGen, which inherits the no-op SimpleGenerator.post_process (line 180), so the entry itself cannot reach GuidedGen.post_process and GuidedGen is not instantiated anywhere in the pinned repository. After the real entry call, the target is exercised by constructing GuidedGen and running the documented SimpleGenerator.abstract_gen -> GuidedGen.post_process path with max_node_size=0.",
+    "call_chain_index": 0,
     "repo_files_modified": [],
     "mocks": [],
     "hooks": [],
@@ -61,8 +68,8 @@
   "claims": {
     "target_reached": true,
     "decision_outcomes_seen": [
-      "false",
-      "true"
+      "true",
+      "false"
     ],
     "condition_true_on_positive": true,
     "condition_false_on_negative": true,

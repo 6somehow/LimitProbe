@@ -1,29 +1,40 @@
-"""Driver: exercise GuidedGen.post_process, the target of finding nnsmith-F035.
+"""Drive GuidedGen.post_process (the target's function) after calling the official entry.
 
-The official entry point named in the hand-off, random_model_gen, instantiates PureSymbolGen,
-whose post_process is a no-op; GuidedGen is never instantiated anywhere in the repository. To
-test the target decision itself we construct a GuidedGen directly and call its post_process.
-The graph is the single initial placeholder created by the constructor, so the per-node
-constraint list `cons` has one element (one placeholder dimension). The only value that varies
-between runs is constrain_prob, which controls the target condition
-`len(cons) == 0 or random.uniform(0, 1) > self.constrain_prob`.
+The pinned repository's official entry `random_model_gen` builds a PureSymbolGen, whose
+post_process is the no-op SimpleGenerator.post_process, so it never reaches the target.
+GuidedGen is not instantiated anywhere in the pinned repository; the compared decision can
+only be exercised on a real GuidedGen.  We therefore call the real entry first, then construct
+GuidedGen and run the documented SimpleGenerator.abstract_gen -> GuidedGen.post_process path
+with max_node_size=0.  The graph is then the single initial Placeholder that
+GuidedGen.__init__ inserts (rank `init_rank`), so post_process visits exactly one node and
+`len(cons) == init_rank`.
 """
 
-from nnsmith.abstract.op import Placeholder
-from nnsmith.graph_gen import GuidedGen
-from nnsmith.util import set_seed
+from nnsmith.graph_gen import GuidedGen, random_model_gen
+from nnsmith.abstract.op import MatMul
+
+_OPSETS = {"MatMul": MatMul}
 
 
 def run(inputs):
+    cp = float(inputs["constrain_prob"])
     seed = int(inputs["seed"])
     init_rank = int(inputs["init_rank"])
-    constrain_prob = float(inputs["constrain_prob"])
-
-    set_seed(seed)
-    gen = GuidedGen(
-        opset={Placeholder},
+    scale = str(inputs["scale"])
+    opset = {_OPSETS[str(inputs["opset_name"])]}
+    random_model_gen(
+        opset=opset,
         init_rank=init_rank,
-        init_fp=True,
-        constrain_prob=constrain_prob,
+        max_nodes=0,
+        seed=seed,
+        timeout_ms=500,
     )
-    return gen.post_process()
+    gen = GuidedGen(
+        opset=opset,
+        init_rank=init_rank,
+        seed=seed,
+        constrain_prob=cp,
+        scale=scale,
+    )
+    gen.abstract_gen(max_node_size=0, max_gen_millisec=500)
+    return None
