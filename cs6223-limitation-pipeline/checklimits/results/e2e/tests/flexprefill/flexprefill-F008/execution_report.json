@@ -45,8 +45,8 @@
    "message": "",
    "raised_at": "flex_prefill/ops/flex_prefill_attention.py:1256",
    "frames": [
-    "checklimits/checklimits/child.py:120",
-    "c2f-f008/attempt/driver.py:52",
+    "checklimits/checklimits/child.py:121",
+    "flexprefill-F008/attempt/driver.py:52",
     "flex_prefill/ops/flex_prefill_attention.py:1354",
     "flex_prefill/ops/flex_prefill_attention.py:1256"
    ]
@@ -77,9 +77,14 @@
      "total_q_blocks": "3",
      "total_k_blocks": "3",
      "num_block": "7"
-    }
+    },
+    "stack": [
+     "triton_block_wise_attention",
+     "triton_block_wise_prefill_attention"
+    ]
    }
   ],
+  "decision_hits": [],
   "effect": true,
   "effect_note": "AssertionError raised at target",
   "returned": null,
@@ -97,7 +102,7 @@
    "lines_total": 68
   },
   "stdout_tail": "",
-  "wall_s": 0.309
+  "wall_s": 0.277
  },
  "negative": {
   "role": "negative",
@@ -125,8 +130,8 @@
    "message": "0 active drivers ([]). There should only be one.",
    "raised_at": "triton/runtime/driver.py:8",
    "frames": [
-    "checklimits/checklimits/child.py:120",
-    "c2f-f008/attempt/driver.py:52",
+    "checklimits/checklimits/child.py:121",
+    "flexprefill-F008/attempt/driver.py:52",
     "flex_prefill/ops/flex_prefill_attention.py:1354",
     "flex_prefill/ops/flex_prefill_attention.py:1268",
     "flex_prefill/ops/flex_prefill_attention.py:997",
@@ -163,9 +168,14 @@
      "total_q_blocks": "3",
      "total_k_blocks": "3",
      "num_block": "6"
-    }
+    },
+    "stack": [
+     "triton_block_wise_attention",
+     "triton_block_wise_prefill_attention"
+    ]
    }
   ],
+  "decision_hits": [],
   "effect": false,
   "effect_note": "target passed; later RuntimeError at triton/runtime/driver.py:8",
   "returned": null,
@@ -174,8 +184,8 @@
    "message": "0 active drivers ([]). There should only be one.",
    "raised_at": "triton/runtime/driver.py:8",
    "frames": [
-    "checklimits/checklimits/child.py:120",
-    "c2f-f008/attempt/driver.py:52",
+    "checklimits/checklimits/child.py:121",
+    "flexprefill-F008/attempt/driver.py:52",
     "flex_prefill/ops/flex_prefill_attention.py:1354",
     "flex_prefill/ops/flex_prefill_attention.py:1268",
     "flex_prefill/ops/flex_prefill_attention.py:997",
@@ -199,7 +209,7 @@
    "lines_total": 68
   },
   "stdout_tail": "",
-  "wall_s": 0.213
+  "wall_s": 0.298
  },
  "extra_negatives": [],
  "checks": {
@@ -317,7 +327,7 @@
    "identical": true,
    "distinct_hashes": 1,
    "flake_bound": 0.6,
-   "trace_hash": "3f3bcd99e8493b24"
+   "trace_hash": "1d1bfec3b7fc9229"
   },
   "replay": {
    "ok": true,
@@ -572,15 +582,17 @@
     "name": "official entry point was called",
     "concept": "Integration level (T4)",
     "severity": "important",
-    "status": "eliminated",
-    "evidence": "the official entry (call_chain[0]) started first",
+    "status": "residual",
+    "evidence": "the official entry started first but the target line did not run inside it; reason recorded: The official entry flex_prefill_attention is called first. On CPU it reaches get_active_blocks, which launches Triton GPU kernels (triton_bnhd_pool, triton_bhn_sumpool) before the target and fails with RuntimeError; mocking those would place stand-ins before the target. The driver therefore continues on the same official call chain with triton_block_wise_attention, which accepts block_idx directly and executes the real pre-target checks and the target assert unchanged.",
     "measured": {}
    }
   ],
-  "level": "L3",
+  "level": "L2",
   "level_note": "",
   "calibrated": false,
-  "next_steps": []
+  "next_steps": [
+   "D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)"
+  ]
  },
  "finding_confidence": "llm_assisted",
  "env": {
@@ -599,7 +611,7 @@
  "cost": {
   "llm_calls": 0,
   "tokens": 0,
-  "wall_seconds": 35.1
+  "wall_seconds": 41.1
  },
  "notes": [
   "T3: positive_input['num_block']=7 differs from the witness trigger value 4",
