@@ -50,6 +50,7 @@ class Budget:
     tool_calls: int = 250
     tokens: int = 4_000_000
     sessions: int = 2           # outer iterations: first session + feedback sessions
+    blind: bool = False         # hide the harness source and the rule documents (S5b)
 
 
 @dataclass
@@ -68,13 +69,44 @@ class SessionStats:
 # attempts, all earlier results and benchmark runs, the tests, the notes about how the pilot was solved,
 # and the git history (which contains all of those). The first agent run found and copied the hand-written
 # F07 driver, so its result was thrown away (scratch/agent_runs/INVALID-*).
-HIDE_PATHS_DIRS = [PROJECT_ROOT / d for d in ("attempts", "results", "locks", "runs", "tests", "scripts", "scratch")] + \
+# agent_results/ (archived attempts of earlier agent runs, for 4 FlexPrefill Findings of the very same Finding) and the
+# result write-ups were readable until 2026-11-16: an agent could copy an earlier solution. From that date they are hidden.
+HIDE_PATHS_DIRS = [PROJECT_ROOT / d for d in ("attempts", "results", "locks", "runs", "tests", "scripts", "scratch",
+                                              "agent_results")] + \
                   [PIPELINE_ROOT.parent / ".git"]     # PIPELINE_ROOT/results stays visible: it holds the step 4 inputs
-HIDE_PATHS_FILES = [PROJECT_ROOT / f for f in ("PLAN.md", "KICKOFF_PROMPT.md", "ENV.md", "scoring_prototype.py")]
+HIDE_PATHS_FILES = [PROJECT_ROOT / f for f in ("PLAN.md", "KICKOFF_PROMPT.md", "ENV.md", "scoring_prototype.py",
+                                               "AGENT_RESULTS.md", "BATCH_RESULTS.md", "NNSMITH_RESULTS.md",
+                                               "PREFLIGHT_FLEXPOSIT.md")]
+# blind mode: the agent is not told how each defeater is computed. It keeps the skill (agent/INSTRUCTIONS.md), the task
+# text and the output of `cl lint` / `cl run`, but cannot read the rules or the harness source.
+BLIND_HIDE_FILES = [PROJECT_ROOT / f for f in ("CONFIDENCE_SPEC.md", "SCORECARD.md", "CONTRACT_TEST_REPORT.md",
+                                               "REQUESTS_TO_STEP4.md")]
+BLIND_PKG = PROJECT_ROOT / "scratch" / "blind_pkg"
 SCRATCH_KEEP_RO = ["venv311", "venv_nnsmith", "opencode"]   # interpreters for the code under test, and the agent runtime
 
 
-def sandbox_cmd(run_dir: Path, inner: list[str]) -> list[str]:
+def build_blind_package() -> Path:
+    """A copy of the checklimits package with compiled modules only (no .py). The interpreter that runs `cl` is the
+    one that compiles them, so they load. Rebuilt when any source is newer."""
+    import compileall
+
+    pkg = PROJECT_ROOT / "checklimits"
+    out = BLIND_PKG / "checklimits"
+    srcs = sorted(pkg.glob("*.py"))
+    if out.exists() and all((out / (p.stem + ".pyc")).exists() and (out / (p.stem + ".pyc")).stat().st_mtime >= p.stat().st_mtime
+                            for p in srcs):
+        return out
+    shutil.rmtree(BLIND_PKG, ignore_errors=True)
+    out.mkdir(parents=True)
+    for p in srcs:
+        shutil.copy2(p, out / p.name)
+    compileall.compile_dir(str(out), quiet=2, legacy=True, force=True)     # legacy: foo.pyc next to foo.py
+    for p in out.glob("*.py"):
+        p.unlink()
+    return out
+
+
+def sandbox_cmd(run_dir: Path, inner: list[str], blind: bool = False) -> list[str]:
     cmd = ["bwrap", "--ro-bind", "/", "/", "--dev", "/dev", "--proc", "/proc", "--tmpfs", "/tmp"]
     for d in HIDE_DIRS + HIDE_PATHS_DIRS:
         if d.is_dir():
@@ -85,6 +117,11 @@ def sandbox_cmd(run_dir: Path, inner: list[str]) -> list[str]:
     for k in SCRATCH_KEEP_RO:          # re-expose what the agent needs inside the emptied scratch/
         if (PROJECT_ROOT / "scratch" / k).exists():
             cmd += ["--ro-bind", str(PROJECT_ROOT / "scratch" / k), str(PROJECT_ROOT / "scratch" / k)]
+    if blind:
+        for f in BLIND_HIDE_FILES:
+            if f.is_file():
+                cmd += ["--ro-bind", "/dev/null", str(f)]
+        cmd += ["--ro-bind", str(build_blind_package()), str(PROJECT_ROOT / "checklimits")]
     cmd += ["--bind", str(run_dir), str(run_dir), "--chdir", str(PIPELINE_ROOT), "--unshare-pid", "--die-with-parent"]
     return cmd + inner
 
@@ -138,7 +175,7 @@ def run_session(run_dir: Path, prompt: str, budget: Budget, session_id: Optional
     st = SessionStats(session_id=session_id)
     t0 = time.monotonic()
     log = (run_dir / log_name).open("w")
-    proc = subprocess.Popen(sandbox_cmd(run_dir, inner), env=agent_env(run_dir), stdout=subprocess.PIPE,
+    proc = subprocess.Popen(sandbox_cmd(run_dir, inner, budget.blind), env=agent_env(run_dir), stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT, text=True, start_new_session=True)
     try:
         assert proc.stdout is not None
