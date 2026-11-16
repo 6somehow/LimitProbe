@@ -96,6 +96,8 @@ Fill `sheet_<you>.csv` alone, without discussing and without opening `key.json` 
   product's entry or a function the product calls? `{q2}`.
 * `notes`: one line when you answer `unclear` or `invalid`.
 
+`llm/` holds a first pass by an LLM (3 independent samples). Fill your own sheet before you read it.
+
 Then: `python -m checklimits labels evaluate --sheets sheet_r1.csv sheet_r2.csv sheet_r3.csv --key key.json`.
 """
 

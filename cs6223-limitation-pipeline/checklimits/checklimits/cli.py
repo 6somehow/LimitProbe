@@ -112,9 +112,21 @@ def cmd_provision(a: argparse.Namespace) -> int:
 def cmd_labels(a: argparse.Namespace) -> int:
     from . import labels
     from .e2e import DEFAULT_RESULTS_ROOT
+    root = Path(a.results_root) if a.results_root else DEFAULT_RESULTS_ROOT
     if a.action == "sample":
-        res = labels.sample(Path(a.results_root) if a.results_root else DEFAULT_RESULTS_ROOT, Path(a.out), a.n,
-                            tuple(a.raters), a.seed, a.artifact)
+        res = labels.sample(root, Path(a.out), a.n, tuple(a.raters), a.seed, a.artifact)
+    elif a.action == "llm":
+        import os
+
+        from . import llm_label
+        key_file = a.key_file or os.environ.get("OPENAI_KEY_FILE")
+        if not key_file:
+            print(json.dumps({"error": "give --key-file or set OPENAI_KEY_FILE (a file holding the key; it is never printed)"}))
+            return 2
+        res = llm_label.label(Path(a.sheet), root, Path(a.out), Path(key_file), a.samples, a.model)
+    elif a.action == "compare":
+        from . import llm_label
+        res = llm_label.compare([Path(p) for p in a.sheets], Path(a.key))
     else:
         res = labels.evaluate([Path(p) for p in a.sheets], Path(a.key))
     print(json.dumps(res, indent=1))
@@ -285,7 +297,11 @@ def main(argv: list[str] | None = None) -> int:
     pv.add_argument("--skip-tests", action="store_true")
     pv.set_defaults(fn=cmd_provision)
     lb = sub.add_parser("labels", help="human labelling: sample sheets of tested Findings / compute agreement")
-    lb.add_argument("action", choices=["sample", "evaluate"])
+    lb.add_argument("action", choices=["sample", "evaluate", "llm", "compare"])
+    lb.add_argument("--sheet", help="llm: the sheet to label (any rater's, they are identical)")
+    lb.add_argument("--key-file", help="llm: file with the OpenAI key (or env OPENAI_KEY_FILE)")
+    lb.add_argument("--model", default="gpt-6.1-sol")
+    lb.add_argument("--samples", type=int, default=3, help="llm: independent answers per item (each becomes a sheet)")
     lb.add_argument("--results-root")
     lb.add_argument("--out", default="scratch/labels")
     lb.add_argument("--n", type=int, default=20)

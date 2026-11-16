@@ -10,15 +10,27 @@ from pathlib import Path
 C = Path(__file__).resolve().parents[1]
 RUNS = C / "scratch" / "agent_runs"
 RANK = {"n/a": -2, "invalid": -1, "L0": 0, "L1": 1, "L2": 2, "L3": 3, None: -3}
-SETS = {"nnsmith": [("c2n", "c2n"), ("r2n", "r2n"), ("r3n", "r3n"), ("bln", "bln")],
-        "flexprefill": [("c2f", "c2f"), ("r2f", "r2f"), ("r3f", "r3f"), ("blf", "blf")]}
+SETS = {"nnsmith": [("c2n", "c2n"), ("r2n", "r2n"), ("r3n", "r3n"), ("bln", "bln"), ("cbn", "cbn")],
+        "flexprefill": [("c2f", "c2f"), ("r2f", "r2f"), ("r3f", "r3f"), ("blf", "blf"), ("cbf", "cbf")]}
 ARCHIVE = {"nnsmith": C / "agent_results" / "batch_nnsmith", "flexprefill": C / "agent_results" / "batch"}
-COLS = ["earlier", "chain-1", "chain-2", "chain-3", "blind"]
+COLS = ["earlier", "chain-1", "chain-2", "chain-3", "half-blind", "clean-blind"]
 
 
-def load(p: Path):
+_RE = C / "scratch" / "exp_reaudit" / "reaudit.json"
+REAUDIT = {r["name"]: r for r in json.loads(_RE.read_text())} if _RE.exists() else {}
+
+
+def load(p: Path, prefix: str = ""):
+    """The agent's result, with verdict, level and defeaters replaced by the current harness's re-audit of the same
+    package when there is one (scripts: `checklimits reaudit --root scratch/exp_attempts --out scratch/exp_reaudit`)."""
     f = p / "agent_result.json"
-    return json.loads(f.read_text()) if f.exists() else None
+    if not f.exists():
+        return None
+    d = json.loads(f.read_text())
+    row = REAUDIT.get(prefix + p.name)
+    if row and row.get("after_verdict") is not None:
+        d.update(final_verdict=row["after_verdict"], level=row["after_level"], defeaters=row["after_defeaters"])
+    return d
 
 
 def cell(r):
@@ -37,7 +49,7 @@ def main() -> None:
         findings = sorted({p.name.split("-")[-1] for b, _ in sets for p in RUNS.glob(f"{b}-*") if p.is_dir()})
         for f in findings:
             old = next(iter(sorted(ARCHIVE[art].glob(f"{f.upper()}-*"))), None)
-            rec = [load(old) if old else None] + [load(RUNS / f"{b}-{f}") for b, _ in sets]
+            rec = [load(old, 'earlier-') if old else None] + [load(RUNS / f"{b}-{f}") for b, _ in sets]
             rows.append((art, f.upper(), rec))
     print("| finding | " + " | ".join(COLS) + " |")
     print("|---|" + "---|" * len(COLS))

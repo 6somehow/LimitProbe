@@ -87,7 +87,9 @@ the defeaters you let the harness eliminate. Your design decides this:
    size). The harness re-runs both inputs at the full witness size up to the target and compares.
 9. **Free parameters (T3).** Every value your driver chooses that is not in the witness_hint (head count, dtype,
    seed, defaults) goes into `design.free_parameters` with a reason. `lint` finds the ones you forgot.
-10. **Official entry (D14, T4).** Call `call_chain[0]`. A deeper function needs `execution.entry_reason`.
+10. **Official entry (D14, T4).** Call `call_chain[0]` and let it reach the target: the harness checks that the entry was
+    still running when the target line executed. Calling the entry and then calling the target function directly does
+    not count as going through the entry. A deeper function needs `execution.entry_reason`.
     When the task has a section "How the entry reaches the target", it lists every call site with the mapping from
     the callee's parameter names to the caller's expressions. The trigger and contrast are written in the target's
     names; use that mapping to get the entry's inputs, then check that the target is reached with the values you
