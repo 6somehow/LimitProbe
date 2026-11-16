@@ -89,6 +89,38 @@ def cmd_envcheck(a: argparse.Namespace) -> int:
     return _e2e_guard(go)
 
 
+def cmd_provision(a: argparse.Namespace) -> int:
+    import subprocess
+
+    from .provision import DEFAULT_PYTHON, provision
+    out_dir = PROJECT_ROOT / "scratch" / "preflight" / a.name
+    repo = Path(a.repo_dir) if a.repo_dir else out_dir / "repo"
+    if not repo.exists():
+        if not a.repo_url:
+            print(json.dumps({"error": "give --repo-dir of an existing checkout or --repo-url", "exit_code": 2}))
+            return 2
+        out_dir.mkdir(parents=True, exist_ok=True)
+        subprocess.run(["git", "clone", "-q", a.repo_url, str(repo)], check=True, timeout=900)
+    if a.commit:
+        subprocess.run(["git", "-C", str(repo), "checkout", "-q", a.commit], check=True)
+    rec = provision(a.name, repo, a.commit, a.python or DEFAULT_PYTHON, a.extras, install=not a.no_install,
+                    run_tests=not a.skip_tests, package_root=a.package_root)
+    print(json.dumps({k: rec[k] for k in ("name", "status", "reasons", "head", "files") if k in rec}, indent=1))
+    return 0 if rec["status"] == "ok" else 4
+
+
+def cmd_labels(a: argparse.Namespace) -> int:
+    from . import labels
+    from .e2e import DEFAULT_RESULTS_ROOT
+    if a.action == "sample":
+        res = labels.sample(Path(a.results_root) if a.results_root else DEFAULT_RESULTS_ROOT, Path(a.out), a.n,
+                            tuple(a.raters), a.seed, a.artifact)
+    else:
+        res = labels.evaluate([Path(p) for p in a.sheets], Path(a.key))
+    print(json.dumps(res, indent=1))
+    return 0
+
+
 def cmd_task(a: argparse.Namespace) -> int:
     from .agent_cli import task_text
     print(task_text(a.finding, a.data_dir, findings_file=a.findings_file))
@@ -113,7 +145,7 @@ def cmd_agent(a: argparse.Namespace) -> int:
     from .agent_loop import Budget, run_agent
     from .harness import RunOptions
 
-    budget = Budget(wall_s=a.wall_s, tool_calls=a.tool_calls, tokens=a.tokens, sessions=a.sessions)
+    budget = Budget(wall_s=a.wall_s, tool_calls=a.tool_calls, tokens=a.tokens, sessions=a.sessions, blind=a.blind)
     res = run_agent(a.finding, a.run_id, budget, RunOptions.fast() if a.fast else RunOptions(), a.target_level,
                     a.findings_file)
     print(json.dumps(res, indent=1, default=str))
@@ -131,7 +163,7 @@ def cmd_batch(a: argparse.Namespace) -> int:
         print(json.dumps({"selected": chosen, "n_skipped": len(skipped), "skipped": skipped}, indent=1))
         return 0
     res = run_batch(a.findings_file, a.batch_id, a.only, a.skip, a.workers,
-                    Budget(a.wall_s, a.tool_calls, a.tokens, a.sessions), data_dir=data_dir, repo_rel=repo)
+                    Budget(a.wall_s, a.tool_calls, a.tokens, a.sessions, a.blind), data_dir=data_dir, repo_rel=repo)
     print(json.dumps({k: v for k, v in res.items() if k != "results"}, indent=1))
     return 0
 
@@ -196,6 +228,7 @@ def main(argv: list[str] | None = None) -> int:
     ag.add_argument("--target-level", default="L3")
     ag.add_argument("--findings-file", help="use the step 4 hand-off instead of the pilot data")
     ag.add_argument("--fast", action="store_true", help="authoritative run without optional defeaters (debugging)")
+    ag.add_argument("--blind", action="store_true", help="hide the harness source and the rule documents from the agent")
     ag.set_defaults(fn=cmd_agent)
     ba = sub.add_parser("batch", help="run the agent over every step 4 Finding the harness can judge")
     ba.add_argument("--artifact", default="flexprefill")
@@ -208,6 +241,7 @@ def main(argv: list[str] | None = None) -> int:
     ba.add_argument("--tool-calls", type=int, default=250)
     ba.add_argument("--tokens", type=int, default=4_000_000)
     ba.add_argument("--sessions", type=int, default=2)
+    ba.add_argument("--blind", action="store_true", help="hide the harness source and the rule documents from the agent")
     ba.add_argument("--list", action="store_true", help="only list what would run and why the rest is skipped")
     ba.set_defaults(fn=cmd_batch)
     ra = sub.add_parser("reaudit", help="re-run the harness on archived agent packages (after a rule change)")
@@ -239,6 +273,28 @@ def main(argv: list[str] | None = None) -> int:
     ec = sub.add_parser("envcheck", help="check repository commit, interpreter and entry imports; writes ENV.json")
     _common(ec)
     ec.set_defaults(fn=cmd_envcheck)
+    pv = sub.add_parser("provision", help="build the venv of the code under test, run the repository's tests, write PREFLIGHT.md")
+    pv.add_argument("name", help="artifact id; the venv is scratch/venv_<name>")
+    pv.add_argument("--repo-url")
+    pv.add_argument("--repo-dir", help="existing checkout (default: scratch/preflight/<name>/repo, cloned from --repo-url)")
+    pv.add_argument("--commit", help="pinned commit to check out")
+    pv.add_argument("--python", help="interpreter used only to create the venv (default: Python 3.11 of the ravel env)")
+    pv.add_argument("--extras", action="append", help="pip extras of the package, e.g. dev (repeatable)")
+    pv.add_argument("--package-root", default="src")
+    pv.add_argument("--no-install", action="store_true")
+    pv.add_argument("--skip-tests", action="store_true")
+    pv.set_defaults(fn=cmd_provision)
+    lb = sub.add_parser("labels", help="human labelling: sample sheets of tested Findings / compute agreement")
+    lb.add_argument("action", choices=["sample", "evaluate"])
+    lb.add_argument("--results-root")
+    lb.add_argument("--out", default="scratch/labels")
+    lb.add_argument("--n", type=int, default=20)
+    lb.add_argument("--seed", type=int, default=6223)
+    lb.add_argument("--raters", nargs="+", default=["r1", "r2", "r3"])
+    lb.add_argument("--artifact", action="append")
+    lb.add_argument("--sheets", nargs="+")
+    lb.add_argument("--key")
+    lb.set_defaults(fn=cmd_labels)
     b = sub.add_parser("bench", help="fault-injection benchmark (writes results/bench/)")
     b.add_argument("--case", action="append", help="case id (repeatable); default: all")
     b.add_argument("--out")
