@@ -39,7 +39,7 @@ def test_summary_counts_levels_and_flags_false_positives():
 
 
 @needs_repo
-@pytest.mark.parametrize("finding", sorted(bench.TARGET))
+@pytest.mark.parametrize("finding", ["F01", "F04", "F07"])
 def test_every_edit_applies_once_and_still_parses(finding):
     src = SRC.read_text()
     assert src.split("\n")[bench.TARGET_LINE[finding] - 1] == bench.TARGET[finding]
@@ -55,5 +55,30 @@ def test_every_edit_applies_once_and_still_parses(finding):
 def test_cases_are_well_formed():
     cases = bench.build_cases()
     ids = [c.id for c in cases]
-    assert len(ids) == len(set(ids)) and len(cases) == 31
+    assert len(ids) == len(set(ids)) and len(cases) == 31 + len(bench.step4_cases()) == 82
     assert all(c.claim_true or "yes" not in c.acceptable for c in cases)   # a false claim is never acceptable as `yes`
+
+
+@pytest.mark.parametrize("finding", sorted(bench.STEP4_TARGETS))
+def test_step4_edits_change_exactly_the_target_line_and_still_parse(finding):
+    art, file, line, text, kind = bench.STEP4_TARGETS[finding]
+    repo = bench.ARTIFACTS[art]["repo"]
+    if not (repo / file).exists():
+        pytest.skip(f"{repo} not checked out")
+    src = (repo / file).read_text()
+    lines = src.split("\n")
+    assert lines[line - 1] == text, "the pinned commit has a different statement on this line"
+    ops = ("delete", "invert", "otherexc") if kind == "reject" else ("false", "invert", "always")
+    for op in ops:
+        new = bench._gen_edit(op)(finding, src)
+        ast.parse(new)
+        changed = [i + 1 for i, (a, b) in enumerate(zip(lines, new.split("\n"))) if a != b]
+        assert changed == [line], (op, changed)
+    for edit in (bench._shift_target, bench._collide_generic):
+        ast.parse(edit(finding, src))
+
+
+def test_generated_edits_read_the_condition_with_the_parser():
+    assert bench._stmt_parts('        assert a == 1, "msg, with a comma"') == ("        ", "assert", "a == 1")
+    assert bench._stmt_parts("    elif x in (1, 2):") == ("    ", "elif", "x in (1, 2)")
+    assert bench._stmt_parts("if f(a, b):") == ("", "if", "f(a, b)")

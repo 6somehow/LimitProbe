@@ -18,7 +18,10 @@ Honest scope: a few dozen deterministic cases are a smoke test of the rules, not
 """
 from __future__ import annotations
 
+import ast
+import glob
 import json
+import re
 import shutil
 import subprocess
 import time
@@ -78,6 +81,57 @@ class Case:
 
 
 TARGET_LINE = {"F07": 1824, "F01": 1836, "F04": 1837}   # the same statement text also occurs elsewhere in the file
+SRC_OF: dict[str, str] = {}
+
+
+# --- second family: attempts the code agent wrote for step 4 Findings (NNSmith and more FlexPrefill) ---------------
+# finding -> (artifact, source file, target line, target text as in the pinned commit, kind)
+STEP4_TARGETS: dict[str, tuple[str, str, int, str, str]] = {
+    "nnsmith-F004": ("nnsmith", "nnsmith/graph_gen.py", 260, "            assert self.check_sat() == z3.sat", "reject"),
+    "nnsmith-F017": ("nnsmith", "nnsmith/graph_gen.py", 256, '            if NNSMITH_LIMNF_V == "0":', "branch"),
+    "nnsmith-F025": ("nnsmith", "nnsmith/materialize/torch/symbolnet.py", 238,
+                     "            if tensor.data.dtype.is_floating_point:", "branch"),
+    "nnsmith-F010": ("nnsmith", "nnsmith/abstract/arith.py", 79, "        if max_val >= ARITH_MAX_WIDTH:", "branch"),
+    "flexprefill-F003": ("flexprefill", SRC, 247, "    assert num_q_heads % num_kv_heads == 0", "reject"),
+    "flexprefill-F054": ("flexprefill", SRC, 1838, "    assert block_size in {16, 32, 64, 128}", "reject"),
+    "flexprefill-F026": ("flexprefill", SRC, 1842,
+                         "    if q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size):", "branch"),
+}
+ARTIFACTS = {
+    "nnsmith": {"repo": PIPELINE_ROOT / "third_party" / "nnsmith", "commit": "a8307f2b8043eb64b413a9b68ba2e6a2646cae8a",
+                "archive": PROJECT_ROOT / "agent_results" / "batch_nnsmith",
+                "findings_file": "results/step4/nnsmith/limitations_for_tests.json"},
+    "flexprefill": {"repo": REPO, "commit": COMMIT, "archive": PROJECT_ROOT / "agent_results" / "batch",
+                    "findings_file": "results/step4/flexprefill/limitations_for_tests.json"},
+}
+
+
+for _f, (_a, _file, _line, _text, _kind) in STEP4_TARGETS.items():
+    TARGET[_f], TARGET_LINE[_f], SRC_OF[_f] = _text, _line, _file
+
+
+def _stmt_parts(text: str) -> tuple[str, str, str]:
+    """(indent, keyword, condition source) of an assert / if / elif line, via the parser."""
+    indent = text[: len(text) - len(text.lstrip())]
+    t = text.strip()
+    if t.startswith("assert "):
+        return indent, "assert", ast.unparse(ast.parse(t).body[0].test)
+    kw = "elif" if t.startswith("elif ") else "if"
+    node = ast.parse(("if " + t[len(kw) + 1:]) + " pass").body[0]
+    return indent, kw, ast.unparse(node.test)
+
+
+def _gen_edit(op: str) -> Callable[[str, str], str]:
+    """Edit the target statement of any finding in TARGET: delete / invert / otherexc (assert) and false / always (if)."""
+    def f(finding: str, src: str) -> str:
+        indent, kw, cond = _stmt_parts(TARGET[finding])
+        new = {("assert", "delete"): "pass", ("assert", "invert"): f"assert not ({cond})",
+               ("assert", "otherexc"): f"if not ({cond}): raise ValueError('bench')",
+               ("if", "false"): f"if False:", ("if", "invert"): f"if not ({cond}):", ("if", "always"): "if True:",
+               ("elif", "false"): "elif False:", ("elif", "invert"): f"elif not ({cond}):", ("elif", "always"): "elif True:"
+               }[(kw, op)]
+        return _edit_line(finding, src, indent + new)
+    return f
 
 
 def _edit_line(finding: str, src: str, new_text: str) -> str:
@@ -183,7 +237,65 @@ def build_cases() -> list[Case]:
         Case("F07-att-false-claims", "F07", "attempt_fault", "form claims contradict what happened",
              True, {"yes"}, attempt_edit=_att_false_claims),
     ]
+    cases += step4_cases()
     return cases
+
+
+def step4_cases() -> list[Case]:
+    """Faults injected into the repositories of attempts the code agent wrote for step 4 Findings. The attempts are
+    the archived ones in agent_results/; `claim_true` follows the same convention as the FlexPrefill cases above."""
+    cases: list[Case] = []
+    for fid, (art, _file, _line, _text, kind) in STEP4_TARGETS.items():
+        short = f"{'nn' if art == 'nnsmith' else 'fp'}-{fid.split('-')[-1]}"
+        if kind == "reject":
+            cases += [
+                Case(f"{short}-orig", fid, "control", "unmodified repository", True, {"yes"}),
+                Case(f"{short}-delete-stale", fid, "repo_fault", "target replaced by `pass`; Region is stale", False,
+                     {"no", "inconclusive"}, repo_edit=_gen_edit("delete"), tags=["stale-region"]),
+                Case(f"{short}-delete-snip", fid, "repo_fault",
+                     "target replaced by `pass`; Region snippet current, condition still claims a rejection", False,
+                     {"no", "inconclusive"}, repo_edit=_gen_edit("delete"), fresh_snippet=True, tags=["wrong-condition"]),
+                Case(f"{short}-invert-snip", fid, "repo_fault", "guard inverted; Region snippet current", False,
+                     {"no", "inconclusive"}, repo_edit=_gen_edit("invert"), fresh_snippet=True),
+                Case(f"{short}-otherexc-snip", fid, "repo_fault",
+                     "same rejection raised as ValueError instead of AssertionError; Region snippet current", True,
+                     {"yes", "inconclusive"}, repo_edit=_gen_edit("otherexc"), fresh_snippet=True,
+                     tags=["oracle-too-specific"]),
+            ]
+        else:
+            cases += [
+                Case(f"{short}-orig", fid, "control", "unmodified repository", True, {"yes"}),
+                Case(f"{short}-false-stale", fid, "repo_fault", "branch condition replaced by `False`; Region is stale",
+                     False, {"no", "inconclusive"}, repo_edit=_gen_edit("false"), tags=["stale-region"]),
+                Case(f"{short}-false-snip", fid, "repo_fault",
+                     "branch condition replaced by `False`; Region snippet current, condition still the original", False,
+                     {"no", "inconclusive"}, repo_edit=_gen_edit("false"), fresh_snippet=True, tags=["wrong-condition"]),
+                Case(f"{short}-invert-snip", fid, "repo_fault", "branch condition negated; Region snippet current", False,
+                     {"no", "inconclusive"}, repo_edit=_gen_edit("invert"), fresh_snippet=True),
+                Case(f"{short}-always-snip", fid, "repo_fault",
+                     "branch condition replaced by `True` (both inputs take the branch); Region snippet current", False,
+                     {"no", "inconclusive"}, repo_edit=_gen_edit("always"), fresh_snippet=True),
+            ]
+        cases += [
+            Case(f"{short}-shifted", fid, "repo_fault", "a comment is inserted above the target: Region.location is stale",
+                 True, {"inconclusive"}, repo_edit=_shift_target, tags=["stale-location"]),
+            Case(f"{short}-collide", fid, "repo_fault", "a different statement now sits on the target line",
+                 True, {"inconclusive"}, repo_edit=_collide_generic, tags=["stale-location"]),
+        ]
+    cases += [
+        Case("nn-F004-att-no-location", "nnsmith-F004", "attempt_fault", "oracle names the exception type but not the location",
+             True, {"yes"}, attempt_edit=_att_no_location, max_level="L1"),
+        Case("nn-F004-att-false-claims", "nnsmith-F004", "attempt_fault", "form claims contradict what happened",
+             True, {"yes"}, attempt_edit=_att_false_claims),
+    ]
+    return cases
+
+
+def _collide_generic(finding: str, src: str) -> str:
+    """A harmless statement takes the target line; the original statement moves down one line."""
+    t = TARGET[finding]
+    indent = t[: len(t) - len(t.lstrip())]
+    return _edit_line(finding, src, f"{indent}_bench_noop = 0\n{t}")
 
 
 def _git(repo: Path, *a: str) -> str:
@@ -198,21 +310,39 @@ def prepare(case: Case, work: Path) -> Path:
         shutil.rmtree(root)
     root.mkdir(parents=True)
     att = root / "attempt"
-    shutil.copytree(PROJECT_ROOT / "attempts" / "flexprefill" / case.finding, att,
-                    ignore=shutil.ignore_patterns("__pycache__"))
+    art = ARTIFACTS[STEP4_TARGETS[case.finding][0]] if case.finding in STEP4_TARGETS else None
+    if art is None:
+        src_att = PROJECT_ROOT / "attempts" / "flexprefill" / case.finding
+    else:
+        src_att = Path(glob.glob(str(art["archive"] / f"{case.finding.split('-')[-1]}-*" / "attempt"))[0])
+    shutil.copytree(src_att, att, ignore=shutil.ignore_patterns("__pycache__"))
     manifest = json.loads((att / "manifest.json").read_text())
     manifest["test_id"] = f"B-{case.id}"
     if case.repo_edit is not None:
         repo = root / "repo"
-        subprocess.run(["git", "clone", "-q", "--no-hardlinks", "--no-checkout", str(REPO), str(repo)],
+        subprocess.run(["git", "clone", "-q", "--no-hardlinks", "--no-checkout", str(art["repo"] if art else REPO), str(repo)],
                        check=True, capture_output=True, timeout=120)
-        _git(repo, "checkout", "-q", COMMIT)
-        f = repo / SRC
+        _git(repo, "checkout", "-q", art["commit"] if art else COMMIT)
+        f = repo / SRC_OF.get(case.finding, SRC)
         f.write_text(case.repo_edit(case.finding, f.read_text()))
         _git(repo, "commit", "-q", "-am", f"bench fault {case.id}")
         manifest["repo_dir"] = str(repo.relative_to(PIPELINE_ROOT))
         manifest["repo_commit"] = _git(repo, "rev-parse", "HEAD").strip()
-        if case.fresh_snippet:
+        if case.fresh_snippet and art is not None:
+            # step 4 mode: the Region is built from the Limitation, so give it a copy of the hand-off whose snippet
+            # is the edited line (an extractor that read the variant correctly); its condition stays as it was
+            ffile = root / "findings.json"
+            d = json.loads((PIPELINE_ROOT / art["findings_file"]).read_text())
+            _a, tfile, tline, _t, _k = STEP4_TARGETS[case.finding]
+            new_line = f.read_text().splitlines()[tline - 1].strip()
+            for fnd in d["findings"]:
+                for lim in fnd.get("limitations", []):
+                    for ce in lim.get("code_evidence", []):
+                        if ce.get("file") == tfile and ce.get("line_start") == tline:
+                            ce["snippet"] = new_line
+            ffile.write_text(json.dumps(d))
+            manifest["findings_file"] = str(ffile.relative_to(PIPELINE_ROOT))
+        elif case.fresh_snippet:
             data = root / "data"
             shutil.copytree(PIPELINE_ROOT / manifest["data_dir"], data)
             regions = json.loads((data / "gold_regions.json").read_text())
