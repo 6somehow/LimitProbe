@@ -1,8 +1,8 @@
 # Limitations report: NNSmith: Generating Diverse and Valid Test Cases for Deep Learning Compilers
 
 - artifact: `nnsmith` (ASPLOS 2023), repository https://github.com/ise-uiuc/nnsmith at `a8307f2b80`
-- input: `results/step4/nnsmith/limitations_for_tests.json` (sha256 `d29e91293d1f`), 38 Findings
-- generated: 2026-11-15T17:19:29+08:00 by `checklimits test` (contract `checklimits-test-report/1`)
+- input: `results/step4/nnsmith/limitations_for_tests.json` (sha256 `3ec725e87dbd`), 38 Findings
+- generated: 2026-11-16T16:00:37+08:00 by `checklimits test` (contract `checklimits-test-report/1`)
 - environment: **ok**
 
 ## How to read this
@@ -18,52 +18,52 @@
 | | |
 |---|---|
 | Findings | 38 |
-| tested | 19 |
-| not tested | 19 |
-| verdicts | yes 19 |
-| levels | L1 18, L2 1 |
-| not tested, by reason | `no_code_location` 3, `outcome_unsupported` 15, `witness_unusable` 1 |
+| tested | 20 |
+| not tested | 18 |
+| verdicts | inconclusive 1, yes 19 |
+| levels | L1 18, L2 1, invalid 1 |
+| not tested, by reason | `no_code_location` 3, `not_attempted` 2, `outcome_unsupported` 13 |
 
 | Finding | category | effect | location | result |
 |---|---|---|---|---|
-| [nnsmith-F001](#nnsmith-f001) | undisclosed | reject | `nnsmith/abstract/op.py:1563` | not tested: `witness_unusable` |
-| [nnsmith-F002](#nnsmith-f002) | undisclosed | reject | `nnsmith/abstract/op.py:2083` | not tested: `outcome_unsupported` |
-| [nnsmith-F003](#nnsmith-f003) | undisclosed | reject | `nnsmith/cli/fuzz.py:179` | not tested: `outcome_unsupported` |
+| [nnsmith-F001](#nnsmith-f001) | undisclosed | reject | `nnsmith/abstract/op.py:1563` | not tested: `not_attempted` |
+| [nnsmith-F003](#nnsmith-f003) | undisclosed | reject | `nnsmith/cli/fuzz.py:180` | **inconclusive** / invalid (uncalibrated) |
 | [nnsmith-F004](#nnsmith-f004) | contradicts_docs | reject | `nnsmith/graph_gen.py:260` | **yes** / L1 (uncalibrated) |
-| [nnsmith-F005](#nnsmith-f005) | undisclosed | reject | `nnsmith/graph_gen.py:524` | not tested: `outcome_unsupported` |
-| [nnsmith-F006](#nnsmith-f006) | undisclosed | reject | `nnsmith/materialize/torch/symbolnet.py:188` | not tested: `outcome_unsupported` |
-| [nnsmith-F007](#nnsmith-f007) | undisclosed | reject | `nnsmith/materialize/torch/symbolnet.py:385` | not tested: `outcome_unsupported` |
-| [nnsmith-F008](#nnsmith-f008) | undisclosed | reject | `nnsmith/materialize/torch/symbolnet.py:421` | not tested: `outcome_unsupported` |
 | [nnsmith-F009](#nnsmith-f009) | undisclosed | path_change | `nnsmith/abstract/arith.py:74` | **yes** / L1 (uncalibrated) |
 | [nnsmith-F010](#nnsmith-f010) | undisclosed | path_change | `nnsmith/abstract/arith.py:79` | **yes** / L1 (uncalibrated) |
 | [nnsmith-F011](#nnsmith-f011) | undisclosed | path_change | `nnsmith/abstract/op.py:25` | **yes** / L1 (uncalibrated) |
 | [nnsmith-F012](#nnsmith-f012) | undisclosed | path_change | `nnsmith/abstract/op.py:910` | **yes** / L1 (uncalibrated) |
-| [nnsmith-F013](#nnsmith-f013) | undisclosed | path_change | `nnsmith/abstract/op.py:1552` | not tested: `outcome_unsupported` |
 | [nnsmith-F014](#nnsmith-f014) | undisclosed | path_change | `nnsmith/abstract/op.py:1587` | **yes** / L1 (uncalibrated) |
 | [nnsmith-F015](#nnsmith-f015) | undisclosed | path_change | `nnsmith/cli/fuzz.py:60` | **yes** / L1 (uncalibrated) |
 | [nnsmith-F016](#nnsmith-f016) | undisclosed | path_change | `nnsmith/cli/model_gen.py:31` | **yes** / L1 (uncalibrated) |
 | [nnsmith-F017](#nnsmith-f017) | undisclosed | path_change | `nnsmith/graph_gen.py:256` | **yes** / L1 (uncalibrated) |
-| [nnsmith-F018](#nnsmith-f018) | undisclosed | path_change | `nnsmith/graph_gen.py:259` | not tested: `outcome_unsupported` |
+| [nnsmith-F018](#nnsmith-f018) | undisclosed | path_change | `nnsmith/graph_gen.py:258` | not tested: `not_attempted` |
 | [nnsmith-F019](#nnsmith-f019) | stated_differently | path_change | `nnsmith/graph_gen.py:556` | **yes** / L1 (uncalibrated) |
 | [nnsmith-F020](#nnsmith-f020) | undisclosed | path_change | `nnsmith/graph_gen.py:944` | **yes** / L1 (uncalibrated) |
 | [nnsmith-F021](#nnsmith-f021) | undisclosed | path_change | `nnsmith/materialize/torch/__init__.py:47` | **yes** / L1 (uncalibrated) |
 | [nnsmith-F022](#nnsmith-f022) | undisclosed | path_change | `nnsmith/materialize/torch/input_gen.py:93` | **yes** / L1 (uncalibrated) |
-| [nnsmith-F023](#nnsmith-f023) | undisclosed | path_change | `nnsmith/materialize/torch/input_gen.py:98` | not tested: `outcome_unsupported` |
+| [nnsmith-F006](#nnsmith-f006) | undisclosed | other | `nnsmith/materialize/torch/symbolnet.py:188` | not tested: `outcome_unsupported` |
 | [nnsmith-F024](#nnsmith-f024) | undisclosed | other | `nnsmith/materialize/torch/symbolnet.py:234` | not tested: `outcome_unsupported` |
 | [nnsmith-F025](#nnsmith-f025) | undisclosed | path_change | `nnsmith/materialize/torch/symbolnet.py:238` | **yes** / L1 (uncalibrated) |
-| [nnsmith-F026](#nnsmith-f026) | undisclosed | path_change | `nnsmith/materialize/torch/symbolnet.py:358` | not tested: `outcome_unsupported` |
-| [nnsmith-F027](#nnsmith-f027) | undisclosed | path_change | `nnsmith/materialize/torch/symbolnet.py:403` | not tested: `outcome_unsupported` |
 | [nnsmith-F028](#nnsmith-f028) | impl_deviates | other | `nnsmith/abstract/op.py:1053-1080` | not tested: `no_code_location` |
 | [nnsmith-F029](#nnsmith-f029) | impl_deviates | other | `nnsmith/abstract/op.py:1332-1360` | not tested: `no_code_location` |
 | [nnsmith-F030](#nnsmith-f030) | impl_deviates | other | `nnsmith/graph_gen.py:1029-1058` | not tested: `no_code_location` |
-| [nnsmith-F031](#nnsmith-f031) | undisclosed | path_change | `nnsmith/graph_gen.py:190` | not tested: `outcome_unsupported` |
+| [nnsmith-F013](#nnsmith-f013) | undisclosed | other | `nnsmith/abstract/op.py:1552` | not tested: `outcome_unsupported` |
+| [nnsmith-F002](#nnsmith-f002) | undisclosed | other | `nnsmith/abstract/op.py:2083` | not tested: `outcome_unsupported` |
+| [nnsmith-F031](#nnsmith-f031) | undisclosed | other | `nnsmith/graph_gen.py:190` | not tested: `outcome_unsupported` |
+| [nnsmith-F005](#nnsmith-f005) | undisclosed | other | `nnsmith/graph_gen.py:524` | not tested: `outcome_unsupported` |
 | [nnsmith-F032](#nnsmith-f032) | undisclosed | other | `nnsmith/graph_gen.py:834` | not tested: `outcome_unsupported` |
-| [nnsmith-F033](#nnsmith-f033) | undisclosed | path_change | `nnsmith/graph_gen.py:984` | not tested: `outcome_unsupported` |
+| [nnsmith-F033](#nnsmith-f033) | undisclosed | other | `nnsmith/graph_gen.py:984` | not tested: `outcome_unsupported` |
 | [nnsmith-F034](#nnsmith-f034) | undisclosed | path_change | `nnsmith/graph_gen.py:1016` | **yes** / L1 (uncalibrated) |
 | [nnsmith-F035](#nnsmith-f035) | undisclosed | path_change | `nnsmith/graph_gen.py:1044` | **yes** / L2 (uncalibrated) |
 | [nnsmith-F036](#nnsmith-f036) | paper_stated | path_change | `nnsmith/graph_gen.py:1052` | **yes** / L1 (uncalibrated) |
 | [nnsmith-F037](#nnsmith-f037) | undisclosed | path_change | `nnsmith/graph_gen.py:1054` | **yes** / L1 (uncalibrated) |
+| [nnsmith-F023](#nnsmith-f023) | undisclosed | other | `nnsmith/materialize/torch/input_gen.py:98` | not tested: `outcome_unsupported` |
+| [nnsmith-F026](#nnsmith-f026) | undisclosed | other | `nnsmith/materialize/torch/symbolnet.py:358` | not tested: `outcome_unsupported` |
 | [nnsmith-F038](#nnsmith-f038) | undisclosed | path_change | `nnsmith/materialize/torch/symbolnet.py:382` | **yes** / L1 (uncalibrated) |
+| [nnsmith-F007](#nnsmith-f007) | undisclosed | other | `nnsmith/materialize/torch/symbolnet.py:385` | not tested: `outcome_unsupported` |
+| [nnsmith-F027](#nnsmith-f027) | undisclosed | other | `nnsmith/materialize/torch/symbolnet.py:403` | not tested: `outcome_unsupported` |
+| [nnsmith-F008](#nnsmith-f008) | undisclosed | other | `nnsmith/materialize/torch/symbolnet.py:421` | not tested: `outcome_unsupported` |
 
 ## nnsmith-F001
 
@@ -73,33 +73,38 @@
 - code: `nnsmith/abstract/op.py:1563` in `nnsmith/abstract/op.py::Reshape.requires`
 - condition: `gres_config not in ("3", "4", "5")`
 - step 4 review: `real_but_minor`: blind review by an LLM subagent (round 2), not human: Rejecting an invalid value of an internal env knob is config validation, not a limit of what the mechanism supports.
-- code snippet (`nnsmith/abstract/op.py:1563`): `raise ValueError(f"NNSMITH_GRES={gres_config} is not recognized")`
+- code snippet (`nnsmith/abstract/op.py:1563`): `raise ValueError(f'NNSMITH_GRES={gres_config} is not recognized')`
 
-**Not tested** (`witness_unusable`): witness status 'trigger_only'
-
-## nnsmith-F002
-
-**When not check_sat(): If the requested output rank cannot be satisfied by the rank-increment loop (e.g. out_abs_tensor ndims inconsistent with the max reachable rank), the loop never terminates, effectively rejecting/hanging on that output shape. (nnsmith/abstract/op.py:2083)**
-
-- category `undisclosed`, effect `reject`, step 4 level L2, priority 1, scope `unknown`
-- code: `nnsmith/abstract/op.py:2083` in `nnsmith/abstract/op.py::MatMul.deduct_inp_ranks_and_dtype`
-- condition: `not check_sat()`
-- code snippet (`nnsmith/abstract/op.py:2083`): `while not check_sat():`
-
-**Not tested** (`outcome_unsupported`): outcome 'reject' is judged by an exception raised at nnsmith/abstract/op.py:2083, but the while statement has no raise in its body (the exception, if any, is raised elsewhere)
+**Not tested** (`not_attempted`): the harness can judge this Finding but no test package exists; run with --run-agent to have the code agent design one
 
 ## nnsmith-F003
 
-**When isinstance(e, InternalError): InternalError from make_testcase is propagated, aborting the fuzzing loop, while other exceptions are swallowed and the loop continues. (nnsmith/cli/fuzz.py:179)**
+**When isinstance(e, InternalError): InternalError from make_testcase is propagated, aborting the fuzzing loop, while other exceptions are swallowed and the loop continues. (nnsmith/cli/fuzz.py:180)**
 
 - category `undisclosed`, effect `reject`, step 4 level L2, priority 1, scope `unknown`
-- code: `nnsmith/cli/fuzz.py:179` in `nnsmith/cli/fuzz.py::FuzzingLoop.run`
+- code: `nnsmith/cli/fuzz.py:180` in `nnsmith/cli/fuzz.py::FuzzingLoop.run`
 - condition: `isinstance(e, InternalError)`
-- step 4 review: `real_but_minor`: blind review by an LLM subagent (round 3), not human: Re-raising internal errors while logging other generator failures is error-handling plumbing.
 - paper/docs (code_comment, nnsmith/cli/fuzz.py:180): “propagate internal errors”
-- code snippet (`nnsmith/cli/fuzz.py:179`): `except InternalError as e:`
+- code snippet (`nnsmith/cli/fuzz.py:180`): `raise e`
 
-**Not tested** (`outcome_unsupported`): outcome 'reject' is judged by an exception raised at nnsmith/cli/fuzz.py:179, but no statement starts at this line
+**Verdict `inconclusive`**: no verdict: the test was invalid or could not separate the cases.
+  no effect on either input
+
+**Level invalid, uncalibrated.** a fatal defeater was refuted (for example the target line was not reached): no verdict is drawn. refuted fatal defeaters: D2
+
+- trigger run: no exception at nnsmith/cli/fuzz.py:180 (later InternalError at F003-n1-f003/attempt/sim.py:16)
+- contrast run: no exception at nnsmith/cli/fuzz.py:180
+- open doubts:
+  - D2 condition holds on positive, fails on negative: *refuted*. condition does not hold on the positive or does not fail on the negative
+  - D3 oracle can see the effect: *residual*. only 1 mutants (< n_min=4); killed 0
+  - D4 oracle is specified, located, pre-registered: *residual*. tier O3 (location not named)
+  - D6 verdict-bearing observations do not depend on stand-ins: *refuted*. verdict-bearing observations: positive simulated:stub, negative simulated:stub
+  - D8 result is stable across independent runs: *refuted*. 5 distinct canonical traces in 5 runs
+  - D9 result reproduces in a clean checkout: *refuted*. fresh checkout gave different canonical traces: positive
+  - D13 inputs inside the paper's scope: *residual*. scope_status=unknown
+  - D14 official entry point was called: *residual*. deeper entry (index 1); reason recorded: The target statement is inside FuzzingLoop.run. The Region's call_chain[0], PracticalHybridSearch.search_one, is not an ancestor of the target: it is reached inside make_testcase…
+- what would raise the level: D2 (refuted): pick inputs so the Region condition is true on the positive and false on the negative; write a predicate if it cannot be evaluated; D3 (residual): 1 mutant(s) survived because no input separates them from the original: delete_statement (`pass # propagate internal errors`). Add inputs that d…; D4 (residual): state the oracle as exception type + Region.location and register it before the first run
+- evidence: `tests/nnsmith/nnsmith-F003/execution_report.json`
 
 ## nnsmith-F004
 
@@ -124,55 +129,6 @@
   - D13 inputs inside the paper's scope: *residual*. scope_status=unknown
 - what would raise the level: D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location
 - evidence: `tests/nnsmith/nnsmith-F004/execution_report.json`
-
-## nnsmith-F005
-
-**When isinstance(op, Expand) and oshape.ndims < op.expand_last_dim: Placeholder shapes with fewer dims than the Expand op's expand_last_dim are skipped as backward-insertion candidates, excluding them from consideration. (nnsmith/graph_gen.py:524)**
-
-- category `undisclosed`, effect `reject`, step 4 level L2, priority 1, scope `unknown`
-- code: `nnsmith/graph_gen.py:524` in `nnsmith/graph_gen.py::SimpleGenerator.try_backward_insert`
-- condition: `isinstance(op, Expand) and oshape.ndims < op.expand_last_dim`
-- step 4 review: `real_but_minor`: blind review by an LLM subagent (round 2), not human: Skipping placeholders whose rank is too low for Expand is an operator-specific shape-validity invariant, not a user-facing limitation.
-- code snippet (`nnsmith/graph_gen.py:524`): `if isinstance(op, Expand) and oshape.ndims < op.expand_last_dim:`
-
-**Not tested** (`outcome_unsupported`): outcome 'reject' is judged by an exception raised at nnsmith/graph_gen.py:524, but the if statement has no raise in its body (the exception, if any, is raised elsewhere)
-
-## nnsmith-F006
-
-**When p.grad is not None and torch.any(p.grad != 0): If all parameter gradients are zero, ConstraintCheck.true(nonzero, ...) raises, aborting the backward step ('Gradients are all zero. Cannot make progress.'). (nnsmith/materialize/torch/symbolnet.py:188)**
-
-- category `undisclosed`, effect `reject`, step 4 level L2, priority 1, scope `unknown`
-- code: `nnsmith/materialize/torch/symbolnet.py:188` in `nnsmith/materialize/torch/symbolnet.py::SymbolNet.backward`
-- condition: `p.grad is not None and torch.any(p.grad != 0)`
-- step 4 review: `worth_testing`: blind review by an LLM subagent (round 1), not human: Zero gradients raise ConstraintError, grad_input_gen breaks and returns None, so for such models the gradient search gives up and make_oracle ends up using random inputs.
-- paper/docs (paper, PDF p.7): “if⟨𝑋,𝑊⟩ not changed then // Zero gradients”
-- paper/docs (paper, PDF p.7): “⟨𝑋,𝑊⟩← randomly initialized values”
-- code snippet (`nnsmith/materialize/torch/symbolnet.py:188`): `if p.grad is not None and torch.any(p.grad != 0):`
-
-**Not tested** (`outcome_unsupported`): outcome 'reject' is judged by an exception raised at nnsmith/materialize/torch/symbolnet.py:188, but the if statement has no raise in its body (the exception, if any, is raised elsewhere)
-
-## nnsmith-F007
-
-**When loss_fn.dispatch(type(op)) is not None: If an op produces NaN/Inf but has no registered loss function, ConstraintCheck.true at line 403 fails with 'op=... has no torch_loss but produces NaN or INF!', aborting the search. (nnsmith/materialize/torch/symbolnet.py:385)**
-
-- category `undisclosed`, effect `reject`, step 4 level L2, priority 1, scope `unknown`
-- code: `nnsmith/materialize/torch/symbolnet.py:385` in `nnsmith/materialize/torch/symbolnet.py::SymbolNet.forward`
-- condition: `loss_fn.dispatch(type(op)) is not None`
-- step 4 review: `worth_testing`: blind review by an LLM subagent (round 1), not human: When gradient search is running and an op with no registered loss function produces NaN/Inf, a ConstraintError ends the gradient search, so such ops cannot be repaired.
-- code snippet (`nnsmith/materialize/torch/symbolnet.py:385`): `if loss_fn.dispatch(type(op)) is not None:`
-
-**Not tested** (`outcome_unsupported`): outcome 'reject' is judged by an exception raised at nnsmith/materialize/torch/symbolnet.py:385, but the if statement has no raise in its body (the exception, if any, is raised elsewhere)
-
-## nnsmith-F008
-
-**When self.loss is not None: If two vulnerable ops both produce NaN/Inf in the same forward pass, the second one trips this check and raises ConstraintError, which aborts the gradient search (caught in grad_input_gen, line 268 -> break) instead of optimising for either loss. (nnsmith/materialize/torch/symbolnet.py:421)**
-
-- category `undisclosed`, effect `reject`, step 4 level L2, priority 1, scope `unknown`
-- code: `nnsmith/materialize/torch/symbolnet.py:421` in `nnsmith/materialize/torch/symbolnet.py::SymbolNet.forward`
-- condition: `self.loss is not None`
-- code snippet (`nnsmith/materialize/torch/symbolnet.py:421`): `ConstraintCheck.true(self.loss is None, "Multiple loss detected!")`
-
-**Not tested** (`outcome_unsupported`): outcome 'reject' is judged by an exception raised at nnsmith/materialize/torch/symbolnet.py:421, but a Expr statement does not raise by itself
 
 ## nnsmith-F009
 
@@ -230,7 +186,7 @@
 - category `undisclosed`, effect `path_change`, step 4 level L2, priority 2, scope `unknown`
 - code: `nnsmith/abstract/op.py:25` in `nnsmith/abstract/op.py::<module>`
 - condition: `FLOPS_LIM == "off"`
-- code snippet (`nnsmith/abstract/op.py:25`): `elif FLOPS_LIM == "off":`
+- code snippet (`nnsmith/abstract/op.py:25`): `if FLOPS_LIM == 'off':`
 
 **Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
   effect on positive input, none on negative input
@@ -243,8 +199,7 @@
   - D3 oracle can see the effect: *residual*. only 1 mutants (< n_min=4); killed 1
   - D5 control pair differs in one factor, negative adjacent to the boundary: *residual*. one factor differs; adjacency not measurable: boundary variable 'FLOPS_LIM' is not an integer (value '123')
   - D13 inputs inside the paper's scope: *residual*. scope_status=unknown
-  - D14 official entry point was called: *residual*. deeper entry (index 1); reason recorded: The Region target is module-level code in nnsmith/abstract/op.py, which the step-4 hand-off lists as call_chain index 1 behind PracticalHybridSearch.search_one. Module-level code…
-- what would raise the level: D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location; D5 (residual): change exactly one factor between positive and negative, and make the negative the point next to the boundary; D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)
+- what would raise the level: D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location; D5 (residual): change exactly one factor between positive and negative, and make the negative the point next to the boundary
 - evidence: `tests/nnsmith/nnsmith-F011/execution_report.json`
 
 ## nnsmith-F012
@@ -268,20 +223,9 @@
   - D3 oracle can see the effect: *residual*. only 1 mutants (< n_min=4); killed 1
   - D5 control pair differs in one factor, negative adjacent to the boundary: *residual*. one factor differs; adjacency not measurable: boundary variable 'Z3_CONS_FLOPS' is not an integer (value False)
   - D13 inputs inside the paper's scope: *residual*. scope_status=unknown
-  - D14 official entry point was called: *residual*. deeper entry (index 1); reason recorded: The official call_chain[0] PracticalHybridSearch.search_one is the torch input-search routine and never constructs operator constraints, so it cannot reach Pool2d.requires; the t…
+  - D14 official entry point was called: *residual*. deeper entry (index 6); reason recorded: The official call_chain[0] PracticalHybridSearch.search_one is the torch input-search routine and never constructs operator constraints, so it cannot reach Pool2d.requires; the t…
 - what would raise the level: D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location; D5 (residual): change exactly one factor between positive and negative, and make the negative the point next to the boundary; D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)
 - evidence: `tests/nnsmith/nnsmith-F012/execution_report.json`
-
-## nnsmith-F013
-
-**When gres_config != "4": The environment variable NNSMITH_GRES selects the reshape grouping strategy: "5" = one group (flatten), "3" = min(src_len, dst_len) groups, "4" (default) = random number of groups weighted by 2**i. Any other value raises ValueError, rejecting the model. The chosen grouping changes the generated reshape constraints and hence the accepted graphs. (nnsmith/abstract/op.py:1...**
-
-- category `undisclosed`, effect `path_change`, step 4 level L2, priority 2, scope `unknown`
-- code: `nnsmith/abstract/op.py:1552` in `nnsmith/abstract/op.py::Reshape.requires`
-- condition: `gres_config != "4"`
-- code snippet (`nnsmith/abstract/op.py:1552`): `gres_config = os.getenv("NNSMITH_GRES", "4")`
-
-**Not tested** (`outcome_unsupported`): outcome 'fallback' is judged from a branch decision, but the target is a 'other' statement at nnsmith/abstract/op.py:1552
 
 ## nnsmith-F014
 
@@ -291,7 +235,7 @@
 - code: `nnsmith/abstract/op.py:1587` in `nnsmith/abstract/op.py::Reshape.requires`
 - condition: `os.getenv("NNSMITH_CONS_RESHAPE", "off") != "off"`
 - step 4 review: `worth_testing`: blind review by an LLM subagent (round 1), not human: The NNSMITH_CONS_RESHAPE env var adds per-dimension upper bounds to Reshape target shapes, changing which shapes the generator can produce.
-- code snippet (`nnsmith/abstract/op.py:1587`): `if os.getenv("NNSMITH_CONS_RESHAPE", "off") != "off":`
+- code snippet (`nnsmith/abstract/op.py:1587`): `if os.getenv('NNSMITH_CONS_RESHAPE', 'off') != 'off':`
 
 **Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
   effect on positive input, none on negative input
@@ -303,7 +247,7 @@
 - open doubts:
   - D3 oracle can see the effect: *residual*. only 1 mutants (< n_min=4); killed 1
   - D13 inputs inside the paper's scope: *residual*. scope_status=unknown
-  - D14 official entry point was called: *residual*. deeper entry (index 1); reason recorded: The step-4 call chain is synthetic (the adapter notes the real call graph is not part of the hand-off): PracticalHybridSearch.search_one never invokes Reshape.requires in the pin…
+  - D14 official entry point was called: *residual*. deeper entry (index 5); reason recorded: The step-4 call chain is synthetic (the adapter notes the real call graph is not part of the hand-off): PracticalHybridSearch.search_one never invokes Reshape.requires in the pin…
 - what would raise the level: D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location; D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)
 - evidence: `tests/nnsmith/nnsmith-F014/execution_report.json`
 
@@ -337,7 +281,7 @@
 - category `undisclosed`, effect `path_change`, step 4 level L2, priority 2, scope `unknown`
 - code: `nnsmith/cli/model_gen.py:31` in `nnsmith/cli/model_gen.py::main`
 - condition: `cfg["backend"]["type"] is not None`
-- code snippet (`nnsmith/cli/model_gen.py:31`): `if cfg["backend"]["type"] is not None:`
+- code snippet (`nnsmith/cli/model_gen.py:31`): `if cfg['backend']['type'] is not None:`
 
 **Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
   effect on positive input, none on negative input
@@ -361,7 +305,7 @@
 - code: `nnsmith/graph_gen.py:256` in `nnsmith/graph_gen.py::SimpleGenerator.abstract_gen`
 - condition: `NNSMITH_LIMNF_V == "0"`
 - step 4 review: `worth_testing`: blind review by an LLM subagent (round 1), not human: The NNSMITH_LIMNF_V env var switches between one total float-count limit and per-node limits on tensor size.
-- code snippet (`nnsmith/graph_gen.py:256`): `if NNSMITH_LIMNF_V == "0":`
+- code snippet (`nnsmith/graph_gen.py:256`): `if NNSMITH_LIMNF_V == '0':`
 
 **Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
   effect on positive input, none on negative input
@@ -379,14 +323,14 @@
 
 ## nnsmith-F018
 
-**When NNSMITH_LIMNF_V == "1": With NNSMITH_LIMNF_V=1 the per-op float-count constraints accumulated in `self.n_floats_cons` are added to the solver instead of the single aggregate constraint, so the same seed yields different accepted graphs depending on the environment variable. (nnsmith/graph_gen.py:259)**
+**When NNSMITH_LIMNF_V == "1": With NNSMITH_LIMNF_V=1 the per-op float-count constraints accumulated in `self.n_floats_cons` are added to the solver instead of the single aggregate constraint, so the same seed yields different accepted graphs depending on the environment variable. (nnsmith/graph_gen.py:258)**
 
 - category `undisclosed`, effect `path_change`, step 4 level L2, priority 2, scope `unknown`
-- code: `nnsmith/graph_gen.py:259` in `nnsmith/graph_gen.py::SimpleGenerator.abstract_gen`
+- code: `nnsmith/graph_gen.py:258` in `nnsmith/graph_gen.py::SimpleGenerator.abstract_gen`
 - condition: `NNSMITH_LIMNF_V == "1"`
-- code snippet (`nnsmith/graph_gen.py:259`): `self.solver.add(*self.n_floats_cons)`
+- code snippet (`nnsmith/graph_gen.py:258`): `if NNSMITH_LIMNF_V == '1':`
 
-**Not tested** (`outcome_unsupported`): outcome 'fallback' is judged from a branch decision, but the target is a 'other' statement at nnsmith/graph_gen.py:259
+**Not tested** (`not_attempted`): the harness can judge this Finding but no test package exists; run with --run-agent to have the code agent design one
 
 ## nnsmith-F019
 
@@ -485,16 +429,19 @@
 - what would raise the level: D2 (residual): pick inputs so the Region condition is true on the positive and false on the negative; write a predicate if it cannot be evaluated; D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location; D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)
 - evidence: `tests/nnsmith/nnsmith-F022/execution_report.json`
 
-## nnsmith-F023
+## nnsmith-F006
 
-**When self.differentiable is False: The variant is decided by a single probe forward pass on random inputs: `self.net.differentiable` is set by SymbolNet.forward (it becomes False as soon as any op is non-differentiable or a numeric check fails). If that one random probe happens to hit a non-differentiable path, `search_one` (line 107) silently falls back to `SamplingSearch.search_one` for all s...**
+**When p.grad is not None and torch.any(p.grad != 0): If all parameter gradients are zero, ConstraintCheck.true(nonzero, ...) raises, aborting the backward step ('Gradients are all zero. Cannot make progress.'). (nnsmith/materialize/torch/symbolnet.py:188)**
 
-- category `undisclosed`, effect `path_change`, step 4 level L2, priority 2, scope `unknown`
-- code: `nnsmith/materialize/torch/input_gen.py:98` in `nnsmith/materialize/torch/input_gen.py::PracticalHybridSearch.__init__`
-- condition: `self.differentiable is False`
-- code snippet (`nnsmith/materialize/torch/input_gen.py:98`): `self.differentiable = self.net.differentiable`
+- category `undisclosed`, effect `other`, step 4 level L2, priority 2, scope `unknown`
+- code: `nnsmith/materialize/torch/symbolnet.py:188` in `nnsmith/materialize/torch/symbolnet.py::SymbolNet.backward`
+- condition: `p.grad is not None and torch.any(p.grad != 0)`
+- step 4 review: `worth_testing`: blind review by an LLM subagent (round 1), not human: Zero gradients raise ConstraintError, grad_input_gen breaks and returns None, so for such models the gradient search gives up and make_oracle ends up using random inputs.
+- paper/docs (paper, PDF p.7): “if⟨𝑋,𝑊⟩ not changed then // Zero gradients”
+- paper/docs (paper, PDF p.7): “⟨𝑋,𝑊⟩← randomly initialized values”
+- code snippet (`nnsmith/materialize/torch/symbolnet.py:188`): `if p.grad is not None and torch.any(p.grad != 0):`
 
-**Not tested** (`outcome_unsupported`): outcome 'fallback' is judged from a branch decision, but the target is a 'other' statement at nnsmith/materialize/torch/input_gen.py:98
+**Not tested** (`outcome_unsupported`): outcome 'suspicious' has no effect check yet
 
 ## nnsmith-F024
 
@@ -504,7 +451,7 @@
 - code: `nnsmith/materialize/torch/symbolnet.py:234` in `nnsmith/materialize/torch/symbolnet.py::SymbolNet.grad_input_gen`
 - condition: `max_time is None`
 - paper/docs (paper, PDF p.7): “raise failed to find viable⟨𝑋,𝑊⟩”
-- code snippet (`nnsmith/materialize/torch/symbolnet.py:234`): `max_time = float(os.getenv("NNSMITH_GRAD_TIME", 0.5))`
+- code snippet (`nnsmith/materialize/torch/symbolnet.py:234`): `max_time = float(os.getenv('NNSMITH_GRAD_TIME', 0.5))`
 
 **Not tested** (`outcome_unsupported`): outcome 'suspicious' has no effect check yet
 
@@ -530,28 +477,6 @@
   - D13 inputs inside the paper's scope: *residual*. scope_status=unknown
 - what would raise the level: D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location
 - evidence: `tests/nnsmith/nnsmith-F025/execution_report.json`
-
-## nnsmith-F026
-
-**When output_tensors[i].grad_fn is None: `differentiable` is reset to True at the start of every forward (line 313) and AND-ed with each op output's grad_fn. PracticalHybridSearch.__init__ reads this flag after one probe forward, so a single non-differentiable op (or a non-float input) permanently disables the gradient search for the whole model. (nnsmith/materialize/torch/symbolnet.py:358)**
-
-- category `undisclosed`, effect `path_change`, step 4 level L2, priority 2, scope `unknown`
-- code: `nnsmith/materialize/torch/symbolnet.py:358` in `nnsmith/materialize/torch/symbolnet.py::SymbolNet.forward`
-- condition: `output_tensors[i].grad_fn is None`
-- code snippet (`nnsmith/materialize/torch/symbolnet.py:358`): `self.differentiable &= output_tensors[i].grad_fn is not None`
-
-**Not tested** (`outcome_unsupported`): outcome 'fallback' is judged from a branch decision, but the target is a 'other' statement at nnsmith/materialize/torch/symbolnet.py:358
-
-## nnsmith-F027
-
-**When vul_op_loss is None: When an op produces NaN/Inf but has no registered loss function (`loss_fn.dispatch(type(op)) is None`), the constraint check raises ConstraintError, which `grad_input_gen` catches at line 268 and turns into `break` (line 286) — the gradient search aborts and returns None, so the caller silently falls back to random sampling for that model. (nnsmith/materialize/torch/sy...**
-
-- category `undisclosed`, effect `path_change`, step 4 level L2, priority 2, scope `unknown`
-- code: `nnsmith/materialize/torch/symbolnet.py:403` in `nnsmith/materialize/torch/symbolnet.py::SymbolNet.forward`
-- condition: `vul_op_loss is None`
-- code snippet (`nnsmith/materialize/torch/symbolnet.py:403`): `ConstraintCheck.true(`
-
-**Not tested** (`outcome_unsupported`): outcome 'fallback' is judged from a branch decision, but the target is a 'other' statement at nnsmith/materialize/torch/symbolnet.py:403
 
 ## nnsmith-F028
 
@@ -585,17 +510,51 @@
 
 **Not tested** (`no_code_location`): no code location (paper-side finding or no code evidence)
 
+## nnsmith-F013
+
+**When gres_config != "4": The environment variable NNSMITH_GRES selects the reshape grouping strategy: "5" = one group (flatten), "3" = min(src_len, dst_len) groups, "4" (default) = random number of groups weighted by 2**i. Any other value raises ValueError, rejecting the model. The chosen grouping changes the generated reshape constraints and hence the accepted graphs. (nnsmith/abstract/op.py:1...**
+
+- category `undisclosed`, effect `other`, step 4 level L2, priority 3, scope `unknown`
+- code: `nnsmith/abstract/op.py:1552` in `nnsmith/abstract/op.py::Reshape.requires`
+- condition: `gres_config != "4"`
+- code snippet (`nnsmith/abstract/op.py:1552`): `gres_config = os.getenv('NNSMITH_GRES', '4')`
+
+**Not tested** (`outcome_unsupported`): outcome 'suspicious' has no effect check yet
+
+## nnsmith-F002
+
+**When not check_sat(): If the requested output rank cannot be satisfied by the rank-increment loop (e.g. out_abs_tensor ndims inconsistent with the max reachable rank), the loop never terminates, effectively rejecting/hanging on that output shape. (nnsmith/abstract/op.py:2083)**
+
+- category `undisclosed`, effect `other`, step 4 level L2, priority 3, scope `unknown`
+- code: `nnsmith/abstract/op.py:2083` in `nnsmith/abstract/op.py::MatMul.deduct_inp_ranks_and_dtype`
+- condition: `not check_sat()`
+- code snippet (`nnsmith/abstract/op.py:2083`): `while not check_sat():`
+
+**Not tested** (`outcome_unsupported`): outcome 'suspicious' has no effect check yet
+
 ## nnsmith-F031
 
 **When int(os.getenv("NNSMITH_BITS", 30)) != 30: The number of bits used to split the integer-domain symbols into groups is read from NNSMITH_BITS (default 30). A smaller value makes `random_group` produce more, smaller groups, i.e. a different (coarser) integer encoding of the same abstract graph, changing which graphs the solver accepts. (nnsmith/graph_gen.py:190)**
 
-- category `undisclosed`, effect `path_change`, step 4 level L2, priority 3, scope `unknown`
+- category `undisclosed`, effect `other`, step 4 level L2, priority 3, scope `unknown`
 - code: `nnsmith/graph_gen.py:190` in `nnsmith/graph_gen.py::SimpleGenerator.new_syms`
 - condition: `int(os.getenv("NNSMITH_BITS", 30)) != 30`
 - step 4 review: `wrong`: blind review by an LLM subagent (round 1), not human: NNSMITH_BITS is only read when use_bitvec is True, which is hard-coded False, so this code is dead.
 - code snippet (`nnsmith/graph_gen.py:190`): `map(len, random_group(int(os.getenv("NNSMITH_BITS", 30)), len(names)))`
 
-**Not tested** (`outcome_unsupported`): outcome 'fallback' is judged from a branch decision, but the target is a 'other' statement at nnsmith/graph_gen.py:190
+**Not tested** (`outcome_unsupported`): outcome 'suspicious' has no effect check yet
+
+## nnsmith-F005
+
+**When isinstance(op, Expand) and oshape.ndims < op.expand_last_dim: Placeholder shapes with fewer dims than the Expand op's expand_last_dim are skipped as backward-insertion candidates, excluding them from consideration. (nnsmith/graph_gen.py:524)**
+
+- category `undisclosed`, effect `other`, step 4 level L2, priority 3, scope `unknown`
+- code: `nnsmith/graph_gen.py:524` in `nnsmith/graph_gen.py::SimpleGenerator.try_backward_insert`
+- condition: `isinstance(op, Expand) and oshape.ndims < op.expand_last_dim`
+- step 4 review: `real_but_minor`: blind review by an LLM subagent (round 2), not human: Skipping placeholders whose rank is too low for Expand is an operator-specific shape-validity invariant, not a user-facing limitation.
+- code snippet (`nnsmith/graph_gen.py:524`): `if isinstance(op, Expand) and oshape.ndims < op.expand_last_dim:`
+
+**Not tested** (`outcome_unsupported`): outcome 'suspicious' has no effect check yet
 
 ## nnsmith-F032
 
@@ -605,7 +564,7 @@
 - code: `nnsmith/graph_gen.py:834` in `nnsmith/graph_gen.py::range_constrain`
 - condition: `os.getenv("NNSMITH_LB", "off") == "off"`
 - step 4 review: `wrong`: blind review by an LLM subagent (round 1), not human: range_constrain is only called from GuidedGen, which is never instantiated, so the NNSMITH_LB switch has no effect in practice.
-- code snippet (`nnsmith/graph_gen.py:834`): `if ub is not None and os.getenv("NNSMITH_LB", "off") == "off": # HACK`
+- code snippet (`nnsmith/graph_gen.py:834`): `if ub is not None and os.getenv('NNSMITH_LB', 'off') == 'off':`
 
 **Not tested** (`outcome_unsupported`): outcome 'suspicious' has no effect check yet
 
@@ -613,13 +572,13 @@
 
 **When os.getenv("NNSMITH_G_CONFIG", "1") != "1": The environment variable NNSMITH_G_CONFIG selects which parameter-guidance table GuidedGen uses: "0" = PARAM_CONFIG0 (no parameter guidance at all, only input-shape guidance), "1" = PARAM_CONFIG1, "2" = PARAM_CONFIG2 (pads get symmetric bins). This changes the constraints added in `extra_constraints`/`post_process`, i.e. which models are generated...**
 
-- category `undisclosed`, effect `path_change`, step 4 level L2, priority 3, scope `unknown`
+- category `undisclosed`, effect `other`, step 4 level L2, priority 3, scope `unknown`
 - code: `nnsmith/graph_gen.py:984` in `nnsmith/graph_gen.py::GuidedGen.__init__`
 - condition: `os.getenv("NNSMITH_G_CONFIG", "1") != "1"`
 - step 4 review: `wrong`: blind review by an LLM subagent (round 3), not human: GuidedGen is never instantiated, so the NNSMITH_G_CONFIG selection is dead code.
 - code snippet (`nnsmith/graph_gen.py:984`): `}[os.getenv("NNSMITH_G_CONFIG", "1")]`
 
-**Not tested** (`outcome_unsupported`): outcome 'fallback' is judged from a branch decision, but the target is a 'other' statement at nnsmith/graph_gen.py:984
+**Not tested** (`outcome_unsupported`): outcome 'suspicious' has no effect check yet
 
 ## nnsmith-F034
 
@@ -641,7 +600,7 @@
 - open doubts:
   - D3 oracle can see the effect: *residual*. only 1 mutants (< n_min=4); killed 1
   - D13 inputs inside the paper's scope: *residual*. scope_status=unknown
-  - D14 official entry point was called: *residual*. deeper entry (index 1); reason recorded: The official entry random_model_gen constructs a PureSymbolGen and GuidedGen is never instantiated anywhere in the repository, so random_model_gen cannot reach this Region. The d…
+  - D14 official entry point was called: *residual*. deeper entry (index 3); reason recorded: The official entry random_model_gen constructs a PureSymbolGen and GuidedGen is never instantiated anywhere in the repository, so random_model_gen cannot reach this Region. The d…
 - what would raise the level: D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location; D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)
 - evidence: `tests/nnsmith/nnsmith-F034/execution_report.json`
 
@@ -664,7 +623,7 @@
 - contrast run: branch not taken at nnsmith/graph_gen.py:1044
 - open doubts:
   - D13 inputs inside the paper's scope: *residual*. scope_status=unknown
-  - D14 official entry point was called: *residual*. deeper entry (index 1); reason recorded: The hand-off's official entry random_model_gen instantiates PureSymbolGen, whose post_process is a no-op; GuidedGen is never instantiated anywhere in the pinned repository, so th…
+  - D14 official entry point was called: *residual*. deeper entry (index 2); reason recorded: The hand-off's official entry random_model_gen instantiates PureSymbolGen, whose post_process is a no-op; GuidedGen is never instantiated anywhere in the pinned repository, so th…
 - what would raise the level: D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)
 - evidence: `tests/nnsmith/nnsmith-F035/execution_report.json`
 
@@ -690,7 +649,7 @@
 - open doubts:
   - D3 oracle can see the effect: *residual*. only 1 mutants (< n_min=4); killed 1
   - D13 inputs inside the paper's scope: *residual*. scope_status=unknown
-  - D14 official entry point was called: *residual*. deeper entry (index 1); reason recorded: The official entry random_model_gen hardcodes PureSymbolGen and never instantiates GuidedGen, so the target GuidedGen.post_process is unreachable from that entry. The target func…
+  - D14 official entry point was called: *residual*. deeper entry (index 2); reason recorded: The official entry random_model_gen hardcodes PureSymbolGen and never instantiates GuidedGen, so the target GuidedGen.post_process is unreachable from that entry. The target func…
 - what would raise the level: D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location; D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)
 - evidence: `tests/nnsmith/nnsmith-F036/execution_report.json`
 
@@ -714,9 +673,31 @@
 - open doubts:
   - D3 oracle can see the effect: *residual*. only 3 mutants (< n_min=4); killed 3
   - D13 inputs inside the paper's scope: *residual*. scope_status=unknown
-  - D14 official entry point was called: *residual*. deeper entry (index 1); reason recorded: The step-4 call chain is synthetic: it pairs the same-file artifact entry random_model_gen with the target function. In the pinned commit random_model_gen constructs PureSymbolGe…
+  - D14 official entry point was called: *residual*. deeper entry (index 2); reason recorded: The step-4 call chain is synthetic: it pairs the same-file artifact entry random_model_gen with the target function. In the pinned commit random_model_gen constructs PureSymbolGe…
 - what would raise the level: D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location; D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)
 - evidence: `tests/nnsmith/nnsmith-F037/execution_report.json`
+
+## nnsmith-F023
+
+**When self.differentiable is False: The variant is decided by a single probe forward pass on random inputs: `self.net.differentiable` is set by SymbolNet.forward (it becomes False as soon as any op is non-differentiable or a numeric check fails). If that one random probe happens to hit a non-differentiable path, `search_one` (line 107) silently falls back to `SamplingSearch.search_one` for all s...**
+
+- category `undisclosed`, effect `other`, step 4 level L2, priority 3, scope `unknown`
+- code: `nnsmith/materialize/torch/input_gen.py:98` in `nnsmith/materialize/torch/input_gen.py::PracticalHybridSearch.__init__`
+- condition: `self.differentiable is False`
+- code snippet (`nnsmith/materialize/torch/input_gen.py:98`): `self.differentiable = self.net.differentiable`
+
+**Not tested** (`outcome_unsupported`): outcome 'suspicious' has no effect check yet
+
+## nnsmith-F026
+
+**When output_tensors[i].grad_fn is None: `differentiable` is reset to True at the start of every forward (line 313) and AND-ed with each op output's grad_fn. PracticalHybridSearch.__init__ reads this flag after one probe forward, so a single non-differentiable op (or a non-float input) permanently disables the gradient search for the whole model. (nnsmith/materialize/torch/symbolnet.py:358)**
+
+- category `undisclosed`, effect `other`, step 4 level L2, priority 3, scope `unknown`
+- code: `nnsmith/materialize/torch/symbolnet.py:358` in `nnsmith/materialize/torch/symbolnet.py::SymbolNet.forward`
+- condition: `output_tensors[i].grad_fn is None`
+- code snippet (`nnsmith/materialize/torch/symbolnet.py:358`): `self.differentiable &= output_tensors[i].grad_fn is not None`
+
+**Not tested** (`outcome_unsupported`): outcome 'suspicious' has no effect check yet
 
 ## nnsmith-F038
 
@@ -726,7 +707,7 @@
 - code: `nnsmith/materialize/torch/symbolnet.py:382` in `nnsmith/materialize/torch/symbolnet.py::SymbolNet.forward`
 - condition: `self.check_intermediate_numeric or (self.use_gradient and not self.stop_updating_loss)`
 - step 4 review: `wrong`: blind review by an LLM subagent (round 1), not human: The real condition is check_intermediate_numeric or (use_gradient and not stop_updating_loss), and invalid_found_last is reset to False at the start of every forward, so the claimed dependence on earlier state does not exist.
-- code snippet (`nnsmith/materialize/torch/symbolnet.py:382`): `if self.check_intermediate_numeric or (`
+- code snippet (`nnsmith/materialize/torch/symbolnet.py:382`): `if self.check_intermediate_numeric or (self.use_gradient and (not self.stop_updating_loss)):`
 
 **Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
   effect on positive input, none on negative input
@@ -741,4 +722,38 @@
   - D14 official entry point was called: *residual*. deeper entry (index 1); reason recorded: PracticalHybridSearch.__init__ calls the real SymbolNet.forward to test differentiability before search_one starts; that forward evaluates the target guard with the constructed a…
 - what would raise the level: D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location; D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)
 - evidence: `tests/nnsmith/nnsmith-F038/execution_report.json`
+
+## nnsmith-F007
+
+**When loss_fn.dispatch(type(op)) is not None: If an op produces NaN/Inf but has no registered loss function, ConstraintCheck.true at line 403 fails with 'op=... has no torch_loss but produces NaN or INF!', aborting the search. (nnsmith/materialize/torch/symbolnet.py:385)**
+
+- category `undisclosed`, effect `other`, step 4 level L2, priority 3, scope `unknown`
+- code: `nnsmith/materialize/torch/symbolnet.py:385` in `nnsmith/materialize/torch/symbolnet.py::SymbolNet.forward`
+- condition: `loss_fn.dispatch(type(op)) is not None`
+- step 4 review: `worth_testing`: blind review by an LLM subagent (round 1), not human: When gradient search is running and an op with no registered loss function produces NaN/Inf, a ConstraintError ends the gradient search, so such ops cannot be repaired.
+- code snippet (`nnsmith/materialize/torch/symbolnet.py:385`): `if loss_fn.dispatch(type(op)) is not None:`
+
+**Not tested** (`outcome_unsupported`): outcome 'suspicious' has no effect check yet
+
+## nnsmith-F027
+
+**When vul_op_loss is None: When an op produces NaN/Inf but has no registered loss function (`loss_fn.dispatch(type(op)) is None`), the constraint check raises ConstraintError, which `grad_input_gen` catches at line 268 and turns into `break` (line 286) — the gradient search aborts and returns None, so the caller silently falls back to random sampling for that model. (nnsmith/materialize/torch/sy...**
+
+- category `undisclosed`, effect `other`, step 4 level L2, priority 3, scope `unknown`
+- code: `nnsmith/materialize/torch/symbolnet.py:403` in `nnsmith/materialize/torch/symbolnet.py::SymbolNet.forward`
+- condition: `vul_op_loss is None`
+- code snippet (`nnsmith/materialize/torch/symbolnet.py:403`): `ConstraintCheck.true(vul_op_loss is not None, f'op={op} has no `torch_loss` but produces NaN or INF!')`
+
+**Not tested** (`outcome_unsupported`): outcome 'suspicious' has no effect check yet
+
+## nnsmith-F008
+
+**When self.loss is not None: If two vulnerable ops both produce NaN/Inf in the same forward pass, the second one trips this check and raises ConstraintError, which aborts the gradient search (caught in grad_input_gen, line 268 -> break) instead of optimising for either loss. (nnsmith/materialize/torch/symbolnet.py:421)**
+
+- category `undisclosed`, effect `other`, step 4 level L2, priority 3, scope `unknown`
+- code: `nnsmith/materialize/torch/symbolnet.py:421` in `nnsmith/materialize/torch/symbolnet.py::SymbolNet.forward`
+- condition: `self.loss is not None`
+- code snippet (`nnsmith/materialize/torch/symbolnet.py:421`): `ConstraintCheck.true(self.loss is None, 'Multiple loss detected!')`
+
+**Not tested** (`outcome_unsupported`): outcome 'suspicious' has no effect check yet
 

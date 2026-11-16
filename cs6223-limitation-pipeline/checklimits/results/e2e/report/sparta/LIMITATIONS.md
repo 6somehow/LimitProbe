@@ -1,8 +1,8 @@
 # Limitations report: SparTA: Deep-Learning Model Sparsity via Tensor-with-Sparsity-Attribute
 
 - artifact: `sparta` (OSDI 2022), repository https://github.com/microsoft/SparTA at `1f61a363b1`
-- input: `results/step4/sparta/limitations_for_tests.json` (sha256 `9560f81dcdfb`), 82 Findings
-- generated: 2026-11-15T17:08:13+08:00 by `checklimits test` (contract `checklimits-test-report/1`)
+- input: `results/step4/sparta/limitations_for_tests.json` (sha256 `af8cad7c4e91`), 82 Findings
+- generated: 2026-11-16T16:09:59+08:00 by `checklimits test` (contract `checklimits-test-report/1`)
 - environment: **not_ok** (repository third_party/SparTA is not checked out)
 
 ## How to read this
@@ -115,7 +115,7 @@
 - code: `sparta/transformation/weighted_block_cover.py:77` in `sparta/transformation/weighted_block_cover.py::weighted_block_cover`
 - condition: `cover_sizes[(1, 1)] < ordered_pricing[0][0]`
 - step 4 review: `worth_testing`: blind review by an LLM subagent (round 1), not human: When even the cheapest block price is worse than the element-wise price, the block cover is skipped and the whole weight becomes fine-grained (1,1), a variant switch driven by the sparsity pattern; ordered_pricing[0] on an empty list also raises…
-- code snippet (`sparta/transformation/weighted_block_cover.py:77`): `if cover_sizes[(1, 1)] < ordered_pricing[0][0]:`
+- code snippet (`sparta/transformation/weighted_block_cover.py:77`): `if cover_sizes[1, 1] < ordered_pricing[0][0]:`
 
 **Not tested** (`env_unavailable`): repository third_party/SparTA is not checked out
 
@@ -242,7 +242,7 @@
 
 - category `impl_deviates`, effect `other`, step 4 level L2, priority 2, scope `unknown`
 - code: `script/figure14/search_finetune_fit_qat.py:571-664`
-- condition: `True`
+- condition: `weight_bits in range(weight_upbound_bits-1, downbound_bit-1, -1)`
 - paper/docs (paper, PDF p.6, text lines 16-18): “23 if Tupdated != T then 24 S.Update(Tupdated ); 25 Supdated .Update(Tupdated );”
 
 **Not tested** (`no_code_location`): no code location (paper-side finding or no code evidence)
@@ -791,7 +791,7 @@
 
 - category `not_implemented`, effect `other`, step 4 level L2, priority 3, scope `unknown`
 - code: `sparta/core/sparta.py:16-24`
-- condition: `True`
+- condition: `backend == 'pytorch'`
 - paper/docs (paper, PDF p.8, text lines 125-127): “Specializing operators with quantization attributes also works on the multi-level loops, but starting from the inner- most loop. SparTA picks a proper hardware instruction based”
 - paper/docs (paper, PDF p.8): “and then replace the rearranged loop body with the instruction”
 

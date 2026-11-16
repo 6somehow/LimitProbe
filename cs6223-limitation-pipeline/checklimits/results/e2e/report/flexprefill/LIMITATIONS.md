@@ -1,8 +1,8 @@
 # Limitations report: FlexPrefill: A Context-Aware Sparse Attention Mechanism for Efficient Long-Sequence Inference
 
 - artifact: `flexprefill` (ICLR 2025 (Oral)), repository https://github.com/bytedance/FlexPrefill at `a24b27bf11`
-- input: `results/step4/flexprefill/limitations_for_tests.json` (sha256 `ff6878a350bc`), 65 Findings
-- generated: 2026-11-15T17:15:21+08:00 by `checklimits test` (contract `checklimits-test-report/1`)
+- input: `results/step4/flexprefill/limitations_for_tests.json` (sha256 `0b8539b75ec0`), 65 Findings
+- generated: 2026-11-16T16:09:59+08:00 by `checklimits test` (contract `checklimits-test-report/1`)
 - environment: **ok**
 
 ## How to read this
@@ -18,25 +18,21 @@
 | | |
 |---|---|
 | Findings | 65 |
-| tested | 32 |
-| not tested | 33 |
-| verdicts | inconclusive 2, yes 30 |
-| levels | L1 16, L2 8, L3 6, invalid 1, n/a 1 |
-| not tested, by reason | `no_code_location` 19, `outcome_unsupported` 6, `witness_unusable` 8 |
+| tested | 29 |
+| not tested | 36 |
+| verdicts | inconclusive 1, yes 28 |
+| levels | L1 15, L2 7, L3 6, invalid 1 |
+| not tested, by reason | `no_code_location` 19, `outcome_unsupported` 6, `witness_unusable` 11 |
 
 | Finding | category | effect | location | result |
 |---|---|---|---|---|
 | [flexprefill-F001](#flexprefill-f001) | undisclosed | reject | `flex_prefill/modules/patch.py:123` | **yes** / L1 (uncalibrated) |
 | [flexprefill-F002](#flexprefill-f002) | undisclosed | reject | `flex_prefill/modules/patch.py:241` | **yes** / L1 (uncalibrated) |
 | [flexprefill-F003](#flexprefill-f003) | undisclosed | reject | `flex_prefill/ops/flex_prefill_attention.py:247` | **yes** / L3 (uncalibrated) |
-| [flexprefill-F004](#flexprefill-f004) | undisclosed | reject | `flex_prefill/ops/flex_prefill_attention.py:865` | not tested: `witness_unusable` |
-| [flexprefill-F005](#flexprefill-f005) | undisclosed | reject | `flex_prefill/ops/flex_prefill_attention.py:1219` | **yes** / L1 (uncalibrated) |
 | [flexprefill-F006](#flexprefill-f006) | undisclosed | reject | `flex_prefill/ops/flex_prefill_attention.py:1240-1244` | **yes** / L1 (uncalibrated) |
 | [flexprefill-F007](#flexprefill-f007) | undisclosed | reject | `flex_prefill/ops/flex_prefill_attention.py:1245` | **yes** / L2 (uncalibrated) |
 | [flexprefill-F008](#flexprefill-f008) | undisclosed | reject | `flex_prefill/ops/flex_prefill_attention.py:1256` | **yes** / L2 (uncalibrated) |
 | [flexprefill-F009](#flexprefill-f009) | undisclosed | reject | `flex_prefill/ops/flex_prefill_attention.py:1258` | **yes** / L2 (uncalibrated) |
-| [flexprefill-F010](#flexprefill-f010) | undisclosed | reject | `flex_prefill/ops/flex_prefill_attention.py:1450` | **inconclusive** / n/a (uncalibrated) |
-| [flexprefill-F011](#flexprefill-f011) | undisclosed | reject | `flex_prefill/ops/flex_prefill_attention.py:1451` | **yes** / L2 (uncalibrated) |
 | [flexprefill-F012](#flexprefill-f012) | undisclosed | state | `flex_prefill/ops/flex_prefill_attention.py:1695-1698` | **yes** / L1 (uncalibrated) |
 | [flexprefill-F013](#flexprefill-f013) | undisclosed | reject | `flex_prefill/ops/flex_prefill_attention.py:1836` | **yes** / L3 (uncalibrated) |
 | [flexprefill-F014](#flexprefill-f014) | undisclosed | reject | `flex_prefill/ops/flex_prefill_attention.py:1837` | **yes** / L3 (uncalibrated) |
@@ -50,7 +46,6 @@
 | [flexprefill-F022](#flexprefill-f022) | stated_differently | reject | `flex_prefill/ops/flex_prefill_attention.py:672` | **yes** / L1 (uncalibrated) |
 | [flexprefill-F023](#flexprefill-f023) | stated_differently | reject | `flex_prefill/ops/flex_prefill_attention.py:1218` | **yes** / L1 (uncalibrated) |
 | [flexprefill-F024](#flexprefill-f024) | stated_differently | reject | `flex_prefill/ops/flex_prefill_attention.py:1222-1226` | **yes** / L1 (uncalibrated) |
-| [flexprefill-F025](#flexprefill-f025) | undisclosed | path_change | `flex_prefill/ops/flex_prefill_attention.py:1727` | not tested: `outcome_unsupported` |
 | [flexprefill-F026](#flexprefill-f026) | undisclosed | path_change | `flex_prefill/ops/flex_prefill_attention.py:1842-1854` | **yes** / L3 (uncalibrated) |
 | [flexprefill-F027](#flexprefill-f027) | stated_differently | reject | `flex_prefill/ops/vertical_slash_attention.py:264` | **yes** / L1 (uncalibrated) |
 | [flexprefill-F028](#flexprefill-f028) | undisclosed | path_change | `flex_prefill/ops/vertical_slash_attention.py:557` | **yes** / L1 (uncalibrated) |
@@ -66,16 +61,21 @@
 | [flexprefill-F038](#flexprefill-f038) | impl_deviates | other | `flex_prefill/ops/flex_prefill_attention.py:1718-1729` | not tested: `no_code_location` |
 | [flexprefill-F039](#flexprefill-f039) | docs_only | path_change | `flex_prefill/modules/patch.py:114` | **yes** / L1 (uncalibrated) |
 | [flexprefill-F040](#flexprefill-f040) | undisclosed | other | `flex_prefill/ops/flex_prefill_attention.py:88-96` | not tested: `outcome_unsupported` |
+| [flexprefill-F004](#flexprefill-f004) | undisclosed | reject | `flex_prefill/ops/flex_prefill_attention.py:865` | not tested: `witness_unusable` |
 | [flexprefill-F041](#flexprefill-f041) | stated_differently | reject | `flex_prefill/ops/flex_prefill_attention.py:868` | not tested: `witness_unusable` |
 | [flexprefill-F042](#flexprefill-f042) | undisclosed | reject | `flex_prefill/ops/flex_prefill_attention.py:869` | not tested: `witness_unusable` |
 | [flexprefill-F043](#flexprefill-f043) | docs_only | reject | `flex_prefill/ops/flex_prefill_attention.py:870-875` | not tested: `witness_unusable` |
 | [flexprefill-F044](#flexprefill-f044) | undisclosed | reject | `flex_prefill/ops/flex_prefill_attention.py:876` | not tested: `witness_unusable` |
 | [flexprefill-F045](#flexprefill-f045) | undisclosed | reject | `flex_prefill/ops/flex_prefill_attention.py:878` | not tested: `witness_unusable` |
+| [flexprefill-F005](#flexprefill-f005) | undisclosed | reject | `flex_prefill/ops/flex_prefill_attention.py:1219` | not tested: `witness_unusable` |
 | [flexprefill-F046](#flexprefill-f046) | undisclosed | reject | `flex_prefill/ops/flex_prefill_attention.py:1220` | not tested: `witness_unusable` |
-| [flexprefill-F047](#flexprefill-f047) | undisclosed | reject | `flex_prefill/ops/flex_prefill_attention.py:1221` | not tested: `outcome_unsupported` |
+| [flexprefill-F047](#flexprefill-f047) | undisclosed | other | `flex_prefill/ops/flex_prefill_attention.py:1221` | not tested: `outcome_unsupported` |
 | [flexprefill-F048](#flexprefill-f048) | undisclosed | reject | `flex_prefill/ops/flex_prefill_attention.py:1228-1231` | not tested: `witness_unusable` |
 | [flexprefill-F049](#flexprefill-f049) | undisclosed | other | `flex_prefill/ops/flex_prefill_attention.py:1270-1272` | not tested: `outcome_unsupported` |
+| [flexprefill-F010](#flexprefill-f010) | undisclosed | reject | `flex_prefill/ops/flex_prefill_attention.py:1450` | not tested: `witness_unusable` |
+| [flexprefill-F011](#flexprefill-f011) | undisclosed | reject | `flex_prefill/ops/flex_prefill_attention.py:1451` | not tested: `witness_unusable` |
 | [flexprefill-F050](#flexprefill-f050) | undisclosed | other | `flex_prefill/ops/flex_prefill_attention.py:1708` | not tested: `outcome_unsupported` |
+| [flexprefill-F025](#flexprefill-f025) | undisclosed | other | `flex_prefill/ops/flex_prefill_attention.py:1727` | not tested: `outcome_unsupported` |
 | [flexprefill-F051](#flexprefill-f051) | undisclosed | other | `flex_prefill/ops/flex_prefill_attention.py:1787` | not tested: `outcome_unsupported` |
 | [flexprefill-F052](#flexprefill-f052) | docs_only | reject | `flex_prefill/ops/flex_prefill_attention.py:1824` | **yes** / L3 (uncalibrated) |
 | [flexprefill-F053](#flexprefill-f053) | docs_only | path_change | `flex_prefill/ops/flex_prefill_attention.py:1825-1835` | **yes** / L1 (uncalibrated) |
@@ -161,40 +161,6 @@
   - D13 inputs inside the paper's scope: *residual*. scope_status=unknown
 - evidence: `tests/flexprefill/flexprefill-F003/execution_report.json`
 
-## flexprefill-F004
-
-**When not (q_len == 1): AssertionError (flex_prefill/ops/flex_prefill_attention.py:865)**
-
-- category `undisclosed`, effect `reject`, step 4 level L2, priority 1, scope `unknown`
-- code: `flex_prefill/ops/flex_prefill_attention.py:865` in `flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_decode_attention`
-- condition: `not (q_len == 1)`
-- code snippet (`flex_prefill/ops/flex_prefill_attention.py:865`): `assert q_len == 1`
-
-**Not tested** (`witness_unusable`): witness status 'trigger_only'
-
-## flexprefill-F005
-
-**When not (q_len == k_len): AssertionError (flex_prefill/ops/flex_prefill_attention.py:1219)**
-
-- category `undisclosed`, effect `reject`, step 4 level L2, priority 1, scope `unknown`
-- code: `flex_prefill/ops/flex_prefill_attention.py:1219` in `flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention`
-- condition: `not (q_len == k_len)`
-- code snippet (`flex_prefill/ops/flex_prefill_attention.py:1219`): `assert q_len == k_len`
-
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
-  effect on positive input, none on negative input
-
-**Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
-
-- trigger run: AssertionError at flex_prefill/ops/flex_prefill_attention.py:1219
-- contrast run: no exception at flex_prefill/ops/flex_prefill_attention.py:1219 (later RuntimeError at triton/runtime/driver.py:8)
-- open doubts:
-  - D3 oracle can see the effect: *residual*. only 2 mutants (< n_min=4); killed 2
-  - D13 inputs inside the paper's scope: *residual*. scope_status=unknown
-  - D14 official entry point was called: *residual*. deeper entry (index 1); reason recorded: The official entry flex_prefill_attention rejects any q_len != k_len with its own assert q.shape[1] == k.shape[1] before it ever calls the target function, so Region X014's asser…
-- what would raise the level: D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location; D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)
-- evidence: `tests/flexprefill/flexprefill-F005/execution_report.json`
-
 ## flexprefill-F006
 
 **When not (isinstance(block_idx, list) and isinstance(block_idx[0], list) and isinstance(block_idx[0][0], torch.Tensor)): AssertionError (flex_prefill/ops/flex_prefill_attention.py:1240)**
@@ -214,7 +180,7 @@
 - open doubts:
   - D5 control pair differs in one factor, negative adjacent to the boundary: *refuted*. an extra negative input shows the effect (or never reached the target): the no-effect region is not what the pair suggests
   - D13 inputs inside the paper's scope: *residual*. scope_status=unknown
-  - D14 official entry point was called: *residual*. deeper entry (index 1); reason recorded: flex_prefill_attention (call_chain[0]) does not take block_idx; it builds list[list[Tensor]] internally via get_active_blocks, so the malformed list-of-Tensor shape the Region is…
+  - D14 official entry point was called: *residual*. deeper entry (index 2); reason recorded: flex_prefill_attention (call_chain[0]) does not take block_idx; it builds list[list[Tensor]] internally via get_active_blocks, so the malformed list-of-Tensor shape the Region is…
 - what would raise the level: D5 (refuted): change exactly one factor between positive and negative, and make the negative the point next to the boundary; D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)
 - evidence: `tests/flexprefill/flexprefill-F006/execution_report.json`
 
@@ -236,7 +202,7 @@
 - contrast run: no exception at flex_prefill/ops/flex_prefill_attention.py:1245 (later RuntimeError at triton/runtime/driver.py:8)
 - open doubts:
   - D13 inputs inside the paper's scope: *residual*. scope_status=unknown
-  - D14 official entry point was called: *residual*. deeper entry (index 1); reason recorded: The asserted value is block_idx, which is not a parameter of the official entry flex_prefill_attention: the entry builds it internally with get_active_blocks, which always return…
+  - D14 official entry point was called: *residual*. deeper entry (index 2); reason recorded: The asserted value is block_idx, which is not a parameter of the official entry flex_prefill_attention: the entry builds it internally with get_active_blocks, which always return…
 - what would raise the level: D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)
 - evidence: `tests/flexprefill/flexprefill-F007/execution_report.json`
 
@@ -258,7 +224,7 @@
 - contrast run: no exception at flex_prefill/ops/flex_prefill_attention.py:1256 (later RuntimeError at triton/runtime/driver.py:8)
 - open doubts:
   - D13 inputs inside the paper's scope: *residual*. scope_status=unknown
-  - D14 official entry point was called: *residual*. deeper entry (index 1); reason recorded: The Region target lives in triton_block_wise_prefill_attention and the witness supplies num_block (block_idx.shape[2]) directly. The official caller flex_prefill_attention derive…
+  - D14 official entry point was called: *residual*. deeper entry (index 2); reason recorded: The Region target lives in triton_block_wise_prefill_attention and the witness supplies num_block (block_idx.shape[2]) directly. The official caller flex_prefill_attention derive…
 - what would raise the level: D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)
 - evidence: `tests/flexprefill/flexprefill-F008/execution_report.json`
 
@@ -280,59 +246,9 @@
 - contrast run: no exception at flex_prefill/ops/flex_prefill_attention.py:1258 (later RuntimeError at triton/runtime/driver.py:8)
 - open doubts:
   - D13 inputs inside the paper's scope: *residual*. scope_status=unknown
-  - D14 official entry point was called: *residual*. deeper entry (index 1); reason recorded: The official entry flex_prefill_attention cannot reach line 1258 for a non-divisible head pair: its pre-target call get_active_blocks reshapes heads with num_q_heads // num_kv_he…
+  - D14 official entry point was called: *residual*. deeper entry (index 2); reason recorded: The official entry flex_prefill_attention cannot reach line 1258 for a non-divisible head pair: its pre-target call get_active_blocks reshapes heads with num_q_heads // num_kv_he…
 - what would raise the level: D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)
 - evidence: `tests/flexprefill/flexprefill-F009/execution_report.json`
-
-## flexprefill-F010
-
-**When not (d in {16, 32, 64, 128}): AssertionError (flex_prefill/ops/flex_prefill_attention.py:1450)**
-
-- category `undisclosed`, effect `reject`, step 4 level L2, priority 1, scope `unknown`
-- code: `flex_prefill/ops/flex_prefill_attention.py:1450` in `flex_prefill/ops/flex_prefill_attention.py::triton_bnhd_pool`
-- condition: `not (d in {16, 32, 64, 128})`
-- code snippet (`flex_prefill/ops/flex_prefill_attention.py:1450`): `assert d in {16, 32, 64, 128}`
-
-**Verdict `inconclusive`**: no verdict: the test was invalid or could not separate the cases.
-  positive run: NotImplementedError at F010-b2-f010/attempt/driver.py:11 before the target was reached
-
-**Level n/a, uncalibrated.** no verdict, so no level. verdict is inconclusive; no confidence is assigned to it
-
-- trigger run: NotImplementedError at F010-b2-f010/attempt/driver.py:11 before the target was reached
-- contrast run: NotImplementedError at F010-b2-f010/attempt/driver.py:11 before the target was reached
-- open doubts:
-  - D1 target statement executed: *refuted*. positive run never executed the target line
-  - D2 condition holds on positive, fails on negative: *refuted*. condition does not hold on the positive or does not fail on the negative
-  - D3 oracle can see the effect: *open*. mutation not run
-  - D4 oracle is specified, located, pre-registered: *refuted*. verified tier O2, pre-registered=True
-  - D5 control pair differs in one factor, negative adjacent to the boundary: *open*. a neighbour probe failed before the target was decided
-  - D9 result reproduces in a clean checkout: *refuted*. fresh checkout gave different canonical traces: positive, negative
-  - D13 inputs inside the paper's scope: *residual*. scope_status=unknown
-  - D14 official entry point was called: *refuted*. entry index None (None = not in the call chain) and no reason recorded
-- what would raise the level: D1 (refuted): choose inputs that reach the target line (check Region.condition.path_prefix); D2 (refuted): pick inputs so the Region condition is true on the positive and false on the negative; write a predicate if it cannot be evaluated; D3 (open): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location
-- evidence: `tests/flexprefill/flexprefill-F010/execution_report.json`
-
-## flexprefill-F011
-
-**When not (kernel_size in {16, 32, 64, 128, 256, 512}): AssertionError (flex_prefill/ops/flex_prefill_attention.py:1451)**
-
-- category `undisclosed`, effect `reject`, step 4 level L2, priority 1, scope `unknown`
-- code: `flex_prefill/ops/flex_prefill_attention.py:1451` in `flex_prefill/ops/flex_prefill_attention.py::triton_bnhd_pool`
-- condition: `not (kernel_size in {16, 32, 64, 128, 256, 512})`
-- code snippet (`flex_prefill/ops/flex_prefill_attention.py:1451`): `assert kernel_size in {16, 32, 64, 128, 256, 512}`
-
-**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
-  effect on positive input, none on negative input
-
-**Level L2, uncalibrated.** supported: fatal checks, mutation, repeat runs and clean-checkout replay passed; some checks are residual.
-
-- trigger run: AssertionError at flex_prefill/ops/flex_prefill_attention.py:1451
-- contrast run: no exception at flex_prefill/ops/flex_prefill_attention.py:1451 (later RuntimeError at triton/runtime/driver.py:8)
-- open doubts:
-  - D13 inputs inside the paper's scope: *residual*. scope_status=unknown
-  - D14 official entry point was called: *residual*. deeper entry (index 1); reason recorded: The Region condition names kernel_size, the target function's parameter. The official entry flex_prefill_attention only reaches the target via get_active_blocks, which passes blo…
-- what would raise the level: D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)
-- evidence: `tests/flexprefill/flexprefill-F011/execution_report.json`
 
 ## flexprefill-F012
 
@@ -453,7 +369,7 @@
 - code: `flex_prefill/modules/patch.py:69` in `flex_prefill/modules/patch.py::patch_model_config`
 - condition: `pattern == "minfer"`
 - step 4 review: `real_but_minor`: blind review by an LLM subagent (round 3), not human: The minfer config loading belongs to the MInference baseline, not to FlexPrefill.
-- code snippet (`flex_prefill/modules/patch.py:69`): `if pattern == "minfer":`
+- code snippet (`flex_prefill/modules/patch.py:69`): `if pattern == 'minfer':`
 
 **Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
   effect on positive input, none on negative input
@@ -478,7 +394,7 @@
 - code: `flex_prefill/modules/patch.py:313` in `flex_prefill/modules/patch.py::patch_hf_model`
 - condition: `"llama" in model_name.lower()`
 - step 4 review: `worth_testing`: blind review by an LLM subagent (round 3), not human: patch_hf_model raises ValueError for any HF model whose class name does not contain llama, glm or qwen2, so FlexPrefill only supports those model families.
-- code snippet (`flex_prefill/modules/patch.py:313`): `if "llama" in model_name.lower():`
+- code snippet (`flex_prefill/modules/patch.py:313`): `if 'llama' in model_name.lower():`
 
 **Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
   effect on positive input, none on negative input
@@ -504,7 +420,7 @@
 - condition: `not ("llama" in model_name.lower() or "glm" in model_name.lower() or "qwen2" in model_name.lower())`
 - step 4 review: `worth_testing`: blind review by an LLM subagent (round 2), not human: patch_hf_model raises ValueError for any model class whose name lacks llama/glm/qwen2, so other architectures cannot use FlexPrefill.
 - paper/docs (readme, README.md / Supported Models): “Currently, `flex_prefill.patch_model` only supports the following models: - LLaMA: [meta-llama/Meta-Llama-3.1-8B-Instruct](https://huggingface.co/meta-llama/Meta-Llama-3.1-8B-Instruct) - Qwen2: [Qwen/Qwen2-7B-Instruct](https://huggingface.co/Qwen/Qwen2-7B-Instruct) - ChatGLM4: [THUDM/glm-4-9b-chat-…”
-- code snippet (`flex_prefill/modules/patch.py:320`): `raise ValueError(f"unsupported model type: {model_name}")`
+- code snippet (`flex_prefill/modules/patch.py:320`): `raise ValueError(f'unsupported model type: {model_name}')`
 
 **Verdict `inconclusive`**: no verdict: the test was invalid or could not separate the cases.
   effect on positive input, none on negative input
@@ -530,7 +446,7 @@
 - code: `flex_prefill/modules/patch.py:424` in `flex_prefill/modules/patch.py::patch_vllm_model.flex_prefill_forward`
 - condition: `kv_cache is None or prefill_meta.block_tables is None or prefill_meta.block_tables.numel() == 0`
 - step 4 review: `worth_testing`: blind review by an LLM subagent (round 3), not human: In vLLM, when the prefill has non-empty block tables (e.g. prefix caching hits), the code silently runs dense flash_attn_varlen_func instead of flex_prefill_attention.
-- code snippet (`flex_prefill/modules/patch.py:424`): `if (`
+- code snippet (`flex_prefill/modules/patch.py:424`): `if kv_cache is None or prefill_meta.block_tables is None or prefill_meta.block_tables.numel() == 0:`
 
 **Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
   effect on positive input, none on negative input
@@ -554,7 +470,7 @@
 - code: `flex_prefill/modules/patch.py:501` in `flex_prefill/modules/patch.py::patch_vllm_model`
 - condition: `"attention" in type(m).__name__.lower() and hasattr(m, "impl")`
 - step 4 review: `real_but_minor`: blind review by an LLM subagent (round 3), not human: Matching modules by class name to patch vLLM attention is internal plumbing that every attention layer satisfies; no user condition is involved.
-- code snippet (`flex_prefill/modules/patch.py:501`): `if "attention" in type(m).__name__.lower() and hasattr(m, "impl"):`
+- code snippet (`flex_prefill/modules/patch.py:501`): `if 'attention' in type(m).__name__.lower() and hasattr(m, 'impl'):`
 
 **Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
   effect on positive input, none on negative input
@@ -580,7 +496,7 @@
 - condition: `q.dtype != torch.bfloat16`
 - step 4 review: `worth_testing`: blind review by an LLM subagent (round 2), not human: triton_flash_attention (used for decode/short-sequence dense paths when gqa_interleave is set or flash-attn is missing) rejects non-bf16 inputs; the sparse block-wise kernel also asserts bf16, so fp16/fp32 models cannot run.
 - paper/docs (readme, README.md / FlexPrefill Sparse Attention Function): “Note: The current version only supports inference with a batch size of 1 and has only been tested with bfloat16 precision.”
-- code snippet (`flex_prefill/ops/flex_prefill_attention.py:672`): `assert q.dtype == torch.bfloat16, "only support dtype bfloat16"`
+- code snippet (`flex_prefill/ops/flex_prefill_attention.py:672`): `assert q.dtype == torch.bfloat16`
 
 **Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
   effect on positive input, none on negative input
@@ -617,7 +533,7 @@
   - D3 oracle can see the effect: *residual*. only 2 mutants (< n_min=4); killed 2
   - D5 control pair differs in one factor, negative adjacent to the boundary: *residual*. one factor differs; adjacency not measurable: boundary variable 'dtype' is not an integer (value 'bfloat16')
   - D13 inputs inside the paper's scope: *residual*. scope_status=unknown
-  - D14 official entry point was called: *residual*. deeper entry (index 1); reason recorded: call_chain[1] is the target's own function. The official entry calls get_active_blocks first, which launches the GPU-only triton_bnhd_pool kernel before line 1218; reaching the t…
+  - D14 official entry point was called: *residual*. deeper entry (index 2); reason recorded: call_chain[1] is the target's own function. The official entry calls get_active_blocks first, which launches the GPU-only triton_bnhd_pool kernel before line 1218; reaching the t…
 - what would raise the level: D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location; D5 (residual): change exactly one factor between positive and negative, and make the negative the point next to the boundary; D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)
 - evidence: `tests/flexprefill/flexprefill-F023/execution_report.json`
 
@@ -629,7 +545,7 @@
 - code: `flex_prefill/ops/flex_prefill_attention.py:1222-1226` in `flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention`
 - condition: `not (block_size in {32, 64, 128})`
 - paper/docs (docstring, flex_prefill/ops/flex_prefill_attention.py:850 (triton_block_wise_decode_attention)): “block_size (int): Block size, only support 16, 32, 64 and 128.”
-- code snippet (`flex_prefill/ops/flex_prefill_attention.py:1222`): `assert block_size in {32, 64, 128}, 'only support block size in {32, 64, 128} if head_dim <= 128'`
+- code snippet (`flex_prefill/ops/flex_prefill_attention.py:1222`): `assert block_size in {32, 64, 128}`
 
 **Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
   effect on positive input, none on negative input
@@ -644,17 +560,6 @@
   - D13 inputs inside the paper's scope: *residual*. scope_status=unknown
 - what would raise the level: D5 (open): change exactly one factor between positive and negative, and make the negative the point next to the boundary; D6 (residual): move stand-ins after the target line, or replace stubs with a fake or the repository's own reference implementation
 - evidence: `tests/flexprefill/flexprefill-F024/execution_report.json`
-
-## flexprefill-F025
-
-**When kl_div < tau: per-element branch stored in block_sparse_mask (flex_prefill/ops/flex_prefill_attention.py:1727)**
-
-- category `undisclosed`, effect `path_change`, step 4 level L2, priority 2, scope `in_scope`
-- code: `flex_prefill/ops/flex_prefill_attention.py:1727` in `flex_prefill/ops/flex_prefill_attention.py::get_active_blocks`
-- condition: `kl_div < tau`
-- code snippet (`flex_prefill/ops/flex_prefill_attention.py:1727`): `block_sparse_mask = kl_div < tau`
-
-**Not tested** (`outcome_unsupported`): outcome 'fallback' is judged from a branch decision, but the target is a 'other' statement at flex_prefill/ops/flex_prefill_attention.py:1727
 
 ## flexprefill-F026
 
@@ -858,7 +763,7 @@
 - condition: `pattern == "default"`
 - step 4 review: `real_but_minor`: blind review by an LLM subagent (round 3), not human: pattern=='default' is the user explicitly choosing the unpatched baseline, not a fallback of the mechanism.
 - paper/docs (docstring, flex_prefill/modules/patch.py:506 (patch_model)): “- 'default': Default attention mechanism with no additional configuration.”
-- code snippet (`flex_prefill/modules/patch.py:114`): `if pattern == "default":`
+- code snippet (`flex_prefill/modules/patch.py:114`): `if pattern == 'default':`
 
 **Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
   effect on positive input, none on negative input
@@ -886,6 +791,17 @@
 
 **Not tested** (`outcome_unsupported`): outcome 'suspicious' has no effect check yet
 
+## flexprefill-F004
+
+**When not (q_len == 1): AssertionError (flex_prefill/ops/flex_prefill_attention.py:865)**
+
+- category `undisclosed`, effect `reject`, step 4 level L2, priority 3, scope `unknown`
+- code: `flex_prefill/ops/flex_prefill_attention.py:865` in `flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_decode_attention`
+- condition: `not (q_len == 1)`
+- code snippet (`flex_prefill/ops/flex_prefill_attention.py:865`): `assert q_len == 1`
+
+**Not tested** (`witness_unusable`): witness status 'infeasible' (call_chain): step 4 shows the condition cannot hold together with the path to the target, so the official entry cannot reach it; testing the inner function directly would not test the product
+
 ## flexprefill-F041
 
 **When not (q.dtype == torch.bfloat16): AssertionError (flex_prefill/ops/flex_prefill_attention.py:868)**
@@ -896,7 +812,7 @@
 - paper/docs (readme, README.md / FlexPrefill Sparse Attention Function): “Note: The current version only supports inference with a batch size of 1 and has only been tested with bfloat16 precision.”
 - code snippet (`flex_prefill/ops/flex_prefill_attention.py:868`): `assert q.dtype == torch.bfloat16`
 
-**Not tested** (`witness_unusable`): witness status 'infeasible'
+**Not tested** (`witness_unusable`): witness status 'infeasible': step 4 shows the condition cannot hold together with the path to the target, so the official entry cannot reach it; testing the inner function directly would not test the product
 
 ## flexprefill-F042
 
@@ -905,9 +821,9 @@
 - category `undisclosed`, effect `reject`, step 4 level L2, priority 3, scope `unknown`
 - code: `flex_prefill/ops/flex_prefill_attention.py:869` in `flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_decode_attention`
 - condition: `not (head_dim in {16, 32, 64, 128})`
-- code snippet (`flex_prefill/ops/flex_prefill_attention.py:869`): `assert head_dim in {16, 32, 64, 128}, 'only support head_dim in {16, 32, 64, 128}'`
+- code snippet (`flex_prefill/ops/flex_prefill_attention.py:869`): `assert head_dim in {16, 32, 64, 128}`
 
-**Not tested** (`witness_unusable`): witness status 'infeasible'
+**Not tested** (`witness_unusable`): witness status 'infeasible': step 4 shows the condition cannot hold together with the path to the target, so the official entry cannot reach it; testing the inner function directly would not test the product
 
 ## flexprefill-F043
 
@@ -917,9 +833,9 @@
 - code: `flex_prefill/ops/flex_prefill_attention.py:870-875` in `flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_decode_attention`
 - condition: `not (block_size in {16, 32, 64, 128})`
 - paper/docs (docstring, flex_prefill/ops/flex_prefill_attention.py:850 (triton_block_wise_decode_attention)): “block_size (int): Block size, only support 16, 32, 64 and 128.”
-- code snippet (`flex_prefill/ops/flex_prefill_attention.py:870`): `assert block_size in {16, 32, 64, 128}, 'only support block size in {16, 32, 64, 128}'`
+- code snippet (`flex_prefill/ops/flex_prefill_attention.py:870`): `assert block_size in {16, 32, 64, 128}`
 
-**Not tested** (`witness_unusable`): witness status 'infeasible'
+**Not tested** (`witness_unusable`): witness status 'infeasible': step 4 shows the condition cannot hold together with the path to the target, so the official entry cannot reach it; testing the inner function directly would not test the product
 
 ## flexprefill-F044
 
@@ -930,7 +846,7 @@
 - condition: `not (num_blocks <= triton.cdiv(k_len, block_size))`
 - code snippet (`flex_prefill/ops/flex_prefill_attention.py:876`): `assert num_blocks <= triton.cdiv(k_len, block_size)`
 
-**Not tested** (`witness_unusable`): witness status 'infeasible'
+**Not tested** (`witness_unusable`): witness status 'infeasible': step 4 shows the condition cannot hold together with the path to the target, so the official entry cannot reach it; testing the inner function directly would not test the product
 
 ## flexprefill-F045
 
@@ -941,7 +857,18 @@
 - condition: `not (num_q_heads % num_kv_heads == 0)`
 - code snippet (`flex_prefill/ops/flex_prefill_attention.py:878`): `assert num_q_heads % num_kv_heads == 0`
 
-**Not tested** (`witness_unusable`): witness status 'infeasible'
+**Not tested** (`witness_unusable`): witness status 'infeasible': step 4 shows the condition cannot hold together with the path to the target, so the official entry cannot reach it; testing the inner function directly would not test the product
+
+## flexprefill-F005
+
+**When not (q_len == k_len): AssertionError (flex_prefill/ops/flex_prefill_attention.py:1219)**
+
+- category `undisclosed`, effect `reject`, step 4 level L2, priority 3, scope `unknown`
+- code: `flex_prefill/ops/flex_prefill_attention.py:1219` in `flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention`
+- condition: `not (q_len == k_len)`
+- code snippet (`flex_prefill/ops/flex_prefill_attention.py:1219`): `assert q_len == k_len`
+
+**Not tested** (`witness_unusable`): witness status 'infeasible' (call_chain): step 4 shows the condition cannot hold together with the path to the target, so the official entry cannot reach it; testing the inner function directly would not test the product
 
 ## flexprefill-F046
 
@@ -950,21 +877,21 @@
 - category `undisclosed`, effect `reject`, step 4 level L2, priority 3, scope `unknown`
 - code: `flex_prefill/ops/flex_prefill_attention.py:1220` in `flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention`
 - condition: `not (head_dim <= 256)`
-- code snippet (`flex_prefill/ops/flex_prefill_attention.py:1220`): `assert head_dim <= 256, 'only support head_dim <= 256'`
+- code snippet (`flex_prefill/ops/flex_prefill_attention.py:1220`): `assert head_dim <= 256`
 
-**Not tested** (`witness_unusable`): witness status 'infeasible'
+**Not tested** (`witness_unusable`): witness status 'infeasible': step 4 shows the condition cannot hold together with the path to the target, so the official entry cannot reach it; testing the inner function directly would not test the product
 
 ## flexprefill-F047
 
 **When head_dim <= 128: For head_dim <= 128 only block_size in {32,64,128} is allowed; otherwise (128 < head_dim <= 256) only {32,64} is allowed, so the accepted block_size set depends on head_dim. (flex_prefill/ops/flex_prefill_attention.py:1221)**
 
-- category `undisclosed`, effect `reject`, step 4 level L2, priority 3, scope `unknown`
+- category `undisclosed`, effect `other`, step 4 level L2, priority 3, scope `unknown`
 - code: `flex_prefill/ops/flex_prefill_attention.py:1221` in `flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention`
 - condition: `head_dim <= 128`
 - step 4 review: `wrong`: blind review by an LLM subagent (round 1), not human: flex_prefill_attention already asserts head_dim in {16,32,64,128}, so the head_dim>128 branch with its {32,64} restriction is unreachable through the mechanism.
 - code snippet (`flex_prefill/ops/flex_prefill_attention.py:1221`): `if head_dim <= 128:`
 
-**Not tested** (`outcome_unsupported`): outcome 'reject' is judged by an exception raised at flex_prefill/ops/flex_prefill_attention.py:1221, but the if statement has no raise in its body (the exception, if any, is raised elsewhere)
+**Not tested** (`outcome_unsupported`): outcome 'suspicious' has no effect check yet
 
 ## flexprefill-F048
 
@@ -973,9 +900,9 @@
 - category `undisclosed`, effect `reject`, step 4 level L2, priority 3, scope `unknown`
 - code: `flex_prefill/ops/flex_prefill_attention.py:1228-1231` in `flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention`
 - condition: `not (block_size in {32, 64})`
-- code snippet (`flex_prefill/ops/flex_prefill_attention.py:1228`): `assert block_size in {32, 64}, 'only support block size in {32, 64} if 128 < head_dim <= 256'`
+- code snippet (`flex_prefill/ops/flex_prefill_attention.py:1228`): `assert block_size in {32, 64}`
 
-**Not tested** (`witness_unusable`): witness status 'infeasible'
+**Not tested** (`witness_unusable`): witness status 'infeasible': step 4 shows the condition cannot hold together with the path to the target, so the official entry cannot reach it; testing the inner function directly would not test the product
 
 ## flexprefill-F049
 
@@ -988,6 +915,28 @@
 
 **Not tested** (`outcome_unsupported`): outcome 'suspicious' has no effect check yet
 
+## flexprefill-F010
+
+**When not (d in {16, 32, 64, 128}): AssertionError (flex_prefill/ops/flex_prefill_attention.py:1450)**
+
+- category `undisclosed`, effect `reject`, step 4 level L2, priority 3, scope `unknown`
+- code: `flex_prefill/ops/flex_prefill_attention.py:1450` in `flex_prefill/ops/flex_prefill_attention.py::triton_bnhd_pool`
+- condition: `not (d in {16, 32, 64, 128})`
+- code snippet (`flex_prefill/ops/flex_prefill_attention.py:1450`): `assert d in {16, 32, 64, 128}`
+
+**Not tested** (`witness_unusable`): witness status 'infeasible' (call_chain): step 4 shows the condition cannot hold together with the path to the target, so the official entry cannot reach it; testing the inner function directly would not test the product
+
+## flexprefill-F011
+
+**When not (kernel_size in {16, 32, 64, 128, 256, 512}): AssertionError (flex_prefill/ops/flex_prefill_attention.py:1451)**
+
+- category `undisclosed`, effect `reject`, step 4 level L2, priority 3, scope `unknown`
+- code: `flex_prefill/ops/flex_prefill_attention.py:1451` in `flex_prefill/ops/flex_prefill_attention.py::triton_bnhd_pool`
+- condition: `not (kernel_size in {16, 32, 64, 128, 256, 512})`
+- code snippet (`flex_prefill/ops/flex_prefill_attention.py:1451`): `assert kernel_size in {16, 32, 64, 128, 256, 512}`
+
+**Not tested** (`witness_unusable`): witness status 'infeasible' (call_chain): step 4 shows the condition cannot hold together with the path to the target, so the official entry cannot reach it; testing the inner function directly would not test the product
+
 ## flexprefill-F050
 
 **When block_size != 128: hard-coded 128 in `score_cover_topk(vertical, gamma) // 128` while parameter `block_size` is in scope (flex_prefill/ops/flex_prefill_attention.py:1708)**
@@ -996,6 +945,17 @@
 - code: `flex_prefill/ops/flex_prefill_attention.py:1708` in `flex_prefill/ops/flex_prefill_attention.py::get_active_blocks`
 - condition: `block_size != 128`
 - code snippet (`flex_prefill/ops/flex_prefill_attention.py:1708`): `num_vertical_blocks = score_cover_topk(vertical, gamma) // 128 + 1`
+
+**Not tested** (`outcome_unsupported`): outcome 'suspicious' has no effect check yet
+
+## flexprefill-F025
+
+**When kl_div < tau: per-element branch stored in block_sparse_mask (flex_prefill/ops/flex_prefill_attention.py:1727)**
+
+- category `undisclosed`, effect `other`, step 4 level L2, priority 3, scope `in_scope`
+- code: `flex_prefill/ops/flex_prefill_attention.py:1727` in `flex_prefill/ops/flex_prefill_attention.py::get_active_blocks`
+- condition: `kl_div < tau`
+- code snippet (`flex_prefill/ops/flex_prefill_attention.py:1727`): `block_sparse_mask = kl_div < tau`
 
 **Not tested** (`outcome_unsupported`): outcome 'suspicious' has no effect check yet
 
@@ -1018,7 +978,7 @@
 - code: `flex_prefill/ops/flex_prefill_attention.py:1824` in `flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention`
 - condition: `not (batch_size == 1)`
 - paper/docs (readme, README.md / FlexPrefill Sparse Attention Function): “Note: The current version only supports inference with a batch size of 1 and has only been tested with bfloat16 precision.”
-- code snippet (`flex_prefill/ops/flex_prefill_attention.py:1824`): `assert batch_size == 1, 'only support batch size 1 for now'`
+- code snippet (`flex_prefill/ops/flex_prefill_attention.py:1824`): `assert batch_size == 1`
 
 **Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
   effect on positive input, none on negative input
