@@ -2,7 +2,7 @@
 
 - artifact: `flexprefill` (ICLR 2025 (Oral)), repository https://github.com/bytedance/FlexPrefill at `a24b27bf11`
 - input: `results/step4/flexprefill/limitations_for_tests.json` (sha256 `0b8539b75ec0`), 65 Findings
-- generated: 2026-11-16T16:09:59+08:00 by `checklimits test` (contract `checklimits-test-report/1`)
+- generated: 2026-11-16T19:35:43+08:00 by `checklimits test` (contract `checklimits-test-report/1`)
 - environment: **ok**
 
 ## How to read this
@@ -21,7 +21,7 @@
 | tested | 29 |
 | not tested | 36 |
 | verdicts | inconclusive 1, yes 28 |
-| levels | L1 15, L2 7, L3 6, invalid 1 |
+| levels | L1 15, L2 6, L3 7, invalid 1 |
 | not tested, by reason | `no_code_location` 19, `outcome_unsupported` 6, `witness_unusable` 11 |
 
 | Finding | category | effect | location | result |
@@ -31,7 +31,7 @@
 | [flexprefill-F003](#flexprefill-f003) | undisclosed | reject | `flex_prefill/ops/flex_prefill_attention.py:247` | **yes** / L3 (uncalibrated) |
 | [flexprefill-F006](#flexprefill-f006) | undisclosed | reject | `flex_prefill/ops/flex_prefill_attention.py:1240-1244` | **yes** / L1 (uncalibrated) |
 | [flexprefill-F007](#flexprefill-f007) | undisclosed | reject | `flex_prefill/ops/flex_prefill_attention.py:1245` | **yes** / L2 (uncalibrated) |
-| [flexprefill-F008](#flexprefill-f008) | undisclosed | reject | `flex_prefill/ops/flex_prefill_attention.py:1256` | **yes** / L2 (uncalibrated) |
+| [flexprefill-F008](#flexprefill-f008) | undisclosed | reject | `flex_prefill/ops/flex_prefill_attention.py:1256` | **yes** / L3 (uncalibrated) |
 | [flexprefill-F009](#flexprefill-f009) | undisclosed | reject | `flex_prefill/ops/flex_prefill_attention.py:1258` | **yes** / L2 (uncalibrated) |
 | [flexprefill-F012](#flexprefill-f012) | undisclosed | state | `flex_prefill/ops/flex_prefill_attention.py:1695-1698` | **yes** / L1 (uncalibrated) |
 | [flexprefill-F013](#flexprefill-f013) | undisclosed | reject | `flex_prefill/ops/flex_prefill_attention.py:1836` | **yes** / L3 (uncalibrated) |
@@ -202,7 +202,7 @@
 - contrast run: no exception at flex_prefill/ops/flex_prefill_attention.py:1245 (later RuntimeError at triton/runtime/driver.py:8)
 - open doubts:
   - D13 inputs inside the paper's scope: *residual*. scope_status=unknown
-  - D14 official entry point was called: *residual*. deeper entry (index 2); reason recorded: The asserted value is block_idx, which is not a parameter of the official entry flex_prefill_attention: the entry builds it internally with get_active_blocks, which always return…
+  - D14 official entry point was called: *residual*. deeper entry (index 1); reason recorded: flex_prefill_attention (call_chain[0]) has no block_idx parameter: it calls get_active_blocks, whose transform_veritcal_slash_idx builds the list as [ [unique(...) for h in range…
 - what would raise the level: D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)
 - evidence: `tests/flexprefill/flexprefill-F007/execution_report.json`
 
@@ -218,14 +218,12 @@
 **Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
   effect on positive input, none on negative input
 
-**Level L2, uncalibrated.** supported: fatal checks, mutation, repeat runs and clean-checkout replay passed; some checks are residual.
+**Level L3, uncalibrated.** established: every defeater was measured and ruled out.
 
 - trigger run: AssertionError at flex_prefill/ops/flex_prefill_attention.py:1256
 - contrast run: no exception at flex_prefill/ops/flex_prefill_attention.py:1256 (later RuntimeError at triton/runtime/driver.py:8)
 - open doubts:
   - D13 inputs inside the paper's scope: *residual*. scope_status=unknown
-  - D14 official entry point was called: *residual*. deeper entry (index 2); reason recorded: The Region target lives in triton_block_wise_prefill_attention and the witness supplies num_block (block_idx.shape[2]) directly. The official caller flex_prefill_attention derive…
-- what would raise the level: D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)
 - evidence: `tests/flexprefill/flexprefill-F008/execution_report.json`
 
 ## flexprefill-F009

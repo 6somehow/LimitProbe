@@ -6,34 +6,39 @@
     "witness_source": "witness_hint",
     "free_parameters": [
       {
-        "name": "kernel_h_size",
-        "value": 2,
-        "why": "Concrete Pool2d kernel height; any positive integer satisfies the guard and the target decision depends only on the flag."
+        "name": "opset",
+        "value": ["Pool2d"],
+        "why": "Restrict the generator's operator set to Pool2d so the official entry deterministically creates the operator whose requires() contains the target branch; Pool2d is the operator named by the finding."
       },
       {
-        "name": "kernel_w_size",
-        "value": 2,
-        "why": "Concrete Pool2d kernel width; any positive integer satisfies the guard and the target decision depends only on the flag."
-      },
-      {
-        "name": "stride",
-        "value": 1,
-        "why": "Concrete Pool2d stride; a valid positive stride needed only to build the operator before the target line."
-      },
-      {
-        "name": "padding",
+        "name": "seed",
         "value": 0,
-        "why": "Concrete Pool2d padding; a valid non-negative padding needed only to build the operator before the target line."
+        "why": "Fixed seed makes operator construction, dtype choice and Z3 solving reproducible across runs."
       },
       {
-        "name": "input_shape",
-        "value": [1, 3, 8, 8],
-        "why": "Concrete NCHW input shape; the branch reads only the module flag, not the shape, so the concrete size is immaterial."
+        "name": "init_rank",
+        "value": 4,
+        "why": "Pool2d requires a rank-4 NCHW input; the generator's initial placeholder must have rank 4 to be a legal input."
       },
       {
-        "name": "dtype",
-        "value": "float32",
-        "why": "Pool2d only accepts floating dtypes; float32 is a valid member and dtype cannot affect the flag branch."
+        "name": "max_nodes",
+        "value": 1,
+        "why": "One inserted Pool2d node is enough to execute Pool2d.requires once; keeps the run small and fast."
+      },
+      {
+        "name": "timeout_ms",
+        "value": 2000,
+        "why": "Upper bound for model generation; the single Pool2d insertion is solved in milliseconds."
+      },
+      {
+        "name": "forward_prob",
+        "value": 1.0,
+        "why": "Force forward insertion so the fixed call-chain path try_insert_node_type -> try_forward_insert -> ... -> Pool2d.requires is the one that reaches the target."
+      },
+      {
+        "name": "init_fp",
+        "value": true,
+        "why": "Force the initial placeholder to float32; Pool2d only accepts floating dtypes, so this avoids a seed-dependent integer placeholder that cannot accept Pool2d."
       }
     ],
     "positive_input": {
@@ -57,9 +62,9 @@
     }
   },
   "execution": {
-    "entry_called": "nnsmith/abstract/op.py::Pool2d.requires",
-    "entry_reason": "The official call_chain[0] PracticalHybridSearch.search_one is the torch input-search routine and never constructs operator constraints, so it cannot reach Pool2d.requires; the target is the module-flag branch inside requires, which the driver calls directly with a real Pool2d and a real AbsTensor.",
-    "call_chain_index": 1,
+    "entry_called": "nnsmith/graph_gen.py::random_model_gen",
+    "entry_reason": null,
+    "call_chain_index": 0,
     "repo_files_modified": [],
     "mocks": [],
     "hooks": [],
@@ -69,7 +74,10 @@
   },
   "claims": {
     "target_reached": true,
-    "decision_outcomes_seen": ["false", "true"],
+    "decision_outcomes_seen": [
+      "true",
+      "false"
+    ],
     "condition_true_on_positive": true,
     "condition_false_on_negative": true,
     "positive_observed": "branch taken at nnsmith/abstract/op.py:910",

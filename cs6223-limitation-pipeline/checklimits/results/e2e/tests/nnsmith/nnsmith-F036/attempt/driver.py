@@ -1,29 +1,37 @@
-"""Driver: exercise GuidedGen.post_process's guidance back-off decision.
+"""Driver: call the guided generator chain up to GuidedGen.post_process.
 
-The official entry (`random_model_gen`) hardcodes `PureSymbolGen`, so it never
-instantiates `GuidedGen`; the target function is reached here directly on a real
-`GuidedGen` instance.  The instance's abstract graph and solver are built with the
-repository's own methods.  `conflict == 1` leaves the accumulated solver state
-unsatisfiable together with the collected guidance, so the target `while` condition
-is true; `conflict == 0` leaves it satisfiable, so the condition is false.
+The official entry `random_model_gen` instantiates `PureSymbolGen`, whose `post_process`
+is the inherited no-op `SimpleGenerator.post_process`; the target `GuidedGen.post_process`
+is only reached when a `GuidedGen` is generated.  So the driver calls the real chain
+method `SimpleGenerator.abstract_gen` on a real `GuidedGen` instance (call_chain index 1),
+with the reason recorded in form.execution.entry_reason.  Nothing under third_party is
+modified or replaced.
+
+`megabyte_lim` is the only varying input: it sets SimpleGenerator.limit_float, which is
+the capacity against which the collected guidance constraints are checked.
 """
 
 import random
 
-from nnsmith.abstract.op import Add
+from nnsmith.abstract.op import ReLU
 from nnsmith.graph_gen import GuidedGen
+
+_OPSETS = {"relu": {ReLU}}
 
 
 def run(inputs):
     seed = int(inputs["seed"])
-    conflict = int(inputs["conflict"])
-
     random.seed(seed)
-    gen = GuidedGen(opset=[Add], init_rank=1, seed=seed, constrain_prob=1.0)
-
-    guide_dim = gen.tensor_dataflow[0].type.shape[0]
-    if conflict:
-        gen.solver.add(guide_dim < 0)
-
-    gen.post_process()
+    gen = GuidedGen(
+        opset=_OPSETS[str(inputs["opset"])],
+        init_rank=int(inputs["init_rank"]),
+        seed=seed,
+        megabyte_lim=int(inputs["megabyte_lim"]),
+        default_bins=int(inputs["default_bins"]),
+        constrain_prob=float(inputs["constrain_prob"]),
+    )
+    gen.abstract_gen(
+        max_node_size=int(inputs["max_nodes"]),
+        max_gen_millisec=int(inputs["timeout_ms"]),
+    )
     return None

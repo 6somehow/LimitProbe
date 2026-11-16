@@ -1,41 +1,32 @@
-"""Driver: exercise GuidedGen.extra_constraints's `config is None` branch.
+"""Driver: exercise GuidedGen.extra_constraints on a real op node.
 
-The Region names `random_model_gen` as the official entry, but that function always
-constructs a PureSymbolGen (GuidedGen is never instantiated anywhere in the repository),
-so the Region's branch can only be reached by calling GuidedGen.extra_constraints, the
-real target function, directly. That deeper entry is recorded in execution.entry_reason.
+The official entry random_model_gen builds a PureSymbolGen, whose post_process is a no-op and
+whose extra_constraints() always returns []; it never instantiates GuidedGen, so it cannot reach
+GuidedGen.extra_constraints (see execution.entry_reason in form.json).  We therefore build a real
+GuidedGen and call the target function directly with a real AbsOpBase node.
 
-`config` is derived, not an input: it is
-`self.param_config.get(node.__class__.__name__, None)`. The single boundary variable is
-`config_present`: 0 selects an op class absent from PARAM_CONFIG1 (config is None), any
-non-zero value selects one present in it (config is not None).
+inputs["op_kind"] selects the op class (the only factor that differs between the pair):
+  0 -> ReLU        (class name is NOT a key of the active param_config -> config is None)
+  1 -> AvgPool2d   (class name IS a key -> config is not None)
+  2 -> MaxPool2d   (class name IS a key -> config is not None; neighbour probe of the negative)
+inputs["seed"] fixes the RNG used by GuidedGen and the parameter-bin sampler.
 """
 
 import random
 
-from nnsmith.abstract.dtype import DType
-from nnsmith.abstract.op import AbsTensor, MaxPool2d, ReLU
+from nnsmith.abstract.op import AvgPool2d, MaxPool2d, ReLU
 from nnsmith.graph_gen import GuidedGen
 
-_OP_BUILDERS = {
-    "ReLU": lambda: ReLU(),
-    "MaxPool2d": lambda: MaxPool2d(2, 2, 1, 0),
+_OP_KIND = {
+    0: lambda: ReLU(),
+    1: lambda: AvgPool2d(1, 1, 1, 0),
+    2: lambda: MaxPool2d(1, 1, 1, 0),
 }
 
 
 def run(inputs):
-    seed = int(inputs.get("seed", 0))
+    seed = int(inputs["seed"])
     random.seed(seed)
-
-    config_present = int(inputs["config_present"])
-    op_name = (
-        inputs.get("negative_op", "MaxPool2d")
-        if config_present != 0
-        else inputs.get("positive_op", "ReLU")
-    )
-    shape = inputs.get("in_shape", [1, 3, 8, 8])
-
-    gen = GuidedGen(opset={ReLU}, init_rank=1, seed=seed, limnf=False)
-    node = _OP_BUILDERS[op_name]()
-    input_shapes = [AbsTensor(shape=list(shape), dtype=DType.float32)]
-    return gen.extra_constraints(node, input_shapes)
+    gen = GuidedGen(opset={ReLU}, seed=seed)
+    node = _OP_KIND[int(inputs["op_kind"])]()
+    return gen.extra_constraints(node, [])

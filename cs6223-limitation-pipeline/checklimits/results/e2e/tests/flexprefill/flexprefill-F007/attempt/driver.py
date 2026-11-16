@@ -1,56 +1,55 @@
-"""Driver: exercise the target assertion in triton_block_wise_prefill_attention.
+"""Driver for flexprefill-F007.
 
-The Region target is `assert len(block_idx) == batch_size and len(block_idx[0]) == num_q_heads`
-inside triton_block_wise_prefill_attention. Its guard reads `block_idx`, which is a parameter of
-that function but is *constructed internally* by the official entry flex_prefill_attention
-(get_active_blocks always returns exactly [batch_size, num_q_heads] lists). The assertion is
-therefore unreachable through the official entry; the checked factor (the head width of the
-caller-supplied block_idx list) can only be varied by calling the target function directly.
-That is the recorded entry_reason.
-
-CPU only, deterministic (zeros, fixed seed, single thread), no stand-ins.
+The official entry (flex_prefill_attention) builds block_idx itself from q and k, so
+len(block_idx[0]) always equals num_q_heads there and the guard at line 1245 can never
+fail through that entry. The guard constrains a caller-supplied block_idx, so this driver
+calls the next function in the chain, triton_block_wise_attention, which forwards the
+block_idx it receives to the target function unchanged.
 """
 
 import torch
 
-torch.set_num_threads(1)
-
-from flex_prefill.ops.flex_prefill_attention import triton_block_wise_prefill_attention
+from flex_prefill.ops.flex_prefill_attention import triton_block_wise_attention
 
 
 def run(inputs):
+    torch.manual_seed(int(inputs["torch_seed"]))
+
     batch_size = int(inputs["batch_size"])
     q_len = int(inputs["q_len"])
     k_len = int(inputs["k_len"])
     num_q_heads = int(inputs["num_q_heads"])
+    num_kv_heads = int(inputs["num_kv_heads"])
     head_dim = int(inputs["head_dim"])
     block_size = int(inputs["block_size"])
-    num_kv_heads = int(inputs["num_kv_heads"])
-    head_width = int(inputs["block_idx_head_width"])
-    last_width = int(inputs["block_idx_last_width"])
-    seed = int(inputs["seed"])
-    grid_offset = int(inputs["grid_offset"])
-    softmax_scale = inputs["softmax_scale"]
-    gqa_interleave = bool(inputs["gqa_interleave"])
+    block_idx_heads = int(inputs["block_idx_heads"])
+    block_idx_ids = [int(v) for v in inputs["block_idx_ids"]]
 
-    torch.manual_seed(seed)
-
-    q = torch.zeros(batch_size, q_len, num_q_heads, head_dim, dtype=torch.bfloat16)
-    k = torch.zeros(batch_size, k_len, num_kv_heads, head_dim, dtype=torch.bfloat16)
-    v = torch.zeros(batch_size, k_len, num_kv_heads, head_dim, dtype=torch.bfloat16)
-
-    block_idx = []
-    for b in range(batch_size):
-        width = last_width if b == batch_size - 1 else head_width
-        block_idx.append([torch.tensor([i], dtype=torch.int64) for i in range(width)])
-
-    return triton_block_wise_prefill_attention(
-        q,
-        k,
-        v,
-        block_idx,
-        block_size,
-        grid_offset=grid_offset,
-        softmax_scale=softmax_scale,
-        gqa_interleave=gqa_interleave,
+    q = torch.zeros(
+        batch_size, q_len, num_q_heads, head_dim, dtype=torch.bfloat16
     )
+    k = torch.zeros(
+        batch_size, k_len, num_kv_heads, head_dim, dtype=torch.bfloat16
+    )
+    v = torch.zeros(
+        batch_size, k_len, num_kv_heads, head_dim, dtype=torch.bfloat16
+    )
+
+    # A list[list[Tensor]] of active-block ids, as get_active_blocks returns it.
+    # For single-batch inputs the last group is the same as the first; a multi-batch
+    # extra negative can make the last group shorter so block_idx[0] and block_idx[-1]
+    # are distinguishable.
+    if batch_size > 1:
+        last_heads = int(inputs["last_block_idx_heads"])
+    else:
+        last_heads = block_idx_heads
+    heads_per_batch = [block_idx_heads] * (batch_size - 1) + [last_heads]
+    block_idx = [
+        [
+            torch.tensor(block_idx_ids, dtype=torch.int32)
+            for _ in range(heads)
+        ]
+        for heads in heads_per_batch
+    ]
+
+    return triton_block_wise_attention(q, k, v, block_idx, block_size)

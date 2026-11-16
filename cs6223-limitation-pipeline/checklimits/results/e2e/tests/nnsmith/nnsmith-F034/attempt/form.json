@@ -8,31 +8,16 @@
       {
         "name": "seed",
         "value": 0,
-        "why": "fixed RNG seed so the positive/negative paths and bin sampling are deterministic across repeats and replay"
-      },
-      {
-        "name": "positive_op",
-        "value": "ReLU",
-        "why": "real repository op class whose name is absent from PARAM_CONFIG1, so param_config.get(..., None) returns None"
-      },
-      {
-        "name": "negative_op",
-        "value": "MaxPool2d",
-        "why": "real repository op class present in PARAM_CONFIG1, so the derived config is not None"
-      },
-      {
-        "name": "in_shape",
-        "value": [1, 3, 8, 8],
-        "why": "a valid NCHW float32 input tensor shape; input_shapes is unused on the config-is-None path and only feeds the already-negated config path"
+        "why": "fixed RNG seed so the parameter-bin sampler and placeholder creation are reproducible across repeats and the clean-checkout replay"
       }
     ],
     "positive_input": {
-      "config_present": 0
+      "op_kind": 0
     },
     "negative_input": {
-      "config_present": 1
+      "op_kind": 1
     },
-    "boundary_variable": "config_present",
+    "boundary_variable": "op_kind",
     "scale": null,
     "condition_predicate_file": null,
     "oracle": {
@@ -48,8 +33,8 @@
   },
   "execution": {
     "entry_called": "nnsmith/graph_gen.py::GuidedGen.extra_constraints",
-    "entry_reason": "The official entry random_model_gen constructs a PureSymbolGen and GuidedGen is never instantiated anywhere in the repository, so random_model_gen cannot reach this Region. The driver therefore instantiates the real GuidedGen class and calls its real extra_constraints method directly with real AbsOpBase nodes; no repository code is replaced.",
-    "call_chain_index": 1,
+    "entry_reason": "The official entry random_model_gen (graph_gen.py:1061) constructs a PureSymbolGen, whose post_process is SimpleGenerator.post_process (a no-op, line 180) and whose extra_constraints always returns [] (PureSymbolGen.extra_constraints, line 668). GuidedGen is never instantiated anywhere in the repository, so the step-4 'override' step abstract_gen -> GuidedGen.post_process is not real and the target line is unreachable from call_chain[0]. We therefore build a real GuidedGen (real __init__, real param_config) and call the target function GuidedGen.extra_constraints directly on a real AbsOpBase node; the target and its function body are unmodified.",
+    "call_chain_index": 3,
     "repo_files_modified": [],
     "mocks": [],
     "hooks": [],
@@ -60,8 +45,8 @@
   "claims": {
     "target_reached": true,
     "decision_outcomes_seen": [
-      "false",
-      "true"
+      "true",
+      "false"
     ],
     "condition_true_on_positive": true,
     "condition_false_on_negative": true,

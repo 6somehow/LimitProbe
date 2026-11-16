@@ -2,7 +2,7 @@
 
 - artifact: `nnsmith` (ASPLOS 2023), repository https://github.com/ise-uiuc/nnsmith at `a8307f2b80`
 - input: `results/step4/nnsmith/limitations_for_tests.json` (sha256 `3ec725e87dbd`), 38 Findings
-- generated: 2026-11-16T16:00:37+08:00 by `checklimits test` (contract `checklimits-test-report/1`)
+- generated: 2026-11-16T19:35:06+08:00 by `checklimits test` (contract `checklimits-test-report/1`)
 - environment: **ok**
 
 ## How to read this
@@ -18,15 +18,15 @@
 | | |
 |---|---|
 | Findings | 38 |
-| tested | 20 |
-| not tested | 18 |
-| verdicts | inconclusive 1, yes 19 |
-| levels | L1 18, L2 1, invalid 1 |
-| not tested, by reason | `no_code_location` 3, `not_attempted` 2, `outcome_unsupported` 13 |
+| tested | 22 |
+| not tested | 16 |
+| verdicts | inconclusive 2, yes 20 |
+| levels | L1 19, L3 1, invalid 2 |
+| not tested, by reason | `no_code_location` 3, `outcome_unsupported` 13 |
 
 | Finding | category | effect | location | result |
 |---|---|---|---|---|
-| [nnsmith-F001](#nnsmith-f001) | undisclosed | reject | `nnsmith/abstract/op.py:1563` | not tested: `not_attempted` |
+| [nnsmith-F001](#nnsmith-f001) | undisclosed | reject | `nnsmith/abstract/op.py:1563` | **inconclusive** / invalid (uncalibrated) |
 | [nnsmith-F003](#nnsmith-f003) | undisclosed | reject | `nnsmith/cli/fuzz.py:180` | **inconclusive** / invalid (uncalibrated) |
 | [nnsmith-F004](#nnsmith-f004) | contradicts_docs | reject | `nnsmith/graph_gen.py:260` | **yes** / L1 (uncalibrated) |
 | [nnsmith-F009](#nnsmith-f009) | undisclosed | path_change | `nnsmith/abstract/arith.py:74` | **yes** / L1 (uncalibrated) |
@@ -37,7 +37,7 @@
 | [nnsmith-F015](#nnsmith-f015) | undisclosed | path_change | `nnsmith/cli/fuzz.py:60` | **yes** / L1 (uncalibrated) |
 | [nnsmith-F016](#nnsmith-f016) | undisclosed | path_change | `nnsmith/cli/model_gen.py:31` | **yes** / L1 (uncalibrated) |
 | [nnsmith-F017](#nnsmith-f017) | undisclosed | path_change | `nnsmith/graph_gen.py:256` | **yes** / L1 (uncalibrated) |
-| [nnsmith-F018](#nnsmith-f018) | undisclosed | path_change | `nnsmith/graph_gen.py:258` | not tested: `not_attempted` |
+| [nnsmith-F018](#nnsmith-f018) | undisclosed | path_change | `nnsmith/graph_gen.py:258` | **yes** / L1 (uncalibrated) |
 | [nnsmith-F019](#nnsmith-f019) | stated_differently | path_change | `nnsmith/graph_gen.py:556` | **yes** / L1 (uncalibrated) |
 | [nnsmith-F020](#nnsmith-f020) | undisclosed | path_change | `nnsmith/graph_gen.py:944` | **yes** / L1 (uncalibrated) |
 | [nnsmith-F021](#nnsmith-f021) | undisclosed | path_change | `nnsmith/materialize/torch/__init__.py:47` | **yes** / L1 (uncalibrated) |
@@ -55,7 +55,7 @@
 | [nnsmith-F032](#nnsmith-f032) | undisclosed | other | `nnsmith/graph_gen.py:834` | not tested: `outcome_unsupported` |
 | [nnsmith-F033](#nnsmith-f033) | undisclosed | other | `nnsmith/graph_gen.py:984` | not tested: `outcome_unsupported` |
 | [nnsmith-F034](#nnsmith-f034) | undisclosed | path_change | `nnsmith/graph_gen.py:1016` | **yes** / L1 (uncalibrated) |
-| [nnsmith-F035](#nnsmith-f035) | undisclosed | path_change | `nnsmith/graph_gen.py:1044` | **yes** / L2 (uncalibrated) |
+| [nnsmith-F035](#nnsmith-f035) | undisclosed | path_change | `nnsmith/graph_gen.py:1044` | **yes** / L3 (uncalibrated) |
 | [nnsmith-F036](#nnsmith-f036) | paper_stated | path_change | `nnsmith/graph_gen.py:1052` | **yes** / L1 (uncalibrated) |
 | [nnsmith-F037](#nnsmith-f037) | undisclosed | path_change | `nnsmith/graph_gen.py:1054` | **yes** / L1 (uncalibrated) |
 | [nnsmith-F023](#nnsmith-f023) | undisclosed | other | `nnsmith/materialize/torch/input_gen.py:98` | not tested: `outcome_unsupported` |
@@ -75,7 +75,19 @@
 - step 4 review: `real_but_minor`: blind review by an LLM subagent (round 2), not human: Rejecting an invalid value of an internal env knob is config validation, not a limit of what the mechanism supports.
 - code snippet (`nnsmith/abstract/op.py:1563`): `raise ValueError(f'NNSMITH_GRES={gres_config} is not recognized')`
 
-**Not tested** (`not_attempted`): the harness can judge this Finding but no test package exists; run with --run-agent to have the code agent design one
+**Verdict `inconclusive`**: no verdict: the test was invalid or could not separate the cases.
+  effect on positive input, none on negative input
+
+**Level invalid, uncalibrated.** a fatal defeater was refuted (for example the target line was not reached): no verdict is drawn. refuted fatal defeaters: D2
+
+- trigger run: ValueError at nnsmith/abstract/op.py:1563
+- contrast run: no exception at nnsmith/abstract/op.py:1563
+- open doubts:
+  - D2 condition holds on positive, fails on negative: *refuted*. condition does not hold on the positive or does not fail on the negative
+  - D3 oracle can see the effect: *residual*. only 1 mutants (< n_min=4); killed 1
+  - D13 inputs inside the paper's scope: *residual*. scope_status=unknown
+- what would raise the level: D2 (refuted): pick inputs so the Region condition is true on the positive and false on the negative; write a predicate if it cannot be evaluated; D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location
+- evidence: `tests/nnsmith/nnsmith-F001/execution_report.json`
 
 ## nnsmith-F003
 
@@ -92,18 +104,15 @@
 
 **Level invalid, uncalibrated.** a fatal defeater was refuted (for example the target line was not reached): no verdict is drawn. refuted fatal defeaters: D2
 
-- trigger run: no exception at nnsmith/cli/fuzz.py:180 (later InternalError at F003-n1-f003/attempt/sim.py:16)
+- trigger run: no exception at nnsmith/cli/fuzz.py:180 (later InternalError at nnsmith/error.py:73)
 - contrast run: no exception at nnsmith/cli/fuzz.py:180
 - open doubts:
   - D2 condition holds on positive, fails on negative: *refuted*. condition does not hold on the positive or does not fail on the negative
   - D3 oracle can see the effect: *residual*. only 1 mutants (< n_min=4); killed 0
-  - D4 oracle is specified, located, pre-registered: *residual*. tier O3 (location not named)
   - D6 verdict-bearing observations do not depend on stand-ins: *refuted*. verdict-bearing observations: positive simulated:stub, negative simulated:stub
-  - D8 result is stable across independent runs: *refuted*. 5 distinct canonical traces in 5 runs
-  - D9 result reproduces in a clean checkout: *refuted*. fresh checkout gave different canonical traces: positive
   - D13 inputs inside the paper's scope: *residual*. scope_status=unknown
-  - D14 official entry point was called: *residual*. deeper entry (index 1); reason recorded: The target statement is inside FuzzingLoop.run. The Region's call_chain[0], PracticalHybridSearch.search_one, is not an ancestor of the target: it is reached inside make_testcase…
-- what would raise the level: D2 (refuted): pick inputs so the Region condition is true on the positive and false on the negative; write a predicate if it cannot be evaluated; D3 (residual): 1 mutant(s) survived because no input separates them from the original: delete_statement (`pass # propagate internal errors`). Add inputs that d…; D4 (residual): state the oracle as exception type + Region.location and register it before the first run
+  - D14 official entry point was called: *residual*. deeper entry (index 1); reason recorded: The advertised call_chain[0] PracticalHybridSearch.search_one has no static path to FuzzingLoop.run (step 4 reports call_chain_status=not_found); FuzzingLoop.run is the target's …
+- what would raise the level: D2 (refuted): pick inputs so the Region condition is true on the positive and false on the negative; write a predicate if it cannot be evaluated; D3 (residual): 1 mutant(s) survived because no input separates them from the original: delete_statement (`pass # propagate internal errors`). Add inputs that d…; D6 (refuted): move stand-ins after the target line, or replace stubs with a fake or the repository's own reference implementation
 - evidence: `tests/nnsmith/nnsmith-F003/execution_report.json`
 
 ## nnsmith-F004
@@ -223,8 +232,7 @@
   - D3 oracle can see the effect: *residual*. only 1 mutants (< n_min=4); killed 1
   - D5 control pair differs in one factor, negative adjacent to the boundary: *residual*. one factor differs; adjacency not measurable: boundary variable 'Z3_CONS_FLOPS' is not an integer (value False)
   - D13 inputs inside the paper's scope: *residual*. scope_status=unknown
-  - D14 official entry point was called: *residual*. deeper entry (index 6); reason recorded: The official call_chain[0] PracticalHybridSearch.search_one is the torch input-search routine and never constructs operator constraints, so it cannot reach Pool2d.requires; the t…
-- what would raise the level: D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location; D5 (residual): change exactly one factor between positive and negative, and make the negative the point next to the boundary; D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)
+- what would raise the level: D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location; D5 (residual): change exactly one factor between positive and negative, and make the negative the point next to the boundary
 - evidence: `tests/nnsmith/nnsmith-F012/execution_report.json`
 
 ## nnsmith-F014
@@ -330,7 +338,19 @@
 - condition: `NNSMITH_LIMNF_V == "1"`
 - code snippet (`nnsmith/graph_gen.py:258`): `if NNSMITH_LIMNF_V == '1':`
 
-**Not tested** (`not_attempted`): the harness can judge this Finding but no test package exists; run with --run-agent to have the code agent design one
+**Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
+  effect on positive input, none on negative input
+
+**Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
+
+- trigger run: branch taken at nnsmith/graph_gen.py:258
+- contrast run: branch not taken at nnsmith/graph_gen.py:258
+- open doubts:
+  - D3 oracle can see the effect: *residual*. only 1 mutants (< n_min=4); killed 1
+  - D5 control pair differs in one factor, negative adjacent to the boundary: *residual*. one factor differs; adjacency not measurable: boundary variable 'NNSMITH_LIMNF_V' is not an integer (value '2')
+  - D13 inputs inside the paper's scope: *residual*. scope_status=unknown
+- what would raise the level: D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location; D5 (residual): change exactly one factor between positive and negative, and make the negative the point next to the boundary
+- evidence: `tests/nnsmith/nnsmith-F018/execution_report.json`
 
 ## nnsmith-F019
 
@@ -600,7 +620,7 @@
 - open doubts:
   - D3 oracle can see the effect: *residual*. only 1 mutants (< n_min=4); killed 1
   - D13 inputs inside the paper's scope: *residual*. scope_status=unknown
-  - D14 official entry point was called: *residual*. deeper entry (index 3); reason recorded: The official entry random_model_gen constructs a PureSymbolGen and GuidedGen is never instantiated anywhere in the repository, so random_model_gen cannot reach this Region. The d…
+  - D14 official entry point was called: *residual*. deeper entry (index 3); reason recorded: The official entry random_model_gen (graph_gen.py:1061) constructs a PureSymbolGen, whose post_process is SimpleGenerator.post_process (a no-op, line 180) and whose extra_constra…
 - what would raise the level: D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location; D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)
 - evidence: `tests/nnsmith/nnsmith-F034/execution_report.json`
 
@@ -617,14 +637,12 @@
 **Verdict `yes`**: the effect was observed with the trigger and not with the contrast: the limitation reproduces.
   effect on positive input, none on negative input
 
-**Level L2, uncalibrated.** supported: fatal checks, mutation, repeat runs and clean-checkout replay passed; some checks are residual.
+**Level L3, uncalibrated.** established: every defeater was measured and ruled out.
 
 - trigger run: branch taken at nnsmith/graph_gen.py:1044
 - contrast run: branch not taken at nnsmith/graph_gen.py:1044
 - open doubts:
   - D13 inputs inside the paper's scope: *residual*. scope_status=unknown
-  - D14 official entry point was called: *residual*. deeper entry (index 2); reason recorded: The hand-off's official entry random_model_gen instantiates PureSymbolGen, whose post_process is a no-op; GuidedGen is never instantiated anywhere in the pinned repository, so th…
-- what would raise the level: D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)
 - evidence: `tests/nnsmith/nnsmith-F035/execution_report.json`
 
 ## nnsmith-F036
@@ -649,7 +667,7 @@
 - open doubts:
   - D3 oracle can see the effect: *residual*. only 1 mutants (< n_min=4); killed 1
   - D13 inputs inside the paper's scope: *residual*. scope_status=unknown
-  - D14 official entry point was called: *residual*. deeper entry (index 2); reason recorded: The official entry random_model_gen hardcodes PureSymbolGen and never instantiates GuidedGen, so the target GuidedGen.post_process is unreachable from that entry. The target func…
+  - D14 official entry point was called: *residual*. deeper entry (index 1); reason recorded: random_model_gen (call_chain[0]) constructs PureSymbolGen, whose post_process is the inherited no-op SimpleGenerator.post_process; the target GuidedGen.post_process is never reac…
 - what would raise the level: D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location; D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)
 - evidence: `tests/nnsmith/nnsmith-F036/execution_report.json`
 
