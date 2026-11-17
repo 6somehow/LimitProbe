@@ -275,3 +275,7 @@ D1 到 D14 对三类效果通用，只有"什么算效果"不同（`runner.outco
 agent 可以写 `condition.py` 谓词代替 Region.condition 来求 D2。谓词可能说的是另一件事。人工基线（`labels/sheet_shanghao.csv`）发现 NNSmith F009：Region 的条件是 `max(left, right) >= W`（"到上限时不加进位"），目标语句是 `if carry and max(...) < W:`，agent 的谓词按语句写，于是 trigger 和 contrast 的方向反了，harness 给了 `yes`/L1，D2 只是 residual。现在谓词存在时也同时求值 Region.condition（`TargetHit.region_condition_value`）：能求值且与"正例为真、反例为假"矛盾，D2 为 refuted；一致，D2 为 eliminated；不能求值，仍是 residual。Region.condition 含调用（`random.uniform(...)`、`x.size()`）时不求值，因为求值会改变被测程序（`tracer._pure_expression`）。F009 现在是 `inconclusive`/`invalid`；F019、F022 因条件含调用，仍是 residual。有测试。
 
 基线的第一批数字（20 条抽样里 18 条 harness 判 `yes`，刷新 key 之后）：人工判断"断言对代码成立"的比例 16/18（Wilson 0.67 到 0.97），L1 4/6，L2 6/6，L3 6/6。**q2（测试有效）基本没评：** 基线的 q2 写的是 `Unverified`，因为审阅者没有拿到 driver 源码，只有 F009 一条被判 `Inconsistent`。`labels/context/` 给每条补了 driver 全文。这些数字不是校准，样本 18，档位之间的差别在区间里重叠。
+
+## 21. D5 的邻点探测对超时重试（2026-11-17）
+
+NNSmith 的 `random_model_gen` 用 `max_gen_millisec` 限时，机器负载高时邻点探测（`neg+`、`neg-`）可能在判出目标之前超时，D5 变 `open`，档位掉级（F035 chain-3 在 3 个并行 worker 下从 L3 掉到 L1）。现在 `harness._run_bva` 对没有判出目标的邻点探测最多再单独跑 `BVA_RETRIES = 2` 次。只重跑未判出的探测：已判出的结果不会被覆盖，重试只能把 `open` 变成有测量值的结果，不会把任何档位的判断改成别的方向；仍然判不出的保持 `open`。没有改任何阈值或规则，所以没有重跑基准和 `results/e2e/`。有两个测试（`test_mutate_bva.py`）。这没有"证明"负载问题消失：真实机器上的并行重审还没有重做，重做时仍建议 `--workers 1` 或 2。

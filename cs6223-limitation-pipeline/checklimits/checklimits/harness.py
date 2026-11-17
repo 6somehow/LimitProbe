@@ -200,10 +200,22 @@ class _Ctx:
                 for label, inp in cases}
 
 
+BVA_RETRIES = 2
+
+
 def _run_bva(ctx: _Ctx, profile: Profile) -> Optional[bva_mod.BvaResult]:
     cases, bvar, reason = bva_mod.plan(ctx.form, ctx.task.trigger, profile.probe_step)
     obs = ctx.run_many(cases)
     effects = {k: o.effect for k, o in obs.items()}
+    # A neighbour probe that never decided the target (for example a time-limited generator that timed out under
+    # machine load) is run again, at most BVA_RETRIES times, one case at a time. Only undecided probes are retried,
+    # so a decided effect is never overwritten and a retry can only turn 'open' into a measured result.
+    for _ in range(BVA_RETRIES):
+        undecided = [(k, inp) for k, inp in cases if k in ("neg+", "neg-") and effects.get(k) is None]
+        if not undecided:
+            break
+        for k, o in ctx.run_many(undecided).items():
+            effects[k] = o.effect
     inputs = {label: inp for label, inp in cases}
     return bva_mod.evaluate(ctx.form.design.boundary_variable, effects, inputs, bvar is not None, reason)
 
