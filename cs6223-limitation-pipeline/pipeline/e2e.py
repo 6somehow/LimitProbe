@@ -148,23 +148,29 @@ def check_environment(e: dict, aid: Optional[str] = None, *, paper_side: bool = 
             "installed" if OPENCODE.is_file() else f"missing: {OPENCODE.relative_to(P.ROOT)}")
 
     if aid:
-        art = P.ROOT / "data" / aid / "artifact.json"
-        if not art.is_file():
-            add("artifact", "FAIL", f"{art.relative_to(P.ROOT)} missing: python -m pipeline init --id {aid} ...")
+        try:
+            P_ = P.Paths(aid)
+        except P.StageError:
+            add("artifact", "FAIL", f"no data/*/artifact.json with artifact_id {aid!r}: "
+                f"python -m pipeline init --id {aid} ...")
         else:
-            import json
-            d = json.loads(art.read_text())
+            d = P_.art
             ok = bool(re.fullmatch(r"[0-9a-f]{40}", d.get("commit", ""))) and bool(d.get("entry_points"))
             add("artifact", "ok" if ok else "FAIL",
                 f"{d.get('repo_url')} @ {d.get('commit', '')[:10]}, {len(d.get('entry_points', []))} entry point(s)"
                 if ok else "commit must be 40 hex characters and entry_points must not be empty")
-            have_pdf = (P.ROOT / "third_party/papers" / f"{aid}.pdf").is_file()
-            if have_pdf:
-                add("paper pdf", "ok", f"third_party/papers/{aid}.pdf")
+            url = P.arxiv_pdf_url(d.get("paper_url", ""))
+            outputs = [(P_.handoff / "paper_side.json"), P_.verify3b, P_.lims]
+            if P_.pdf.is_file():
+                add("paper pdf", "ok", P._rel(P_.pdf))
             elif pdf and Path(pdf).is_file():
                 add("paper pdf", "ok", pdf)
+            elif url:
+                add("paper pdf", "ok", f"not on disk: will be downloaded from {url}")
+            elif all(o.is_file() for o in outputs):
+                add("paper pdf", "ok", "not on disk and not needed: paper-side, 3b and code outputs exist")
             else:
-                add("paper pdf", "FAIL", "missing: pass --pdf <file>")
+                add("paper pdf", "FAIL", f"missing and {d.get('paper_url')} is not an arXiv link: pass --pdf <file>")
     free = shutil.disk_usage(P.ROOT).free / 2**30
     add("disk", "ok" if free >= 10 else "warn", f"{free:.0f} GiB free (provisioning a venv needs a few)")
     return out

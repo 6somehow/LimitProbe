@@ -64,3 +64,15 @@ def test_children_get_a_placeholder_key(monkeypatch):
     monkeypatch.setenv("SOCLAAS_BASE_URL", "https://host/v1")
     E.point_children_at_relay()
     assert os.environ["SOCLAAS_API_KEY"] == E.PLACEHOLDER_KEY and os.environ["SOCLAAS_BASE_URL"] == E.RELAY_URL
+
+
+@pytest.mark.parametrize("url,want", [
+    ("https://arxiv.org/abs/2609.04724", "https://arxiv.org/pdf/2609.04724"),
+    ("https://arxiv.org/abs/2503.22562v1", "https://arxiv.org/pdf/2503.22562"),
+    ("http://www.arxiv.org/pdf/2407.02490v2.pdf", "https://arxiv.org/pdf/2407.02490"),
+    ("https://www.usenix.org/conference/osdi24/presentation/lee", None),
+    ("https://example.com/arxiv.org/abs/2609.04724", None),
+])
+def test_arxiv_pdf_url(url, want):
+    from pipeline import run as R
+    assert R.arxiv_pdf_url(url) == want
