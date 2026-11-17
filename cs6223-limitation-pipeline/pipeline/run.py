@@ -336,7 +336,7 @@ def last_json(text: str) -> Optional[dict]:
 def test_cmd(aid: str, a) -> list:
     cmd = [sys.executable, "-m", "checklimits", "test", aid, "--results-root", str(ROOT / "results"),
            "--workers", str(a.workers)]
-    for flag in ("run_agent", "fast", "strict", "skip_envcheck"):
+    for flag in ("run_agent", "fast", "strict", "skip_envcheck", "provision"):
         if getattr(a, flag, False):
             cmd.append("--" + flag.replace("_", "-"))
     for fid in a.only or []:
@@ -436,7 +436,29 @@ def main(argv: Optional[list] = None) -> None:
     t.add_argument("--fast", action="store_true", help="fewer repeats and mutants (smoke runs only; lower levels)")
     t.add_argument("--strict", action="store_true", help="fail when Findings are not run for env/agent/harness reasons")
     t.add_argument("--skip-envcheck", action="store_true")
+    t.add_argument("--provision", action="store_true",
+                   help="build scratch/venv_<id> at the pinned commit from the repository's own pins before testing")
     t.add_argument("--python", help="interpreter of the code under test (default: the test side's per-artifact venv)")
+    d = sub.add_parser("doctor", help="check the setup (environment variables, tools, packages, network) before a run")
+    d.add_argument("artifact_id", nargs="?")
+    d.add_argument("--paper-side", action="store_true", help="also check what the paper-side pipeline needs")
+    d.add_argument("--agent", action="store_true", help="also check what the code agent needs")
+    d.add_argument("--live", action="store_true", help="also call the model service once, through the relay")
+    d.add_argument("--pdf")
+    e = sub.add_parser("e2e", help="one entry point: check the setup, start the relay, run steps 1 to 4, run the tests")
+    e.add_argument("artifact_id")
+    e.add_argument("--pdf", help="paper PDF, copied to third_party/papers/<id>.pdf")
+    e.add_argument("--model", default=None, help="default: PIPELINE_MODEL, else x-test-2")
+    e.add_argument("--run-paper-side", action="store_true", help="allow the (expensive) paper-side pipeline")
+    e.add_argument("--run-agent", action="store_true", help="run the code agent for judgeable Findings")
+    e.add_argument("--only", action="append", help="test only this finding id (repeatable)")
+    e.add_argument("--workers", type=int, default=3)
+    e.add_argument("--package-root", action="append", default=[])
+    e.add_argument("--until", choices=STAGES, default=None, help=argparse.SUPPRESS)
+    e.add_argument("--fast", action="store_true")
+    e.add_argument("--strict", action="store_true")
+    e.add_argument("--skip-envcheck", action="store_true")
+    e.add_argument("--python", default=None)
     sub.add_parser("setup-paperside", help="pip install paperside[team,vision] and npm ci for the Pi agent")
     a = ap.parse_args(argv)
     try:
@@ -448,6 +470,9 @@ def main(argv: Optional[list] = None) -> None:
                 status(aid)
         elif a.cmd == "test":
             test(a.artifact_id, a)
+        elif a.cmd in ("doctor", "e2e"):
+            from pipeline import e2e as E
+            (E.doctor if a.cmd == "doctor" else E.e2e)(a)
         elif a.cmd == "init":
             init(a)
         else:
