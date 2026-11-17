@@ -1,0 +1,1290 @@
+{
+  "scope": [
+    {
+      "param": "sparse_pattern_threshold_tau",
+      "kind": "interval",
+      "lower": 0,
+      "upper": 1,
+      "values": null,
+      "unit": null,
+      "explicit": true,
+      "evidence_spans": [
+        {
+          "page": 6,
+          "start_line": 4,
+          "end_line": 5
+        },
+        {
+          "page": 4,
+          "start_line": 83,
+          "end_line": 85
+        }
+      ],
+      "interpretation": "τ为JSD阈值，算法输入声明τ∈[0,1]；τ越大越倾向Query-Aware。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.6, text lines 4-5",
+          "quote": "Input: Q, K, V ∈ RS×dh , τ ∈ [0, 1],\nγ∈ (0, 1)"
+        },
+        {
+          "source": "paper",
+          "locator": "PDF p.4, text lines 83-85",
+          "quote": "4. Adaptive Decision: We compareDJS to a predefined thresholdτ. IfDJS <τ , the block-\nwise attention estimation adequately approximates the true distribution. Consequently, we\ncalculate ¯a for all queries, enabling query-aware sparse index selection. Otherwise, the"
+        }
+      ]
+    },
+    {
+      "param": "cumulative_attention_threshold_gamma",
+      "kind": "interval",
+      "lower": 0,
+      "upper": 1,
+      "values": null,
+      "unit": null,
+      "explicit": true,
+      "evidence_spans": [
+        {
+          "page": 6,
+          "start_line": 4,
+          "end_line": 5
+        },
+        {
+          "page": 5,
+          "start_line": 5,
+          "end_line": 6
+        }
+      ],
+      "interpretation": "γ为累计注意力阈值，算法输入声明γ∈(0,1)（开区间，此处以0/1为端点近似）。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.6, text lines 4-5",
+          "quote": "Input: Q, K, V ∈ RS×dh , τ ∈ [0, 1],\nγ∈ (0, 1)"
+        },
+        {
+          "source": "paper",
+          "locator": "PDF p.5, text lines 5-6",
+          "quote": "query positioni while ensuring that the sum of normalized attention scores within each subset meets\na predefined cumulative attention thresholdγ. This objective can be formally expressed as:"
+        }
+      ]
+    },
+    {
+      "param": "block_size",
+      "kind": "set",
+      "lower": null,
+      "upper": null,
+      "values": [
+        64,
+        128
+      ],
+      "unit": "tokens",
+      "explicit": true,
+      "evidence_spans": [
+        {
+          "page": 7,
+          "start_line": 11,
+          "end_line": 12
+        },
+        {
+          "page": 22,
+          "start_line": 46,
+          "end_line": 47
+        }
+      ],
+      "interpretation": "主实验block_size=128；消融显示64与128均可，可按硬件灵活选择。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.7, text lines 11-12",
+          "quote": "for optimizing the performance of GPU-accelerated computations and uses ablock_size = 128 in all\nexperiments. We choose the last block_size query vector as the representative query set ˆQ for both"
+        },
+        {
+          "source": "paper",
+          "locator": "PDF p.22, text lines 46-47",
+          "quote": "We explore the impact of adjusting Triton block sizes, specifically comparing block sizes of 64\nand 128. The results in Table 7 show that the block size does not have a significant effect on the"
+        }
+      ]
+    },
+    {
+      "param": "min_compute_tokens_per_head",
+      "kind": "interval",
+      "lower": 1024,
+      "upper": null,
+      "values": null,
+      "unit": "tokens",
+      "explicit": true,
+      "evidence_spans": [
+        {
+          "page": 7,
+          "start_line": 19,
+          "end_line": 20
+        }
+      ],
+      "interpretation": "每个注意力头至少计算1024个token，防止高稀疏度头崩溃。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.7, text lines 19-20",
+          "quote": "and last key blocks of each query block, while also requiring each attention head to compute at least\n1024 tokens. All experiments were conducted using greedy decoding to maintain consistency across"
+        }
+      ]
+    },
+    {
+      "param": "retain_first_last_key_blocks",
+      "kind": "boolean",
+      "lower": null,
+      "upper": null,
+      "values": null,
+      "unit": null,
+      "explicit": true,
+      "evidence_spans": [
+        {
+          "page": 7,
+          "start_line": 18,
+          "end_line": 19
+        }
+      ],
+      "interpretation": "每个query block保留首尾key block。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.7, text lines 18-19",
+          "quote": "and 0.95 for the other models. To ensure that all attention heads work normally, we retain the first\nand last key blocks of each query block, while also requiring each attention head to compute at least"
+        }
+      ]
+    },
+    {
+      "param": "representative_query_position",
+      "kind": "set",
+      "lower": null,
+      "upper": null,
+      "values": [
+        "last"
+      ],
+      "unit": null,
+      "explicit": true,
+      "evidence_spans": [
+        {
+          "page": 7,
+          "start_line": 12,
+          "end_line": 14
+        }
+      ],
+      "interpretation": "代表查询集取最后block_size个query；消融显示middle用于Vertical-Slash会显著降性能。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.7, text lines 12-14",
+          "quote": "experiments. We choose the last block_size query vector as the representative query set ˆQ for both\nsparse pattern determination and Vertical-Slash sparse index selection, which allows the represen-\ntative attention score to be computed only once and reused in both attention pattern determination"
+        }
+      ]
+    },
+    {
+      "param": "prefill_sparse_decoding_dense",
+      "kind": "boolean",
+      "lower": null,
+      "upper": null,
+      "values": null,
+      "unit": null,
+      "explicit": true,
+      "evidence_spans": [
+        {
+          "page": 7,
+          "start_line": 34,
+          "end_line": 35
+        }
+      ],
+      "interpretation": "仅在prefill阶段使用稀疏注意力，decoding阶段切换为稠密计算。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.7, text lines 34-35",
+          "quote": "All baselines use sparse computation during pre-filling, switching to dense computation during the\ndecoding stage. This ensures a fair comparison across different methods and highlights the balance"
+        }
+      ]
+    },
+    {
+      "param": "decoding_strategy",
+      "kind": "set",
+      "lower": null,
+      "upper": null,
+      "values": [
+        "greedy"
+      ],
+      "unit": null,
+      "explicit": true,
+      "evidence_spans": [
+        {
+          "page": 7,
+          "start_line": 20,
+          "end_line": 21
+        }
+      ],
+      "interpretation": "实验统一采用贪心解码。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.7, text lines 20-21",
+          "quote": "1024 tokens. All experiments were conducted using greedy decoding to maintain consistency across\nresults."
+        }
+      ]
+    },
+    {
+      "param": "gpu_memory_gb",
+      "kind": "interval",
+      "lower": 80,
+      "upper": 80,
+      "values": null,
+      "unit": "GB",
+      "explicit": true,
+      "evidence_spans": [
+        {
+          "page": 7,
+          "start_line": 7,
+          "end_line": 8
+        }
+      ],
+      "interpretation": "实验硬件为单张A100 80GB。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.7, text lines 7-8",
+          "quote": "Implementation Details Our experiments are conducted in a computing environment equipped\nwith a single NVIDIA A100 GPU with 80GB of memory. For our experiments, we implement a"
+        }
+      ]
+    },
+    {
+      "param": "implementation_stack",
+      "kind": "free_text",
+      "lower": null,
+      "upper": null,
+      "values": null,
+      "unit": null,
+      "explicit": true,
+      "evidence_spans": [
+        {
+          "page": 7,
+          "start_line": 8,
+          "end_line": 11
+        }
+      ],
+      "interpretation": "基于PyTorch+FlashAttention，Triton优化GPU计算。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.7, text lines 8-11",
+          "quote": "with a single NVIDIA A100 GPU with 80GB of memory. For our experiments, we implement a\ncustom pipeline using PyTorch, building on FlashAttention (Dao, 2024), to ensure efficient atten-\ntion mechanisms over long-context inputs. Our implementation leverages Triton (Tillet et al., 2019)\nfor optimizing the performance of GPU-accelerated computations and uses ablock_size = 128 in all"
+        }
+      ]
+    },
+    {
+      "param": "supported_models",
+      "kind": "set",
+      "lower": null,
+      "upper": null,
+      "values": [
+        "Meta-Llama-3.1-8B-Instruct-128k",
+        "GLM-4-9B-Chat-1024k",
+        "Yi-9B-200K",
+        "Qwen2-7B-Instruct-128k",
+        "Llama-3-8B-Instruct-262k"
+      ],
+      "unit": null,
+      "explicit": true,
+      "evidence_spans": [
+        {
+          "page": 6,
+          "start_line": 107,
+          "end_line": 111
+        },
+        {
+          "page": 21,
+          "start_line": 61,
+          "end_line": 63
+        }
+      ],
+      "interpretation": "评估覆盖的LLM；Yi为预训练模型，其余为instruct模型并使用默认chat template。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.6, text lines 107-111",
+          "quote": "Models We utilize four state-of-the-art LLMs known for their proficiency in handling long-context\ntasks: (i) Meta-Llama-3.1-8B-Instruct-128k (Dubey et al., 2024) ( LLaMA) (ii) GLM-4-9B-Chat-\n1024k (Zeng et al., 2024) ( GLM) (iii) Yi-9B-200K (Young et al., 2024) ( Yi) (iv) Qwen2-7B-\nInstruct-128k (Yang et al., 2024) (Qwen), where Yi is a pre-trained model and all others are instruct\nmodels. We use the default chat template for all instruct models in the subsequent experiments."
+        },
+        {
+          "source": "paper",
+          "locator": "PDF p.21, text lines 61-63",
+          "quote": "against additional baselines. Specifically, we evaluated LM-Infinite (Han et al., 2024), In-\nfLLM (Xiao et al., 2024a), and MoA (Fu et al., 2024a) using the Llama-3-8B-Instruct-262k (Pekelis\net al., 2024) models. Additionally, we assessed HIP (Lee et al., 2024) using the Meta-Llama-3.1-8B-"
+        }
+      ]
+    },
+    {
+      "param": "chat_template",
+      "kind": "set",
+      "lower": null,
+      "upper": null,
+      "values": [
+        "default"
+      ],
+      "unit": null,
+      "explicit": true,
+      "evidence_spans": [
+        {
+          "page": 6,
+          "start_line": 110,
+          "end_line": 111
+        }
+      ],
+      "interpretation": "instruct模型使用默认chat template。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.6, text lines 110-111",
+          "quote": "Instruct-128k (Yang et al., 2024) (Qwen), where Yi is a pre-trained model and all others are instruct\nmodels. We use the default chat template for all instruct models in the subsequent experiments."
+        }
+      ]
+    },
+    {
+      "param": "context_length_tokens",
+      "kind": "set",
+      "lower": null,
+      "upper": null,
+      "values": [
+        4000,
+        8000,
+        16000,
+        32000,
+        64000,
+        128000,
+        256000,
+        384000,
+        512000
+      ],
+      "unit": "tokens",
+      "explicit": false,
+      "evidence_spans": [
+        {
+          "page": 8,
+          "start_line": 4,
+          "end_line": 4
+        },
+        {
+          "page": 25,
+          "start_line": 48,
+          "end_line": 48
+        }
+      ],
+      "interpretation": "评估所用上下文长度（4k–128k主表，256k–512k延迟图）；非作者声明的能力上限。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.8, text lines 4-4",
+          "quote": "Models Methods 4k 8k 16k 32k 64k 128k Avg"
+        },
+        {
+          "source": "paper",
+          "locator": "PDF p.25, text lines 48-48",
+          "quote": "128k 256k 384k 512k"
+        }
+      ]
+    },
+    {
+      "param": "datasets",
+      "kind": "set",
+      "lower": null,
+      "upper": null,
+      "values": [
+        "RULER",
+        "InfiniteBench"
+      ],
+      "unit": null,
+      "explicit": true,
+      "evidence_spans": [
+        {
+          "page": 6,
+          "start_line": 112,
+          "end_line": 114
+        },
+        {
+          "page": 7,
+          "start_line": 4,
+          "end_line": 5
+        }
+      ],
+      "interpretation": "评估数据集为RULER与InfiniteBench。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.6, text lines 112-114",
+          "quote": "Datasets We evaluate the models on two datasets, each offering unique challenges in long-context\nunderstanding: (i) RULER (Hsieh et al., 2024): a synthetic benchmark dataset created to evaluate\n6"
+        },
+        {
+          "source": "paper",
+          "locator": "PDF p.7, text lines 4-5",
+          "quote": "aggregation. (ii) Infinite Bench (Zhang et al., 2024c): a benchmark dataset designed to test LLMs’\nunderstanding of long dependencies within extensive contexts, with an average token count of 214k."
+        }
+      ]
+    },
+    {
+      "param": "training_free",
+      "kind": "boolean",
+      "lower": null,
+      "upper": null,
+      "values": null,
+      "unit": null,
+      "explicit": true,
+      "evidence_spans": [
+        {
+          "page": 2,
+          "start_line": 16,
+          "end_line": 17
+        }
+      ],
+      "interpretation": "方法为training-free，无需微调模型。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.2, text lines 16-17",
+          "quote": "or fine-tuning of the model. There is also research proposing training-free sparse attention methods\nfor large language models. For instance, StreamingLLM (Xiao et al., 2024b) identifies the attention"
+        }
+      ]
+    },
+    {
+      "param": "sparse_pattern_types",
+      "kind": "set",
+      "lower": null,
+      "upper": null,
+      "values": [
+        "query_aware",
+        "vertical_slash"
+      ],
+      "unit": null,
+      "explicit": true,
+      "evidence_spans": [
+        {
+          "page": 4,
+          "start_line": 41,
+          "end_line": 44
+        }
+      ],
+      "interpretation": "每个注意力头自适应选择Query-Aware或Vertical-Slash模式。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.4, text lines 41-44",
+          "quote": "tured patterns (Figure 2b) motivate an adaptive approach to sparse attention estimation. We classify\nattention heads into two types: the Query-Aware head, which is designed to capture variable sparse\npatterns contingent upon query positions, and the Vertical-Slash head, which is intended to handle\ncommonly occurring structured sparse attention patterns in LLMs. We propose a method that dy-"
+        }
+      ]
+    },
+    {
+      "param": "causal_mask",
+      "kind": "boolean",
+      "lower": null,
+      "upper": null,
+      "values": null,
+      "unit": null,
+      "explicit": true,
+      "evidence_spans": [
+        {
+          "page": 2,
+          "start_line": 51,
+          "end_line": 53
+        }
+      ],
+      "interpretation": "稀疏索引限于因果下三角区域。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.2, text lines 51-53",
+          "quote": "its computation to a subset of query-key pairs whose indexes form the set S = SL\ni=1 Si, where\nSi⊆{ (i,j )| 1≤j≤i, j∈ Z}. The sparse attention mechanism is formalized as:"
+        }
+      ]
+    },
+    {
+      "param": "quantization",
+      "kind": "free_text",
+      "lower": null,
+      "upper": null,
+      "values": null,
+      "unit": null,
+      "explicit": false,
+      "evidence_spans": [
+        {
+          "page": 10,
+          "start_line": 35,
+          "end_line": 36
+        }
+      ],
+      "interpretation": "量化仅在相关工作提及，本文未使用/评估量化，不构成支持范围。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.10, text lines 35-36",
+          "quote": "Hong et al., 2023) and PagedAttention (Kwon et al., 2023). Other approaches aim to reduce KV\ncache sizes through quantization (Liu et al., 2024a; Kang et al., 2024; Liu et al., 2024b), token"
+        }
+      ]
+    }
+  ],
+  "eval_points": [
+    {
+      "config": {
+        "model": "Meta-Llama-3.1-8B-Instruct-128k",
+        "dataset": "RULER",
+        "context_length_tokens": 128000,
+        "gamma": 0.95,
+        "tau": 0.1,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 1024
+      },
+      "evidence_spans": [
+        {
+          "page": 7,
+          "start_line": 15,
+          "end_line": 18
+        },
+        {
+          "page": 8,
+          "start_line": 9,
+          "end_line": 9
+        }
+      ],
+      "interpretation": "LLaMA在RULER上γ=0.95、τ=0.1的完整配置。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.7, text lines 15-18",
+          "quote": "and sparse index selection. The sparse pattern threshold τ is set to 0.1 for all models. Additionally,\nby adjusting the parameter γ, we assign a tailored computational budget to each attention head in\nreal-time for each input scenario. We set γ = 0.9 for Yi-9B-200k and Qwen2-7B-Instruct model,\nand 0.95 for the other models. To ensure that all attention heads work normally, we retain the first"
+        },
+        {
+          "source": "paper",
+          "locator": "PDF p.8, text lines 9-9",
+          "quote": "Ours 95.43 93.51 94.71 89.42 82.93 79.09 89.18"
+        }
+      ]
+    },
+    {
+      "config": {
+        "model": "GLM-4-9B-Chat-1024k",
+        "dataset": "RULER",
+        "context_length_tokens": 128000,
+        "gamma": 0.95,
+        "tau": 0.1,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 1024
+      },
+      "evidence_spans": [
+        {
+          "page": 7,
+          "start_line": 17,
+          "end_line": 18
+        },
+        {
+          "page": 8,
+          "start_line": 14,
+          "end_line": 14
+        }
+      ],
+      "interpretation": "GLM在RULER上γ=0.95、τ=0.1。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.7, text lines 17-18",
+          "quote": "real-time for each input scenario. We set γ = 0.9 for Yi-9B-200k and Qwen2-7B-Instruct model,\nand 0.95 for the other models. To ensure that all attention heads work normally, we retain the first"
+        },
+        {
+          "source": "paper",
+          "locator": "PDF p.8, text lines 14-14",
+          "quote": "Ours 93.51 91.83 89.90 91.35 86.06 83.41 89.34"
+        }
+      ]
+    },
+    {
+      "config": {
+        "model": "Yi-9B-200K",
+        "dataset": "RULER",
+        "context_length_tokens": 128000,
+        "gamma": 0.9,
+        "tau": 0.1,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 1024
+      },
+      "evidence_spans": [
+        {
+          "page": 7,
+          "start_line": 17,
+          "end_line": 18
+        },
+        {
+          "page": 8,
+          "start_line": 19,
+          "end_line": 19
+        }
+      ],
+      "interpretation": "Yi在RULER上γ=0.9、τ=0.1。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.7, text lines 17-18",
+          "quote": "real-time for each input scenario. We set γ = 0.9 for Yi-9B-200k and Qwen2-7B-Instruct model,\nand 0.95 for the other models. To ensure that all attention heads work normally, we retain the first"
+        },
+        {
+          "source": "paper",
+          "locator": "PDF p.8, text lines 19-19",
+          "quote": "Ours 93.27 86.78 83.89 72.36 64.66 56.97 76.32"
+        }
+      ]
+    },
+    {
+      "config": {
+        "model": "Qwen2-7B-Instruct-128k",
+        "dataset": "RULER",
+        "context_length_tokens": 128000,
+        "gamma": 0.9,
+        "tau": 0.1,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 1024
+      },
+      "evidence_spans": [
+        {
+          "page": 7,
+          "start_line": 17,
+          "end_line": 18
+        },
+        {
+          "page": 8,
+          "start_line": 24,
+          "end_line": 24
+        }
+      ],
+      "interpretation": "Qwen在RULER上γ=0.9、τ=0.1。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.7, text lines 17-18",
+          "quote": "real-time for each input scenario. We set γ = 0.9 for Yi-9B-200k and Qwen2-7B-Instruct model,\nand 0.95 for the other models. To ensure that all attention heads work normally, we retain the first"
+        },
+        {
+          "source": "paper",
+          "locator": "PDF p.8, text lines 24-24",
+          "quote": "Ours 90.39 89.91 83.17 81.25 59.14 20.67 70.75"
+        }
+      ]
+    },
+    {
+      "config": {
+        "model": "Meta-Llama-3.1-8B-Instruct-128k",
+        "dataset": "InfiniteBench",
+        "gamma": 0.95,
+        "tau": 0.1,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 1024
+      },
+      "evidence_spans": [
+        {
+          "page": 8,
+          "start_line": 32,
+          "end_line": 32
+        }
+      ],
+      "interpretation": "LLaMA在InfiniteBench（平均214k token）上的配置。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.8, text lines 32-32",
+          "quote": "Ours 31.82 24.82 69.43 19.50 35.46 16.75 31.14 98.64 99.83 44.00 47.14"
+        }
+      ]
+    },
+    {
+      "config": {
+        "model": "GLM-4-9B-Chat-1024k",
+        "dataset": "InfiniteBench",
+        "gamma": 0.95,
+        "tau": 0.1,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 1024
+      },
+      "evidence_spans": [
+        {
+          "page": 8,
+          "start_line": 37,
+          "end_line": 37
+        }
+      ],
+      "interpretation": "GLM在InfiniteBench上的配置。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.8, text lines 37-37",
+          "quote": "Ours 28.90 20.27 42.36 29.50 15.55 33.50 23.71 99.15 100.00 55.40 44.83"
+        }
+      ]
+    },
+    {
+      "config": {
+        "model": "Yi-9B-200K",
+        "dataset": "InfiniteBench",
+        "gamma": 0.9,
+        "tau": 0.1,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 1024
+      },
+      "evidence_spans": [
+        {
+          "page": 8,
+          "start_line": 42,
+          "end_line": 42
+        }
+      ],
+      "interpretation": "Yi在InfiniteBench上的配置。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.8, text lines 42-42",
+          "quote": "Ours 6.62 11.89 65.07 2.50 16.87 19.54 24.00 99.83 91.53 24.00 36.18"
+        }
+      ]
+    },
+    {
+      "config": {
+        "model": "Qwen2-7B-Instruct-128k",
+        "dataset": "InfiniteBench",
+        "gamma": 0.9,
+        "tau": 0.1,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 1024
+      },
+      "evidence_spans": [
+        {
+          "page": 8,
+          "start_line": 47,
+          "end_line": 47
+        }
+      ],
+      "interpretation": "Qwen在InfiniteBench上的配置。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.8, text lines 47-47",
+          "quote": "Ours 14.27 6.55 34.06 13.50 11.51 20.81 30.86 96.95 72.20 0.00 30.07"
+        }
+      ]
+    },
+    {
+      "config": {
+        "model": "Meta-Llama-3.1-8B-Instruct-128k",
+        "dataset": "RULER",
+        "gamma": 0.9,
+        "tau": 0.1,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 1024
+      },
+      "evidence_spans": [
+        {
+          "page": 21,
+          "start_line": 39,
+          "end_line": 39
+        },
+        {
+          "page": 22,
+          "start_line": 18,
+          "end_line": 18
+        }
+      ],
+      "interpretation": "LLaMA γ=0.9的延迟与性能配置。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.21, text lines 39-39",
+          "quote": "Ours (γ = 0.9) 61.92 185.75 50.66 88.38"
+        },
+        {
+          "source": "paper",
+          "locator": "PDF p.22, text lines 18-18",
+          "quote": "Ours (γ = 0.9) 95.43 93.27 94.23 87.98 81.49 77.89 88.38 3.49x"
+        }
+      ]
+    },
+    {
+      "config": {
+        "model": "Meta-Llama-3.1-8B-Instruct-128k",
+        "dataset": "RULER",
+        "gamma": 0.85,
+        "tau": 0.1,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 1024
+      },
+      "evidence_spans": [
+        {
+          "page": 22,
+          "start_line": 35,
+          "end_line": 35
+        }
+      ],
+      "interpretation": "LLaMA γ=0.85消融配置。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.22, text lines 35-35",
+          "quote": "0.85 95.91 93.51 92.31 86.54 80.05 74.28 87.10 4.60x"
+        }
+      ]
+    },
+    {
+      "config": {
+        "model": "Meta-Llama-3.1-8B-Instruct-128k",
+        "dataset": "RULER",
+        "gamma": 0.6,
+        "tau": 0.1,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 1024
+      },
+      "evidence_spans": [
+        {
+          "page": 22,
+          "start_line": 40,
+          "end_line": 40
+        }
+      ],
+      "interpretation": "LLaMA γ=0.6（最低评估γ）配置。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.22, text lines 40-40",
+          "quote": "0.6 95.67 93.27 91.83 82.21 74.52 62.02 83.25 9.81x"
+        }
+      ]
+    },
+    {
+      "config": {
+        "model": "Meta-Llama-3.1-8B-Instruct-128k",
+        "dataset": "RULER",
+        "gamma": 0.95,
+        "tau": 0.0,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 1024
+      },
+      "evidence_spans": [
+        {
+          "page": 23,
+          "start_line": 6,
+          "end_line": 6
+        }
+      ],
+      "interpretation": "τ=0（关闭Query-Aware）消融。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.23, text lines 6-6",
+          "quote": "0 95.43 93.75 94.71 89.67 82.45 78.61 89.10"
+        }
+      ]
+    },
+    {
+      "config": {
+        "model": "Meta-Llama-3.1-8B-Instruct-128k",
+        "dataset": "RULER",
+        "gamma": 0.95,
+        "tau": 0.3,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 1024
+      },
+      "evidence_spans": [
+        {
+          "page": 23,
+          "start_line": 9,
+          "end_line": 9
+        }
+      ],
+      "interpretation": "τ=0.3消融配置。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.23, text lines 9-9",
+          "quote": "0.3 95.19 93.27 93.99 89.66 82.21 75.96 88.38"
+        }
+      ]
+    },
+    {
+      "config": {
+        "model": "GLM-4-9B-Chat-1024k",
+        "dataset": "RULER",
+        "gamma": 0.95,
+        "tau": 0.2,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 1024
+      },
+      "evidence_spans": [
+        {
+          "page": 23,
+          "start_line": 13,
+          "end_line": 13
+        }
+      ],
+      "interpretation": "GLM τ=0.2消融。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.23, text lines 13-13",
+          "quote": "0.2 93.99 92.31 90.38 91.11 86.78 83.66 89.70"
+        }
+      ]
+    },
+    {
+      "config": {
+        "model": "GLM-4-9B-Chat-1024k",
+        "dataset": "RULER",
+        "gamma": 0.95,
+        "tau": 0.1,
+        "block_size": 64,
+        "min_compute_tokens_per_head": 1024
+      },
+      "evidence_spans": [
+        {
+          "page": 23,
+          "start_line": 28,
+          "end_line": 28
+        }
+      ],
+      "interpretation": "GLM block_size=64消融。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.23, text lines 28-28",
+          "quote": "64 94.23 92.07 89.90 91.11 86.06 82.69 89.34"
+        }
+      ]
+    },
+    {
+      "config": {
+        "model": "Qwen2-7B-Instruct-128k",
+        "dataset": "RULER",
+        "gamma": 0.9,
+        "tau": 0.1,
+        "block_size": 64,
+        "min_compute_tokens_per_head": 1024
+      },
+      "evidence_spans": [
+        {
+          "page": 23,
+          "start_line": 32,
+          "end_line": 32
+        }
+      ],
+      "interpretation": "Qwen block_size=64消融。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.23, text lines 32-32",
+          "quote": "64 91.11 89.90 83.65 82.93 60.10 20.43 71.35"
+        }
+      ]
+    },
+    {
+      "config": {
+        "model": "Meta-Llama-3.1-8B-Instruct-128k",
+        "dataset": "RULER",
+        "gamma": 0.95,
+        "tau": 0.1,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 2048
+      },
+      "evidence_spans": [
+        {
+          "page": 24,
+          "start_line": 22,
+          "end_line": 22
+        }
+      ],
+      "interpretation": "最小预算2048消融。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.24, text lines 22-22",
+          "quote": "0.95 2048 95.19 93.27 94.23 89.90 82.93 77.64 88.86"
+        }
+      ]
+    },
+    {
+      "config": {
+        "model": "Meta-Llama-3.1-8B-Instruct-128k",
+        "dataset": "RULER",
+        "gamma": 0.9,
+        "tau": 0.1,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 2048
+      },
+      "evidence_spans": [
+        {
+          "page": 24,
+          "start_line": 25,
+          "end_line": 25
+        }
+      ],
+      "interpretation": "γ=0.9、最小预算2048消融。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.24, text lines 25-25",
+          "quote": "0.9 2048 95.67 94.47 94.23 89.90 83.41 75.24 88.82"
+        }
+      ]
+    },
+    {
+      "config": {
+        "model": "Meta-Llama-3.1-8B-Instruct-128k",
+        "dataset": "RULER",
+        "gamma": 0.95,
+        "tau": 0.1,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 1024,
+        "max_budget_tokens": 32000
+      },
+      "evidence_spans": [
+        {
+          "page": 25,
+          "start_line": 7,
+          "end_line": 7
+        }
+      ],
+      "interpretation": "最大预算32k消融。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.25, text lines 7-7",
+          "quote": "32k 95.43 93.51 94.71 89.42 84.14 75.72 88.82"
+        }
+      ]
+    },
+    {
+      "config": {
+        "model": "GLM-4-9B-Chat-1024k",
+        "dataset": "RULER",
+        "gamma": 0.95,
+        "tau": 0.1,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 1024,
+        "max_budget_tokens": 32000
+      },
+      "evidence_spans": [
+        {
+          "page": 25,
+          "start_line": 12,
+          "end_line": 12
+        }
+      ],
+      "interpretation": "GLM最大预算32k消融。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.25, text lines 12-12",
+          "quote": "32k 93.51 91.83 89.90 91.35 86.54 84.14 89.54"
+        }
+      ]
+    },
+    {
+      "config": {
+        "model": "Llama-3-8B-Instruct-262k",
+        "dataset": "RULER",
+        "gamma": 0.9,
+        "tau": 0.1,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 1024
+      },
+      "evidence_spans": [
+        {
+          "page": 22,
+          "start_line": 12,
+          "end_line": 12
+        }
+      ],
+      "interpretation": "附加基线对比中Llama-3-8B-262k配置。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.22, text lines 12-12",
+          "quote": "Ours (γ = 0.9) 89.18 89.18 89.66 83.65 79.33 77.64 84.78 3.47x"
+        }
+      ]
+    },
+    {
+      "config": {
+        "model": "Llama-3-8B-Instruct-262k",
+        "dataset": "RULER",
+        "gamma": 0.95,
+        "tau": 0.1,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 1024
+      },
+      "evidence_spans": [
+        {
+          "page": 22,
+          "start_line": 13,
+          "end_line": 13
+        }
+      ],
+      "interpretation": "Llama-3-8B-262k γ=0.95配置。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.22, text lines 13-13",
+          "quote": "Ours (γ = 0.95) 90.87 89.9 90.38 82.21 81.25 79.81 85.74 2.43x"
+        }
+      ]
+    },
+    {
+      "config": {
+        "model": "Meta-Llama-3.1-8B-Instruct-128k",
+        "dataset": "RULER",
+        "gamma": 0.95,
+        "tau": 0.1,
+        "block_size": 128,
+        "min_compute_tokens_per_head": 1024,
+        "representative_query_position": "middle"
+      },
+      "evidence_spans": [
+        {
+          "page": 23,
+          "start_line": 47,
+          "end_line": 47
+        }
+      ],
+      "interpretation": "Vertical-Slash代表查询取middle的消融（性能显著下降）。",
+      "evidence": [
+        {
+          "source": "paper",
+          "locator": "PDF p.23, text lines 47-47",
+          "quote": "last middle 68.27 51.68 38.46 40.87 19.23 10.58 38.18"
+        }
+      ]
+    }
+  ],
+  "coverage": [
+    {
+      "page": 1,
+      "note": "标题、摘要、图1性能/加速比概览；含GitHub链接。"
+    },
+    {
+      "page": 2,
+      "note": "引言、问题设定、稀疏注意力形式化定义与因果约束。"
+    },
+    {
+      "page": 3,
+      "note": "掩码定义、多目标优化目标、注意力模式可变性观察。"
+    },
+    {
+      "page": 4,
+      "note": "自适应稀疏率图3、Query-Aware模式判定（JSD、τ）。"
+    },
+    {
+      "page": 5,
+      "note": "累计注意力索引选择目标式(3)、算法总览。"
+    },
+    {
+      "page": 6,
+      "note": "算法1-4伪代码、输入范围τ∈[0,1]、γ∈(0,1)、模型与数据集介绍。"
+    },
+    {
+      "page": 7,
+      "note": "实现细节（A100 80GB、block_size=128、τ=0.1、γ取值、最小1024 token、贪心解码）、基线设置。"
+    },
+    {
+      "page": 8,
+      "note": "表1 RULER、表2 InfiniteBench结果、性能-延迟权衡。"
+    },
+    {
+      "page": 9,
+      "note": "消融：固定vs动态预算、τ阈值、最小预算。"
+    },
+    {
+      "page": 10,
+      "note": "相关工作与结论。"
+    },
+    {
+      "page": 11,
+      "note": "参考文献，无实验信息。"
+    },
+    {
+      "page": 12,
+      "note": "参考文献，无实验信息。"
+    },
+    {
+      "page": 13,
+      "note": "参考文献，无实验信息。"
+    },
+    {
+      "page": 14,
+      "note": "参考文献，无实验信息。"
+    },
+    {
+      "page": 15,
+      "note": "参考文献，无实验信息。"
+    },
+    {
+      "page": 16,
+      "note": "参考文献，无实验信息。"
+    },
+    {
+      "page": 17,
+      "note": "参考文献，无实验信息。"
+    },
+    {
+      "page": 18,
+      "note": "参考文献，无实验信息。"
+    },
+    {
+      "page": 19,
+      "note": "附录A：优化目标的理论推导（式4-7）。"
+    },
+    {
+      "page": 20,
+      "note": "附录B：对偶形式推导（KKT条件）。"
+    },
+    {
+      "page": 21,
+      "note": "附录C延迟表3、附录D附加基线介绍。"
+    },
+    {
+      "page": 22,
+      "note": "表4附加基线、附录E不同γ表5、附录F.1/F.2介绍。"
+    },
+    {
+      "page": 23,
+      "note": "表6 τ消融、表7 block_size消融、表8代表查询消融、F.4替代实现。"
+    },
+    {
+      "page": 24,
+      "note": "表9实现对比、表10最小预算、F.6最大预算、附录G复杂度。"
+    },
+    {
+      "page": 25,
+      "note": "表11最大预算、延迟分解图6。"
+    },
+    {
+      "page": 26,
+      "note": "附录H/I/J：JS距离、稀疏掩码、稀疏率可视化。"
+    },
+    {
+      "page": 27,
+      "note": "图8-10：模式分布、稀疏掩码、稀疏率热图。"
+    }
+  ],
+  "open_questions": [
+    "论文未明确声明支持的最大上下文长度上限；512k仅出现在延迟图中，非精度评估。",
+    "量化、KV cache压缩等仅在相关工作提及，本文未评估，是否兼容未知。",
+    "除所列5个模型外，对其他LLM架构（如非RoPE、MoE）的适用性未声明。",
+    "γ的完整可调范围仅由算法输入γ∈(0,1)给出，实际评估仅覆盖0.6–0.97。",
+    "τ评估仅覆盖0–0.3，虽算法声明τ∈[0,1]，更大τ的行为未验证。",
+    "block_size仅评估64与128，其他取值未验证。",
+    "多GPU/其他硬件（非A100 80GB）下的性能未评估。"
+  ],
+  "changes": [
+    "将scope与eval_points中的quote字符串替换为evidence_spans行号区间，符合输出格式要求。",
+    "修正block_size的interpretation，明确64与128为评估取值而非唯一支持范围。",
+    "修正context_length_tokens的explicit为false，并注明256k–512k仅用于延迟评估。",
+    "修正quantization的explicit为false，明确其仅为相关工作提及，不构成支持范围。",
+    "修正gpu_memory_gb的interpretation，明确其为实验硬件配置而非系统能力约束。",
+    "修正supported_models的interpretation，区分评估覆盖模型与系统支持范围。",
+    "修正eval_points中部分配置的evidence_spans，确保引用行号准确对应表格数据。",
+    "在open_questions中补充关于γ、τ、block_size评估范围有限性的说明。"
+  ]
+}
