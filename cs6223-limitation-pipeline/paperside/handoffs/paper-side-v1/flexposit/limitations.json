@@ -1,0 +1,1055 @@
+[
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "flexposit-gap-M01-B08",
+    "artifact_id": "flexposit",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: 同一 Python 量化路径 + 其声明的导出/硬件路径：src/flexposit/export.py（layer_codes/export_tile、scale.mem 5-bit 有符号指数）与 hardware/rtl/bfp_pow2_rescale.v、hardware/tb/array_tb.v（2^scale 指数偏移）。. Paper precondition: A per-channel scale has been selected.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "论文 4-bit 索引 vs 硬件 5-bit 有符号 scale 字段。",
+    "paper_evidence": [
+      {
+        "quote": "a compact 4 b index stores the selected per-channel scale\nwith low metadata overhead",
+        "source": "paper",
+        "locator": "PDF p.5"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "src/flexposit/export.py",
+        "line_start": 105,
+        "line_end": 141,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "hardware/rtl/bfp_pow2_rescale.v",
+        "line_start": 10,
+        "line_end": 54,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M01-B08; external repo refs stay in code_evidence_registry.json. Equivalence: 5-bit 可覆盖 [-16,15]，但非论文所述 4-bit 元数据。; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "flexposit-gap-M01-B10",
+    "artifact_id": "flexposit",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: 同一 Python 量化路径 + 其声明的导出/硬件路径：src/flexposit/export.py（layer_codes/export_tile、scale.mem 5-bit 有符号指数）与 hardware/rtl/bfp_pow2_rescale.v、hardware/tb/array_tb.v（2^scale 指数偏移）。. Paper precondition: FlexPosit quantization is applied.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "论文要求激活保持 FP16；硬件导出/仿真路径把激活转成 FP8 E4M3。",
+    "paper_evidence": [
+      {
+        "quote": "only the weights are quantized while activations\nremain in FP16",
+        "source": "paper",
+        "locator": "PDF p.5"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "src/flexposit/export.py",
+        "line_start": 105,
+        "line_end": 141,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "hardware/tb/array_tb.v",
+        "line_start": 10,
+        "line_end": 36,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M01-B10; external repo refs stay in code_evidence_registry.json. Equivalence: 该路径是硬件 GEMM 仿真输入格式，非论文的 FP16 激活推理；未找到 FP16 激活的硬件路径。; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "flexposit-gap-M02-B01",
+    "artifact_id": "flexposit",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: scripts/regen_sensitivity_ppl.sh → flexposit.sensitivity.ppl_probe(_conv1d)/fisher 生成窗口布局 CSV，再由 mpq/channel_window.py 应用；hardware/README 仅作旁证（RTL 内无窗口逻辑）. Paper precondition: Mixed-precision allocation is applied to a layer.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "论文要求窗口为阵列列数整数倍；脚本默认256（16列整数倍）但模块默认64，且无对齐校验（E4,E5,E6）",
+    "paper_evidence": [
+      {
+        "quote": "FlexPosit sets the\nprecision granularity to an integer multiple of the number\nof columns in the systolic array, partitioning each layer into\nchannel windows",
+        "source": "paper",
+        "locator": "PDF p.5"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "src/flexposit/sensitivity/ppl_probe.py",
+        "line_start": 72,
+        "line_end": 75,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "src/flexposit/sensitivity/fisher.py",
+        "line_start": 60,
+        "line_end": 91,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "scripts/regen_sensitivity_ppl.sh",
+        "line_start": 8,
+        "line_end": 33,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M02-B01; external repo refs stay in code_evidence_registry.json. Equivalence: 256 为32×16阵列列数16的整数倍，默认脚本路径数值对齐；对齐约束本身未实现; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "flexposit-gap-M02-B03-R02",
+    "artifact_id": "flexposit",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: scripts/regen_sensitivity_ppl.sh → flexposit.sensitivity.ppl_probe(_conv1d)/fisher 生成窗口布局 CSV，再由 mpq/channel_window.py 应用；hardware/README 仅作旁证（RTL 内无窗口逻辑）. Paper precondition: The model being quantized is a Qwen model.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "论文要求 Qwen 1024；脚本与模块均无 Qwen→1024 规则（E4,E5,E6）",
+    "paper_evidence": [
+      {
+        "quote": "(256 channels by\ndefault and 1024 channels for the Qwen models), aligned to an\ninteger multiple of the number of columns in the systolic array.",
+        "source": "paper",
+        "locator": "PDF p.9"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "src/flexposit/sensitivity/ppl_probe.py",
+        "line_start": 72,
+        "line_end": 75,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "src/flexposit/sensitivity/fisher.py",
+        "line_start": 60,
+        "line_end": 91,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "scripts/regen_sensitivity_ppl.sh",
+        "line_start": 8,
+        "line_end": 33,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=absent; behavior=M02-B03-R02; external repo refs stay in code_evidence_registry.json. Equivalence: 可手动设 CHANNEL_WINDOW=1024 达到，但非实现的分支; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "flexposit-gap-M03-B06",
+    "artifact_id": "flexposit",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: 同一剖析实验路径：scripts/01_quantize_base.sh（Posit(4,1) 基线检查点）→ scripts/regen_sensitivity_ppl.sh → ppl_probe(_conv1d).py 产出 sensitivity.csv/json；下游 mpq/channel_window.py 仅消费 CSV，属位宽分配（M04），不在本机制内。. Paper precondition: Baseline perplexity P_base and upgraded-model perplexity PPL(M_w, D) are available.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "同 local_entry：符号与 Algorithm 2 第6行相反。",
+    "paper_evidence": [
+      {
+        "quote": "6:∆PPL(w)←P base −PPL(Mw,D)",
+        "source": "paper",
+        "locator": "PDF p.6, text lines 10-10"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "scripts/regen_sensitivity_ppl.sh",
+        "line_start": 8,
+        "line_end": 33,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "src/flexposit/sensitivity/ppl_probe.py",
+        "line_start": 416,
+        "line_end": 453,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "src/flexposit/mpq/channel_window.py",
+        "line_start": 108,
+        "line_end": 128,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M03-B06; external repo refs stay in code_evidence_registry.json. Equivalence: 下游按升序取最负值可恢复等价排序，但剖析产物数值与论文定义相反。; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "flexposit-gap-M03-B09",
+    "artifact_id": "flexposit",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: 同一剖析实验路径：scripts/01_quantize_base.sh（Posit(4,1) 基线检查点）→ scripts/regen_sensitivity_ppl.sh → ppl_probe(_conv1d).py 产出 sensitivity.csv/json；下游 mpq/channel_window.py 仅消费 CSV，属位宽分配（M04），不在本机制内。. Paper precondition: All channel windows have been profiled.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "剖析实验路径未产出论文要求的降序排序敏感度图。",
+    "paper_evidence": [
+      {
+        "quote": "10:returnSORTDESC(S,∆PPL)",
+        "source": "paper",
+        "locator": "PDF p.6, text lines 14-14"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "scripts/regen_sensitivity_ppl.sh",
+        "line_start": 8,
+        "line_end": 33,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "src/flexposit/sensitivity/ppl_probe.py",
+        "line_start": 455,
+        "line_end": 477,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "src/flexposit/mpq/channel_window.py",
+        "line_start": 108,
+        "line_end": 128,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=absent; behavior=M03-B09; external repo refs stay in code_evidence_registry.json. Equivalence: 下游消费端排序可恢复等价顺序，但剖析产物本身未排序。; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "flexposit-gap-M03-A01",
+    "artifact_id": "flexposit",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: 同一剖析实验路径：scripts/01_quantize_base.sh（Posit(4,1) 基线检查点）→ scripts/regen_sensitivity_ppl.sh → ppl_probe(_conv1d).py 产出 sensitivity.csv/json；下游 mpq/channel_window.py 仅消费 CSV，属位宽分配（M04），不在本机制内。. Paper precondition: 已对窗口计算出 ΔPPL(w) 值。",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "同 local_entry：符号约定与论文解释相反。",
+    "paper_evidence": [
+      {
+        "quote": "a large∆PPLindicates\nthat additional precision provides a significant accuracy gain,\nwhereas a small∆PPLyields only marginal improvement",
+        "source": "paper",
+        "locator": "PDF p.5"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "src/flexposit/sensitivity/ppl_probe.py",
+        "line_start": 416,
+        "line_end": 453,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "src/flexposit/mpq/channel_window.py",
+        "line_start": 108,
+        "line_end": 128,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M03-A01; external repo refs stay in code_evidence_registry.json. Equivalence: 下游升序选择可补偿，但产物语义相反。; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "flexposit-gap-M07-A05",
+    "artifact_id": "flexposit",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: hardware/rtl/posit_decode_and_queue.v（posit_decoder 与 beat_fifo_burst）+ hardware/rtl/systolic_efficient.v 的 cycle_gen 周期标记 + hardware/model/flexposit_rtl_exact.py 参考模型. Paper precondition: GPCU 断言 cyc0 标记。",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "论文要求 cyc0 推入符号项；代码在 cyc1 写符号、cyc0 写零标志与 exp/man",
+    "paper_evidence": [
+      {
+        "quote": "markers. Atcyc0, it enters theSIGNstate and pushes the sign\nterm into the FIFO. Atcyc1, it transitions to theREGIME",
+        "source": "paper",
+        "locator": "PDF p.8, text lines 113-114"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "hardware/rtl/posit_decode_and_queue.v",
+        "line_start": 218,
+        "line_end": 281,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "hardware/rtl/posit_decode_and_queue.v",
+        "line_start": 136,
+        "line_end": 183,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "hardware/rtl/posit_decode_and_queue.v",
+        "line_start": 339,
+        "line_end": 384,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M07-A05; external repo refs stay in code_evidence_registry.json. Equivalence: 符号项仍每权重入 FIFO 一次，但触发周期不同；未证明对下游 PE 时序无影响; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "flexposit-gap-M08-B02",
+    "artifact_id": "flexposit",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: 同一 RTL 路径 + hardware/model/flexposit_rtl_exact.py::decode_native_posit 参考模型 + hardware/tb 与 scripts/run_array_test.py 的 iverilog 仿真路径（无外部依赖）。src/flexposit 量化包只做 fake-quant，不含解码器，故不纳入本机制 artifact。. Paper precondition: The decoder is at cycle marker cyc0.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "同 local_entry：符号 FIFO 写入在 cyc1 而非 cyc0。",
+    "paper_evidence": [
+      {
+        "quote": "markers. Atcyc0, it enters theSIGNstate and pushes the sign\nterm into the FIFO. Atcyc1, it transitions to theREGIME",
+        "source": "paper",
+        "locator": "PDF p.8, text lines 113-114"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "hardware/rtl/posit_decode_and_queue.v",
+        "line_start": 136,
+        "line_end": 183,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "hardware/rtl/posit_decode_and_queue.v",
+        "line_start": 339,
+        "line_end": 384,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "hardware/model/flexposit_rtl_exact.py",
+        "line_start": 118,
+        "line_end": 161,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M08-B02; external repo refs stay in code_evidence_registry.json. Equivalence: 模型与 RTL 字段值一致，但时序义务未满足。; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "flexposit-gap-M08-B06",
+    "artifact_id": "flexposit",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: 同一 RTL 路径 + hardware/model/flexposit_rtl_exact.py::decode_native_posit 参考模型 + hardware/tb 与 scripts/run_array_test.py 的 iverilog 仿真路径（无外部依赖）。src/flexposit 量化包只做 fake-quant，不含解码器，故不纳入本机制 artifact。. Paper precondition: The FSM is in the MANTISSA state and has not yet reached cycP.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "同 local_entry：以固定位宽上限而非 cycP 终止尾数收集。",
+    "paper_evidence": [
+      {
+        "quote": "MANTISSAstate, each bit is shifted into a register as it arrives\nuntilcycP, producing the mantissa term. A zero flag is tracked",
+        "source": "paper",
+        "locator": "PDF p.8, text lines 123-124"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "hardware/rtl/posit_decode_and_queue.v",
+        "line_start": 218,
+        "line_end": 279,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "hardware/model/flexposit_rtl_exact.py",
+        "line_start": 118,
+        "line_end": 161,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M08-B06; external repo refs stay in code_evidence_registry.json. Equivalence: 模型与 RTL 一致，但均偏离 cycP 终止义务。; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "flexposit-gap-M08-B08",
+    "artifact_id": "flexposit",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: 同一 RTL 路径 + hardware/model/flexposit_rtl_exact.py::decode_native_posit 参考模型 + hardware/tb 与 scripts/run_array_test.py 的 iverilog 仿真路径（无外部依赖）。src/flexposit 量化包只做 fake-quant，不含解码器，故不纳入本机制 artifact。. Paper precondition: The decoder has completed decoding one weight at cycP.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "同 local_entry：RTL 分槽写入而非一起推入。",
+    "paper_evidence": [
+      {
+        "quote": "At completion, the decoder pushes the exponent, mantissa,\nand zero flag into the per-column FIFO together, forming one\ndecoded weight.",
+        "source": "paper",
+        "locator": "PDF p.8"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "hardware/rtl/posit_decode_and_queue.v",
+        "line_start": 339,
+        "line_end": 384,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "hardware/model/flexposit_rtl_exact.py",
+        "line_start": 118,
+        "line_end": 161,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M08-B08; external repo refs stay in code_evidence_registry.json. Equivalence: 模型层面是单一结构，RTL 层面非原子；未证明等价。; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "flexposit-gap-M09-B01",
+    "artifact_id": "flexposit",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: hardware/ 测试芯片 RTL 路径：hardware/rtl/systolic_efficient.v（N×N PE 阵列、cycle_gen 精度窗口、行延迟）、hardware/rtl/fp8_pe_mac_stream.v（PE 计算 + 每 PE pe_bfp_acc）、hardware/rtl/mm_efficient.v（FIFO/背压 stall）、hardware/README.md（自述与论文 RTL 的差异）。. Paper precondition: The accelerator uses FlexPosit MAC clusters.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "论文要求每簇 4 个 PE；RTL 为 N×N 阵列，PE 间仅逐行/逐列传递权重、激活与 valid，不存在 4-PE 簇边界。",
+    "paper_evidence": [
+      {
+        "quote": "FlexPosit groups four PEs into a 4-way MAC cluster",
+        "source": "paper",
+        "locator": "PDF p.7"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "hardware/rtl/systolic_efficient.v",
+        "line_start": 242,
+        "line_end": 330,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "hardware/rtl/fp8_pe_mac_stream.v",
+        "line_start": 497,
+        "line_end": 621,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=absent; behavior=M09-B01; external repo refs stay in code_evidence_registry.json. Equivalence: N×N 阵列可含 4 个 PE，但无簇分组与簇内共享资源，不能视为等价实现。; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "flexposit-gap-M09-B02-R01",
+    "artifact_id": "flexposit",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: hardware/ 测试芯片 RTL 路径：hardware/rtl/systolic_efficient.v（N×N PE 阵列、cycle_gen 精度窗口、行延迟）、hardware/rtl/fp8_pe_mac_stream.v（PE 计算 + 每 PE pe_bfp_acc）、hardware/rtl/mm_efficient.v（FIFO/背压 stall）、hardware/README.md（自述与论文 RTL 的差异）。. Paper precondition: A decoded weight term is available at the cluster input for that cycle.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "论文要求簇内 4 个 PE 同周期共享同一解码权重项；RTL 中同列相邻 PE 收到同一权重项但相差 1 周期，且不存在“簇内 4 PE 同周期”结构。",
+    "paper_evidence": [
+      {
+        "quote": "Within each cluster, all PEs operate on\nthe same decoded weight term each cycle",
+        "source": "paper",
+        "locator": "PDF p.7"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "hardware/rtl/systolic_efficient.v",
+        "line_start": 242,
+        "line_end": 330,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "hardware/rtl/systolic_efficient.v",
+        "line_start": 198,
+        "line_end": 240,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M09-B02-R01; external repo refs stay in code_evidence_registry.json. Equivalence: 垂直 1 周期延迟是论文 Fig.6(c) 的行延迟机制，但论文的簇内同周期共享未被实现；延迟共享不满足“each cycle 同一项”。; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "flexposit-gap-M09-B02-R02",
+    "artifact_id": "flexposit",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: hardware/ 测试芯片 RTL 路径：hardware/rtl/systolic_efficient.v（N×N PE 阵列、cycle_gen 精度窗口、行延迟）、hardware/rtl/fp8_pe_mac_stream.v（PE 计算 + 每 PE pe_bfp_acc）、hardware/rtl/mm_efficient.v（FIFO/背压 stall）、hardware/README.md（自述与论文 RTL 的差异）。. Paper precondition: Four distinct FP16 activations are presented to the cluster lanes.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "论文要求簇内 4 个 PE 各取一个不同 FP16 激活；RTL 中不同激活分布在不同行（每行一个），且激活为 FP8 而非 FP16。",
+    "paper_evidence": [
+      {
+        "quote": "while processing\nfour distinct FP16 activations",
+        "source": "paper",
+        "locator": "PDF p.7"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "hardware/README.md",
+        "line_start": 3,
+        "line_end": 9,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "hardware/rtl/systolic_efficient.v",
+        "line_start": 242,
+        "line_end": 330,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "hardware/rtl/fp8_pe_mac_stream.v",
+        "line_start": 497,
+        "line_end": 621,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M09-B02-R02; external repo refs stay in code_evidence_registry.json. Equivalence: 行内东向传递使同一行各列 PE 顺序使用不同激活，但非“簇内 4 PE 并行 4 个 FP16 激活”，格式亦不同。; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "flexposit-gap-M09-B03",
+    "artifact_id": "flexposit",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: hardware/ 测试芯片 RTL 路径：hardware/rtl/systolic_efficient.v（N×N PE 阵列、cycle_gen 精度窗口、行延迟）、hardware/rtl/fp8_pe_mac_stream.v（PE 计算 + 每 PE pe_bfp_acc）、hardware/rtl/mm_efficient.v（FIFO/背压 stall）、hardware/README.md（自述与论文 RTL 的差异）。. Paper precondition: The precision P is in the range 4 ≤ P ≤ 8.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "论文的 4/P 依赖 4-PE 簇并行；RTL 每 PE 为 1/P，簇级 4/P 未被实现。",
+    "paper_evidence": [
+      {
+        "quote": "to bit-serial execution. As a result, each cluster achieves an\neffective throughput of4/PMACs per cycle for any supported\nprecision configuration (4≤P≤8), matching the rate\nof a conventional FP16 MAC at the minimum 4 b precision",
+        "source": "paper",
+        "locator": "PDF p.7, text lines 139-142"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "hardware/rtl/systolic_efficient.v",
+        "line_start": 198,
+        "line_end": 240,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "hardware/rtl/fp8_pe_mac_stream.v",
+        "line_start": 497,
+        "line_end": 621,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=absent; behavior=M09-B03; external repo refs stay in code_evidence_registry.json. Equivalence: 单 PE 的 1/P 是 4/P 的必要组成，但缺少 4 路并行，不能等价。; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "flexposit-gap-M09-B04-R01",
+    "artifact_id": "flexposit",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: hardware/ 测试芯片 RTL 路径：hardware/rtl/systolic_efficient.v（N×N PE 阵列、cycle_gen 精度窗口、行延迟）、hardware/rtl/fp8_pe_mac_stream.v（PE 计算 + 每 PE pe_bfp_acc）、hardware/rtl/mm_efficient.v（FIFO/背压 stall）、hardware/README.md（自述与论文 RTL 的差异）。. Paper precondition: Cluster contains four PEs; the accumulator is the shared cluster resource.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "论文要求 4 PE 共享 1 个 FP16 累加器；RTL 为每 PE 独立块浮点累加器（ACC_MANW=12, GRS=3，非 FP16 格式），无时分复用。",
+    "paper_evidence": [
+      {
+        "quote": "the four PEs within\na cluster share a single FP16 accumulator time-multiplexed\nacross lanes",
+        "source": "paper",
+        "locator": "PDF p.7"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "hardware/README.md",
+        "line_start": 3,
+        "line_end": 9,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "hardware/rtl/fp8_pe_mac_stream.v",
+        "line_start": 497,
+        "line_end": 621,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "hardware/rtl/fp8_pe_mac_stream.v",
+        "line_start": 31,
+        "line_end": 80,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M09-B04-R01; external repo refs stay in code_evidence_registry.json. Equivalence: 独立累加器在数值上可得到相同点积，但共享/复用这一结构步骤被明确替换，非等价。; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "flexposit-gap-M09-B04-R02",
+    "artifact_id": "flexposit",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: hardware/ 测试芯片 RTL 路径：hardware/rtl/systolic_efficient.v（N×N PE 阵列、cycle_gen 精度窗口、行延迟）、hardware/rtl/fp8_pe_mac_stream.v（PE 计算 + 每 PE pe_bfp_acc）、hardware/rtl/mm_efficient.v（FIFO/背压 stall）、hardware/README.md（自述与论文 RTL 的差异）。. Paper precondition: Bit-serial multiplication occupies multiple cycles (P-cycle window).",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "论文的“轮流完成、无停顿”依赖共享累加器时分复用；RTL 无共享，且存在全局 stall 背压路径。",
+    "paper_evidence": [
+      {
+        "quote": "since each bit-serial multiplication spans multiple\ncycles, each PE completes its accumulation in turn without\nstalls",
+        "source": "paper",
+        "locator": "PDF p.7"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "hardware/rtl/systolic_efficient.v",
+        "line_start": 198,
+        "line_end": 240,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "hardware/rtl/mm_efficient.v",
+        "line_start": 149,
+        "line_end": 180,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M09-B04-R02; external repo refs stay in code_evidence_registry.json. Equivalence: 各 PE 独立无冲突累加可避免累加器争用，但这是不同机制，未实现论文的轮流复用。; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "flexposit-gap-M09-B05-R02",
+    "artifact_id": "flexposit",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: hardware/ 测试芯片 RTL 路径：hardware/rtl/systolic_efficient.v（N×N PE 阵列、cycle_gen 精度窗口、行延迟）、hardware/rtl/fp8_pe_mac_stream.v（PE 计算 + 每 PE pe_bfp_acc）、hardware/rtl/mm_efficient.v（FIFO/背压 stall）、hardware/README.md（自述与论文 RTL 的差异）。. Paper precondition: Four PEs are interleaved round-robin; steady-state operation.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "论文要求 4 PE 交错驱动单一累加器；RTL 无交错与共享累加器。",
+    "paper_evidence": [
+      {
+        "quote": "By interleaving four PEs in a round-robin\nmanner, the cluster sustains one product per cycle in steady\nstate, keeping the shared accumulator continuously utilized.",
+        "source": "paper",
+        "locator": "PDF p.7"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "hardware/rtl/systolic_efficient.v",
+        "line_start": 242,
+        "line_end": 330,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "hardware/rtl/systolic_efficient.v",
+        "line_start": 198,
+        "line_end": 240,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "hardware/rtl/fp8_pe_mac_stream.v",
+        "line_start": 497,
+        "line_end": 621,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=absent; behavior=M09-B05-R02; external repo refs stay in code_evidence_registry.json. Equivalence: N×N 阵列中不同 PE 的 cycleLast 相位错开可产生每周期有乘积提交的观感，但那是行延迟流水，不是簇内 round-robin 共享累加器。; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "flexposit-gap-M09-A01",
+    "artifact_id": "flexposit",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: hardware/ 测试芯片 RTL 路径：hardware/rtl/systolic_efficient.v（N×N PE 阵列、cycle_gen 精度窗口、行延迟）、hardware/rtl/fp8_pe_mac_stream.v（PE 计算 + 每 PE pe_bfp_acc）、hardware/rtl/mm_efficient.v（FIFO/背压 stall）、hardware/README.md（自述与论文 RTL 的差异）。. Paper precondition: All four PEs are active on the shared decoded weight term.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "论文要求 4 并行 MAC/权重项；RTL 为单 PE 串行位乘。",
+    "paper_evidence": [
+      {
+        "quote": "effectively performing four\nparallel MACs per weight and recovering the throughput loss\nto bit-serial execution",
+        "source": "paper",
+        "locator": "PDF p.7"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "hardware/rtl/fp8_pe_mac_stream.v",
+        "line_start": 497,
+        "line_end": 621,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=absent; behavior=M09-A01; external repo refs stay in code_evidence_registry.json. Equivalence: 无等价并行结构。; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "flexposit-gap-M09-A02",
+    "artifact_id": "flexposit",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: hardware/ 测试芯片 RTL 路径：hardware/rtl/systolic_efficient.v（N×N PE 阵列、cycle_gen 精度窗口、行延迟）、hardware/rtl/fp8_pe_mac_stream.v（PE 计算 + 每 PE pe_bfp_acc）、hardware/rtl/mm_efficient.v（FIFO/背压 stall）、hardware/README.md（自述与论文 RTL 的差异）。. Paper precondition: P = 4 (minimum supported precision).",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "论文要求 P=4 时簇达 1 MAC/cycle 匹配 FP16 MAC；RTL 单 PE 为 1/4。",
+    "paper_evidence": [
+      {
+        "quote": "matching the rate\nof a conventional FP16 MAC at the minimum 4 b precision\nwhile retaining the precision-tunable flexibility of bit-serial\ncomputation",
+        "source": "paper",
+        "locator": "PDF p.7"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "hardware/rtl/systolic_efficient.v",
+        "line_start": 198,
+        "line_end": 240,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "hardware/rtl/fp8_pe_mac_stream.v",
+        "line_start": 497,
+        "line_end": 621,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=absent; behavior=M09-A02; external repo refs stay in code_evidence_registry.json. Equivalence: 精度可调部分满足，速率匹配部分缺失。; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "flexposit-gap-M09-A03",
+    "artifact_id": "flexposit",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: hardware/ 测试芯片 RTL 路径：hardware/rtl/systolic_efficient.v（N×N PE 阵列、cycle_gen 精度窗口、行延迟）、hardware/rtl/fp8_pe_mac_stream.v（PE 计算 + 每 PE pe_bfp_acc）、hardware/rtl/mm_efficient.v（FIFO/背压 stall）、hardware/README.md（自述与论文 RTL 的差异）。. Paper precondition: The accumulator is shared rather than replicated per PE.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "论文要求共享以去除冗余累加逻辑；RTL 明确复制累加器，与前提相反。",
+    "paper_evidence": [
+      {
+        "quote": "This sharing removes redundant accumulation logic,\nreducing per-PE hardware cost and improving overall energy\nefficiency.",
+        "source": "paper",
+        "locator": "PDF p.7"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "hardware/README.md",
+        "line_start": 3,
+        "line_end": 9,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "hardware/rtl/fp8_pe_mac_stream.v",
+        "line_start": 497,
+        "line_end": 621,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "hardware/rtl/fp8_pe_mac_stream.v",
+        "line_start": 31,
+        "line_end": 80,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M09-A03; external repo refs stay in code_evidence_registry.json. Equivalence: 无：复制累加器不产生共享带来的面积/能效收益。; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "flexposit-gap-M09-A04",
+    "artifact_id": "flexposit",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: hardware/ 测试芯片 RTL 路径：hardware/rtl/systolic_efficient.v（N×N PE 阵列、cycle_gen 精度窗口、行延迟）、hardware/rtl/fp8_pe_mac_stream.v（PE 计算 + 每 PE pe_bfp_acc）、hardware/rtl/mm_efficient.v（FIFO/背压 stall）、hardware/README.md（自述与论文 RTL 的差异）。. Paper precondition: Cluster composition is fixed at four PEs per accumulator.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "论文要求 4 PE 共享 1 累加器；RTL 为 1 PE : 1 累加器且簇大小非固定 4。",
+    "paper_evidence": [
+      {
+        "quote": "Each MAC cluster contains four PEs sharing one\naccumulator, matching the minimum supported precision of\n4 b.",
+        "source": "paper",
+        "locator": "PDF p.7"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "hardware/rtl/systolic_efficient.v",
+        "line_start": 242,
+        "line_end": 330,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "hardware/rtl/fp8_pe_mac_stream.v",
+        "line_start": 497,
+        "line_end": 621,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M09-A04; external repo refs stay in code_evidence_registry.json. Equivalence: 无。; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "flexposit-gap-M09-A05",
+    "artifact_id": "flexposit",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: hardware/ 测试芯片 RTL 路径：hardware/rtl/systolic_efficient.v（N×N PE 阵列、cycle_gen 精度窗口、行延迟）、hardware/rtl/fp8_pe_mac_stream.v（PE 计算 + 每 PE pe_bfp_acc）、hardware/rtl/mm_efficient.v（FIFO/背压 stall）、hardware/README.md（自述与论文 RTL 的差异）。. Paper precondition: Weight terms have been decoded; activations are FP16.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "论文要求 FP16 激活与全浮点域 MAC；RTL 激活为 FP8 且累加为块浮点整数尾数，非逐项浮点累加。",
+    "paper_evidence": [
+      {
+        "quote": "Processing Element.Each PE, depicted in Fig. 6(b), forms\nthe basic compute unit within the 4-way MAC cluster, op-\nerating on the decoded weight terms and FP16 activations\nto perform multiply-accumulate entirely in the floating-point\ndomain. Each MAC cluster contains four PEs sharing one",
+        "source": "paper",
+        "locator": "PDF p.7, text lines 151-155"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "hardware/README.md",
+        "line_start": 3,
+        "line_end": 9,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "hardware/rtl/fp8_pe_mac_stream.v",
+        "line_start": 497,
+        "line_end": 621,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "hardware/rtl/fp8_pe_mac_stream.v",
+        "line_start": 31,
+        "line_end": 80,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "hardware/rtl/fp8_pe_mac_stream.v",
+        "line_start": 395,
+        "line_end": 423,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M09-A05; external repo refs stay in code_evidence_registry.json. Equivalence: 块浮点累加在数值上近似浮点求和，但格式（FP8 激活、块浮点累加器）与论文声明不同，非等价。; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "flexposit-gap-M10-B03",
+    "artifact_id": "flexposit",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: hardware/ 下 RTL 仿真/构建路径（tb 与 scripts 驱动 systolic_efficient.v + fp8_pe_mac_stream.v + posit_decode_and_queue.v）；Python 量化包不实现 PE 算术，不属本机制 artifact 路径. Paper precondition: GPCU issues cyc2 marker; A includes the implicit leading 1; b0 is the first weight mantissa bit.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "同 local_entry：cyc2 用符号位与未右移的 A",
+    "paper_evidence": [
+      {
+        "quote": "S1 =A+ (b 0 & (A≫1))",
+        "source": "paper",
+        "locator": "PDF p.7"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "hardware/rtl/fp8_pe_mac_stream.v",
+        "line_start": 395,
+        "line_end": 423,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "hardware/rtl/fp8_pe_mac_stream.v",
+        "line_start": 452,
+        "line_end": 490,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "hardware/rtl/systolic_efficient.v",
+        "line_start": 289,
+        "line_end": 330,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M10-B03; external repo refs stay in code_evidence_registry.json. Equivalence: artifact 路径无等价实现; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "flexposit-gap-M10-B06",
+    "artifact_id": "flexposit",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: hardware/ 下 RTL 仿真/构建路径（tb 与 scripts 驱动 systolic_efficient.v + fp8_pe_mac_stream.v + posit_decode_and_queue.v）；Python 量化包不实现 PE 算术，不属本机制 artifact 路径. Paper precondition: GPCU issues cyc3 marker; any nonzero Posit reconstructs an implicit leading 1 during decoding.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "同 local_entry",
+    "paper_evidence": [
+      {
+        "quote": "The fourth weight term,\nthezero flag, is latched atcyc3and remains valid for the rest\nof the precision window",
+        "source": "paper",
+        "locator": "PDF p.8"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "hardware/rtl/fp8_pe_mac_stream.v",
+        "line_start": 452,
+        "line_end": 490,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "hardware/rtl/posit_decode_and_queue.v",
+        "line_start": 136,
+        "line_end": 183,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "hardware/rtl/posit_decode_and_queue.v",
+        "line_start": 339,
+        "line_end": 359,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M10-B06; external repo refs stay in code_evidence_registry.json. Equivalence: artifact 路径无等价实现; effect_status=not_established"
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "flexposit-gap-M11-B03-R02",
+    "artifact_id": "flexposit",
+    "origin": "paper",
+    "level": "L2",
+    "condition_text": "Pinned inspected artifact path: hardware/ 的 RTL 仿真/构建路径：hardware/Makefile、hardware/scripts/run_array_test.py（iverilog 编译 bfp_pow2_rescale.v 等）、hardware/tb/array_tb.v 与参考模型 hardware/model/flexposit_rtl_exact.py::rescale。Python 量化 API 只产生每通道 2 的幂 scale，不实现硬件 rescale 单元，故不作本机制 artifact 入口。. Paper precondition: Partial sums have drained through the per-column rescale unit after a GEMM tile.",
+    "condition": null,
+    "effect_type": "other",
+    "effect_text": "同 local_entry：写出受 out_ready 背压与一拍填充延迟约束，非无停顿。",
+    "paper_evidence": [
+      {
+        "quote": "and be written\nout without stalls.",
+        "source": "paper",
+        "locator": "PDF p.7"
+      }
+    ],
+    "code_evidence": [
+      {
+        "file": "hardware/rtl/systolic_efficient.v",
+        "line_start": 411,
+        "line_end": 512,
+        "function": null,
+        "snippet": null
+      },
+      {
+        "file": "hardware/README.md",
+        "line_start": 1,
+        "line_end": 22,
+        "function": null,
+        "snippet": null
+      }
+    ],
+    "region_ids": [],
+    "provenance": "llm",
+    "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M11-B03-R02; external repo refs stay in code_evidence_registry.json. Equivalence: 数值等价性未受影响，但无停顿保证未建立。; effect_status=not_established"
+  }
+]
