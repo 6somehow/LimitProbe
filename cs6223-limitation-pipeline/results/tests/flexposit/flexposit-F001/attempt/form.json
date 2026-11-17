@@ -1,0 +1,78 @@
+{
+  "test_id": "A-flexposit-F001",
+  "finding_id": "flexposit-F001",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "upgrade_nsize",
+        "value": 2,
+        "why": "FlexPositConfig requires base_nsize <= bits <= upgrade_nsize; 2 is the minimal upgrade_nsize for the witness bits=2 with base_nsize=1"
+      },
+      {
+        "name": "es",
+        "value": 0,
+        "why": "FlexPositConfig requires 0 <= es < base_nsize; with the witness base_nsize=1 the only valid value is 0"
+      },
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "fixes the initial weights for a deterministic run"
+      },
+      {
+        "name": "in_features",
+        "value": 4,
+        "why": "tiny weight matrix; the target decision depends only on whether the CSV name is shipped, not on tensor size"
+      },
+      {
+        "name": "out_features",
+        "value": 4,
+        "why": "tiny weight matrix; the target decision depends only on whether the CSV name is shipped, not on tensor size"
+      }
+    ],
+    "positive_input": {
+      "sensitivity": "not-a-shipped-model-f001",
+      "bits": 2,
+      "base_nsize": 1
+    },
+    "negative_input": {
+      "sensitivity": "gpt2-large",
+      "bits": 2,
+      "base_nsize": 1
+    },
+    "boundary_variable": "sensitivity",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "exception",
+      "spec": "FileNotFoundError raised at src/flexposit/api.py:120",
+      "signal_location": "src/flexposit/api.py:120"
+    },
+    "expected": {
+      "positive": "FileNotFoundError at src/flexposit/api.py:120",
+      "negative": "no exception at src/flexposit/api.py:120"
+    }
+  },
+  "execution": {
+    "entry_called": "src/flexposit/api.py::quantize",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": false,
+    "positive_observed": "FileNotFoundError at src/flexposit/api.py:120",
+    "negative_observed": "no exception at src/flexposit/api.py:120"
+  },
+  "evidence": {}
+}

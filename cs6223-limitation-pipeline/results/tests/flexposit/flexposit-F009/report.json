@@ -1,0 +1,105 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "flexposit-F009",
+ "artifact_id": "flexposit",
+ "status": "tested",
+ "not_run": null,
+ "verdict": "yes",
+ "level": "L1",
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "effect on positive input, none on negative input",
+ "observed": {
+  "positive": "branch taken at src/flexposit/mpq/channel_window.py:571",
+  "negative": "branch not taken at src/flexposit/mpq/channel_window.py:571"
+ },
+ "defeaters": {
+  "D1": "eliminated",
+  "D2": "eliminated",
+  "D3": "residual",
+  "D4": "eliminated",
+  "D5": "residual",
+  "D6": "eliminated",
+  "D7": "eliminated",
+  "D8": "eliminated",
+  "D9": "eliminated",
+  "D10": "eliminated",
+  "D11": "eliminated",
+  "D12": "eliminated",
+  "D13": "residual",
+  "D14": "residual"
+ },
+ "open_doubts": [
+  {
+   "id": "D3",
+   "name": "oracle can see the effect",
+   "status": "residual",
+   "evidence": "only 1 mutants (< n_min=4); killed 1"
+  },
+  {
+   "id": "D5",
+   "name": "control pair differs in one factor, negative adjacent to the boundary",
+   "status": "residual",
+   "evidence": "one factor differs; adjacency not measurable: boundary variable 'downgrade' is not an integer (value False)"
+  },
+  {
+   "id": "D13",
+   "name": "inputs inside the paper's scope",
+   "status": "residual",
+   "evidence": "scope_status=unknown"
+  },
+  {
+   "id": "D14",
+   "name": "official entry point was called",
+   "status": "residual",
+   "evidence": "deeper entry (index 1); reason recorded: Static analysis reports call_chain_status=not_found: the declared first node flexposit.api.quantize is a separate Python API implementation that never calls flexposit.mpq.channel_window.main. The target is inside the argparse CLI main, which is only reachable by running that module. The driver therefore calls the deepest chain node, channel_window.main, directly with sys.argv built from the witness inputs; main's own function and all code on the path to line 571 are the real pinned repository code."
+  }
+ ],
+ "next_steps": [
+  "D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location",
+  "D5 (residual): change exactly one factor between positive and negative, and make the negative the point next to the boundary",
+  "D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)"
+ ],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "path_change",
+  "priority": 2,
+  "summary": "When args.downgrade: Caller flag downgrade switches Budget Mode to demote the least-sensitive windows from upgrade_bits to base_bits (reversed sort, apply_nsize from downgrade_nsize) instead of promoting the most-sensitive windows. (src/flexposit/mpq/channel_window.py:571)",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "src/flexposit/mpq/channel_window.py:571",
+  "function": "src/flexposit/mpq/channel_window.py::main",
+  "condition": "args.downgrade"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "src/flexposit/mpq/channel_window.py",
+    "line_start": 571,
+    "function": "src/flexposit/mpq/channel_window.py::main",
+    "snippet": "if args.downgrade:"
+   }
+  ]
+ },
+ "files": {
+  "execution_report": "execution_report.json",
+  "testcase": "testcase.json",
+  "attempt": "attempt"
+ },
+ "provenance": {
+  "findings_file": "results/step4/flexposit/limitations_for_tests.json",
+  "findings_sha256": "90fcaf23c2793dc03b49c54856e041483165536eff1522a25766022460b78f23",
+  "generated_at": "2026-11-17T15:03:12+08:00",
+  "source": "agent",
+  "attempt_origin": "scratch/agent_runs/e2e-f009-de84f3",
+  "agent_tokens": 3770480,
+  "agent_wall_s": 723.6,
+  "lock_tampered": false,
+  "profile": "default-v1"
+ }
+}

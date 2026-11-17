@@ -1,0 +1,52 @@
+{
+  "test_id": "A-flexposit-F004",
+  "finding_id": "flexposit-F004",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {"name": "cin", "value": 2, "why": "input width of the tiny Linear layer; the scale guard does not read the weight shape"},
+      {"name": "nsize", "value": 4, "why": "single Posit size shared by all columns so the preceding mixed-size guard at line 131 passes"},
+      {"name": "es", "value": 1, "why": "Posit exponent size; only stored in the tile, not read by the scale guard"},
+      {"name": "seed", "value": 0, "why": "fixed seed for the deterministic CPU-only run"}
+    ],
+    "positive_input": {"scales": [1, 16]},
+    "negative_input": {"scales": [1, 15]},
+    "boundary_variable": "scales",
+    "extra_negatives": [
+      {"scales": [1, -16]}
+    ],
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "exception",
+      "spec": "ValueError raised at src/flexposit/export.py:135",
+      "signal_location": "src/flexposit/export.py:135"
+    },
+    "expected": {
+      "positive": "ValueError at src/flexposit/export.py:135",
+      "negative": "no exception at src/flexposit/export.py:135"
+    }
+  },
+  "execution": {
+    "entry_called": "src/flexposit/export.py::export_tile",
+    "entry_reason": "The call chain lists api.quantize as the official entry, but the pinned step-4 static analysis found no call chain from it: quantize returns a QuantState and export_tile is a separate post-quantization export step, so quantize never reaches src/flexposit/export.py:135. export_tile (call_chain index 1) is called directly with a real model, QuantState and LayerState; no stand-in is involved before the target.",
+    "call_chain_index": 1,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": ["false", "true"],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "ValueError at src/flexposit/export.py:136",
+    "negative_observed": "no exception at src/flexposit/export.py:135"
+  },
+  "evidence": {}
+}
