@@ -133,6 +133,25 @@ def _run(cmd: list[str], log: Path, timeout: int, cwd: Optional[Path] = None, en
     return rc, out
 
 
+def install_pins(vpy: Path, pins: list[str], pf: Path, log: Path, timeout: int) -> tuple[bool, list[str]]:
+    """Install the repository's pinned requirements; when the batch fails, install them one by one and return the
+    ones that cannot be installed on this machine (typically GPU-only wheels such as flashinfer), so that one
+    unavailable package does not leave every other pin out."""
+    pf.write_text("\n".join(pins) + "\n")
+    rc, _ = _run([str(vpy), "-m", "pip", "install", "-q", "-r", str(pf)], log, timeout)
+    if rc == 0:
+        return True, []
+    skipped = []
+    for ln in pins:
+        req = ln.split("#")[0].strip()          # a trailing comment is fine in a -r file but not as an argument
+        if not req:
+            continue
+        rc, _ = _run([str(vpy), "-m", "pip", "install", "-q", req], log, timeout)
+        if rc != 0:
+            skipped.append(req)
+    return False, skipped
+
+
 def provision(name: str, repo: Path, commit: Optional[str] = None, python: str = DEFAULT_PYTHON,
               extras: Optional[list[str]] = None, install: bool = True, run_tests: bool = True,
               package_root: str = "src", pip_timeout: int = 1800, test_timeout: int = 900,
@@ -178,16 +197,24 @@ def provision(name: str, repo: Path, commit: Optional[str] = None, python: str =
         pins = [ln for ln in req["requirements"] if not re.match(r"^torch\b", ln)]
         pins += compat_pins(pins)
         if pins:   # honour the versions the repository says it was evaluated with, not just the minimums
-            pf = out_dir / "pins.txt"
-            pf.write_text("\n".join(pins) + "\n")
-            rc, out = _run([str(vpy), "-m", "pip", "install", "-q", "-r", str(pf)], log, pip_timeout)
-            rec["pins_installed"] = rc == 0
-            rec["steps"].append({"step": "install requirements.txt pins", "ok": rc == 0, "note": out[-200:] if rc else ""})
-            if rc != 0:
-                rec.setdefault("warnings", []).append("requirements.txt pins could not be installed; the minimum versions were used")
+            ok, skipped = install_pins(vpy, pins, out_dir / "pins.txt", log, pip_timeout)
+            rec["pins_installed"] = ok
+            rec["skipped_requirements"] = skipped
+            rec["steps"].append({"step": "install requirements.txt pins", "ok": ok,
+                                 "note": ("not installable here, skipped: " + ", ".join(skipped)) if skipped else ""})
+            if skipped:
+                rec.setdefault("warnings", []).append(
+                    "requirements that could not be installed on this machine and were skipped: " + ", ".join(skipped))
         target = ".[" + ",".join(extras) + "]" if extras else "."
         rc, out = _run([str(vpy), "-m", "pip", "install", "-q", "-e", target], log, pip_timeout, cwd=repo)
-        if not step(f"pip install -e {target}", rc, out[-300:]):
+        rec["installed"] = rc == 0
+        if rc != 0 and rec.get("skipped_requirements"):
+            # the build needs what could not be installed (a CUDA extension, for example): the checkout is used from
+            # its own directory instead; envcheck and the harness decide whether the modules under test import
+            rec["steps"].append({"step": f"pip install -e {target}", "ok": True,
+                                 "note": "not installed (" + out[-120:].strip().replace("\n", " ") + "); the checkout is used in place"})
+            rec.setdefault("warnings", []).append("the package itself was not installed; the checkout is used from its directory")
+        elif not step(f"pip install -e {target}", rc, out[-300:]):
             return _finish(rec, out_dir)
         # an editable install writes egg-info or build files into the repository; report if it did
         dirty = subprocess.run(["git", "-C", str(repo), "status", "--porcelain"], capture_output=True, text=True).stdout
