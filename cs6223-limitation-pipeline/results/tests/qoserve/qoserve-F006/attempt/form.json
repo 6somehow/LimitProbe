@@ -1,0 +1,70 @@
+{
+  "test_id": "A-qoserve-F006",
+  "finding_id": "qoserve-F006",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {"name": "seed", "value": 0, "why": "fix random before constructing sequences (tier is overwritten explicitly)"},
+      {"name": "block_size", "value": 16, "why": "cache block size used by the block manager in the repository"},
+      {"name": "num_gpu_blocks", "value": 2000, "why": "free block count; after one decode block the memory budget is 999, selecting the low-memory search space whose first entry is 128 as the claim describes"},
+      {"name": "max_model_len", "value": 2048, "why": "prompt limit large enough for the 1024-token prefill witness"},
+      {"name": "chunk_size", "value": 512, "why": "deadline scheduler chunk size; only gates the decode loop before the target"},
+      {"name": "execution_threshold", "value": 0.0, "why": "removes the decode-deadline term; the slack is supplied exactly by the prescribed deadline"},
+      {"name": "execution_threshold_batched", "value": 0.0, "why": "same for tier > 0 sequences"},
+      {"name": "scheduler_type", "value": "deadline", "why": "the only branch that calls _get_prefill_size_by_slack"},
+      {"name": "decode_prompt_tokens", "value": 10, "why": "context of the running decode sequence"},
+      {"name": "decode_processed_tokens", "value": 10, "why": "marks the decode sequence as having finished its prompt, so it is a decode in _schedule"},
+      {"name": "prefill_prompt_tokens", "value": 1024, "why": "prefill witness longer than the returned chunk so work remains below the target"},
+      {"name": "prefill_context_tokens", "value": 16, "why": "non-zero prefill context estimate passed to _get_prefill_size_by_slack"},
+      {"name": "tier_deadline", "value": 1000000000000000000.0, "why": "large ttft deadline so eager relegation below the target is deterministically not taken"}
+    ],
+    "positive_input": {
+      "min_slack": 0
+    },
+    "negative_input": {
+      "min_slack": 1
+    },
+    "boundary_variable": "min_slack",
+    "positive_prelude": [],
+    "negative_prelude": [],
+    "extra_negatives": [],
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at sarathi/core/scheduler/deadline_scheduler.py:130",
+      "signal_location": "sarathi/core/scheduler/deadline_scheduler.py:130"
+    },
+    "expected": {
+      "positive": "branch taken at sarathi/core/scheduler/deadline_scheduler.py:130",
+      "negative": "branch not taken at sarathi/core/scheduler/deadline_scheduler.py:130"
+    }
+  },
+  "execution": {
+    "entry_called": "sarathi/core/scheduler/deadline_scheduler.py::DeadlineScheduler._schedule",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [
+      {
+        "name": "prescribed_slack_deadline",
+        "purpose": "the running decode sequence is an input object whose _get_TBT_deadline reports the caller-supplied slack exactly (0 or 1); this makes the min_slack local at the target deterministic instead of depending on wall-clock time"
+      }
+    ],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": ["false", "true"],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at sarathi/core/scheduler/deadline_scheduler.py:130",
+    "negative_observed": "branch not taken at sarathi/core/scheduler/deadline_scheduler.py:130"
+  },
+  "evidence": {}
+}

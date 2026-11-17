@@ -1,0 +1,97 @@
+{
+  "test_id": "A-qoserve-F004",
+  "finding_id": "qoserve-F004",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "execution_threshold",
+        "value": 0.1,
+        "why": "repository default DeadlineSchedulerConfig.execution_threshold; the branch may replace it"
+      },
+      {
+        "name": "execution_threshold_batched",
+        "value": 0.4,
+        "why": "repository default DeadlineSchedulerConfig.execution_threshold_batched; distinct from execution_threshold so the branch is observable"
+      },
+      {
+        "name": "chunk_size",
+        "value": 0,
+        "why": "zero makes _schedule skip the decode/push loops after the sort, so no GPU block manager is needed after the target line"
+      },
+      {
+        "name": "prompt_len",
+        "value": 4,
+        "why": "smallest realistic prompt length; the branch condition reads only self.tier, not the prompt"
+      },
+      {
+        "name": "block_size",
+        "value": 16,
+        "why": "repository default CacheConfig.block_size; only used to build logical token blocks"
+      },
+      {
+        "name": "arrival_time",
+        "value": 0.0,
+        "why": "fixed arrival time chosen for a deterministic ttft computation"
+      },
+      {
+        "name": "ttft_deadline",
+        "value": 6.0,
+        "why": "TIER_DEADLINES[0] from sequence.py, used as the fixed ttft deadline; the branch does not read it"
+      },
+      {
+        "name": "e2e_prefill_time",
+        "value": 0.05,
+        "why": "fixed nonzero prefill elapsed time so max(e2e_prefill_time, ttft_deadline) is well defined"
+      },
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "fixed seed for the random tier drawn in Sequence.__init__; the tier is then set from the input"
+      }
+    ],
+    "positive_input": {
+      "tier": 1
+    },
+    "negative_input": {
+      "tier": 0
+    },
+    "boundary_variable": "tier",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at sarathi/core/datatypes/sequence.py:114",
+      "signal_location": "sarathi/core/datatypes/sequence.py:114"
+    },
+    "expected": {
+      "positive": "branch taken at sarathi/core/datatypes/sequence.py:114",
+      "negative": "branch not taken at sarathi/core/datatypes/sequence.py:114"
+    }
+  },
+  "execution": {
+    "entry_called": "sarathi/core/scheduler/deadline_scheduler.py::DeadlineScheduler._schedule",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "false",
+      "true"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at sarathi/core/datatypes/sequence.py:114",
+    "negative_observed": "branch not taken at sarathi/core/datatypes/sequence.py:114"
+  },
+  "evidence": {}
+}
