@@ -133,3 +133,40 @@ def test_a_lone_complement_comparison_is_one_mutant_not_two():
     assert not any(o.startswith("swap_comparison") for o in ops_)
     # `<` -> `<=` is NOT the complement, so it stays
     assert any(o.startswith("swap_comparison") for o in [m.operator for m in mutate.generate("def f(a):\n    assert a < 1\n", 2)])
+
+
+def test_bva_retries_only_undecided_neighbour_probes(monkeypatch):
+    """A probe that timed out under load is run again; a decided probe is never re-run or overwritten."""
+    from types import SimpleNamespace as NS
+    from checklimits import harness
+    cases = [("pos_full", {"n": 9}), ("neg_full", {"n": 3}), ("neg+", {"n": 4}), ("neg-", {"n": 2})]
+    monkeypatch.setattr(harness.bva_mod, "plan", lambda form, trigger, step: (cases, "n", ""))
+    calls = []
+    script = {"neg+": [None, True], "neg-": [True], "pos_full": [True], "neg_full": [False]}
+
+    class Ctx:
+        form = NS(design=NS(boundary_variable="n")); task = NS(trigger=None)
+        def run_many(self, cs):
+            calls.append([k for k, _ in cs])
+            return {k: NS(effect=script[k].pop(0)) for k, _ in cs}
+
+    res = harness._run_bva(Ctx(), NS(probe_step=1))
+    assert calls == [["pos_full", "neg_full", "neg+", "neg-"], ["neg+"]]
+    assert res.adjacent is True and [p.effect for p in res.neighbours] == [True, True]
+
+
+def test_bva_stays_undecided_after_retries(monkeypatch):
+    from types import SimpleNamespace as NS
+    from checklimits import harness
+    cases = [("pos_full", {"n": 9}), ("neg_full", {"n": 3}), ("neg+", {"n": 4}), ("neg-", {"n": 2})]
+    monkeypatch.setattr(harness.bva_mod, "plan", lambda form, trigger, step: (cases, "n", ""))
+    n = []
+
+    class Ctx:
+        form = NS(design=NS(boundary_variable="n")); task = NS(trigger=None)
+        def run_many(self, cs):
+            n.append(1)
+            return {k: NS(effect=None if k == "neg+" else True) for k, _ in cs}
+
+    res = harness._run_bva(Ctx(), NS(probe_step=1))
+    assert len(n) == 1 + harness.BVA_RETRIES and res.adjacent is None
