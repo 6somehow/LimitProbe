@@ -1,10 +1,10 @@
-# 步骤 4 交接：两侧 limitation 一览（给 Shanghao；flexposit、flexprefill、infinigen、minference、nnsmith、sparta）
+# 步骤 4 交接：两侧 limitation 一览（给 Shanghao；7 篇）
 
 > 自动生成（`scripts/make_handoff_doc.py`），数据来自 `results/step4/limitations_for_tests.json`。schema 0.2.0，witness 格式 witness-v2。方法细节见 `docs/09_step4_findings.md`。
 
 ## 一句话
 
-6 篇论文共 **377 条 limitation**（代码侧 + 论文侧），去重后是 **330 条 Finding**。每条 Finding 就是一个要测试的对象：它说明在什么条件下代码会出现什么行为，给出触发点和对照点（witness_hint），还附带它背后的全部原始记录。你要用的文件只有一个：`results/step4/limitations_for_tests.json`。
+7 篇论文共 **439 条 limitation**（代码侧 + 论文侧），去重后是 **380 条 Finding**。每条 Finding 就是一个要测试的对象：它说明在什么条件下代码会出现什么行为，给出触发点和对照点（witness_hint），还附带它背后的全部原始记录。你要用的文件只有一个：`results/step4/limitations_for_tests.json`。
 
 ## 1. 两侧的 limitation 有什么不同
 
@@ -31,15 +31,16 @@
 | infinigen | 20 | 11 | 0 | 31 |
 | minference | 50 | 23 | 0 | 73 |
 | nnsmith | 33 | 3 | 2 | 38 |
+| qoserve | 12 | 36 | 2 | 50 |
 | sparta | 2 | 79 | 1 | 82 |
 
 按类别：
 
 | 来源 | undisclosed | contradicts_docs | stated_differently | docs_only | paper_stated | impl_deviates | not_implemented | 合计 |
 |---|---|---|---|---|---|---|---|---|
-| 代码侧 | 151 | 1 | 8 | 11 | 1 | 0 | 0 | 172 |
-| 论文侧 | 0 | 0 | 0 | 0 | 0 | 98 | 56 | 154 |
-| 两侧合并 | 3 | 0 | 0 | 1 | 0 | 0 | 0 | 4 |
+| 代码侧 | 163 | 1 | 8 | 11 | 1 | 0 | 0 | 184 |
+| 论文侧 | 0 | 0 | 0 | 0 | 0 | 112 | 78 | 190 |
+| 两侧合并 | 4 | 0 | 0 | 2 | 0 | 0 | 0 | 6 |
 
 | 类别 | 意思 |
 |---|---|
@@ -55,33 +56,33 @@
 
 | 来源 | p1 | p2 | p3 | 合计 |
 |---|---|---|---|---|
-| 代码侧 | 43 | 59 | 70 | 172 |
-| 论文侧 | 0 | 98 | 56 | 154 |
-| 两侧合并 | 1 | 3 | 0 | 4 |
+| 代码侧 | 45 | 65 | 74 | 184 |
+| 论文侧 | 0 | 111 | 79 | 190 |
+| 两侧合并 | 1 | 5 | 0 | 6 |
 
 按 effect_type：
 
 | 来源 | reject | path_change | state | accuracy | resource | performance | other | 合计 |
 |---|---|---|---|---|---|---|---|---|
-| 代码侧 | 60 | 65 | 6 | 0 | 0 | 0 | 41 | 172 |
-| 论文侧 | 0 | 0 | 0 | 0 | 0 | 0 | 154 | 154 |
-| 两侧合并 | 2 | 0 | 0 | 0 | 0 | 0 | 2 | 4 |
+| 代码侧 | 62 | 71 | 6 | 0 | 0 | 0 | 45 | 184 |
+| 论文侧 | 0 | 0 | 0 | 0 | 0 | 0 | 190 | 190 |
+| 两侧合并 | 2 | 1 | 0 | 0 | 0 | 0 | 3 | 6 |
 
 按 witness 状态：
 
 | 来源 | solved | solved_contrast_outside_scope | trigger_only | always | infeasible | untranslatable | unknown | no_condition | 合计 |
 |---|---|---|---|---|---|---|---|---|---|
-| 代码侧 | 160 | 0 | 0 | 0 | 12 | 0 | 0 | 0 | 172 |
-| 论文侧 | 42 | 0 | 0 | 96 | 0 | 0 | 0 | 16 | 154 |
-| 两侧合并 | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 4 |
+| 代码侧 | 172 | 0 | 0 | 0 | 12 | 0 | 0 | 0 | 184 |
+| 论文侧 | 51 | 0 | 1 | 116 | 1 | 0 | 0 | 21 | 190 |
+| 两侧合并 | 6 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 6 |
 
 按审阅状态（盲审由 LLM 子代理做，不是人工；只覆盖了部分代码侧条目）：
 
 | 来源 | worth_testing | real_but_minor | wrong | unreviewed | 合计 |
 |---|---|---|---|---|---|
-| 代码侧 | 27 | 40 | 13 | 92 | 172 |
-| 论文侧 | 0 | 0 | 0 | 154 | 154 |
-| 两侧合并 | 2 | 0 | 0 | 2 | 4 |
+| 代码侧 | 27 | 40 | 13 | 104 | 184 |
+| 论文侧 | 0 | 0 | 0 | 190 | 190 |
+| 两侧合并 | 2 | 0 | 0 | 4 | 6 |
 
 ## 3. 一条记录里有什么
 
@@ -455,73 +456,46 @@
 }
 ```
 
-### 代码侧 · infeasible（多半走不到，p3）：`flexprefill-F004`
+### 代码侧 · infeasible（多半走不到，p3）：`qoserve-F038`
 
 ```json
 {
- "finding_id": "flexprefill-F004",
- "category": "undisclosed",
+ "finding_id": "qoserve-F038",
+ "category": "impl_deviates",
  "priority": 3,
- "effect_type": "reject",
+ "effect_type": "other",
  "scope_status": "unknown",
  "review": "unreviewed",
- "summary": "When not (q_len == 1): AssertionError (flex_prefill/ops/flex_prefill_attention.py:865)",
+ "summary": "论文称固定 QPS 采用 8 ms/token；artifact 固定 QPS 运行脚本使用 16 ms/token，与论文所选值不符。",
  "witness_hint": {
   "kind": "input_value",
   "status": "infeasible",
-  "condition": "not (q_len == 1)",
-  "path_prefix": [
-   "batch_size == 1",
-   "not (q_len == 1)",
-   "q.shape[1] == k.shape[1]",
-   "head_dim in {16, 32, 64, 128}",
-   "block_size in {16, 32, 64, 128}",
-   "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
-   "not (q.shape[1] > 1)"
+  "condition": "hybrid_prioritization_param == 0.016",
+  "path_prefix": [],
+  "note": "no values satisfy path prefix, condition and scope together",
+  "code_locations": [
+   "fig8.sh:37-69",
+   "sarathi/config/config.py:305-308"
   ],
-  "aliases": {
-   "q_len": "q.shape[1]"
-  },
-  "entry_terms": {
-   "condition": "not q.shape[1] == 1",
-   "path_prefix": {
-    "batch_size == 1": "k.shape[0] == 1",
-    "head_dim in {16, 32, 64, 128}": "k.shape[3] in {16, 32, 64, 128}"
-   },
-   "names": {
-    "q_len": "q.shape[1]"
-   }
-  },
-  "note": "unreachable through this call chain: once callee names are stated in the entry function's names (entry_terms), path prefix and condition cannot hold together",
-  "infeasible_because": "call_chain",
-  "call_chain_status": "resolved",
-  "call_chain": [
-   "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention",
-   "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_attention",
-   "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_decode_attention"
-  ],
-  "location": "flex_prefill/ops/flex_prefill_attention.py:865"
+  "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+  "call_chain_status": "not_found",
+  "location": "fig8.sh:37-69"
  },
  "limitations": [
   {
-   "limitation_id": "CL-X024",
-   "origin": "code",
-   "condition_text": "not (q_len == 1)",
-   "effect_text": "AssertionError",
+   "limitation_id": "qoserve-gap-M10-B02",
+   "origin": "paper",
+   "condition_text": "Pinned inspected artifact path: primary 仓库实验/构建路径：fig8.sh（生成 fig8_wrapper.sh 并调用 sarathi.benchmark.main，含 --deadline_scheduler_hybrid_prioritization_param 0.01…",
+   "effect_text": "论文称固定 QPS 采用 8 ms/token；artifact 固定 QPS 运行脚本使用 16 ms/token，与论文所选值不符。",
    "code_evidence": [
-    "flex_prefill/ops/flex_prefill_attention.py:865-865"
+    "fig8.sh:37-69",
+    "sarathi/config/config.py:305-308"
    ],
-   "paper_quote": null
+   "paper_quote": "decode length.𝛼 is a configurable hyperparameter. For fixed- QPS runs, we perform an offline sweep of𝛼 values from 0 to 10 and select the v…"
   }
  ],
- "verifications": [
-  {
-   "result": "not_found",
-   "documented_in": [],
-   "quote": null
-  }
- ],
- "rationale": "3b: not_found; priority 3: unreachable: condition contradicts its path prefix"
+ "verifications": [],
+ "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 3: unreachable: condition contradicts its path prefix"
 }
 ```
 
@@ -1114,6 +1088,61 @@
 | F007 | 代 | undisclosed | 3 | other | solved | ✓ | `nnsmith/materialize/torch/symbolnet.py:385` | When loss_fn.dispatch(type(op)) is not None: If an op produces NaN/Inf but has no registered loss f… |
 | F027 | 代 | undisclosed | 3 | other | solved |  | `nnsmith/materialize/torch/symbolnet.py:403` | When vul_op_loss is None: When an op produces NaN/Inf but has no registered loss function (`loss_fn… |
 | F008 | 代 | undisclosed | 3 | other | solved |  | `nnsmith/materialize/torch/symbolnet.py:421` | When self.loss is not None: If two vulnerable ops both produce NaN/Inf in the same forward pass, th… |
+
+### qoserve（50 条）
+
+| ID | 侧 | 类别 | P | effect | witness | 审 | 位置 | 内容 |
+|---|---|---|---|---|---|---|---|---|
+| F001 | 代 | undisclosed | 1 | reject | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:251` | When not (seq.is_paused()): 'Sequence should be in PAUSED state' |
+| F002 | 代 | undisclosed | 1 | reject | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:253` | When not (self.block_manager.can_append_slot()): AssertionError |
+| F003 | 合 | docs_only | 2 | other | solved |  | `sarathi/core/datatypes/sequence.py:73` | When NUM_TIERS > 0: Each Sequence's QoS tier (and hence its deadline) is drawn at random from the g… |
+| F004 | 合 | undisclosed | 2 | path_change | solved |  | `sarathi/core/datatypes/sequence.py:114` | When self.tier > 0: For any non-zero (randomly assigned) tier, the TBT deadline uses execution_thre… |
+| F005 | 代 | undisclosed | 2 | path_change | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:120` | When memory_budget < 1000: When free KV-cache blocks (free_blocks * block_size // 32) fall below 10… |
+| F006 | 代 | undisclosed | 2 | path_change | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:130` | When min_slack <= 0: When the caller-supplied slack is non-positive, the binary search is skipped e… |
+| F007 | 代 | undisclosed | 2 | path_change | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:231` | When seq.tier >= 1: For tier>=1 sequences the ttft_deadline is recomputed by subtracting predicted … |
+| F008 | 代 | undisclosed | 2 | path_change | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:233` | When seq.num_decode_tokens == -1: Selects whether the decode-time estimate uses the global output_l… |
+| F009 | 代 | undisclosed | 2 | path_change | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:276` | When self.scheduler_type == 'deadline': Only when scheduler_type is 'deadline' is the dynamic chunk… |
+| F010 | 代 | undisclosed | 2 | path_change | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:300` | When self.scheduler_type == 'deadline' or self.scheduler_type == 'deadline_no_dynamic_chunking': Th… |
+| F011 | 论 | impl_deviates | 2 | other | no_condition |  | `README.md:1-129` | 实验脚本不自动下载数据集，需先手动 wget |
+| F012 | 论 | impl_deviates | 2 | other | always |  | `chunk_size_predictor/predictor.py:1-41` | 论文要求训练随机森林；脚本导入并训练 LinearRegression，无 RandomForest/ensemble |
+| F013 | 论 | impl_deviates | 2 | other | always |  | `fig7.sh:76-106` | 缺 §4.3/§4.4 执行路径 |
+| F014 | 论 | impl_deviates | 2 | other | trigger_only |  | `fig7.sh:76-106` | 缺 Qwen/70B 与 4 小时控制 |
+| F015 | 论 | impl_deviates | 2 | other | solved |  | `paper_plot_scripts/fig7_cap.py:13-47` | Q1 的 TBT 违规未被度量 |
+| F016 | 论 | impl_deviates | 2 | other | always |  | `paper_plot_scripts/fig_10_11.py:1-20` | 图输出目录与论文声明的 paper_plots/ 不一致 |
+| F017 | 论 | impl_deviates | 2 | other | always |  | `paper_plot_scripts/fig_10_11.py:19-37` | 固定阈值替代数据 p90 |
+| F018 | 论 | impl_deviates | 2 | other | always |  | `sarathi/config/config.py:284-311` | 脚本层同样无按请求提交 QoS 字段的配置。 |
+| F019 | 论 | impl_deviates | 2 | other | always |  | `sarathi/config/config.py:284-311` | 脚本层无每请求优先级配置。 |
+| F020 | 论 | impl_deviates | 2 | other | solved |  | `sarathi/core/datatypes/sequence.py:70-80` | 实验路径同样没有独立的 D_total 完成截止。 |
+| F021 | 论 | impl_deviates | 2 | other | solved |  | `sarathi/core/datatypes/sequence.py:88-109` | 论文要求 α 同时乘 (Prefill_rem+Decode_rem)；代码把 decode 估计以固定系数 execution_threshold_batched 从期限中扣除，而非以 α 加权加… |
+| F022 | 论 | impl_deviates | 2 | other | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:296-333` | 论文要求检查“已违反 或 将违反”TTFT/TTLT；代码仅做 TTFT 前瞻（now+service_time>deadline），且仅对 drop==0 且未分配内存的请求生效，无 TTLT 维… |
+| F023 | 论 | impl_deviates | 2 | other | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:296-333` | 论文要求移入独立 relegated 队列；代码仅设 drop 标志并放回原 prefill 队列，无 relegated 队列结构，且 drop 请求仍可被再次选中调度。（artifact 范围：… |
+| F024 | 代 | undisclosed | 3 | other | solved |  | `sarathi/core/datatypes/sequence.py:80` | When self.scheduler_type == 'fcfs': `Sequence.__lt__` dispatches on this per-object attribute: 'fcf… |
+| F025 | 代 | undisclosed | 3 | other | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:92` | When batch_num_tokens <= 512: The execution-time predictor switches between two hard-coded stratifi… |
+| F026 | 代 | undisclosed | 3 | other | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:211` | When not self._check_request_prompt_length(seq): Requests whose prompt length fails the check are a… |
+| F027 | 代 | undisclosed | 3 | other | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:305` | When (seq.drop == 0) and (seq.mem_allocated == False) and ((now + service_time_required) > (seq.arr… |
+| F028 | 论 | not_implemented | 3 | other | always |  | `chunk_size_predictor/predictor.py:1-41` | 论文要求用 Vidur 暴露的 harness 采集剖面；pinned 仓库中不存在该采集实现 |
+| F029 | 论 | not_implemented | 3 | other | always |  | `fig10_11.sh:103-129` | 偏斜工作负载未实现 |
+| F030 | 论 | not_implemented | 3 | other | always |  | `fig7.sh:76-106` | 未实现按 QoS 桶独立集群的 silo 部署 |
+| F031 | 论 | not_implemented | 3 | other | always |  | `fig7.sh:76-106` | silo 基线整体缺失，无按桶 chunk 配置 |
+| F032 | 论 | not_implemented | 3 | other | no_condition |  | `fig7.sh:76-106` | 集群规模实验缺失 |
+| F033 | 论 | not_implemented | 3 | other | always |  | `fig7.sh:76-106` | 瞬态过载工作负载未实现 |
+| F034 | 论 | not_implemented | 3 | other | always |  | `fig7.sh:76-106` | 无峰谷比构造 |
+| F035 | 论 | not_implemented | 3 | other | no_condition |  | `fig7.sh:76-106` | 集群规模实验缺失 |
+| F036 | 论 | not_implemented | 3 | other | no_condition |  | `fig7.sh:76-106` | 替代分配实验缺失 |
+| F037 | 论 | not_implemented | 3 | other | always |  | `fig8.sh:37-69` | 论文要求固定 QPS 下离线扫描 α 0–10；artifact 脚本对 α 只给单一常量 0.016，未遍历 0–10 的 α 网格。 |
+| F038 | 论 | impl_deviates | 3 | other | infeasible |  | `fig8.sh:37-69` | 论文称固定 QPS 采用 8 ms/token；artifact 固定 QPS 运行脚本使用 16 ms/token，与论文所选值不符。 |
+| F039 | 论 | not_implemented | 3 | other | always |  | `fig8.sh:37-69` | 论文要求低负载 α=1 ms/token；artifact 无该取值或负载分段。 |
+| F040 | 论 | not_implemented | 3 | other | always |  | `fig8.sh:37-69` | 组件消融未实现 |
+| F041 | 论 | not_implemented | 3 | other | always |  | `fig8.sh:37-69` | 消融表汇总未实现 |
+| F042 | 论 | not_implemented | 3 | other | always |  | `fig8.sh:37-69` | alpha 敏感性实验未实现 |
+| F043 | 论 | not_implemented | 3 | other | always |  | `paper_plot_scripts/fig_10_11.py:19-37` | 优先级标注未实现 |
+| F044 | 论 | not_implemented | 3 | other | always |  | `run_exp.sh:1-27` | 未实现多副本 round-robin 分发 |
+| F045 | 论 | not_implemented | 3 | other | always |  | `sarathi/config/config.py:284-311` | 脚本层同样无按应用解码历史。 |
+| F046 | 论 | not_implemented | 3 | other | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:184-354` | 论文要求优先级驱动的抢占；对齐 artifact 调度路径不执行抢占。 |
+| F047 | 论 | not_implemented | 3 | other | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:184-354` | 缺少 prefill 队列抢占资格判定。 |
+| F048 | 论 | not_implemented | 3 | other | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:184-354` | 论文所述避免队头阻塞的抢占手段在 DeadlineScheduler 中不存在。（artifact 范围：。） |
+| F049 | 论 | not_implemented | 3 | other | no_condition |  | `sarathi/core/scheduler/deadline_scheduler.py:296-333` | 论文要求按优先级抢占已部分 prefill 的在途请求；代码无任何抢占触发或调用，仅通过堆排序选择未开始的请求 |
+| F050 | 论 | not_implemented | 3 | other | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:296-333` | 论文要求按优先级分层、低优先级耗尽后才降级高优先级；代码对所有请求一视同仁按截止时间降级，无分层门控。（artifact 范围：。） |
 
 ### sparta（82 条）
 
