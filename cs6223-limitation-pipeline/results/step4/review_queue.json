@@ -33,6 +33,83 @@
   "summary": "When Lk not in {16, 32, 64, 128}: Head dimension (q/k/v last dim) must be one of 16/32/64/128; other model head sizes abort the streaming attention forward. (minference/ops/streaming_kernel.py:414)"
  },
  {
+  "finding_id": "flexposit-F001",
+  "category": "undisclosed",
+  "priority": 1,
+  "effect": "reject",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/api.py:120-121",
+  "sides": "code",
+  "summary": "When True: raise FileNotFoundError(f'No sensitivity CSV {str(name_or_path)!r}: not a file, and not one of the shipped models {shipp (src/flexposit/api.py:120)"
+ },
+ {
+  "finding_id": "flexposit-F002",
+  "category": "undisclosed",
+  "priority": 1,
+  "effect": "reject",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/api.py:189",
+  "sides": "code",
+  "summary": "When state.total_windows == 0: Quantize aborts if no sensitivity rows match the model's layer names, so a mismatched sensitivity file cannot be used. (src/flexposit/api.py:189)"
+ },
+ {
+  "finding_id": "flexposit-F003",
+  "category": "undisclosed",
+  "priority": 1,
+  "effect": "reject",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/export.py:40",
+  "sides": "code",
+  "summary": "When not torch.equal(table[pos], mag): posit_encode raises ValueError if the scaled weights are not exact Posit(nsize,es) values, so layer_codes/export_tile fail for any weight that does not land exactly on the Posit value table. (src/flexposit/export.py:40)"
+ },
+ {
+  "finding_id": "flexposit-F004",
+  "category": "undisclosed",
+  "priority": 1,
+  "effect": "reject",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/export.py:135",
+  "sides": "code+paper",
+  "summary": "When scale.min() < -16 or scale.max() > 15: export_tile raises ValueError when the per-column scale (-log2_scale) does not fit the RTL's signed 5-bit field, rejecting configurations whose log2_scale falls outside [-15, 16]. (src/flexposit/export.py:135)"
+ },
+ {
+  "finding_id": "flexposit-F005",
+  "category": "undisclosed",
+  "priority": 1,
+  "effect": "reject",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/formats.py:39",
+  "sides": "code",
+  "summary": "When not 2 <= nsize <= 16: posit_quantize (via _check_posit) rejects nsize outside [2,16], so the tunable precision cannot exceed 16 bits. (src/flexposit/formats.py:39)"
+ },
+ {
+  "finding_id": "flexposit-F006",
+  "category": "undisclosed",
+  "priority": 1,
+  "effect": "reject",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/formats.py:103",
+  "sides": "code",
+  "summary": "When True: raise TypeError(f'posit_quantize expects a float32 tensor, got {x.dtype}') (src/flexposit/formats.py:103)"
+ },
+ {
+  "finding_id": "flexposit-F007",
+  "category": "undisclosed",
+  "priority": 1,
+  "effect": "reject",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/formats.py:156",
+  "sides": "code",
+  "summary": "When True: raise ValueError(f'invalid rounding mode {rounding!r}') (src/flexposit/formats.py:156)"
+ },
+ {
   "finding_id": "flexprefill-F002",
   "category": "undisclosed",
   "priority": 1,
@@ -649,6 +726,28 @@
   "summary": "When len(unique_block_sizes) != 1: wbc_matmul only supports a single block size for the weight tesa. If the weighted block cover (driven by the caller's sparsity pattern / TeSA values) selects more than one block size, decompose_blocked_tesas is a no-op stub (`...`) and then a bare `raise` aborts the whole transformation. So a sparsity pattern that mixes block sizes is rejected rather than hand..."
  },
  {
+  "finding_id": "flexposit-F008",
+  "category": "undisclosed",
+  "priority": 2,
+  "effect": "path_change",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/mpq/channel_window.py:283",
+  "sides": "code",
+  "summary": "When strategy == \"random\": Random strategy shuffles candidates with the caller-seeded RNG, selecting a different set of windows than the sensitivity ordering. (src/flexposit/mpq/channel_window.py:283)"
+ },
+ {
+  "finding_id": "flexposit-F009",
+  "category": "undisclosed",
+  "priority": 2,
+  "effect": "path_change",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/mpq/channel_window.py:571",
+  "sides": "code",
+  "summary": "When args.downgrade: Caller flag downgrade switches Budget Mode to demote the least-sensitive windows from upgrade_bits to base_bits (reversed sort, apply_nsize from downgrade_nsize) instead of promoting the most-sensitive windows. (src/flexposit/mpq/channel_window.py:571)"
+ },
+ {
   "finding_id": "flexprefill-F026",
   "category": "undisclosed",
   "priority": 2,
@@ -801,6 +900,171 @@
   "where": "flex_prefill/ops/flex_prefill_attention.py:1222-1226",
   "sides": "code",
   "summary": "When not (block_size in {32, 64, 128}): 'only support block size in {32, 64, 128} if head_dim <= 128' (flex_prefill/ops/flex_prefill_attention.py:1222)"
+ },
+ {
+  "finding_id": "flexposit-F010",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "always",
+  "where": "hardware/README.md:3-9",
+  "sides": "paper",
+  "summary": "论文要求 4 PE 共享 1 个 FP16 累加器；RTL 为每 PE 独立块浮点累加器（ACC_MANW=12, GRS=3，非 FP16 格式），无时分复用。"
+ },
+ {
+  "finding_id": "flexposit-F011",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "no_condition",
+  "where": "hardware/README.md:3-9",
+  "sides": "paper",
+  "summary": "论文要求簇内 4 个 PE 各取一个不同 FP16 激活；RTL 中不同激活分布在不同行（每行一个），且激活为 FP8 而非 FP16。"
+ },
+ {
+  "finding_id": "flexposit-F012",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "always",
+  "where": "hardware/README.md:3-9",
+  "sides": "paper",
+  "summary": "论文要求 FP16 激活与全浮点域 MAC；RTL 激活为 FP8 且累加为块浮点整数尾数，非逐项浮点累加。"
+ },
+ {
+  "finding_id": "flexposit-F013",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "no_condition",
+  "where": "hardware/rtl/fp8_pe_mac_stream.v:395-423",
+  "sides": "paper",
+  "summary": "同 local_entry：cyc2 用符号位与未右移的 A"
+ },
+ {
+  "finding_id": "flexposit-F014",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "hardware/rtl/fp8_pe_mac_stream.v:452-490",
+  "sides": "paper",
+  "summary": "同 local_entry"
+ },
+ {
+  "finding_id": "flexposit-F015",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "no_condition",
+  "where": "hardware/rtl/posit_decode_and_queue.v:136-183",
+  "sides": "paper",
+  "summary": "同 local_entry：符号 FIFO 写入在 cyc1 而非 cyc0。"
+ },
+ {
+  "finding_id": "flexposit-F016",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "no_condition",
+  "where": "hardware/rtl/posit_decode_and_queue.v:218-281",
+  "sides": "paper",
+  "summary": "论文要求 cyc0 推入符号项；代码在 cyc1 写符号、cyc0 写零标志与 exp/man"
+ },
+ {
+  "finding_id": "flexposit-F017",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "hardware/rtl/posit_decode_and_queue.v:218-279",
+  "sides": "paper",
+  "summary": "同 local_entry：以固定位宽上限而非 cycP 终止尾数收集。"
+ },
+ {
+  "finding_id": "flexposit-F018",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "hardware/rtl/posit_decode_and_queue.v:339-384",
+  "sides": "paper",
+  "summary": "同 local_entry：RTL 分槽写入而非一起推入。"
+ },
+ {
+  "finding_id": "flexposit-F019",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "no_condition",
+  "where": "hardware/rtl/systolic_efficient.v:198-240",
+  "sides": "paper",
+  "summary": "论文的“轮流完成、无停顿”依赖共享累加器时分复用；RTL 无共享，且存在全局 stall 背压路径。"
+ },
+ {
+  "finding_id": "flexposit-F020",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "no_condition",
+  "where": "hardware/rtl/systolic_efficient.v:242-330",
+  "sides": "paper",
+  "summary": "论文要求簇内 4 个 PE 同周期共享同一解码权重项；RTL 中同列相邻 PE 收到同一权重项但相差 1 周期，且不存在“簇内 4 PE 同周期”结构。"
+ },
+ {
+  "finding_id": "flexposit-F021",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "no_condition",
+  "where": "hardware/rtl/systolic_efficient.v:411-512",
+  "sides": "paper",
+  "summary": "同 local_entry：写出受 out_ready 背压与一拍填充延迟约束，非无停顿。"
+ },
+ {
+  "finding_id": "flexposit-F022",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "always",
+  "where": "scripts/regen_sensitivity_ppl.sh:8-33",
+  "sides": "paper",
+  "summary": "同 local_entry：符号与 Algorithm 2 第6行相反。"
+ },
+ {
+  "finding_id": "flexposit-F023",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "always",
+  "where": "src/flexposit/export.py:105-141",
+  "sides": "paper",
+  "summary": "论文要求激活保持 FP16；硬件导出/仿真路径把激活转成 FP8 E4M3。"
+ },
+ {
+  "finding_id": "flexposit-F024",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/sensitivity/ppl_probe.py:72-75",
+  "sides": "paper",
+  "summary": "论文要求窗口为阵列列数整数倍；脚本默认256（16列整数倍）但模块默认64，且无对齐校验（E4,E5,E6）"
  },
  {
   "finding_id": "flexprefill-F030",
@@ -2024,6 +2288,94 @@
   "summary": "When loss_fn.dispatch(type(op)) is not None: If an op produces NaN/Inf but has no registered loss function, ConstraintCheck.true at line 403 fails with 'op=... has no torch_loss but produces NaN or INF!', aborting the search. (nnsmith/materialize/torch/symbolnet.py:385)"
  },
  {
+  "finding_id": "flexposit-F025",
+  "category": "undisclosed",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/api.py:149",
+  "sides": "code",
+  "summary": "When r[0] not in valid_layers: Sensitivity rows for layers not present in the model are silently dropped, so the upgrade budget is computed only over matching layers. (src/flexposit/api.py:149)"
+ },
+ {
+  "finding_id": "flexposit-F026",
+  "category": "undisclosed",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/api.py:153",
+  "sides": "code",
+  "summary": "When span == 0: If upgrade_nsize equals base_nsize (span zero), the upgrade fraction silently becomes 0.0 instead of erroring, so no windows are upgraded. (src/flexposit/api.py:153)"
+ },
+ {
+  "finding_id": "flexposit-F030",
+  "category": "undisclosed",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/core.py:37",
+  "sides": "code",
+  "summary": "When all(int(e) > max_es for e in cands): If every caller-supplied es candidate exceeds nsize-1, the list is empty and the code silently falls back to es=0 instead of rejecting the configuration, so the requested es search is not performed. (src/flexposit/core.py:37)"
+ },
+ {
+  "finding_id": "flexposit-F033",
+  "category": "undisclosed",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/mpq/channel_window.py:136",
+  "sides": "code",
+  "summary": "When all(e > max_es for e in es_cands): If every caller-supplied es candidate exceeds nsize-1, the search silently falls back to es=0 instead of rejecting or reporting; the requested es_cands are ignored and a different (simpler) exponent-size variant is quantized. (src/flexposit/mpq/channel_window.py:136)"
+ },
+ {
+  "finding_id": "flexposit-F034",
+  "category": "undisclosed",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/mpq/channel_window.py:161",
+  "sides": "code",
+  "summary": "When start >= end: A window whose clamped start is not less than its end returns the weight unchanged, so an out-of-range or empty caller window is silently a no-op. (src/flexposit/mpq/channel_window.py:161)"
+ },
+ {
+  "finding_id": "flexposit-F035",
+  "category": "undisclosed",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/mpq/channel_window.py:205",
+  "sides": "code",
+  "summary": "When not (is_quant_linear(mod) and hasattr(mod, \"weight\") and mod.weight is not None and mod.weight.dim() == 2): Modules in the window list that are not recognized quantizable 2D linear layers are skipped, so caller-specified windows on other module types are ignored. (src/flexposit/mpq/channel_window.py:205)"
+ },
+ {
+  "finding_id": "flexposit-F036",
+  "category": "undisclosed",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/mpq/channel_window.py:208",
+  "sides": "code",
+  "summary": "When key not in ref_sd: A layer named in the sensitivity windows but absent from the FP32 reference state dict is skipped (with a warning), so the requested window quantization is not applied to that layer. (src/flexposit/mpq/channel_window.py:208)"
+ },
+ {
+  "finding_id": "flexposit-F037",
+  "category": "undisclosed",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/mpq/channel_window.py:256",
+  "sides": "code",
+  "summary": "When dp >= 0.0 and not allow_positive: When allow_positive is False, windows with non-negative delta_ppl are filtered out of the candidate set, so the caller's allow_positive_to_meet_budget setting changes which windows the mechanism considers. (src/flexposit/mpq/channel_window.py:256)"
+ },
+ {
   "finding_id": "flexprefill-F004",
   "category": "undisclosed",
   "priority": 3,
@@ -2332,6 +2684,61 @@
   "summary": "When not (q.dtype == torch.bfloat16): AssertionError (flex_prefill/ops/flex_prefill_attention.py:868)"
  },
  {
+  "finding_id": "flexposit-F027",
+  "category": "docs_only",
+  "priority": 3,
+  "effect": "path_change",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/api.py:181",
+  "sides": "code",
+  "summary": "When config.bits > config.base_nsize: When bits exceeds base_nsize the code requires a sensitivity ranking and runs the window-upgrade planning path; otherwise no windows are upgraded and all channels stay at base_nsize. (src/flexposit/api.py:181)"
+ },
+ {
+  "finding_id": "flexposit-F028",
+  "category": "docs_only",
+  "priority": 3,
+  "effect": "reject",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/api.py:183-186",
+  "sides": "code",
+  "summary": "When True: raise ValueError(f\"bits={config.bits} needs a sensitivity ranking to decide which channel windows get Posit{config.upgra (src/flexposit/api.py:183)"
+ },
+ {
+  "finding_id": "flexposit-F029",
+  "category": "docs_only",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/core.py:35",
+  "sides": "code",
+  "summary": "When isinstance(es, int): A scalar es disables the per-channel es search (single candidate), while a sequence enables searching es per channel; the caller's type choice changes which algorithm runs. (src/flexposit/core.py:35)"
+ },
+ {
+  "finding_id": "flexposit-F031",
+  "category": "docs_only",
+  "priority": 3,
+  "effect": "reject",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/export.py:131",
+  "sides": "code",
+  "summary": "When len(sizes) != 1: export_tile raises ValueError when the selected output channels span more than one Posit size (nsize), so a tile cannot mix channel windows; the caller must pick columns inside a single window. (src/flexposit/export.py:131)"
+ },
+ {
+  "finding_id": "flexposit-F032",
+  "category": "docs_only",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/formats.py:29",
+  "sides": "code",
+  "summary": "When _BACKEND == \"qtorch\": Module-level env var read at import time selects the posit/float quantizer implementation. posit_quantize (line 157-159) and float_quantize (line 170-172) then delegate to qtorch_plus instead of the pure-PyTorch `_posit_quantize_torch`/`_float_quantize_torch` used by core.search_channels, so the whole FlexPosit numerical core runs a different implementation depending ..."
+ },
+ {
   "finding_id": "flexprefill-F043",
   "category": "docs_only",
   "priority": 3,
@@ -2374,6 +2781,50 @@
   "where": "flex_prefill/ops/flex_prefill_attention.py:1838",
   "sides": "code",
   "summary": "When not (block_size in {16, 32, 64, 128}): AssertionError (flex_prefill/ops/flex_prefill_attention.py:1838)"
+ },
+ {
+  "finding_id": "flexposit-F038",
+  "category": "not_implemented",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "always",
+  "where": "hardware/rtl/fp8_pe_mac_stream.v:497-621",
+  "sides": "paper",
+  "summary": "论文要求 4 并行 MAC/权重项；RTL 为单 PE 串行位乘。"
+ },
+ {
+  "finding_id": "flexposit-F039",
+  "category": "not_implemented",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "hardware/rtl/systolic_efficient.v:198-240",
+  "sides": "paper",
+  "summary": "论文的 4/P 依赖 4-PE 簇并行；RTL 每 PE 为 1/P，簇级 4/P 未被实现。"
+ },
+ {
+  "finding_id": "flexposit-F040",
+  "category": "not_implemented",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "always",
+  "where": "scripts/regen_sensitivity_ppl.sh:8-33",
+  "sides": "paper",
+  "summary": "剖析实验路径未产出论文要求的降序排序敏感度图。"
+ },
+ {
+  "finding_id": "flexposit-F041",
+  "category": "not_implemented",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "always",
+  "where": "src/flexposit/sensitivity/ppl_probe.py:72-75",
+  "sides": "paper",
+  "summary": "论文要求 Qwen 1024；脚本与模块均无 Qwen→1024 规则（E4,E5,E6）"
  },
  {
   "finding_id": "flexprefill-F056",
