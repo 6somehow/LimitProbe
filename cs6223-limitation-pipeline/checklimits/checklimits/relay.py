@@ -40,6 +40,7 @@ HOP_BY_HOP = {
 DROP_REQUEST = HOP_BY_HOP | {"host", "authorization", "content-length", "accept-encoding"}
 DROP_RESPONSE = HOP_BY_HOP | {"content-length", "content-encoding"}
 MAX_BODY = 32 * 1024 * 1024
+UPSTREAM_RETRIES = 2
 UPSTREAM_TIMEOUT = 300
 _SAFE_MODEL = re.compile(r"^[A-Za-z0-9._:/-]{1,100}$")
 
@@ -173,12 +174,25 @@ def make_handler(cfg: RelayConfig):
                 if body:
                     headers["Content-Length"] = str(len(body))
                 src = cfg.source_ip or iface_ipv4(cfg.iface)
-                conn = (_BoundHTTPS if cfg.scheme == "https" else _BoundHTTP)(
-                    cfg.host, cfg.port, timeout=UPSTREAM_TIMEOUT)
-                conn.iface, conn.src = cfg.iface, src
+                conn = resp = None
+                # Nothing has been sent to the client before the upstream status line arrives, so a connection
+                # failure or a 502/503/504 at that point is retried (an upstream hiccup must not abort a long run).
+                for attempt in range(UPSTREAM_RETRIES + 1):
+                    conn = (_BoundHTTPS if cfg.scheme == "https" else _BoundHTTP)(
+                        cfg.host, cfg.port, timeout=UPSTREAM_TIMEOUT)
+                    conn.iface, conn.src = cfg.iface, src
+                    try:
+                        conn.request(self.command, up_path, body=body or None, headers=headers)
+                        resp = conn.getresponse()
+                        if resp.status in (502, 503, 504) and attempt < UPSTREAM_RETRIES:
+                            resp.read(); conn.close(); time.sleep(2 * (attempt + 1)); continue
+                        break
+                    except Exception:
+                        conn.close()
+                        if attempt == UPSTREAM_RETRIES:
+                            raise
+                        time.sleep(2 * (attempt + 1))
                 try:
-                    conn.request(self.command, up_path, body=body or None, headers=headers)
-                    resp = conn.getresponse()
                     status = resp.status
                     self.send_response(resp.status)
                     for k, v in resp.getheaders():
