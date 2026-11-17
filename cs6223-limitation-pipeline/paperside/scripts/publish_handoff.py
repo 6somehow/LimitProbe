@@ -8,6 +8,9 @@ import shutil
 import tempfile
 
 FILES = {
+    'parameter_mappings.json', 'consumer_cases.json', 'migration.json',
+    'legacy-paper_side.json', 'legacy-validation.json', 'legacy-consumer_schema.snapshot.py',
+    'legacy-archive-acceptance.json', 'legacy-corpus-acceptance.json',
     'artifact.json', 'paper_side.json', 'paper_side.pre-final.json', 'conformance.json',
     'limitations.json', 'finding_candidates.json', 'scope_interpretations.json',
     'pending_records.json', 'inactive_bindings.json', 'binding_provenance.json',

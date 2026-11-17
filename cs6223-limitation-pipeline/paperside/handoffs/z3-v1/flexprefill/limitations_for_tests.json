@@ -1,0 +1,93 @@
+{
+  "schema_version": "0.2.0",
+  "witness_format": "witness-v2",
+  "note": "Z3 PAPER-ORIGIN CONTRACT FIXTURE, not regenerated production step4 output. Cross-reference source_step4_finding_ids in sidecar. No target execution.",
+  "findings": [
+    {
+      "schema_version": "0.2.0",
+      "finding_id": "flexprefill-Z3-M08-B05",
+      "artifact_id": "flexprefill",
+      "category": "impl_deviates",
+      "level": "L2",
+      "limitation_ids": [
+        "flexprefill-gap-M08-B05"
+      ],
+      "verification_ids": [],
+      "scope_status": "unknown",
+      "evaluated_in_paper": null,
+      "effect_type": "other",
+      "summary": "K_v=min{k: 前 k 个 a_v 累计≥γ}",
+      "witness_hint": {
+        "format": "witness-v2",
+        "kind": "input_value",
+        "status": "unknown",
+        "trigger": null,
+        "contrast": null,
+        "note": "Local recipe in testability_hints.json; not a solver-certified public-entry witness",
+        "effect_location": {
+          "file": "flex_prefill/ops/flex_prefill_attention.py",
+          "line_start": 1590,
+          "line_end": 1590,
+          "function": "flex_prefill/ops/flex_prefill_attention.py::score_cover_topk",
+          "snippet": "    topk = torch.sum(cumsum_x <= score, dim=-1) + 1"
+        },
+        "location": "flex_prefill/ops/flex_prefill_attention.py:1590",
+        "function": "flex_prefill/ops/flex_prefill_attention.py::score_cover_topk",
+        "z3_hint_file": "testability_hints.json",
+        "z3_case_id": "flexprefill-Z3-M08-B05"
+      },
+      "confidence": "llm_assisted",
+      "priority": 2,
+      "rationale": "Reviewed Z3 contract fixture derived from an existing frozen behavior; not a production step4 run.",
+      "review": "unreviewed",
+      "review_note": "Agent source-assisted review only; see blockers before accepting the static discrepancy.",
+      "limitations": [
+        {
+          "schema_version": "0.2.0",
+          "limitation_id": "flexprefill-gap-M08-B05",
+          "artifact_id": "flexprefill",
+          "origin": "paper",
+          "level": "L2",
+          "condition_text": "At score_cover_topk, a sorted cumulative probability equals gamma exactly.",
+          "condition": null,
+          "effect_type": "other",
+          "effect_text": "同上：>γ 而非 ≥γ，且 //128+1 与预算截断改变前缀长度",
+          "paper_evidence": [
+            {
+              "quote": "# Sort vertical and slash attention scores\nIv ← argsort(av)\nIs ← argsort(as)\n# Obtain the minimum computational budget\nmaking the sum of the scores exceeds γ\nKv ← min{k : Pi∈Iv [1:k] av[i] ≥ γ}\nKs ← min{k : Pi∈Is[1:k] as[i] ≥ γ}",
+              "source": "paper",
+              "locator": "PDF p.6, text lines 55-61"
+            }
+          ],
+          "code_evidence": [
+            {
+              "file": "flex_prefill/ops/flex_prefill_attention.py",
+              "line_start": 1590,
+              "line_end": 1590,
+              "function": "flex_prefill/ops/flex_prefill_attention.py::score_cover_topk",
+              "snippet": "    topk = torch.sum(cumsum_x <= score, dim=-1) + 1"
+            },
+            {
+              "file": "flex_prefill/ops/flex_prefill_attention.py",
+              "line_start": 1591,
+              "line_end": 1591,
+              "function": "flex_prefill/ops/flex_prefill_attention.py::score_cover_topk",
+              "snippet": "    return topk"
+            },
+            {
+              "file": "flex_prefill/ops/flex_prefill_attention.py",
+              "line_start": 1588,
+              "line_end": 1591,
+              "function": "flex_prefill/ops/flex_prefill_attention.py::score_cover_topk",
+              "snippet": "def score_cover_topk(x: torch.Tensor, score: float):\n    cumsum_x = torch.cumsum(torch.sort(x, dim=-1, descending=True).values, dim=-1)\n    topk = torch.sum(cumsum_x <= score, dim=-1) + 1\n    return topk"
+            }
+          ],
+          "region_ids": [],
+          "provenance": "llm",
+          "notes": "Static discrepancy hypothesis, not a confirmed runtime effect. Original verdict=deviates; behavior=M08-B05; external repo refs stay in code_evidence_registry.json. Equivalence: 未证明对最终 S 的覆盖质量无影响; effect_status=not_established Z3 reviewed locations and plans; not target-executed."
+        }
+      ],
+      "verifications": []
+    }
+  ]
+}
