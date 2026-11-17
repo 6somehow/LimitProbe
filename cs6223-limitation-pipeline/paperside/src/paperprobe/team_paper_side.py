@@ -12,7 +12,7 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 from .io import read_json, write_json, stable_id
 from .limitations import check_record, verify_catalog
 
-BASE = "https://soclaas-api.comp.nus.edu.sg/v1"
+BASE = os.environ.get("SOCLAAS_BASE_URL", "https://soclaas-api.comp.nus.edu.sg/v1").rstrip("/")
 FIELDS = ("claims", "scope", "eval_points", "bindings")
 
 
@@ -28,7 +28,7 @@ def gateway(path, payload=None):
     req = Request(BASE + path, data=json.dumps(payload).encode() if payload is not None else None,
                   headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
     try:
-        with build_opener(NoRedirect()).open(req, timeout=90) as response:
+        with build_opener(NoRedirect()).open(req, timeout=int(os.environ.get("SOCLAAS_TIMEOUT", "300"))) as response:
             return json.load(response)
     except HTTPError as exc:
         raise ValueError(f"SoCLaaS returned HTTP {exc.code}") from None
