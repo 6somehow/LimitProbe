@@ -1,0 +1,54 @@
+{
+  "test_id": "A-qoserve-F007",
+  "finding_id": "qoserve-F007",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {"name": "prompt_len", "value": 8, "why": "small prompt keeps the single sequence inside one token block"},
+      {"name": "block_size", "value": 16, "why": "repository default cache block size; prompt fits in one block"},
+      {"name": "chunk_size", "value": 512, "why": "repository default DeadlineScheduler chunk size"},
+      {"name": "execution_threshold", "value": 0.1, "why": "repository default TBT threshold for interactive tier 0"},
+      {"name": "execution_threshold_batched", "value": 0.4, "why": "repository default batched threshold used by the tier>=1 branch"},
+      {"name": "output_len_pred", "value": 15, "why": "repository default predicted output length"},
+      {"name": "num_gpu_blocks", "value": 100, "why": "plenty of blocks so can_allocate succeeds for the small prompt"},
+      {"name": "max_model_len", "value": 4096, "why": "prompt length limit well above the 8-token prompt"},
+      {"name": "seed", "value": 0, "why": "fixed seed for the Sequence constructor's random tier draw, which is then overridden"}
+    ],
+    "positive_input": {"now": 1, "tier": 1},
+    "negative_input": {"now": 1, "tier": 0},
+    "boundary_variable": "tier",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at sarathi/core/scheduler/deadline_scheduler.py:231",
+      "signal_location": "sarathi/core/scheduler/deadline_scheduler.py:231"
+    },
+    "expected": {
+      "positive": "branch taken at sarathi/core/scheduler/deadline_scheduler.py:231",
+      "negative": "branch not taken at sarathi/core/scheduler/deadline_scheduler.py:231"
+    }
+  },
+  "execution": {
+    "entry_called": "sarathi/core/scheduler/deadline_scheduler.py::DeadlineScheduler._schedule",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": ["true", "false"],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at sarathi/core/scheduler/deadline_scheduler.py:231",
+    "negative_observed": "branch not taken at sarathi/core/scheduler/deadline_scheduler.py:231"
+  },
+  "evidence": {}
+}
