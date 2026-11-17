@@ -110,7 +110,7 @@ const customTools=[
 ];
 const configDir=path.join(runDir,'agent-config');fs.mkdirSync(configDir);
 write('system-prompt.json',{prompt:SYSTEM});
-fs.writeFileSync(path.join(configDir,'models.json'),JSON.stringify({providers:{soclaas:{baseUrl:'https://soclaas-api.comp.nus.edu.sg/v1',api:'openai-completions',apiKey:'$SOCLAAS_API_KEY',
+fs.writeFileSync(path.join(configDir,'models.json'),JSON.stringify({providers:{soclaas:{baseUrl:(process.env.SOCLAAS_BASE_URL||'https://soclaas-api.comp.nus.edu.sg/v1'),api:'openai-completions',apiKey:'$SOCLAAS_API_KEY',
  compat:{supportsStore:false,supportsDeveloperRole:false,supportsReasoningEffort:false,maxTokensField:'max_tokens',supportsStrictMode:false},
  models:[{id:'x-test-2',name:'SoCLaaS DeepSeek route',input:['text','image'],reasoning:false,contextWindow:1048576,maxTokens:6500,
  samplingParams:{temperature:0,reasoning_effort:'none'},cost:{input:0,output:0,cacheRead:0,cacheWrite:0}}]}}},null,2));
