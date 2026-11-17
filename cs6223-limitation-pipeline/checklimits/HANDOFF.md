@@ -3,6 +3,21 @@
 给接手的 code agent。先读本文，再读 `CONFIDENCE_SPEC.md`（规则）、`CONTRACT_TEST_REPORT.md`（接口）、`EXPERIMENTS.md`（最近的实验）。
 这个目录是 `cs6223-limitation-pipeline/checklimits/`（下称 C），仓库根是 `/home/somehow6/lesson/CS6223`，分支 `somehow6/check_limits`。
 
+## 0a. 一个入口，运行前检查（2026-11-18）
+
+```bash
+export SOCLAAS_API_KEY=... SOCLAAS_BASE_URL=https://host/v1 SOCLAAS_IFACE=eth0   # 或写进 .env（模板 .env.example）
+python -m pipeline doctor <id> --paper-side --agent --live          # 只检查，不跑
+python -m pipeline e2e <id> [--pdf P] --run-paper-side --run-agent   # 检查 -> 中继 -> 步骤 1 到 4 -> 测试(--provision)
+```
+说明见 `docs/10_pipeline.md`。`e2e` 自己起、自己关中继，真 key 只给中继；检查有 FAIL 就在花钱前停下。模型名用 `PIPELINE_MODEL`（默认 `x-test-2`），**不要用 `SOCLAAS_MODEL`**（env 文件里是 `default`，换了模型缓存不命中，Finding 会变）。
+arXiv 论文会自动下载 PDF；USENIX 论文要 `--pdf`（SparTA、InfiniGen 的 PDF 在 `docs/`，已复制到 `third_party/papers/`，该目录不提交）。
+
+**第二篇新论文：QoServe（ASPLOS 2026，arXiv 里叫 Niyama）**，仓库 `microsoft/sarathi-serve` 分支 `niyama_asplos2026` @ `72339db5b120`（Zenodo 10.5281/zenodo.18218177），用 ASPLOS 版 PDF。
+`pipeline e2e qoserve --run-paper-side --run-agent` 一条命令跑完，没有手动步骤，约 1.5 小时：50 条 Finding，测了 9 条，全是 `yes`（L3 五个：F004、F005、F006、F007、F010；L1 四个）；没测 41 条：`no_code_location` 36、`outcome_unsupported` 5。档位未校准，没有人工核对。
+被测代码在 CPU 上的做法：`flashinfer` 只有 CUDA 版，`provision` 现在逐个安装、把装不上的记为跳过（`PREFLIGHT.json` 的 `skipped_requirements`），包本身装不上（CUDA 扩展）时直接用 checkout 目录；调度器模块在 CPU 上可 import，测试没有跑任何 GPU 代码。
+**Tessera（OSDI 2026）闭源，没有仓库，不能做。**
+
 ## 0. 新论文冷启动已跑通（FlexPosit，2026-11-17）
 
 一篇没见过的论文（FlexPosit，MICRO 2026，arXiv 2609.04724，仓库 `hplp/FlexPosit` @ `e42a2191a72c`）从零跑完整条 pipeline：
