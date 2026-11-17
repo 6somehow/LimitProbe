@@ -1,0 +1,128 @@
+{
+  "test_id": "A-qoserve-F008",
+  "finding_id": "qoserve-F008",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "fixed seed for the repository's random tier draw before the tier is overwritten"
+      },
+      {
+        "name": "prompt_len",
+        "value": 8,
+        "why": "prompt length only changes prefill work after the branch decision, never the guard"
+      },
+      {
+        "name": "chunk_size",
+        "value": 512,
+        "why": "repository default; read for batching below the target, not by the target condition"
+      },
+      {
+        "name": "max_num_seqs",
+        "value": 128,
+        "why": "repository default; the running-count guard is independent of the decode-token guard"
+      },
+      {
+        "name": "block_size",
+        "value": 16,
+        "why": "block size for the CPU block allocator; must let can_allocate succeed before the target"
+      },
+      {
+        "name": "num_gpu_blocks",
+        "value": 256,
+        "why": "enough CPU-simulated blocks so block_manager.can_allocate(seq) is true before the target"
+      },
+      {
+        "name": "max_model_len",
+        "value": 2048,
+        "why": "prompt limit above the prompt length so _check_request_prompt_length returns true"
+      },
+      {
+        "name": "output_len_pred",
+        "value": 15,
+        "why": "repository default; only used inside the taken branch after the decision is made"
+      },
+      {
+        "name": "execution_threshold",
+        "value": 0.1,
+        "why": "repository default; only used in slack calculations below the target decision"
+      },
+      {
+        "name": "execution_threshold_batched",
+        "value": 0.4,
+        "why": "repository default; only used in the ttft_deadline assignment below the decision"
+      },
+      {
+        "name": "scheduler_type",
+        "value": "deadline",
+        "why": "selects the repository deadline path that reaches the target branch"
+      },
+      {
+        "name": "hybrid_prioritization_param",
+        "value": 0.008,
+        "why": "repository default; used only for ordering, not by the target condition"
+      },
+      {
+        "name": "pipeline_parallel_size",
+        "value": 1,
+        "why": "single pipeline stage; avoids the running-batch gate before the target"
+      },
+      {
+        "name": "tensor_parallel_size",
+        "value": 1,
+        "why": "CPU-only single tensor-parallel group"
+      }
+    ],
+    "positive_input": {
+      "now": 1,
+      "arrival_time": 1,
+      "tier": 1,
+      "num_decode_tokens": -1
+    },
+    "negative_input": {
+      "now": 1,
+      "arrival_time": 1,
+      "tier": 1,
+      "num_decode_tokens": 0
+    },
+    "boundary_variable": "num_decode_tokens",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at sarathi/core/scheduler/deadline_scheduler.py:233",
+      "signal_location": "sarathi/core/scheduler/deadline_scheduler.py:233"
+    },
+    "expected": {
+      "positive": "branch taken at sarathi/core/scheduler/deadline_scheduler.py:233",
+      "negative": "branch not taken at sarathi/core/scheduler/deadline_scheduler.py:233"
+    }
+  },
+  "execution": {
+    "entry_called": "sarathi/core/scheduler/deadline_scheduler.py::DeadlineScheduler._schedule",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "false",
+      "true"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at sarathi/core/scheduler/deadline_scheduler.py:233",
+    "negative_observed": "branch not taken at sarathi/core/scheduler/deadline_scheduler.py:233"
+  },
+  "evidence": {}
+}

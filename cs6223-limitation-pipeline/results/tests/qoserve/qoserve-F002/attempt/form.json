@@ -1,0 +1,57 @@
+{
+  "test_id": "A-qoserve-F002",
+  "finding_id": "qoserve-F002",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {"name": "block_size", "value": 16, "why": "prompt fits in one logical block; the decode loop only needs the block table length to match, so block size does not affect can_append_slot"},
+      {"name": "prompt_len", "value": 4, "why": "one short sequence whose prompt is already processed; prompt length is irrelevant once prompt_processing_finished is True"},
+      {"name": "max_model_len", "value": 2048, "why": "only stored by the block manager; it does not enter can_append_slot, which reads the free-block count"},
+      {"name": "chunk_size", "value": 512, "why": "the decode loop needs num_batched_tokens < chunk_size; one decode step is far below any positive chunk size"},
+      {"name": "max_tokens", "value": 8, "why": "sampling limit for the generated token; not consulted by the scheduling decision"},
+      {"name": "eos_token_id", "value": -1, "why": "the sequence has no output tokens yet, so end-of-sequence is never checked in the decode pass"},
+      {"name": "execution_threshold", "value": 0.1, "why": "deadline slack constant used after the target line; it only lands in a float local, not in the branch condition"},
+      {"name": "execution_threshold_batched", "value": 0.1, "why": "the batched deadline constant used by _get_TBT_deadline below the target; same reason"},
+      {"name": "scheduler_type", "value": "fcfs", "why": "the target decode pass does not branch on scheduler_type; only the later prefill sizing does"},
+      {"name": "hybrid_prioritization_param", "value": 0.008, "why": "default value copied from DeadlineScheduler.__init__; not read before the target"},
+      {"name": "output_len_pred", "value": 1, "why": "default used only for tier-based deadline adjustment of waiting sequences; there are none"},
+      {"name": "seed", "value": 0, "why": "Sequence assigns a random tier on construction; fixing the seed makes the run reproducible, the tier does not influence can_append_slot"}
+    ],
+    "positive_input": {"num_gpu_blocks": 1},
+    "negative_input": {"num_gpu_blocks": 2},
+    "boundary_variable": "num_gpu_blocks",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "exception",
+      "spec": "AssertionError raised at sarathi/core/scheduler/deadline_scheduler.py:253",
+      "signal_location": "sarathi/core/scheduler/deadline_scheduler.py:253"
+    },
+    "expected": {
+      "positive": "AssertionError at sarathi/core/scheduler/deadline_scheduler.py:253",
+      "negative": "no exception at sarathi/core/scheduler/deadline_scheduler.py:253"
+    }
+  },
+  "execution": {
+    "entry_called": "sarathi/core/scheduler/deadline_scheduler.py::DeadlineScheduler._schedule",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": ["false", "true"],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "AssertionError at sarathi/core/scheduler/deadline_scheduler.py:253",
+    "negative_observed": "no exception at sarathi/core/scheduler/deadline_scheduler.py:253"
+  },
+  "evidence": {}
+}
