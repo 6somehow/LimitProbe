@@ -2,7 +2,7 @@
 
 - artifact: `nnsmith` (ASPLOS 2023), repository https://github.com/ise-uiuc/nnsmith at `a8307f2b80`
 - input: `results/step4/nnsmith/limitations_for_tests.json` (sha256 `3ec725e87dbd`), 38 Findings
-- generated: 2026-11-17T02:10:46+08:00 by `checklimits test` (contract `checklimits-test-report/1`)
+- generated: 2026-11-17T11:26:53+08:00 by `checklimits test` (contract `checklimits-test-report/1`)
 - environment: **ok**
 
 ## How to read this
@@ -20,8 +20,8 @@
 | Findings | 38 |
 | tested | 22 |
 | not tested | 16 |
-| verdicts | inconclusive 1, yes 21 |
-| levels | L1 20, L2 1, invalid 1 |
+| verdicts | inconclusive 2, yes 20 |
+| levels | L1 19, L2 1, invalid 2 |
 | not tested, by reason | `no_code_location` 3, `outcome_unsupported` 13 |
 
 | Finding | category | effect | location | result |
@@ -29,7 +29,7 @@
 | [nnsmith-F001](#nnsmith-f001) | undisclosed | reject | `nnsmith/abstract/op.py:1563` | **yes** / L1 (uncalibrated) |
 | [nnsmith-F003](#nnsmith-f003) | undisclosed | reject | `nnsmith/cli/fuzz.py:180` | **inconclusive** / invalid (uncalibrated) |
 | [nnsmith-F004](#nnsmith-f004) | contradicts_docs | reject | `nnsmith/graph_gen.py:260` | **yes** / L1 (uncalibrated) |
-| [nnsmith-F009](#nnsmith-f009) | undisclosed | path_change | `nnsmith/abstract/arith.py:74` | **yes** / L1 (uncalibrated) |
+| [nnsmith-F009](#nnsmith-f009) | undisclosed | path_change | `nnsmith/abstract/arith.py:74` | **inconclusive** / invalid (uncalibrated) |
 | [nnsmith-F010](#nnsmith-f010) | undisclosed | path_change | `nnsmith/abstract/arith.py:79` | **yes** / L1 (uncalibrated) |
 | [nnsmith-F011](#nnsmith-f011) | undisclosed | path_change | `nnsmith/abstract/op.py:25` | **yes** / L1 (uncalibrated) |
 | [nnsmith-F012](#nnsmith-f012) | undisclosed | path_change | `nnsmith/abstract/op.py:910` | **yes** / L1 (uncalibrated) |
@@ -148,20 +148,20 @@
 - step 4 review: `real_but_minor`: blind review by an LLM subagent (round 1), not human: Internal carry-bit extension in the z3 helper.
 - code snippet (`nnsmith/abstract/arith.py:74`): `if carry and max(left_size, right_size) < ARITH_MAX_WIDTH:`
 
-**Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
+**Verdict `inconclusive`**: no verdict: the test was invalid or could not separate the cases.
   effect on positive input, none on negative input
 
-**Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
+**Level invalid, uncalibrated.** a fatal defeater was refuted (for example the target line was not reached): no verdict is drawn. refuted fatal defeaters: D2
 
 - trigger run: branch taken at nnsmith/abstract/arith.py:74
 - contrast run: branch not taken at nnsmith/abstract/arith.py:74
 - open doubts:
-  - D2 condition holds on positive, fails on negative: *residual*. agent-written predicate holds on positive and fails on negative; its fidelity to the Region condition is not verified
+  - D2 condition holds on positive, fails on negative: *refuted*. the agent's predicate and Region.condition disagree: Region.condition itself does not hold on the positive run and does not fail on the negative run
   - D3 oracle can see the effect: *residual*. only 3 mutants (< n_min=4); killed 3
   - D5 control pair differs in one factor, negative adjacent to the boundary: *open*. a neighbour probe failed before the target was decided
   - D13 inputs inside the paper's scope: *residual*. scope_status=unknown
   - D14 official entry point was called: *residual*. deeper entry (index 1); reason recorded: The step-4 Region call chain [PracticalHybridSearch.search_one, align_bvs] is synthetic: no real call graph was handed over, and search_one only reaches align_bvs through a full …
-- what would raise the level: D2 (residual): pick inputs so the Region condition is true on the positive and false on the negative; write a predicate if it cannot be evaluated; D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location; D5 (open): change exactly one factor between positive and negative, and make the negative the point next to the boundary
+- what would raise the level: D2 (refuted): pick inputs so the Region condition is true on the positive and false on the negative; write a predicate if it cannot be evaluated; D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location; D5 (open): change exactly one factor between positive and negative, and make the negative the point next to the boundary
 - evidence: `tests/nnsmith/nnsmith-F009/execution_report.json`
 
 ## nnsmith-F010

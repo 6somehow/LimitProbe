@@ -24,6 +24,7 @@ python -m checklimits report   <artifact> [--results-root] # 只用已有 report
 | `--fast` | 少做重复和变异（只用于冒烟，档位会变低） |
 | `--strict` | 有任何 `env_unavailable` / `agent_failed` / `harness_error` 时退出码为 4 |
 | `--skip-envcheck` | 不做环境预检 |
+| `--provision` | 环境预检不通过、但仓库已检出时，先建 `scratch/venv_<artifact>`（`provision`：按仓库钉的版本装 torch CPU 版和依赖，不跑仓库自己的测试），再检查一次。过程写进 `ENV.json` 的 `provisioned`。pipeline 的 `test` 命令还没有透传这个选项 |
 
 输入：`results/step4/<artifact>/limitations_for_tests.json`（schema 0.2.0）和 `data/*/artifact.json`（`artifact_id` 匹配的那个）。
 

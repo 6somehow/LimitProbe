@@ -140,6 +140,21 @@ def envcheck(artifact_id: str, data_dir: str, repo_rel: str, python: Optional[st
             "repo": r, "python": p, "imports": imports, "execution_env": art.get("execution_env", [])}
 
 
+def _provision_then_check(artifact: str, art: dict[str, Any], data_dir: str, repo_rel: str, python: Optional[str],
+                          root: Path, tdir: Path, before: dict[str, Any]) -> dict[str, Any]:
+    """The environment is not usable and the repository is there: build scratch/venv_<artifact> (`provision`), check again.
+    What was tried and why it was needed stays in ENV.json."""
+    from . import provision as pv
+    try:
+        rec = pv.provision(artifact, root / repo_rel, art.get("commit"), run_tests=False, out_dir=tdir / "provision")
+        note = {"status": rec["status"], "reasons": rec["reasons"], "log": "provision/provision.log"}
+    except Exception as e:      # a failed provisioning is a reason, not a crash
+        note = {"status": "error", "reasons": [f"{type(e).__name__}: {str(e)[:300]}"]}
+    after = envcheck(artifact, data_dir, repo_rel, python, root=root)
+    after["provisioned"] = {"before": before["reasons"], **note}
+    return after
+
+
 # --------------------------------------------------------------------------- attempts
 def find_attempts(roots: list[Path], max_depth: int = 4) -> dict[str, list[Path]]:
     """{finding_id: [attempt dirs]} for every directory with a manifest.json below the roots (first root first)."""
@@ -264,7 +279,7 @@ def run_test(artifact: str, *, findings_file: str, data_dir: str, repo_rel: str,
              results_root: Path = DEFAULT_RESULTS_ROOT, attempts_roots: Optional[list[Path]] = None,
              run_agent: bool = False, only: Optional[list[str]] = None, workers: int = 3, fast: bool = False,
              strict: bool = False, skip_envcheck: bool = False, python: Optional[str] = None,
-             root: Path = PIPELINE_ROOT) -> dict[str, Any]:
+             root: Path = PIPELINE_ROOT, provision: bool = False) -> dict[str, Any]:
     findings, art, sha = _load_inputs(findings_file, data_dir, root)
     tdir = results_root / "tests" / artifact
     tdir.mkdir(parents=True, exist_ok=True)
@@ -273,6 +288,8 @@ def run_test(artifact: str, *, findings_file: str, data_dir: str, repo_rel: str,
                "python": {}, "imports": [], "execution_env": art.get("execution_env", [])}
     else:
         env = envcheck(artifact, data_dir, repo_rel, python, root=root)
+        if env["status"] != "ok" and provision and env["repo"]["exists"]:
+            env = _provision_then_check(artifact, art, data_dir, repo_rel, python, root, tdir, env)
     (tdir / "ENV.json").write_text(json.dumps(env, indent=1) + "\n")
     env_ok = env["status"] == "ok"
     env_reason = "; ".join(env["reasons"]) or "environment not usable"

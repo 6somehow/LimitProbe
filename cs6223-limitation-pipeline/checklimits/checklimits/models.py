@@ -198,6 +198,8 @@ class TargetHit(_R):
     outcome: Optional[Literal["true", "false", "error"]] = None
     condition_value: Optional[bool] = None
     condition_error: Optional[str] = None
+    region_condition_value: Optional[bool] = Field(
+        None, description="Region.condition evaluated on the same locals, recorded only when an agent predicate is used")
     locals: dict[str, str] = Field(default_factory=dict)
     stack: list[str] = Field(default_factory=list, description="call-chain functions running at this hit, outermost first")
 

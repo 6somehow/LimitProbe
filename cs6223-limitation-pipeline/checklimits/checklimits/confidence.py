@@ -73,6 +73,8 @@ class Measurements:
     cond_true_on_positive: Optional[bool] = None
     cond_false_on_negative: Optional[bool] = None
     condition_translated: bool = False
+    region_cond_true_on_positive: Optional[bool] = None    # Region.condition itself, evaluated beside an agent predicate
+    region_cond_false_on_negative: Optional[bool] = None
     # D3
     mutation: Optional[MutationResult] = None
     # D4
@@ -127,7 +129,16 @@ def evaluate_defeaters(m: Measurements, p: Profile) -> list[DefeaterResult]:
                   "positive run executed the target line" if m.target_reached else "positive run never executed the target line"))
 
     pos, neg = m.cond_true_on_positive, m.cond_false_on_negative
-    if pos is True and neg is True:
+    rpos, rneg = m.region_cond_true_on_positive, m.region_cond_false_on_negative
+    if m.condition_translated and (rpos is False or rneg is False):
+        what = ("does not hold on the positive run" if rpos is False else "") + (" and " if rpos is False and rneg is False else "") \
+            + ("does not fail on the negative run" if rneg is False else "")
+        out.append(_d("D2", "refuted", f"the agent's predicate and Region.condition disagree: Region.condition itself {what}",
+                      cond_true_on_positive=pos, cond_false_on_negative=neg))
+    elif m.condition_translated and rpos is True and rneg is True and pos is True and neg is True:
+        out.append(_d("D2", "eliminated", "Region.condition itself (evaluated beside the agent's predicate) is true on the "
+                      "positive run and false on the negative run", cond_true_on_positive=pos, cond_false_on_negative=neg))
+    elif pos is True and neg is True:
         out.append(_d("D2", "residual" if m.condition_translated else "eliminated",
                       "agent-written predicate holds on positive and fails on negative; its fidelity to the Region condition is not verified"
                       if m.condition_translated else "Region.condition evaluated on the target-line locals: true on positive, false on negative",

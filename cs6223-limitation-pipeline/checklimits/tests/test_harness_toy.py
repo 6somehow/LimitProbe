@@ -344,3 +344,38 @@ def test_module_level_targets_do_not_need_the_entry_on_the_stack(tmp_path):
     pos2 = Observation(role="positive", inputs={}, status="ok", target_hits=[TargetHit(seq=1, stack=["f.g"])])
     assert fidelity.entry_on_stack(["a.py::f.g"], "a.py::f.g", pos2) is True                # entry is the target function
     assert fidelity.entry_on_stack(["a.py::entry", "a.py::check"], "a.py::check", pos2) is False
+
+
+# --- D2 with an agent-written predicate: the Region condition is evaluated beside it ----------------------------------
+def _with_predicate(tmp_path, pred_src, pos, neg):
+    b = build(tmp_path, with_ext=False, kind="branch", pos=pos, neg=neg,
+              design_extra={"condition_predicate_file": "condition.py", "boundary_variable": "n"})
+    (b["attempt"] / "condition.py").write_text(pred_src)
+    return harness.run_attempt(b["attempt"], pipeline_root=b["root"], options=RunOptions.fast())["report"]
+
+
+def test_a_predicate_that_contradicts_the_region_condition_refutes_d2(tmp_path):
+    # Region.condition is `n > 3` (the toy branch). The predicate says `n == 5`: true on 5, false on 7. Both runs take the
+    # branch (5 > 3 and 7 > 3), so the claim "the condition separates the runs" is false although the predicate looks fine.
+    r = _with_predicate(tmp_path, "def predicate(l):\n    return l['n'] == 5\n", {"n": 5}, {"n": 7})
+    d2 = [d for d in r.confidence.defeaters if d.id == "D2"][0]
+    assert d2.status == "refuted" and "disagree" in d2.evidence and "does not fail on the negative run" in d2.evidence
+    assert r.final_verdict == "inconclusive"
+
+
+def test_a_predicate_that_agrees_with_the_region_condition_eliminates_d2(tmp_path):
+    r = _with_predicate(tmp_path, "def predicate(l):\n    return l['n'] > 3\n", {"n": 4}, {"n": 3})
+    d2 = [d for d in r.confidence.defeaters if d.id == "D2"][0]
+    assert d2.status == "eliminated" and "beside the agent's predicate" in d2.evidence
+
+
+def test_a_predicate_stays_residual_when_the_region_condition_cannot_be_evaluated(tmp_path):
+    from checklimits.confidence import Measurements, evaluate_defeaters
+    from checklimits.profile import DEFAULT
+    base = dict(cond_true_on_positive=True, cond_false_on_negative=True, condition_translated=True)
+    from test_confidence import ideal
+    m = ideal()
+    for k, v in base.items():
+        setattr(m, k, v)
+    m.region_cond_true_on_positive = m.region_cond_false_on_negative = None
+    assert {d.id: d.status for d in evaluate_defeaters(m, DEFAULT)}["D2"] == "residual"
