@@ -1,0 +1,851 @@
+{
+ "same": [
+  {
+   "pair": [
+    "CL-B008",
+    "flexposit-gap-M01-B08"
+   ],
+   "same": false,
+   "votes": [
+    {
+     "same": "no",
+     "reason": "Record A is the check that all selected output channels share one Posit size (len(sizes) != 1), while Record B concerns the 4-bit paper index vs 5-bit signed hardware scale field mismatch, a different behavior."
+    },
+    {
+     "same": "no",
+     "reason": "Record A is the code check rejecting mixed Posit sizes across selected channels, while Record B concerns the paper's 4-bit scale index versus the hardware's 5-bit signed scale field, a different behavior."
+    }
+   ],
+   "candidate_because": "overlapping code locations"
+  },
+  {
+   "pair": [
+    "CL-B008",
+    "flexposit-gap-M01-B10"
+   ],
+   "same": false,
+   "votes": [
+    {
+     "same": "no",
+     "reason": "Record A is the check that all selected output channels share one Posit size (len(sizes)!=1), while Record B is about activations being converted to FP8 E4M3 instead of remaining FP16, a different behavior."
+    },
+    {
+     "same": "no",
+     "reason": "Record A is the Posit-size mixing check in export_tile, while Record B is about activations being converted to FP8 E4M3 instead of remaining FP16, a different behavior."
+    }
+   ],
+   "candidate_because": "overlapping code locations"
+  },
+  {
+   "pair": [
+    "CL-B009",
+    "flexposit-gap-M01-B08"
+   ],
+   "same": true,
+   "votes": [
+    {
+     "same": "no",
+     "reason": "Record A is a specific range check rejecting scales outside [-16,15] in export_tile, while Record B is a general paper-vs-hardware mismatch about 4-bit index vs 5-bit signed scale field, not the same concrete check."
+    },
+    {
+     "same": "yes",
+     "reason": "Both records concern the same concrete behavior: the per-channel scale must fit the RTL's signed 5-bit field, with Record A giving the code check and Record B the paper-vs-hardware mismatch on that same field."
+    },
+    {
+     "same": "yes",
+     "reason": "Both records concern the same concrete behavior: the per-channel scale must fit the RTL's signed 5-bit field, with export_tile raising ValueError when scale falls outside [-16, 15]."
+    }
+   ],
+   "candidate_because": "overlapping code locations"
+  },
+  {
+   "pair": [
+    "CL-B009",
+    "flexposit-gap-M01-B10"
+   ],
+   "same": false,
+   "votes": [
+    {
+     "same": "no",
+     "reason": "Record A is a scale-range check raising ValueError for out-of-range 5-bit scale, while Record B concerns activations being converted to FP8 E4M3 instead of remaining FP16, a different behavior."
+    },
+    {
+     "same": "no",
+     "reason": "Record A is a scale-range check rejecting out-of-range log2_scale, while Record B concerns activations being converted to FP8 E4M3 instead of remaining FP16, a different behavior."
+    }
+   ],
+   "candidate_because": "overlapping code locations"
+  },
+  {
+   "pair": [
+    "flexposit-gap-M02-B01",
+    "flexposit-gap-M02-B03-R02"
+   ],
+   "same": false,
+   "votes": [
+    {
+     "same": "no",
+     "reason": "Record A concerns the missing alignment check that the window size be an integer multiple of the systolic array column count, while Record B concerns the missing Qwen-specific 1024-channel default rule; these are distinct hard-coded/default behaviors."
+    },
+    {
+     "same": "no",
+     "reason": "Record A concerns the missing alignment check that channel_window is an integer multiple of the systolic array column count, while Record B concerns the missing Qwen-specific 1024-channel default rule; these are distinct hard-coded/default behaviors testable separately."
+    }
+   ],
+   "candidate_because": "same paper-side finding candidate"
+  },
+  {
+   "pair": [
+    "flexposit-gap-M03-B06",
+    "flexposit-gap-M03-B09"
+   ],
+   "same": false,
+   "votes": [
+    {
+     "same": "no",
+     "reason": "Record A concerns the sign of the delta PPL computation (ppl_new - baseline_ppl vs paper's P_base - PPL), while Record B concerns the absence of a descending sort of sensitivity results, which are distinct behaviors."
+    },
+    {
+     "same": "no",
+     "reason": "Record A concerns the sign of the delta PPL computation (ppl_new - baseline_ppl vs paper's P_base - PPL), while Record B concerns the absence of a descending sort of sensitivity results, which are distinct behaviors."
+    }
+   ],
+   "candidate_because": "same paper-side finding candidate"
+  },
+  {
+   "pair": [
+    "flexposit-gap-M03-A01",
+    "flexposit-gap-M03-B06"
+   ],
+   "same": true,
+   "votes": [
+    {
+     "same": "yes",
+     "reason": "Both records describe the same single behavior: the code computes delta = ppl_new - baseline_ppl, which is the opposite sign of the paper's ΔPPL = P_base − PPL(M_w,D)."
+    },
+    {
+     "same": "yes",
+     "reason": "Both records describe the same single behavior: the code computes delta_ppl as ppl_new - baseline_ppl (line 425), which is the opposite sign of the paper's ΔPPL = P_base − PPL(M_w,D)."
+    }
+   ],
+   "candidate_because": "same paper-side finding candidate"
+  },
+  {
+   "pair": [
+    "flexposit-gap-M03-A01",
+    "flexposit-gap-M03-B09"
+   ],
+   "same": false,
+   "votes": [
+    {
+     "same": "no",
+     "reason": "Record A concerns the sign convention of ΔPPL (large ΔPPL meaning improvement vs. code's negative-is-good), while Record B concerns the absence of a descending-sorted sensitivity plot, which are two distinct behaviors."
+    },
+    {
+     "same": "no",
+     "reason": "Record A concerns the sign convention of ΔPPL (negative = improvement) contradicting the paper's interpretation, while Record B concerns the missing descending sort of sensitivity values; these are distinct behaviors."
+    }
+   ],
+   "candidate_because": "same paper-side finding candidate"
+  },
+  {
+   "pair": [
+    "flexposit-gap-M09-B01",
+    "flexposit-gap-M09-B02-R01"
+   ],
+   "same": false,
+   "votes": [
+    {
+     "same": "no",
+     "reason": "Record A concerns the absence of a 4-PE cluster boundary (N×N array instead of 4-way MAC clusters), while Record B concerns the timing of weight sharing across PEs (1-cycle skew between adjacent PEs rather than same-cycle sharing), which are distinct concrete behaviors."
+    },
+    {
+     "same": "no",
+     "reason": "Record A concerns the absence of a 4-PE cluster boundary (N×N array instead of 4-PE clusters), while Record B concerns the timing of weight sharing across PEs (1-cycle skew instead of same-cycle sharing), which are distinct behaviors."
+    }
+   ],
+   "candidate_because": "same paper-side finding candidate"
+  },
+  {
+   "pair": [
+    "flexposit-gap-M09-B01",
+    "flexposit-gap-M09-B02-R02"
+   ],
+   "same": false,
+   "votes": [
+    {
+     "same": "no",
+     "reason": "Record A concerns the absence of 4-PE MAC cluster boundaries (N×N array instead), while Record B concerns activation distribution/type (FP8 vs FP16, per-row vs per-cluster-lane), which are distinct behaviors."
+    },
+    {
+     "same": "no",
+     "reason": "Record A concerns the absence of 4-PE MAC cluster boundaries (N×N array instead), while Record B concerns activation distribution/format (FP8 vs FP16, one per row), which are distinct concrete behaviors."
+    }
+   ],
+   "candidate_because": "same paper-side finding candidate"
+  },
+  {
+   "pair": [
+    "flexposit-gap-M09-B01",
+    "flexposit-gap-M09-B03"
+   ],
+   "same": false,
+   "votes": [
+    {
+     "same": "no",
+     "reason": "Record A concerns the missing 4-PE MAC cluster boundary (RTL uses an N×N array with row/column passing), while Record B concerns the unimplemented cluster-level 4/P throughput, which is a distinct behavioral claim even though both stem from the absent 4-PE clustering."
+    },
+    {
+     "same": "no",
+     "reason": "Record A concerns the missing 4-PE MAC cluster boundary (RTL uses an N×N array), while Record B concerns the unimplemented cluster-level 4/P throughput, which is a distinct performance behavior even though both stem from the absent cluster structure."
+    }
+   ],
+   "candidate_because": "same paper-side finding candidate"
+  },
+  {
+   "pair": [
+    "flexposit-gap-M09-A01",
+    "flexposit-gap-M09-B01"
+   ],
+   "same": false,
+   "votes": [
+    {
+     "same": "no",
+     "reason": "Record A concerns the paper's 4-parallel-MAC-per-weight claim versus the RTL's single-PE bit-serial execution, while Record B concerns the paper's 4-PE MAC cluster grouping versus the RTL's N×N array with no cluster boundaries—two distinct architectural mismatches."
+    },
+    {
+     "same": "no",
+     "reason": "Record A concerns the paper's 4-parallel-MAC-per-weight claim versus the RTL's single-PE bit-serial multiply, while Record B concerns the paper's 4-PE MAC cluster grouping versus the RTL's N×N array with no cluster boundaries—two distinct architectural mismatches."
+    }
+   ],
+   "candidate_because": "same paper-side finding candidate"
+  },
+  {
+   "pair": [
+    "flexposit-gap-M09-A02",
+    "flexposit-gap-M09-B01"
+   ],
+   "same": false,
+   "votes": [
+    {
+     "same": "no",
+     "reason": "Record A concerns the per-PE throughput at P=4 (1/4 MAC/cycle vs claimed 1 MAC/cycle), while Record B concerns the absence of a 4-PE cluster grouping in the N×N array—two distinct behaviors."
+    },
+    {
+     "same": "no",
+     "reason": "Record A concerns the per-PE throughput at P=4 (1/4 MAC/cycle vs claimed 1 MAC/cycle), while Record B concerns the absence of a 4-PE cluster grouping in the N×N array—two distinct behaviors."
+    }
+   ],
+   "candidate_because": "same paper-side finding candidate"
+  },
+  {
+   "pair": [
+    "flexposit-gap-M09-A04",
+    "flexposit-gap-M09-B01"
+   ],
+   "same": true,
+   "votes": [
+    {
+     "same": "yes",
+     "reason": "Both records describe the same concrete mismatch: the paper specifies 4 PEs sharing one accumulator per MAC cluster, while the RTL implements a 1 PE : 1 accumulator N×N array with no fixed 4-PE cluster boundary."
+    },
+    {
+     "same": "yes",
+     "reason": "Both records describe the same concrete mismatch: the paper specifies 4-PE MAC clusters sharing one accumulator, while the RTL implements a 1 PE : 1 accumulator N×N array with no fixed 4-PE cluster boundary."
+    }
+   ],
+   "candidate_because": "identical code evidence"
+  },
+  {
+   "pair": [
+    "flexposit-gap-M09-B02-R01",
+    "flexposit-gap-M09-B02-R02"
+   ],
+   "same": false,
+   "votes": [
+    {
+     "same": "no",
+     "reason": "Record A concerns the timing/structure of shared decoded weight terms across a cluster (same-cycle vs 1-cycle skew), while Record B concerns activation distribution and datatype (FP16 vs FP8, per-row vs per-lane), which are distinct behaviors."
+    },
+    {
+     "same": "no",
+     "reason": "Record A concerns the timing/placement of a shared decoded weight term across cluster PEs (1-cycle skew, no same-cycle cluster structure), while Record B concerns activation distribution and datatype (different activations across rows, FP8 instead of FP16), which are distinct behaviors."
+    }
+   ],
+   "candidate_because": "same paper-side finding candidate"
+  },
+  {
+   "pair": [
+    "flexposit-gap-M09-B02-R01",
+    "flexposit-gap-M09-B03"
+   ],
+   "same": false,
+   "votes": [
+    {
+     "same": "yes",
+     "reason": "Both records describe the same missing 4-PE cluster parallelism: the paper's claim that all PEs in a cluster share the same decoded weight term each cycle (achieving 4/P throughput) is not implemented, since the RTL instead staggers weights by one cycle per row/column and each PE operates at 1/P."
+    },
+    {
+     "same": "no",
+     "reason": "Record A concerns the missing same-cycle 4-PE cluster weight sharing (adjacent PEs offset by 1 cycle), while Record B concerns the unimplemented 4/P cluster-level throughput, which are distinct behaviors even though both stem from the absent 4-PE cluster structure."
+    },
+    {
+     "same": "no",
+     "reason": "Record A concerns the missing same-cycle 4-PE cluster weight sharing (adjacent PEs offset by 1 cycle), while Record B concerns the unimplemented 4/P cluster-level throughput, which are distinct behaviors even though both stem from the absent 4-PE cluster structure."
+    }
+   ],
+   "candidate_because": "same paper-side finding candidate"
+  },
+  {
+   "pair": [
+    "flexposit-gap-M09-A01",
+    "flexposit-gap-M09-B02-R01"
+   ],
+   "same": false,
+   "votes": [
+    {
+     "same": "no",
+     "reason": "Record A concerns the number of parallel MACs per weight term (single-PE bit-serial vs four parallel MACs), while Record B concerns the timing/structure of weight sharing across PEs in a cluster (1-cycle skew vs same-cycle sharing), which are distinct behaviors."
+    },
+    {
+     "same": "no",
+     "reason": "Record A concerns the number of parallel MACs per weight term (4 parallel vs single-PE bit-serial), while Record B concerns the timing/synchronization of the shared decoded weight term across the 4 PEs (same-cycle vs 1-cycle skew), which are distinct behaviors."
+    }
+   ],
+   "candidate_because": "same paper-side finding candidate"
+  },
+  {
+   "pair": [
+    "flexposit-gap-M09-A02",
+    "flexposit-gap-M09-B02-R01"
+   ],
+   "same": false,
+   "votes": [
+    {
+     "same": "no",
+     "reason": "Record A concerns the per-PE throughput at P=4 (1/4 MAC/cycle vs claimed 1 MAC/cycle), while Record B concerns the lack of same-cycle weight sharing across the 4 PEs in a cluster (1-cycle skew), which are distinct behaviors."
+    },
+    {
+     "same": "no",
+     "reason": "Record A concerns the per-PE throughput at P=4 being 1/4 MAC/cycle instead of matching FP16, while Record B concerns the lack of same-cycle weight sharing across the 4 PEs in a cluster (1-cycle skew between rows), which are distinct behaviors."
+    }
+   ],
+   "candidate_because": "same paper-side finding candidate"
+  },
+  {
+   "pair": [
+    "flexposit-gap-M09-B02-R02",
+    "flexposit-gap-M09-B03"
+   ],
+   "same": false,
+   "votes": [
+    {
+     "same": "no",
+     "reason": "Record A concerns activation data type/placement (FP16 vs FP8, distinct activations across rows), while Record B concerns throughput scaling (4/P cluster rate vs 1/P per PE), which are different behaviors."
+    },
+    {
+     "same": "no",
+     "reason": "Record A concerns the mismatch in activation distribution/type (four distinct FP16 activations vs FP8 activations spread across rows), while Record B concerns the unimplemented 4/P cluster-level throughput (per-PE 1/P instead), which are different concrete behaviors."
+    }
+   ],
+   "candidate_because": "same paper-side finding candidate"
+  },
+  {
+   "pair": [
+    "flexposit-gap-M09-A01",
+    "flexposit-gap-M09-B02-R02"
+   ],
+   "same": false,
+   "votes": [
+    {
+     "same": "no",
+     "reason": "Record A concerns the paper's four-parallel-MAC-per-weight claim versus the RTL's single bit-serial PE, while Record B concerns four distinct FP16 activations per cluster versus FP8 activations distributed one per row—different concrete behaviors."
+    },
+    {
+     "same": "no",
+     "reason": "Record A concerns the paper's four parallel MACs per weight term versus the RTL's single-PE bit-serial multiply, while Record B concerns four distinct FP16 activations per cluster versus the RTL's per-row FP8 activations—different concrete behaviors."
+    }
+   ],
+   "candidate_because": "same paper-side finding candidate"
+  },
+  {
+   "pair": [
+    "flexposit-gap-M09-A02",
+    "flexposit-gap-M09-B02-R02"
+   ],
+   "same": false,
+   "votes": [
+    {
+     "same": "no",
+     "reason": "Record A concerns the per-PE MAC throughput at P=4 (1/4 vs 1 MAC/cycle), while Record B concerns activation distribution/format (FP8 vs FP16, one per row), which are distinct behaviors."
+    },
+    {
+     "same": "no",
+     "reason": "Record A concerns the per-PE MAC throughput at P=4 (1/4 vs 1 MAC/cycle), while Record B concerns the distribution and datatype of activations across lanes (FP8 per-row vs four distinct FP16), which are distinct behaviors."
+    }
+   ],
+   "candidate_because": "same paper-side finding candidate"
+  },
+  {
+   "pair": [
+    "flexposit-gap-M09-A05",
+    "flexposit-gap-M09-B02-R02"
+   ],
+   "same": false,
+   "votes": [
+    {
+     "same": "no",
+     "reason": "Record A concerns the FP16-activation/full-floating-point MAC vs FP8/block-floating-point accumulator datapath difference, while Record B concerns the distribution of four distinct activations across cluster lanes/rows, a different concrete behavior."
+    },
+    {
+     "same": "no",
+     "reason": "Record A concerns the FP16-vs-FP8 activation and floating-point-vs-block-floating-point accumulation datapath, while Record B concerns the distribution of distinct activations across rows/lanes rather than within a 4-PE cluster, which is a different concrete behavior."
+    }
+   ],
+   "candidate_because": "same paper-side finding candidate"
+  },
+  {
+   "pair": [
+    "flexposit-gap-M09-A01",
+    "flexposit-gap-M09-B03"
+   ],
+   "same": false,
+   "votes": [
+    {
+     "same": "yes",
+     "reason": "Both records describe the same limitation: the paper's 4 parallel MACs per weight (4/P cluster throughput) is not implemented in RTL, which instead performs single-PE bit-serial multiplication (1/P per PE)."
+    },
+    {
+     "same": "no",
+     "reason": "Record A concerns the paper's claim of four parallel MACs per weight versus the RTL's single-PE bit-serial execution, while Record B concerns the unimplemented cluster-level 4/P throughput across precisions 4≤P≤8, which are distinct behaviors."
+    },
+    {
+     "same": "no",
+     "reason": "Record A concerns the paper's claim of four parallel MACs per weight versus the RTL's single-PE bit-serial multiply, while Record B concerns the cluster-level 4/P throughput not being implemented, which is a different concrete behavior."
+    }
+   ],
+   "candidate_because": "same paper-side finding candidate"
+  },
+  {
+   "pair": [
+    "flexposit-gap-M09-A02",
+    "flexposit-gap-M09-B03"
+   ],
+   "same": true,
+   "votes": [
+    {
+     "same": "yes",
+     "reason": "Both records describe the same missing 4-PE cluster parallelism: the paper claims 4/P MACs per cycle via a 4-PE cluster, while the RTL implements only 1/P per PE with no cluster-level 4/P aggregation, with Record A being the P=4 special case of Record B's general 4≤P≤8 claim."
+    },
+    {
+     "same": "yes",
+     "reason": "Both records describe the same concrete limitation: the RTL implements only 1/P MACs per PE rather than the paper's claimed 4/P cluster throughput, with Record A being the P=4 special case of Record B's general 4≤P≤8 claim."
+    }
+   ],
+   "candidate_because": "same paper-side finding candidate"
+  },
+  {
+   "pair": [
+    "flexposit-gap-M09-B04-R01",
+    "flexposit-gap-M09-B04-R02"
+   ],
+   "same": false,
+   "votes": [
+    {
+     "same": "no",
+     "reason": "Record A concerns the shared-vs-per-PE accumulator (FP16 shared accumulator vs per-PE block-floating-point accumulator), while Record B concerns the absence of a shared accumulator plus a global stall/backpressure path affecting the 'no stalls' claim, which is a different behavior (stall/backpressure) than the accumulator-sharing check."
+    },
+    {
+     "same": "no",
+     "reason": "Record A concerns the shared FP16 accumulator vs per-PE block-floating-point accumulator, while Record B concerns the absence of shared time-multiplexed accumulation and presence of a global stall backpressure path, which is a different behavior (stall/backpressure) than the accumulator-sharing difference."
+    }
+   ],
+   "candidate_because": "same paper-side finding candidate"
+  },
+  {
+   "pair": [
+    "flexposit-gap-M09-B04-R01",
+    "flexposit-gap-M09-B05-R02"
+   ],
+   "same": true,
+   "votes": [
+    {
+     "same": "no",
+     "reason": "Record A concerns the accumulator being per-PE block-floating-point rather than a shared FP16 accumulator, while Record B concerns the absence of round-robin interleaving of four PEs to drive a shared accumulator—distinct behaviors (accumulator format/sharing vs. PE scheduling)."
+    },
+    {
+     "same": "yes",
+     "reason": "Both records describe the same concrete divergence: the paper's four PEs sharing one time-multiplexed accumulator versus the RTL's per-PE independent accumulators with no sharing/interleaving."
+    },
+    {
+     "same": "yes",
+     "reason": "Both records describe the same concrete limitation: the paper's shared, time-multiplexed/interleaved single FP16 accumulator across four PEs versus the RTL's per-PE independent accumulators with no sharing or interleaving."
+    }
+   ],
+   "candidate_because": "same paper-side finding candidate"
+  },
+  {
+   "pair": [
+    "flexposit-gap-M09-A03",
+    "flexposit-gap-M09-B04-R01"
+   ],
+   "same": true,
+   "votes": [
+    {
+     "same": "yes",
+     "reason": "Both records describe the same concrete divergence: the paper specifies a single shared accumulator (time-multiplexed across the four PEs in a cluster), while the RTL implements one accumulator per PE, as stated in hardware/README.md and the per-PE accumulator parameters in fp8_pe_mac_stream.v."
+    },
+    {
+     "same": "yes",
+     "reason": "Both records describe the same concrete divergence: the paper specifies a single shared accumulator (time-multiplexed across the four PEs in a cluster), while the RTL implements one accumulator per PE, as stated in hardware/README.md and the per-PE accumulator parameters in fp8_pe_mac_stream.v."
+    }
+   ],
+   "candidate_because": "same paper-side finding candidate"
+  },
+  {
+   "pair": [
+    "flexposit-gap-M09-A04",
+    "flexposit-gap-M09-B04-R01"
+   ],
+   "same": true,
+   "votes": [
+    {
+     "same": "yes",
+     "reason": "Both records describe the same concrete deviation: the paper's four-PEs-sharing-one-accumulator cluster is replaced in RTL by one accumulator per PE (non-fixed cluster size, per-PE BFP accumulator), as evidenced by the same README statement and fp8_pe_mac_stream parameters."
+    },
+    {
+     "same": "yes",
+     "reason": "Both records describe the same concrete deviation: the paper's four-PE-shared single FP16 accumulator versus the RTL's one independent per-PE accumulator (non-FP16 block-floating-point), differing only in wording/detail."
+    }
+   ],
+   "candidate_because": "same paper-side finding candidate"
+  },
+  {
+   "pair": [
+    "flexposit-gap-M09-B04-R02",
+    "flexposit-gap-M09-B05-R02"
+   ],
+   "same": false,
+   "votes": [
+    {
+     "same": "no",
+     "reason": "Record A concerns the absence of a shared accumulator with stall-free round-robin completion (global stall backpressure), while Record B concerns the absence of four-PE round-robin interleaving driving a single shared accumulator—related design gaps but distinct concrete behaviors."
+    },
+    {
+     "same": "no",
+     "reason": "Record A concerns the absence of a shared accumulator with stall/backpressure versus the paper's stall-free time-multiplexed accumulation, while Record B concerns the absence of 4-PE round-robin interleaving, which are distinct concrete behaviors."
+    }
+   ],
+   "candidate_because": "same paper-side finding candidate"
+  },
+  {
+   "pair": [
+    "flexposit-gap-M09-A03",
+    "flexposit-gap-M09-B04-R02"
+   ],
+   "same": false,
+   "votes": [
+    {
+     "same": "no",
+     "reason": "Record A concerns the accumulator being replicated per PE instead of shared, while Record B concerns the absence of a shared accumulator combined with a global stall/backpressure path, which is a different concrete behavior (stall handling) than the accumulator replication itself."
+    },
+    {
+     "same": "no",
+     "reason": "Record A concerns the accumulator being replicated per PE instead of shared, while Record B concerns the absence of stall-free time-multiplexed accumulation and the presence of a global stall/backpressure path—distinct behaviors."
+    }
+   ],
+   "candidate_because": "same paper-side finding candidate"
+  },
+  {
+   "pair": [
+    "flexposit-gap-M09-A04",
+    "flexposit-gap-M09-B04-R02"
+   ],
+   "same": false,
+   "votes": [
+    {
+     "same": "no",
+     "reason": "Record A concerns the accumulator clustering mismatch (4 PEs sharing one accumulator vs 1 PE : 1 accumulator), while Record B concerns the absence of shared-accumulator time-multiplexing and presence of a global stall backpressure path, which are distinct behaviors."
+    },
+    {
+     "same": "no",
+     "reason": "Record A concerns the fixed 4-PE-per-accumulator cluster composition versus 1 PE : 1 accumulator in RTL, while Record B concerns the absence of shared-accumulator time-multiplexing and presence of a global stall backpressure path, which are distinct behaviors."
+    }
+   ],
+   "candidate_because": "same paper-side finding candidate"
+  },
+  {
+   "pair": [
+    "flexposit-gap-M09-A03",
+    "flexposit-gap-M09-B05-R02"
+   ],
+   "same": false,
+   "votes": [
+    {
+     "same": "no",
+     "reason": "Record A concerns the accumulator being replicated per PE instead of shared, while Record B concerns the absence of 4-PE round-robin interleaving driving a shared accumulator—distinct behaviors (per-PE accumulator replication vs. missing interleaving)."
+    },
+    {
+     "same": "no",
+     "reason": "Record A concerns the accumulator being replicated per PE instead of shared, while Record B concerns the absence of 4-PE round-robin interleaving driving a shared accumulator—distinct architectural behaviors."
+    }
+   ],
+   "candidate_because": "same paper-side finding candidate"
+  },
+  {
+   "pair": [
+    "flexposit-gap-M09-A04",
+    "flexposit-gap-M09-B05-R02"
+   ],
+   "same": false,
+   "votes": [
+    {
+     "same": "no",
+     "reason": "Record A concerns the fixed 4-PE-per-accumulator cluster composition (1 PE : 1 accumulator in RTL), while Record B concerns round-robin interleaving of four PEs to sustain one product per cycle, which is a distinct behavioral requirement."
+    },
+    {
+     "same": "no",
+     "reason": "Record A concerns the fixed 4-PE-per-accumulator cluster composition (1 PE : 1 accumulator in RTL), while Record B concerns round-robin interleaving of four PEs to sustain one product/cycle, which is a distinct behavior/check."
+    }
+   ],
+   "candidate_because": "same paper-side finding candidate"
+  },
+  {
+   "pair": [
+    "flexposit-gap-M09-A01",
+    "flexposit-gap-M09-A02"
+   ],
+   "same": false,
+   "votes": [
+    {
+     "same": "no",
+     "reason": "Record A concerns the paper's claim of four parallel MACs per weight versus RTL's single-PE bit-serial execution, while Record B concerns the P=4 throughput claim of 1 MAC/cycle versus RTL's 1/4 rate, which are different performance claims/behaviors."
+    },
+    {
+     "same": "no",
+     "reason": "Record A concerns the paper's claim of four parallel MACs per weight versus the RTL's single-PE bit-serial execution, while Record B concerns the P=4 throughput claim of 1 MAC/cycle versus the RTL's 1/4 rate, which are different performance claims even if both stem from the same bit-serial design."
+    }
+   ],
+   "candidate_because": "same paper-side finding candidate"
+  },
+  {
+   "pair": [
+    "flexposit-gap-M09-A03",
+    "flexposit-gap-M09-A04"
+   ],
+   "same": false,
+   "votes": [
+    {
+     "same": "no",
+     "reason": "Record A concerns the accumulator being replicated per PE instead of shared, while Record B concerns the fixed cluster size of four PEs per accumulator; these are distinct concrete behaviors (per-PE replication vs. cluster-size/ratio), even though both relate to accumulator sharing."
+    },
+    {
+     "same": "no",
+     "reason": "Record A concerns the accumulator being replicated per PE instead of shared, while Record B concerns the fixed cluster size of four PEs per accumulator; these are distinct concrete behaviors (per-PE replication vs. cluster-size/ratio), even though both relate to accumulator sharing."
+    }
+   ],
+   "candidate_because": "same paper-side finding candidate"
+  },
+  {
+   "pair": [
+    "flexposit-gap-M10-B03",
+    "flexposit-gap-M10-B06"
+   ],
+   "same": false,
+   "votes": [
+    {
+     "same": "no",
+     "reason": "Record A concerns the cycle2 mantissa path using the sign bit and unshifted A, while Record B concerns the zero flag being latched at cycleLast/cyc3 rather than cyc3 as the paper states—two distinct behaviors."
+    },
+    {
+     "same": "no",
+     "reason": "Record A concerns the cycle2 mantissa path using the sign bit and unshifted A, while Record B concerns the zero flag being latched at cycleLast/cyc3 rather than cyc3, which are different concrete behaviors."
+    }
+   ],
+   "candidate_because": "same paper-side finding candidate"
+  }
+ ],
+ "condition": [
+  {
+   "limitation_id": "flexposit-gap-M01-B10",
+   "kind": "always",
+   "expr": "",
+   "path_prefix": [],
+   "reason": "export_tile unconditionally encodes activations with fp8_e4m3_encode and array_tb.v declares FP8 E4M3 activation codes, so any call to the export/hardware path converts activations to FP8 instead of keeping them FP16 as the paper requires.",
+   "model": "x-test-2"
+  },
+  {
+   "limitation_id": "flexposit-gap-M02-B01",
+   "kind": "condition",
+   "expr": "channel_window % 16 != 0",
+   "path_prefix": [
+    "isinstance(mod, Conv1D) == False",
+    "is_quant_linear(mod)",
+    "not (skip_lm_head and (name == 'lm_head' or name.endswith('.lm_head')))",
+    "hasattr(mod, 'weight') and mod.weight is not None and mod.weight.dim() == 2"
+   ],
+   "reason": "The paper requires channel windows to be an integer multiple of the systolic array column count (16), but the code accepts any channel_window (default 64) with no alignment check, so misaligned windows are generated whenever channel_window is not a multiple of 16.",
+   "model": "x-test-2"
+  },
+  {
+   "limitation_id": "flexposit-gap-M02-B03-R02",
+   "kind": "always",
+   "expr": "True",
+   "path_prefix": [],
+   "reason": "The code never applies the paper's Qwen→1024 channel-window rule; it always uses the default channel_window=64 (or user value) regardless of model, so the gap appears on every call.",
+   "model": "x-test-2"
+  },
+  {
+   "limitation_id": "flexposit-gap-M03-B06",
+   "kind": "always",
+   "expr": "",
+   "path_prefix": [],
+   "reason": "The code computes delta = ppl_new - baseline_ppl (upgraded minus baseline), which is the opposite sign of the paper's Algorithm 2 line 6 (P_base - PPL(M_w,D)), so the sign discrepancy appears on every call.",
+   "model": "x-test-2"
+  },
+  {
+   "limitation_id": "flexposit-gap-M03-B09",
+   "kind": "always",
+   "expr": "",
+   "path_prefix": [],
+   "reason": "The sensitivity probe only writes an unsorted JSON summary and CSV; no code path ever produces the paper's descending-sorted sensitivity map, so the gap occurs on every run.",
+   "model": "x-test-2"
+  },
+  {
+   "limitation_id": "flexposit-gap-M07-A05",
+   "kind": "rejected",
+   "expr": "cycle0",
+   "path_prefix": [
+    "!stall",
+    "valid"
+   ],
+   "reason": "The paper expects the sign term pushed at cyc0, but the FIFO input mapping writes sign_pack on cycle1 and zero_pack on cycle0, so the mismatch appears whenever the decoder is in cycle0 (with valid and not stalled).",
+   "model": "x-test-2",
+   "rejected_because": "not a Python expression: '!stall'"
+  },
+  {
+   "limitation_id": "flexposit-gap-M08-B02",
+   "kind": "rejected",
+   "expr": "cycle1",
+   "path_prefix": [
+    "!stall",
+    "valid"
+   ],
+   "reason": "The sign FIFO write occurs in the cycle1 branch (mem[wr_ptr] <= data_in0) rather than at cyc0 as the paper states, so the gap appears whenever cycle1 is asserted with valid and not stalled.",
+   "model": "x-test-2",
+   "rejected_because": "not a Python expression: '!stall'"
+  },
+  {
+   "limitation_id": "flexposit-gap-M08-B06",
+   "kind": "condition",
+   "expr": "index >= 0 and len(fraction) >= MAX_POSIT_FRACTION_BITS",
+   "path_prefix": [
+    "code != 0",
+    "4 <= precision <= 8",
+    "0 <= es <= MAX_POSIT_ES",
+    "0 <= code < (1 << precision)"
+   ],
+   "reason": "The RTL stops mantissa collection at cycP while the model stops at a fixed MAX_POSIT_FRACTION_BITS cap, so the divergence appears when more fraction bits remain than the cap allows.",
+   "model": "x-test-2"
+  },
+  {
+   "limitation_id": "flexposit-gap-M08-B08",
+   "kind": "condition",
+   "expr": "cycle0 and re",
+   "path_prefix": [
+    "not stall"
+   ],
+   "reason": "The split-slot writes occur in the cycle0&re branch, so the paper's single-push behavior differs whenever a decode completes with cycle0 and re asserted.",
+   "model": "x-test-2"
+  },
+  {
+   "limitation_id": "flexposit-gap-M09-B04-R01",
+   "kind": "always",
+   "expr": "",
+   "path_prefix": [],
+   "reason": "The RTL instantiates one block-floating-point accumulator per PE (ACC_MANW=12, GRS=3) rather than a single shared time-multiplexed FP16 accumulator, so the paper's 4-PE shared-accumulator design is never realized regardless of inputs.",
+   "model": "x-test-2"
+  },
+  {
+   "limitation_id": "flexposit-gap-M09-B02-R01",
+   "kind": "not_input",
+   "expr": "",
+   "path_prefix": [],
+   "reason": "The gap is a structural RTL design difference (per-column 1-cycle weight skew vs. same-cycle cluster sharing) that holds for all inputs and is not determined by any input value.",
+   "model": "x-test-2"
+  },
+  {
+   "limitation_id": "flexposit-gap-M09-B02-R02",
+   "kind": "not_input",
+   "expr": "",
+   "path_prefix": [],
+   "reason": "The mismatch (FP8 vs FP16 activations, one activation per row vs four distinct per cluster) is a fixed RTL/design difference, not determined by any input value in the shown code.",
+   "model": "x-test-2"
+  },
+  {
+   "limitation_id": "flexposit-gap-M09-B03",
+   "kind": "condition",
+   "expr": "precision_reg >= 4 and precision_reg <= 8",
+   "path_prefix": [],
+   "reason": "The paper's 4/P cluster throughput claim applies for supported precisions 4≤P≤8, but the RTL implements only 1/P per PE with no 4-PE cluster parallelism, so the gap manifests whenever precision_reg is in that supported range.",
+   "model": "x-test-2"
+  },
+  {
+   "limitation_id": "flexposit-gap-M09-B04-R02",
+   "kind": "not_input",
+   "expr": "",
+   "path_prefix": [],
+   "reason": "The gap is a structural RTL design difference (no shared accumulator, global stall backpressure) that manifests on every execution regardless of input values.",
+   "model": "x-test-2"
+  },
+  {
+   "limitation_id": "flexposit-gap-M09-A01",
+   "kind": "always",
+   "expr": "",
+   "path_prefix": [],
+   "reason": "The RTL module implements a single-PE bit-serial MAC unconditionally, so the paper's four-parallel-MAC-per-weight behavior is absent on every invocation regardless of inputs.",
+   "model": "x-test-2"
+  },
+  {
+   "limitation_id": "flexposit-gap-M09-A05",
+   "kind": "always",
+   "expr": "",
+   "path_prefix": [],
+   "reason": "The RTL datapath unconditionally uses FP8 activations and a per-PE block-floating-point integer accumulator instead of the paper's FP16 activations with fully floating-point MAC, so the divergence holds on every execution.",
+   "model": "x-test-2"
+  },
+  {
+   "limitation_id": "flexposit-gap-M10-B03",
+   "kind": "rejected",
+   "expr": "cycle2",
+   "path_prefix": [
+    "!stall && (valid | pipe_valid)",
+    "valid"
+   ],
+   "reason": "The cycle2 branch uses the sign bit and unshifted A (act_temp) instead of the paper's A + (b0 & (A>>1)), so the discrepancy appears whenever the cycle2 phase is active.",
+   "model": "x-test-2",
+   "rejected_because": "not a Python expression: '!stall && (valid | pipe_valid)'"
+  },
+  {
+   "limitation_id": "flexposit-gap-M10-B06",
+   "kind": "condition",
+   "expr": "cycleLast and (data_in[0] or act_is_zero)",
+   "path_prefix": [
+    "not rst_n == 0",
+    "not stall and (valid or pipe_valid)",
+    "valid",
+    "not cycle0 and not cycle1 and not cycle2"
+   ],
+   "reason": "The zero flag is only latched in the final beat branch when cycleLast is asserted, so the paper's claim that it is latched at cyc3 and valid for the rest of the window only holds when the final beat carries a nonzero data_in[0] or act_is_zero.",
+   "model": "x-test-2"
+  },
+  {
+   "limitation_id": "flexposit-gap-M11-B03-R02",
+   "kind": "not_input",
+   "expr": "",
+   "path_prefix": [],
+   "reason": "The stall-free writeout claim depends on out_ready backpressure and a one-cycle drain fill latency in the RTL FSM, which are hardware/timing behaviors not determined by any Python input value.",
+   "model": "x-test-2"
+  }
+ ]
+}
