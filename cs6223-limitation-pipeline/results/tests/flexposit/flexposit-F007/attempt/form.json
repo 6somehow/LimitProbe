@@ -1,0 +1,82 @@
+{
+  "test_id": "A-flexposit-F007",
+  "finding_id": "flexposit-F007",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "nsize",
+        "value": 8,
+        "why": "posit width; the guard is checked before nsize is used, so any valid width works"
+      },
+      {
+        "name": "es",
+        "value": 1,
+        "why": "posit exponent size; only validated after the rounding guard"
+      },
+      {
+        "name": "scale",
+        "value": 1.0,
+        "why": "posit scale factor; only used after the rounding guard"
+      },
+      {
+        "name": "dtype",
+        "value": "float32",
+        "why": "posit_quantize requires float32 and the guard is before any tensor math"
+      },
+      {
+        "name": "x_values",
+        "value": [
+          0.5,
+          -1.25,
+          3.0,
+          0.0078125
+        ],
+        "why": "small CPU tensor; the guard never reads x"
+      }
+    ],
+    "positive_input": {
+      "rounding": "up"
+    },
+    "negative_input": {
+      "rounding": "nearest"
+    },
+    "boundary_variable": "rounding",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "exception",
+      "spec": "ValueError raised at src/flexposit/formats.py:156",
+      "signal_location": "src/flexposit/formats.py:156"
+    },
+    "expected": {
+      "positive": "ValueError at src/flexposit/formats.py:156",
+      "negative": "no exception at src/flexposit/formats.py:156"
+    }
+  },
+  "execution": {
+    "entry_called": "src/flexposit/formats.py::posit_quantize",
+    "entry_reason": "The official entry quantize() at api.py::quantize never forwards rounding; its call chain (search_channels -> posit_quantize) always uses the default rounding='nearest', so the invalid-rounding guard cannot be reached through it. Calling posit_quantize (last call-chain element) directly is required to exercise the guard.",
+    "call_chain_index": 2,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "true",
+      "false"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "ValueError at src/flexposit/formats.py:156",
+    "negative_observed": "no exception at src/flexposit/formats.py:156"
+  },
+  "evidence": {}
+}

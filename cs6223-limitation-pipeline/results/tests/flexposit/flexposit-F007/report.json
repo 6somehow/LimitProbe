@@ -1,0 +1,112 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "flexposit-F007",
+ "artifact_id": "flexposit",
+ "status": "tested",
+ "not_run": null,
+ "verdict": "inconclusive",
+ "level": "invalid",
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "refuted fatal defeaters: D2",
+ "verdict_reason": "effect on positive input, none on negative input",
+ "observed": {
+  "positive": "ValueError at src/flexposit/formats.py:156",
+  "negative": "no exception at src/flexposit/formats.py:156"
+ },
+ "defeaters": {
+  "D1": "eliminated",
+  "D2": "refuted",
+  "D3": "residual",
+  "D4": "eliminated",
+  "D5": "residual",
+  "D6": "eliminated",
+  "D7": "eliminated",
+  "D8": "eliminated",
+  "D9": "eliminated",
+  "D10": "eliminated",
+  "D11": "eliminated",
+  "D12": "eliminated",
+  "D13": "residual",
+  "D14": "residual"
+ },
+ "open_doubts": [
+  {
+   "id": "D2",
+   "name": "condition holds on positive, fails on negative",
+   "status": "refuted",
+   "evidence": "condition does not hold on the positive or does not fail on the negative"
+  },
+  {
+   "id": "D3",
+   "name": "oracle can see the effect",
+   "status": "residual",
+   "evidence": "only 1 mutants (< n_min=4); killed 1"
+  },
+  {
+   "id": "D5",
+   "name": "control pair differs in one factor, negative adjacent to the boundary",
+   "status": "residual",
+   "evidence": "one factor differs; adjacency not measurable: boundary variable 'rounding' is not an integer (value 'nearest')"
+  },
+  {
+   "id": "D13",
+   "name": "inputs inside the paper's scope",
+   "status": "residual",
+   "evidence": "scope_status=unknown"
+  },
+  {
+   "id": "D14",
+   "name": "official entry point was called",
+   "status": "residual",
+   "evidence": "deeper entry (index 2); reason recorded: The official entry quantize() at api.py::quantize never forwards rounding; its call chain (search_channels -> posit_quantize) always uses the default rounding='nearest', so the invalid-rounding guard cannot be reached through it. Calling posit_quantize (last call-chain element) directly is required to exercise the guard."
+  }
+ ],
+ "next_steps": [
+  "D2 (refuted): pick inputs so the Region condition is true on the positive and false on the negative; write a predicate if it cannot be evaluated",
+  "D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location",
+  "D5 (residual): change exactly one factor between positive and negative, and make the negative the point next to the boundary",
+  "D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)"
+ ],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "reject",
+  "priority": 1,
+  "summary": "When True: raise ValueError(f'invalid rounding mode {rounding!r}') (src/flexposit/formats.py:156)",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "src/flexposit/formats.py:156",
+  "function": "src/flexposit/formats.py::posit_quantize",
+  "condition": "rounding not in ('nearest', 'stochastic')"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "src/flexposit/formats.py",
+    "line_start": 156,
+    "function": "src/flexposit/formats.py::posit_quantize",
+    "snippet": "raise ValueError(f'invalid rounding mode {rounding!r}')"
+   }
+  ]
+ },
+ "files": {
+  "execution_report": "execution_report.json",
+  "testcase": "testcase.json",
+  "attempt": "attempt"
+ },
+ "provenance": {
+  "findings_file": "results/step4/flexposit/limitations_for_tests.json",
+  "findings_sha256": "90fcaf23c2793dc03b49c54856e041483165536eff1522a25766022460b78f23",
+  "generated_at": "2026-11-17T14:57:35+08:00",
+  "source": "agent",
+  "attempt_origin": "scratch/agent_runs/e2e-f007-105ac7",
+  "agent_tokens": 4012260,
+  "agent_wall_s": 466.5,
+  "lock_tampered": false,
+  "profile": "default-v1"
+ }
+}

@@ -1,0 +1,105 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "flexposit-F008",
+ "artifact_id": "flexposit",
+ "status": "tested",
+ "not_run": null,
+ "verdict": "yes",
+ "level": "L1",
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "effect on positive input, none on negative input",
+ "observed": {
+  "positive": "branch taken at src/flexposit/mpq/channel_window.py:283",
+  "negative": "branch not taken at src/flexposit/mpq/channel_window.py:283 (later ValueError at src/flexposit/mpq/channel_window.py:287)"
+ },
+ "defeaters": {
+  "D1": "eliminated",
+  "D2": "eliminated",
+  "D3": "residual",
+  "D4": "eliminated",
+  "D5": "residual",
+  "D6": "eliminated",
+  "D7": "eliminated",
+  "D8": "eliminated",
+  "D9": "eliminated",
+  "D10": "eliminated",
+  "D11": "eliminated",
+  "D12": "eliminated",
+  "D13": "residual",
+  "D14": "residual"
+ },
+ "open_doubts": [
+  {
+   "id": "D3",
+   "name": "oracle can see the effect",
+   "status": "residual",
+   "evidence": "only 1 mutants (< n_min=4); killed 1"
+  },
+  {
+   "id": "D5",
+   "name": "control pair differs in one factor, negative adjacent to the boundary",
+   "status": "residual",
+   "evidence": "one factor differs; adjacency not measurable: boundary variable 'strategy' is not an integer (value 'unknown')"
+  },
+  {
+   "id": "D13",
+   "name": "inputs inside the paper's scope",
+   "status": "residual",
+   "evidence": "scope_status=unknown"
+  },
+  {
+   "id": "D14",
+   "name": "official entry point was called",
+   "status": "residual",
+   "evidence": "deeper entry (index 1); reason recorded: The declared official entry src/flexposit/api.py::quantize cannot reach the target: its plan_windows() always sorts by sensitivity and it contains no random/sweep strategy or call to _order_candidates (step 4 also reports call_chain_status not_found). The only real caller of _order_candidates is flexposit.mpq.channel_window.main() in sweep mode, which requires an argparse namespace, a HuggingFace checkpoint/tokenizer and the GPU/eval loop. The driver therefore calls the real _order_candidates directly, keeping the target function and its body unmodified; no stand-in is used at or before the target."
+  }
+ ],
+ "next_steps": [
+  "D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location",
+  "D5 (residual): change exactly one factor between positive and negative, and make the negative the point next to the boundary",
+  "D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)"
+ ],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "path_change",
+  "priority": 2,
+  "summary": "When strategy == \"random\": Random strategy shuffles candidates with the caller-seeded RNG, selecting a different set of windows than the sensitivity ordering. (src/flexposit/mpq/channel_window.py:283)",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "src/flexposit/mpq/channel_window.py:283",
+  "function": "src/flexposit/mpq/channel_window.py::_order_candidates",
+  "condition": "strategy == \"random\""
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "src/flexposit/mpq/channel_window.py",
+    "line_start": 283,
+    "function": "src/flexposit/mpq/channel_window.py::_order_candidates",
+    "snippet": "if strategy == 'random':"
+   }
+  ]
+ },
+ "files": {
+  "execution_report": "execution_report.json",
+  "testcase": "testcase.json",
+  "attempt": "attempt"
+ },
+ "provenance": {
+  "findings_file": "results/step4/flexposit/limitations_for_tests.json",
+  "findings_sha256": "90fcaf23c2793dc03b49c54856e041483165536eff1522a25766022460b78f23",
+  "generated_at": "2026-11-17T15:02:44+08:00",
+  "source": "agent",
+  "attempt_origin": "scratch/agent_runs/e2e-f008-cf4544",
+  "agent_tokens": 4184935,
+  "agent_wall_s": 609.1,
+  "lock_tampered": false,
+  "profile": "default-v1"
+ }
+}

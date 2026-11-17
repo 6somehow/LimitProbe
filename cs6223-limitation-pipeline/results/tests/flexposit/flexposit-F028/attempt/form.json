@@ -1,0 +1,85 @@
+{
+  "test_id": "A-flexposit-F028",
+  "finding_id": "flexposit-F028",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "upgrade_nsize",
+        "value": 2,
+        "why": "config field not in the witness; 2 keeps the scale minimal and satisfies base_nsize <= bits <= upgrade_nsize"
+      },
+      {
+        "name": "es",
+        "value": 0,
+        "why": "FlexPositConfig requires es < base_nsize; base_nsize is 1 in the witness so es must be 0"
+      },
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "fixed seed for deterministic model weights"
+      },
+      {
+        "name": "in_features",
+        "value": 8,
+        "why": "tiny model width; the branch decision depends only on config bits/base_nsize and sensitivity"
+      },
+      {
+        "name": "out_features",
+        "value": 4,
+        "why": "tiny model height; the branch decision does not inspect the model"
+      }
+    ],
+    "positive_input": {
+      "bits": 2,
+      "base_nsize": 1,
+      "sensitivity": null
+    },
+    "negative_input": {
+      "bits": 2,
+      "base_nsize": 1,
+      "sensitivity": [
+        [
+          "proj",
+          0,
+          4,
+          -0.5
+        ]
+      ]
+    },
+    "boundary_variable": "sensitivity",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "exception",
+      "spec": "ValueError raised at src/flexposit/api.py:183",
+      "signal_location": "src/flexposit/api.py:183"
+    },
+    "expected": {
+      "positive": "ValueError at src/flexposit/api.py:183",
+      "negative": "no exception at src/flexposit/api.py:183"
+    }
+  },
+  "execution": {
+    "entry_called": "src/flexposit/api.py::quantize",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": false,
+    "positive_observed": "ValueError at src/flexposit/api.py:183",
+    "negative_observed": "no exception at src/flexposit/api.py:183"
+  },
+  "evidence": {}
+}

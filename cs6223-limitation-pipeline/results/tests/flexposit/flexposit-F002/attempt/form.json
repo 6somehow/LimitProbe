@@ -1,0 +1,59 @@
+{
+  "test_id": "A-flexposit-F002",
+  "finding_id": "flexposit-F002",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {"name": "seed", "value": 0, "why": "fixed seed for reproducible CPU runs"},
+      {"name": "bits", "value": 2, "why": "witness trigger derived value config.bits; only needs to exceed base_nsize"},
+      {"name": "base_nsize", "value": 1, "why": "witness trigger derived value config.base_nsize"},
+      {"name": "upgrade_nsize", "value": 5, "why": "default FlexPosit upgrade width; not fixed by the witness"},
+      {"name": "es", "value": 0, "why": "valid posit exponent size when base_nsize is 1 (0 <= es < base_nsize)"},
+      {"name": "cin", "value": 4, "why": "tiny input width keeps CPU quantization cheap and gives distinct windows"},
+      {"name": "cout", "value": 1, "why": "one output channel so every matching window upgrades it and nsize stays valid"},
+      {"name": "progress", "value": false, "why": "disable the tqdm progress bar; it is irrelevant to the target decision"}
+    ],
+    "positive_input": {
+      "quantize": true,
+      "total_windows": 0
+    },
+    "negative_input": {
+      "quantize": true,
+      "total_windows": 1
+    },
+    "boundary_variable": "total_windows",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "exception",
+      "spec": "ValueError raised at src/flexposit/api.py:189",
+      "signal_location": "src/flexposit/api.py:189"
+    },
+    "expected": {
+      "positive": "ValueError at src/flexposit/api.py:190",
+      "negative": "no exception at src/flexposit/api.py:189"
+    }
+  },
+  "execution": {
+    "entry_called": "src/flexposit/api.py::quantize",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": ["false", "true"],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "ValueError at src/flexposit/api.py:190",
+    "negative_observed": "no exception at src/flexposit/api.py:189"
+  },
+  "evidence": {}
+}
