@@ -103,7 +103,7 @@ def build_spec(manifest: AttemptManifest, attempt_dir: Path, pipeline_root: Path
         "chain": list(region.call_chain),
         "target": {"file": region.location.file, "line": region.location.line_start,
                    "function": _qualname(region.location.function)},
-        "cond_expr": None if predicate_file else region.condition.expr,
+        "cond_expr": region.condition.expr,       # also with a predicate: the two are cross-checked (D2)
         "predicate_file": str((attempt_dir / predicate_file).resolve()) if predicate_file else None,
         "mocks": [m.model_dump(mode="json") for m in mocks],
     }

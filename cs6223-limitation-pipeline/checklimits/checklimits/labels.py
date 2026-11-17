@@ -103,9 +103,28 @@ Then: `python -m checklimits labels evaluate --sheets sheet_r1.csv sheet_r2.csv 
 
 
 # --------------------------------------------------------------------------- agreement
+_Q1 = {"true": "true", "t": "true", "yes": "true", "false": "false", "f": "false", "no": "false",
+       "partially true": "partial", "partial": "partial", "partly true": "partial"}
+_Q2 = {"valid": "valid", "invalid": "invalid", "inconsistent": "invalid"}
+
+
+def norm_label(question: str, value: str) -> str:
+    """Canonical label. A reviewer who could not run or read the test writes 'Unverified' for q2: that is `unclear`, not
+    `invalid`. 'Partially true' for q1 is its own value (`partial`): the claim is not confirmed, and it is not false either.
+    'Inconsistent' (the test's observations contradict the claim's direction) counts as `invalid`."""
+    v = (value or "").strip().lower()
+    if question == "q1":
+        return _Q1.get(v, "unclear" if v else "")
+    return _Q2.get(v, "unclear" if v else "")
+
+
 def read_sheet(p: Path) -> dict[str, dict[str, str]]:
-    with p.open(newline="") as f:
-        return {r["item_id"]: r for r in csv.DictReader(f)}
+    with p.open(newline="", encoding="utf-8-sig") as f:        # a spreadsheet program may have added a BOM
+        rows = {r["item_id"]: r for r in csv.DictReader(f)}
+    for r in rows.values():
+        r["q1_finding_true"] = norm_label("q1", r.get("q1_finding_true", ""))
+        r["q2_test_valid"] = norm_label("q2", r.get("q2_test_valid", ""))
+    return rows
 
 
 def cohen_kappa(a: list[str], b: list[str]) -> Optional[float]:
@@ -154,23 +173,66 @@ def evaluate(sheets: list[Path], key: Path) -> dict[str, Any]:
                                   "cohen_kappa": cohen_kappa(la, lb)}
         out["agreement"][q] = {"pairs": pair, "fleiss_kappa": fleiss_kappa(rows) if len(data) > 1 else None}
     # the harness's `yes` against the raters' majority: a `yes` is confirmed when the Finding is true and the test valid
-    by_level: dict[str, list[bool]] = defaultdict(list)
+    by_level: dict[str, list[tuple[bool, bool, bool]]] = defaultdict(list)     # (claim true, test valid, test assessed)
     for i in ids:
         if k[i]["verdict"] != "yes":
             continue
-        q1 = majority([d[i]["q1_finding_true"].strip().lower() for d in data])
-        q2 = majority([d[i]["q2_test_valid"].strip().lower() for d in data])
-        by_level[k[i]["level"]].append(q1 == "true" and q2 == "valid")
-    lv = {}
-    for level, flags in sorted(by_level.items()):
-        lo, hi = wilson_interval(sum(flags), len(flags))
-        lv[level] = {"n": len(flags), "confirmed": sum(flags), "rate": round(sum(flags) / len(flags), 3),
-                     "wilson95": [round(lo, 3), round(hi, 3)]}
+        q1 = majority([d[i]["q1_finding_true"] for d in data])
+        q2 = majority([d[i]["q2_test_valid"] for d in data])
+        by_level[k[i]["level"]].append((q1 == "true", q2 == "valid", q2 in ("valid", "invalid")))
+
+    def row(flags: list[tuple[bool, bool, bool]]) -> dict[str, Any]:
+        n = len(flags)
+        t, c, a_ = sum(f[0] for f in flags), sum(f[0] and f[1] for f in flags), sum(f[2] for f in flags)
+        lo, hi = wilson_interval(t, n)
+        lo2, hi2 = wilson_interval(c, n)
+        return {"n": n, "claim_true": t, "claim_true_rate": round(t / n, 3), "claim_true_wilson95": [round(lo, 3), round(hi, 3)],
+                "test_assessed": a_, "claim_true_and_test_valid": c, "confirmed_rate": round(c / n, 3),
+                "confirmed_wilson95": [round(lo2, 3), round(hi2, 3)]}
+    lv = {level: row(fl) for level, fl in sorted(by_level.items())}
     allf = [f for fl in by_level.values() for f in fl]
     if allf:
-        lo, hi = wilson_interval(sum(allf), len(allf))
-        lv["all yes"] = {"n": len(allf), "confirmed": sum(allf), "rate": round(sum(allf) / len(allf), 3),
-                         "wilson95": [round(lo, 3), round(hi, 3)]}
+        lv["all yes"] = row(allf)
     out["harness"]["yes_confirmed_by_majority"] = lv
-    out["harness"]["note"] = "items without a clear majority count as not confirmed; the sample is small, read the intervals"
+    out["harness"]["note"] = ("claim_true: the raters' majority says the Finding is true of the code. confirmed: also the test is "
+                              "valid. A test nobody could read counts as not confirmed, so read test_assessed next to it. "
+                              "The sample is small, read the intervals")
+    return out
+
+
+def refresh_key(key: Path, results_root: Path) -> dict[str, Any]:
+    """Update what the harness said in key.json from the current records (after a rule change). The sampled items stay
+    the same; the old values are kept under `previous`. Returns the items whose verdict or level changed."""
+    d = json.loads(key.read_text())
+    changed = {}
+    for iid, info in d["items"].items():
+        art = info["finding_id"].split("-")[0]
+        rec = json.loads((results_root / "tests" / art / info["finding_id"] / "report.json").read_text())
+        new = {"verdict": rec["verdict"], "level": rec["level"], "defeaters": rec["defeaters"]}
+        if (new["verdict"], new["level"]) != (info["verdict"], info["level"]):
+            changed[iid] = {"finding_id": info["finding_id"], "was": f"{info['verdict']}/{info['level']}",
+                            "now": f"{new['verdict']}/{new['level']}"}
+            info["previous"] = f"{info['verdict']}/{info['level']}"
+        info.update(new)
+    key.write_text(json.dumps(d, indent=1) + "\n")
+    return changed
+
+
+def compare_to_baseline(baseline: Path, others: list[Path]) -> dict[str, Any]:
+    """Agreement of other labellers (their majority) with a baseline sheet, per question, on the items both labelled
+    with a decided value (`unclear` and `partial` are not decisions the other can agree or disagree with)."""
+    base = read_sheet(baseline)
+    data = [read_sheet(p) for p in others]
+    out: dict[str, Any] = {"baseline": baseline.name, "others": [p.name for p in others]}
+    for q, col, decided in (("q1", "q1_finding_true", ("true", "false")), ("q2", "q2_test_valid", ("valid", "invalid"))):
+        pairs = []
+        for i, b in base.items():
+            m = majority([d[i][col] for d in data if i in d])
+            if b[col] in decided and m in decided:
+                pairs.append((b[col], m, i))
+        agree = sum(x == y for x, y, _ in pairs)
+        out[q] = {"items_compared": len(pairs), "agree": agree,
+                  "percent": round(agree / len(pairs), 3) if pairs else None,
+                  "baseline_decided": sum(b[col] in decided for b in base.values()), "items": len(base),
+                  "disagreements": [{"item": i, "baseline": x, "other": y} for x, y, i in pairs if x != y]}
     return out

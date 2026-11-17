@@ -378,7 +378,9 @@ def run_attempt(attempt_dir: Path, pipeline_root: Path = PIPELINE_ROOT, options:
     m = confidence.Measurements(
         verdict=v.verdict, outcome_supported=supported, target_reached=pos.target_reached,
         cond_true_on_positive=audit_mod.cond_value(pos, True), cond_false_on_negative=audit_mod.cond_value(neg, False),
-        condition_translated=bool(ctx.pred_file), mutation=mut_res,
+        condition_translated=bool(ctx.pred_file),
+        region_cond_true_on_positive=audit_mod.region_cond_value(pos, True) if ctx.pred_file else None,
+        region_cond_false_on_negative=audit_mod.region_cond_value(neg, False) if ctx.pred_file else None, mutation=mut_res,
         declared_tier=form.design.oracle.tier, verified_tier=verified, preregistered=prereg, oracle_revisions=revisions,
         differing_factors=factors, controls_differ=controls_differ, extra_negatives_clean=extras_clean,
         bva=bva_res, info=info,

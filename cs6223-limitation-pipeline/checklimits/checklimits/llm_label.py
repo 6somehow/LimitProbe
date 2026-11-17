@@ -64,7 +64,8 @@ def _first_line(loc: str) -> tuple[str, int]:
     return (m.group(1), int(m.group(2))) if m else ("", 0)
 
 
-def build_prompt(row: dict[str, str], results_root: Path, repo_rel: str, max_driver_chars: int = 9000) -> str:
+def build_prompt(row: dict[str, str], results_root: Path, repo_rel: str, max_driver_chars: int = 9000,
+                 questions: bool = True) -> str:
     """Everything a reviewer needs, none of what the harness concluded."""
     fid, art = row["finding_id"], row["artifact"]
     tdir = results_root / "tests" / art / fid
@@ -97,7 +98,7 @@ def build_prompt(row: dict[str, str], results_root: Path, repo_rel: str, max_dri
               f"Stand-ins (mocks) used: {json.dumps(mocks) if mocks else 'none'}",
               f"What happened, trigger run: {row['trigger_run']}",
               f"What happened, contrast run: {row['contrast_run']}", "",
-              "driver.py:", "```python", driver, "```", "", QUESTIONS]
+              "driver.py:", "```python", driver, "```", ""] + ([QUESTIONS] if questions else [])
     return "\n".join(parts)
 
 

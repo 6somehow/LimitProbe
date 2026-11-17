@@ -64,7 +64,7 @@ def cmd_test(a: argparse.Namespace) -> int:
         a.artifact, results_root=Path(a.results_root) if a.results_root else DEFAULT_RESULTS_ROOT,
         attempts_roots=[Path(p) for p in a.attempts_root] if a.attempts_root else None, run_agent=a.run_agent,
         only=a.only, workers=a.workers, fast=a.fast, strict=a.strict, skip_envcheck=a.skip_envcheck, python=a.python,
-        **_e2e_args(a)))
+        provision=a.provision, **_e2e_args(a)))
 
 
 def cmd_report(a: argparse.Namespace) -> int:
@@ -124,6 +124,20 @@ def cmd_labels(a: argparse.Namespace) -> int:
             print(json.dumps({"error": "give --key-file or set OPENAI_KEY_FILE (a file holding the key; it is never printed)"}))
             return 2
         res = llm_label.label(Path(a.sheet), root, Path(a.out), Path(key_file), a.samples, a.model)
+    elif a.action == "context":
+        # one readable file per item with everything needed to judge the test (driver source included)
+        from . import llm_label
+        from .agent_batch import artifact_paths
+        out = Path(a.out) / "context"
+        out.mkdir(parents=True, exist_ok=True)
+        for r in labels.read_sheet(Path(a.sheet)).values():
+            text = llm_label.build_prompt(r, root, artifact_paths(r["artifact"])[2], questions=False)
+            (out / f"{r['item_id']}.md").write_text(f"# {r['item_id']}  {r['finding_id']}\n\n" + text)
+        res = {"written": len(list(out.glob("*.md"))), "dir": str(out)}
+    elif a.action == "refresh-key":
+        res = labels.refresh_key(Path(a.key), root)
+    elif a.action == "baseline":
+        res = labels.compare_to_baseline(Path(a.sheet), [Path(p) for p in a.sheets])
     elif a.action == "compare":
         from . import llm_label
         res = llm_label.compare([Path(p) for p in a.sheets], Path(a.key))
@@ -277,6 +291,8 @@ def main(argv: list[str] | None = None) -> int:
     te.add_argument("--fast", action="store_true")
     te.add_argument("--strict", action="store_true", help="exit 4 if any Finding is not_run for env/agent/harness reasons")
     te.add_argument("--skip-envcheck", action="store_true")
+    te.add_argument("--provision", action="store_true",
+                    help="if the environment check fails and the repository is checked out, build scratch/venv_<artifact> first")
     te.set_defaults(fn=cmd_test)
     rp = sub.add_parser("report", help="regenerate LIMITATIONS.md from the records on disk")
     _common(rp)
@@ -297,7 +313,7 @@ def main(argv: list[str] | None = None) -> int:
     pv.add_argument("--skip-tests", action="store_true")
     pv.set_defaults(fn=cmd_provision)
     lb = sub.add_parser("labels", help="human labelling: sample sheets of tested Findings / compute agreement")
-    lb.add_argument("action", choices=["sample", "evaluate", "llm", "compare"])
+    lb.add_argument("action", choices=["sample", "evaluate", "llm", "compare", "context", "baseline", "refresh-key"])
     lb.add_argument("--sheet", help="llm: the sheet to label (any rater's, they are identical)")
     lb.add_argument("--key-file", help="llm: file with the OpenAI key (or env OPENAI_KEY_FILE)")
     lb.add_argument("--model", default="gpt-6.1-sol")

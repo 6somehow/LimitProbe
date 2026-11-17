@@ -56,6 +56,18 @@ class StopProbe(BaseException):
     running the code below it. They are never used for the verdict itself."""
 
 
+def _pure_expression(expr: str) -> bool:
+    """True if evaluating `expr` cannot change the program: no calls except a few pure builtins. The Region condition is
+    evaluated beside an agent predicate only for the cross-check of D2; `random.uniform(0, 1) < p` would advance the
+    random generator of the program under test."""
+    try:
+        tree = ast.parse(expr, mode="eval")
+    except SyntaxError:
+        return False
+    return all(not isinstance(n, ast.Call) or (isinstance(n.func, ast.Name) and n.func.id in _SAFE_BUILTINS)
+               for n in ast.walk(tree))
+
+
 def norm_qual(q: str) -> str:
     """co_qualname of a nested function is 'outer.<locals>.inner'; the Region says 'outer.inner'."""
     return q.replace(".<locals>", "")
@@ -230,6 +242,13 @@ class _TracerBase:
                 hit["condition_value"] = bool(eval(t.cond_expr, {"__builtins__": _SAFE_BUILTINS}, loc))  # noqa: S307
         except Exception as e:  # not evaluable on these locals
             hit["condition_error"] = f"{type(e).__name__}: {e}"[:160]
+        if t.predicate is not None and t.cond_expr and _pure_expression(t.cond_expr):
+            # an agent-written predicate replaces the Region condition for D2; evaluate the Region condition too, so that
+            # a predicate that says something else than the Region does can be caught
+            try:
+                hit["region_condition_value"] = bool(eval(t.cond_expr, {"__builtins__": _SAFE_BUILTINS}, loc))  # noqa: S307
+            except Exception:
+                pass
 
     def _resolve(self, pend: _Pending, outcome: str, may_stop: bool = True) -> None:
         pend.hit["outcome"] = outcome

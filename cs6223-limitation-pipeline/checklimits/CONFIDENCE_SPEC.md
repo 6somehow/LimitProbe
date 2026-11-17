@@ -269,3 +269,9 @@ D1 到 D14 对三类效果通用，只有"什么算效果"不同（`runner.outco
 原来 D14 只看 `call_chain[0]` 是不是最先开始的函数。现在还要求目标行执行时它仍在运行（追踪器给每次命中记下当时的调用栈，`fidelity.entry_on_stack`）。入口先开始、目标却在入口之外执行（先调一次入口，再直接调目标函数）时：写了 `entry_reason` 是 residual，没写是 refuted。模块级目标和无调用栈记录时不检查。发现的经过和对已有结果的影响见 `EXPERIMENTS.md`："D14 的漏洞"。
 
 对全部已有结果的影响（用新规则重新审计）：FlexPrefill F008 从 L3 到 L2；NNSmith F035 从 L3 到 L2；其余 e2e 结果的档位不变。基准的 82 个 case 没有重跑（它们是故障注入，不涉及入口），16 个决定、假阳性 0 的结论不受影响，但没有再验证一遍。
+
+## 20. D2 与 agent 谓词的交叉检查，以及第一份人工基线（2026-11-17）
+
+agent 可以写 `condition.py` 谓词代替 Region.condition 来求 D2。谓词可能说的是另一件事。人工基线（`labels/sheet_shanghao.csv`）发现 NNSmith F009：Region 的条件是 `max(left, right) >= W`（"到上限时不加进位"），目标语句是 `if carry and max(...) < W:`，agent 的谓词按语句写，于是 trigger 和 contrast 的方向反了，harness 给了 `yes`/L1，D2 只是 residual。现在谓词存在时也同时求值 Region.condition（`TargetHit.region_condition_value`）：能求值且与"正例为真、反例为假"矛盾，D2 为 refuted；一致，D2 为 eliminated；不能求值，仍是 residual。Region.condition 含调用（`random.uniform(...)`、`x.size()`）时不求值，因为求值会改变被测程序（`tracer._pure_expression`）。F009 现在是 `inconclusive`/`invalid`；F019、F022 因条件含调用，仍是 residual。有测试。
+
+基线的第一批数字（20 条抽样里 18 条 harness 判 `yes`，刷新 key 之后）：人工判断"断言对代码成立"的比例 16/18（Wilson 0.67 到 0.97），L1 4/6，L2 6/6，L3 6/6。**q2（测试有效）基本没评：** 基线的 q2 写的是 `Unverified`，因为审阅者没有拿到 driver 源码，只有 F009 一条被判 `Inconsistent`。`labels/context/` 给每条补了 driver 全文。这些数字不是校准，样本 18，档位之间的差别在区间里重叠。

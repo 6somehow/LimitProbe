@@ -271,3 +271,29 @@ def test_a_branch_verdict_says_only_that_the_branch_was_taken():
     assert "exception is raised at the location" in _verdict_text("yes", "reject")
     assert "oracle was shown to see it" in _verdict_text("no", "reject")
     assert _verdict_text("inconclusive", None).startswith("no verdict")
+
+
+def test_provision_flag_builds_the_environment_then_checks_again(toy, monkeypatch):
+    from checklimits import provision as pv
+    calls = []
+
+    def fake(name, repo, commit=None, **kw):
+        calls.append((name, repo.name, commit, kw.get("run_tests")))
+        return {"status": "ok", "reasons": []}
+    monkeypatch.setattr(pv, "provision", fake)
+    out = _run(toy, python="/nonexistent/python", provision=True)
+    env = json.loads((toy["results"] / "tests" / "toy" / "ENV.json").read_text())
+    assert calls == [("toy", "repo", toy["commit"], False)]
+    assert env["status"] == "not_ok" and env["provisioned"]["status"] == "ok" and any("does not exist" in r for r in env["provisioned"]["before"])
+    assert out["one_to_one"]
+    calls.clear()
+    _run(toy, provision=True)                     # the environment is fine: nothing is provisioned
+    assert calls == []
+
+
+def test_provision_failure_is_recorded_not_raised(toy, monkeypatch):
+    from checklimits import provision as pv
+    monkeypatch.setattr(pv, "provision", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("pip exploded")))
+    out = _run(toy, python="/nonexistent/python", provision=True)
+    env = json.loads((toy["results"] / "tests" / "toy" / "ENV.json").read_text())
+    assert env["provisioned"]["status"] == "error" and "pip exploded" in env["provisioned"]["reasons"][0] and out["one_to_one"]

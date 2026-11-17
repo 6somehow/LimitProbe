@@ -89,6 +89,14 @@ def cond_value(obs: Observation, want: bool) -> Optional[bool]:
     return last.condition_value is want
 
 
+def region_cond_value(obs: Observation, want: bool) -> Optional[bool]:
+    """Like cond_value, for Region.condition itself when an agent predicate was used. None = not evaluable."""
+    hits = obs.decision_hits or obs.target_hits
+    if not hits or hits[-1].region_condition_value is None:
+        return None
+    return hits[-1].region_condition_value is want
+
+
 def outcomes_seen(*runs: Observation) -> list[str]:
     seen = {h.outcome for r in runs for h in r.target_hits if h.outcome in ("true", "false")}
     return sorted(seen)
