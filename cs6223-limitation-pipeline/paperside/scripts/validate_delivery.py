@@ -5,10 +5,12 @@ import re
 import sys
 from paperprobe.delivery import TEAM
 from paperprobe.io import read_json, file_sha256
+from paperprobe.schema_contract import check_schema_snapshot
 sys.path.insert(0, str(TEAM))
-from schema.models import Claim, ScopeItem, EvalPoint, Binding, Limitation
+from schema.models import Claim, ScopeItem, EvalPoint, Binding, Limitation, Condition
 from codeside.verify3b import load_paper_side
 from codeside.scope_check import ScopeChecker
+from codeside.witness import solve
 from finalize_handoff import numeric_scope
 
 
@@ -32,7 +34,7 @@ def validate(folder, paper_pages=None):
     artifact = read_json(folder / 'artifact.json')['artifact_id']
     data = read_json(folder / 'paper_side.json')
     proof = read_json(folder / 'validation.json')
-    assert file_sha256(TEAM / 'schema/models.py') == proof['shared_schema_sha256'], 'Shared consumer schema changed'
+    compatibility = check_schema_snapshot(folder / 'consumer_schema.snapshot.py', TEAM / 'schema/models.py', proof['shared_schema_sha256'])
     assert {k: len(v) for k, v in data.items()} == proof['counts']
     claims = set()
     for field, model, key in [('claims', Claim, 'claim_id'), ('scope', ScopeItem, 'scope_id'),
@@ -154,6 +156,53 @@ def validate(folder, paper_pages=None):
         assert len(solver) == 1 and solver[0]['code_symbol'] == 'tau', 'Flex tau regression'
     ss, es, bs = load_paper_side(str(folder / 'paper_side.json'))
     checker = ScopeChecker(ss, es, bs)
+    mappings_file = folder / 'parameter_mappings.json'
+    if mappings_file.exists():
+        assert {'parameter_mappings.json', 'consumer_cases.json', 'migration.json'} <= set(distribution['included'])
+        assert proof['shared_schema_version'] == '0.2.0'
+        assert all(r['schema_version'] == '0.2.0' for values in data.values() for r in values)
+        assert all(r['schema_version'] == '0.2.0' for r in limitations)
+        mappings = read_json(mappings_file)['mappings']
+        assert len(mappings) == proof['parameter_mapping_records']
+        bindings = {b['binding_id']: b for b in data['bindings']}
+        for mapping in mappings:
+            binding = bindings[mapping['binding_id']]
+            assert binding['kind'] == 'parameter' and binding['certain']
+            assert binding['code_symbol'] == mapping['code_parameter'] and binding['paper_term'] == mapping['paper_term']
+            assert binding['location'] == mapping['declaration']
+            assert binding['location']['function'] == mapping['owner'] and mapping['scope_qualifier']
+            for location in [mapping['declaration']] + mapping['code_steps']:
+                actual = []
+                for line in range(location['line_start'], location['line_end'] + 1):
+                    text = spans[('primary', location['file'], mapping['commit'], line)]
+                    actual.append(text.split(': ', 1)[1])
+                assert '\n'.join(actual) == location['snippet'], 'Mapping code differs from archived source'
+            for evidence in mapping['paper_evidence']:
+                assert evidence['quote'] and evidence['locator']
+                if paper_pages is not None:
+                    page = int(re.search(r'p\.(\d+)', evidence['locator'])[1])
+                    assert evidence['quote'] in paper_pages[page]
+        probes = read_json(folder / 'consumer_cases.json')['cases']
+        assert len(probes) == proof['consumer_contract_cases']
+        for probe in probes:
+            condition = Condition.model_validate(probe['input'])
+            result, witness = checker.check(condition), solve(condition, checker)
+            assert result.scope_status == probe['expected_scope'] == probe['scope_result']['scope_status']
+            assert witness['status'] == probe['witness']['status'], 'Consumer changed; regenerate and review contract probes'
+            passed = witness['status'] == probe['expected_witness']
+            if probe.get('code_type') == 'integer':
+                name = probe['code_parameter']
+                values = [witness[point][name] for point in ['trigger', 'contrast'] if name in witness.get(point, {})]
+                typed = all(isinstance(v, (int, float)) and not isinstance(v, bool) and float(v).is_integer() for v in values)
+                assert typed == probe['typed_values_valid']
+                passed = passed and typed
+            assert probe['passed'] == passed
+            assert passed or probe.get('known_upstream_failure'), 'Unexplained consumer failure'
+            if passed and witness['status'] == 'solved':
+                assert witness.get('from_paper'), 'Paper scope absent from witness'
+        assert sum(p['passed'] for p in probes) == proof['consumer_contract_passed']
+        assert sum(not p['passed'] for p in probes) == proof['consumer_known_failures']
+        print(f"Consumer probes: {proof['consumer_contract_passed']}/{len(probes)} passed; {proof['consumer_known_failures']} known upstream failures retained (not counted as passes).")
     existing = TEAM / 'results/pipeline' / artifact / 'limitations.json'
     expected = {row['limitation_id']: row for row in proof['wanting_existing_conditions']}
     if existing.exists():
@@ -161,25 +210,30 @@ def validate(folder, paper_pages=None):
             result = checker.check(Limitation.model_validate(raw).condition)
             recorded = expected[raw['limitation_id']]
             assert result.scope_status == recorded['scope_status'] and result.evaluated_in_paper == recorded['evaluated_in_paper']
-    print(f"Offline integrity/consumer checks passed ({artifact}): {len(rows)} behaviors; "
+    print(f"Offline integrity/consumer checks passed ({artifact}; {compatibility}): {len(rows)} behaviors; "
           f"{proof['completed_artifact']} completed / {proof['pending_artifact']} pending; {len(solver)} scalar bindings. "
           f"Frozen behavior IDs: {'checked' if frozen.exists() else 'not independently supplied; manifest/claim IDs checked'}; "
           f"Paper original text: {'checked against supplied pages' if paper_pages is not None else 'not supplied'}; "
           "code checks use included numbered excerpts, not independent Git blobs; semantic truth pending.")
-    return {'artifact_id': artifact, 'behaviors': len(rows), 'scalar_bindings': len(solver)}
+    return {'artifact_id': artifact, 'behaviors': len(rows), 'scalar_bindings': len(solver),
+            'consumer_known_failures': proof.get('consumer_known_failures', 0)}
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('folder', nargs='?', type=Path)
-    parser.add_argument('--root', type=Path, default=Path('handoffs/paper-side-v1'))
+    parser.add_argument('--root', type=Path, help='Explicit package set; default prefers v2 when available, otherwise historical v1')
     parser.add_argument('--paper-input', type=Path, help='Optional original numbered paper-input.json, for a single folder')
+    parser.add_argument('--strict-consumer', action='store_true', help='Exit 4 if any recorded consumer probe still fails; integrity-only checks otherwise exit 0')
     args = parser.parse_args()
     assert not args.paper_input or args.folder, '--paper-input requires one folder'
     pages = None
     if args.paper_input:
         pages = {p['page']: p['text'] for p in read_json(args.paper_input)['pages']}
-    selected = [args.folder] if args.folder else sorted(p.parent for p in args.root.glob('*/paper_side.json'))
+    roots = [args.root] if args.root else [Path('handoffs/paper-side-v1'), Path('handoffs/paper-side-v2')]
+    available = {p.parent.name: p.parent for root in roots for p in sorted(root.glob('*/paper_side.json'))}
+    selected = [args.folder] if args.folder else [available[name] for name in sorted(available)]
     assert selected, 'No published handoffs found'
-    for folder in selected:
-        validate(folder, pages)
+    results = [validate(folder, pages) for folder in selected]
+    if args.strict_consumer and any(r['consumer_known_failures'] for r in results):
+        raise SystemExit(4)
