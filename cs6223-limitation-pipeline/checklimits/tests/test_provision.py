@@ -64,3 +64,21 @@ def test_provision_without_install_records_a_missing_interpreter(tmp_path, monke
     rec = pv.provision("toyp", repo, install=False, run_tests=False, out_dir=tmp_path / "out")
     assert rec["status"] == "not_ok" and any("no interpreter" in r for r in rec["reasons"])
     assert (tmp_path / "out" / "PREFLIGHT.md").read_text().startswith("# Preflight: toyp")
+
+
+def test_install_pins_skips_only_what_cannot_be_installed(tmp_path, monkeypatch):
+    calls = []
+
+    def fake_run(cmd, log, timeout, cwd=None, env=None):
+        calls.append(cmd[-1])
+        bad = "flashinfer>=0.0.5"
+        joined = open(cmd[-1]).read() if cmd[-2] == "-r" else cmd[-1]
+        return (1 if bad in joined else 0), ""
+
+    monkeypatch.setattr(pv, "_run", fake_run)
+    ok, skipped = pv.install_pins(tmp_path / "py", ["numpy  # fast", "flashinfer>=0.0.5", "ray"],
+                                  tmp_path / "pins.txt", tmp_path / "log", 10)
+    assert not ok and skipped == ["flashinfer>=0.0.5"]
+    assert "numpy" in calls and not any("#" in c for c in calls if not c.endswith("pins.txt"))
+    ok, skipped = pv.install_pins(tmp_path / "py", ["numpy"], tmp_path / "pins.txt", tmp_path / "log", 10)
+    assert ok and skipped == []
