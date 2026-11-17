@@ -1,7 +1,24 @@
-# check_limits：交接说明（2026-11-17）
+# check_limits：交接说明（2026-11-17，FlexPosit 冷启动后更新）
 
 给接手的 code agent。先读本文，再读 `CONFIDENCE_SPEC.md`（规则）、`CONTRACT_TEST_REPORT.md`（接口）、`EXPERIMENTS.md`（最近的实验）。
 这个目录是 `cs6223-limitation-pipeline/checklimits/`（下称 C），仓库根是 `/home/somehow6/lesson/CS6223`，分支 `somehow6/check_limits`。
+
+## 0. 新论文冷启动已跑通（FlexPosit，2026-11-17）
+
+一篇没见过的论文（FlexPosit，MICRO 2026，arXiv 2609.04724，仓库 `hplp/FlexPosit` @ `e42a2191a72c`）从零跑完整条 pipeline：
+`pipeline init` → `pipeline run flexposit --pdf ... --run-paper-side`（步骤 1 到 4，41 条 Finding）→ `checklimits test flexposit --provision --run-agent --workers 3`。
+测试侧结果：41 条全部在 `results/report/flexposit/LIMITATIONS.md`（1:1 通过）；测了 12 条：8 个 `yes`（L1 7、L2 1），4 个 `inconclusive`/`invalid`（F001、F006、F007、F028，D2 被推翻，F028 还有 D12）；
+没测 29 条：`no_code_location` 19（论文侧或无代码位置）、`outcome_unsupported` 10（效果类型 `other`）。档位仍未校准。
+这是**一次**冷启动，没有人工核对 q2，不要写成准确率。
+
+冷启动时发现并处理的问题（都不需要人工安装步骤，但要记下）：
+* 依赖：需要 `pip install -e ".[llm,verify,dev]"` 和 `python -m pipeline setup-paperside`（装到 `findlimit`）。
+* **SoCLaaS 直连超时：** `codeside` 读 `SOCLAAS_BASE_URL`，但论文侧（`team_paper_side.py`、`pi-mechanism-agent/run.mjs`、`run-adjudication.mjs`）原来写死了地址。已改成读 `SOCLAAS_BASE_URL`（默认值不变），超时读 `SOCLAAS_TIMEOUT`（默认 300 秒，原来 90 秒）。这是 Zhaopeng 目录里的小改动，需要告诉她。
+* 跑 pipeline 的 shell 里：`SOCLAAS_BASE_URL=http://127.0.0.1:8787/v1`、`SOCLAAS_API_KEY=占位值`、`SOCLAAS_MODEL` 取自 env 文件（只取模型名）。中继加真 key，pipeline 进程见不到真 key。
+* 中继对连接失败和 502/503/504 重试 2 次（`relay.py`，`UPSTREAM_RETRIES`）。之前一次上游 502 就让论文侧中止；论文侧不会续跑不完整的请求（`*.raw.request.json` 留着会报 "Prior incomplete request preserved"），续跑时只删没有结果的那一个请求文件。
+* `pipeline test` 仍不透传 `--provision`，所以这次直接用 `python -m checklimits test ... --results-root <pipeline 根>/results`。
+* `results/tests/flexposit/*/attempt/_pyext` 每个约 7MB（agent 的编译产物），没有提交。
+* 不要用 `pkill -f "pipeline run ..."`，会杀到自己的 shell。
 
 ## 1. 项目是什么
 
@@ -120,7 +137,7 @@ git push origin somehow6/check_limits
 
 ## 9. 下一步（按优先级）
 
-1. **新论文 P = FlexPosit 的真正冷启动**（卡在别人）：等 Wanting 和 Zhaopeng 产出 `data/flexposit/` 和 `results/step4/flexposit/`（W4、Z4）。到手后：
+1. ~~新论文 P = FlexPosit 的真正冷启动~~ 已完成（见 §0）。**原来的描述：**：等 Wanting 和 Zhaopeng 产出 `data/flexposit/` 和 `results/step4/flexposit/`（W4、Z4）。到手后：
    `python -m pipeline test flexposit --run-agent`。环境部分已备好：`PREFLIGHT_FLEXPOSIT.md`（pinned commit `e42a2191a72c…`，60 个仓库测试通过，无人工步骤），`test --provision` 能自动建 venv。
    注意 `pipeline test` 还没有透传 `--provision`，需要 Wanting 加（`CONTRACT_TEST_REPORT.md` 已写）。冷启动之前，"新论文端到端"只有各段分别验证过，没有整体验证过。
 2. **把 `REQUESTS_TO_STEP4.md` 转给 Wanting**（尤其 §6：`override` 指向未实例化的类、列表长度类守卫求解器看不出不可行、裸 `raise` 的约定）。
