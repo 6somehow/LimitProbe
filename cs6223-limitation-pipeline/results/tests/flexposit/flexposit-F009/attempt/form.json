@@ -1,0 +1,104 @@
+{
+  "test_id": "A-flexposit-F009",
+  "finding_id": "flexposit-F009",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "target_avg_bits",
+        "value": 4.5,
+        "why": "witness only fixes args.target_avg_bits is not None; 4.5 is inside [base_bits=4, upgrade_bits=5] so the Mode-A guard on the path prefix holds, and it makes both the downgrade and upgrade candidate sets non-empty."
+      },
+      {
+        "name": "base_bits",
+        "value": 4.0,
+        "why": "code default for the Mode-A budget range; unchanged."
+      },
+      {
+        "name": "upgrade_bits",
+        "value": 5.0,
+        "why": "code default for the Mode-A budget range; unchanged."
+      },
+      {
+        "name": "model_config",
+        "value": "GPT2Config(vocab_size=128, n_embd=32, n_layer=2, n_head=2, n_positions=64)",
+        "why": "small but real locally saved HF GPT-2 checkpoint (same recipe as tests/conftest.py tiny_gpt2); the target decision only tests the boolean args.downgrade, so architecture and width cannot change it. No network or GPU is used."
+      },
+      {
+        "name": "sensitivity_rows",
+        "value": "one row per contiguous 8-output-channel window of every quantizable layer, delta_ppl spread deterministically over [-1.0, -0.1]",
+        "why": "real rows derived from the constructed checkpoint via flexposit.utils.quantizable_layers so main()'s valid-layer filter keeps them; the target line only reads args.downgrade, not any delta_ppl value."
+      },
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "torch.manual_seed(0) before constructing weights makes the checkpoint byte-identical across runs; the target decision does not depend on the weights."
+      },
+      {
+        "name": "dtype",
+        "value": "fp32",
+        "why": "both the FP32 reference and probe checkpoint are tiny CPU models; the target is reached before any eval or quantization, and fp32 avoids fp16 CPU loading caveats."
+      },
+      {
+        "name": "dry_run",
+        "value": true,
+        "why": "main() exits right after the plan is printed, so no model quantization, WikiText download, or GPU work happens below the target line."
+      },
+      {
+        "name": "downgrade_nsize",
+        "value": null,
+        "why": "left at the code default (None), which resolves to int(base_bits) inside the positive branch."
+      },
+      {
+        "name": "num_threads",
+        "value": 1,
+        "why": "single-threaded CPU execution for determinism."
+      }
+    ],
+    "positive_input": {
+      "downgrade": true,
+      "target_avg_bits": 4.5
+    },
+    "negative_input": {
+      "downgrade": false,
+      "target_avg_bits": 4.5
+    },
+    "boundary_variable": "downgrade",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at src/flexposit/mpq/channel_window.py:571",
+      "signal_location": "src/flexposit/mpq/channel_window.py:571"
+    },
+    "expected": {
+      "positive": "branch taken at src/flexposit/mpq/channel_window.py:571",
+      "negative": "branch not taken at src/flexposit/mpq/channel_window.py:571"
+    }
+  },
+  "execution": {
+    "entry_called": "src/flexposit/mpq/channel_window.py::main",
+    "entry_reason": "Static analysis reports call_chain_status=not_found: the declared first node flexposit.api.quantize is a separate Python API implementation that never calls flexposit.mpq.channel_window.main. The target is inside the argparse CLI main, which is only reachable by running that module. The driver therefore calls the deepest chain node, channel_window.main, directly with sys.argv built from the witness inputs; main's own function and all code on the path to line 571 are the real pinned repository code.",
+    "call_chain_index": 1,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "true",
+      "false"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at src/flexposit/mpq/channel_window.py:571",
+    "negative_observed": "branch not taken at src/flexposit/mpq/channel_window.py:571"
+  },
+  "evidence": {}
+}

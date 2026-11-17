@@ -1,0 +1,79 @@
+{
+  "test_id": "A-flexposit-F006",
+  "finding_id": "flexposit-F006",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "nsize",
+        "value": 4,
+        "why": "default Posit base width used by FlexPositConfig"
+      },
+      {
+        "name": "es",
+        "value": 1,
+        "why": "default exponent size used by FlexPositConfig"
+      },
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "fixed seed for determinism"
+      },
+      {
+        "name": "tensor_values",
+        "value": [
+          -1.5,
+          -0.25,
+          0.0,
+          0.25,
+          1.5,
+          3.0
+        ],
+        "why": "arbitrary finite values; the dtype guard fires before any value is used"
+      }
+    ],
+    "positive_input": {
+      "weight_dtype": "float64"
+    },
+    "negative_input": {
+      "weight_dtype": "float32"
+    },
+    "boundary_variable": "weight_dtype",
+    "scale": null,
+    "condition_predicate_file": "condition.py",
+    "oracle": {
+      "tier": "O4",
+      "type": "exception",
+      "spec": "TypeError raised at src/flexposit/formats.py:103",
+      "signal_location": "src/flexposit/formats.py:103"
+    },
+    "expected": {
+      "positive": "TypeError at src/flexposit/formats.py:103",
+      "negative": "no exception at src/flexposit/formats.py:103"
+    }
+  },
+  "execution": {
+    "entry_called": "src/flexposit/formats.py::posit_quantize",
+    "entry_reason": "The official entry api.quantize and core.search_channels call .float() on the weights before posit_quantize, so the non-float32 guard at formats.py:103 is unreachable through them; posit_quantize is a public export of the package (flexposit/__init__.py) and is the first call-chain function that preserves the input dtype.",
+    "call_chain_index": 2,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "true",
+      "false"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": false,
+    "positive_observed": "TypeError at src/flexposit/formats.py:103",
+    "negative_observed": "no exception at src/flexposit/formats.py:103"
+  },
+  "evidence": {}
+}
