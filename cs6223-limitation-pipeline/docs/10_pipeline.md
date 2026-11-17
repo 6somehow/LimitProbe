@@ -41,6 +41,31 @@ python -m pipeline test mypaper [--run-agent] [--strict]
 
 也可以在 Python 里调：`from pipeline.run import run`。
 
+## 一个入口：`doctor` 和 `e2e`（2026-11-17）
+
+配置只来自环境变量（或根目录的 `.env`，环境变量优先；模板见 `.env.example`）：
+
+| 变量 | 含义 |
+|---|---|
+| `SOCLAAS_API_KEY` | 真 key。只有中继进程拿到；其余进程只拿到占位值 |
+| `SOCLAAS_BASE_URL` | 模型服务的上游地址，如 `https://host/v1` |
+| `SOCLAAS_IFACE` | 中继出站绑定的网卡，默认 `eth0`；设为空则走普通路由 |
+| `PIPELINE_MODEL` | 记录和缓存用的模型名，默认 `x-test-2`（研究用的模型；改了就不会命中缓存）。**不读 `SOCLAAS_MODEL`** |
+
+```bash
+# 0. 一次性：python -m pipeline setup-paperside；pip install -e ".[llm,verify,dev]"
+# 1. 登记论文：python -m pipeline init --id X ...
+# 2. 运行前检查（不调模型；--live 会通过中继调一次 GET /models，验证 key、地址、网卡）
+python -m pipeline doctor X --paper-side --agent --live --pdf paper.pdf
+# 3. 一条命令：检查 -> 起中继 -> 步骤 1 到 4 -> 测试（带 --provision）-> 关中继
+python -m pipeline e2e X --pdf paper.pdf --run-paper-side --run-agent
+```
+
+`e2e` 先做 `doctor` 的全部静态检查和一次真实调用，任何一项 FAIL 就在花钱和克隆之前停下（退出码 1，消息 `stopped: ...`）。
+中继固定在 `127.0.0.1:8787`（代码 agent 的沙箱配置写死了这个端口）；已有中继在监听时直接复用，不会再起、也不会关。
+所有阶段有输出就跳过，所以中途失败后重跑同一条命令即可续上；`--run-paper-side` 的论文侧不会续跑一个不完整的请求，
+见 `checklimits/HANDOFF.md` §0。`pipeline test` 也有了 `--provision`。
+
 ## 每一步做什么
 
 | 步骤 | 做什么 | 谁的代码 | 输出 | 调模型 |
