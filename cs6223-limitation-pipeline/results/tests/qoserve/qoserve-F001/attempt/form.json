@@ -1,0 +1,53 @@
+{
+  "test_id": "A-qoserve-F001",
+  "finding_id": "qoserve-F001",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {"name": "seed", "value": 0, "why": "fixes the Sequence tier draw so the run is deterministic"},
+      {"name": "max_model_len", "value": 4096, "why": "model limit needed by BaseScheduler; not used by the target decision"},
+      {"name": "chunk_size", "value": 512, "why": "scheduler chunk budget; only needs to be positive so the decode loop is entered"},
+      {"name": "block_size", "value": 16, "why": "cache block size used consistently for the Sequence and the block manager"},
+      {"name": "num_gpu_blocks", "value": 8, "why": "CPU block pool size; enough for allocation and for can_append_slot to hold"},
+      {"name": "prompt_len", "value": 3, "why": "small prompt that fits one block and is fully processed before scheduling"},
+      {"name": "eos_token_id", "value": 2, "why": "ordinary end-of-sequence id stored on the Sequence; unused at the target"},
+      {"name": "arrival_time", "value": 0.0, "why": "sequence is already present in the running queue, so arrival ordering is irrelevant"}
+    ],
+    "positive_input": {"paused": 0},
+    "negative_input": {"paused": 1},
+    "boundary_variable": "paused",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "exception",
+      "spec": "AssertionError raised at sarathi/core/scheduler/deadline_scheduler.py:251",
+      "signal_location": "sarathi/core/scheduler/deadline_scheduler.py:251"
+    },
+    "expected": {
+      "positive": "AssertionError at sarathi/core/scheduler/deadline_scheduler.py:251",
+      "negative": "no exception at sarathi/core/scheduler/deadline_scheduler.py:251"
+    }
+  },
+  "execution": {
+    "entry_called": "sarathi/core/scheduler/deadline_scheduler.py::DeadlineScheduler._schedule",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": ["true", "false"],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "AssertionError at sarathi/core/scheduler/deadline_scheduler.py:251",
+    "negative_observed": "no exception at sarathi/core/scheduler/deadline_scheduler.py:251"
+  },
+  "evidence": {}
+}

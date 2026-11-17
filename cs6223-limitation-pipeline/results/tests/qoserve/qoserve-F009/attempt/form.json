@@ -1,0 +1,55 @@
+{
+  "test_id": "A-qoserve-F009",
+  "finding_id": "qoserve-F009",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {"name": "prompt_len", "value": 32, "why": "one short real prompt is enough to make the prefill queue non-empty; the target condition does not read prompt length"},
+      {"name": "chunk_size", "value": 512, "why": "default DeadlineSchedulerConfig chunk size; only the code after the target reads it"},
+      {"name": "block_size", "value": 16, "why": "default CacheConfig block size, needed to construct the real block manager"},
+      {"name": "num_gpu_blocks", "value": 1024, "why": "plenty of CPU-side block slots so the real DeadlineBlockSpaceManager never runs out"},
+      {"name": "max_model_len", "value": 4096, "why": "large enough for the short prompt so the prompt-length guard cannot fire"}
+    ],
+    "positive_input": {"scheduler_type": "deadline"},
+    "negative_input": {"scheduler_type": "fcfs"},
+    "extra_negatives": [
+      {"scheduler_type": "edf"},
+      {"scheduler_type": "srpf"},
+      {"scheduler_type": "deadline_no_dynamic_chunking"}
+    ],
+    "boundary_variable": "scheduler_type",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at sarathi/core/scheduler/deadline_scheduler.py:276",
+      "signal_location": "sarathi/core/scheduler/deadline_scheduler.py:276"
+    },
+    "expected": {
+      "positive": "branch taken at sarathi/core/scheduler/deadline_scheduler.py:276",
+      "negative": "branch not taken at sarathi/core/scheduler/deadline_scheduler.py:276"
+    }
+  },
+  "execution": {
+    "entry_called": "sarathi/core/scheduler/deadline_scheduler.py::DeadlineScheduler._schedule",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": ["true", "false"],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at sarathi/core/scheduler/deadline_scheduler.py:276",
+    "negative_observed": "branch not taken at sarathi/core/scheduler/deadline_scheduler.py:276"
+  },
+  "evidence": {}
+}
