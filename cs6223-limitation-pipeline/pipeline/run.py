@@ -170,6 +170,23 @@ def paperside_problems(P: Paths) -> list[str]:
 
 
 # --------------------------------------------------------------------------- stages
+def arxiv_pdf_url(paper_url: str) -> Optional[str]:
+    """https://arxiv.org/abs/2609.04724[v2] -> https://arxiv.org/pdf/2609.04724 (None for other hosts)."""
+    import re
+    m = re.fullmatch(r"https?://(?:www\.)?arxiv\.org/(?:abs|pdf)/([0-9]{4}\.[0-9]{4,5})(?:v\d+)?(?:\.pdf)?", paper_url.strip())
+    return f"https://arxiv.org/pdf/{m.group(1)}" if m else None
+
+
+def download_pdf(url: str, dest: Path) -> None:
+    import urllib.request
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "limitation-pipeline"}), timeout=120) as r:
+        data = r.read()
+    if not data.startswith(b"%PDF"):
+        raise StageError(f"{url} did not return a PDF; pass --pdf <file>")
+    dest.write_bytes(data)
+
+
 def stage_fetch(P: Paths, a) -> None:
     if git_head(P.repo) != P.art["commit"]:
         if not P.repo.is_dir():
@@ -177,10 +194,16 @@ def stage_fetch(P: Paths, a) -> None:
         subprocess.run(["git", "-C", str(P.repo), "fetch", "-q", "--depth", "1", "origin", P.art["commit"]])
         sh(["git", "-C", P.repo, "checkout", "-q", P.art["commit"]])
     if not P.pdf.is_file():
-        if not a.pdf:
-            raise StageError(f"{P.pdf.relative_to(ROOT)} missing: pass --pdf <path to the paper PDF>")
-        P.pdf.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(a.pdf, P.pdf)
+        url = arxiv_pdf_url(P.art["paper_url"])
+        if a.pdf:
+            P.pdf.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(a.pdf, P.pdf)
+        elif url:
+            print(f"  downloading the paper from {url}", flush=True)
+            download_pdf(url, P.pdf)
+        else:
+            raise StageError(f"{P.pdf.relative_to(ROOT)} missing and {P.art['paper_url']} is not an arXiv link: "
+                             "pass --pdf <path to the paper PDF>")
     print(f"  repo {P.repo.relative_to(ROOT)} @ {P.art['commit'][:10]}, pdf sha256 {sha256(P.pdf)[:16]}")
 
 
