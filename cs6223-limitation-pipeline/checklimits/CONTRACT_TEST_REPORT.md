@@ -87,6 +87,8 @@ report/<artifact>/LIMITATIONS.md             汇总报告
 | `open_doubts` | 所有不是 `eliminated` 的 defeater 及其证据，报告里的"未消除的疑点" |
 | `evidence` | 取自 step 4 的原始数据，没有改写 |
 
+`analysis`（可选，2026-11-18）：`not_run` 记录可带分析块，字段 `kind="analysis_only"`、`tier`（A0/A1/A2）、`assessment`、`reasoning`、`static`、`probes`、`would_confirm`、`calibrated=false`。它不是测试，`status` 仍是 `not_run`，`verdict`/`level` 仍是 `null`。见 `CONFIDENCE_SPEC.md` §22。
+
 兼容规则：只增加可选字段，不改名、不删字段、不改枚举含义；改了就升 `checklimits-test-report/2`。
 
 ## 4. `not_run.code` 取值

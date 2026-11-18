@@ -359,7 +359,7 @@ def last_json(text: str) -> Optional[dict]:
 def test_cmd(aid: str, a) -> list:
     cmd = [sys.executable, "-m", "checklimits", "test", aid, "--results-root", str(ROOT / "results"),
            "--workers", str(a.workers)]
-    for flag in ("run_agent", "fast", "strict", "skip_envcheck", "provision"):
+    for flag in ("run_agent", "fast", "strict", "skip_envcheck", "provision", "analyze"):
         if getattr(a, flag, False):
             cmd.append("--" + flag.replace("_", "-"))
     for fid in a.only or []:
@@ -461,7 +461,20 @@ def main(argv: Optional[list] = None) -> None:
     t.add_argument("--skip-envcheck", action="store_true")
     t.add_argument("--provision", action="store_true",
                    help="build scratch/venv_<id> at the pinned commit from the repository's own pins before testing")
+    t.add_argument("--analyze", action="store_true",
+                   help="also add an analysis (tier A0-A2, not a verdict) to Findings that were not tested; needs the relay")
     t.add_argument("--python", help="interpreter of the code under test (default: the test side's per-artifact venv)")
+    an = sub.add_parser("analyze", help="analyse the Findings that were not tested (analysis tiers A0-A2, not verdicts)")
+    an.add_argument("artifact_id")
+    an.add_argument("--model", default=None)
+    an.add_argument("--workers", type=int, default=3)
+    an.add_argument("--force", action="store_true")
+    po = sub.add_parser("paper-only", help="a paper with no public code: reading-based candidates (tier A1 at most)")
+    po.add_argument("artifact_id")
+    po.add_argument("--pdf", required=True)
+    po.add_argument("--title")
+    po.add_argument("--venue")
+    po.add_argument("--model", default=None)
     d = sub.add_parser("doctor", help="check the setup (environment variables, tools, packages, network) before a run")
     d.add_argument("artifact_id", nargs="?")
     d.add_argument("--paper-side", action="store_true", help="also check what the paper-side pipeline needs")
@@ -481,6 +494,7 @@ def main(argv: Optional[list] = None) -> None:
     e.add_argument("--fast", action="store_true")
     e.add_argument("--strict", action="store_true")
     e.add_argument("--skip-envcheck", action="store_true")
+    e.add_argument("--no-analyze", action="store_true", help="do not analyse the Findings that were not tested")
     e.add_argument("--python", default=None)
     sub.add_parser("setup-paperside", help="pip install paperside[team,vision] and npm ci for the Pi agent")
     a = ap.parse_args(argv)
@@ -493,6 +507,12 @@ def main(argv: Optional[list] = None) -> None:
                 status(aid)
         elif a.cmd == "test":
             test(a.artifact_id, a)
+        elif a.cmd == "paper-only":
+            from pipeline import e2e as E
+            E.paper_only_cmd(a)
+        elif a.cmd == "analyze":
+            from pipeline import e2e as E
+            E.analyze_cmd(a)
         elif a.cmd in ("doctor", "e2e"):
             from pipeline import e2e as E
             (E.doctor if a.cmd == "doctor" else E.e2e)(a)

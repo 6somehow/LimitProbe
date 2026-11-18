@@ -36,7 +36,7 @@ from typing import Any, Optional
 
 from . import audit as audit_mod
 from . import bva as bva_mod
-from . import confidence, fidelity, mutate, runner, verdict
+from . import confidence, fidelity, mutate, runner, simcheck, verdict
 from .adapter import load_task
 from .models import (PIPELINE_ROOT, PROJECT_ROOT, scratch_root, AgentForm, AttemptManifest, Checks, Cost, Env, ExecutionReport,
                      Fidelity, MutantResult, MutationResult, Observation, OracleRecord, RepeatResult, ReplayResult,
@@ -341,6 +341,9 @@ def run_attempt(attempt_dir: Path, pipeline_root: Path = PIPELINE_ROOT, options:
                                 if h.get("call", 0) == raw.get("final_call", 0)), default=None)
     mock_recs = fidelity.mock_records(
         ctx.mocks, [(raw_p["mock_events"], first_hit(raw_p)), (raw_n["mock_events"], first_hit(raw_n))], chain)
+    sim_res = simcheck.run_sim_checks(ctx.mocks, ctx.attempt_dir, ctx.repo, manifest.python)
+    for mr in mock_recs:
+        mr.sim_check = sim_res.get(mr.symbol)
     entry_idx = fidelity.entry_index(chain, pos.entry_first_started)
     entry_on_stack = fidelity.entry_on_stack(chain, region.location.function, pos)
     fid = Fidelity(strategy=form.strategy, ast_diff=ad, mocks=mock_recs, entry_index=entry_idx,
@@ -395,7 +398,7 @@ def run_attempt(attempt_dir: Path, pipeline_root: Path = PIPELINE_ROOT, options:
         region_cond_false_on_negative=audit_mod.region_cond_value(neg, False) if ctx.pred_file else None, mutation=mut_res,
         declared_tier=form.design.oracle.tier, verified_tier=verified, preregistered=prereg, oracle_revisions=revisions,
         differing_factors=factors, controls_differ=controls_differ, extra_negatives_clean=extras_clean,
-        bva=bva_res, info=info,
+        bva=bva_res, info=info, sim_checks={mr.symbol: mr.sim_check for mr in mock_recs if mr.sim_check},
         probe_effect_free=probe_ok, repeat=repeat, replay=replay_res, scale_declared=sc is not None,
         main_positive_effect=pos.effect, main_negative_effect=neg.effect,
         target_intact=ad.target_statement_intact, stmts_changed=ad.statements_changed, stmts_total=ad.statements_total,

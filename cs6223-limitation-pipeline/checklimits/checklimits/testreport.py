@@ -55,6 +55,7 @@ class TestRecord(_M):
     evidence: dict[str, list[dict[str, Any]]] = Field(default_factory=dict)
     files: dict[str, str] = Field(default_factory=dict)
     provenance: dict[str, Any] = Field(default_factory=dict)
+    analysis: Optional[dict[str, Any]] = None             # analysis lane (analysis.py); never a test verdict
 
 
 def file_sha256(p: Path) -> str:
@@ -165,7 +166,8 @@ def counts(records: list[TestRecord]) -> dict[str, Any]:
     return {"tested": len(tested), "not_run": len(records) - len(tested),
             "verdict": dict(Counter(r.verdict for r in tested)),
             "level": dict(Counter(r.level for r in tested)),
-            "not_run_by_code": dict(Counter(r.not_run.code for r in records if r.not_run))}
+            "not_run_by_code": dict(Counter(r.not_run.code for r in records if r.not_run)),
+            "analysis_tiers": dict(Counter(r.analysis["tier"] for r in records if r.analysis))}
 
 
 # --------------------------------------------------------------------------- LIMITATIONS.md
@@ -198,6 +200,30 @@ def _anchor(fid: str) -> str:
     return fid.lower().replace(".", "")
 
 
+def _render_analysis(A, an: dict[str, Any]) -> None:
+    from .analysis import TIER_TEXT
+    A(f"**Analysis only, tier {an['tier']} (uncalibrated; this is not a test verdict).** "
+      f"{TIER_TEXT.get(an['tier'], '')}. {_cut(an.get('tier_note'), 200)}")
+    A("")
+    A(f"- reading: **{an.get('assessment')}**. {_cut(an.get('reasoning'), 500)}")
+    st = an.get("static") or {}
+    if st.get("cited"):
+        A(f"- cited code found at the pinned commit: {'yes' if st.get('grounded') else '**no**'} "
+          f"({st['cited']} location(s))")
+    for p in an.get("probes") or []:
+        A(f"- probe `{p.get('regex')}` in `{p.get('file')}` expected {p.get('expect')}: **{p.get('status')}** "
+          f"({p.get('hits', 0)} hit(s)). {_cut(p.get('meaning'), 120)}")
+    ac = an.get("arithmetic_check")
+    if ac:
+        A(f"- arithmetic check `{ac.get('expr')}` = {ac.get('value')} (paper needs: {_cut(ac.get('expect'), 80)}): "
+          f"*{ac.get('status')}*. {_cut(ac.get('meaning'), 120)}")
+    if an.get("hardware_needed"):
+        A("- the claim concerns behaviour that needs a GPU, an accelerator or a real run")
+    if an.get("would_confirm"):
+        A(f"- what would settle it: {_cut(an['would_confirm'], 250)}")
+    A("")
+
+
 def render_markdown(artifact: dict[str, Any], records: list[TestRecord], env: Optional[dict[str, Any]],
                     findings_file: str, findings_sha: str, generated_at: Optional[str] = None) -> str:
     cs = counts(records)
@@ -206,7 +232,7 @@ def render_markdown(artifact: dict[str, Any], records: list[TestRecord], env: Op
     A(f"# Limitations report: {artifact.get('paper_title') or artifact['artifact_id']}")
     A("")
     A(f"- artifact: `{artifact['artifact_id']}` ({artifact.get('venue') or 'venue unknown'}), "
-      f"repository {artifact.get('repo_url')} at `{str(artifact.get('commit'))[:10]}`")
+      f"repository {artifact.get('repo_url')}" + (f" at `{str(artifact['commit'])[:10]}`" if artifact.get("commit") else ""))
     A(f"- input: `{findings_file}` (sha256 `{findings_sha[:12]}`), {len(records)} Findings")
     A(f"- generated: {generated_at or now_iso()} by `checklimits test` (contract `{SCHEMA}`)")
     if env:
@@ -221,6 +247,9 @@ def render_markdown(artifact: dict[str, Any], records: list[TestRecord], env: Op
       "(the defeaters D1 to D14 in `CONFIDENCE_SPEC.md`) were measured and ruled out. "
       "**All levels are uncalibrated**: they are not accuracy, and no ground truth exists for these Findings.")
     A("* The *open doubts* listed under each tested Finding are the defeaters that were not ruled out.")
+    A("* A Finding that was not tested may carry an **analysis** (tier A0 to A2): a reading of the paper and code "
+      "evidence, with text probes run by the harness. It is a weaker kind of evidence than a test, has its own "
+      "uncalibrated tiers, and never says yes or no.")
     A("* Step 4 labels (`review`) come from a blind LLM review, not a human.")
     A("")
     A("## Summary")
@@ -229,6 +258,8 @@ def render_markdown(artifact: dict[str, Any], records: list[TestRecord], env: Op
     if cs["verdict"]:
         A("| verdicts | " + ", ".join(f"{k} {v}" for k, v in sorted(cs["verdict"].items())) + " |")
         A("| levels | " + ", ".join(f"{k} {v}" for k, v in sorted(cs["level"].items())) + " |")
+    if cs.get("analysis_tiers"):
+        A("| analysis only (not tests) | " + ", ".join(f"{k} {v}" for k, v in sorted(cs["analysis_tiers"].items())) + " |")
     if cs["not_run_by_code"]:
         A("| not tested, by reason | " + ", ".join(f"`{k}` {v}" for k, v in sorted(cs["not_run_by_code"].items())) + " |")
     A("")
@@ -237,7 +268,8 @@ def render_markdown(artifact: dict[str, Any], records: list[TestRecord], env: Op
     for r in records:
         f = r.finding
         res = (f"**{r.verdict}** / {r.level} (uncalibrated)" if r.status == "tested"
-               else f"not tested: `{r.not_run.code}`")
+               else f"not tested: `{r.not_run.code}`" + (f", analysis {r.analysis['tier']}/{r.analysis['assessment']}"
+                                                         if r.analysis else ""))
         A(f"| [{r.finding_id}](#{_anchor(r.finding_id)}) | {f.get('category') or ''} | {f.get('effect_type') or ''} "
           f"| {('`' + f['location'] + '`') if f.get('location') else ''} | {res} |")
     A("")
@@ -264,6 +296,8 @@ def render_markdown(artifact: dict[str, Any], records: list[TestRecord], env: Op
         if r.status == "not_run":
             A(f"**Not tested** (`{r.not_run.code}`): {r.not_run.reason}")
             A("")
+            if r.analysis:
+                _render_analysis(A, r.analysis)
             continue
         A(f"**Verdict `{r.verdict}`**: {_verdict_text(r.verdict, r.finding.get('effect_type'))}.")
         if r.verdict_reason:
