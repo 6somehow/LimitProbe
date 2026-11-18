@@ -76,3 +76,17 @@ def test_children_get_a_placeholder_key(monkeypatch):
 def test_arxiv_pdf_url(url, want):
     from pipeline import run as R
     assert R.arxiv_pdf_url(url) == want
+
+
+def test_new_subcommands_exist():
+    import contextlib
+    import io
+    from pipeline import run as R
+    for cmd in ("analyze", "paper-only"):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            try:
+                R.main([cmd, "--help"])
+            except SystemExit as e:
+                assert e.code == 0
+        assert cmd in out.getvalue()

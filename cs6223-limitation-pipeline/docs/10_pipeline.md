@@ -66,6 +66,14 @@ python -m pipeline e2e X --pdf paper.pdf --run-paper-side --run-agent
 所有阶段有输出就跳过，所以中途失败后重跑同一条命令即可续上；`--run-paper-side` 的论文侧不会续跑一个不完整的请求，
 见 `checklimits/HANDOFF.md` §0。`pipeline test` 也有了 `--provision`。
 
+## 不能测的 Finding 和没有代码的论文（2026-11-18）
+
+* `python -m pipeline e2e <id> ...` 末尾默认给每条**没测的** Finding 加一个分析（档位 A0–A2，**不是测试结论**，没有 yes/no）。不要分析加 `--no-analyze`。
+* 只补分析、不重跑测试：`python -m pipeline analyze <id> [--force]`（自动启动和关闭中继）。
+* 没有公开代码的论文（例如 Tessera）：`python -m pipeline paper-only <id> --pdf P --title T --venue V`。模型读 PDF 列出限制，每条引用必须逐字出现在 PDF 里，否则丢弃；档位最高 A1。输出在 `results/tests/<id>/` 和 `results/report/<id>/LIMITATIONS.md`。
+* 档位含义、探针规则、限制见 `checklimits/CONFIDENCE_SPEC.md` §22。
+* 需要 GPU 的代码：agent 用 CPU 替身，并用 `sim_check` 自证替身与参考一致（数值或符号），见 §23。
+
 ## 每一步做什么
 
 | 步骤 | 做什么 | 谁的代码 | 输出 | 调模型 |
