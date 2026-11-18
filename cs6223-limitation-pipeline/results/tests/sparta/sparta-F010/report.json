@@ -1,0 +1,172 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "sparta-F010",
+ "artifact_id": "sparta",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "论文要求用真实数据集推理得到的算子输入输出张量；逐模块传播路径用随机张量代替真实激活",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "always",
+  "location": "script/figure14/search_finetune_fit_qat.py:169-178",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "operator’s input and output tensors, we ﬁrst perform inference on the corresponding DNN model using train/test dataset, and collect the resulting input and output tensors of that operator to construct calibration data (line 20). Next, we gradually",
+    "source": "paper",
+    "locator": "PDF p.6, text lines 84-87"
+   }
+  ],
+  "code": [
+   {
+    "file": "script/figure14/search_finetune_fit_qat.py",
+    "line_start": 169,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "script/figure14/search_finetune_fit_qat.py",
+    "line_start": 260,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "script/figure14/search_finetune_fit_qat.py",
+    "line_start": 301,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/sparta/limitations_for_tests.json",
+  "findings_sha256": "af8cad7c4e91af73f84a27b96179739526bde952a669319c71cc4e157ac4b49f",
+  "generated_at": "2026-11-18T12:35:53+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The paper says calibration data should come from real dataset inference. The code does call calibration with train_dataloader, but the per-module propagation function train_bit_propagate builds its training and validation inputs with torch.rand(dummy_input_shape), not real activations. Thus the cited propagation path uses random tensors, matching the finding.",
+  "hardware_needed": false,
+  "would_confirm": "Instrument train_bit_propagate to log whether its inputs come from real dataset activations or torch.rand, or replace random tensors with collected real tensors and compare results.",
+  "static": {
+   "cited": 4,
+   "grounded": true,
+   "items": [
+    {
+     "file": "script/figure14/search_finetune_fit_qat.py",
+     "lines": "169-178",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "script/figure14/search_finetune_fit_qat.py",
+     "lines": "260-299",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "script/figure14/search_finetune_fit_qat.py",
+     "lines": "301-335",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "script/figure14/search_finetune_fit_qat.py",
+     "lines": "571-664",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "script/figure14/search_finetune_fit_qat.py",
+    "regex": "torch\\.rand\\(dummy_input_shape\\)",
+    "expect": "present",
+    "meaning": "Shows random tensors are generated for per-module propagation.",
+    "status": "confirmed",
+    "hits": 8,
+    "hit_lines": [
+     284,
+     288,
+     386,
+     394,
+     398
+    ]
+   },
+   {
+    "file": "script/figure14/search_finetune_fit_qat.py",
+    "regex": "data_train_list\\.append\\(dummy_per_image\\)",
+    "expect": "present",
+    "meaning": "Confirms random dummy images populate propagation training data.",
+    "status": "confirmed",
+    "hits": 3,
+    "hit_lines": [
+     285,
+     395,
+     607
+    ]
+   },
+   {
+    "file": "script/figure14/search_finetune_fit_qat.py",
+    "regex": "calibration\\(model, device, train_dataloader\\)",
+    "expect": "present",
+    "meaning": "Shows real loader used only for calibration, not propagation.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     176
+    ]
+   },
+   {
+    "file": "script/figure14/search_finetune_fit_qat.py",
+    "regex": "def train_bit_propagate",
+    "expect": "present",
+    "meaning": "Locates the propagation function where random data is used.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     260
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

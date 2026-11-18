@@ -1,0 +1,133 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "nnsmith-F002",
+ "artifact_id": "nnsmith",
+ "status": "not_run",
+ "not_run": {
+  "code": "outcome_unsupported",
+  "reason": "effect type 'other': the branch has no raise in its body: the program rejects later, in code the target does not point to"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "When not check_sat(): If the requested output rank cannot be satisfied by the rank-increment loop (e.g. out_abs_tensor ndims inconsistent with the max reachable rank), the loop never terminates, effectively rejecting/hanging on that output shape. (nnsmith/abstract/op.py:2083)",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "nnsmith/abstract/op.py:2083",
+  "function": "nnsmith/abstract/op.py::MatMul.deduct_inp_ranks_and_dtype",
+  "condition": "not check_sat()"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "nnsmith/abstract/op.py",
+    "line_start": 2083,
+    "function": "nnsmith/abstract/op.py::MatMul.deduct_inp_ranks_and_dtype",
+    "snippet": "while not check_sat():"
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/nnsmith/limitations_for_tests.json",
+  "findings_sha256": "3ec725e87dbddd4c992db2cb5e7881f511e70ce2ab61c81037bbb06a557aa5fb",
+  "generated_at": "2026-11-18T12:18:21+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A1",
+  "tier_note": "the reading is unclear; probes alone do not decide it",
+  "calibrated": false,
+  "assessment": "unclear",
+  "reasoning": "The only evidence is a while not check_sat() line. It shows a loop gated by satisfiability, but not the rank-increment logic, max reachable rank, or whether check_sat can become true for inconsistent out_abs_tensor ndims. Nontermination/hanging is plausible but not established by the shown line; no paper evidence is recorded.",
+  "hardware_needed": false,
+  "would_confirm": "Inspect the loop body and rank-increment bounds to see whether check_sat can ever become true for an unsatisfiable requested output rank.",
+  "static": {
+   "cited": 1,
+   "grounded": true,
+   "items": [
+    {
+     "file": "nnsmith/abstract/op.py",
+     "lines": "2083-2083",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": true,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "nnsmith/abstract/op.py",
+    "regex": "while not check_sat\\(\\):",
+    "expect": "present",
+    "meaning": "Confirms the cited satisfiability-gated loop exists.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     2083
+    ]
+   },
+   {
+    "file": "nnsmith/abstract/op.py",
+    "regex": "out_abs_tensor",
+    "expect": "present",
+    "meaning": "Shows the output tensor variable is present in this file.",
+    "status": "confirmed",
+    "hits": 53,
+    "hit_lines": [
+     313,
+     421,
+     424,
+     458,
+     460
+    ]
+   },
+   {
+    "file": "nnsmith/abstract/op.py",
+    "regex": "rank",
+    "expect": "present",
+    "meaning": "Shows rank-related logic exists, but not its termination behavior.",
+    "status": "confirmed",
+    "hits": 107,
+    "hit_lines": [
+     93,
+     98,
+     100,
+     106,
+     108
+    ]
+   },
+   {
+    "file": "nnsmith/abstract/op.py",
+    "regex": "check_sat",
+    "expect": "present",
+    "meaning": "Shows the satisfiability check is used, but not whether it can fail forever.",
+    "status": "confirmed",
+    "hits": 2,
+    "hit_lines": [
+     2077,
+     2083
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

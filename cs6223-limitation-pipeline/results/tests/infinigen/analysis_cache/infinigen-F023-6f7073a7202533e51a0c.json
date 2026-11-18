@@ -1,0 +1,28 @@
+{
+ "assessment": "supports",
+ "reasoning": "The shown selection function caps top-k with min(int(mean), max_num_kv), an absolute token count. The paper promises up to 20% of total KV cache. Although --partial-weight-ratio defaults to 0.2, the shown code does not use it in the cap; max_num_kv defaults to 400. Thus the evidence supports the deviation, subject to checking whether max_num_kv is derived from 20% elsewhere.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "speedup/infinigen/infinigen/kv_selection_controller.py",
+   "regex": "min\\(int\\(mean\\), max_num_kv\\)",
+   "expect": "present",
+   "meaning": "Top-k cap uses absolute max_num_kv, not a ratio."
+  },
+  {
+   "file": "speedup/infinigen/infinigen/kv_selection_controller.py",
+   "regex": "partial_weight_ratio|0\\.2|20\\s*%|\\bratio\\b",
+   "expect": "absent",
+   "control": "def speculate_attention",
+   "meaning": "No ratio-based cap appears in the selection function."
+  },
+  {
+   "file": "speedup/flexgen/infinigen/flex_opt.py",
+   "regex": "partial_weight_ratio",
+   "expect": "absent",
+   "control": "--partial-weight-ratio",
+   "meaning": "Flag is defined but never read, so 0.2 is not used."
+  }
+ ],
+ "would_confirm": "Search flex_opt.py for reads of partial_weight_ratio and trace how max_num_kv is set; if max_num_kv is never derived from 20% of KV cache, the finding is confirmed."
+}

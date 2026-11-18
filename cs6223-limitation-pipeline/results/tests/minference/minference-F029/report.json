@@ -1,0 +1,99 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "minference-F029",
+ "artifact_id": "minference",
+ "status": "tested",
+ "not_run": null,
+ "verdict": "yes",
+ "level": "L1",
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "effect on positive input, none on negative input",
+ "observed": {
+  "positive": "branch taken at minference/modules/minference_forward.py:434 (later NameError at minference/ops/pit_sparse_flash_attention_v2.py:189)",
+  "negative": "branch not taken at minference/modules/minference_forward.py:434 (later AssertionError at minference/ops/block_sparse_flash_attention.py:127)"
+ },
+ "defeaters": {
+  "D1": "eliminated",
+  "D2": "eliminated",
+  "D3": "residual",
+  "D4": "eliminated",
+  "D5": "eliminated",
+  "D6": "refuted",
+  "D7": "eliminated",
+  "D8": "eliminated",
+  "D9": "eliminated",
+  "D10": "eliminated",
+  "D11": "eliminated",
+  "D12": "eliminated",
+  "D13": "residual",
+  "D14": "eliminated"
+ },
+ "open_doubts": [
+  {
+   "id": "D3",
+   "name": "oracle can see the effect",
+   "status": "residual",
+   "evidence": "only 1 mutants (< n_min=4); killed 1"
+  },
+  {
+   "id": "D6",
+   "name": "verdict-bearing observations do not depend on stand-ins",
+   "status": "refuted",
+   "evidence": "verdict-bearing observations: positive simulated:stub, negative simulated:stub; stand-in checks: torch.arange agrees"
+  },
+  {
+   "id": "D13",
+   "name": "inputs inside the paper's scope",
+   "status": "residual",
+   "evidence": "scope_status=unknown"
+  }
+ ],
+ "next_steps": [
+  "D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location",
+  "D6 (refuted): move stand-ins after the target line, or replace stubs with a fake or the repository's own reference implementation"
+ ],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "path_change",
+  "priority": 2,
+  "summary": "When self.config.to_dict().get(\"vs_only\", False): Config flag forces the vertical_and_slash_kernel regardless of the per-head pattern type ty. (minference/modules/minference_forward.py:434)",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 2), not human: vs_only is real but is not exposed through MInferenceConfig/attn_type and is never set by the package, so it is a hidden debug flag.",
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "minference/modules/minference_forward.py:434",
+  "function": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+  "condition": "self.config.to_dict().get(\"vs_only\", False)"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "minference/modules/minference_forward.py",
+    "line_start": 434,
+    "function": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+    "snippet": "if self.config.to_dict().get('vs_only', False):"
+   }
+  ]
+ },
+ "files": {
+  "execution_report": "execution_report.json",
+  "testcase": "testcase.json",
+  "attempt": "attempt"
+ },
+ "provenance": {
+  "findings_file": "results/step4/minference/limitations_for_tests.json",
+  "findings_sha256": "6f02cbec16ce4487c1b9166c2dc5f1f16704f168b135426edfe2df59ed9333bc",
+  "generated_at": "2026-11-18T16:36:14+08:00",
+  "source": "agent",
+  "attempt_origin": "scratch/agent_runs/e2e-f029-cb3f9d",
+  "agent_tokens": 4073596,
+  "agent_wall_s": 586.7,
+  "lock_tampered": false,
+  "profile": "default-v1"
+ },
+ "analysis": null
+}

@@ -1,0 +1,132 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "minference-F050",
+ "artifact_id": "minference",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "论文要求遍历调用方给定的初始化搜索空间 σ；代码遍历写死的候选表，σ 输入不存在（artifact 范围：无 σ 输入，候选表硬编码）",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "always",
+  "location": "minference/modules/minference_forward.py:99-197",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "fori← 1 to|σ| do",
+    "source": "paper",
+    "locator": "PDF p.5"
+   }
+  ],
+  "code": [
+   {
+    "file": "minference/modules/minference_forward.py",
+    "line_start": 99,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "experiments/README.md",
+    "line_start": 13,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/minference/limitations_for_tests.json",
+  "findings_sha256": "6f02cbec16ce4487c1b9166c2dc5f1f16704f168b135426edfe2df59ed9333bc",
+  "generated_at": "2026-11-18T17:25:00+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The paper describes a loop over a caller-provided initialization search space σ. The cited code defines search_pattern(q, k, head) with no σ parameter and at line 177 iterates a fixed three-entry candidate list. The README search invocation also supplies no σ. Thus the implementation does not realize the paper's σ-based loop.",
+  "hardware_needed": false,
+  "would_confirm": "Inspect search_pattern's signature and loop to verify no σ argument is accepted and candidates are hardcoded.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "minference/modules/minference_forward.py",
+     "lines": "99-197",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "experiments/README.md",
+     "lines": "13-30",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "doc"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "def search_pattern\\(q, k, head\\):",
+    "expect": "present",
+    "meaning": "Signature accepts only q, k, head; no sigma parameter.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     99
+    ]
+   },
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "for ty, fc in \\[\\(\"stream_llm\", stream_llm\\), \\(\"vertical_and_slash\", vertical_and_slash\\), \\(\"block_sparse\", block_sparse\\)\\]:",
+    "expect": "present",
+    "meaning": "Loop iterates a hardcoded three-entry candidate table.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     177
+    ]
+   },
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "def search_pattern\\([^)]*sigma",
+    "expect": "absent",
+    "meaning": "No sigma parameter in search_pattern signature; control matches the signature.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "def search_pattern\\(q, k, head\\):",
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

@@ -1,0 +1,152 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "minference-F072",
+ "artifact_id": "minference",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "not_implemented",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "论文要求 FlashAttention 与 V 信息参与选择；代码为稠密权重计算且完全不含 V",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "no_condition",
+  "location": "minference/modules/minference_forward.py:99-197",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "approach leverages FlashAttention [ Dao24] to reduce GPU memory overhead and incorporates the informa- tion from the V matrix, enabling end-to-end selection of the best pattern, which further enhances performance.",
+    "source": "paper",
+    "locator": "PDF p.5, text lines 53-56"
+   }
+  ],
+  "code": [
+   {
+    "file": "minference/modules/minference_forward.py",
+    "line_start": 99,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "minference/modules/minference_forward.py",
+    "line_start": 199,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/minference/limitations_for_tests.json",
+  "findings_sha256": "6f02cbec16ce4487c1b9166c2dc5f1f16704f168b135426edfe2df59ed9333bc",
+  "generated_at": "2026-11-18T17:32:48+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A0",
+  "tier_note": "the reading and the probes disagree",
+  "calibrated": false,
+  "assessment": "contradicts",
+  "reasoning": "The cited code does contain an older search_pattern(q,k,head) that lacks V and uses dense qk weights. However, search_pattern_v2(q,k,v,head) accepts V, calls flash_attn_func for a dense reference, and scores candidates by comparing outputs, so V and FlashAttention participate in selection. Thus the broad claim that the code is dense-only and completely lacks V is contradicted.",
+  "hardware_needed": false,
+  "would_confirm": "Trace which search function is called at runtime and verify whether search_pattern_v2 with V and FlashAttention is used for pattern selection.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "minference/modules/minference_forward.py",
+     "lines": "99-197",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "minference/modules/minference_forward.py",
+     "lines": "199-246",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "def search_pattern_v2\\(q, k, v, head\\)",
+    "expect": "present",
+    "meaning": "V2 selection function accepts V, contradicting no-V claim.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     199
+    ]
+   },
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "flash_attn_func\\(",
+    "expect": "present",
+    "meaning": "FlashAttention is invoked, contradicting absence claim.",
+    "status": "confirmed",
+    "hits": 7,
+    "hit_lines": [
+     219,
+     410,
+     524,
+     533,
+     616
+    ]
+   },
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "def search_pattern\\(q, k, head\\)",
+    "expect": "present",
+    "meaning": "Older search function indeed lacks V, but not whole code.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     99
+    ]
+   },
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "vertical_slash_sparse_attention\\(q, k, v",
+    "expect": "present",
+    "meaning": "Sparse candidate uses V in attention computation.",
+    "status": "confirmed",
+    "hits": 6,
+    "hit_lines": [
+     217,
+     350,
+     367,
+     387,
+     408
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

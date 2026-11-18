@@ -1,0 +1,20 @@
+{
+ "assessment": "unclear",
+ "reasoning": "The paper lists gA, gB, gX, and the shown propagate_matmul computes only gA and gX. However, the snippet is a pure matmul propagation with no bias input; bias could be handled by a separate add/bias propagation not shown. The evidence does not establish a code-wide omission.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "sparta/propagation/talgebra.py",
+   "regex": "\\b(bias|gB|propagate_add)\\b",
+   "expect": "present",
+   "meaning": "Bias/add propagation exists, so gB may be handled elsewhere."
+  },
+  {
+   "file": "sparta/propagation/talgebra.py",
+   "regex": "prop_tesa_in2\\s*=\\s*algebra_matmul\\(transpose\\(tesa_in1\\),\\s*tesa_out\\)",
+   "expect": "present",
+   "meaning": "Confirms matmul backward computes gX but not gB."
+  }
+ ],
+ "would_confirm": "Inspect the full propagation module and call graph for a bias/add operator that computes gB=gY; if none exists, the finding is confirmed."
+}

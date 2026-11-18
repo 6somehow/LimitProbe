@@ -1,0 +1,86 @@
+{
+  "test_id": "A-flexprefill-F008",
+  "finding_id": "flexprefill-F008",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "num_q_heads",
+        "value": 2,
+        "why": "witness q.shape[1] = 2 query heads; passed as q.shape[2] to the target function"
+      },
+      {
+        "name": "num_kv_heads",
+        "value": 2,
+        "why": "witness k.shape[1] = 2 kv heads; required by the gqa guard that follows the target"
+      },
+      {
+        "name": "dtype",
+        "value": "bfloat16",
+        "why": "path prefix requires q.dtype == torch.bfloat16"
+      },
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "fixed RNG seed; tensors are zeros so the target decision is data independent"
+      }
+    ],
+    "positive_input": {
+      "batch_size": 1,
+      "block_size": 128,
+      "head_dim": 16,
+      "k_len": 256,
+      "min_budget": 64,
+      "num_block": 4,
+      "q_len": 256,
+      "total_q_blocks": 2
+    },
+    "negative_input": {
+      "batch_size": 1,
+      "block_size": 128,
+      "head_dim": 16,
+      "k_len": 256,
+      "min_budget": 64,
+      "num_block": 3,
+      "q_len": 256,
+      "total_q_blocks": 2
+    },
+    "boundary_variable": "num_block",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "exception",
+      "spec": "AssertionError raised at flex_prefill/ops/flex_prefill_attention.py:1256",
+      "signal_location": "flex_prefill/ops/flex_prefill_attention.py:1256"
+    },
+    "expected": {
+      "positive": "AssertionError at flex_prefill/ops/flex_prefill_attention.py:1256",
+      "negative": "no exception at flex_prefill/ops/flex_prefill_attention.py:1256"
+    }
+  },
+  "execution": {
+    "entry_called": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention",
+    "entry_reason": "The Region target lives in triton_block_wise_prefill_attention and the witness supplies num_block (block_idx.shape[2]) directly. The official caller flex_prefill_attention derives block_idx internally via get_active_blocks, whose vertical/slash transform emits only lower-triangular block indices, so it can never make num_block exceed total_q_blocks*(total_q_blocks+1)//2; the target assert is therefore boundary tested at the target function's own input interface with an explicit block_idx.",
+    "call_chain_index": 1,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "false",
+      "true"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "AssertionError at flex_prefill/ops/flex_prefill_attention.py:1256",
+    "negative_observed": "no exception at flex_prefill/ops/flex_prefill_attention.py:1256"
+  },
+  "evidence": {}
+}

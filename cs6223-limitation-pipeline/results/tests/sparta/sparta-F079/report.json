@@ -1,0 +1,135 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "sparta-F079",
+ "artifact_id": "sparta",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "not_implemented",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "artifact 路径无 13 块大小评估入口",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "always",
+  "location": "sparta/transformation/weighted_block_cover.py:7-24",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "weight of different block sizes. Speciﬁcally, we implemented a kernel template for block sparsity, and evaluated 13 dif- ferent block sizes on that template. The overhead of each",
+    "source": "paper",
+    "locator": "PDF p.9, text lines 19-21"
+   }
+  ],
+  "code": [
+   {
+    "file": "sparta/transformation/weighted_block_cover.py",
+    "line_start": 7,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "sparta/specialization/Template/block_sparse_template_bias_row.cu",
+    "line_start": 1,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "sparta/specialization/specialize_kernel.py",
+    "line_start": 210,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/sparta/limitations_for_tests.json",
+  "findings_sha256": "af8cad7c4e91af73f84a27b96179739526bde952a669319c71cc4e157ac4b49f",
+  "generated_at": "2026-11-18T12:35:53+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A0",
+  "tier_note": "the reading and the probes disagree",
+  "calibrated": false,
+  "assessment": "contradicts",
+  "reasoning": "The cited specialize_kernel.py exposes blocksparse_matmul_template(..., block_size, ...), which accepts block_size_k/n and generates the block-sparse kernel; it is not limited to the seven cover sizes. available_covering_size is a cost table for weighted cover, not the evaluation entry. Thus the claim that no block-size evaluation entry exists is contradicted by the shown code, though an explicit 13-size benchmark is not shown.",
+  "hardware_needed": false,
+  "would_confirm": "Search the artifact for a benchmark script that loops over 13 block sizes or run blocksparse_matmul_template with 13 sizes.",
+  "static": {
+   "cited": 3,
+   "grounded": true,
+   "items": [
+    {
+     "file": "sparta/transformation/weighted_block_cover.py",
+     "lines": "7-24",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "sparta/specialization/Template/block_sparse_template_bias_row.cu",
+     "lines": "1-40",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "cuda"
+    },
+    {
+     "file": "sparta/specialization/specialize_kernel.py",
+     "lines": "210-258",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "sparta/specialization/specialize_kernel.py",
+    "regex": "def blocksparse_matmul_template\\(shape, n_bits, block_size, bias\\)",
+    "expect": "present",
+    "meaning": "Confirms callable entry point accepts block size parameter.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     210
+    ]
+   },
+   {
+    "file": "sparta/transformation/weighted_block_cover.py",
+    "regex": "\\(128, 128\\)",
+    "expect": "absent",
+    "meaning": "Shows cover table has only seven sizes, not evaluation loop.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "\\(64, 128\\)",
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

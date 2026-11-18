@@ -1,0 +1,32 @@
+{
+ "assessment": "supports",
+ "reasoning": "The paper specifies a Cartesian product over m input TeSA dimensions plus output, yielding |To|\u220f|Ti| sub-operators. The code asserts exactly one input and one output TeSA and loops only over weight_tesa; wbc_matmuls likewise takes in_tesas[0] and out_tesas[0]. Thus the implementation enumerates only the weight dimension, matching the claimed 1-D deviation.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "sparta/specialization/specialize_kernel.py",
+   "regex": "assert\\(len\\(in_tesa\\) == 1 and len\\(out_t_tesa\\) == 1 and len\\(weight_tesa\\) >= 1\\)",
+   "expect": "present",
+   "meaning": "Confirms specialization requires exactly one input and output TeSA."
+  },
+  {
+   "file": "sparta/specialization/specialize_kernel.py",
+   "regex": "for idx, w_tesa in enumerate\\(weight_tesa\\):",
+   "expect": "present",
+   "meaning": "Shows only the weight TeSA list is enumerated for sub-operators."
+  },
+  {
+   "file": "sparta/transformation/weighted_block_cover.py",
+   "regex": "in_tesa = in_tesas\\[0\\]",
+   "expect": "present",
+   "meaning": "Confirms transformation selects only the first input TeSA option."
+  },
+  {
+   "file": "sparta/transformation/weighted_block_cover.py",
+   "regex": "for w_tesa in w_tesas:",
+   "expect": "present",
+   "meaning": "Shows enumeration is over weight TeSAs, not input Cartesian product."
+  }
+ ],
+ "would_confirm": "A unit test constructing multiple input TeSA options and checking whether all Cartesian-product combinations are specialized would settle it."
+}

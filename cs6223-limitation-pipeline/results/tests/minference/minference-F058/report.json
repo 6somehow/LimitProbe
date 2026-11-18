@@ -1,0 +1,99 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "minference-F058",
+ "artifact_id": "minference",
+ "status": "tested",
+ "not_run": null,
+ "verdict": "yes",
+ "level": "L1",
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "effect on positive input, none on negative input",
+ "observed": {
+  "positive": "branch taken at minference/modules/minference_forward.py:74",
+  "negative": "branch not taken at minference/modules/minference_forward.py:74"
+ },
+ "defeaters": {
+  "D1": "eliminated",
+  "D2": "eliminated",
+  "D3": "residual",
+  "D4": "eliminated",
+  "D5": "residual",
+  "D6": "eliminated",
+  "D7": "eliminated",
+  "D8": "eliminated",
+  "D9": "eliminated",
+  "D10": "eliminated",
+  "D11": "eliminated",
+  "D12": "eliminated",
+  "D13": "residual",
+  "D14": "eliminated"
+ },
+ "open_doubts": [
+  {
+   "id": "D3",
+   "name": "oracle can see the effect",
+   "status": "residual",
+   "evidence": "only 1 mutants (< n_min=4); killed 1"
+  },
+  {
+   "id": "D5",
+   "name": "control pair differs in one factor, negative adjacent to the boundary",
+   "status": "residual",
+   "evidence": "one factor differs; adjacency not measurable: the boundary variable is the prelude (program state): adjacency cannot be probed"
+  },
+  {
+   "id": "D13",
+   "name": "inputs inside the paper's scope",
+   "status": "residual",
+   "evidence": "scope_status=unknown"
+  }
+ ],
+ "next_steps": [
+  "D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location",
+  "D5 (residual): change exactly one factor between positive and negative, and make the negative the point next to the boundary"
+ ],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "state",
+  "priority": 3,
+  "summary": "When \"apply_rotary_pos_emb\" not in self.__dict__: `apply_rotary_pos_emb` is rebound as a module-level global from the *first* attention module's `rotary_emb.__class__.__module__` (`getattr(import_module(model_path), \"apply_rotary_pos_emb\")`), and the guard `if \"apply_rotary_pos_emb\" not in self.__dict__` is always true because the attribute is never set on `self` (only `self.apply_rotary_pos_em...",
+  "review": "wrong",
+  "review_note": "blind review by an LLM subagent (round 3), not human: The check is not always true: the branch sets self.apply_rotary_pos_emb = True, so it runs once per module, and cross-model global overwrite is an internal multi-model detail.",
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "minference/modules/minference_forward.py:74",
+  "function": "minference/modules/minference_forward.py::init_minference_parameters",
+  "condition": "\"apply_rotary_pos_emb\" not in self.__dict__"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "minference/modules/minference_forward.py",
+    "line_start": 74,
+    "function": "minference/modules/minference_forward.py::init_minference_parameters",
+    "snippet": "if 'apply_rotary_pos_emb' not in self.__dict__:"
+   }
+  ]
+ },
+ "files": {
+  "execution_report": "execution_report.json",
+  "testcase": "testcase.json",
+  "attempt": "attempt"
+ },
+ "provenance": {
+  "findings_file": "results/step4/minference/limitations_for_tests.json",
+  "findings_sha256": "6f02cbec16ce4487c1b9166c2dc5f1f16704f168b135426edfe2df59ed9333bc",
+  "generated_at": "2026-11-18T17:25:00+08:00",
+  "source": "agent",
+  "attempt_origin": "scratch/agent_runs/e2e-f058-3e1346",
+  "agent_tokens": 3386068,
+  "agent_wall_s": 821.8,
+  "lock_tampered": false,
+  "profile": "default-v1"
+ },
+ "analysis": null
+}

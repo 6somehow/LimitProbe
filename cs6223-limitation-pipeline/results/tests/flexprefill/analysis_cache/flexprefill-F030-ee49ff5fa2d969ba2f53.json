@@ -1,0 +1,32 @@
+{
+ "assessment": "supports",
+ "reasoning": "The code's score_cover_topk counts cumsum <= gamma then adds 1, so it returns the first prefix whose sum exceeds gamma (and one extra when sum equals gamma), whereas the paper defines min k with sum >= gamma. The subsequent //128+1 and min/max_budget clamps further change the prefix length. Thus the artifact deviates as claimed.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "regex": "def score_cover_topk\\(x: torch\\.Tensor, score: float\\):",
+   "expect": "present",
+   "meaning": "Confirms helper exists at cited location."
+  },
+  {
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "regex": "cumsum_x <= score",
+   "expect": "present",
+   "meaning": "Shows strict > gamma selection via <= count plus one."
+  },
+  {
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "regex": "score_cover_topk\\(vertical, gamma\\) // 128 \\+ 1",
+   "expect": "present",
+   "meaning": "Shows block-count scaling after score cover."
+  },
+  {
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "regex": "num_vertical_blocks\\[num_vertical_blocks < min_budget\\] = min_budget",
+   "expect": "present",
+   "meaning": "Shows budget clamp alters prefix length."
+  }
+ ],
+ "would_confirm": "Run score_cover_topk on a vector whose cumulative sum equals gamma and compare returned k to the paper's min{k: cumsum>=gamma}."
+}

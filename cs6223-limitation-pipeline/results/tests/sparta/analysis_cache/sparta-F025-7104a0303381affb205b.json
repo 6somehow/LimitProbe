@@ -1,0 +1,22 @@
+{
+ "assessment": "supports",
+ "reasoning": "The paper states that sparsity attribute 4 means uint4 and 8 means uint8. The shown generator only branches on bit==32 and bit==8, and the 8-bit path calls convert_to_block_csr_int8. There is no 4-bit branch or uint4/uint8 handling in the evidence, so the artifact appears to implement only an int8 path, not unsigned quantization as described.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "sparta/artifact_specialization/generate_code.py",
+   "regex": "uint4|uint8",
+   "expect": "absent",
+   "control": "def bcsr_generate",
+   "meaning": "No unsigned quantization types in generator; control confirms file searched."
+  },
+  {
+   "file": "sparta/artifact_specialization/generate_code.py",
+   "regex": "bit\\s*==\\s*4",
+   "expect": "absent",
+   "control": "bit\\s*==\\s*8",
+   "meaning": "No 4-bit branch; control shows bit dispatch exists."
+  }
+ ],
+ "would_confirm": "Inspect the full generator and conversion utilities for any uint4/uint8 or bit==4 path, or run quantization with 4/8 and check emitted types."
+}

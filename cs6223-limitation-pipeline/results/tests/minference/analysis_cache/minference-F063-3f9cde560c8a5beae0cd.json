@@ -1,0 +1,22 @@
+{
+ "assessment": "supports",
+ "reasoning": "Line 164 exactly implements min(top_k, context_size // block_size_N), so the silent clamp is present. The call-site probe can confirm whether _build_block_index receives block_size_N for both block dimensions. This supports the finding's code-level claim; the 'denser/different' wording is interpretive, but the clamp itself is directly evidenced.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "minference/ops/block_sparse_flash_attention.py",
+   "regex": "top_k\\s*=\\s*min\\(top_k,\\s*context_size\\s*//\\s*block_size_N\\)",
+   "expect": "present",
+   "control": "block_size_N",
+   "meaning": "Confirms top_k is clamped to context_size // block_size_N."
+  },
+  {
+   "file": "minference/ops/block_sparse_flash_attention.py",
+   "regex": "_build_block_index\\([^)]*block_size_N[^)]*block_size_N",
+   "expect": "present",
+   "control": "block_size_N",
+   "meaning": "Shows _build_block_index receives block_size_N for both block dimensions."
+  }
+ ],
+ "would_confirm": "A static check of the clamp and _build_block_index arguments, plus a short-context trace of selected blocks, would settle it."
+}

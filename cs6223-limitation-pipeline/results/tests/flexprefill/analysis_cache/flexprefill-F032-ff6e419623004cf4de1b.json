@@ -1,0 +1,33 @@
+{
+ "assessment": "unclear",
+ "reasoning": "The paper's K is min prefix with cumsum >= gamma. score_cover_topk uses sum(cumsum <= score)+1, so it returns first index with cumsum > score, a boundary difference. However the shown calls pass gamma, not gamma*num_blocks, so the claimed threshold-scale difference is not supported. The function also computes a topk count, so 'no explicit K' is overstated. Evidence is mixed.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "regex": "gamma\\s*\\*\\s*num_blocks|num_blocks\\s*\\*\\s*gamma",
+   "expect": "absent",
+   "control": "def score_cover_topk",
+   "meaning": "No gamma*num_blocks scaling; contradicts threshold-scale claim."
+  },
+  {
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "regex": "score_cover_topk\\(\\s*(vertical|slash)\\s*,\\s*gamma\\s*\\)",
+   "expect": "present",
+   "meaning": "Calls use gamma, not gamma*num_blocks."
+  },
+  {
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "regex": "cumsum_x\\s*<=\\s*score",
+   "expect": "present",
+   "meaning": "Code uses <= boundary, not paper's >=."
+  },
+  {
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "regex": "topk\\s*=\\s*torch\\.sum\\(cumsum_x\\s*<=\\s*score,\\s*dim=-1\\)\\s*\\+\\s*1",
+   "expect": "present",
+   "meaning": "Explicit count+1, not min K with >="
+  }
+ ],
+ "would_confirm": "Run score_cover_topk on a cumsum with exact equality to gamma and compare to min{k: cumsum>=gamma}; also grep for gamma*num_blocks."
+}

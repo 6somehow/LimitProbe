@@ -1,0 +1,103 @@
+{
+  "test_id": "A-minference-F038",
+  "finding_id": "minference-F038",
+  "strategy": "S1",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "n_init",
+        "value": 1,
+        "why": "sink-token count; the witness does not pin it, one sink is the value used by the streaming default"
+      },
+      {
+        "name": "head_dim",
+        "value": 64,
+        "why": "head dimension goes through the --head-dim CLI flag at chat/inference.py:27 (=64); it only sizes the tensors and does not affect the branch"
+      },
+      {
+        "name": "batch_size",
+        "value": 1,
+        "why": "the branch decision depends only on k_len and n_local, so a single sequence is enough"
+      },
+      {
+        "name": "num_heads",
+        "value": 1,
+        "why": "the branch decision is per-call, not per-head, so one head is enough"
+      },
+      {
+        "name": "dtype",
+        "value": "float32",
+        "why": "CPU-only host; float32 is the non-quantized dtype and the branch is dtype-independent"
+      },
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "fixed input values for reproducibility; the branch condition does not read the values"
+      }
+    ],
+    "positive_input": {
+      "k_len": 2,
+      "n_local": 1
+    },
+    "negative_input": {
+      "k_len": 2,
+      "n_local": 2
+    },
+    "boundary_variable": "n_local",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at minference/ops/streaming_kernel.py:620 ('if k_len > n_local:')",
+      "signal_location": "minference/ops/streaming_kernel.py:620"
+    },
+    "expected": {
+      "positive": "branch taken at minference/ops/streaming_kernel.py:620",
+      "negative": "branch not taken at minference/ops/streaming_kernel.py:620"
+    }
+  },
+  "execution": {
+    "entry_called": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [
+      {
+        "symbol": "torch.arange",
+        "kind": "patch",
+        "reason": "minference_forward.py:25 calls torch.arange(..., device='cuda') at import time; this CPU host has no CUDA, so the device shim forwards to the real torch.arange with device rewritten to cpu",
+        "behavior": "sim",
+        "impl": "sim.py::arange_cpu",
+        "sim_class": "independent_native",
+        "sim_check": "sim.py::check_arange"
+      },
+      {
+        "symbol": "minference.ops.streaming_kernel._forward",
+        "kind": "patch",
+        "reason": "the Triton flash-attention launcher cannot run without GPU drivers; forward_cpu is a plain-torch implementation of the same multi-stage base-2 online-softmax attention used by streaming_forward",
+        "behavior": "sim",
+        "impl": "sim.py::forward_cpu",
+        "sim_class": "independent_native",
+        "sim_check": "sim.py::check_forward"
+      }
+    ],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "true",
+      "false"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at minference/ops/streaming_kernel.py:620",
+    "negative_observed": "branch not taken at minference/ops/streaming_kernel.py:620"
+  },
+  "evidence": {}
+}

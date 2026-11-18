@@ -1,0 +1,137 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "infinigen-F022",
+ "artifact_id": "infinigen",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "预取集合由 top-k(均值) 决定，而非严格 >max−alpha 的令牌集合",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "speedup/infinigen/infinigen/kv_selection_controller.py:28-63",
+  "function": null,
+  "condition": "self.policy.attn_sparsity >= 1.0"
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "We select only the tokens with an attention score greater than the maximum score subtracted by alpha",
+    "source": "paper",
+    "locator": "PDF p.9"
+   },
+   {
+    "quote": "InfiniGen only prefetches the keys and values of the tokens with an attention score larger than the highest attention score minus alpha",
+    "source": "paper",
+    "locator": "PDF p.10"
+   }
+  ],
+  "code": [
+   {
+    "file": "speedup/infinigen/infinigen/kv_selection_controller.py",
+    "line_start": 28,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "speedup/flexgen/infinigen/flex_opt.py",
+    "line_start": 430,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/infinigen/limitations_for_tests.json",
+  "findings_sha256": "51f6ee77be8f16b8743e78f2c11ea0c6b263e1a3c56aed29de35c9cfebb6dcf0",
+  "generated_at": "2026-11-18T14:11:18+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The paper says InfiniGen prefetches exactly the tokens with score > max−alpha. The code instead counts those tokens, averages the counts, and returns torch.topk with k=min(int(mean), max_num_kv). Thus the prefetch set is top-k by score, not the strict threshold set, matching the finding.",
+  "hardware_needed": false,
+  "would_confirm": "Inspect or run speculate_attention on a case where the >max−alpha set size differs from the mean count and compare returned indices against the threshold mask.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "speedup/infinigen/infinigen/kv_selection_controller.py",
+     "lines": "28-63",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "speedup/flexgen/infinigen/flex_opt.py",
+     "lines": "430-465",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "speedup/infinigen/infinigen/kv_selection_controller.py",
+    "regex": "prefetch_idx = torch\\.topk\\(",
+    "expect": "present",
+    "meaning": "Confirms prefetch indices are produced by top-k selection.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     59
+    ]
+   },
+   {
+    "file": "speedup/infinigen/infinigen/kv_selection_controller.py",
+    "regex": "mean = torch\\.mean\\(torch\\.sum\\(count, dim=-1\\)\\)\\.item\\(\\)",
+    "expect": "present",
+    "meaning": "Shows k is derived from the mean thresholded-token count.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     58
+    ]
+   },
+   {
+    "file": "speedup/infinigen/infinigen/kv_selection_controller.py",
+    "regex": "prefetch_idx = torch\\.where\\(p_attn > thr_",
+    "expect": "absent",
+    "meaning": "No direct threshold-mask assignment to prefetch_idx exists.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "prefetch_idx = torch\\.topk\\(",
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

@@ -1,0 +1,57 @@
+{
+  "test_id": "A-infinigen-F004",
+  "finding_id": "infinigen-F004",
+  "strategy": "S1",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {"name": "num_hidden_layers", "value": 1, "why": "Only layer construction precedes the target; one layer exercises the real SelfAttention/MLP constructors cheaply."},
+      {"name": "max_seq_len", "value": 16, "why": "Tiny sequence length for a construction-only test; the target reads only policy percentages."},
+      {"name": "hidden_size", "value": 8, "why": "Tiny hidden size for a construction-only test; the target reads only policy percentages."},
+      {"name": "n_head", "value": 2, "why": "Two attention heads keep the layer constructor valid at the tiny hidden size."},
+      {"name": "input_dim", "value": 8, "why": "Tiny input dimension for a construction-only test; the target reads only policy percentages."},
+      {"name": "ffn_embed_dim", "value": 16, "why": "Tiny FFN dimension for a construction-only test; the target reads only policy percentages."},
+      {"name": "vocab_size", "value": 16, "why": "Tiny vocabulary for a construction-only test; the target reads only policy percentages."},
+      {"name": "sep_layer", "value": true, "why": "The non-separated TransformerLayer path calls SelfAttention without enable_prefetching and fails before the target; sep_layer=true is the path that reaches line 710."},
+      {"name": "gpu_batch_size", "value": 1, "why": "Batch size is not read by the target condition; one keeps buffers minimal."},
+      {"name": "num_gpu_batches", "value": 1, "why": "Number of GPU batches is not read by the target condition; one is the minimum."},
+      {"name": "partial_weight_ratio", "value": 0.2, "why": "Passed through to SelfAttention; not read by the target condition. Uses the repository default."},
+      {"name": "alpha", "value": 4, "why": "Passed through to SelfAttention; not read by the target condition. Uses the repository default."},
+      {"name": "max_num_kv", "value": 400, "why": "Passed through to SelfAttention; not read by the target condition. Uses the repository default."}
+    ],
+    "positive_input": {"act_gpu_percent": 99, "act_cpu_percent": 99},
+    "negative_input": {"act_gpu_percent": 99, "act_cpu_percent": 100},
+    "boundary_variable": "act_cpu_percent",
+    "extra_negatives": [],
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "exception",
+      "spec": "NotImplementedError raised at speedup/flexgen/infinigen/flex_opt.py:710",
+      "signal_location": "speedup/flexgen/infinigen/flex_opt.py:710"
+    },
+    "expected": {
+      "positive": "NotImplementedError at speedup/flexgen/infinigen/flex_opt.py:710",
+      "negative": "no exception at speedup/flexgen/infinigen/flex_opt.py:710"
+    }
+  },
+  "execution": {
+    "entry_called": "speedup/flexgen/infinigen/flex_opt.py::OptLM.__init__",
+    "entry_reason": "The step-4 call chain starts at TorchDevice.mha, a runtime attention method, and static analysis found no call chain to the constructor (chain status not_found). OptLM.__init__ is the second call-chain function and the only one that executes the target; it is called directly on CPU.",
+    "call_chain_index": 1,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": ["python -m checklimits run --attempt <this directory>"]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "NotImplementedError at speedup/flexgen/infinigen/flex_opt.py:710",
+    "negative_observed": "no exception at speedup/flexgen/infinigen/flex_opt.py:710"
+  },
+  "evidence": {}
+}

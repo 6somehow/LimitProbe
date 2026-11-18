@@ -1,0 +1,140 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "sparta-F020",
+ "artifact_id": "sparta",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "加速来自 NNI ModelSpeedup 而非 SparTA 稀疏 kernel。",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "always",
+  "location": "script/figure19/run.sh:1-7",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "With SparTA, model ﬁne-tuning can be accelerated.",
+    "source": "paper",
+    "locator": "PDF p.14"
+   }
+  ],
+  "code": [
+   {
+    "file": "script/figure19/run.sh",
+    "line_start": 1,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "script/figure19/draw.py",
+    "line_start": 10,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/sparta/limitations_for_tests.json",
+  "findings_sha256": "af8cad7c4e91af73f84a27b96179739526bde952a669319c71cc4e157ac4b49f",
+  "generated_at": "2026-11-18T12:35:53+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "run.sh compares --speed-up False/True, and draw.py labels the True arm 'With SparTA'. The Step 4 note states the True arm always uses NNI ModelSpeedup rather than SparTA sparse kernels. Thus the plotted 'SparTA' acceleration is actually NNI ModelSpeedup, matching the finding.",
+  "hardware_needed": false,
+  "would_confirm": "Inspect the --speed-up True branch in iterative_SA.py and profile both arms to see whether NNI ModelSpeedup or SparTA sparse kernels supplies the speedup.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "script/figure19/run.sh",
+     "lines": "1-7",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "shell"
+    },
+    {
+     "file": "script/figure19/draw.py",
+     "lines": "10-35",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "script/figure19/iterative_SA.py",
+    "regex": "ModelSpeedup",
+    "expect": "present",
+    "meaning": "Speed-up branch invokes NNI ModelSpeedup.",
+    "status": "not_run",
+    "hits": 0,
+    "note": "file is not one the Finding cites"
+   },
+   {
+    "file": "script/figure19/iterative_SA.py",
+    "regex": "SparTA.*(kernel|sparse)|sparse.*kernel",
+    "expect": "absent",
+    "meaning": "No SparTA sparse-kernel call in speed-up path.",
+    "status": "not_run",
+    "hits": 0,
+    "note": "file is not one the Finding cites"
+   },
+   {
+    "file": "script/figure19/run.sh",
+    "regex": "--speed-up True",
+    "expect": "present",
+    "meaning": "Script runs the speed-up arm.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     5
+    ]
+   },
+   {
+    "file": "script/figure19/draw.py",
+    "regex": "With SparTA",
+    "expect": "present",
+    "meaning": "Plot labels speed-up arm as SparTA.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     33
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}
