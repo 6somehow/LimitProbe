@@ -1,0 +1,99 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "infinigen-F004",
+ "artifact_id": "infinigen",
+ "status": "tested",
+ "not_run": null,
+ "verdict": "yes",
+ "level": "L1",
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "effect on positive input, none on negative input",
+ "observed": {
+  "positive": "NotImplementedError at speedup/flexgen/infinigen/flex_opt.py:710",
+  "negative": "no exception at speedup/flexgen/infinigen/flex_opt.py:710"
+ },
+ "defeaters": {
+  "D1": "eliminated",
+  "D2": "eliminated",
+  "D3": "residual",
+  "D4": "eliminated",
+  "D5": "eliminated",
+  "D6": "eliminated",
+  "D7": "eliminated",
+  "D8": "eliminated",
+  "D9": "eliminated",
+  "D10": "eliminated",
+  "D11": "eliminated",
+  "D12": "eliminated",
+  "D13": "residual",
+  "D14": "residual"
+ },
+ "open_doubts": [
+  {
+   "id": "D3",
+   "name": "oracle can see the effect",
+   "status": "residual",
+   "evidence": "only 1 mutants (< n_min=4); killed 1"
+  },
+  {
+   "id": "D13",
+   "name": "inputs inside the paper's scope",
+   "status": "residual",
+   "evidence": "scope_status=unknown"
+  },
+  {
+   "id": "D14",
+   "name": "official entry point was called",
+   "status": "residual",
+   "evidence": "deeper entry (index 1); reason recorded: The step-4 call chain starts at TorchDevice.mha, a runtime attention method, and static analysis found no call chain to the constructor (chain status not_found). OptLM.__init__ is the second call-chain function and the only one that executes the target; it is called directly on CPU."
+  }
+ ],
+ "next_steps": [
+  "D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location",
+  "D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)"
+ ],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "reject",
+  "priority": 1,
+  "summary": "When not (self.policy.act_gpu_percent == 100 or self.policy.act_cpu_percent == 100 or self.policy.act_disk_percent == 100): Any policy whose activation percentages are not a single 100% tier is rejected at construction time. (speedup/flexgen/infinigen/flex_opt.py:710)",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 1), not human: Requiring activations to live entirely on one tier is an inherited FlexGen offloading-policy restriction unrelated to InfiniGen's KV management.",
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "speedup/flexgen/infinigen/flex_opt.py:710",
+  "function": "speedup/flexgen/infinigen/flex_opt.py::OptLM.__init__",
+  "condition": "not (self.policy.act_gpu_percent == 100 or self.policy.act_cpu_percent == 100 or self.policy.act_disk_percent == 100)"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "speedup/flexgen/infinigen/flex_opt.py",
+    "line_start": 710,
+    "function": "speedup/flexgen/infinigen/flex_opt.py::OptLM.__init__",
+    "snippet": "raise NotImplementedError()"
+   }
+  ]
+ },
+ "files": {
+  "execution_report": "execution_report.json",
+  "testcase": "testcase.json",
+  "attempt": "attempt"
+ },
+ "provenance": {
+  "findings_file": "results/step4/infinigen/limitations_for_tests.json",
+  "findings_sha256": "51f6ee77be8f16b8743e78f2c11ea0c6b263e1a3c56aed29de35c9cfebb6dcf0",
+  "generated_at": "2026-11-18T13:02:48+08:00",
+  "source": "agent",
+  "attempt_origin": "scratch/agent_runs/e2e-f004-16bbeb",
+  "agent_tokens": 3549382,
+  "agent_wall_s": 446.4,
+  "lock_tampered": false,
+  "profile": "default-v1"
+ },
+ "analysis": null
+}

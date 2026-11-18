@@ -1,0 +1,63 @@
+{
+  "test_id": "A-infinigen-F027",
+  "finding_id": "infinigen-F027",
+  "strategy": "S1",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [],
+    "positive_input": {
+      "i": 1,
+      "num_hidden_layers": 2
+    },
+    "negative_input": {
+      "i": 1,
+      "num_hidden_layers": 3
+    },
+    "boundary_variable": "num_hidden_layers",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at speedup/flexgen/infinigen/flex_opt.py:690",
+      "signal_location": "speedup/flexgen/infinigen/flex_opt.py:690"
+    },
+    "expected": {
+      "positive": "branch taken at speedup/flexgen/infinigen/flex_opt.py:690",
+      "negative": "branch not taken at speedup/flexgen/infinigen/flex_opt.py:690"
+    }
+  },
+  "execution": {
+    "entry_called": "speedup/flexgen/infinigen/flex_opt.py::OptLM.__init__",
+    "entry_reason": "TorchDevice.mha has no static call path to OptLM.__init__ (call_chain_status not_found), so the driver instantiates OptLM directly to reach the branch at line 690.",
+    "call_chain_index": 1,
+    "repo_files_modified": [],
+    "mocks": [
+      {
+        "symbol": "flexgen.infinigen.flex_opt.range",
+        "kind": "patch",
+        "reason": "Replaces the layer loop's range with an independently written interior-layer selector so the boundary branch is observed at one interior layer; the full loop would take the true branch at i=0 in both runs and hide the negative.",
+        "behavior": "sim",
+        "impl": "sim.py::selected_layers",
+        "sim_class": "independent_native",
+        "sim_check": "check.py::check_selected_layers"
+      }
+    ],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "false",
+      "true"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at speedup/flexgen/infinigen/flex_opt.py:690",
+    "negative_observed": "branch not taken at speedup/flexgen/infinigen/flex_opt.py:690"
+  },
+  "evidence": {}
+}

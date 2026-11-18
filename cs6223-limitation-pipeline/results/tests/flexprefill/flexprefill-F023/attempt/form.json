@@ -1,0 +1,120 @@
+{
+  "test_id": "A-flexprefill-F023",
+  "finding_id": "flexprefill-F023",
+  "strategy": "S1",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "num_q_heads",
+        "value": 2,
+        "why": "witness says q.shape[1]=2; the target dtype guard does not read the head count"
+      },
+      {
+        "name": "num_kv_heads",
+        "value": 2,
+        "why": "witness says k.shape[1]=2; equal to num_q_heads so the GQA divisibility check after the target passes"
+      },
+      {
+        "name": "num_activated_blocks",
+        "value": 1,
+        "why": "the target dtype guard is decided before block_idx is used; one zero block keeps the post-target path valid and small"
+      },
+      {
+        "name": "grid_offset",
+        "value": 0,
+        "why": "function default; the guard at the target is decided before any block arithmetic"
+      },
+      {
+        "name": "gqa_interleave",
+        "value": false,
+        "why": "function default; the dtype guard does not depend on the GQA layout"
+      },
+      {
+        "name": "softmax_scale",
+        "value": null,
+        "why": "function default None; the dtype guard is decided before softmax_scale is read"
+      },
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "fixed seed makes the random q/k/v construction deterministic across repeats"
+      }
+    ],
+    "positive_input": {
+      "batch_size": 1,
+      "block_size": 128,
+      "dtype": "float32",
+      "head_dim": 32,
+      "min_budget": 1,
+      "q_len": 257
+    },
+    "negative_input": {
+      "batch_size": 1,
+      "block_size": 128,
+      "dtype": "bfloat16",
+      "head_dim": 32,
+      "min_budget": 1,
+      "q_len": 257
+    },
+    "boundary_variable": "dtype",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "exception",
+      "spec": "AssertionError raised at flex_prefill/ops/flex_prefill_attention.py:1218",
+      "signal_location": "flex_prefill/ops/flex_prefill_attention.py:1218"
+    },
+    "expected": {
+      "positive": "AssertionError at flex_prefill/ops/flex_prefill_attention.py:1218",
+      "negative": "no exception at flex_prefill/ops/flex_prefill_attention.py:1218"
+    }
+  },
+  "execution": {
+    "entry_called": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention",
+    "entry_reason": "call_chain[1] is the target's own function. The official entry calls get_active_blocks first, which launches the GPU-only triton_bnhd_pool kernel before line 1218; reaching the target through it would require a stand-in before the target and make the verdict-bearing evidence simulated. Calling the target function directly keeps the target code real and puts every stand-in after the guard.",
+    "call_chain_index": 1,
+    "repo_files_modified": [],
+    "mocks": [
+      {
+        "symbol": "flex_prefill.ops.flex_prefill_attention.triton_column_count_cumsum",
+        "kind": "patch",
+        "behavior": "sim",
+        "impl": "sim.py::column_count_cumsum",
+        "sim_class": "repo_reference",
+        "reason": "GPU Triton cumsum launcher reached after the dtype guard on the negative run; the sim calls the repository's own torch_column_count_cumsum reference"
+      },
+      {
+        "symbol": "flex_prefill.ops.flex_prefill_attention.get_num_warps_stages",
+        "kind": "patch",
+        "behavior": "sim",
+        "impl": "sim.py::num_warps_stages",
+        "sim_class": "independent_native",
+        "reason": "GPU_NAME is None on CPU and the real helper calls .lower() on it; this post-target helper only chooses launch parameters, which the replaced kernel launcher does not use"
+      },
+      {
+        "symbol": "flex_prefill.ops.flex_prefill_attention.block_wise_prefill_attention_kernel",
+        "kind": "patch",
+        "behavior": "return_first_arg",
+        "reason": "GPU Triton JIT launcher, invoked as kernel[grid](...) after the dtype guard on the negative run; the real function allocates and returns output tensor o, so returning the first argument keeps the post-target path alive without affecting the guard"
+      }
+    ],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "false",
+      "true"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "AssertionError at flex_prefill/ops/flex_prefill_attention.py:1218",
+    "negative_observed": "no exception at flex_prefill/ops/flex_prefill_attention.py:1218"
+  },
+  "evidence": {}
+}

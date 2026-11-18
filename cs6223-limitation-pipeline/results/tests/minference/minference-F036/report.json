@@ -1,0 +1,91 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "minference-F036",
+ "artifact_id": "minference",
+ "status": "not_run",
+ "not_run": {
+  "code": "outcome_unsupported",
+  "reason": "effect type 'other': the target assigns a value; the claimed effect is what that value changes later, which needs a differential check of outputs (the assignment itself would differ trivially)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "When q.dtype != torch.bfloat16: The Triton kernel's compute dtype is chosen from the input dtype: bfloat16 inputs use tl.bfloat16, but any other dtype (e.g. float32 or float16) is silently forced to tl.float16, so the kernel runs a different precision path than the caller's tensor dtype. (minference/ops/block_sparse_flash_attention.py:130)",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 1), not human: Choosing the Triton compute dtype (non-bf16 cast to fp16 inside the kernel) is a kernel precision detail, not a limit of the sparse-attention mechanism.",
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "minference/ops/block_sparse_flash_attention.py:130",
+  "function": "minference/ops/block_sparse_flash_attention.py::_triton_block_sparse_attention",
+  "condition": "q.dtype != torch.bfloat16"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "minference/ops/block_sparse_flash_attention.py",
+    "line_start": 130,
+    "function": "minference/ops/block_sparse_flash_attention.py::_triton_block_sparse_attention",
+    "snippet": "dtype = tl.bfloat16 if q.dtype == torch.bfloat16 else tl.float16"
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/minference/limitations_for_tests.json",
+  "findings_sha256": "6f02cbec16ce4487c1b9166c2dc5f1f16704f168b135426edfe2df59ed9333bc",
+  "generated_at": "2026-11-18T17:26:42+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The shown line explicitly selects tl.bfloat16 only when q.dtype is torch.bfloat16; every other dtype falls through to tl.float16. That directly matches the claim that non-bfloat16 inputs are silently forced to a float16 Triton compute path.",
+  "hardware_needed": false,
+  "would_confirm": "A static read of line 130 confirms the ternary; a GPU run with float32 or float16 inputs would show the tl.float16 path.",
+  "static": {
+   "cited": 1,
+   "grounded": true,
+   "items": [
+    {
+     "file": "minference/ops/block_sparse_flash_attention.py",
+     "lines": "130-130",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": true,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "minference/ops/block_sparse_flash_attention.py",
+    "regex": "dtype\\s*=\\s*tl\\.bfloat16\\s+if\\s+q\\.dtype\\s*==\\s*torch\\.bfloat16\\s+else\\s+tl\\.float16",
+    "expect": "present",
+    "meaning": "Confirms non-bfloat16 inputs are forced to tl.float16.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     130
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

@@ -1,0 +1,28 @@
+{
+ "assessment": "supports",
+ "reasoning": "The cited figure19 path only runs iterative_SA.py with speed-up off/on and draw.py. draw.py parses training-time and total-time log entries and plots training time; it does not invoke a compiled-model profiling path or measure inference latency/memory. This matches the finding that the artifact path lacks compiled latency/memory measurement.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "script/figure19/run.sh",
+   "regex": "(?i)latency|memory|profil|compile",
+   "expect": "absent",
+   "control": "iterative_SA\\.py|draw\\.py",
+   "meaning": "No profiling/latency/memory command in the figure19 runner."
+  },
+  {
+   "file": "script/figure19/draw.py",
+   "regex": "(?i)latency|memory|profil|compile",
+   "expect": "absent",
+   "control": "Training Time Cost|Total Time|plt\\.plot",
+   "meaning": "Plotting script has no latency/memory/profiling references."
+  },
+  {
+   "file": "script/figure19/draw.py",
+   "regex": "(?i)training_time|total_time",
+   "expect": "present",
+   "meaning": "Only training and total time are parsed, not latency/memory."
+  }
+ ],
+ "would_confirm": "Inspect all scripts in the artifact path for any call that profiles a compiled model and records inference latency or memory; none should exist if the finding holds."
+}

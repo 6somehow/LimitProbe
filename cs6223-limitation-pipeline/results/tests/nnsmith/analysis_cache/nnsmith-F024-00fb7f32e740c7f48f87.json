@@ -1,0 +1,29 @@
+{
+ "assessment": "supports",
+ "reasoning": "The shown code reads NNSMITH_GRAD_TIME with default 0.5, loops only while under max_time, and returns sat_inputs (None) without raising. That directly contradicts the paper's 'raise failed to find viable'. The random-sampling fallback is not in the snippet, but the timeout/None discrepancy is supported.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "nnsmith/materialize/torch/symbolnet.py",
+   "regex": "NNSMITH_GRAD_TIME",
+   "expect": "present",
+   "control": "",
+   "meaning": "env budget default is read"
+  },
+  {
+   "file": "nnsmith/materialize/torch/symbolnet.py",
+   "regex": "while time\\.time\\(\\) - st < max_time",
+   "expect": "present",
+   "control": "",
+   "meaning": "loop can exit on timeout"
+  },
+  {
+   "file": "nnsmith/materialize/torch/symbolnet.py",
+   "regex": "return sat_inputs",
+   "expect": "present",
+   "control": "",
+   "meaning": "timeout returns None, not raise"
+  }
+ ],
+ "would_confirm": "Trace PracticalHybridSearch.search to see whether a None from grad_input_gen triggers random sampling."
+}

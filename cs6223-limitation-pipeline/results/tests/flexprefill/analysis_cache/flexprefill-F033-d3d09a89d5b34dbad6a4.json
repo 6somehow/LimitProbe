@@ -1,0 +1,22 @@
+{
+ "assessment": "supports",
+ "reasoning": "The cited code computes vertical and slash scores from query/key attention, then transform_veritcal_slash_idx concatenates s_idx and v_idx and deduplicates them. Thus the active block set is a union of slash/vertical indices, not simply the first K indices Ia[1:K]. The paper's S\u2190Ia[1:K] is therefore not implemented as stated.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "regex": "torch\\.cat\\(\\(s_idx, v_idx\\)",
+   "expect": "present",
+   "control": "def transform_veritcal_slash_idx",
+   "meaning": "Shows active blocks are unioned from slash and vertical indices."
+  },
+  {
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "regex": "vertical\\[\\.\\.\\., :1\\] = torch\\.inf",
+   "expect": "present",
+   "control": "def get_active_blocks",
+   "meaning": "Shows first vertical block is forced, not a pure prefix rule."
+  }
+ ],
+ "would_confirm": "Run get_active_blocks/transform_veritcal_slash_idx on a small input and compare returned block_idx to Ia[1:K]."
+}

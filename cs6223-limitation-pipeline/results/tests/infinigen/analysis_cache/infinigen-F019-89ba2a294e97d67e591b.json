@@ -1,0 +1,22 @@
+{
+ "assessment": "unclear",
+ "reasoning": "The shown table2.sh only passes an eviction policy; the modeling snippet is ordinary KV concatenation/assignment, not the eviction manager. Absence of an overwrite/update step in these excerpts does not establish that the artifact lacks it elsewhere. The claim needs inspection of the actual eviction code path.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "accuracy/src/modeling_opt_ours.py",
+   "regex": "(?i)evict|victim|overwrite|partial.*cache|key_cache",
+   "expect": "absent",
+   "control": "past_key_value",
+   "meaning": "No eviction/update logic in this attention file; a hit would contradict the finding."
+  },
+  {
+   "file": "accuracy/perplexity/table2.sh",
+   "regex": "(?i)overwrite|victim|partial.*cache|update",
+   "expect": "absent",
+   "control": "eviction_policy",
+   "meaning": "Script only selects eviction policy; no explicit victim overwrite/update step."
+  }
+ ],
+ "would_confirm": "Inspect the eviction implementation in opt.py/modeling code to see whether the selected victim's key/value and GPU partial key cache are overwritten."
+}

@@ -1,0 +1,33 @@
+{
+ "assessment": "supports",
+ "reasoning": "The cited code computes avg_qk from last_q.mean(1, keepdim=True), collapsing the block_size query rows to one vector, then multiplies by triton_bnhd_pool(k, block_size). The einsum and squeeze yield a 1\u00d7num_blocks distribution. The paper quote says the pooling kernel equals block_size, which would retain per-block Q vectors. Thus the artifact uses mean(Q\u0302)\u00b7pool(K), not pool(Q\u0302)\u00b7pool(K).",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "regex": "last_q\\.mean\\(1, keepdim=True\\)",
+   "expect": "present",
+   "meaning": "Q block rows are collapsed to one mean vector"
+  },
+  {
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "regex": "avg_qk = torch\\.einsum\\(",
+   "expect": "present",
+   "meaning": "avg_qk is built from mean Q and pooled K"
+  },
+  {
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "regex": "triton_bnhd_pool\\(k, block_size\\)",
+   "expect": "present",
+   "meaning": "K is block-pooled, unlike Q in this path"
+  },
+  {
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "regex": "triton_bnhd_pool\\(\\s*(last_q|q)\\b",
+   "expect": "absent",
+   "control": "triton_bnhd_pool\\(k, block_size\\)",
+   "meaning": "No block pooling of Q appears in this file"
+  }
+ ],
+ "would_confirm": "Run get_active_blocks on a small input and inspect avg_qk shape; it should be [b,h,num_blocks], not [b,h,num_blocks,num_blocks]."
+}

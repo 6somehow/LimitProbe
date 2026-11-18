@@ -1,0 +1,133 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "sparta-F047",
+ "artifact_id": "sparta",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "论文要求调用方迭代多个方案并选满足者；代码迭代循环被注释，未执行方案搜索",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "always",
+  "location": "sparta/transformation/transform_policy.py:158-191",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "Given a TeSA, TransformTeSA may have multiple transfor- mation plans. The process iterates over each plan to ﬁnd the satisﬁed one (line 38).",
+    "source": "paper",
+    "locator": "PDF p.7"
+   }
+  ],
+  "code": [
+   {
+    "file": "sparta/transformation/transform_policy.py",
+    "line_start": 158,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "sparta/specialization/specialize_kernel.py",
+    "line_start": 44,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/sparta/limitations_for_tests.json",
+  "findings_sha256": "af8cad7c4e91af73f84a27b96179739526bde952a669319c71cc4e157ac4b49f",
+  "generated_at": "2026-11-18T12:35:53+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The cited code generates transform_options but the loop that would iterate plans, specialize kernels, and select by latency is inside a triple-quoted comment. The function then returns best_kernels and best_aggr_type, which remain None. This directly matches the finding that plan search is disabled.",
+  "hardware_needed": false,
+  "would_confirm": "Run transform_matmul on a TeSA with multiple transform_options and check whether any specialize_matmul call or non-None best_kernels is produced.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "sparta/transformation/transform_policy.py",
+     "lines": "158-191",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "sparta/specialization/specialize_kernel.py",
+     "lines": "44-77",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "sparta/transformation/transform_policy.py",
+    "regex": "# skip, waiting for more official end-to-end",
+    "expect": "present",
+    "meaning": "Shows the plan-iteration block is explicitly disabled by a comment.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     179
+    ]
+   },
+   {
+    "file": "sparta/transformation/transform_policy.py",
+    "regex": "return best_kernels, best_aggr_type",
+    "expect": "present",
+    "meaning": "Shows function returns unset best kernels after no selection.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     191
+    ]
+   },
+   {
+    "file": "sparta/transformation/transform_policy.py",
+    "regex": "transform_options = wbc_matmuls\\(in_tesas\\[0\\], w_tesas, out_tesas\\[0\\]\\)",
+    "expect": "present",
+    "meaning": "Shows options are generated but not iterated for selection.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     176
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

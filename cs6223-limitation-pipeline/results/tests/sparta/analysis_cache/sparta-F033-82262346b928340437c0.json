@@ -1,0 +1,22 @@
+{
+ "assessment": "supports",
+ "reasoning": "The shown code dispatches templates by dismantle and passes n_bits, with 8-bit using quantized templates and 32-bit using cublas/block-sparse paths. No DP4A/wmma instruction-level branch appears in the template-selection code. This matches the artifact-scoped finding: bit-width-to-template dispatch exists, but bit-width-to-hardware-instruction selection is absent in the shown selection logic.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "sparta/specialization/specialize_kernel.py",
+   "regex": "(?i)dp4a|wmma",
+   "expect": "absent",
+   "control": "def matmul_kernel_codegen",
+   "meaning": "No DP4A/wmma selector in template dispatch code."
+  },
+  {
+   "file": "sparta/specialization/specialize_kernel.py",
+   "regex": "n_bits\\s*==\\s*32",
+   "expect": "present",
+   "control": "n_bits\\s*==\\s*8",
+   "meaning": "Bit-width branches exist, but only for template/cublas paths."
+  }
+ ],
+ "would_confirm": "Search the CUDA templates and generated code for DP4A/wmma intrinsics and trace n_bits into template selection; finding a DP4A branch would refute the claim."
+}

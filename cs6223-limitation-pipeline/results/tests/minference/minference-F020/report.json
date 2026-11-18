@@ -1,0 +1,99 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "minference-F020",
+ "artifact_id": "minference",
+ "status": "tested",
+ "not_run": null,
+ "verdict": "yes",
+ "level": "L1",
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "effect on positive input, none on negative input",
+ "observed": {
+  "positive": "branch taken at minference/minference_configuration.py:52",
+  "negative": "branch not taken at minference/minference_configuration.py:52"
+ },
+ "defeaters": {
+  "D1": "eliminated",
+  "D2": "eliminated",
+  "D3": "residual",
+  "D4": "eliminated",
+  "D5": "eliminated",
+  "D6": "eliminated",
+  "D7": "eliminated",
+  "D8": "eliminated",
+  "D9": "eliminated",
+  "D10": "eliminated",
+  "D11": "eliminated",
+  "D12": "eliminated",
+  "D13": "residual",
+  "D14": "residual"
+ },
+ "open_doubts": [
+  {
+   "id": "D3",
+   "name": "oracle can see the effect",
+   "status": "residual",
+   "evidence": "only 1 mutants (< n_min=4); killed 1"
+  },
+  {
+   "id": "D13",
+   "name": "inputs inside the paper's scope",
+   "status": "residual",
+   "evidence": "scope_status=unknown"
+  },
+  {
+   "id": "D14",
+   "name": "official entry point was called",
+   "status": "residual",
+   "evidence": "deeper entry (index 1); reason recorded: The step-4 call chain has status not_found: the listed call_chain[0] gather_last_q_vertical_slash_topk_v4 never calls update_config_path. The target's real caller is MInferenceConfig.__init__ (minference_configuration.py:42), so the driver instantiates the real MInferenceConfig and reaches the target line through that unmodified repository code."
+  }
+ ],
+ "next_steps": [
+  "D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location",
+  "D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)"
+ ],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "path_change",
+  "priority": 2,
+  "summary": "When self.attn_type in self.STASTIC_ATTENTION_TYPES: For any `attn_type` in `STASTIC_ATTENTION_TYPES` (`minference_with_dense`, `static`, `dilated1`, `dilated2`, `streaming`, `inf_llm`, `hf`) the user-supplied `config_path` is silently discarded (`return \"\"`), so the searched per-head pattern is never used and a fixed/static pattern or a different attention implementation runs instead. (minfere...",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 3), not human: For non-minference attn_types (e.g. 'static'), the user's config_path is silently dropped, so the static variant always uses the hard-coded default pattern sizes.",
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "minference/minference_configuration.py:52",
+  "function": "minference/minference_configuration.py::MInferenceConfig.update_config_path",
+  "condition": "self.attn_type in self.STASTIC_ATTENTION_TYPES"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "minference/minference_configuration.py",
+    "line_start": 52,
+    "function": "minference/minference_configuration.py::MInferenceConfig.update_config_path",
+    "snippet": "if self.attn_type in self.STASTIC_ATTENTION_TYPES:"
+   }
+  ]
+ },
+ "files": {
+  "execution_report": "execution_report.json",
+  "testcase": "testcase.json",
+  "attempt": "attempt"
+ },
+ "provenance": {
+  "findings_file": "results/step4/minference/limitations_for_tests.json",
+  "findings_sha256": "6f02cbec16ce4487c1b9166c2dc5f1f16704f168b135426edfe2df59ed9333bc",
+  "generated_at": "2026-11-18T15:57:49+08:00",
+  "source": "agent",
+  "attempt_origin": "scratch/agent_runs/e2e-f020-94067f",
+  "agent_tokens": 2374687,
+  "agent_wall_s": 314.6,
+  "lock_tampered": false,
+  "profile": "default-v1"
+ },
+ "analysis": null
+}

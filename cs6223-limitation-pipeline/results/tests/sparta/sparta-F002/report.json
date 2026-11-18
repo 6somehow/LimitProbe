@@ -1,0 +1,127 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "sparta-F002",
+ "artifact_id": "sparta",
+ "status": "tested",
+ "not_run": null,
+ "verdict": "yes",
+ "level": "L1",
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "effect on positive input, none on negative input",
+ "observed": {
+  "positive": "RuntimeError at sparta/transformation/weighted_block_cover.py:123",
+  "negative": "no exception at sparta/transformation/weighted_block_cover.py:123"
+ },
+ "defeaters": {
+  "D1": "eliminated",
+  "D2": "eliminated",
+  "D3": "residual",
+  "D4": "eliminated",
+  "D5": "eliminated",
+  "D6": "eliminated",
+  "D7": "eliminated",
+  "D8": "eliminated",
+  "D9": "eliminated",
+  "D10": "eliminated",
+  "D11": "eliminated",
+  "D12": "eliminated",
+  "D13": "residual",
+  "D14": "residual"
+ },
+ "open_doubts": [
+  {
+   "id": "D3",
+   "name": "oracle can see the effect",
+   "status": "residual",
+   "evidence": "only 1 mutants (< n_min=4); killed 1"
+  },
+  {
+   "id": "D13",
+   "name": "inputs inside the paper's scope",
+   "status": "residual",
+   "evidence": "scope_status=unknown"
+  },
+  {
+   "id": "D14",
+   "name": "official entry point was called",
+   "status": "residual",
+   "evidence": "the official entry started first but the target line did not run inside it; reason recorded: The pinned propagate_sparsity is a no-op stub (it extracts ModelSparsityInfo and returns pre_sparsity) and step-4 reports call_chain_status not_found: no static or dynamic path from call_chain[0] to wbc_matmul exists. The driver calls the official entry first and then wbc_matmul (call_chain[1]) directly; the target module and function are the real, unmodified repository code."
+  }
+ ],
+ "next_steps": [
+  "D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location",
+  "D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)"
+ ],
+ "finding": {
+  "category": "docs_only",
+  "step4_level": "L2",
+  "effect_type": "reject",
+  "priority": 2,
+  "summary": "When len(unique_block_sizes) != 1: wbc_matmul only supports a single block size for the weight tesa. If the weighted block cover (driven by the caller's sparsity pattern / TeSA values) selects more than one block size, decompose_blocked_tesas is a no-op stub (`...`) and then a bare `raise` aborts the whole transformation. So a sparsity pattern that mixes block sizes is rejected rather than hand...",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 1), not human: wbc_matmul hits a bare raise whenever the weighted block cover picks more than one block size (including a block size plus the (1,1) leftover), so mixed-granularity sparsity patterns from the user's TeSA are rejected.",
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "sparta/transformation/weighted_block_cover.py:123",
+  "function": "sparta/transformation/weighted_block_cover.py::wbc_matmul",
+  "condition": "len(unique_block_sizes) != 1"
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "T 1 i , . . . ,T j i = self.WeightedBlockCover(Ti);",
+    "source": "paper",
+    "locator": "PDF p.7"
+   },
+   {
+    "quote": "Ttrans f ormed.Extend(T 1 i , . . . ,T j i );",
+    "source": "paper",
+    "locator": "PDF p.7"
+   },
+   {
+    "quote": "64 return DecomposedTeSAs(T , Bchosen);",
+    "source": "paper",
+    "locator": "PDF p.7"
+   }
+  ],
+  "code": [
+   {
+    "file": "sparta/transformation/weighted_block_cover.py",
+    "line_start": 123,
+    "function": "sparta/transformation/weighted_block_cover.py::wbc_matmul",
+    "snippet": "raise"
+   },
+   {
+    "file": "sparta/transformation/weighted_block_cover.py",
+    "line_start": 104,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "sparta/transformation/weighted_block_cover.py",
+    "line_start": 47,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {
+  "execution_report": "execution_report.json",
+  "testcase": "testcase.json",
+  "attempt": "attempt"
+ },
+ "provenance": {
+  "findings_file": "results/step4/sparta/limitations_for_tests.json",
+  "findings_sha256": "af8cad7c4e91af73f84a27b96179739526bde952a669319c71cc4e157ac4b49f",
+  "generated_at": "2026-11-18T12:35:53+08:00",
+  "source": "agent",
+  "attempt_origin": "scratch/agent_runs/e2e-f002-aa8636",
+  "agent_tokens": 2319824,
+  "agent_wall_s": 584.0,
+  "lock_tampered": false,
+  "profile": "default-v1"
+ },
+ "analysis": null
+}

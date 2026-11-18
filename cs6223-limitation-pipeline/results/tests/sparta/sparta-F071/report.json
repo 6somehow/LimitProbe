@@ -1,0 +1,133 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "sparta-F071",
+ "artifact_id": "sparta",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "not_implemented",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "依赖存在但未被该判定消费，属未接线而非实现",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "sparta/specialization/specialize_kernel.py:44-77",
+  "function": null,
+  "condition": "block_size is not None and block_size != 1"
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "A specialization hint could also specify the block size equal to the tensor’s shape (i.e., one block covers the whole tensor).",
+    "source": "paper",
+    "locator": "PDF p.8"
+   }
+  ],
+  "code": [
+   {
+    "file": "sparta/specialization/specialize_kernel.py",
+    "line_start": 44,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "sparta/specialization/specialize_kernel.py",
+    "line_start": 143,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/sparta/limitations_for_tests.json",
+  "findings_sha256": "af8cad7c4e91af73f84a27b96179739526bde952a669319c71cc4e157ac4b49f",
+  "generated_at": "2026-11-18T12:35:53+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The shown code branches only on block_size None, 1, or else; it never compares block_size to the tensor shape. Any other value, including a shape-sized block, is routed to the generic blocksparse template. Thus the paper’s whole-tensor block-size hint is not explicitly wired as a specialization, matching the not_implemented finding.",
+  "hardware_needed": false,
+  "would_confirm": "A static search or unit test that sets block_size to the tensor shape and checks whether a dedicated whole-tensor specialization is selected would settle it.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "sparta/specialization/specialize_kernel.py",
+     "lines": "44-77",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "sparta/specialization/specialize_kernel.py",
+     "lines": "143-166",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "sparta/specialization/specialize_kernel.py",
+    "regex": "block_size\\s*==\\s*(shape|matmul_shape|m|k|n)",
+    "expect": "absent",
+    "meaning": "No shape-equality branch; only sentinel 1 branch exists.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "block_size\\s*==\\s*1",
+    "hit_lines": []
+   },
+   {
+    "file": "sparta/specialization/specialize_kernel.py",
+    "regex": "block_size\\s*==\\s*None",
+    "expect": "present",
+    "meaning": "Block size is used as a None sentinel for dense selection.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     68
+    ]
+   },
+   {
+    "file": "sparta/specialization/specialize_kernel.py",
+    "regex": "blocksparse_matmul_template\\([^\\n]*block_size",
+    "expect": "present",
+    "meaning": "Non-sentinel block sizes are passed to generic blocksparse template.",
+    "status": "confirmed",
+    "hits": 2,
+    "hit_lines": [
+     53,
+     210
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

@@ -1,0 +1,29 @@
+{
+ "assessment": "supports",
+ "reasoning": "The cited code shows bit_align obtains bit_options directly from hardware_bit_precisions() and proceeds to alignment/decomposition without any SampleBitOption call. transform_matmul calls bit_align directly. This matches the finding that the paper's sampling step is absent and bit options are fixed by the hardware precision set.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "sparta/transformation/transform_policy.py",
+   "regex": "SampleBitOption",
+   "expect": "absent",
+   "control": "def bit_align",
+   "meaning": "No sampling call appears in the transformation policy file."
+  },
+  {
+   "file": "sparta/transformation/transform_policy.py",
+   "regex": "bit_options\\s*=\\s*self\\.hardware_bit_precisions\\(\\)",
+   "expect": "present",
+   "control": "def bit_align",
+   "meaning": "Bit options are taken directly from hardware precisions."
+  },
+  {
+   "file": "sparta/transformation/transform_policy.py",
+   "regex": "weight_tesas\\s*=\\s*self\\.bit_align\\(weight_tesa\\)",
+   "expect": "present",
+   "control": "def transform_matmul",
+   "meaning": "Transformation path invokes bit_align directly, without prior sampling."
+  }
+ ],
+ "would_confirm": "Search transform_policy.py for any SampleBitOption invocation or run the transformation and verify bit options equal the full hardware precision set."
+}

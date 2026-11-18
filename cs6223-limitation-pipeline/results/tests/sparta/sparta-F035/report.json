@@ -1,0 +1,142 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "sparta-F035",
+ "artifact_id": "sparta",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "执行计划未被重写",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "sparta/transformation/optimize_model.py:29-54",
+  "function": null,
+  "condition": "not is_fast_pass(post_sparsity)"
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "Correspondingly, SparTA rewrites the execution plan of the associated operator to accommodate",
+    "source": "paper",
+    "locator": "PDF p.6"
+   }
+  ],
+  "code": [
+   {
+    "file": "sparta/transformation/optimize_model.py",
+    "line_start": 29,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "sparta/specialization/specialize_kernel.py",
+    "line_start": 18,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/sparta/limitations_for_tests.json",
+  "findings_sha256": "af8cad7c4e91af73f84a27b96179739526bde952a669319c71cc4e157ac4b49f",
+  "generated_at": "2026-11-18T12:35:53+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A1",
+  "tier_note": "the reading is unclear; probes alone do not decide it",
+  "calibrated": false,
+  "assessment": "unclear",
+  "reasoning": "The shown optimizer calls tpolicy.transform_module and rebuilds modules, but TransformPolicy internals are not shown. specialize_matmul is marked 'mocked for now' yet still returns kernels. This neither proves nor disproves that the execution plan is rewritten; the relevant rewrite logic may be inside transform_module or rebuild functions.",
+  "hardware_needed": false,
+  "would_confirm": "Inspect TransformPolicy.transform_module and rebuild_sparse_model_* to see whether they construct or rewrite an execution plan, or run a sparse model and dump the generated plan.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "sparta/transformation/optimize_model.py",
+     "lines": "29-54",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "sparta/specialization/specialize_kernel.py",
+     "lines": "18-42",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "sparta/transformation/optimize_model.py",
+    "regex": "(?i)execution[_ ]?plan",
+    "expect": "absent",
+    "meaning": "No explicit execution-plan text in optimizer; control confirms file searched.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "def optimize_and_rebuild|transform_module|rebuild_sparse_model",
+    "hit_lines": []
+   },
+   {
+    "file": "sparta/transformation/optimize_model.py",
+    "regex": "(?i)rewrite|rewrit",
+    "expect": "absent",
+    "meaning": "No explicit rewrite call in optimizer; transform_module may still rewrite.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "def optimize_and_rebuild|transform_module|rebuild_sparse_model",
+    "hit_lines": []
+   },
+   {
+    "file": "sparta/specialization/specialize_kernel.py",
+    "regex": "mocked for now",
+    "expect": "present",
+    "meaning": "Kernel specialization is marked mocked, suggesting incomplete implementation.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     22
+    ]
+   },
+   {
+    "file": "sparta/specialization/specialize_kernel.py",
+    "regex": "return latency, kernels, aggr_type",
+    "expect": "present",
+    "meaning": "Function returns kernel list, which could be an execution plan.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     42
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

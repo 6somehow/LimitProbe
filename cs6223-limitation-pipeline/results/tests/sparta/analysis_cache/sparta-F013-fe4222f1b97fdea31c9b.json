@@ -1,0 +1,28 @@
+{
+ "assessment": "supports",
+ "reasoning": "The cited code iterates modules via named_modules() in registration order (lines 514-521) and quantizes each Conv2d independently using random dummy inputs (lines 599-607). It shows no topological sort and no activation cache/reuse across quantization propagations, so the paper's stated propagation precondition is not implemented in this path.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "script/figure14/search_finetune_fit_qat.py",
+   "regex": "named_modules\\(\\)",
+   "expect": "present",
+   "meaning": "Confirms module traversal uses PyTorch registration order, not explicit topological order."
+  },
+  {
+   "file": "script/figure14/search_finetune_fit_qat.py",
+   "regex": "topological|topo_sort|topological_sort",
+   "expect": "absent",
+   "control": "named_modules\\(\\)",
+   "meaning": "Shows no topological-sort symbol in the cited file."
+  },
+  {
+   "file": "script/figure14/search_finetune_fit_qat.py",
+   "regex": "activation.*cache|cache.*activation|activation_cache|act_cache",
+   "expect": "absent",
+   "control": "QAT_Quantizer",
+   "meaning": "Shows no activation-cache mechanism in the cited file."
+  }
+ ],
+ "would_confirm": "Instrument the cited function to log module visitation order and whether activations are reused across quantized convolutions."
+}

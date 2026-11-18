@@ -1,0 +1,52 @@
+{
+  "test_id": "A-flexprefill-F003",
+  "finding_id": "flexprefill-F003",
+  "strategy": "S1",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {"name": "batch_size", "value": 1, "why": "witness_hint does not specify batch size; the entry requires batch size 1 and the target condition reads only head counts"},
+      {"name": "q_len", "value": 2, "why": "witness_hint does not specify sequence length; q_len > 1 avoids the decode branch and q_len <= 2*block_size takes the short-sequence path to triton_flash_prefill where the target lives"},
+      {"name": "k_len", "value": 2, "why": "witness_hint does not specify k length; the entry asserts q.shape[1] == k.shape[1], so k_len must equal q_len"},
+      {"name": "head_dim", "value": 32, "why": "witness_hint does not specify head dim; 32 is one of the four values the pre-target guard accepts and keeps tensors small on CPU"},
+      {"name": "gamma", "value": 0.9, "why": "required positional argument of the entry; the short-sequence branch is chosen before any coverage logic reads it"},
+      {"name": "block_size", "value": 128, "why": "entry default and an accepted value; q_len=2 <= 2*block_size selects the short-sequence branch that reaches the target"},
+      {"name": "dtype", "value": "bfloat16", "why": "triton_flash_prefill asserts q.dtype == torch.bfloat16 at line 244, before the target at line 247; CPU torch supports bfloat16 tensor construction"},
+      {"name": "seed", "value": 0, "why": "fixed seed makes the random q/k/v construction deterministic across repeats"}
+    ],
+    "positive_input": {"num_q_heads": 5, "num_kv_heads": 4},
+    "negative_input": {"num_q_heads": 5, "num_kv_heads": 5},
+    "boundary_variable": "num_kv_heads",
+    "extra_negatives": [],
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "exception",
+      "spec": "AssertionError raised at flex_prefill/ops/flex_prefill_attention.py:247",
+      "signal_location": "flex_prefill/ops/flex_prefill_attention.py:247"
+    },
+    "expected": {
+      "positive": "AssertionError at flex_prefill/ops/flex_prefill_attention.py:247",
+      "negative": "no exception at flex_prefill/ops/flex_prefill_attention.py:247"
+    }
+  },
+  "execution": {
+    "entry_called": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": ["python -m checklimits run --attempt <this directory>"]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": ["false", "true"],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "AssertionError at flex_prefill/ops/flex_prefill_attention.py:247",
+    "negative_observed": "no exception at flex_prefill/ops/flex_prefill_attention.py:247"
+  },
+  "evidence": {}
+}

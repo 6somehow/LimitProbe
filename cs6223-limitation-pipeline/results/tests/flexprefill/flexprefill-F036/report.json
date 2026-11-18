@@ -1,0 +1,171 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "flexprefill-F036",
+ "artifact_id": "flexprefill",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "实验配置的 1024 预算未转化为每 head 最终激活 token 数下限，Query-Aware 头无下限",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "flex_prefill/ops/flex_prefill_attention.py:1707-1713",
+  "function": null,
+  "condition": "min_budget == 1024"
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "requiring each attention head to compute at least 1024 tokens",
+    "source": "paper",
+    "locator": "PDF p.7"
+   }
+  ],
+  "code": [
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "line_start": 1707,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "line_start": 1727,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "line_start": 1734,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/flexprefill/limitations_for_tests.json",
+  "findings_sha256": "0b8539b75ec0e2d602cd64b1a21959708ae3a6d53be00202f8825d92f313c066",
+  "generated_at": "2026-11-18T12:15:50+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A1",
+  "tier_note": "the reading is unclear; probes alone do not decide it",
+  "calibrated": false,
+  "assessment": "unclear",
+  "reasoning": "The snippets clamp num_vertical_blocks and num_slash_blocks to min_budget, which could be a per-head floor, but min_budget's value/units and query-aware handling are not shown. Lines 1728-1729 also set block-sparse heads to min_budget, not obviously 'no lower bound.' Thus the evidence is insufficient to decide whether the 1024-token requirement is enforced.",
+  "hardware_needed": false,
+  "would_confirm": "Inspect the min_budget assignment and log per-head selected block counts to see whether every head, including query-aware ones, gets at least 1024 tokens.",
+  "static": {
+   "cited": 5,
+   "grounded": true,
+   "items": [
+    {
+     "file": "flex_prefill/ops/flex_prefill_attention.py",
+     "lines": "1707-1713",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "flex_prefill/ops/flex_prefill_attention.py",
+     "lines": "1727-1732",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "flex_prefill/ops/flex_prefill_attention.py",
+     "lines": "1734-1758",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "experiments/scripts/flex_prefill/ruler.sh",
+     "lines": "16-30",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "shell"
+    },
+    {
+     "file": "flex_prefill/modules/patch.py",
+     "lines": "446-454",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "regex": "min_budget\\s*=",
+    "expect": "present",
+    "meaning": "Locates min_budget assignment; value/units decide if 1024-token floor exists.",
+    "status": "confirmed",
+    "hits": 2,
+    "hit_lines": [
+     1840,
+     1908
+    ]
+   },
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "regex": "min_budget\\s*=\\s*1024\\b",
+    "expect": "present",
+    "meaning": "Literal 1024 as block count would support the finding.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     1908
+    ]
+   },
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "regex": "min_budget\\s*=\\s*8\\b",
+    "expect": "present",
+    "meaning": "Eight blocks would convert 1024 tokens to a per-head floor.",
+    "status": "refuted",
+    "hits": 0,
+    "hit_lines": []
+   },
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "regex": "query[_-]?aware|QueryAware|qaware",
+    "expect": "present",
+    "meaning": "Finds query-aware head logic; absence would weaken the 'no floor' claim.",
+    "status": "refuted",
+    "hits": 0,
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

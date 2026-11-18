@@ -1,0 +1,27 @@
+{
+ "assessment": "supports",
+ "reasoning": "The paper says InfiniGen prefetches exactly the tokens with score > max\u2212alpha. The code instead counts those tokens, averages the counts, and returns torch.topk with k=min(int(mean), max_num_kv). Thus the prefetch set is top-k by score, not the strict threshold set, matching the finding.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "speedup/infinigen/infinigen/kv_selection_controller.py",
+   "regex": "prefetch_idx = torch\\.topk\\(",
+   "expect": "present",
+   "meaning": "Confirms prefetch indices are produced by top-k selection."
+  },
+  {
+   "file": "speedup/infinigen/infinigen/kv_selection_controller.py",
+   "regex": "mean = torch\\.mean\\(torch\\.sum\\(count, dim=-1\\)\\)\\.item\\(\\)",
+   "expect": "present",
+   "meaning": "Shows k is derived from the mean thresholded-token count."
+  },
+  {
+   "file": "speedup/infinigen/infinigen/kv_selection_controller.py",
+   "regex": "prefetch_idx = torch\\.where\\(p_attn > thr_",
+   "expect": "absent",
+   "control": "prefetch_idx = torch\\.topk\\(",
+   "meaning": "No direct threshold-mask assignment to prefetch_idx exists."
+  }
+ ],
+ "would_confirm": "Inspect or run speculate_attention on a case where the >max\u2212alpha set size differs from the mean count and compare returned indices against the threshold mask."
+}

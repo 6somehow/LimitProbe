@@ -1,0 +1,32 @@
+{
+ "assessment": "supports",
+ "reasoning": "The shown kernel uses while(1) and exits via break when s reaches NNZ_S; s is incremented in the else branch at line 82. The paper's stated guard is s_v\u2264k_s. This supports the claimed implementation deviation, though the snippet alone does not prove semantic inequivalence.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "csrc/vertical_slash_index.cu",
+   "regex": "while\\s*\\(\\s*1\\s*\\)",
+   "expect": "present",
+   "meaning": "Loop is unconditional while(1), not the paper's guard."
+  },
+  {
+   "file": "csrc/vertical_slash_index.cu",
+   "regex": "s\\s*<\\s*NNZ_S",
+   "expect": "present",
+   "meaning": "Termination depends on slash-index count NNZ_S."
+  },
+  {
+   "file": "csrc/vertical_slash_index.cu",
+   "regex": "else\\s*\\{\\s*if\\s*\\(\\s*s\\s*<\\s*NNZ_S\\s*\\)\\s*\\{\\s*s_idx\\s*=\\s*max\\([^;]*slash_indexes\\[s\\+\\+\\]",
+   "expect": "present",
+   "meaning": "s increments inside the else branch when slash index available."
+  },
+  {
+   "file": "csrc/vertical_slash_index.cu",
+   "regex": "break\\s*;",
+   "expect": "present",
+   "meaning": "Loop exits via break rather than a loop condition."
+  }
+ ],
+ "would_confirm": "A source-level trace of s and v at loop exit would confirm whether termination is governed by s>=NNZ_S rather than s_v\u2264k_s."
+}

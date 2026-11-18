@@ -1,0 +1,83 @@
+{
+  "test_id": "A-sparta-F001",
+  "finding_id": "sparta-F001",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "n_row",
+        "value": 32,
+        "why": "one 32x32 block is the smallest block size above (1,1) in available_covering_size(); the boundary depends only on the block fill count"
+      },
+      {
+        "name": "n_col",
+        "value": 32,
+        "why": "matches the single 32x32 block so ordered_pricing contains exactly one candidate block"
+      },
+      {
+        "name": "dtype",
+        "value": "float32",
+        "why": "TeSA only tests entries > 0; float32 is the repository's normal weight dtype and cannot change the pricing decision"
+      },
+      {
+        "name": "price_element",
+        "value": 1,
+        "why": "cover_sizes[(1,1)] from the witness trigger; the element-wise price the block price is compared with"
+      },
+      {
+        "name": "price_block",
+        "value": 1000,
+        "why": "cost of one 32x32 block; with filled=500 the derived ordered_pricing[0][0] is exactly 2 as in the witness trigger, and with filled=1000 it is exactly 1 as in the contrast"
+      }
+    ],
+    "positive_input": {
+      "filled": 500
+    },
+    "negative_input": {
+      "filled": 1000
+    },
+    "boundary_variable": "filled",
+    "extra_negatives": [
+      {
+        "filled": 1999,
+        "n_col": 64
+      }
+    ],
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at sparta/transformation/weighted_block_cover.py:77",
+      "signal_location": "sparta/transformation/weighted_block_cover.py:77"
+    },
+    "expected": {
+      "positive": "branch taken at sparta/transformation/weighted_block_cover.py:77",
+      "negative": "branch not taken at sparta/transformation/weighted_block_cover.py:77"
+    }
+  },
+  "execution": {
+    "entry_called": "sparta/transformation/weighted_block_cover.py::weighted_block_cover",
+    "entry_reason": "The step-4 call chain is not_found: propagate_sparsity is a '# mocked' stub in this pinned branch and has no path to weighted_block_cover, so the official entry cannot reach the target. The driver therefore calls the real repository function weighted_block_cover directly with the witness cover_sizes (1 for (1,1), 1000 for (32,32)); weighted_block_cover is the first call-chain function that starts, at call-chain index 1.",
+    "call_chain_index": 1,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "true",
+      "false"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at sparta/transformation/weighted_block_cover.py:77",
+    "negative_observed": "branch not taken at sparta/transformation/weighted_block_cover.py:77"
+  },
+  "evidence": {}
+}

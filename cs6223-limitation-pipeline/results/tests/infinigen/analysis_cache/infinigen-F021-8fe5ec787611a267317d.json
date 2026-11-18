@@ -1,0 +1,29 @@
+{
+ "assessment": "supports",
+ "reasoning": "The code computes SVDs of query and key, multiplies singular values, sorts that product, and scatters vq columns into A. Thus A is a column permutation of V, not V itself. The paper quote says A is set to V, so the evidence supports the claimed implementation deviation.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "speedup/infinigen/infinigen/skewing_controller.py",
+   "regex": "_, sq, vq = torch\\.svd\\(query",
+   "expect": "present",
+   "control": "def skew\\(",
+   "meaning": "Shows V (vq) comes from query SVD."
+  },
+  {
+   "file": "speedup/infinigen/infinigen/skewing_controller.py",
+   "regex": "A = A\\.scatter\\(-1, ind",
+   "expect": "present",
+   "control": "def skew\\(",
+   "meaning": "Shows A is built by scattering V columns by sorted indices."
+  },
+  {
+   "file": "speedup/infinigen/infinigen/skewing_controller.py",
+   "regex": "sq = sq \\* sk",
+   "expect": "present",
+   "control": "def skew\\(",
+   "meaning": "Shows sorting key is product of query/key singular values."
+  }
+ ],
+ "would_confirm": "Run skew() on a simple non-diagonal V and check whether A equals V or a column-permuted V."
+}

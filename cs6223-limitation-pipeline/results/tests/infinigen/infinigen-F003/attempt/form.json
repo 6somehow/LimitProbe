@@ -1,0 +1,107 @@
+{
+  "test_id": "A-infinigen-F003",
+  "finding_id": "infinigen-F003",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "Fixed seed makes tensor construction deterministic across repeat and replay runs."
+      },
+      {
+        "name": "dtype",
+        "value": "float16",
+        "why": "The repository stores KV caches in fp16; the target does not read the element type."
+      },
+      {
+        "name": "num_heads",
+        "value": 1,
+        "why": "Smallest head count; the target decision reads only the local path value."
+      },
+      {
+        "name": "head_dim",
+        "value": 2,
+        "why": "Smallest positive head dimension; the target decision does not read the last dimension."
+      },
+      {
+        "name": "batch_size",
+        "value": 1,
+        "why": "Smallest batch; the target decision does not read the batch size."
+      },
+      {
+        "name": "seq_len",
+        "value": 2,
+        "why": "Small sequence length; the target decision does not read the sequence length."
+      },
+      {
+        "name": "attn_sparsity",
+        "value": 1.0,
+        "why": "Only the path-0 arm reads sparsity; the injected witness path keeps both runs on the target dispatch."
+      },
+      {
+        "name": "cache_gpu_percent",
+        "value": 0,
+        "why": "CPU-only cache placement; the target decision reads only the local path value."
+      },
+      {
+        "name": "cache_cpu_percent",
+        "value": 100,
+        "why": "CPU-only cache placement; the target decision reads only the local path value."
+      },
+      {
+        "name": "cpu_cache_compute",
+        "value": false,
+        "why": "The repository's own path selection then yields path 0 before the witness value is supplied."
+      },
+      {
+        "name": "compress_cache",
+        "value": false,
+        "why": "Avoids the compressed path so the repository assigns path 0 at line 448."
+      }
+    ],
+    "positive_input": {
+      "path": 2
+    },
+    "negative_input": {
+      "path": 3
+    },
+    "boundary_variable": "path",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "exception",
+      "spec": "ValueError raised at speedup/flexgen/infinigen/flex_opt.py:466",
+      "signal_location": "speedup/flexgen/infinigen/flex_opt.py:466"
+    },
+    "expected": {
+      "positive": "ValueError at speedup/flexgen/infinigen/flex_opt.py:467",
+      "negative": "no exception at speedup/flexgen/infinigen/flex_opt.py:466"
+    }
+  },
+  "execution": {
+    "entry_called": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention.prefetch_cache",
+    "entry_reason": "The declared entry TorchDevice.mha never calls SelfAttention.prefetch_cache (step 4 reports call_chain_status not_found). The witness also calls path an input, but the repository computes it as a local assigned only 0, 1, or 2; the natural path-0 arm returns before line 466. The driver calls the real target directly and supplies the witness path at the real target frame so the line-466 dispatch itself is exercised. No repository file is modified.",
+    "call_chain_index": 1,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "false",
+      "true"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "ValueError at speedup/flexgen/infinigen/flex_opt.py:467",
+    "negative_observed": "no exception at speedup/flexgen/infinigen/flex_opt.py:466"
+  },
+  "evidence": {}
+}

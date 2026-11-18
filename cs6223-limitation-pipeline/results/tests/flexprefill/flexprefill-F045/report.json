@@ -1,0 +1,94 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "flexprefill-F045",
+ "artifact_id": "flexprefill",
+ "status": "not_run",
+ "not_run": {
+  "code": "witness_unusable",
+  "reason": "witness status 'infeasible': step 4 shows the condition cannot hold together with the path to the target, so the official entry cannot reach it; testing the inner function directly would not test the product"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "reject",
+  "priority": 3,
+  "summary": "When not (num_q_heads % num_kv_heads == 0): AssertionError (flex_prefill/ops/flex_prefill_attention.py:878)",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "infeasible",
+  "location": "flex_prefill/ops/flex_prefill_attention.py:878",
+  "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_decode_attention",
+  "condition": "not (num_q_heads % num_kv_heads == 0)"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "line_start": 878,
+    "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_decode_attention",
+    "snippet": "assert num_q_heads % num_kv_heads == 0"
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/flexprefill/limitations_for_tests.json",
+  "findings_sha256": "0b8539b75ec0e2d602cd64b1a21959708ae3a6d53be00202f8825d92f313c066",
+  "generated_at": "2026-11-18T12:16:08+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The shown code contains exactly the asserted condition: line 878 asserts num_q_heads % num_kv_heads == 0. In Python, if that condition is false, an AssertionError is raised at that line. The finding matches the visible code, and no contrary evidence is shown.",
+  "hardware_needed": false,
+  "would_confirm": "Run the code with num_q_heads not divisible by num_kv_heads and observe an AssertionError at line 878.",
+  "static": {
+   "cited": 1,
+   "grounded": true,
+   "items": [
+    {
+     "file": "flex_prefill/ops/flex_prefill_attention.py",
+     "lines": "878-878",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": true,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "regex": "assert\\s+num_q_heads\\s*%\\s*num_kv_heads\\s*==\\s*0",
+    "expect": "present",
+    "meaning": "Confirms the divisibility assertion exists at the cited location.",
+    "status": "confirmed",
+    "hits": 4,
+    "hit_lines": [
+     247,
+     543,
+     878,
+     1258
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

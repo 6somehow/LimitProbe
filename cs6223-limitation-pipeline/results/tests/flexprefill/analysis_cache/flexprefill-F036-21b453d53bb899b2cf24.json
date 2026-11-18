@@ -1,0 +1,32 @@
+{
+ "assessment": "unclear",
+ "reasoning": "The snippets clamp num_vertical_blocks and num_slash_blocks to min_budget, which could be a per-head floor, but min_budget's value/units and query-aware handling are not shown. Lines 1728-1729 also set block-sparse heads to min_budget, not obviously 'no lower bound.' Thus the evidence is insufficient to decide whether the 1024-token requirement is enforced.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "regex": "min_budget\\s*=",
+   "expect": "present",
+   "meaning": "Locates min_budget assignment; value/units decide if 1024-token floor exists."
+  },
+  {
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "regex": "min_budget\\s*=\\s*1024\\b",
+   "expect": "present",
+   "meaning": "Literal 1024 as block count would support the finding."
+  },
+  {
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "regex": "min_budget\\s*=\\s*8\\b",
+   "expect": "present",
+   "meaning": "Eight blocks would convert 1024 tokens to a per-head floor."
+  },
+  {
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "regex": "query[_-]?aware|QueryAware|qaware",
+   "expect": "present",
+   "meaning": "Finds query-aware head logic; absence would weaken the 'no floor' claim."
+  }
+ ],
+ "would_confirm": "Inspect the min_budget assignment and log per-head selected block counts to see whether every head, including query-aware ones, gets at least 1024 tokens."
+}

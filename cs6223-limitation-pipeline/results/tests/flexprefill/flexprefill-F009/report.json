@@ -1,0 +1,90 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "flexprefill-F009",
+ "artifact_id": "flexprefill",
+ "status": "tested",
+ "not_run": null,
+ "verdict": "yes",
+ "level": "L2",
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "effect on positive input, none on negative input",
+ "observed": {
+  "positive": "AssertionError at flex_prefill/ops/flex_prefill_attention.py:1258",
+  "negative": "no exception at flex_prefill/ops/flex_prefill_attention.py:1258 (later RuntimeError at triton/runtime/driver.py:8)"
+ },
+ "defeaters": {
+  "D1": "eliminated",
+  "D2": "eliminated",
+  "D3": "eliminated",
+  "D4": "eliminated",
+  "D5": "eliminated",
+  "D6": "eliminated",
+  "D7": "eliminated",
+  "D8": "eliminated",
+  "D9": "eliminated",
+  "D10": "eliminated",
+  "D11": "eliminated",
+  "D12": "eliminated",
+  "D13": "residual",
+  "D14": "residual"
+ },
+ "open_doubts": [
+  {
+   "id": "D13",
+   "name": "inputs inside the paper's scope",
+   "status": "residual",
+   "evidence": "scope_status=unknown"
+  },
+  {
+   "id": "D14",
+   "name": "official entry point was called",
+   "status": "residual",
+   "evidence": "deeper entry (index 2); reason recorded: The official entry flex_prefill_attention cannot reach line 1258 for a non-divisible head pair: its pre-target call get_active_blocks reshapes heads with num_q_heads // num_kv_heads and raises RuntimeError in torch.einsum before the target is evaluated. The target function is call_chain[1]; calling it with a real torch block_idx tensor keeps every pre-target guard (dtype, lengths, head_dim, block_size, block-count bound) real and unmodified."
+  }
+ ],
+ "next_steps": [
+  "D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)"
+ ],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "reject",
+  "priority": 1,
+  "summary": "When not (num_q_heads % num_kv_heads == 0): AssertionError (flex_prefill/ops/flex_prefill_attention.py:1258)",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "flex_prefill/ops/flex_prefill_attention.py:1258",
+  "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention",
+  "condition": "not (num_q_heads % num_kv_heads == 0)"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "line_start": 1258,
+    "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention",
+    "snippet": "assert num_q_heads % num_kv_heads == 0"
+   }
+  ]
+ },
+ "files": {
+  "execution_report": "execution_report.json",
+  "testcase": "testcase.json",
+  "attempt": "attempt"
+ },
+ "provenance": {
+  "findings_file": "results/step4/flexprefill/limitations_for_tests.json",
+  "findings_sha256": "0b8539b75ec0e2d602cd64b1a21959708ae3a6d53be00202f8825d92f313c066",
+  "generated_at": "2026-11-18T12:12:50+08:00",
+  "source": "reaudit",
+  "attempt_origin": "agent_results/batch/F009-b1-f009/attempt",
+  "n_attempts_found": 1,
+  "profile": "default-v1"
+ },
+ "analysis": null
+}

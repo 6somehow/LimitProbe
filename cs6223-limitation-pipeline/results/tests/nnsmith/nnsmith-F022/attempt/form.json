@@ -1,0 +1,79 @@
+{
+  "test_id": "A-nnsmith-F022",
+  "finding_id": "nnsmith-F022",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "shape",
+        "value": [
+          2
+        ],
+        "why": "small 1-D input; the Region condition depends only on input dtypes, not on shape or size"
+      },
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "fixed torch RNG seed for the random inputs used by the differentiability probe"
+      },
+      {
+        "name": "timeout_ms",
+        "value": 0,
+        "why": "zero search timeout skips the GradSearch loop after the target, keeping the run fast and deterministic"
+      },
+      {
+        "name": "float_dtype",
+        "value": "float32",
+        "why": "representative floating dtype; DType.is_float accepts float32 and float64"
+      },
+      {
+        "name": "int_dtype",
+        "value": "int32",
+        "why": "representative non-float dtype that makes the all(...) condition false"
+      }
+    ],
+    "positive_input": {
+      "use_float": 1
+    },
+    "negative_input": {
+      "use_float": 0
+    },
+    "boundary_variable": "use_float",
+    "scale": null,
+    "condition_predicate_file": "condition.py",
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at nnsmith/materialize/torch/input_gen.py:93",
+      "signal_location": "nnsmith/materialize/torch/input_gen.py:93"
+    },
+    "expected": {
+      "positive": "branch taken at nnsmith/materialize/torch/input_gen.py:93",
+      "negative": "branch not taken at nnsmith/materialize/torch/input_gen.py:93"
+    }
+  },
+  "execution": {
+    "entry_called": "nnsmith/materialize/torch/input_gen.py::PracticalHybridSearch.search_one",
+    "entry_reason": "The Region target is PracticalHybridSearch.__init__; the instance must be constructed (running the target) before the official entry search_one can be invoked, so __init__ starts first in the trace.",
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "true",
+      "false"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at nnsmith/materialize/torch/input_gen.py:93",
+    "negative_observed": "branch not taken at nnsmith/materialize/torch/input_gen.py:93"
+  },
+  "evidence": {}
+}

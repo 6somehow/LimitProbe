@@ -1,0 +1,33 @@
+{
+ "assessment": "supports",
+ "reasoning": "The shown code defines a fixed hardware bitwidth list [4,8,16,32] and routes matmul transformation through bit_align, with no visible SampleBitOption call. This matches the claim that sampling is replaced by fixed bitwidth enumeration, though the snippet alone cannot prove absence across the whole file.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "sparta/transformation/transform_policy.py",
+   "regex": "SampleBitOption",
+   "expect": "absent",
+   "control": "hardware_bit_precisions",
+   "meaning": "No sampling method in policy file; fixed precision list present."
+  },
+  {
+   "file": "sparta/transformation/transform_policy.py",
+   "regex": "hardware_bit_precisions",
+   "expect": "present",
+   "meaning": "Fixed hardware bitwidth enumeration exists in policy."
+  },
+  {
+   "file": "sparta/transformation/transform_policy.py",
+   "regex": "bit_align\\(",
+   "expect": "present",
+   "meaning": "Bit alignment path is used in transformation."
+  },
+  {
+   "file": "sparta/transformation/transform_policy.py",
+   "regex": "return \\[4, 8, 16, 32\\]",
+   "expect": "present",
+   "meaning": "Hardcoded bitwidth set confirms fixed enumeration."
+  }
+ ],
+ "would_confirm": "Search the full transform_policy.py for SampleBitOption and inspect all bit_align/hardware_bit_precisions call sites to verify no sampling is invoked."
+}

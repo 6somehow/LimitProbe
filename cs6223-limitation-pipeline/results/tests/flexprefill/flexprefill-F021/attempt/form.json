@@ -1,0 +1,61 @@
+{
+  "test_id": "A-flexprefill-F021",
+  "finding_id": "flexprefill-F021",
+  "strategy": "S1",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [],
+    "positive_input": {
+      "name_variant": 0,
+      "has_impl": true
+    },
+    "negative_input": {
+      "name_variant": 1,
+      "has_impl": true
+    },
+    "boundary_variable": "name_variant",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at flex_prefill/modules/patch.py:501",
+      "signal_location": "flex_prefill/modules/patch.py:501"
+    },
+    "expected": {
+      "positive": "branch taken at flex_prefill/modules/patch.py:501",
+      "negative": "branch not taken at flex_prefill/modules/patch.py:501"
+    }
+  },
+  "execution": {
+    "entry_called": "flex_prefill/modules/patch.py::patch_vllm_model",
+    "entry_reason": "The step-4 hand-off builds call_chain[0] from artifact.json entry_points (flex_prefill_attention), but the real call graph is not part of the hand-off and flex_prefill_attention never calls patch_vllm_model. The target lives in patch_vllm_model, reached through its public wrapper patch_model; the driver therefore calls patch_vllm_model directly.",
+    "call_chain_index": 1,
+    "repo_files_modified": [],
+    "mocks": [
+      {
+        "symbol": "vllm",
+        "kind": "fake_module",
+        "behavior": "return_first_arg",
+        "sim_class": "stub",
+        "reason": "vLLM is not installed in the pinned CPU environment; patch.py imports it and patch_vllm_model checks isinstance(model, vllm.LLM). The declared fake provides the vllm namespace and the LLM base class only; the module tree iterated at the target is real Python."
+      }
+    ],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "false",
+      "true"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at flex_prefill/modules/patch.py:501",
+    "negative_observed": "branch not taken at flex_prefill/modules/patch.py:501"
+  },
+  "evidence": {}
+}

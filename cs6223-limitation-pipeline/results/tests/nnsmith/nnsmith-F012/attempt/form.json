@@ -1,0 +1,87 @@
+{
+  "test_id": "A-nnsmith-F012",
+  "finding_id": "nnsmith-F012",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "opset",
+        "value": ["Pool2d"],
+        "why": "Restrict the generator's operator set to Pool2d so the official entry deterministically creates the operator whose requires() contains the target branch; Pool2d is the operator named by the finding."
+      },
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "Fixed seed makes operator construction, dtype choice and Z3 solving reproducible across runs."
+      },
+      {
+        "name": "init_rank",
+        "value": 4,
+        "why": "Pool2d requires a rank-4 NCHW input; the generator's initial placeholder must have rank 4 to be a legal input."
+      },
+      {
+        "name": "max_nodes",
+        "value": 1,
+        "why": "One inserted Pool2d node is enough to execute Pool2d.requires once; keeps the run small and fast."
+      },
+      {
+        "name": "timeout_ms",
+        "value": 2000,
+        "why": "Upper bound for model generation; the single Pool2d insertion is solved in milliseconds."
+      },
+      {
+        "name": "forward_prob",
+        "value": 1.0,
+        "why": "Force forward insertion so the fixed call-chain path try_insert_node_type -> try_forward_insert -> ... -> Pool2d.requires is the one that reaches the target."
+      },
+      {
+        "name": "init_fp",
+        "value": true,
+        "why": "Force the initial placeholder to float32; Pool2d only accepts floating dtypes, so this avoids a seed-dependent integer placeholder that cannot accept Pool2d."
+      }
+    ],
+    "positive_input": {
+      "Z3_CONS_FLOPS": true
+    },
+    "negative_input": {
+      "Z3_CONS_FLOPS": false
+    },
+    "boundary_variable": "Z3_CONS_FLOPS",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at nnsmith/abstract/op.py:910",
+      "signal_location": "nnsmith/abstract/op.py:910"
+    },
+    "expected": {
+      "positive": "branch taken at nnsmith/abstract/op.py:910",
+      "negative": "branch not taken at nnsmith/abstract/op.py:910"
+    }
+  },
+  "execution": {
+    "entry_called": "nnsmith/graph_gen.py::random_model_gen",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "true",
+      "false"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at nnsmith/abstract/op.py:910",
+    "negative_observed": "branch not taken at nnsmith/abstract/op.py:910"
+  },
+  "evidence": {}
+}

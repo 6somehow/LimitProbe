@@ -1,0 +1,112 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "minference-F009",
+ "artifact_id": "minference",
+ "status": "not_run",
+ "not_run": {
+  "code": "outcome_unsupported",
+  "reason": "effect type 'other': the target assigns a value; the claimed effect is what that value changes later, which needs a differential check of outputs (the assignment itself would differ trivially)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "When head_id not in self.best_pattern: The vLLM variant indexes `self.best_pattern[head_id]` directly (unlike the HF variant's `.get(..., default)`), so a pattern file whose per-layer dict lacks an entry for some head raises `KeyError` during prefill. `self.best_pattern` is rebuilt from the caller-supplied `pattern_config[layer_idx]` on every forward (line 790), so a short/mismatched pattern fi...",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "minference/modules/minference_forward.py:754",
+  "function": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_vllm",
+  "condition": "head_id not in self.best_pattern"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "minference/modules/minference_forward.py",
+    "line_start": 754,
+    "function": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_vllm",
+    "snippet": "ty, vertical_size, slash_size, _ = self.best_pattern[head_id]"
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/minference/limitations_for_tests.json",
+  "findings_sha256": "6f02cbec16ce4487c1b9166c2dc5f1f16704f168b135426edfe2df59ed9333bc",
+  "generated_at": "2026-11-18T17:26:42+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A0",
+  "tier_note": "the reading and the probes disagree",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "Line 754 directly indexes self.best_pattern[head_id], so a missing head_id would raise KeyError rather than using a default. The finding's core claim is supported by the shown code; the line-790 rebuild detail is not shown but is consistent and can be checked by probe. No paper evidence is needed for this code-level behavior.",
+  "hardware_needed": false,
+  "would_confirm": "Call the forward/prefill path with a pattern_config whose per-layer dict omits a head_id and observe whether KeyError is raised at line 754.",
+  "static": {
+   "cited": 1,
+   "grounded": true,
+   "items": [
+    {
+     "file": "minference/modules/minference_forward.py",
+     "lines": "754-754",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": true,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "self\\.best_pattern\\[head_id\\]",
+    "expect": "present",
+    "meaning": "Direct indexing of best_pattern by head_id exists at the cited line.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     754
+    ]
+   },
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "best_pattern\\s*=\\s*pattern_config",
+    "expect": "present",
+    "meaning": "best_pattern is assigned from caller-supplied pattern_config, supporting rebuild claim.",
+    "status": "refuted",
+    "hits": 0,
+    "hit_lines": []
+   },
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "self\\.best_pattern\\.get\\(",
+    "expect": "absent",
+    "meaning": "No default .get lookup appears in this file; control confirms search location.",
+    "status": "refuted",
+    "hits": 1,
+    "control": "self\\.best_pattern\\[head_id\\]",
+    "hit_lines": [
+     430
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

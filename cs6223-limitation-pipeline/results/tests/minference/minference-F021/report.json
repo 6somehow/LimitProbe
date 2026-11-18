@@ -1,0 +1,120 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "minference-F021",
+ "artifact_id": "minference",
+ "status": "tested",
+ "not_run": null,
+ "verdict": "inconclusive",
+ "level": "n/a",
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "verdict is inconclusive; no confidence is assigned to it",
+ "verdict_reason": "positive run: run failed before a result: load_error",
+ "observed": {
+  "positive": "run failed before a result: load_error",
+  "negative": "run failed before a result: load_error"
+ },
+ "defeaters": {
+  "D1": "refuted",
+  "D2": "refuted",
+  "D3": "open",
+  "D4": "eliminated",
+  "D5": "refuted",
+  "D6": "eliminated",
+  "D7": "eliminated",
+  "D8": "eliminated",
+  "D9": "eliminated",
+  "D10": "eliminated",
+  "D11": "eliminated",
+  "D12": "eliminated",
+  "D13": "residual",
+  "D14": "refuted"
+ },
+ "open_doubts": [
+  {
+   "id": "D1",
+   "name": "target statement executed",
+   "status": "refuted",
+   "evidence": "positive run never executed the target line"
+  },
+  {
+   "id": "D2",
+   "name": "condition holds on positive, fails on negative",
+   "status": "refuted",
+   "evidence": "condition does not hold on the positive or does not fail on the negative"
+  },
+  {
+   "id": "D3",
+   "name": "oracle can see the effect",
+   "status": "open",
+   "evidence": "mutation not run"
+  },
+  {
+   "id": "D5",
+   "name": "control pair differs in one factor, negative adjacent to the boundary",
+   "status": "refuted",
+   "evidence": "positive and negative differ in [], not in exactly one factor"
+  },
+  {
+   "id": "D13",
+   "name": "inputs inside the paper's scope",
+   "status": "residual",
+   "evidence": "scope_status=unknown"
+  },
+  {
+   "id": "D14",
+   "name": "official entry point was called",
+   "status": "refuted",
+   "evidence": "entry index None (None = not in the call chain) and no reason recorded"
+  }
+ ],
+ "next_steps": [
+  "D1 (refuted): choose inputs that reach the target line (check Region.condition.path_prefix)",
+  "D2 (refuted): pick inputs so the Region condition is true on the positive and false on the negative; write a predicate if it cannot be evaluated",
+  "D3 (open): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location",
+  "D5 (refuted): change exactly one factor between positive and negative, and make the negative the point next to the boundary",
+  "D14 (refuted): call the official entry, or record why a deeper function is called (execution.entry_reason)"
+ ],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "path_change",
+  "priority": 2,
+  "summary": "When not (self.config_path is not None and os.path.exists(self.config_path) and self.layer_idx < len(json.load(open(self.config_path)))): The searched per-head pattern is only loaded when `config_path` exists and has an entry for `self.layer_idx`; otherwise `self.best_pattern = {}` and every head uses the hard-coded default pattern (see line 430). A missing/typo'd `config_path` therefore silent...",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 2), not human: With a missing config_path, or one that has too few layers, best_pattern is empty and every head silently uses the default vertical_and_slash (1000, 6096) pattern instead of the searched per-head pattern.",
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "minference/modules/minference_forward.py:63",
+  "function": "minference/modules/minference_forward.py::init_minference_parameters",
+  "condition": "not (self.config_path is not None and os.path.exists(self.config_path) and self.layer_idx < len(json.load(open(self.config_path))))"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "minference/modules/minference_forward.py",
+    "line_start": 63,
+    "function": "minference/modules/minference_forward.py::init_minference_parameters",
+    "snippet": "if self.config_path is not None and os.path.exists(self.config_path) and (self.layer_idx < len(json.load(open(self.config_path)))):"
+   }
+  ]
+ },
+ "files": {
+  "execution_report": "execution_report.json",
+  "testcase": "testcase.json",
+  "attempt": "attempt"
+ },
+ "provenance": {
+  "findings_file": "results/step4/minference/limitations_for_tests.json",
+  "findings_sha256": "6f02cbec16ce4487c1b9166c2dc5f1f16704f168b135426edfe2df59ed9333bc",
+  "generated_at": "2026-11-18T16:00:28+08:00",
+  "source": "agent",
+  "attempt_origin": "scratch/agent_runs/e2e-f021-8bcbb1",
+  "agent_tokens": 4025889,
+  "agent_wall_s": 907.9,
+  "lock_tampered": false,
+  "profile": "default-v1"
+ },
+ "analysis": null
+}
