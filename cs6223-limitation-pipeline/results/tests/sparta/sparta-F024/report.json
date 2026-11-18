@@ -1,0 +1,101 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "sparta-F024",
+ "artifact_id": "sparta",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "论文要求 2 字节位域属性；artifact 路径以文本配置+按位宽分支替代，未实现 7/4/5 位布局",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "sparta/artifact_specialization/generate_code.py:58-82",
+  "function": null,
+  "condition": "bit == 32 or bit == 8"
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "Each TeSA element has a two-byte attribute: 7 bits record the bit width of the element, 4 bits specify the element’s data format",
+    "source": "paper",
+    "locator": "PDF p.9"
+   },
+   {
+    "quote": "TeSA element has a two-byte attribute: 7 bits record the bit width of the element, 4 bits specify the element’s data format (e.g., unsigned int, ﬂoat32, bﬂoat16), and the rest 5 bits are",
+    "source": "paper",
+    "locator": "PDF p.9, text lines 7-9"
+   }
+  ],
+  "code": [
+   {
+    "file": "sparta/artifact_specialization/generate_code.py",
+    "line_start": 58,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/sparta/limitations_for_tests.json",
+  "findings_sha256": "af8cad7c4e91af73f84a27b96179739526bde952a669319c71cc4e157ac4b49f",
+  "generated_at": "2026-11-18T12:35:53+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The shown artifact code branches only on bit==32 and bit==8, writes binary row/col/val files, and returns a text config dict. It contains no packing of a two-byte TeSA attribute with 7-bit width, 4-bit format, and 5 remaining bits. Thus the evidence supports the claimed deviation, though only for this code path.",
+  "hardware_needed": false,
+  "would_confirm": "Inspect the full artifact for any TeSA attribute serialization, or run a test checking the emitted two-byte header fields.",
+  "static": {
+   "cited": 1,
+   "grounded": true,
+   "items": [
+    {
+     "file": "sparta/artifact_specialization/generate_code.py",
+     "lines": "58-82",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "sparta/artifact_specialization/generate_code.py",
+    "regex": "(<<|>>|bit_width|data_format|bitfield)",
+    "expect": "absent",
+    "meaning": "No bitfield packing or width/format fields in this file.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "def bcsr_generate",
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

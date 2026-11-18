@@ -1,0 +1,26 @@
+{
+ "assessment": "supports",
+ "reasoning": "The paper claims PEs accumulate in turn without stalls. The RTL explicitly routes a global stall into the cycle generator, freezes cycle shift registers when stalled, and gates FIFO reads with !stall. This shows a global backpressure path, contradicting the no-stall description. The absence of a shared accumulator is not directly proven by these snippets, but the stall deviation is supported.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "hardware/rtl/systolic_efficient.v",
+   "regex": "\\.stall\\s*\\(\\s*stall\\s*\\)",
+   "expect": "present",
+   "meaning": "Cycle generator receives global stall, contradicting no-stall claim."
+  },
+  {
+   "file": "hardware/rtl/mm_efficient.v",
+   "regex": "rd_en\\s*\\(\\s*active_row\\[i\\]\\s*&&\\s*!stall\\s*\\)",
+   "expect": "present",
+   "meaning": "Activation FIFO reads are gated by global stall backpressure."
+  },
+  {
+   "file": "hardware/rtl/systolic_efficient.v",
+   "regex": "else if \\(!stall\\)",
+   "expect": "present",
+   "meaning": "Cycle shift registers stop advancing during stall."
+  }
+ ],
+ "would_confirm": "A cycle-accurate RTL trace showing stall asserted during accumulation and freezing PE/cycle/FIFO progress would settle it."
+}

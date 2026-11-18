@@ -1,0 +1,27 @@
+{
+ "assessment": "supports",
+ "reasoning": "The cited code builds each layer's training/validation data with fresh torch.rand(dummy_input_shape) tensors and never references La's collected output activations. The paper's described partial-inference propagation from La to Lb is therefore not implemented in the shown path.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "script/figure14/search_finetune_fit_qat.py",
+   "regex": "torch\\.rand\\(dummy_input_shape\\)",
+   "expect": "present",
+   "meaning": "Shows calibration/training inputs are randomly generated, not reused activations."
+  },
+  {
+   "file": "script/figure14/search_finetune_fit_qat.py",
+   "regex": "output_activations|activation.*calib|calib.*activation",
+   "expect": "absent",
+   "control": "torch\\.rand\\(dummy_input_shape\\)",
+   "meaning": "No textual evidence of reusing La output activations for Lb calibration."
+  },
+  {
+   "file": "script/figure14/search_finetune_fit_qat.py",
+   "regex": "def train_bit_propagate",
+   "expect": "present",
+   "meaning": "Confirms the cited propagation-related function exists in this file."
+  }
+ ],
+ "would_confirm": "Trace or instrument train_bit_propagate to verify whether Lb calibration data ever derives from La outputs rather than fresh random tensors."
+}

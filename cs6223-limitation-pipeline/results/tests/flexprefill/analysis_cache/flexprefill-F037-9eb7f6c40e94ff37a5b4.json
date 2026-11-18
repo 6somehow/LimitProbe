@@ -1,0 +1,27 @@
+{
+ "assessment": "unclear",
+ "reasoning": "The cited lines show `vertical` is the second argument to `square_root_js_divergence`, so it plays the true-distribution role, while `avg_qk` is the estimated distribution. However, the shown code does not define `vertical`; without its computation, the claim that it is not the paper's sumpool(softmax(QK^T/\u221ad)) block sum is not established.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "regex": "vertical\\s*=",
+   "expect": "present",
+   "meaning": "Locates local assignment or default for `vertical`."
+  },
+  {
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "regex": "vertical\\s*=\\s*[^\\n]*sumpool",
+   "expect": "absent",
+   "control": "vertical\\s*=",
+   "meaning": "No local assignment ties `vertical` to sumpool."
+  },
+  {
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "regex": "square_root_js_divergence\\(avg_qk,\\s*vertical\\)",
+   "expect": "present",
+   "meaning": "Confirms `vertical` is the true-distribution operand."
+  }
+ ],
+ "would_confirm": "Trace the definition or caller of `vertical` and compare its computation to the paper's sumpool(softmax(QK^T/\u221ad)) block sum."
+}

@@ -1,0 +1,741 @@
+[
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "CL-X001",
+    "artifact_id": "flexposit",
+    "origin": "code",
+    "level": null,
+    "condition_text": "True",
+    "condition": {
+      "expr": "True",
+      "params": [],
+      "path_prefix": [
+        "config.bits > config.base_nsize",
+        "sensitivity is None"
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "raise ValueError(f\"bits={config.bits} needs a sensitivity ranking to decide which channel windows get Posit{config.upgra",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "src/flexposit/api.py",
+        "line_start": 183,
+        "line_end": 186,
+        "function": "src/flexposit/api.py::quantize",
+        "snippet": "raise ValueError(f\"bits={config.bits} needs a sensitivity ranking to decide which channel windows get Posit{config.upgrade_nsize}. Pass sensitivity='<model short name>' for a shipped model, or create "
+      }
+    ],
+    "region_ids": [
+      "X001"
+    ],
+    "provenance": "ast",
+    "notes": null
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "CL-X002",
+    "artifact_id": "flexposit",
+    "origin": "code",
+    "level": null,
+    "condition_text": "True",
+    "condition": {
+      "expr": "True",
+      "params": [],
+      "path_prefix": [
+        "config.bits > config.base_nsize",
+        "not (os.path.isfile(name_or_path))",
+        "not (shipped.is_file())"
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "raise FileNotFoundError(f'No sensitivity CSV {str(name_or_path)!r}: not a file, and not one of the shipped models {shipp",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "src/flexposit/api.py",
+        "line_start": 120,
+        "line_end": 121,
+        "function": "src/flexposit/api.py::sensitivity_csv",
+        "snippet": "raise FileNotFoundError(f'No sensitivity CSV {str(name_or_path)!r}: not a file, and not one of the shipped models {shipped_sensitivity()}')"
+      }
+    ],
+    "region_ids": [
+      "X002"
+    ],
+    "provenance": "ast",
+    "notes": null
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "CL-X003",
+    "artifact_id": "flexposit",
+    "origin": "code",
+    "level": null,
+    "condition_text": "True",
+    "condition": {
+      "expr": "True",
+      "params": [],
+      "path_prefix": [
+        "rounding not in ('nearest', 'stochastic')"
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "raise ValueError(f'invalid rounding mode {rounding!r}')",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "src/flexposit/formats.py",
+        "line_start": 156,
+        "line_end": 156,
+        "function": "src/flexposit/formats.py::posit_quantize",
+        "snippet": "raise ValueError(f'invalid rounding mode {rounding!r}')"
+      }
+    ],
+    "region_ids": [
+      "X003"
+    ],
+    "provenance": "ast",
+    "notes": null
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "CL-X004",
+    "artifact_id": "flexposit",
+    "origin": "code",
+    "level": null,
+    "condition_text": "True",
+    "condition": {
+      "expr": "True",
+      "params": [],
+      "path_prefix": [
+        "x.dtype != torch.float32"
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "raise TypeError(f'posit_quantize expects a float32 tensor, got {x.dtype}')",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "src/flexposit/formats.py",
+        "line_start": 103,
+        "line_end": 103,
+        "function": "src/flexposit/formats.py::_posit_quantize_torch",
+        "snippet": "raise TypeError(f'posit_quantize expects a float32 tensor, got {x.dtype}')"
+      }
+    ],
+    "region_ids": [
+      "X004"
+    ],
+    "provenance": "ast",
+    "notes": null
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "CL-B001",
+    "artifact_id": "flexposit",
+    "origin": "code",
+    "level": null,
+    "condition_text": "r[0] not in valid_layers",
+    "condition": {
+      "expr": "r[0] not in valid_layers",
+      "params": [
+        "r",
+        "valid_layers"
+      ],
+      "path_prefix": [
+        "plan_windows"
+      ]
+    },
+    "effect_type": "path_change",
+    "effect_text": "Sensitivity rows for layers not present in the model are silently dropped, so the upgrade budget is computed only over matching layers.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "src/flexposit/api.py",
+        "line_start": 149,
+        "line_end": null,
+        "function": "src/flexposit/api.py::plan_windows",
+        "snippet": "rows = [r for r in rows if r[0] in valid_layers]"
+      }
+    ],
+    "region_ids": [
+      "B001"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "CL-B002",
+    "artifact_id": "flexposit",
+    "origin": "code",
+    "level": null,
+    "condition_text": "span == 0",
+    "condition": {
+      "expr": "span == 0",
+      "params": [
+        "span"
+      ],
+      "path_prefix": [
+        "plan_windows"
+      ]
+    },
+    "effect_type": "path_change",
+    "effect_text": "If upgrade_nsize equals base_nsize (span zero), the upgrade fraction silently becomes 0.0 instead of erroring, so no windows are upgraded.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "src/flexposit/api.py",
+        "line_start": 153,
+        "line_end": null,
+        "function": "src/flexposit/api.py::plan_windows",
+        "snippet": "frac = (config.bits - config.base_nsize) / span if span else 0.0"
+      }
+    ],
+    "region_ids": [
+      "B002"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "CL-B003",
+    "artifact_id": "flexposit",
+    "origin": "code",
+    "level": null,
+    "condition_text": "config.bits > config.base_nsize",
+    "condition": {
+      "expr": "config.bits > config.base_nsize",
+      "params": [
+        "config"
+      ],
+      "path_prefix": [
+        "quantize"
+      ]
+    },
+    "effect_type": "path_change",
+    "effect_text": "When bits exceeds base_nsize the code requires a sensitivity ranking and runs the window-upgrade planning path; otherwise no windows are upgraded and all channels stay at base_nsize.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "src/flexposit/api.py",
+        "line_start": 181,
+        "line_end": null,
+        "function": "src/flexposit/api.py::quantize",
+        "snippet": "if config.bits > config.base_nsize:"
+      }
+    ],
+    "region_ids": [
+      "B003"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "CL-B004",
+    "artifact_id": "flexposit",
+    "origin": "code",
+    "level": null,
+    "condition_text": "state.total_windows == 0",
+    "condition": {
+      "expr": "state.total_windows == 0",
+      "params": [
+        "state"
+      ],
+      "path_prefix": [
+        "quantize",
+        "config.bits > config.base_nsize"
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "Quantize aborts if no sensitivity rows match the model's layer names, so a mismatched sensitivity file cannot be used.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "src/flexposit/api.py",
+        "line_start": 189,
+        "line_end": null,
+        "function": "src/flexposit/api.py::quantize",
+        "snippet": "if state.total_windows == 0:"
+      }
+    ],
+    "region_ids": [
+      "B004"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "CL-B005",
+    "artifact_id": "flexposit",
+    "origin": "code",
+    "level": null,
+    "condition_text": "isinstance(es, int)",
+    "condition": {
+      "expr": "isinstance(es, int)",
+      "params": [
+        "es",
+        "int",
+        "isinstance"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "path_change",
+    "effect_text": "A scalar es disables the per-channel es search (single candidate), while a sequence enables searching es per channel; the caller's type choice changes which algorithm runs.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "src/flexposit/core.py",
+        "line_start": 35,
+        "line_end": null,
+        "function": "src/flexposit/core.py::_es_list",
+        "snippet": "cands = [es] if isinstance(es, int) else list(es)"
+      }
+    ],
+    "region_ids": [
+      "B005"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "CL-B006",
+    "artifact_id": "flexposit",
+    "origin": "code",
+    "level": null,
+    "condition_text": "all(int(e) > max_es for e in cands)",
+    "condition": {
+      "expr": "all(int(e) > max_es for e in cands)",
+      "params": [
+        "all",
+        "cands",
+        "e",
+        "int",
+        "max_es"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "path_change",
+    "effect_text": "If every caller-supplied es candidate exceeds nsize-1, the list is empty and the code silently falls back to es=0 instead of rejecting the configuration, so the requested es search is not performed.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "src/flexposit/core.py",
+        "line_start": 37,
+        "line_end": null,
+        "function": "src/flexposit/core.py::_es_list",
+        "snippet": "return [int(e) for e in cands if int(e) <= max_es] or [0]"
+      }
+    ],
+    "region_ids": [
+      "B006"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "CL-B007",
+    "artifact_id": "flexposit",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not torch.equal(table[pos], mag)",
+    "condition": {
+      "expr": "not torch.equal(table[pos], mag)",
+      "params": [
+        "mag",
+        "pos",
+        "table",
+        "torch"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "reject",
+    "effect_text": "posit_encode raises ValueError if the scaled weights are not exact Posit(nsize,es) values, so layer_codes/export_tile fail for any weight that does not land exactly on the Posit value table.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "src/flexposit/export.py",
+        "line_start": 40,
+        "line_end": null,
+        "function": "src/flexposit/export.py::posit_encode",
+        "snippet": "if not torch.equal(table[pos], mag):"
+      }
+    ],
+    "region_ids": [
+      "B007"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "CL-B008",
+    "artifact_id": "flexposit",
+    "origin": "code",
+    "level": null,
+    "condition_text": "len(sizes) != 1",
+    "condition": {
+      "expr": "len(sizes) != 1",
+      "params": [
+        "len",
+        "sizes"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "reject",
+    "effect_text": "export_tile raises ValueError when the selected output channels span more than one Posit size (nsize), so a tile cannot mix channel windows; the caller must pick columns inside a single window.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "src/flexposit/export.py",
+        "line_start": 131,
+        "line_end": null,
+        "function": "src/flexposit/export.py::export_tile",
+        "snippet": "if len(sizes) != 1:"
+      }
+    ],
+    "region_ids": [
+      "B008"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "CL-B009",
+    "artifact_id": "flexposit",
+    "origin": "code",
+    "level": null,
+    "condition_text": "scale.min() < -16 or scale.max() > 15",
+    "condition": {
+      "expr": "scale.min() < -16 or scale.max() > 15",
+      "params": [
+        "scale"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "reject",
+    "effect_text": "export_tile raises ValueError when the per-column scale (-log2_scale) does not fit the RTL's signed 5-bit field, rejecting configurations whose log2_scale falls outside [-15, 16].",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "src/flexposit/export.py",
+        "line_start": 135,
+        "line_end": null,
+        "function": "src/flexposit/export.py::export_tile",
+        "snippet": "if scale.min() < -16 or scale.max() > 15:"
+      }
+    ],
+    "region_ids": [
+      "B009"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "CL-B010",
+    "artifact_id": "flexposit",
+    "origin": "code",
+    "level": null,
+    "condition_text": "_BACKEND == \"qtorch\"",
+    "condition": {
+      "expr": "_BACKEND == \"qtorch\"",
+      "params": [
+        "_BACKEND"
+      ],
+      "path_prefix": [
+        "_BACKEND == \"qtorch\""
+      ]
+    },
+    "effect_type": "path_change",
+    "effect_text": "Module-level env var read at import time selects the posit/float quantizer implementation. posit_quantize (line 157-159) and float_quantize (line 170-172) then delegate to qtorch_plus instead of the pure-PyTorch `_posit_quantize_torch`/`_float_quantize_torch` used by core.search_channels, so the whole FlexPosit numerical core runs a different implementation depending on the environment. Also, an unknown value raises at import (line 30-31).",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "src/flexposit/formats.py",
+        "line_start": 29,
+        "line_end": null,
+        "function": "src/flexposit/formats.py::<module>",
+        "snippet": "_BACKEND = os.environ.get(\"FLEXPOSIT_BACKEND\", \"torch\").lower()"
+      }
+    ],
+    "region_ids": [
+      "B010"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "CL-B011",
+    "artifact_id": "flexposit",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not 2 <= nsize <= 16",
+    "condition": {
+      "expr": "not 2 <= nsize <= 16",
+      "params": [
+        "nsize"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "reject",
+    "effect_text": "posit_quantize (via _check_posit) rejects nsize outside [2,16], so the tunable precision cannot exceed 16 bits.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "src/flexposit/formats.py",
+        "line_start": 39,
+        "line_end": null,
+        "function": "src/flexposit/formats.py::_check_posit",
+        "snippet": "if not 2 <= nsize <= 16:"
+      }
+    ],
+    "region_ids": [
+      "B011"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "CL-B012",
+    "artifact_id": "flexposit",
+    "origin": "code",
+    "level": null,
+    "condition_text": "all(e > max_es for e in es_cands)",
+    "condition": {
+      "expr": "all(e > max_es for e in es_cands)",
+      "params": [
+        "all",
+        "e",
+        "es_cands",
+        "max_es"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "path_change",
+    "effect_text": "If every caller-supplied es candidate exceeds nsize-1, the search silently falls back to es=0 instead of rejecting or reporting; the requested es_cands are ignored and a different (simpler) exponent-size variant is quantized.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "src/flexposit/mpq/channel_window.py",
+        "line_start": 136,
+        "line_end": null,
+        "function": "src/flexposit/mpq/channel_window.py::_best_scale_es_for_vec",
+        "snippet": "es_list = [e for e in es_cands if e <= max_es] or [0]"
+      }
+    ],
+    "region_ids": [
+      "B012"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "CL-B013",
+    "artifact_id": "flexposit",
+    "origin": "code",
+    "level": null,
+    "condition_text": "start >= end",
+    "condition": {
+      "expr": "start >= end",
+      "params": [
+        "end",
+        "start"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "reject",
+    "effect_text": "A window whose clamped start is not less than its end returns the weight unchanged, so an out-of-range or empty caller window is silently a no-op.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "src/flexposit/mpq/channel_window.py",
+        "line_start": 161,
+        "line_end": null,
+        "function": "src/flexposit/mpq/channel_window.py::quantize_window_cpu_from_fp32",
+        "snippet": "if start >= end:"
+      }
+    ],
+    "region_ids": [
+      "B013"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "CL-B014",
+    "artifact_id": "flexposit",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not (is_quant_linear(mod) and hasattr(mod, \"weight\") and mod.weight is not None and mod.weight.dim() == 2)",
+    "condition": {
+      "expr": "not (is_quant_linear(mod) and hasattr(mod, \"weight\") and mod.weight is not None and mod.weight.dim() == 2)",
+      "params": [
+        "hasattr",
+        "is_quant_linear",
+        "mod"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "reject",
+    "effect_text": "Modules in the window list that are not recognized quantizable 2D linear layers are skipped, so caller-specified windows on other module types are ignored.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "src/flexposit/mpq/channel_window.py",
+        "line_start": 205,
+        "line_end": null,
+        "function": "src/flexposit/mpq/channel_window.py::apply_windows_to_model",
+        "snippet": "if not (is_quant_linear(mod) and hasattr(mod, \"weight\") and mod.weight is not None and mod.weight.dim() == 2):"
+      }
+    ],
+    "region_ids": [
+      "B014"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "CL-B015",
+    "artifact_id": "flexposit",
+    "origin": "code",
+    "level": null,
+    "condition_text": "key not in ref_sd",
+    "condition": {
+      "expr": "key not in ref_sd",
+      "params": [
+        "key",
+        "ref_sd"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "reject",
+    "effect_text": "A layer named in the sensitivity windows but absent from the FP32 reference state dict is skipped (with a warning), so the requested window quantization is not applied to that layer.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "src/flexposit/mpq/channel_window.py",
+        "line_start": 208,
+        "line_end": null,
+        "function": "src/flexposit/mpq/channel_window.py::apply_windows_to_model",
+        "snippet": "if key not in ref_sd:"
+      }
+    ],
+    "region_ids": [
+      "B015"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "CL-B016",
+    "artifact_id": "flexposit",
+    "origin": "code",
+    "level": null,
+    "condition_text": "dp >= 0.0 and not allow_positive",
+    "condition": {
+      "expr": "dp >= 0.0 and not allow_positive",
+      "params": [
+        "allow_positive",
+        "dp"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "reject",
+    "effect_text": "When allow_positive is False, windows with non-negative delta_ppl are filtered out of the candidate set, so the caller's allow_positive_to_meet_budget setting changes which windows the mechanism considers.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "src/flexposit/mpq/channel_window.py",
+        "line_start": 256,
+        "line_end": null,
+        "function": "src/flexposit/mpq/channel_window.py::_dedup_windows",
+        "snippet": "if (dp >= 0.0) and (not allow_positive):"
+      }
+    ],
+    "region_ids": [
+      "B016"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "CL-B017",
+    "artifact_id": "flexposit",
+    "origin": "code",
+    "level": null,
+    "condition_text": "strategy == \"random\"",
+    "condition": {
+      "expr": "strategy == \"random\"",
+      "params": [
+        "strategy"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "path_change",
+    "effect_text": "Random strategy shuffles candidates with the caller-seeded RNG, selecting a different set of windows than the sensitivity ordering.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "src/flexposit/mpq/channel_window.py",
+        "line_start": 283,
+        "line_end": null,
+        "function": "src/flexposit/mpq/channel_window.py::_order_candidates",
+        "snippet": "elif strategy == \"random\":"
+      }
+    ],
+    "region_ids": [
+      "B017"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "CL-B018",
+    "artifact_id": "flexposit",
+    "origin": "code",
+    "level": null,
+    "condition_text": "args.downgrade",
+    "condition": {
+      "expr": "args.downgrade",
+      "params": [
+        "args"
+      ],
+      "path_prefix": [
+        "args.ppl_goal is None and args.target_avg_bits is not None"
+      ]
+    },
+    "effect_type": "path_change",
+    "effect_text": "Caller flag downgrade switches Budget Mode to demote the least-sensitive windows from upgrade_bits to base_bits (reversed sort, apply_nsize from downgrade_nsize) instead of promoting the most-sensitive windows.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "src/flexposit/mpq/channel_window.py",
+        "line_start": 571,
+        "line_end": null,
+        "function": "src/flexposit/mpq/channel_window.py::main",
+        "snippet": "if args.downgrade:"
+      }
+    ],
+    "region_ids": [
+      "B018"
+    ],
+    "provenance": "llm",
+    "notes": null
+  }
+]

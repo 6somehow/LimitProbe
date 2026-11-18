@@ -44,3 +44,17 @@
 * NNSmith 的 19 条全是 `fallback`（分支被执行）这一类效果，没有 `reject` 型的 `assert`。这个 artifact 的 Finding 大部分是配置开关和生成策略的分支，不是输入校验。
 * NNSmith 的 Finding 没有人工审阅，盲审标签只覆盖一部分，和结果没有可看出的关系。
 * 没有真值，档位未校准。
+
+
+## 补记三（2026-11-16）：agent 当时能看到哪些已有的结果
+
+这批运行时，沙箱没有隐藏 `agent_results/`（已归档的 agent 测试包）。事后检查每次运行的事件日志：30 次 FlexPrefill 批量运行里 27 次提到了 `agent_results`，26 次 NNSmith 运行里 24 次提到。也就是说，**agent 大多读过别的 Finding 的已有测试包作为样例**。对 FlexPrefill 这更重要：F013、F014、F052 的目标语句和手写 pilot 的 F01、F04、F07 是同一行（`assert q.shape[1] == k.shape[1]` 等），当时 `agent_results/f01-r1`、`f04-r1`、`f07-r2` 是可读的，这三条的测试包可能直接借用了它们的写法。我没有逐条核对谁借用了。
+
+从 2026-11-16 起，`agent_results/` 和各结果文档在沙箱里不可见（`agent_loop.HIDE_PATHS_DIRS`，有测试）。上面的分布因此应读作"agent 能看到别的 Finding 的样例"的结果；不带样例的运行见 `EXPERIMENTS.md`。
+
+
+## 补记四（2026-11-17）：规则改动之后的分布
+
+11-16 到 11-17 harness 有三处改动（`CONFIDENCE_SPEC.md` §18、§19）：`no` 只在 D3 已消除时报告；目标是裸 `raise` 时在守卫上求 D2；D14 要求目标在入口里执行。用新规则对 `results/e2e/` 里的测试包重新审计，并补上了 11-16 用调用链重跑的 agent 测试包（`EXPERIMENTS.md`），这个文档上面的分布因此不再是现状。现状：
+
+NNSmith：22 条已测，判定 {'yes': 21, 'inconclusive': 1}，档位 {'L1': 20, 'invalid': 1, 'L2': 1}；没测的原因 {'outcome_unsupported': 13, 'no_code_location': 3}。逐条见 `results/e2e/report/nnsmith/LIMITATIONS.md`。

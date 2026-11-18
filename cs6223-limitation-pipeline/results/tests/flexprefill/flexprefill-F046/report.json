@@ -1,0 +1,91 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "flexprefill-F046",
+ "artifact_id": "flexprefill",
+ "status": "not_run",
+ "not_run": {
+  "code": "witness_unusable",
+  "reason": "witness status 'infeasible': step 4 shows the condition cannot hold together with the path to the target, so the official entry cannot reach it; testing the inner function directly would not test the product"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "reject",
+  "priority": 3,
+  "summary": "When not (head_dim <= 256): 'only support head_dim <= 256' (flex_prefill/ops/flex_prefill_attention.py:1220)",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "infeasible",
+  "location": "flex_prefill/ops/flex_prefill_attention.py:1220",
+  "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention",
+  "condition": "not (head_dim <= 256)"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "line_start": 1220,
+    "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention",
+    "snippet": "assert head_dim <= 256"
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/flexprefill/limitations_for_tests.json",
+  "findings_sha256": "0b8539b75ec0e2d602cd64b1a21959708ae3a6d53be00202f8825d92f313c066",
+  "generated_at": "2026-11-18T12:16:08+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The pinned line is an unconditional assert head_dim <= 256 with the exact message, so head_dim >256 raises AssertionError. That directly supports the stated rejection behavior. The 'undisclosed' classification cannot be verified from the shown record because no paper evidence is included, but the code-level finding is supported.",
+  "hardware_needed": false,
+  "would_confirm": "A text search for the exact assert in the pinned file confirms the limit; running with head_dim=257 would show the AssertionError.",
+  "static": {
+   "cited": 1,
+   "grounded": true,
+   "items": [
+    {
+     "file": "flex_prefill/ops/flex_prefill_attention.py",
+     "lines": "1220-1220",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": true,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "regex": "assert\\s+head_dim\\s*<=\\s*256\\s*,\\s*\"only support head_dim <= 256\"",
+    "expect": "present",
+    "meaning": "Hit shows the exact hard limit assertion is present.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     1220
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

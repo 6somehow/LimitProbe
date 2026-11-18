@@ -1,0 +1,144 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "sparta-F076",
+ "artifact_id": "sparta",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "not_implemented",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "实验路径未执行 specialization 内核选择，且无 block==shape→通用稀疏内核的代码路径；依赖存在不等于执行路径存在。",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "always",
+  "location": "sparta/transformation/transform_policy.py:158-191",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "A specialization hint could also specify the block size equal to the tensor’s shape (i.e., one block covers the whole tensor). In this case, SparTA can directly use the existing state-of-the- art general sparse kernel implementation (e.g., cuSPARSE [3], taco [53]) or even use the dense kernel implementation if it",
+    "source": "paper",
+    "locator": "PDF p.8, text lines 117-121"
+   }
+  ],
+  "code": [
+   {
+    "file": "sparta/transformation/transform_policy.py",
+    "line_start": 158,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "image/Dockerfile",
+    "line_start": 63,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/sparta/limitations_for_tests.json",
+  "findings_sha256": "af8cad7c4e91af73f84a27b96179739526bde952a669319c71cc4e157ac4b49f",
+  "generated_at": "2026-11-18T12:35:53+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The cited transform_matmul comments out the entire specialize_matmul loop and returns best_kernels/best_aggr_type that are never assigned in active code. The Dockerfile only installs taco, showing dependency presence, not an execution path. Thus the block==shape→general sparse kernel selection is not executed and no active code path implements it.",
+  "hardware_needed": false,
+  "would_confirm": "Run transform_matmul and check whether specialize_matmul is invoked and best_kernels becomes non-None, especially for block==shape inputs.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "sparta/transformation/transform_policy.py",
+     "lines": "158-191",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "image/Dockerfile",
+     "lines": "63-66",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "other"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "sparta/transformation/transform_policy.py",
+    "regex": "return best_kernels, best_aggr_type",
+    "expect": "present",
+    "meaning": "Returns selection variables never assigned in active code.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     191
+    ]
+   },
+   {
+    "file": "sparta/transformation/transform_policy.py",
+    "regex": "# then specialize kernels for this transformation option",
+    "expect": "present",
+    "meaning": "Kernel-selection call sits inside a commented block.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     184
+    ]
+   },
+   {
+    "file": "sparta/transformation/transform_policy.py",
+    "regex": "latency, kernels, aggr_type = specialize_matmul",
+    "expect": "present",
+    "meaning": "Specialization call text exists only in disabled loop context.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     185
+    ]
+   },
+   {
+    "file": "image/Dockerfile",
+    "regex": "git clone https://github.com/QuanluZhang/taco.git",
+    "expect": "present",
+    "meaning": "Taco dependency installed, not evidence of runtime execution.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     64
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

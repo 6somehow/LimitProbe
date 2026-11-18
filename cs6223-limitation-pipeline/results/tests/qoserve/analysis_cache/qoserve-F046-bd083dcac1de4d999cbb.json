@@ -1,0 +1,26 @@
+{
+ "assessment": "supports",
+ "reasoning": "The deadline scheduler's _schedule explicitly says 'No pre-emption support' and the shown scheduling loop contains no _preempt call. Preemption exists in base_scheduler and sarathi_scheduler, but the cited aligned deadline path does not execute priority-driven preemption.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "sarathi/core/scheduler/deadline_scheduler.py",
+   "regex": "self\\._preempt\\(",
+   "expect": "absent",
+   "meaning": "Deadline scheduler never invokes the preemption routine."
+  },
+  {
+   "file": "sarathi/core/scheduler/deadline_scheduler.py",
+   "regex": "No pre-emption support",
+   "expect": "present",
+   "meaning": "Explicit comment states this scheduling path lacks preemption."
+  },
+  {
+   "file": "sarathi/core/scheduler/sarathi_scheduler.py",
+   "regex": "self\\._preempt\\(",
+   "expect": "present",
+   "meaning": "Another scheduler path does preempt, so behavior is path-specific."
+  }
+ ],
+ "would_confirm": "Call deadline_scheduler._schedule with a high-priority arrival while lower-priority decodes run and verify no sequence is preempted or reinserted."
+}

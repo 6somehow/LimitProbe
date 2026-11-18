@@ -1,0 +1,120 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "infinigen-F030",
+ "artifact_id": "infinigen",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "not_implemented",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "论文要求饱和时全体减半；代码无该步骤（artifact 范围：无饱和减半）",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "accuracy/perplexity/table2.sh:27-45",
+  "function": null,
+  "condition": "self.eviction_policy == \"counter\""
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "If any counter becomes saturated, all the counter values are reduced by half.",
+    "source": "paper",
+    "locator": "PDF p.10"
+   }
+  ],
+  "code": [
+   {
+    "file": "accuracy/perplexity/table2.sh",
+    "line_start": 27,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "accuracy/src/modeling_opt_ours.py",
+    "line_start": 224,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/infinigen/limitations_for_tests.json",
+  "findings_sha256": "51f6ee77be8f16b8743e78f2c11ea0c6b263e1a3c56aed29de35c9cfebb6dcf0",
+  "generated_at": "2026-11-18T14:21:58+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The shown counter-eviction code computes a counter over the first half and evicts the minimum; it contains no saturation check or halving of all counters. The table2 script only passes an eviction policy. This supports the claim that the saturation-halving step is not implemented in the artifact scope shown.",
+  "hardware_needed": false,
+  "would_confirm": "Inspect the full counter-eviction implementation and run a counter-saturation case to see whether all counters are halved.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "accuracy/perplexity/table2.sh",
+     "lines": "27-45",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "shell"
+    },
+    {
+     "file": "accuracy/src/modeling_opt_ours.py",
+     "lines": "224-228",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "accuracy/src/modeling_opt_ours.py",
+    "regex": "(?i)(saturat|reduc(e|ed|ing)\\s+(all\\s+)?(the\\s+)?counter|counter\\s+values?\\s+.*half|half\\s+.*counter)",
+    "expect": "absent",
+    "meaning": "No saturation-triggered counter halving logic in this file.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "eviction_policy",
+    "hit_lines": []
+   },
+   {
+    "file": "accuracy/perplexity/table2.sh",
+    "regex": "(?i)(saturat|half|reduce.*counter)",
+    "expect": "absent",
+    "meaning": "Script selects eviction policies but has no saturation-halving step.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "eviction_policy",
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

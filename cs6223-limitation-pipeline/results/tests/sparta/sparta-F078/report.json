@@ -1,0 +1,128 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "sparta-F078",
+ "artifact_id": "sparta",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "not_implemented",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "论文要求从枚举结果选最佳；代码无候选集合，择优逻辑被注释",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "always",
+  "location": "sparta/transformation/transform_policy.py:172-191",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "and pick the best one",
+    "source": "paper",
+    "locator": "PDF p.9"
+   }
+  ],
+  "code": [
+   {
+    "file": "sparta/transformation/transform_policy.py",
+    "line_start": 172,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/sparta/limitations_for_tests.json",
+  "findings_sha256": "af8cad7c4e91af73f84a27b96179739526bde952a669319c71cc4e157ac4b49f",
+  "generated_at": "2026-11-18T12:35:53+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A0",
+  "tier_note": "the reading and the probes disagree",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The cited code computes transform_options but the loop that would specialize each option and update best_latency/best_kernels is inside a triple-quoted comment. The function then returns best_kernels and best_aggr_type without executing any best-selection logic, matching the finding that the paper's 'pick the best one' step is not implemented.",
+  "hardware_needed": false,
+  "would_confirm": "Run the function with multiple transform_options and verify specialize_matmul is never called and best_latency is never updated.",
+  "static": {
+   "cited": 1,
+   "grounded": true,
+   "items": [
+    {
+     "file": "sparta/transformation/transform_policy.py",
+     "lines": "172-191",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "sparta/transformation/transform_policy.py",
+    "regex": "for \\(in_ts, w_ts, out_ts\\) in transform_options:",
+    "expect": "present",
+    "meaning": "Candidate loop text exists in the cited region.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     180
+    ]
+   },
+   {
+    "file": "sparta/transformation/transform_policy.py",
+    "regex": "if latency < best_latency:",
+    "expect": "present",
+    "meaning": "Best-latency comparison exists in the cited region.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     186
+    ]
+   },
+   {
+    "file": "sparta/transformation/transform_policy.py",
+    "regex": "'''\\s*# skip, waiting for more official end-to-end",
+    "expect": "present",
+    "meaning": "Triple-quoted comment starts before the candidate loop, disabling it.",
+    "status": "refuted",
+    "hits": 0,
+    "hit_lines": []
+   },
+   {
+    "file": "sparta/transformation/transform_policy.py",
+    "regex": "return best_kernels, best_aggr_type",
+    "expect": "present",
+    "meaning": "Function returns stored best values without executing the commented selection loop.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     191
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

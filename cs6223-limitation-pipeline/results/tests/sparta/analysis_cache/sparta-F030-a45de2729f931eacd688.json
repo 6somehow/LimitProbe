@@ -1,0 +1,22 @@
+{
+ "assessment": "supports",
+ "reasoning": "The artifact explicitly disables input decomposition: transform_matmul calls bit_align(in_tesa, decompose=False) and comments that only weight is decomposed. specialize_matmul also asserts len(in_tesa) == 1. This matches the finding that the artifact path handles only a single input TeSA, while the paper's TransformTeSA(Ii) does not show that restriction.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "sparta/transformation/transform_policy.py",
+   "regex": "bit_align\\(in_tesa, decompose=False\\)",
+   "expect": "present",
+   "control": "def transform_matmul",
+   "meaning": "Shows input decomposition explicitly disabled in transform path."
+  },
+  {
+   "file": "sparta/specialization/specialize_kernel.py",
+   "regex": "len\\(in_tesa\\) == 1",
+   "expect": "present",
+   "control": "def specialize_matmul",
+   "meaning": "Shows specialization asserts exactly one input TeSA."
+  }
+ ],
+ "would_confirm": "Run transform_matmul with a decomposed multi-TeSA input and check whether it decomposes or rejects/asserts."
+}

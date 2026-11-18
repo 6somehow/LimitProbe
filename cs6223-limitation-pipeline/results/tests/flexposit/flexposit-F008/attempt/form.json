@@ -1,0 +1,76 @@
+{
+  "test_id": "A-flexposit-F008",
+  "finding_id": "flexposit-F008",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "cands",
+        "value": [
+          ["model.layers.0.self_attn.q_proj", 0, 64, -0.0012, 4],
+          ["model.layers.0.self_attn.k_proj", 64, 128, 0.0003, 4],
+          ["model.layers.1.self_attn.q_proj", 0, 32, -0.0005, 2],
+          ["model.layers.1.mlp.fc1", 128, 256, 0.0001, 8],
+          ["model.layers.2.mlp.fc2", 32, 96, -0.0009, 3]
+        ],
+        "why": "Candidate window rows are not part of the witness. The target condition reads only strategy, so a small fixed set of realistic (layer, win_start, win_end, delta_ppl, channel_window) rows is enough to exercise the branch."
+      },
+      {
+        "name": "layer_order_map",
+        "value": {
+          "model.layers.0.self_attn.q_proj": 0,
+          "model.layers.0.self_attn.k_proj": 1,
+          "model.layers.1.self_attn.q_proj": 2,
+          "model.layers.1.mlp.fc1": 3,
+          "model.layers.2.mlp.fc2": 4
+        },
+        "why": "Required argument of _order_candidates derived from the same five rows. It is unused on the random and unknown-strategy paths; the fixed mapping keeps the call real and deterministic."
+      },
+      {
+        "name": "seed",
+        "value": 20250925,
+        "why": "The repository's own default --random_seed; fixing it makes the rng.shuffle below the target deterministic (RNG state does not affect which branch is taken)."
+      }
+    ],
+    "positive_input": {
+      "strategy": "random"
+    },
+    "negative_input": {
+      "strategy": "unknown"
+    },
+    "boundary_variable": "strategy",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at src/flexposit/mpq/channel_window.py:283",
+      "signal_location": "src/flexposit/mpq/channel_window.py:283"
+    },
+    "expected": {
+      "positive": "branch taken at src/flexposit/mpq/channel_window.py:283",
+      "negative": "branch not taken at src/flexposit/mpq/channel_window.py:283"
+    }
+  },
+  "execution": {
+    "entry_called": "src/flexposit/mpq/channel_window.py::_order_candidates",
+    "entry_reason": "The declared official entry src/flexposit/api.py::quantize cannot reach the target: its plan_windows() always sorts by sensitivity and it contains no random/sweep strategy or call to _order_candidates (step 4 also reports call_chain_status not_found). The only real caller of _order_candidates is flexposit.mpq.channel_window.main() in sweep mode, which requires an argparse namespace, a HuggingFace checkpoint/tokenizer and the GPU/eval loop. The driver therefore calls the real _order_candidates directly, keeping the target function and its body unmodified; no stand-in is used at or before the target.",
+    "call_chain_index": 1,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": ["false", "true"],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at src/flexposit/mpq/channel_window.py:283",
+    "negative_observed": "branch not taken at src/flexposit/mpq/channel_window.py:283"
+  },
+  "evidence": {}
+}

@@ -1,0 +1,113 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "minference-F018",
+ "artifact_id": "minference",
+ "status": "not_run",
+ "not_run": {
+  "code": "outcome_unsupported",
+  "reason": "effect type 'other': the target statement has no effect check yet"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "When not isinstance(model, (LlamaForCausalLM, MistralForCausalLM, Qwen2ForCausalLM)) and model.__class__.__name__ not in {\"MiniCPMForCausalLM\", \"Phi3ForCausalLM\", \"ChatGLMForConditionalGeneration\"}: `patch_hf` dispatches on the concrete model class and raises `ValueError(\"Only supports llama, mistral and qwen2 models.\")` for anything else, so the mechanism cannot be applied to other architectur...",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "minference/patch.py:1252",
+  "function": "minference/patch.py::patch_hf",
+  "condition": "not isinstance(model, (LlamaForCausalLM, MistralForCausalLM, Qwen2ForCausalLM)) and model.__class__.__name__ not in {\"MiniCPMForCausalLM\", \"Phi3ForCausalLM\", \"ChatGLMForConditionalGeneration\"}"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "minference/patch.py",
+    "line_start": 1252,
+    "function": "minference/patch.py::patch_hf",
+    "snippet": "else:"
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/minference/limitations_for_tests.json",
+  "findings_sha256": "6f02cbec16ce4487c1b9166c2dc5f1f16704f168b135426edfe2df59ed9333bc",
+  "generated_at": "2026-11-18T17:32:48+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A1",
+  "tier_note": "the reading is unclear; probes alone do not decide it",
+  "calibrated": false,
+  "assessment": "unclear",
+  "reasoning": "The only shown code is an `else:` line; it does not display the dispatch condition, the class allowlist, or the ValueError. Without the surrounding lines, the claim is plausible but unverified. Text probes can check the exact error string and class checks in the same file.",
+  "hardware_needed": false,
+  "would_confirm": "A text search of minference/patch.py for the exact ValueError and class-dispatch condition would confirm whether patch_hf rejects non-listed architectures.",
+  "static": {
+   "cited": 1,
+   "grounded": true,
+   "items": [
+    {
+     "file": "minference/patch.py",
+     "lines": "1252-1252",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": true,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "minference/patch.py",
+    "regex": "Only supports llama, mistral and qwen2 models\\.",
+    "expect": "present",
+    "meaning": "Exact rejection message exists, supporting the claimed ValueError.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     1253
+    ]
+   },
+   {
+    "file": "minference/patch.py",
+    "regex": "(?s)isinstance\\(model.*LlamaForCausalLM.*MistralForCausalLM.*Qwen2ForCausalLM",
+    "expect": "present",
+    "meaning": "Shows dispatch checks the three listed model classes.",
+    "status": "refuted",
+    "hits": 0,
+    "hit_lines": []
+   },
+   {
+    "file": "minference/patch.py",
+    "regex": "MiniCPMForCausalLM|Phi3ForCausalLM|ChatGLMForConditionalGeneration",
+    "expect": "present",
+    "meaning": "Shows the extra class-name allowlist mentioned in the finding.",
+    "status": "confirmed",
+    "hits": 3,
+    "hit_lines": [
+     1241,
+     1244,
+     1247
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

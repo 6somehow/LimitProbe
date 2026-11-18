@@ -1,0 +1,32 @@
+{
+ "assessment": "supports",
+ "reasoning": "The paper describes a 4-PE cluster sharing one time-multiplexed FP16 accumulator. The RTL instead instantiates fp8_pe_mac_stream separately for every systolic PE, with ACC_MANW=12 and GRS=3 block-floating-point accumulator ports. The README explicitly says the test chip moves to one accumulator per PE compared with the paper RTL. This directly supports the claimed implementation deviation.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "hardware/rtl/systolic_efficient.v",
+   "regex": "fp8_pe_mac_stream\\s*#\\s*\\(",
+   "expect": "present",
+   "meaning": "Shows each PE gets its own MAC/accumulator instance, not a shared cluster accumulator."
+  },
+  {
+   "file": "hardware/rtl/fp8_pe_mac_stream.v",
+   "regex": "parameter integer ACC_MANW\\s*=\\s*12",
+   "expect": "present",
+   "meaning": "Accumulator mantissa is 12-bit block-float, not FP16."
+  },
+  {
+   "file": "hardware/rtl/fp8_pe_mac_stream.v",
+   "regex": "parameter integer GRS\\s*=\\s*3",
+   "expect": "present",
+   "meaning": "Confirms block-floating-point guard/round/sticky accumulator format."
+  },
+  {
+   "file": "hardware/README.md",
+   "regex": "one accumulator per PE",
+   "expect": "present",
+   "meaning": "README states the test chip uses per-PE accumulators versus the paper RTL."
+  }
+ ],
+ "would_confirm": "Inspect the RTL hierarchy and accumulator ports to verify no shared FP16 accumulator or 4-PE time-multiplexing exists."
+}

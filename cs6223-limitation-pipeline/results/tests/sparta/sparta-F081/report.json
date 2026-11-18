@@ -1,0 +1,128 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "sparta-F081",
+ "artifact_id": "sparta",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "not_implemented",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "论文要求 latency/块数；代码无该计算，E2 除法语义不同（按覆盖元素数分摊）",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "always",
+  "location": "sparta/transformation/weighted_block_cover.py:7-24",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "dividing the latency with the number of blocks",
+    "source": "paper",
+    "locator": "PDF p.9"
+   }
+  ],
+  "code": [
+   {
+    "file": "sparta/transformation/weighted_block_cover.py",
+    "line_start": 7,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/sparta/limitations_for_tests.json",
+  "findings_sha256": "af8cad7c4e91af73f84a27b96179739526bde952a669319c71cc4e157ac4b49f",
+  "generated_at": "2026-11-18T12:35:53+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A0",
+  "tier_note": "the reading and the probes disagree",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The cited function only returns a hardcoded cover-size cost table; it contains no latency value and no division by block count. This supports the core not_implemented claim. The additional E2 semantic-difference detail is not independently evidenced by this snippet, but the absence of the paper's latency-per-block computation is supported.",
+  "hardware_needed": false,
+  "would_confirm": "Search the full repository for any latency divided by block count; the finding is confirmed if only hardcoded cover-size costs exist.",
+  "static": {
+   "cited": 1,
+   "grounded": true,
+   "items": [
+    {
+     "file": "sparta/transformation/weighted_block_cover.py",
+     "lines": "7-24",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "sparta/transformation/weighted_block_cover.py",
+    "regex": "\\blatency\\b",
+    "expect": "absent",
+    "meaning": "No latency variable in cited file; control confirms file searched.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "cover_sizes",
+    "hit_lines": []
+   },
+   {
+    "file": "sparta/transformation/weighted_block_cover.py",
+    "regex": "(?i)block(s)?\\s*(count|number)|num_blocks|n_blocks",
+    "expect": "absent",
+    "meaning": "No block-count variable in cited file; control confirms search location.",
+    "status": "refuted",
+    "hits": 7,
+    "control": "cover_sizes",
+    "hit_lines": [
+     84,
+     95,
+     96,
+     102,
+     104
+    ]
+   },
+   {
+    "file": "sparta/transformation/weighted_block_cover.py",
+    "regex": "/",
+    "expect": "absent",
+    "meaning": "No division operator in file; control confirms correct file.",
+    "status": "refuted",
+    "hits": 5,
+    "control": "cover_sizes",
+    "hit_lines": [
+     41,
+     69,
+     70,
+     74,
+     89
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

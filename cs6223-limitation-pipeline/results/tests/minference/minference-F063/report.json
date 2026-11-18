@@ -1,0 +1,102 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "minference-F063",
+ "artifact_id": "minference",
+ "status": "not_run",
+ "not_run": {
+  "code": "outcome_unsupported",
+  "reason": "effect type 'other': the target assigns a value; the claimed effect is what that value changes later, which needs a differential check of outputs (the assignment itself would differ trivially)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "When top_k > context_size // block_size_N: The requested `top_k` (derived from the searched `slash_size`/`vertical_size` in `block_sparse_kernel`) is silently clamped to `context_size // block_size_N`, so for short sequences the block-sparse pattern is denser/different than the searched budget; also `_build_block_index` is called with `block_size_N` for both the M and N block sizes (line 183), ...",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 3), not human: Clamping top_k to the number of key blocks that exist is a trivial bound, and block_size_M/N are equal by default, so the mix-up is an internal detail.",
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "minference/ops/block_sparse_flash_attention.py:164",
+  "function": "minference/ops/block_sparse_flash_attention.py::_build_block_index",
+  "condition": "top_k > context_size // block_size_N"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "minference/ops/block_sparse_flash_attention.py",
+    "line_start": 164,
+    "function": "minference/ops/block_sparse_flash_attention.py::_build_block_index",
+    "snippet": "top_k = min(top_k, context_size // block_size_N)"
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/minference/limitations_for_tests.json",
+  "findings_sha256": "6f02cbec16ce4487c1b9166c2dc5f1f16704f168b135426edfe2df59ed9333bc",
+  "generated_at": "2026-11-18T17:26:42+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "Line 164 exactly implements min(top_k, context_size // block_size_N), so the silent clamp is present. The call-site probe can confirm whether _build_block_index receives block_size_N for both block dimensions. This supports the finding's code-level claim; the 'denser/different' wording is interpretive, but the clamp itself is directly evidenced.",
+  "hardware_needed": false,
+  "would_confirm": "A static check of the clamp and _build_block_index arguments, plus a short-context trace of selected blocks, would settle it.",
+  "static": {
+   "cited": 1,
+   "grounded": true,
+   "items": [
+    {
+     "file": "minference/ops/block_sparse_flash_attention.py",
+     "lines": "164-164",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": true,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "minference/ops/block_sparse_flash_attention.py",
+    "regex": "top_k\\s*=\\s*min\\(top_k,\\s*context_size\\s*//\\s*block_size_N\\)",
+    "expect": "present",
+    "meaning": "Confirms top_k is clamped to context_size // block_size_N.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     164
+    ]
+   },
+   {
+    "file": "minference/ops/block_sparse_flash_attention.py",
+    "regex": "_build_block_index\\([^)]*block_size_N[^)]*block_size_N",
+    "expect": "present",
+    "meaning": "Shows _build_block_index receives block_size_N for both block dimensions.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     183
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

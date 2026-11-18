@@ -1,0 +1,107 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "qoserve-F029",
+ "artifact_id": "qoserve",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "not_implemented",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "偏斜工作负载未实现",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "always",
+  "location": "fig10_11.sh:103-129",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "Workload mix. We evaluate QoServe under skewed work- load distributions: 70-15-15 (interactive dominant) and 15-15- 70 (batch-dominant) at 4.5 QPS. Table 6 presents p99 laten-",
+    "source": "paper",
+    "locator": "PDF p.12, text lines 64-66"
+   }
+  ],
+  "code": [
+   {
+    "file": "fig10_11.sh",
+    "line_start": 103,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/qoserve/limitations_for_tests.json",
+  "findings_sha256": "79eb69f6ac7117b77ebe00293d1d328dff8bfffcd7cabc7556eaae435c1699e2",
+  "generated_at": "2026-11-18T00:46:02+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The cited sweep only iterates QPS values and scheduler types, passing scheduler and QPS to wrapper_exp.sh. It never passes or references the paper's 70-15-15 or 15-15-70 workload mixes. Thus the shown code does not implement the skewed workload evaluation described in the paper.",
+  "hardware_needed": false,
+  "would_confirm": "Inspect wrapper_exp.sh and the workload generator for any workload-mix parameter, or run the sweep with a mix argument and verify it changes request composition.",
+  "static": {
+   "cited": 1,
+   "grounded": true,
+   "items": [
+    {
+     "file": "fig10_11.sh",
+     "lines": "103-129",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "shell"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "fig10_11.sh",
+    "regex": "(70[-_ ]?15[-_ ]?15|15[-_ ]?15[-_ ]?70|skew|workload[ _-]?mix)",
+    "expect": "absent",
+    "meaning": "Miss shows no skewed workload mix in the sweep; control confirms the file was searched.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "QPS_VALUES|run_gpu_sweep|wrapper_exp",
+    "hit_lines": []
+   },
+   {
+    "file": "fig10_11.sh",
+    "regex": "wrapper_exp\\.sh \\$sched_type \\$qps",
+    "expect": "present",
+    "meaning": "Hit shows only scheduler type and QPS are passed to the experiment wrapper.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     114
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

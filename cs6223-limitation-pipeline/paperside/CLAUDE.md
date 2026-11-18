@@ -32,9 +32,40 @@ CS6223 小组项目，输入为论文和对应仓库。Zhaopeng 负责步骤 1 �
 | `tools/pi-mechanism-agent/conformance.mjs` | 判断记录的结构校验 |
 | `scripts/run_complete_corpus.py` | 多论文编排；会调用模型，使用固定运行目录 |
 | `scripts/build_paper_handoff.py`、`scripts/finalize_handoff.py` | 共享接口导出、映射门控与交接打包 |
-| `scripts/validate_delivery.py` | 已入库两篇的离线消费者和快照检查 |
+| `scripts/validate_delivery.py` | 当前及历史交接包的离线消费者和快照检查 |
 | `scripts/validate_corpus.mjs` | 完整本地运行的 ID、源码及用量验收 |
 | `handoffs/paper-side-v1/<paper>/` | 对外的轻量交接结果 |
+
+## 最新Z3交接：2026-11-16
+
+当前分支 `zhaopeng/paper-side-z3`，在原0.2.0适配工作树上开发。先读 `docs/z3-two-paper-cases.md`，再看 `handoffs/z3-v1/{flexprefill,nnsmith}/`。
+
+- Teams的CONTRACT_TEST_REPORT.md、REQUESTS_TO_STEP4.md已实际读取；消费者代码固定为Shanghao `1753dab2dda1c088f0aeb0546a5d3755f8ebf947`。相关文件hash在consumer_contract_check.json。
+- 21+6条原负项逐一triage，各展开一例。不是27个独立bug，也不是所有条目已有可执行输入。构造/分类来自经源码核对的模板，不是新模型自动发现。
+- FlexPrefill M08-B05给出score_cover_topk精确位置与二进制有理数输入；论文“exceeds”和公式>=冲突、上游Q/K可实现性未解决，不得直接认定运行错误。
+- NNSmith M08-B10给出search_one→GradSearch→grad_input_gen的ms/秒映射与零预算配方；不能用外层search(0)替代。实验调用return_list=True与固定search签名不符，是静态路径阻塞，不冒充已观测TypeError。
+- 原生0.2.0 Finding/Limitations输入可读，origin仍paper、effect仍other、witness未知。不要为过门槛假改origin=code或给return/数值赋值贴reject/fallback。
+- 实际adapter拒绝paper-origin生成Region，所以分类器在已给代码位置时仍返回no_code_location；旁表拟议Region也需要数值/返回协议oracle。两个report.json均not_run、verdict/level=null，1:1保留，不含置信评分。
+- 下一步S4契约协调：接受paper位置的Region、消费effect_location与调用/参数上下文、增加自定义oracle。先解决论文解释与可达性再执行；目标环境、模型构造、试验和人工判断均未在本轮完成。
+- `build_z3_handoff.py`生成案例；`probe_z3_consumer.py`只调用实际读取/分类/报告函数，不调用test/envcheck/run_agent；`validate_z3_handoff.py`核对来源、ID覆盖与未运行状态。
+- 旧v1/v2交接包和原conformance均未覆盖；Z1/Z2的两个witness已知问题仍保留。
+
+下面是上一轮0.2.0适配记录，以本节为当前优先事项。
+
+## 最新接手状态：2026-11-16
+
+当前基于 main `9fce6e01de09cc1940df9ebd190acd7284ddcb96`，开发分支 `zhaopeng/paper-side-schema02`。本次工作树是 `/Users/pp/Desktop/nus/cs6223/paperside-schema02`，另一台机器不可直接使用这些绝对路径。
+
+- FlexPrefill 和 NNSmith 的 v2 包在 `handoffs/paper-side-v2/`，原生记录均为0.2.0；v1包完全保留。分别有1条tau映射、2条Pool2d核大小映射。
+- `parameter_mappings.json` 保存正式参数、存储/使用、原文、类型、单位、所属函数；`consumer_cases.json` 是真实下游接口探针，不是新Finding或目标测试。先看 `docs/parameter-mapping-cases.md`。
+- 8个探针：6通过，2保留为下游失败。使用 `--strict-consumer` 时退出码4，不把完整性成功冒充消费者全部通过。main witness把十进制float转成Fraction，导致 `tau == 0.1` 被误判无解；另外schema区间序列化成float，导致整数核宽的contrast出现1.999。不能把这些返回直接当成可执行测试。
+- 整数正向fixture使用显式有限输入域 `{0,1,2,3}`，这是测试输入约束，不是论文全集或真实调用前缀。完整整数域和函数帧隔离尚未由共享Binding表达。
+- 本次映射是源文/源码辅助审阅的规格，不是新自动抽取模型运行；适配器 `scripts/adapt_schema02.py` 核验PDF hash、仓库commit、正式参数、赋值/使用AST后生成包。
+- `scripts/validate_delivery.py` 默认优先v2，其余选历史v1。历史schema变化用AST比较共享记录定义（不执行旧schema），不是跳过哈希。旧三篇没有被宣称迁移为0.2.0。
+- 下一步先共同确认类型/函数上下文的下游契约，处理两个witness问题，再对真实step4输入联调；不要重跑五篇论文模型。Z3首批可测性提示已补（见上节）；其他条目、新论文P及人工复核仍待进行。
+- 未改共享schema或codeside。共享consumer变化需团队确认；不能把整数类型问题藏进浮点域，也不能把gamma开区间改成闭区间。
+
+以下为v1交付历史；其中“下一步”描述的是上一轮状态，以本节为当前工作优先级。
 
 ## 下一步
 

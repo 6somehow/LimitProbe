@@ -1,0 +1,92 @@
+{
+  "test_id": "A-infinigen-F028",
+  "finding_id": "infinigen-F028",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "scale": null,
+    "free_parameters": [
+      {
+        "name": "partial_weight_ratio",
+        "value": 0.5,
+        "why": "not named in the witness; 0.5 makes int(head_dim*ratio)=4 a non-empty index set. The target guard only tests `is not None`, so its truth value is independent of the ratio."
+      },
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "fixed torch seed so the random tensors and the trace hash are reproducible"
+      },
+      {
+        "name": "n_head",
+        "value": 2,
+        "why": "head count small enough for a fast CPU run; the target guard does not read n_head"
+      },
+      {
+        "name": "head_dim",
+        "value": 8,
+        "why": "per-head dimension; only used after the target decision and does not affect the guard"
+      },
+      {
+        "name": "batch_size",
+        "value": 1,
+        "why": "small batch for a fast CPU run; the target guard does not read the batch size"
+      },
+      {
+        "name": "seq_len",
+        "value": 4,
+        "why": "short sequence for a fast CPU run; the target guard does not read the sequence length"
+      },
+      {
+        "name": "dtype",
+        "value": "float32",
+        "why": "CPU-only run; float16 matmul is not implemented on CPU in this torch build, and the guard only tests warmup / partial_weight_ratio"
+      }
+    ],
+    "positive_input": {
+      "warmup": true,
+      "partial_weight_ratio": 0.5
+    },
+    "negative_input": {
+      "warmup": false,
+      "partial_weight_ratio": 0.5
+    },
+    "positive_prelude": [],
+    "negative_prelude": [],
+    "extra_negatives": [],
+    "boundary_variable": "warmup",
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at speedup/flexgen/infinigen/pytorch_backend.py:326",
+      "signal_location": "speedup/flexgen/infinigen/pytorch_backend.py:326"
+    },
+    "expected": {
+      "positive": "branch not taken at speedup/flexgen/infinigen/pytorch_backend.py:326",
+      "negative": "branch taken at speedup/flexgen/infinigen/pytorch_backend.py:326"
+    }
+  },
+  "execution": {
+    "entry_called": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "false",
+      "true"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch not taken at speedup/flexgen/infinigen/pytorch_backend.py:326",
+    "negative_observed": "branch taken at speedup/flexgen/infinigen/pytorch_backend.py:326"
+  },
+  "evidence": {}
+}

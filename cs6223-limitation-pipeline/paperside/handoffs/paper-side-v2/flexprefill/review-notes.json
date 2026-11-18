@@ -1,0 +1,135 @@
+{
+  "reviewer": "Independent static source-assisted agent review; not human gold",
+  "reviewed_at_utc": "2026-11-11T08:15:24.163200+00:00",
+  "reviewed_paper_side_sha256": "2a91ae34b31f4c9fd0565eb66ddbd448d49faf40fb6aa8665f744227f7afe495",
+  "method": {
+    "model_api_calls": 0,
+    "target_execution": "not_run",
+    "handoff_or_shared_source_mutations": 0,
+    "validation": "Actual consumer and current Pydantic models; current generated JSON schema inspected, standalone jsonschema validator unavailable; deterministic solver probes only; exact paper/source/hash/ZIP checks."
+  },
+  "confirmed_errors": [
+    {
+      "id": "FIR-001",
+      "file": "paper_side.json",
+      "records": [
+        "flexprefill-scope-002",
+        "flexprefill-binding-002"
+      ],
+      "field": "scope lower/upper for gamma",
+      "problem": "Open paper interval (0,1) is represented as closed shared-schema [0,1].",
+      "evidence": "PDF p6 lines4-5: Input Q,K,V and tau in[0,1], gamma in(0,1). Pinned code flex_prefill/ops/flex_prefill_attention.py:1810 also says gamma(0,1).",
+      "reproduction": "Actual ScopeChecker returns in_scope for gamma==0 and gamma==1.",
+      "minimal_correction": "Keep exact open-bound condition as free_text and deactivate gamma mapping while shared schema cannot encode strict endpoints; never invent epsilon. Merely certain=False is insufficient because consumer ignores it."
+    },
+    {
+      "id": "FIR-002",
+      "file": "paper_side.json",
+      "records": [
+        "flexprefill-scope-003",
+        "flexprefill-binding-003"
+      ],
+      "field": "scope kind=set, values=[64,128], explicit=True",
+      "problem": "Evaluated block sizes were converted into an exhaustive supported parameter domain.",
+      "evidence": "PDF p7 lines11-12 says block_size128 in experiments; PDF p22 lines46-49 compares64 and128 and says different block sizes can be flexibly selected according to hardware. Neither declares only64/128 supported. Code line1838 accepts16/32/64/128, which is code evidence only and must not redefine paper scope.",
+      "reproduction": "Actual ScopeChecker says block_size==32 is out_of_scope and evaluated_in_paper=False, although paper evidence establishes non-evaluation rather than exclusion.",
+      "minimal_correction": "Represent experiment choices as eval_points/free_text, deactivate parameter mapping until a true exhaustive paper domain exists. explicit=False alone still rejects values outside the finite set and does not repair exclusion."
+    },
+    {
+      "id": "FIR-003",
+      "file": "paper_side.json",
+      "records": [
+        "flexprefill-scope-004",
+        "flexprefill-binding-004"
+      ],
+      "field": "scope lower=1024, upper=null, explicit=True",
+      "problem": "An experiment implementation floor became a universal algorithm-support lower bound, contradicting the paper ablation allowing no minimum budget.",
+      "evidence": "PDF p7 lines18-20 describes1024 tokens experimental safeguard. PDF p24 lines9-15: when gamma is high, making a minimum budget limit unnecessary; Table10 lines20/23/27/30 explicitly evaluates no minimum limit. Pinned code lines1797/1812 min_budget optionalNone, line1840 defaults1.",
+      "reproduction": "Actual ScopeChecker says min_budget==0 out_of_scope and evaluated_in_paper=False.",
+      "minimal_correction": "Keep1024 as experimental setting; preserve gamma-dependent safeguard context as free_text; deactivate min_budget mapping to prevent unsupported global bounds."
+    },
+    {
+      "id": "FIR-004",
+      "file": "paper_side.json",
+      "records": [
+        "flexprefill-scope-013",
+        "flexprefill-eval_points-001",
+        "flexprefill-eval_points-002",
+        "flexprefill-eval_points-003",
+        "flexprefill-eval_points-004"
+      ],
+      "field": "decimal k-to-token normalization",
+      "problem": "Paper context labels4k...512k were normalized as4000...512000 without a stated conversion, and four RULER128k points claim128000 exact tokens despite pinned benchmark using131072.",
+      "evidence": "PDF p8 line4 table labels4k8k16k32k64k128k; p25 line48 labels128k256k384k512k. Pinned experiments/benchmark/run_ruler.py:36 uses SEQ_LENGTHS=[4096,8192,16384,32768,65536,131072]; ruler/download_dataset.sh:30-35 agrees.",
+      "minimal_correction": "Retain paper labels as context_length_label strings/free_text, or make source-assisted conversion provenance explicit before exact token values. Do not silently equate128k and128000."
+    },
+    {
+      "id": "FIR-005",
+      "file": "paper_side.json",
+      "record": "flexprefill-eval_points-023",
+      "field": "representative_query_position=middle",
+      "problem": "The two separate representative-query positions were collapsed into one ambiguous middle value. The cited experiment is last for pattern search and middle only for vertical/slash selection.",
+      "evidence": "PDF p23 Table8 line43 separately names Q(sparse pattern) and Q(vertical slash); line47 is last middle; lines34-39 explain the stage-specific ablation.",
+      "minimal_correction": "Replace generic representative_query_position with sparse_pattern_query_position:last and vertical_slash_query_position:middle; attach table header and row evidence."
+    }
+  ],
+  "manual_semantic_review_candidates": [
+    {
+      "id": "FIR-S01",
+      "records": [
+        "flexprefill-eval_points-019",
+        "flexprefill-eval_points-020"
+      ],
+      "field": "max_budget_tokens=32000",
+      "concern": "Only source paper label32k is cited (PDF p25 lines7/12). Exact decimal32,000 token conversion is not established. Unlike context-length values, no direct experiment config was found proving intended exact maximum-budget conversion.",
+      "suggested_action": "Preserve max_budget_label:32k until explicit unit/conversion evidence is attached; do not infer32768 merely from context-unit convention."
+    },
+    {
+      "id": "FIR-S02",
+      "record": "flexprefill-scope-015",
+      "field": "training_free evidence",
+      "concern": "The attached PDF p2 lines16-17 describes related work and StreamingLLM, not a direct assertion that FlexPrefill is training-free. This is an evidence attribution gap, not proof FlexPrefill requires training.",
+      "suggested_action": "Find direct paper evidence or hold the scope record as unsupported by the currently attached quote."
+    },
+    {
+      "id": "FIR-S03",
+      "record": "flexprefill-scope-018",
+      "field": "quantization evidence",
+      "concern": "Attached PDF p10 lines35-36 is related-work KV quantization, not a FlexPrefill quantization condition. Current free_text explicit=False with no binding is mechanically inactive, so it cannot itself contaminate scalar solver results.",
+      "suggested_action": "Preserve as contextual related-work note or hold; do not present as FlexPrefill support scope."
+    }
+  ],
+  "operational_findings": [
+    {
+      "id": "FIR-O01",
+      "problem": "ZIP omits audit.html currently in directory, while bundle-index also omits audit.html. Other38 ZIP files match directory bytes.",
+      "suggested_action": "After final reporting, regenerate complete bundle-index and ZIP including audit.html; then repeat parity/hash checks."
+    }
+  ],
+  "passed_checks": {
+    "counts": {
+      "claims": 104,
+      "scope": 18,
+      "eval_points": 23,
+      "bindings": 27,
+      "conformance": 104,
+      "completed_artifact": 96,
+      "pending_artifact": 8,
+      "pending_paper": 0
+    },
+    "bindings": "4 active scalar parameter bindings+23 navigation. Parameter identity and units trace to the cited function signature; gamma/block_size/min_budget domain representation remains unsafe for reasons above. Tau [0,1] binding aligns with paper algorithm and code docstring.",
+    "navigation": "23mechanism_entry bindings remain separate from scalar solver mappings.",
+    "native_models": "All native records pass current shared Pydantic models. Shared snapshot SHA equals current schema/models.py and validation SHA.",
+    "ids": "All conformance claim IDs and evidence_registry_ids resolve.",
+    "paper": "Every active paper_side quote exists verbatim on its stated page in paper-input.json; packaged PDF matches original team PDF hash.",
+    "source": "All46 source-read numbered text snippets match pinned git contents exactly, source commit pins match repositories, registry commit pins match repositories.",
+    "archive": "38archived files match local bytes; no unexpected ZIP entries; audit.html missing as noted. All listed index hashes pass.",
+    "sizes": {
+      "directory_bytes": 16614404,
+      "zip_bytes": 3280056
+    },
+    "eval_sampling": "No clear performance/accuracy output encoded as experimental input was observed in the23 configurations. Ablation gamma/tau/block/minimum-budget/max-budget columns are input settings; appended score columns are outputs and were not copied as such."
+  },
+  "consumer_limitations": "Scalar scope feasibility is not whole-input applicability adjudication. Current consumer may drop tensor-shape/math.ceil prefixes and leave other names unbound; in_scope for tau-related condition is only existential scalar feasibility, not a claim that batch/head/dtype/shape conditions were jointly established. The handoff must retain source conditions and sidecar preconditions.",
+  "next_validation": "This note binds to the original hash with4solver+23navigation. If corrected, rerun actual consumer, index, ZIP and hash checks; this agent has not certified future modifications."
+}

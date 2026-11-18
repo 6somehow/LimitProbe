@@ -1,0 +1,90 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "flexprefill-F007",
+ "artifact_id": "flexprefill",
+ "status": "tested",
+ "not_run": null,
+ "verdict": "yes",
+ "level": "L2",
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "effect on positive input, none on negative input",
+ "observed": {
+  "positive": "AssertionError at flex_prefill/ops/flex_prefill_attention.py:1245",
+  "negative": "no exception at flex_prefill/ops/flex_prefill_attention.py:1245 (later RuntimeError at triton/runtime/driver.py:8)"
+ },
+ "defeaters": {
+  "D1": "eliminated",
+  "D2": "eliminated",
+  "D3": "eliminated",
+  "D4": "eliminated",
+  "D5": "eliminated",
+  "D6": "eliminated",
+  "D7": "eliminated",
+  "D8": "eliminated",
+  "D9": "eliminated",
+  "D10": "eliminated",
+  "D11": "eliminated",
+  "D12": "eliminated",
+  "D13": "residual",
+  "D14": "residual"
+ },
+ "open_doubts": [
+  {
+   "id": "D13",
+   "name": "inputs inside the paper's scope",
+   "status": "residual",
+   "evidence": "scope_status=unknown"
+  },
+  {
+   "id": "D14",
+   "name": "official entry point was called",
+   "status": "residual",
+   "evidence": "deeper entry (index 2); reason recorded: The asserted value is block_idx, which is not a parameter of the official entry flex_prefill_attention: the entry builds it internally with get_active_blocks, which always returns exactly [batch_size, q.shape[2]] lists (transform_veritcal_slash_idx iterates range(q.shape[2])) and then passes it to the target unchanged. So len(block_idx)==batch_size and len(block_idx[0])==num_q_heads is an internal invariant and the target assertion cannot fire through flex_prefill_attention. Making the head counts non-divisible does not help: get_active_blocks fails earlier, before the target, on the q/k einsum/view shapes. The drivers still call the real target function with a real caller-supplied block_idx list; only the entry depth moves from call_chain[0] to call_chain[1] so the asserted block_idx width can be varied. This is why D14 stays residual and cannot be eliminated without mocking code before the target."
+  }
+ ],
+ "next_steps": [
+  "D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)"
+ ],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "reject",
+  "priority": 1,
+  "summary": "When not (len(block_idx) == batch_size and len(block_idx[0]) == num_q_heads): AssertionError (flex_prefill/ops/flex_prefill_attention.py:1245)",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "flex_prefill/ops/flex_prefill_attention.py:1245",
+  "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention",
+  "condition": "not (len(block_idx) == batch_size and len(block_idx[0]) == num_q_heads)"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "line_start": 1245,
+    "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention",
+    "snippet": "assert len(block_idx) == batch_size and len(block_idx[0]) == num_q_heads"
+   }
+  ]
+ },
+ "files": {
+  "execution_report": "execution_report.json",
+  "testcase": "testcase.json",
+  "attempt": "attempt"
+ },
+ "provenance": {
+  "findings_file": "results/step4/flexprefill/limitations_for_tests.json",
+  "findings_sha256": "0b8539b75ec0e2d602cd64b1a21959708ae3a6d53be00202f8825d92f313c066",
+  "generated_at": "2026-11-18T12:12:16+08:00",
+  "source": "reaudit",
+  "attempt_origin": "agent_results/batch/F007-b1-f007/attempt",
+  "n_attempts_found": 1,
+  "profile": "default-v1"
+ },
+ "analysis": null
+}

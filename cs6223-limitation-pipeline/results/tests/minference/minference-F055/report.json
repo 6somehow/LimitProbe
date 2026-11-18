@@ -1,0 +1,146 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "minference-F055",
+ "artifact_id": "minference",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "论文要求最小化 t_sparse(M)+t_overhead(M)；artifact 执行路径未实现该时间目标。",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "always",
+  "location": "minference/modules/minference_forward.py:199-246",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "min tsparse(M ) +toverhead(M ), (2)",
+    "source": "paper",
+    "locator": "PDF p.5"
+   }
+  ],
+  "code": [
+   {
+    "file": "minference/modules/minference_forward.py",
+    "line_start": 199,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "minference/ops/pit_sparse_flash_attention_v2.py",
+    "line_start": 173,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "minference/ops/block_sparse_flash_attention.py",
+    "line_start": 80,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/minference/limitations_for_tests.json",
+  "findings_sha256": "6f02cbec16ce4487c1b9166c2dc5f1f16704f168b135426edfe2df59ed9333bc",
+  "generated_at": "2026-11-18T17:25:00+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The cited selector search_pattern_v2 evaluates candidate sparse patterns by counting output differences from a dense reference (`delta = ((ref - score).abs() > 5e-3).sum()`) and picks the smallest delta. It does not measure or minimize t_sparse(M)+t_overhead(M), so the paper's stated time objective is absent from this execution path.",
+  "hardware_needed": false,
+  "would_confirm": "Instrument search_pattern_v2 to record candidate runtimes and verify whether selection minimizes t_sparse(M)+t_overhead(M) rather than delta count.",
+  "static": {
+   "cited": 3,
+   "grounded": true,
+   "items": [
+    {
+     "file": "minference/modules/minference_forward.py",
+     "lines": "199-246",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "minference/ops/pit_sparse_flash_attention_v2.py",
+     "lines": "173-206",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "minference/ops/block_sparse_flash_attention.py",
+     "lines": "80-111",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "def search_pattern_v2",
+    "expect": "present",
+    "meaning": "Confirms the cited pattern-selection function exists in the artifact.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     199
+    ]
+   },
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "delta = \\(\\(ref - score\\)\\.abs\\(\\) > 5e-3\\)\\.sum\\(\\)",
+    "expect": "present",
+    "meaning": "Shows selection is based on output-difference count, not runtime.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     238
+    ]
+   },
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "perf_counter|time\\.time|elapsed_time|latency|benchmark",
+    "expect": "absent",
+    "meaning": "Miss shows no timing measurement in the selector; control confirms file searched.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "torch\\.einsum|flash_attn_func",
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

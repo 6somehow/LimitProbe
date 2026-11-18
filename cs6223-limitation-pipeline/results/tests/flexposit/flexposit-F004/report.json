@@ -1,0 +1,116 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "flexposit-F004",
+ "artifact_id": "flexposit",
+ "status": "tested",
+ "not_run": null,
+ "verdict": "yes",
+ "level": "L2",
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "effect on positive input, none on negative input",
+ "observed": {
+  "positive": "ValueError at src/flexposit/export.py:136",
+  "negative": "no exception at src/flexposit/export.py:135"
+ },
+ "defeaters": {
+  "D1": "eliminated",
+  "D2": "eliminated",
+  "D3": "eliminated",
+  "D4": "eliminated",
+  "D5": "residual",
+  "D6": "eliminated",
+  "D7": "eliminated",
+  "D8": "eliminated",
+  "D9": "eliminated",
+  "D10": "eliminated",
+  "D11": "eliminated",
+  "D12": "eliminated",
+  "D13": "residual",
+  "D14": "residual"
+ },
+ "open_doubts": [
+  {
+   "id": "D5",
+   "name": "control pair differs in one factor, negative adjacent to the boundary",
+   "status": "residual",
+   "evidence": "one factor differs; adjacency not measurable: boundary variable 'scales' is not an integer (value [1, 15])"
+  },
+  {
+   "id": "D13",
+   "name": "inputs inside the paper's scope",
+   "status": "residual",
+   "evidence": "scope_status=unknown"
+  },
+  {
+   "id": "D14",
+   "name": "official entry point was called",
+   "status": "residual",
+   "evidence": "deeper entry (index 1); reason recorded: The call chain lists api.quantize as the official entry, but the pinned step-4 static analysis found no call chain from it: quantize returns a QuantState and export_tile is a separate post-quantization export step, so quantize never reaches src/flexposit/export.py:135. export_tile (call_chain index 1) is called directly with a real model, QuantState and LayerState; no stand-in is involved before the target."
+  }
+ ],
+ "next_steps": [
+  "D5 (residual): change exactly one factor between positive and negative, and make the negative the point next to the boundary",
+  "D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)"
+ ],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "reject",
+  "priority": 1,
+  "summary": "When scale.min() < -16 or scale.max() > 15: export_tile raises ValueError when the per-column scale (-log2_scale) does not fit the RTL's signed 5-bit field, rejecting configurations whose log2_scale falls outside [-15, 16]. (src/flexposit/export.py:135)",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "src/flexposit/export.py:135",
+  "function": "src/flexposit/export.py::export_tile",
+  "condition": "scale.min() < -16 or scale.max() > 15"
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "a compact 4 b index stores the selected per-channel scale with low metadata overhead",
+    "source": "paper",
+    "locator": "PDF p.5"
+   }
+  ],
+  "code": [
+   {
+    "file": "src/flexposit/export.py",
+    "line_start": 135,
+    "function": "src/flexposit/export.py::export_tile",
+    "snippet": "if scale.min() < -16 or scale.max() > 15:"
+   },
+   {
+    "file": "src/flexposit/export.py",
+    "line_start": 105,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "hardware/rtl/bfp_pow2_rescale.v",
+    "line_start": 10,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {
+  "execution_report": "execution_report.json",
+  "testcase": "testcase.json",
+  "attempt": "attempt"
+ },
+ "provenance": {
+  "findings_file": "results/step4/flexposit/limitations_for_tests.json",
+  "findings_sha256": "90fcaf23c2793dc03b49c54856e041483165536eff1522a25766022460b78f23",
+  "generated_at": "2026-11-17T14:45:16+08:00",
+  "source": "agent",
+  "attempt_origin": "scratch/agent_runs/e2e-f004-d129b6",
+  "agent_tokens": 3718108,
+  "agent_wall_s": 738.7,
+  "lock_tampered": false,
+  "profile": "default-v1"
+ }
+}

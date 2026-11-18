@@ -1,0 +1,132 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "nnsmith-F028",
+ "artifact_id": "nnsmith",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "artifact 路径不存在 pad 的 0 箱/负箱特化",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "nnsmith/abstract/op.py:1053-1080",
+  "function": null,
+  "condition": "self.extra_attrs[\"type\"] in (\"ConstPad\", \"ReplicatePad\", \"ReflectPad\")"
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "for the “padding” attribute in ConstPad, ReplicatePad, and ReflectPad, we add both the 0-bin and negative bins",
+    "source": "paper",
+    "locator": "PDF p.8"
+   }
+  ],
+  "code": [
+   {
+    "file": "nnsmith/abstract/op.py",
+    "line_start": 1053,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "nnsmith/graph_gen.py",
+    "line_start": 50,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/nnsmith/limitations_for_tests.json",
+  "findings_sha256": "3ec725e87dbddd4c992db2cb5e7881f511e70ce2ab61c81037bbb06a557aa5fb",
+  "generated_at": "2026-11-18T12:18:21+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A0",
+  "tier_note": "the reading and the probes disagree",
+  "calibrated": false,
+  "assessment": "contradicts",
+  "reasoning": "The shown Pad.requires code explicitly adds constraints for negative padding, including the comment and nnsmith_gt(nnsmith_add(pad[...], isv[j]), 0) checks. That contradicts the claim that no negative-bin specialization path exists. The snippet does not show an explicit 0-bin token, but the broad finding that the specialization is absent is not supported.",
+  "hardware_needed": false,
+  "would_confirm": "A unit test instantiating Pad with zero and negative padding and inspecting generated z3 constraints would settle whether both bins are specialized.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "nnsmith/abstract/op.py",
+     "lines": "1053-1080",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "nnsmith/graph_gen.py",
+     "lines": "50-70",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "nnsmith/abstract/op.py",
+    "regex": "When using negative padding",
+    "expect": "present",
+    "meaning": "Shows negative-padding handling exists in Pad.requires.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     1077
+    ]
+   },
+   {
+    "file": "nnsmith/abstract/op.py",
+    "regex": "nnsmith_gt\\(nnsmith_add\\(pad\\[i \\* 2\\]",
+    "expect": "present",
+    "meaning": "Shows explicit negative-padding constraints are implemented.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     1078
+    ]
+   },
+   {
+    "file": "nnsmith/abstract/op.py",
+    "regex": "0[-_ ]?bin|zero[-_ ]?bin",
+    "expect": "absent",
+    "meaning": "No explicit 0-bin token appears in this file.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "negative padding",
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

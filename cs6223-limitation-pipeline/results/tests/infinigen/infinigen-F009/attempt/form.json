@@ -1,0 +1,84 @@
+{
+  "test_id": "A-infinigen-F009",
+  "finding_id": "infinigen-F009",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "enable_prefetching",
+        "value": false,
+        "why": "SelfAttention.__init__ stores this flag; the target guard does not read it"
+      },
+      {
+        "name": "partial_weight_ratio",
+        "value": 0.2,
+        "why": "the repository default of SelfAttention.__init__; stored only inside the taken branch"
+      },
+      {
+        "name": "alpha",
+        "value": 4,
+        "why": "the repository default of SelfAttention.__init__; not read by the target guard"
+      },
+      {
+        "name": "max_num_kv",
+        "value": 400,
+        "why": "the repository default of SelfAttention.__init__; not read by the target guard"
+      },
+      {
+        "name": "config",
+        "value": "opt-125m",
+        "why": "real OptConfig from the repository; the constructor only stores it before the guard"
+      },
+      {
+        "name": "env.gpu",
+        "value": "TorchDevice(cpu)",
+        "why": "CPU-only machine; env.gpu is stored and never invoked before the target decision"
+      },
+      {
+        "name": "policy",
+        "value": "100% cpu weights/cache/activations, no compression, sep_layer, no cpu_cache_compute",
+        "why": "keeps the constructor on ordinary CPU objects; the guard only reads layer_id"
+      }
+    ],
+    "positive_input": {
+      "self.layer_id": 2
+    },
+    "negative_input": {
+      "self.layer_id": 1
+    },
+    "boundary_variable": "self.layer_id",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at speedup/flexgen/infinigen/flex_opt.py:287",
+      "signal_location": "speedup/flexgen/infinigen/flex_opt.py:287"
+    },
+    "expected": {
+      "positive": "branch taken at speedup/flexgen/infinigen/flex_opt.py:287",
+      "negative": "branch not taken at speedup/flexgen/infinigen/flex_opt.py:287"
+    }
+  },
+  "execution": {
+    "entry_called": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention.__init__",
+    "entry_reason": "step 4 reports call_chain_status=not_found for TorchDevice.mha -> SelfAttention.__init__; TorchDevice.mha never constructs a SelfAttention (it is constructed by OptLM/TransformerLayer.__init__), so the recorded entry cannot reach the target. The driver calls the target function itself so that self.layer_id is controlled directly by the witness.",
+    "call_chain_index": 1,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": ["true", "false"],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at speedup/flexgen/infinigen/flex_opt.py:287",
+    "negative_observed": "branch not taken at speedup/flexgen/infinigen/flex_opt.py:287"
+  },
+  "evidence": {}
+}

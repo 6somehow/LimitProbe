@@ -1,0 +1,22 @@
+{
+ "assessment": "supports",
+ "reasoning": "The cited transform_matmul calls wbc_matmuls but the only specialize_matmul/kernel-selection loop is inside a triple-quoted comment, so it never executes. best_kernels and best_aggr_type remain None. No block==shape dense fallback appears in the shown code, matching the claim that the experimental path skips kernel selection and dense fallback.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "sparta/transformation/transform_policy.py",
+   "regex": "^\\s*latency, kernels, aggr_type = specialize_matmul\\(",
+   "expect": "absent",
+   "control": "^\\s*transform_options = wbc_matmuls\\(",
+   "meaning": "No active kernel-selection call; only commented code."
+  },
+  {
+   "file": "sparta/transformation/transform_policy.py",
+   "regex": "block\\s*==\\s*shape",
+   "expect": "absent",
+   "control": "def transform_matmul",
+   "meaning": "No block==shape dense fallback branch in this file."
+  }
+ ],
+ "would_confirm": "Run transform_matmul on any valid TeSA input and verify it returns None kernels without invoking specialize_matmul or a dense fallback."
+}

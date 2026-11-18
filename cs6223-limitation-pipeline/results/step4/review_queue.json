@@ -22,17 +22,6 @@
   "summary": "When path == 1 or path == 2: Prefetching is not implemented for CPU-compute paths 1 and 2; raises ValueError. (speedup/flexgen/infinigen/flex_opt.py:466)"
  },
  {
-  "finding_id": "minference-F007",
-  "category": "undisclosed",
-  "priority": 1,
-  "effect": "reject",
-  "review": "worth_testing",
-  "witness": "solved",
-  "where": "minference/modules/minference_forward.py:504",
-  "sides": "code",
-  "summary": "When self.is_search and os.path.exists(self.config_path) and self.layer_idx < len(config_list): With `is_search` enabled, if the output `config_path` already contains an entry for this layer, the forward pass hits a bare `assert False` and aborts — the search cannot be re-run into an existing file. Also, when `is_search` is true the sparse mechanism is never applied (`not self.is_search` in the..."
- },
- {
   "finding_id": "minference-F014",
   "category": "undisclosed",
   "priority": 1,
@@ -44,26 +33,81 @@
   "summary": "When Lk not in {16, 32, 64, 128}: Head dimension (q/k/v last dim) must be one of 16/32/64/128; other model head sizes abort the streaming attention forward. (minference/ops/streaming_kernel.py:414)"
  },
  {
-  "finding_id": "nnsmith-F006",
+  "finding_id": "flexposit-F001",
   "category": "undisclosed",
   "priority": 1,
   "effect": "reject",
-  "review": "worth_testing",
+  "review": "unreviewed",
   "witness": "solved",
-  "where": "nnsmith/materialize/torch/symbolnet.py:188",
-  "sides": "code+paper",
-  "summary": "When p.grad is not None and torch.any(p.grad != 0): If all parameter gradients are zero, ConstraintCheck.true(nonzero, ...) raises, aborting the backward step ('Gradients are all zero. Cannot make progress.'). (nnsmith/materialize/torch/symbolnet.py:188)"
+  "where": "src/flexposit/api.py:120-121",
+  "sides": "code",
+  "summary": "When True: raise FileNotFoundError(f'No sensitivity CSV {str(name_or_path)!r}: not a file, and not one of the shipped models {shipp (src/flexposit/api.py:120)"
  },
  {
-  "finding_id": "nnsmith-F007",
+  "finding_id": "flexposit-F002",
   "category": "undisclosed",
   "priority": 1,
   "effect": "reject",
-  "review": "worth_testing",
+  "review": "unreviewed",
   "witness": "solved",
-  "where": "nnsmith/materialize/torch/symbolnet.py:385",
+  "where": "src/flexposit/api.py:189",
   "sides": "code",
-  "summary": "When loss_fn.dispatch(type(op)) is not None: If an op produces NaN/Inf but has no registered loss function, ConstraintCheck.true at line 403 fails with 'op=... has no torch_loss but produces NaN or INF!', aborting the search. (nnsmith/materialize/torch/symbolnet.py:385)"
+  "summary": "When state.total_windows == 0: Quantize aborts if no sensitivity rows match the model's layer names, so a mismatched sensitivity file cannot be used. (src/flexposit/api.py:189)"
+ },
+ {
+  "finding_id": "flexposit-F003",
+  "category": "undisclosed",
+  "priority": 1,
+  "effect": "reject",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/export.py:40",
+  "sides": "code",
+  "summary": "When not torch.equal(table[pos], mag): posit_encode raises ValueError if the scaled weights are not exact Posit(nsize,es) values, so layer_codes/export_tile fail for any weight that does not land exactly on the Posit value table. (src/flexposit/export.py:40)"
+ },
+ {
+  "finding_id": "flexposit-F004",
+  "category": "undisclosed",
+  "priority": 1,
+  "effect": "reject",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/export.py:135",
+  "sides": "code+paper",
+  "summary": "When scale.min() < -16 or scale.max() > 15: export_tile raises ValueError when the per-column scale (-log2_scale) does not fit the RTL's signed 5-bit field, rejecting configurations whose log2_scale falls outside [-15, 16]. (src/flexposit/export.py:135)"
+ },
+ {
+  "finding_id": "flexposit-F005",
+  "category": "undisclosed",
+  "priority": 1,
+  "effect": "reject",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/formats.py:39",
+  "sides": "code",
+  "summary": "When not 2 <= nsize <= 16: posit_quantize (via _check_posit) rejects nsize outside [2,16], so the tunable precision cannot exceed 16 bits. (src/flexposit/formats.py:39)"
+ },
+ {
+  "finding_id": "flexposit-F006",
+  "category": "undisclosed",
+  "priority": 1,
+  "effect": "reject",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/formats.py:103",
+  "sides": "code",
+  "summary": "When True: raise TypeError(f'posit_quantize expects a float32 tensor, got {x.dtype}') (src/flexposit/formats.py:103)"
+ },
+ {
+  "finding_id": "flexposit-F007",
+  "category": "undisclosed",
+  "priority": 1,
+  "effect": "reject",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/formats.py:156",
+  "sides": "code",
+  "summary": "When True: raise ValueError(f'invalid rounding mode {rounding!r}') (src/flexposit/formats.py:156)"
  },
  {
   "finding_id": "flexprefill-F002",
@@ -75,28 +119,6 @@
   "where": "flex_prefill/modules/patch.py:241",
   "sides": "code",
   "summary": "When not isinstance(model, Qwen2ForCausalLM): Patching a non-Qwen2ForCausalLM model with a non-default pattern triggers an assertion failure. (flex_prefill/modules/patch.py:241)"
- },
- {
-  "finding_id": "flexprefill-F004",
-  "category": "undisclosed",
-  "priority": 1,
-  "effect": "reject",
-  "review": "unreviewed",
-  "witness": "trigger_only",
-  "where": "flex_prefill/ops/flex_prefill_attention.py:865",
-  "sides": "code",
-  "summary": "When not (q_len == 1): AssertionError (flex_prefill/ops/flex_prefill_attention.py:865)"
- },
- {
-  "finding_id": "flexprefill-F005",
-  "category": "undisclosed",
-  "priority": 1,
-  "effect": "reject",
-  "review": "unreviewed",
-  "witness": "solved",
-  "where": "flex_prefill/ops/flex_prefill_attention.py:1219",
-  "sides": "code",
-  "summary": "When not (q_len == k_len): AssertionError (flex_prefill/ops/flex_prefill_attention.py:1219)"
  },
  {
   "finding_id": "flexprefill-F006",
@@ -141,28 +163,6 @@
   "where": "flex_prefill/ops/flex_prefill_attention.py:1258",
   "sides": "code",
   "summary": "When not (num_q_heads % num_kv_heads == 0): AssertionError (flex_prefill/ops/flex_prefill_attention.py:1258)"
- },
- {
-  "finding_id": "flexprefill-F010",
-  "category": "undisclosed",
-  "priority": 1,
-  "effect": "reject",
-  "review": "unreviewed",
-  "witness": "solved",
-  "where": "flex_prefill/ops/flex_prefill_attention.py:1450",
-  "sides": "code",
-  "summary": "When not (d in {16, 32, 64, 128}): AssertionError (flex_prefill/ops/flex_prefill_attention.py:1450)"
- },
- {
-  "finding_id": "flexprefill-F011",
-  "category": "undisclosed",
-  "priority": 1,
-  "effect": "reject",
-  "review": "unreviewed",
-  "witness": "solved",
-  "where": "flex_prefill/ops/flex_prefill_attention.py:1451",
-  "sides": "code",
-  "summary": "When not (kernel_size in {16, 32, 64, 128, 256, 512}): AssertionError (flex_prefill/ops/flex_prefill_attention.py:1451)"
  },
  {
   "finding_id": "flexprefill-F012",
@@ -275,23 +275,12 @@
   "summary": "When \"vs\" in self.__dict__: Static pattern reuses vertical_topk/slash cached in self.vs from an earlier call instead of recomputing them. (minference/modules/minference_forward.py:390)"
  },
  {
-  "finding_id": "minference-F005",
-  "category": "undisclosed",
-  "priority": 1,
-  "effect": "reject",
-  "review": "unreviewed",
-  "witness": "solved",
-  "where": "minference/modules/minference_forward.py:441",
-  "sides": "code",
-  "summary": "When ty not in {\"stream_llm\", \"vertical_and_slash\", \"block_sparse\"}: The implementation is chosen by the `ty` string read from the user-supplied pattern JSON (`config_path`). Any other value in that file (e.g. a typo, or a pattern produced by a different search version) raises an uncaught `KeyError` at prefill time rather than falling back. (minference/modules/minference_forward.py:441)"
- },
- {
   "finding_id": "minference-F006",
   "category": "undisclosed",
   "priority": 1,
   "effect": "reject",
   "review": "unreviewed",
-  "witness": "trigger_only",
+  "witness": "solved",
   "where": "minference/modules/minference_forward.py:484-488",
   "sides": "code",
   "summary": "When True: raise ValueError(f'The cache structure has changed since version v4.36. If you are using {self.__class__.__name__} for a (minference/modules/minference_forward.py:484)"
@@ -306,17 +295,6 @@
   "where": "minference/modules/minference_forward.py:681",
   "sides": "code",
   "summary": "When key_states.shape[-2] != kv_seq_len: Whether SnapKV compression runs depends on `self.kv_seq_len` cached from earlier calls: on the first (prefill) call the KV is compressed and `self.kv_seq_len` registered; on later calls the else-branch just appends to the cache. So the same input produces different KV contents depending on call history, and the sparse pattern is then computed over the co..."
- },
- {
-  "finding_id": "minference-F009",
-  "category": "undisclosed",
-  "priority": 1,
-  "effect": "reject",
-  "review": "unreviewed",
-  "witness": "solved",
-  "where": "minference/modules/minference_forward.py:754",
-  "sides": "code",
-  "summary": "When head_id not in self.best_pattern: The vLLM variant indexes `self.best_pattern[head_id]` directly (unlike the HF variant's `.get(..., default)`), so a pattern file whose per-layer dict lacks an entry for some head raises `KeyError` during prefill. `self.best_pattern` is rebuilt from the caller-supplied `pattern_config[layer_idx]` on every forward (line 790), so a short/mismatched pattern fi..."
  },
  {
   "finding_id": "minference-F010",
@@ -396,37 +374,37 @@
   "summary": "When output_attentions: If the caller requests attention outputs, execution is aborted by the assertion. (minference/patch.py:207)"
  },
  {
-  "finding_id": "minference-F018",
+  "finding_id": "nnsmith-F003",
   "category": "undisclosed",
   "priority": 1,
   "effect": "reject",
   "review": "unreviewed",
   "witness": "solved",
-  "where": "minference/patch.py:1252",
+  "where": "nnsmith/cli/fuzz.py:180",
   "sides": "code",
-  "summary": "When not isinstance(model, (LlamaForCausalLM, MistralForCausalLM, Qwen2ForCausalLM)) and model.__class__.__name__ not in {\"MiniCPMForCausalLM\", \"Phi3ForCausalLM\", \"ChatGLMForConditionalGeneration\"}: `patch_hf` dispatches on the concrete model class and raises `ValueError(\"Only supports llama, mistral and qwen2 models.\")` for anything else, so the mechanism cannot be applied to other architectur..."
+  "summary": "When isinstance(e, InternalError): InternalError from make_testcase is propagated, aborting the fuzzing loop, while other exceptions are swallowed and the loop continues. (nnsmith/cli/fuzz.py:180)"
  },
  {
-  "finding_id": "nnsmith-F002",
+  "finding_id": "qoserve-F001",
   "category": "undisclosed",
   "priority": 1,
   "effect": "reject",
   "review": "unreviewed",
   "witness": "solved",
-  "where": "nnsmith/abstract/op.py:2083",
+  "where": "sarathi/core/scheduler/deadline_scheduler.py:251",
   "sides": "code",
-  "summary": "When not check_sat(): If the requested output rank cannot be satisfied by the rank-increment loop (e.g. out_abs_tensor ndims inconsistent with the max reachable rank), the loop never terminates, effectively rejecting/hanging on that output shape. (nnsmith/abstract/op.py:2083)"
+  "summary": "When not (seq.is_paused()): 'Sequence should be in PAUSED state' (sarathi/core/scheduler/deadline_scheduler.py:251)"
  },
  {
-  "finding_id": "nnsmith-F008",
+  "finding_id": "qoserve-F002",
   "category": "undisclosed",
   "priority": 1,
   "effect": "reject",
   "review": "unreviewed",
   "witness": "solved",
-  "where": "nnsmith/materialize/torch/symbolnet.py:421",
+  "where": "sarathi/core/scheduler/deadline_scheduler.py:253",
   "sides": "code",
-  "summary": "When self.loss is not None: If two vulnerable ops both produce NaN/Inf in the same forward pass, the second one trips this check and raises ConstraintError, which aborts the gradient search (caught in grad_input_gen, line 268 -> break) instead of optimising for either loss. (nnsmith/materialize/torch/symbolnet.py:421)"
+  "summary": "When not (self.block_manager.can_append_slot()): AssertionError (sarathi/core/scheduler/deadline_scheduler.py:253)"
  },
  {
   "finding_id": "nnsmith-F004",
@@ -506,17 +484,6 @@
   "summary": "When args.compress_cache and args.attn_sparsity < 1.0: Combining cache compression with attention sparsity (the InfiniGen KV selection path) is not implemented; the run aborts. (speedup/flexgen/infinigen/flex_opt.py:1359)"
  },
  {
-  "finding_id": "minference-F002",
-  "category": "undisclosed",
-  "priority": 1,
-  "effect": "state",
-  "review": "real_but_minor",
-  "witness": "solved",
-  "where": "minference/modules/minference_forward.py:30",
-  "sides": "code",
-  "summary": "When ROPE_TYPE is not None: `ROPE_TYPE` is a module-level global computed once from the *first* attention module's `rotary_emb.forward` signature and then reused for every model/layer in the process (`if ROPE_TYPE is not None: return`). Loading a second model with a different RoPE signature in the same process keeps the first model's convention, and `get_cos_sin` then calls `self.rotary_emb` wi..."
- },
- {
   "finding_id": "minference-F019",
   "category": "undisclosed",
   "priority": 1,
@@ -533,32 +500,10 @@
   "priority": 1,
   "effect": "reject",
   "review": "real_but_minor",
-  "witness": "trigger_only",
+  "witness": "solved",
   "where": "nnsmith/abstract/op.py:1563",
   "sides": "code",
   "summary": "When gres_config not in (\"3\", \"4\", \"5\"): An unrecognized NNSMITH_GRES environment value causes a ValueError, rejecting the input. (nnsmith/abstract/op.py:1563)"
- },
- {
-  "finding_id": "nnsmith-F003",
-  "category": "undisclosed",
-  "priority": 1,
-  "effect": "reject",
-  "review": "real_but_minor",
-  "witness": "solved",
-  "where": "nnsmith/cli/fuzz.py:179",
-  "sides": "code",
-  "summary": "When isinstance(e, InternalError): InternalError from make_testcase is propagated, aborting the fuzzing loop, while other exceptions are swallowed and the loop continues. (nnsmith/cli/fuzz.py:179)"
- },
- {
-  "finding_id": "nnsmith-F005",
-  "category": "undisclosed",
-  "priority": 1,
-  "effect": "reject",
-  "review": "real_but_minor",
-  "witness": "solved",
-  "where": "nnsmith/graph_gen.py:524",
-  "sides": "code",
-  "summary": "When isinstance(op, Expand) and oshape.ndims < op.expand_last_dim: Placeholder shapes with fewer dims than the Expand op's expand_last_dim are skipped as backward-insertion candidates, excluding them from consideration. (nnsmith/graph_gen.py:524)"
  },
  {
   "finding_id": "flexprefill-F018",
@@ -682,6 +627,17 @@
   "summary": "When config.use_snapkv: Caller-supplied config flag switches to the SnapKV variant (minference_patch_with_snapkv) instead of the standard minference_forward path. (minference/patch.py:840)"
  },
  {
+  "finding_id": "nnsmith-F006",
+  "category": "undisclosed",
+  "priority": 2,
+  "effect": "other",
+  "review": "worth_testing",
+  "witness": "solved",
+  "where": "nnsmith/materialize/torch/symbolnet.py:188",
+  "sides": "code+paper",
+  "summary": "When p.grad is not None and torch.any(p.grad != 0): If all parameter gradients are zero, ConstraintCheck.true(nonzero, ...) raises, aborting the backward step ('Gradients are all zero. Cannot make progress.'). (nnsmith/materialize/torch/symbolnet.py:188)"
+ },
+ {
   "finding_id": "nnsmith-F012",
   "category": "undisclosed",
   "priority": 2,
@@ -792,15 +748,26 @@
   "summary": "When len(unique_block_sizes) != 1: wbc_matmul only supports a single block size for the weight tesa. If the weighted block cover (driven by the caller's sparsity pattern / TeSA values) selects more than one block size, decompose_blocked_tesas is a no-op stub (`...`) and then a bare `raise` aborts the whole transformation. So a sparsity pattern that mixes block sizes is rejected rather than hand..."
  },
  {
-  "finding_id": "flexprefill-F025",
+  "finding_id": "flexposit-F008",
   "category": "undisclosed",
   "priority": 2,
   "effect": "path_change",
   "review": "unreviewed",
   "witness": "solved",
-  "where": "flex_prefill/ops/flex_prefill_attention.py:1727",
+  "where": "src/flexposit/mpq/channel_window.py:283",
   "sides": "code",
-  "summary": "When kl_div < tau: per-element branch stored in block_sparse_mask (flex_prefill/ops/flex_prefill_attention.py:1727)"
+  "summary": "When strategy == \"random\": Random strategy shuffles candidates with the caller-seeded RNG, selecting a different set of windows than the sensitivity ordering. (src/flexposit/mpq/channel_window.py:283)"
+ },
+ {
+  "finding_id": "flexposit-F009",
+  "category": "undisclosed",
+  "priority": 2,
+  "effect": "path_change",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/mpq/channel_window.py:571",
+  "sides": "code",
+  "summary": "When args.downgrade: Caller flag downgrade switches Budget Mode to demote the least-sensitive windows from upgrade_bits to base_bits (reversed sort, apply_nsize from downgrade_nsize) instead of promoting the most-sensitive windows. (src/flexposit/mpq/channel_window.py:571)"
  },
  {
   "finding_id": "flexprefill-F026",
@@ -869,17 +836,6 @@
   "summary": "When FLOPS_LIM == \"off\": Setting NNSMITH_FLOPS_LIM=off sets FLOPS_LIM to None, disabling the FLOPs constraint entirely, which changes the search/acceptance behavior of the generator. (nnsmith/abstract/op.py:25)"
  },
  {
-  "finding_id": "nnsmith-F013",
-  "category": "undisclosed",
-  "priority": 2,
-  "effect": "path_change",
-  "review": "unreviewed",
-  "witness": "solved",
-  "where": "nnsmith/abstract/op.py:1552",
-  "sides": "code",
-  "summary": "When gres_config != \"4\": The environment variable NNSMITH_GRES selects the reshape grouping strategy: \"5\" = one group (flatten), \"3\" = min(src_len, dst_len) groups, \"4\" (default) = random number of groups weighted by 2**i. Any other value raises ValueError, rejecting the model. The chosen grouping changes the generated reshape constraints and hence the accepted graphs. (nnsmith/abstract/op.py:1..."
- },
- {
   "finding_id": "nnsmith-F015",
   "category": "undisclosed",
   "priority": 2,
@@ -908,9 +864,9 @@
   "effect": "path_change",
   "review": "unreviewed",
   "witness": "solved",
-  "where": "nnsmith/graph_gen.py:259",
+  "where": "nnsmith/graph_gen.py:258",
   "sides": "code",
-  "summary": "When NNSMITH_LIMNF_V == \"1\": With NNSMITH_LIMNF_V=1 the per-op float-count constraints accumulated in `self.n_floats_cons` are added to the solver instead of the single aggregate constraint, so the same seed yields different accepted graphs depending on the environment variable. (nnsmith/graph_gen.py:259)"
+  "summary": "When NNSMITH_LIMNF_V == \"1\": With NNSMITH_LIMNF_V=1 the per-op float-count constraints accumulated in `self.n_floats_cons` are added to the solver instead of the single aggregate constraint, so the same seed yields different accepted graphs depending on the environment variable. (nnsmith/graph_gen.py:258)"
  },
  {
   "finding_id": "nnsmith-F020",
@@ -935,17 +891,6 @@
   "summary": "When all([DType.is_float(v.dtype) for _, v in self.net.input_like.items()]): Whether all model inputs are float dtypes decides if a differentiability probe is run; otherwise self.differentiable is forced False, which later routes search_one to SamplingSearch instead of GradSearch. (nnsmith/materialize/torch/input_gen.py:93)"
  },
  {
-  "finding_id": "nnsmith-F023",
-  "category": "undisclosed",
-  "priority": 2,
-  "effect": "path_change",
-  "review": "unreviewed",
-  "witness": "solved",
-  "where": "nnsmith/materialize/torch/input_gen.py:98",
-  "sides": "code",
-  "summary": "When self.differentiable is False: The variant is decided by a single probe forward pass on random inputs: `self.net.differentiable` is set by SymbolNet.forward (it becomes False as soon as any op is non-differentiable or a numeric check fails). If that one random probe happens to hit a non-differentiable path, `search_one` (line 107) silently falls back to `SamplingSearch.search_one` for all s..."
- },
- {
   "finding_id": "nnsmith-F024",
   "category": "undisclosed",
   "priority": 2,
@@ -957,26 +902,81 @@
   "summary": "When max_time is None: The gradient-based input search budget is taken from the environment (NNSMITH_GRAD_TIME, default 0.5 s). The `while time.time() - st < max_time` loop at line 257 can therefore exit before any satisfying input is found, in which case `grad_input_gen` returns None (line 293) and the caller falls back to random sampling. (nnsmith/materialize/torch/symbolnet.py:234)"
  },
  {
-  "finding_id": "nnsmith-F026",
+  "finding_id": "qoserve-F004",
   "category": "undisclosed",
   "priority": 2,
   "effect": "path_change",
   "review": "unreviewed",
   "witness": "solved",
-  "where": "nnsmith/materialize/torch/symbolnet.py:358",
-  "sides": "code",
-  "summary": "When output_tensors[i].grad_fn is None: `differentiable` is reset to True at the start of every forward (line 313) and AND-ed with each op output's grad_fn. PracticalHybridSearch.__init__ reads this flag after one probe forward, so a single non-differentiable op (or a non-float input) permanently disables the gradient search for the whole model. (nnsmith/materialize/torch/symbolnet.py:358)"
+  "where": "sarathi/core/datatypes/sequence.py:114",
+  "sides": "code+paper",
+  "summary": "When self.tier > 0: For any non-zero (randomly assigned) tier, the TBT deadline uses execution_threshold_batched instead of execution_threshold, changing the computed deadline. (sarathi/core/datatypes/sequence.py:114)"
  },
  {
-  "finding_id": "nnsmith-F027",
+  "finding_id": "qoserve-F005",
   "category": "undisclosed",
   "priority": 2,
   "effect": "path_change",
   "review": "unreviewed",
   "witness": "solved",
-  "where": "nnsmith/materialize/torch/symbolnet.py:403",
+  "where": "sarathi/core/scheduler/deadline_scheduler.py:120",
   "sides": "code",
-  "summary": "When vul_op_loss is None: When an op produces NaN/Inf but has no registered loss function (`loss_fn.dispatch(type(op)) is None`), the constraint check raises ConstraintError, which `grad_input_gen` catches at line 268 and turns into `break` (line 286) — the gradient search aborts and returns None, so the caller silently falls back to random sampling for that model. (nnsmith/materialize/torch/sy..."
+  "summary": "When memory_budget < 1000: When free KV-cache blocks (free_blocks * block_size // 32) fall below 1000, the prefill token search space is switched from TOKEN_SEARCH_SPACE (up to 2552) to LOW_MEMORY_TOKEN_SEARCH_SPACE (128-512), capping the prefill size the slack-based search can return. (sarathi/core/scheduler/deadline_scheduler.py:120)"
+ },
+ {
+  "finding_id": "qoserve-F006",
+  "category": "undisclosed",
+  "priority": 2,
+  "effect": "path_change",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "sarathi/core/scheduler/deadline_scheduler.py:130",
+  "sides": "code",
+  "summary": "When min_slack <= 0: When the caller-supplied slack is non-positive, the binary search is skipped entirely and the function returns the smallest search-space entry (128) minus decode tokens, i.e. a fixed minimal prefill rather than a slack-derived size. (sarathi/core/scheduler/deadline_scheduler.py:130)"
+ },
+ {
+  "finding_id": "qoserve-F007",
+  "category": "undisclosed",
+  "priority": 2,
+  "effect": "path_change",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "sarathi/core/scheduler/deadline_scheduler.py:231",
+  "sides": "code",
+  "summary": "When seq.tier >= 1: For tier>=1 sequences the ttft_deadline is recomputed by subtracting predicted decode time (output_len_pred or num_decode_tokens times execution_threshold_batched); tier 0 sequences keep their original deadline. (sarathi/core/scheduler/deadline_scheduler.py:231)"
+ },
+ {
+  "finding_id": "qoserve-F008",
+  "category": "undisclosed",
+  "priority": 2,
+  "effect": "path_change",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "sarathi/core/scheduler/deadline_scheduler.py:233",
+  "sides": "code",
+  "summary": "When seq.num_decode_tokens == -1: Selects whether the decode-time estimate uses the global output_len_pred or the per-sequence num_decode_tokens when computing ttft_deadline. (sarathi/core/scheduler/deadline_scheduler.py:233)"
+ },
+ {
+  "finding_id": "qoserve-F009",
+  "category": "undisclosed",
+  "priority": 2,
+  "effect": "path_change",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "sarathi/core/scheduler/deadline_scheduler.py:276",
+  "sides": "code",
+  "summary": "When self.scheduler_type == 'deadline': Only when scheduler_type is 'deadline' is the dynamic chunk size computed via _get_prefill_size_by_slack; otherwise prefill_token_limit stays at chunk_size - num_batched_tokens. (sarathi/core/scheduler/deadline_scheduler.py:276)"
+ },
+ {
+  "finding_id": "qoserve-F010",
+  "category": "undisclosed",
+  "priority": 2,
+  "effect": "path_change",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "sarathi/core/scheduler/deadline_scheduler.py:300",
+  "sides": "code",
+  "summary": "When self.scheduler_type == 'deadline' or self.scheduler_type == 'deadline_no_dynamic_chunking': The eager-relegation deadline check (service_time_required vs ttft_deadline) only runs for these two scheduler types; other types skip the drop logic. (sarathi/core/scheduler/deadline_scheduler.py:300)"
  },
  {
   "finding_id": "flexprefill-F023",
@@ -999,6 +999,182 @@
   "where": "flex_prefill/ops/flex_prefill_attention.py:1222-1226",
   "sides": "code",
   "summary": "When not (block_size in {32, 64, 128}): 'only support block size in {32, 64, 128} if head_dim <= 128' (flex_prefill/ops/flex_prefill_attention.py:1222)"
+ },
+ {
+  "finding_id": "qoserve-F003",
+  "category": "docs_only",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "sarathi/core/datatypes/sequence.py:73",
+  "sides": "code+paper",
+  "summary": "When NUM_TIERS > 0: Each Sequence's QoS tier (and hence its deadline) is drawn at random from the global `random` module rather than from any caller-supplied SLA. The tier then drives `self.tier_deadline = TIER_DEADLINES[self.tier]` (line 74) and `_get_TBT_deadline`'s choice of `execution_threshold_batched` when `self.tier > 0` (lines 114-115), so the scheduling decision depends on the process-..."
+ },
+ {
+  "finding_id": "flexposit-F010",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "always",
+  "where": "hardware/README.md:3-9",
+  "sides": "paper",
+  "summary": "论文要求 4 PE 共享 1 个 FP16 累加器；RTL 为每 PE 独立块浮点累加器（ACC_MANW=12, GRS=3，非 FP16 格式），无时分复用。"
+ },
+ {
+  "finding_id": "flexposit-F011",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "no_condition",
+  "where": "hardware/README.md:3-9",
+  "sides": "paper",
+  "summary": "论文要求簇内 4 个 PE 各取一个不同 FP16 激活；RTL 中不同激活分布在不同行（每行一个），且激活为 FP8 而非 FP16。"
+ },
+ {
+  "finding_id": "flexposit-F012",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "always",
+  "where": "hardware/README.md:3-9",
+  "sides": "paper",
+  "summary": "论文要求 FP16 激活与全浮点域 MAC；RTL 激活为 FP8 且累加为块浮点整数尾数，非逐项浮点累加。"
+ },
+ {
+  "finding_id": "flexposit-F013",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "no_condition",
+  "where": "hardware/rtl/fp8_pe_mac_stream.v:395-423",
+  "sides": "paper",
+  "summary": "同 local_entry：cyc2 用符号位与未右移的 A"
+ },
+ {
+  "finding_id": "flexposit-F014",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "hardware/rtl/fp8_pe_mac_stream.v:452-490",
+  "sides": "paper",
+  "summary": "同 local_entry"
+ },
+ {
+  "finding_id": "flexposit-F015",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "no_condition",
+  "where": "hardware/rtl/posit_decode_and_queue.v:136-183",
+  "sides": "paper",
+  "summary": "同 local_entry：符号 FIFO 写入在 cyc1 而非 cyc0。"
+ },
+ {
+  "finding_id": "flexposit-F016",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "no_condition",
+  "where": "hardware/rtl/posit_decode_and_queue.v:218-281",
+  "sides": "paper",
+  "summary": "论文要求 cyc0 推入符号项；代码在 cyc1 写符号、cyc0 写零标志与 exp/man"
+ },
+ {
+  "finding_id": "flexposit-F017",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "hardware/rtl/posit_decode_and_queue.v:218-279",
+  "sides": "paper",
+  "summary": "同 local_entry：以固定位宽上限而非 cycP 终止尾数收集。"
+ },
+ {
+  "finding_id": "flexposit-F018",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "hardware/rtl/posit_decode_and_queue.v:339-384",
+  "sides": "paper",
+  "summary": "同 local_entry：RTL 分槽写入而非一起推入。"
+ },
+ {
+  "finding_id": "flexposit-F019",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "no_condition",
+  "where": "hardware/rtl/systolic_efficient.v:198-240",
+  "sides": "paper",
+  "summary": "论文的“轮流完成、无停顿”依赖共享累加器时分复用；RTL 无共享，且存在全局 stall 背压路径。"
+ },
+ {
+  "finding_id": "flexposit-F020",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "no_condition",
+  "where": "hardware/rtl/systolic_efficient.v:242-330",
+  "sides": "paper",
+  "summary": "论文要求簇内 4 个 PE 同周期共享同一解码权重项；RTL 中同列相邻 PE 收到同一权重项但相差 1 周期，且不存在“簇内 4 PE 同周期”结构。"
+ },
+ {
+  "finding_id": "flexposit-F021",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "no_condition",
+  "where": "hardware/rtl/systolic_efficient.v:411-512",
+  "sides": "paper",
+  "summary": "同 local_entry：写出受 out_ready 背压与一拍填充延迟约束，非无停顿。"
+ },
+ {
+  "finding_id": "flexposit-F022",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "always",
+  "where": "scripts/regen_sensitivity_ppl.sh:8-33",
+  "sides": "paper",
+  "summary": "同 local_entry：符号与 Algorithm 2 第6行相反。"
+ },
+ {
+  "finding_id": "flexposit-F023",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "always",
+  "where": "src/flexposit/export.py:105-141",
+  "sides": "paper",
+  "summary": "论文要求激活保持 FP16；硬件导出/仿真路径把激活转成 FP8 E4M3。"
+ },
+ {
+  "finding_id": "flexposit-F024",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/sensitivity/ppl_probe.py:72-75",
+  "sides": "paper",
+  "summary": "论文要求窗口为阵列列数整数倍；脚本默认256（16列整数倍）但模块默认64，且无对齐校验（E4,E5,E6）"
  },
  {
   "finding_id": "flexprefill-F030",
@@ -1149,7 +1325,7 @@
   "priority": 2,
   "effect": "other",
   "review": "unreviewed",
-  "witness": "trigger_only",
+  "witness": "solved",
   "where": "speedup/infinigen/infinigen/kv_selection_controller.py:28-63",
   "sides": "paper",
   "summary": "预取集合由 top-k(均值) 决定，而非严格 >max−alpha 的令牌集合"
@@ -1397,6 +1573,149 @@
   "summary": "论文要求每轮随机选一半；代码仅首轮随机，后续轮固定丢弃后半段"
  },
  {
+  "finding_id": "qoserve-F011",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "no_condition",
+  "where": "README.md:1-129",
+  "sides": "paper",
+  "summary": "实验脚本不自动下载数据集，需先手动 wget"
+ },
+ {
+  "finding_id": "qoserve-F012",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "always",
+  "where": "chunk_size_predictor/predictor.py:1-41",
+  "sides": "paper",
+  "summary": "论文要求训练随机森林；脚本导入并训练 LinearRegression，无 RandomForest/ensemble"
+ },
+ {
+  "finding_id": "qoserve-F013",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "always",
+  "where": "fig7.sh:76-106",
+  "sides": "paper",
+  "summary": "缺 §4.3/§4.4 执行路径"
+ },
+ {
+  "finding_id": "qoserve-F014",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "trigger_only",
+  "where": "fig7.sh:76-106",
+  "sides": "paper",
+  "summary": "缺 Qwen/70B 与 4 小时控制"
+ },
+ {
+  "finding_id": "qoserve-F015",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "paper_plot_scripts/fig7_cap.py:13-47",
+  "sides": "paper",
+  "summary": "Q1 的 TBT 违规未被度量"
+ },
+ {
+  "finding_id": "qoserve-F016",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "always",
+  "where": "paper_plot_scripts/fig_10_11.py:1-20",
+  "sides": "paper",
+  "summary": "图输出目录与论文声明的 paper_plots/ 不一致"
+ },
+ {
+  "finding_id": "qoserve-F017",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "always",
+  "where": "paper_plot_scripts/fig_10_11.py:19-37",
+  "sides": "paper",
+  "summary": "固定阈值替代数据 p90"
+ },
+ {
+  "finding_id": "qoserve-F018",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "always",
+  "where": "sarathi/config/config.py:284-311",
+  "sides": "paper",
+  "summary": "脚本层同样无按请求提交 QoS 字段的配置。"
+ },
+ {
+  "finding_id": "qoserve-F019",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "always",
+  "where": "sarathi/config/config.py:284-311",
+  "sides": "paper",
+  "summary": "脚本层无每请求优先级配置。"
+ },
+ {
+  "finding_id": "qoserve-F020",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "sarathi/core/datatypes/sequence.py:70-80",
+  "sides": "paper",
+  "summary": "实验路径同样没有独立的 D_total 完成截止。"
+ },
+ {
+  "finding_id": "qoserve-F021",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "sarathi/core/datatypes/sequence.py:88-109",
+  "sides": "paper",
+  "summary": "论文要求 α 同时乘 (Prefill_rem+Decode_rem)；代码把 decode 估计以固定系数 execution_threshold_batched 从期限中扣除，而非以 α 加权加入剩余工作项，且 α 不作用于 decode 项（artifact 范围：α·Decode_rem 项缺失，decode 以 execution_threshold_batched 线性扣减期限）"
+ },
+ {
+  "finding_id": "qoserve-F022",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "sarathi/core/scheduler/deadline_scheduler.py:296-333",
+  "sides": "paper",
+  "summary": "论文要求检查“已违反 或 将违反”TTFT/TTLT；代码仅做 TTFT 前瞻（now+service_time>deadline），且仅对 drop==0 且未分配内存的请求生效，无 TTLT 维度。（artifact 范围：仅 TTFT 前瞻，缺 TTLT 与显式“已违反”判定。）"
+ },
+ {
+  "finding_id": "qoserve-F023",
+  "category": "impl_deviates",
+  "priority": 2,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "sarathi/core/scheduler/deadline_scheduler.py:296-333",
+  "sides": "paper",
+  "summary": "论文要求移入独立 relegated 队列；代码仅设 drop 标志并放回原 prefill 队列，无 relegated 队列结构，且 drop 请求仍可被再次选中调度。（artifact 范围：。）"
+ },
+ {
   "finding_id": "sparta-F003",
   "category": "impl_deviates",
   "priority": 2,
@@ -1523,7 +1842,7 @@
   "priority": 2,
   "effect": "other",
   "review": "unreviewed",
-  "witness": "trigger_only",
+  "witness": "solved",
   "where": "script/figure14/search_finetune_fit_qat.py:571-664",
   "sides": "paper",
   "summary": "论文要求同时更新 S 与 Supdated；代码只更新全局位设置，无 Supdated 累积"
@@ -2090,17 +2409,6 @@
   "summary": "When q_len < self.max_capacity_prompt: When the prompt length is below max_capacity_prompt, update_kv returns the full key/value states unchanged, silently skipping the SnapKV compression (dense baseline) instead of applying the sparse selection. (minference/modules/snap_kv.py:321)"
  },
  {
-  "finding_id": "minference-F036",
-  "category": "undisclosed",
-  "priority": 2,
-  "effect": "path_change",
-  "review": "real_but_minor",
-  "witness": "solved",
-  "where": "minference/ops/block_sparse_flash_attention.py:130",
-  "sides": "code",
-  "summary": "When q.dtype != torch.bfloat16: The Triton kernel's compute dtype is chosen from the input dtype: bfloat16 inputs use tl.bfloat16, but any other dtype (e.g. float32 or float16) is silently forced to tl.float16, so the kernel runs a different precision path than the caller's tensor dtype. (minference/ops/block_sparse_flash_attention.py:130)"
- },
- {
   "finding_id": "minference-F037",
   "category": "undisclosed",
   "priority": 2,
@@ -2189,6 +2497,17 @@
   "summary": "When random.uniform(0, 1) < self.forward_prob: A caller-configured forward_prob attribute decides whether the node is inserted by forward insertion (try_forward_insert) or backward insertion (try_backward_insert), selecting between two different graph-construction algorithms. (nnsmith/graph_gen.py:556)"
  },
  {
+  "finding_id": "minference-F007",
+  "category": "undisclosed",
+  "priority": 3,
+  "effect": "other",
+  "review": "worth_testing",
+  "witness": "solved",
+  "where": "minference/modules/minference_forward.py:504",
+  "sides": "code",
+  "summary": "When self.is_search and os.path.exists(self.config_path) and self.layer_idx < len(config_list): With `is_search` enabled, if the output `config_path` already contains an entry for this layer, the forward pass hits a bare `assert False` and aborts — the search cannot be re-run into an existing file. Also, when `is_search` is true the sparse mechanism is never applied (`not self.is_search` in the..."
+ },
+ {
   "finding_id": "minference-F059",
   "category": "undisclosed",
   "priority": 3,
@@ -2209,6 +2528,160 @@
   "where": "minference/modules/minference_forward.py:430",
   "sides": "code",
   "summary": "When head_id not in self.best_pattern: When the per-layer pattern file (`config_path`) is missing, unreadable, or has fewer entries than `self.layer_idx`, `init_minference_parameters` sets `self.best_pattern = {}` and every head silently falls back to the hard-coded tuple `(\"vertical_and_slash\", 1000, 6096, 1)` — i.e. vertical=1000, slash=6096 regardless of the actual head. The `ty` element is ..."
+ },
+ {
+  "finding_id": "nnsmith-F007",
+  "category": "undisclosed",
+  "priority": 3,
+  "effect": "other",
+  "review": "worth_testing",
+  "witness": "solved",
+  "where": "nnsmith/materialize/torch/symbolnet.py:385",
+  "sides": "code",
+  "summary": "When loss_fn.dispatch(type(op)) is not None: If an op produces NaN/Inf but has no registered loss function, ConstraintCheck.true at line 403 fails with 'op=... has no torch_loss but produces NaN or INF!', aborting the search. (nnsmith/materialize/torch/symbolnet.py:385)"
+ },
+ {
+  "finding_id": "flexposit-F025",
+  "category": "undisclosed",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/api.py:149",
+  "sides": "code",
+  "summary": "When r[0] not in valid_layers: Sensitivity rows for layers not present in the model are silently dropped, so the upgrade budget is computed only over matching layers. (src/flexposit/api.py:149)"
+ },
+ {
+  "finding_id": "flexposit-F026",
+  "category": "undisclosed",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/api.py:153",
+  "sides": "code",
+  "summary": "When span == 0: If upgrade_nsize equals base_nsize (span zero), the upgrade fraction silently becomes 0.0 instead of erroring, so no windows are upgraded. (src/flexposit/api.py:153)"
+ },
+ {
+  "finding_id": "flexposit-F030",
+  "category": "undisclosed",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/core.py:37",
+  "sides": "code",
+  "summary": "When all(int(e) > max_es for e in cands): If every caller-supplied es candidate exceeds nsize-1, the list is empty and the code silently falls back to es=0 instead of rejecting the configuration, so the requested es search is not performed. (src/flexposit/core.py:37)"
+ },
+ {
+  "finding_id": "flexposit-F033",
+  "category": "undisclosed",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/mpq/channel_window.py:136",
+  "sides": "code",
+  "summary": "When all(e > max_es for e in es_cands): If every caller-supplied es candidate exceeds nsize-1, the search silently falls back to es=0 instead of rejecting or reporting; the requested es_cands are ignored and a different (simpler) exponent-size variant is quantized. (src/flexposit/mpq/channel_window.py:136)"
+ },
+ {
+  "finding_id": "flexposit-F034",
+  "category": "undisclosed",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/mpq/channel_window.py:161",
+  "sides": "code",
+  "summary": "When start >= end: A window whose clamped start is not less than its end returns the weight unchanged, so an out-of-range or empty caller window is silently a no-op. (src/flexposit/mpq/channel_window.py:161)"
+ },
+ {
+  "finding_id": "flexposit-F035",
+  "category": "undisclosed",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/mpq/channel_window.py:205",
+  "sides": "code",
+  "summary": "When not (is_quant_linear(mod) and hasattr(mod, \"weight\") and mod.weight is not None and mod.weight.dim() == 2): Modules in the window list that are not recognized quantizable 2D linear layers are skipped, so caller-specified windows on other module types are ignored. (src/flexposit/mpq/channel_window.py:205)"
+ },
+ {
+  "finding_id": "flexposit-F036",
+  "category": "undisclosed",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/mpq/channel_window.py:208",
+  "sides": "code",
+  "summary": "When key not in ref_sd: A layer named in the sensitivity windows but absent from the FP32 reference state dict is skipped (with a warning), so the requested window quantization is not applied to that layer. (src/flexposit/mpq/channel_window.py:208)"
+ },
+ {
+  "finding_id": "flexposit-F037",
+  "category": "undisclosed",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/mpq/channel_window.py:256",
+  "sides": "code",
+  "summary": "When dp >= 0.0 and not allow_positive: When allow_positive is False, windows with non-negative delta_ppl are filtered out of the candidate set, so the caller's allow_positive_to_meet_budget setting changes which windows the mechanism considers. (src/flexposit/mpq/channel_window.py:256)"
+ },
+ {
+  "finding_id": "flexprefill-F004",
+  "category": "undisclosed",
+  "priority": 3,
+  "effect": "reject",
+  "review": "unreviewed",
+  "witness": "infeasible",
+  "where": "flex_prefill/ops/flex_prefill_attention.py:865",
+  "sides": "code",
+  "summary": "When not (q_len == 1): AssertionError (flex_prefill/ops/flex_prefill_attention.py:865)"
+ },
+ {
+  "finding_id": "flexprefill-F005",
+  "category": "undisclosed",
+  "priority": 3,
+  "effect": "reject",
+  "review": "unreviewed",
+  "witness": "infeasible",
+  "where": "flex_prefill/ops/flex_prefill_attention.py:1219",
+  "sides": "code",
+  "summary": "When not (q_len == k_len): AssertionError (flex_prefill/ops/flex_prefill_attention.py:1219)"
+ },
+ {
+  "finding_id": "flexprefill-F010",
+  "category": "undisclosed",
+  "priority": 3,
+  "effect": "reject",
+  "review": "unreviewed",
+  "witness": "infeasible",
+  "where": "flex_prefill/ops/flex_prefill_attention.py:1450",
+  "sides": "code",
+  "summary": "When not (d in {16, 32, 64, 128}): AssertionError (flex_prefill/ops/flex_prefill_attention.py:1450)"
+ },
+ {
+  "finding_id": "flexprefill-F011",
+  "category": "undisclosed",
+  "priority": 3,
+  "effect": "reject",
+  "review": "unreviewed",
+  "witness": "infeasible",
+  "where": "flex_prefill/ops/flex_prefill_attention.py:1451",
+  "sides": "code",
+  "summary": "When not (kernel_size in {16, 32, 64, 128, 256, 512}): AssertionError (flex_prefill/ops/flex_prefill_attention.py:1451)"
+ },
+ {
+  "finding_id": "flexprefill-F025",
+  "category": "undisclosed",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "flex_prefill/ops/flex_prefill_attention.py:1727",
+  "sides": "code",
+  "summary": "When kl_div < tau: per-element branch stored in block_sparse_mask (flex_prefill/ops/flex_prefill_attention.py:1727)"
  },
  {
   "finding_id": "flexprefill-F040",
@@ -2321,6 +2794,39 @@
   "summary": "When not (dst.device.device_type != DeviceType.MIXED): AssertionError (speedup/flexgen/infinigen/pytorch_backend.py:837)"
  },
  {
+  "finding_id": "minference-F005",
+  "category": "undisclosed",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "minference/modules/minference_forward.py:441",
+  "sides": "code",
+  "summary": "When ty not in {\"stream_llm\", \"vertical_and_slash\", \"block_sparse\"}: The implementation is chosen by the `ty` string read from the user-supplied pattern JSON (`config_path`). Any other value in that file (e.g. a typo, or a pattern produced by a different search version) raises an uncaught `KeyError` at prefill time rather than falling back. (minference/modules/minference_forward.py:441)"
+ },
+ {
+  "finding_id": "minference-F009",
+  "category": "undisclosed",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "minference/modules/minference_forward.py:754",
+  "sides": "code",
+  "summary": "When head_id not in self.best_pattern: The vLLM variant indexes `self.best_pattern[head_id]` directly (unlike the HF variant's `.get(..., default)`), so a pattern file whose per-layer dict lacks an entry for some head raises `KeyError` during prefill. `self.best_pattern` is rebuilt from the caller-supplied `pattern_config[layer_idx]` on every forward (line 790), so a short/mismatched pattern fi..."
+ },
+ {
+  "finding_id": "minference-F018",
+  "category": "undisclosed",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "minference/patch.py:1252",
+  "sides": "code",
+  "summary": "When not isinstance(model, (LlamaForCausalLM, MistralForCausalLM, Qwen2ForCausalLM)) and model.__class__.__name__ not in {\"MiniCPMForCausalLM\", \"Phi3ForCausalLM\", \"ChatGLMForConditionalGeneration\"}: `patch_hf` dispatches on the concrete model class and raises `ValueError(\"Only supports llama, mistral and qwen2 models.\")` for anything else, so the mechanism cannot be applied to other architectur..."
+ },
+ {
   "finding_id": "minference-F061",
   "category": "undisclosed",
   "priority": 3,
@@ -2354,6 +2860,116 @@
   "summary": "When q.dtype != torch.bfloat16: Any query dtype other than bfloat16 (float32, float64, float16 is fine) is silently treated as float16 in the Triton kernel, so a float32 model runs the sparse kernel in half precision without any check or cast of the inputs. (minference/ops/pit_sparse_flash_attention.py:150)"
  },
  {
+  "finding_id": "nnsmith-F002",
+  "category": "undisclosed",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "nnsmith/abstract/op.py:2083",
+  "sides": "code",
+  "summary": "When not check_sat(): If the requested output rank cannot be satisfied by the rank-increment loop (e.g. out_abs_tensor ndims inconsistent with the max reachable rank), the loop never terminates, effectively rejecting/hanging on that output shape. (nnsmith/abstract/op.py:2083)"
+ },
+ {
+  "finding_id": "nnsmith-F008",
+  "category": "undisclosed",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "nnsmith/materialize/torch/symbolnet.py:421",
+  "sides": "code",
+  "summary": "When self.loss is not None: If two vulnerable ops both produce NaN/Inf in the same forward pass, the second one trips this check and raises ConstraintError, which aborts the gradient search (caught in grad_input_gen, line 268 -> break) instead of optimising for either loss. (nnsmith/materialize/torch/symbolnet.py:421)"
+ },
+ {
+  "finding_id": "nnsmith-F013",
+  "category": "undisclosed",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "nnsmith/abstract/op.py:1552",
+  "sides": "code",
+  "summary": "When gres_config != \"4\": The environment variable NNSMITH_GRES selects the reshape grouping strategy: \"5\" = one group (flatten), \"3\" = min(src_len, dst_len) groups, \"4\" (default) = random number of groups weighted by 2**i. Any other value raises ValueError, rejecting the model. The chosen grouping changes the generated reshape constraints and hence the accepted graphs. (nnsmith/abstract/op.py:1..."
+ },
+ {
+  "finding_id": "nnsmith-F023",
+  "category": "undisclosed",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "nnsmith/materialize/torch/input_gen.py:98",
+  "sides": "code",
+  "summary": "When self.differentiable is False: The variant is decided by a single probe forward pass on random inputs: `self.net.differentiable` is set by SymbolNet.forward (it becomes False as soon as any op is non-differentiable or a numeric check fails). If that one random probe happens to hit a non-differentiable path, `search_one` (line 107) silently falls back to `SamplingSearch.search_one` for all s..."
+ },
+ {
+  "finding_id": "nnsmith-F026",
+  "category": "undisclosed",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "nnsmith/materialize/torch/symbolnet.py:358",
+  "sides": "code",
+  "summary": "When output_tensors[i].grad_fn is None: `differentiable` is reset to True at the start of every forward (line 313) and AND-ed with each op output's grad_fn. PracticalHybridSearch.__init__ reads this flag after one probe forward, so a single non-differentiable op (or a non-float input) permanently disables the gradient search for the whole model. (nnsmith/materialize/torch/symbolnet.py:358)"
+ },
+ {
+  "finding_id": "nnsmith-F027",
+  "category": "undisclosed",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "nnsmith/materialize/torch/symbolnet.py:403",
+  "sides": "code",
+  "summary": "When vul_op_loss is None: When an op produces NaN/Inf but has no registered loss function (`loss_fn.dispatch(type(op)) is None`), the constraint check raises ConstraintError, which `grad_input_gen` catches at line 268 and turns into `break` (line 286) — the gradient search aborts and returns None, so the caller silently falls back to random sampling for that model. (nnsmith/materialize/torch/sy..."
+ },
+ {
+  "finding_id": "qoserve-F024",
+  "category": "undisclosed",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "sarathi/core/datatypes/sequence.py:80",
+  "sides": "code",
+  "summary": "When self.scheduler_type == 'fcfs': `Sequence.__lt__` dispatches on this per-object attribute: 'fcfs' orders by arrival_time, 'edf' by ttft_deadline+arrival_time, 'srpf' by remaining prompt tokens, and anything else falls through to the hybrid-prioritization deadline. The attribute is hard-coded to 'fcfs' in the constructor, so unless some other code overwrites it after construction, the priori..."
+ },
+ {
+  "finding_id": "qoserve-F025",
+  "category": "undisclosed",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "sarathi/core/scheduler/deadline_scheduler.py:92",
+  "sides": "code",
+  "summary": "When batch_num_tokens <= 512: The execution-time predictor switches between two hard-coded stratified linear models at a 512-token boundary, so the prefill size chosen by slack depends on which hard-coded coefficient set applies. (sarathi/core/scheduler/deadline_scheduler.py:92)"
+ },
+ {
+  "finding_id": "qoserve-F026",
+  "category": "undisclosed",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "sarathi/core/scheduler/deadline_scheduler.py:211",
+  "sides": "code",
+  "summary": "When not self._check_request_prompt_length(seq): Requests whose prompt length fails the check are added to ignored_seq_ids and skipped (the RuntimeError is not raised, so the loop continues). (sarathi/core/scheduler/deadline_scheduler.py:211)"
+ },
+ {
+  "finding_id": "qoserve-F027",
+  "category": "undisclosed",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "sarathi/core/scheduler/deadline_scheduler.py:305",
+  "sides": "code",
+  "summary": "When (seq.drop == 0) and (seq.mem_allocated == False) and ((now + service_time_required) > (seq.arrival_time + seq.ttft_deadline)): A not-yet-dropped, unallocated sequence whose estimated prefill service time would miss its ttft_deadline is dropped (drop incremented) and re-pushed to the prefill queue, skipping it this iteration. (sarathi/core/scheduler/deadline_scheduler.py:305)"
+ },
+ {
   "finding_id": "flexprefill-F041",
   "category": "stated_differently",
   "priority": 3,
@@ -2363,6 +2979,61 @@
   "where": "flex_prefill/ops/flex_prefill_attention.py:868",
   "sides": "code",
   "summary": "When not (q.dtype == torch.bfloat16): AssertionError (flex_prefill/ops/flex_prefill_attention.py:868)"
+ },
+ {
+  "finding_id": "flexposit-F027",
+  "category": "docs_only",
+  "priority": 3,
+  "effect": "path_change",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/api.py:181",
+  "sides": "code",
+  "summary": "When config.bits > config.base_nsize: When bits exceeds base_nsize the code requires a sensitivity ranking and runs the window-upgrade planning path; otherwise no windows are upgraded and all channels stay at base_nsize. (src/flexposit/api.py:181)"
+ },
+ {
+  "finding_id": "flexposit-F028",
+  "category": "docs_only",
+  "priority": 3,
+  "effect": "reject",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/api.py:183-186",
+  "sides": "code",
+  "summary": "When True: raise ValueError(f\"bits={config.bits} needs a sensitivity ranking to decide which channel windows get Posit{config.upgra (src/flexposit/api.py:183)"
+ },
+ {
+  "finding_id": "flexposit-F029",
+  "category": "docs_only",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/core.py:35",
+  "sides": "code",
+  "summary": "When isinstance(es, int): A scalar es disables the per-channel es search (single candidate), while a sequence enables searching es per channel; the caller's type choice changes which algorithm runs. (src/flexposit/core.py:35)"
+ },
+ {
+  "finding_id": "flexposit-F031",
+  "category": "docs_only",
+  "priority": 3,
+  "effect": "reject",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/export.py:131",
+  "sides": "code",
+  "summary": "When len(sizes) != 1: export_tile raises ValueError when the selected output channels span more than one Posit size (nsize), so a tile cannot mix channel windows; the caller must pick columns inside a single window. (src/flexposit/export.py:131)"
+ },
+ {
+  "finding_id": "flexposit-F032",
+  "category": "docs_only",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "src/flexposit/formats.py:29",
+  "sides": "code",
+  "summary": "When _BACKEND == \"qtorch\": Module-level env var read at import time selects the posit/float quantizer implementation. posit_quantize (line 157-159) and float_quantize (line 170-172) then delegate to qtorch_plus instead of the pure-PyTorch `_posit_quantize_torch`/`_float_quantize_torch` used by core.search_channels, so the whole FlexPosit numerical core runs a different implementation depending ..."
  },
  {
   "finding_id": "flexprefill-F043",
@@ -2407,6 +3078,61 @@
   "where": "flex_prefill/ops/flex_prefill_attention.py:1838",
   "sides": "code",
   "summary": "When not (block_size in {16, 32, 64, 128}): AssertionError (flex_prefill/ops/flex_prefill_attention.py:1838)"
+ },
+ {
+  "finding_id": "qoserve-F038",
+  "category": "impl_deviates",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "infeasible",
+  "where": "fig8.sh:37-69",
+  "sides": "paper",
+  "summary": "论文称固定 QPS 采用 8 ms/token；artifact 固定 QPS 运行脚本使用 16 ms/token，与论文所选值不符。"
+ },
+ {
+  "finding_id": "flexposit-F038",
+  "category": "not_implemented",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "always",
+  "where": "hardware/rtl/fp8_pe_mac_stream.v:497-621",
+  "sides": "paper",
+  "summary": "论文要求 4 并行 MAC/权重项；RTL 为单 PE 串行位乘。"
+ },
+ {
+  "finding_id": "flexposit-F039",
+  "category": "not_implemented",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "hardware/rtl/systolic_efficient.v:198-240",
+  "sides": "paper",
+  "summary": "论文的 4/P 依赖 4-PE 簇并行；RTL 每 PE 为 1/P，簇级 4/P 未被实现。"
+ },
+ {
+  "finding_id": "flexposit-F040",
+  "category": "not_implemented",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "always",
+  "where": "scripts/regen_sensitivity_ppl.sh:8-33",
+  "sides": "paper",
+  "summary": "剖析实验路径未产出论文要求的降序排序敏感度图。"
+ },
+ {
+  "finding_id": "flexposit-F041",
+  "category": "not_implemented",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "always",
+  "where": "src/flexposit/sensitivity/ppl_probe.py:72-75",
+  "sides": "paper",
+  "summary": "论文要求 Qwen 1024；脚本与模块均无 Qwen→1024 规则（E4,E5,E6）"
  },
  {
   "finding_id": "flexprefill-F056",
@@ -2579,7 +3305,7 @@
   "priority": 3,
   "effect": "other",
   "review": "unreviewed",
-  "witness": "trigger_only",
+  "witness": "solved",
   "where": "minference/modules/minference_forward.py:99-197",
   "sides": "paper",
   "summary": "论文要求每候选计算真实 kernel FLOPs；代码不计算任何 FLOPs"
@@ -2627,6 +3353,248 @@
   "where": "minference/modules/minference_forward.py:199-246",
   "sides": "paper",
   "summary": "论文要求分别定义 t_sparse 与 t_overhead；artifact 路径无对应实现。"
+ },
+ {
+  "finding_id": "qoserve-F028",
+  "category": "not_implemented",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "always",
+  "where": "chunk_size_predictor/predictor.py:1-41",
+  "sides": "paper",
+  "summary": "论文要求用 Vidur 暴露的 harness 采集剖面；pinned 仓库中不存在该采集实现"
+ },
+ {
+  "finding_id": "qoserve-F029",
+  "category": "not_implemented",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "always",
+  "where": "fig10_11.sh:103-129",
+  "sides": "paper",
+  "summary": "偏斜工作负载未实现"
+ },
+ {
+  "finding_id": "qoserve-F030",
+  "category": "not_implemented",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "always",
+  "where": "fig7.sh:76-106",
+  "sides": "paper",
+  "summary": "未实现按 QoS 桶独立集群的 silo 部署"
+ },
+ {
+  "finding_id": "qoserve-F031",
+  "category": "not_implemented",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "always",
+  "where": "fig7.sh:76-106",
+  "sides": "paper",
+  "summary": "silo 基线整体缺失，无按桶 chunk 配置"
+ },
+ {
+  "finding_id": "qoserve-F032",
+  "category": "not_implemented",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "no_condition",
+  "where": "fig7.sh:76-106",
+  "sides": "paper",
+  "summary": "集群规模实验缺失"
+ },
+ {
+  "finding_id": "qoserve-F033",
+  "category": "not_implemented",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "always",
+  "where": "fig7.sh:76-106",
+  "sides": "paper",
+  "summary": "瞬态过载工作负载未实现"
+ },
+ {
+  "finding_id": "qoserve-F034",
+  "category": "not_implemented",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "always",
+  "where": "fig7.sh:76-106",
+  "sides": "paper",
+  "summary": "无峰谷比构造"
+ },
+ {
+  "finding_id": "qoserve-F035",
+  "category": "not_implemented",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "no_condition",
+  "where": "fig7.sh:76-106",
+  "sides": "paper",
+  "summary": "集群规模实验缺失"
+ },
+ {
+  "finding_id": "qoserve-F036",
+  "category": "not_implemented",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "no_condition",
+  "where": "fig7.sh:76-106",
+  "sides": "paper",
+  "summary": "替代分配实验缺失"
+ },
+ {
+  "finding_id": "qoserve-F037",
+  "category": "not_implemented",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "always",
+  "where": "fig8.sh:37-69",
+  "sides": "paper",
+  "summary": "论文要求固定 QPS 下离线扫描 α 0–10；artifact 脚本对 α 只给单一常量 0.016，未遍历 0–10 的 α 网格。"
+ },
+ {
+  "finding_id": "qoserve-F039",
+  "category": "not_implemented",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "always",
+  "where": "fig8.sh:37-69",
+  "sides": "paper",
+  "summary": "论文要求低负载 α=1 ms/token；artifact 无该取值或负载分段。"
+ },
+ {
+  "finding_id": "qoserve-F040",
+  "category": "not_implemented",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "always",
+  "where": "fig8.sh:37-69",
+  "sides": "paper",
+  "summary": "组件消融未实现"
+ },
+ {
+  "finding_id": "qoserve-F041",
+  "category": "not_implemented",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "always",
+  "where": "fig8.sh:37-69",
+  "sides": "paper",
+  "summary": "消融表汇总未实现"
+ },
+ {
+  "finding_id": "qoserve-F042",
+  "category": "not_implemented",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "always",
+  "where": "fig8.sh:37-69",
+  "sides": "paper",
+  "summary": "alpha 敏感性实验未实现"
+ },
+ {
+  "finding_id": "qoserve-F043",
+  "category": "not_implemented",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "always",
+  "where": "paper_plot_scripts/fig_10_11.py:19-37",
+  "sides": "paper",
+  "summary": "优先级标注未实现"
+ },
+ {
+  "finding_id": "qoserve-F044",
+  "category": "not_implemented",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "always",
+  "where": "run_exp.sh:1-27",
+  "sides": "paper",
+  "summary": "未实现多副本 round-robin 分发"
+ },
+ {
+  "finding_id": "qoserve-F045",
+  "category": "not_implemented",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "always",
+  "where": "sarathi/config/config.py:284-311",
+  "sides": "paper",
+  "summary": "脚本层同样无按应用解码历史。"
+ },
+ {
+  "finding_id": "qoserve-F046",
+  "category": "not_implemented",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "sarathi/core/scheduler/deadline_scheduler.py:184-354",
+  "sides": "paper",
+  "summary": "论文要求优先级驱动的抢占；对齐 artifact 调度路径不执行抢占。"
+ },
+ {
+  "finding_id": "qoserve-F047",
+  "category": "not_implemented",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "sarathi/core/scheduler/deadline_scheduler.py:184-354",
+  "sides": "paper",
+  "summary": "缺少 prefill 队列抢占资格判定。"
+ },
+ {
+  "finding_id": "qoserve-F048",
+  "category": "not_implemented",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "sarathi/core/scheduler/deadline_scheduler.py:184-354",
+  "sides": "paper",
+  "summary": "论文所述避免队头阻塞的抢占手段在 DeadlineScheduler 中不存在。（artifact 范围：。）"
+ },
+ {
+  "finding_id": "qoserve-F049",
+  "category": "not_implemented",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "no_condition",
+  "where": "sarathi/core/scheduler/deadline_scheduler.py:296-333",
+  "sides": "paper",
+  "summary": "论文要求按优先级抢占已部分 prefill 的在途请求；代码无任何抢占触发或调用，仅通过堆排序选择未开始的请求"
+ },
+ {
+  "finding_id": "qoserve-F050",
+  "category": "not_implemented",
+  "priority": 3,
+  "effect": "other",
+  "review": "unreviewed",
+  "witness": "solved",
+  "where": "sarathi/core/scheduler/deadline_scheduler.py:296-333",
+  "sides": "paper",
+  "summary": "论文要求按优先级分层、低优先级耗尽后才降级高优先级；代码对所有请求一视同仁按截止时间降级，无分层门控。（artifact 范围：。）"
  },
  {
   "finding_id": "sparta-F051",
@@ -2810,7 +3778,7 @@
   "priority": 3,
   "effect": "other",
   "review": "unreviewed",
-  "witness": "trigger_only",
+  "witness": "solved",
   "where": "sparta/core/sparta.py:16-24",
   "sides": "paper",
   "summary": "论文要求对每个 (sub)operator 执行量化特化；artifact 链中特化调用被注释、重建为直通，未执行任何循环级特化。"
@@ -2981,6 +3949,28 @@
   "summary": "论文要求过稀疏时枚举所有块大小组合并选最优；代码无枚举、无最优选择、无触发条件"
  },
  {
+  "finding_id": "minference-F002",
+  "category": "undisclosed",
+  "priority": 3,
+  "effect": "other",
+  "review": "real_but_minor",
+  "witness": "solved",
+  "where": "minference/modules/minference_forward.py:30",
+  "sides": "code",
+  "summary": "When ROPE_TYPE is not None: `ROPE_TYPE` is a module-level global computed once from the *first* attention module's `rotary_emb.forward` signature and then reused for every model/layer in the process (`if ROPE_TYPE is not None: return`). Loading a second model with a different RoPE signature in the same process keeps the first model's convention, and `get_cos_sin` then calls `self.rotary_emb` wi..."
+ },
+ {
+  "finding_id": "minference-F036",
+  "category": "undisclosed",
+  "priority": 3,
+  "effect": "other",
+  "review": "real_but_minor",
+  "witness": "solved",
+  "where": "minference/ops/block_sparse_flash_attention.py:130",
+  "sides": "code",
+  "summary": "When q.dtype != torch.bfloat16: The Triton kernel's compute dtype is chosen from the input dtype: bfloat16 inputs use tl.bfloat16, but any other dtype (e.g. float32 or float16) is silently forced to tl.float16, so the kernel runs a different precision path than the caller's tensor dtype. (minference/ops/block_sparse_flash_attention.py:130)"
+ },
+ {
   "finding_id": "minference-F057",
   "category": "undisclosed",
   "priority": 3,
@@ -3001,6 +3991,17 @@
   "where": "minference/ops/block_sparse_flash_attention.py:164",
   "sides": "code",
   "summary": "When top_k > context_size // block_size_N: The requested `top_k` (derived from the searched `slash_size`/`vertical_size` in `block_sparse_kernel`) is silently clamped to `context_size // block_size_N`, so for short sequences the block-sparse pattern is denser/different than the searched budget; also `_build_block_index` is called with `block_size_N` for both the M and N block sizes (line 183), ..."
+ },
+ {
+  "finding_id": "nnsmith-F005",
+  "category": "undisclosed",
+  "priority": 3,
+  "effect": "other",
+  "review": "real_but_minor",
+  "witness": "solved",
+  "where": "nnsmith/graph_gen.py:524",
+  "sides": "code",
+  "summary": "When isinstance(op, Expand) and oshape.ndims < op.expand_last_dim: Placeholder shapes with fewer dims than the Expand op's expand_last_dim are skipped as backward-insertion candidates, excluding them from consideration. (nnsmith/graph_gen.py:524)"
  },
  {
   "finding_id": "sparta-F050",
@@ -3039,7 +4040,7 @@
   "finding_id": "flexprefill-F047",
   "category": "undisclosed",
   "priority": 3,
-  "effect": "reject",
+  "effect": "other",
   "review": "wrong",
   "witness": "solved",
   "where": "flex_prefill/ops/flex_prefill_attention.py:1221",
@@ -3094,7 +4095,7 @@
   "finding_id": "nnsmith-F031",
   "category": "undisclosed",
   "priority": 3,
-  "effect": "path_change",
+  "effect": "other",
   "review": "wrong",
   "witness": "solved",
   "where": "nnsmith/graph_gen.py:190",
@@ -3116,7 +4117,7 @@
   "finding_id": "nnsmith-F033",
   "category": "undisclosed",
   "priority": 3,
-  "effect": "path_change",
+  "effect": "other",
   "review": "wrong",
   "witness": "solved",
   "where": "nnsmith/graph_gen.py:984",

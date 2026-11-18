@@ -1,0 +1,160 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "flexposit-F016",
+ "artifact_id": "flexposit",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "论文要求 cyc0 推入符号项；代码在 cyc1 写符号、cyc0 写零标志与 exp/man",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "no_condition",
+  "location": "hardware/rtl/posit_decode_and_queue.v:218-281",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "markers. Atcyc0, it enters theSIGNstate and pushes the sign term into the FIFO. Atcyc1, it transitions to theREGIME",
+    "source": "paper",
+    "locator": "PDF p.8, text lines 113-114"
+   }
+  ],
+  "code": [
+   {
+    "file": "hardware/rtl/posit_decode_and_queue.v",
+    "line_start": 218,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "hardware/rtl/posit_decode_and_queue.v",
+    "line_start": 136,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "hardware/rtl/posit_decode_and_queue.v",
+    "line_start": 339,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/flexposit/limitations_for_tests.json",
+  "findings_sha256": "90fcaf23c2793dc03b49c54856e041483165536eff1522a25766022460b78f23",
+  "generated_at": "2026-11-17T15:05:22+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The paper says the sign term is pushed into the FIFO at cycle0. The code instead selects sign_pack for FIFO input on cycle1 and zero_pack on cycle0, and the write logic stores data_in0 on cycle1 while cycle0 stores exponent/fraction data. This directly matches the claimed deviation: sign is written at cycle1, not cycle0.",
+  "hardware_needed": false,
+  "would_confirm": "Inspect or simulate the FIFO write-enable/data mapping to verify sign_pack is enqueued on cycle1 and zero_pack on cycle0.",
+  "static": {
+   "cited": 3,
+   "grounded": true,
+   "items": [
+    {
+     "file": "hardware/rtl/posit_decode_and_queue.v",
+     "lines": "218-281",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "rtl"
+    },
+    {
+     "file": "hardware/rtl/posit_decode_and_queue.v",
+     "lines": "136-183",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "rtl"
+    },
+    {
+     "file": "hardware/rtl/posit_decode_and_queue.v",
+     "lines": "339-384",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "rtl"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "hardware/rtl/posit_decode_and_queue.v",
+    "regex": "cycle1\\s*\\?\\s*sign_pack",
+    "expect": "present",
+    "meaning": "Shows FIFO input selects sign on cycle1, not cycle0.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     140
+    ]
+   },
+   {
+    "file": "hardware/rtl/posit_decode_and_queue.v",
+    "regex": "cycle0\\s*\\?\\s*zero_pack",
+    "expect": "present",
+    "meaning": "Shows cycle0 FIFO input is zero flag, not sign.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     141
+    ]
+   },
+   {
+    "file": "hardware/rtl/posit_decode_and_queue.v",
+    "regex": "if\\s*\\(cycle1\\s*&\\s*valid\\)",
+    "expect": "present",
+    "meaning": "Confirms sign data_in0 is written during cycle1.",
+    "status": "confirmed",
+    "hits": 2,
+    "hit_lines": [
+     344,
+     380
+    ]
+   },
+   {
+    "file": "hardware/rtl/posit_decode_and_queue.v",
+    "regex": "else if\\s*\\(cycle0\\s*&\\s*re\\)",
+    "expect": "present",
+    "meaning": "Confirms cycle0 writes exponent/fraction, not sign.",
+    "status": "confirmed",
+    "hits": 2,
+    "hit_lines": [
+     347,
+     382
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

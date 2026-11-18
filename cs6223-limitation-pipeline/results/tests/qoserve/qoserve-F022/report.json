@@ -1,0 +1,134 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "qoserve-F022",
+ "artifact_id": "qoserve",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "论文要求检查“已违反 或 将违反”TTFT/TTLT；代码仅做 TTFT 前瞻（now+service_time>deadline），且仅对 drop==0 且未分配内存的请求生效，无 TTLT 维度。（artifact 范围：仅 TTFT 前瞻，缺 TTLT 与显式“已违反”判定。）",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "sarathi/core/scheduler/deadline_scheduler.py:296-333",
+  "function": null,
+  "condition": "self.scheduler_type == 'deadline' or self.scheduler_type == 'deadline_no_dynamic_chunking'"
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "The violation checker module validates that the chosen request has not already violated (or will not violate) its QoS targets in the current iteration",
+    "source": "paper",
+    "locator": "PDF p.4"
+   }
+  ],
+  "code": [
+   {
+    "file": "sarathi/core/scheduler/deadline_scheduler.py",
+    "line_start": 296,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "sarathi/core/datatypes/sequence.py",
+    "line_start": 61,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/qoserve/limitations_for_tests.json",
+  "findings_sha256": "79eb69f6ac7117b77ebe00293d1d328dff8bfffcd7cabc7556eaae435c1699e2",
+  "generated_at": "2026-11-18T00:46:02+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A0",
+  "tier_note": "the reading and the probes disagree",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The shown scheduler code checks only TTFT via now + service_time_required > arrival_time + ttft_deadline, and only when drop == 0 and mem_allocated == False. No TTLT deadline or explicit already-violated check appears. The sequence fields include ttft_deadline but no TTLT field. This matches the finding that the artifact implements only TTFT lookahead and lacks TTLT and explicit already-violated validation.",
+  "hardware_needed": false,
+  "would_confirm": "A unit test constructing a request with a TTLT deadline and checking whether the scheduler validates or drops it would settle whether TTLT is enforced.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "sarathi/core/scheduler/deadline_scheduler.py",
+     "lines": "296-333",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "sarathi/core/datatypes/sequence.py",
+     "lines": "61-80",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "sarathi/core/scheduler/deadline_scheduler.py",
+    "regex": "(?i)ttlt|ttl_deadline|ttl_target",
+    "expect": "absent",
+    "meaning": "No TTLT check in scheduler; TTFT deadline is present.",
+    "status": "refuted",
+    "hits": 1,
+    "control": "ttft_deadline",
+    "hit_lines": [
+     230
+    ]
+   },
+   {
+    "file": "sarathi/core/datatypes/sequence.py",
+    "regex": "(?i)ttlt|ttl_deadline|ttl_target",
+    "expect": "absent",
+    "meaning": "Sequence has TTFT deadline but no TTLT field.",
+    "status": "refuted",
+    "hits": 1,
+    "control": "ttft_deadline",
+    "hit_lines": [
+     77
+    ]
+   },
+   {
+    "file": "sarathi/core/scheduler/deadline_scheduler.py",
+    "regex": "already.*violat|violat.*already|has_violated|is_violated",
+    "expect": "absent",
+    "meaning": "No explicit already-violated check in scheduler.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "deadline",
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

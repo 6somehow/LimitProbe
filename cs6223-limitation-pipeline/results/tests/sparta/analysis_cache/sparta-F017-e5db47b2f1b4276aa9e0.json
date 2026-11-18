@@ -1,0 +1,29 @@
+{
+ "assessment": "supports",
+ "reasoning": "The paper says the second tensor uses a specialized sparse kernel. The code instead calls CudaSpmm in the second path, and run.sh links -lspmm from the Sputnik build while including Sputnik headers. The Dockerfile also installs Sputnik. This supports that the second kernel dependency is Sputnik, not a SparTA-specific sparse kernel.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "script/figure16/a100/run.sh",
+   "regex": "-lspmm",
+   "expect": "present",
+   "control": "sparta\\.cu",
+   "meaning": "Links the Sputnik spmm library into the experiment binary."
+  },
+  {
+   "file": "script/figure16/a100/sparta.cu",
+   "regex": "CudaSpmm\\(",
+   "expect": "present",
+   "control": "cusparseLtMatmul",
+   "meaning": "Second-path kernel call is CudaSpmm, not a SparTA kernel."
+  },
+  {
+   "file": "image/Dockerfile.a100",
+   "regex": "git clone[^\\n]*sputnik",
+   "expect": "present",
+   "control": "libcusparse_lt",
+   "meaning": "Environment installs Sputnik as a dependency."
+  }
+ ],
+ "would_confirm": "Inspect the linked CudaSpmm implementation or build link map to verify it resolves to Sputnik's libspmm rather than a SparTA kernel."
+}

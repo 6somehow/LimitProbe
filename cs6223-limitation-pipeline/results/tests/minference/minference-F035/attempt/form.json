@@ -1,0 +1,97 @@
+{
+  "test_id": "A-minference-F035",
+  "finding_id": "minference-F035",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "batch_size",
+        "value": 1,
+        "why": "batch size is irrelevant to which pooling branch is selected"
+      },
+      {
+        "name": "num_heads",
+        "value": 2,
+        "why": "head count only tiles the tensors; the branch is scalar per cluster"
+      },
+      {
+        "name": "q_len",
+        "value": 4,
+        "why": "must be >= max_capacity_prompt so update_kv passes its early return"
+      },
+      {
+        "name": "head_dim",
+        "value": 8,
+        "why": "head dimension only sets the matmul width; the branch does not depend on it"
+      },
+      {
+        "name": "window_size",
+        "value": 2,
+        "why": "small window keeps the tensors tiny; the branch decision does not read it"
+      },
+      {
+        "name": "max_capacity_prompt",
+        "value": 4,
+        "why": "equal to q_len so the else branch (where the target sits) is entered"
+      },
+      {
+        "name": "kernel_size",
+        "value": 3,
+        "why": "odd kernel valid for both avg_pool1d and max_pool1d under the same padding"
+      },
+      {
+        "name": "dtype",
+        "value": "float32",
+        "why": "CPU reference dtype; the pooling choice is independent of precision"
+      },
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "fixed seed makes the random tensors identical on both inputs and repeats"
+      }
+    ],
+    "positive_input": {
+      "pooling": "avgpool"
+    },
+    "negative_input": {
+      "pooling": "maxpool"
+    },
+    "boundary_variable": "pooling",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at minference/modules/snap_kv.py:347",
+      "signal_location": "minference/modules/snap_kv.py:347"
+    },
+    "expected": {
+      "positive": "branch taken at minference/modules/snap_kv.py:347",
+      "negative": "branch not taken at minference/modules/snap_kv.py:347"
+    }
+  },
+  "execution": {
+    "entry_called": "minference/modules/snap_kv.py::SnapKVCluster.update_kv",
+    "entry_reason": "Step 4 reports call_chain_status not_found: the declared entry gather_last_q_vertical_slash_topk_v4 never calls SnapKVCluster.update_kv. update_kv is invoked from minference_with_snapkv_forward (minference_forward.py:683) and llama_flash_attn2_forward (snap_kv.py:100) through init_snapkv's kv_cluster, not through the declared entry. The driver loads minference/modules/snap_kv.py directly from the repository under test and calls the target function; no stand-ins are used and the target module and function are the real repository code.",
+    "call_chain_index": 1,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "true",
+      "false"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at minference/modules/snap_kv.py:347",
+    "negative_observed": "branch not taken at minference/modules/snap_kv.py:347"
+  },
+  "evidence": {}
+}

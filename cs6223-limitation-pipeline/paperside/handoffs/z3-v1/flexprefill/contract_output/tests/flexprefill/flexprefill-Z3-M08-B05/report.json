@@ -1,0 +1,68 @@
+{
+  "schema_version": "checklimits-test-report/1",
+  "finding_id": "flexprefill-Z3-M08-B05",
+  "artifact_id": "flexprefill",
+  "status": "not_run",
+  "not_run": {
+    "code": "no_code_location",
+    "reason": "no code location (paper-side finding or no code evidence); Source locations exist, but adapter.region_from_limitation refuses origin=paper. This proposed effect also needs a custom oracle: outcome 'suspicious' has no effect check yet"
+  },
+  "verdict": null,
+  "level": null,
+  "calibrated": false,
+  "confidence_label": "uncalibrated",
+  "level_note": "",
+  "verdict_reason": "",
+  "observed": {},
+  "defeaters": {},
+  "open_doubts": [],
+  "next_steps": [],
+  "finding": {
+    "category": "impl_deviates",
+    "step4_level": "L2",
+    "effect_type": "other",
+    "priority": 2,
+    "summary": "K_v=min{k: 前 k 个 a_v 累计≥γ}",
+    "review": "unreviewed",
+    "review_note": "Agent source-assisted review only; see blockers before accepting the static discrepancy.",
+    "scope_status": "unknown",
+    "witness_status": "unknown",
+    "location": "flex_prefill/ops/flex_prefill_attention.py:1590",
+    "function": "flex_prefill/ops/flex_prefill_attention.py::score_cover_topk",
+    "condition": null
+  },
+  "evidence": {
+    "paper": [
+      {
+        "quote": "# Sort vertical and slash attention scores Iv ← argsort(av) Is ← argsort(as) # Obtain the minimum computational budget making the sum of the scores exceeds γ Kv ← min{k : Pi∈Iv [1:k] av[i] ≥ γ} Ks ← min{k : Pi∈Is[1:k] as[i] ≥ γ}",
+        "source": "paper",
+        "locator": "PDF p.6, text lines 55-61"
+      }
+    ],
+    "code": [
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1590,
+        "function": "flex_prefill/ops/flex_prefill_attention.py::score_cover_topk",
+        "snippet": "topk = torch.sum(cumsum_x <= score, dim=-1) + 1"
+      },
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1591,
+        "function": "flex_prefill/ops/flex_prefill_attention.py::score_cover_topk",
+        "snippet": "return topk"
+      },
+      {
+        "file": "flex_prefill/ops/flex_prefill_attention.py",
+        "line_start": 1588,
+        "function": "flex_prefill/ops/flex_prefill_attention.py::score_cover_topk",
+        "snippet": "def score_cover_topk(x: torch.Tensor, score: float): cumsum_x = torch.cumsum(torch.sort(x, dim=-1, descending=True).values, dim=-1) topk = torch.sum(cumsum_x <= score, dim=-1) + 1 return topk"
+      }
+    ]
+  },
+  "files": {},
+  "provenance": {
+    "source": "offline Z3 contract probe; target execution not_run",
+    "findings_sha256": "0e2250ef46d48cf72d83575fb18de9874442d3d86a45d894cdeaf540019361c1"
+  }
+}

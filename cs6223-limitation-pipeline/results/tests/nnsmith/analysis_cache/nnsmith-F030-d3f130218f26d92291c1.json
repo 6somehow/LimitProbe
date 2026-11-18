@@ -1,0 +1,26 @@
+{
+ "assessment": "supports",
+ "reasoning": "The code shuffles all constraints once, then in the unsat backoff loop repeatedly truncates the current list to its first half. It does not reshuffle before each halving, so later rounds deterministically discard the latter half of the current ordering, matching the finding.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "nnsmith/graph_gen.py",
+   "regex": "random\\.shuffle\\(shuffled\\)",
+   "expect": "present",
+   "meaning": "Shows constraints are shuffled once before the backoff loop."
+  },
+  {
+   "file": "nnsmith/graph_gen.py",
+   "regex": "while self\\.check_sat\\(\\*cur_cons\\) != z3\\.sat:",
+   "expect": "present",
+   "meaning": "Shows the repeated backoff loop where halving occurs."
+  },
+  {
+   "file": "nnsmith/graph_gen.py",
+   "regex": "cur_cons = cur_cons\\[: len\\(cur_cons\\) // 2\\]",
+   "expect": "present",
+   "meaning": "Shows each failed round keeps only the first half, not a fresh random half."
+  }
+ ],
+ "would_confirm": "Instrument post_process to log cur_cons across backoff iterations and verify no reshuffle occurs after the initial shuffle."
+}

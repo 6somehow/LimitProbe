@@ -1,0 +1,27 @@
+{
+ "assessment": "supports",
+ "reasoning": "The paper describes producing T1...Tk via SampleBitOption, implying k sampled bit-width candidates. The shown bit_align ignores n_candidates, returns a single result when only one aligned bit exists, and otherwise asserts exactly two aligned bits. No sampling call appears in the file. This supports the claimed implementation deviation.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "sparta/transformation/transform_policy.py",
+   "regex": "SampleBitOption|sample_bit|random\\.sample|np\\.random",
+   "expect": "absent",
+   "control": "def bit_align",
+   "meaning": "No sampling call in this file; control confirms correct file."
+  },
+  {
+   "file": "sparta/transformation/transform_policy.py",
+   "regex": "only handle at most 2 different bits",
+   "expect": "present",
+   "meaning": "Comment explicitly limits handling to at most two bit widths."
+  },
+  {
+   "file": "sparta/transformation/transform_policy.py",
+   "regex": "assert len\\(aligned_bits\\) == 2",
+   "expect": "present",
+   "meaning": "Code enforces exactly two aligned bit widths in decompose path."
+  }
+ ],
+ "would_confirm": "Run bit_align with more than two aligned bit widths or inspect all call sites to verify n_candidates is never used and no sampling occurs."
+}

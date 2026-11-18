@@ -1,0 +1,107 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "qoserve-F045",
+ "artifact_id": "qoserve",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "not_implemented",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "脚本层同样无按应用解码历史。",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "always",
+  "location": "sarathi/config/config.py:284-311",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "factor𝛼 configurable as a deployment parameter. For non- interactive requests, we maintain a running history of token generation patterns per application to estimate the expected decode length.𝛼 is a configurable hyperparameter. For fixed-",
+    "source": "paper",
+    "locator": "PDF p.7, text lines 32-35"
+   }
+  ],
+  "code": [
+   {
+    "file": "sarathi/config/config.py",
+    "line_start": 284,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/qoserve/limitations_for_tests.json",
+  "findings_sha256": "79eb69f6ac7117b77ebe00293d1d328dff8bfffcd7cabc7556eaae435c1699e2",
+  "generated_at": "2026-11-18T00:46:02+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The cited config exposes only a fixed output_len_pred default (15) and no per-application decode-history field or tracking. This matches the finding that the script/config layer lacks per-application decode-history estimation, leaving the paper's running-history mechanism unimplemented in the shown code.",
+  "hardware_needed": false,
+  "would_confirm": "Search the scheduler and request-handling code for any per-application decode-length history and verify whether output_len_pred is ever updated from it.",
+  "static": {
+   "cited": 1,
+   "grounded": true,
+   "items": [
+    {
+     "file": "sarathi/config/config.py",
+     "lines": "284-311",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "sarathi/config/config.py",
+    "regex": "(?i)history|per[_-]?application|application.*(decode|output)|decode.*application",
+    "expect": "absent",
+    "meaning": "No per-application decode-history tracking appears in this config file.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "output_len_pred",
+    "hit_lines": []
+   },
+   {
+    "file": "sarathi/config/config.py",
+    "regex": "output_len_pred",
+    "expect": "present",
+    "meaning": "Only a fixed predicted output length is configured.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     301
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

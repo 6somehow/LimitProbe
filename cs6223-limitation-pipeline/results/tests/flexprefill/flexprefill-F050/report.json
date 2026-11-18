@@ -1,0 +1,112 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "flexprefill-F050",
+ "artifact_id": "flexprefill",
+ "status": "not_run",
+ "not_run": {
+  "code": "outcome_unsupported",
+  "reason": "effect type 'other': the target assigns a value; the claimed effect is what that value changes later, which needs a differential check of outputs (the assignment itself would differ trivially)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "When block_size != 128: hard-coded 128 in `score_cover_topk(vertical, gamma) // 128` while parameter `block_size` is in scope (flex_prefill/ops/flex_prefill_attention.py:1708)",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "flex_prefill/ops/flex_prefill_attention.py:1708",
+  "function": "flex_prefill/ops/flex_prefill_attention.py::get_active_blocks",
+  "condition": "block_size != 128"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "line_start": 1708,
+    "function": "flex_prefill/ops/flex_prefill_attention.py::get_active_blocks",
+    "snippet": "num_vertical_blocks = score_cover_topk(vertical, gamma) // 128 + 1"
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/flexprefill/limitations_for_tests.json",
+  "findings_sha256": "0b8539b75ec0e2d602cd64b1a21959708ae3a6d53be00202f8825d92f313c066",
+  "generated_at": "2026-11-18T12:16:08+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The shown line literally divides by 128 rather than block_size. Text search can confirm the expression and that block_size is not used in it; a signature search can confirm block_size exists in the file. This supports the hard-coded-constant claim, though exact scope at line 1708 needs enclosing-function inspection.",
+  "hardware_needed": false,
+  "would_confirm": "Inspect the enclosing function signature at line 1708 and run with block_size=64 to see whether the divisor remains 128.",
+  "static": {
+   "cited": 1,
+   "grounded": true,
+   "items": [
+    {
+     "file": "flex_prefill/ops/flex_prefill_attention.py",
+     "lines": "1708-1708",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": true,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "regex": "score_cover_topk\\(vertical, gamma\\) // 128",
+    "expect": "present",
+    "meaning": "Hard-coded 128 appears in the block-count expression.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     1708
+    ]
+   },
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "regex": "score_cover_topk\\(vertical, gamma\\) // block_size",
+    "expect": "absent",
+    "meaning": "Expression does not use block_size; control confirms line exists.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "score_cover_topk\\(vertical, gamma\\) // 128",
+    "hit_lines": []
+   },
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "regex": "def [A-Za-z_][A-Za-z0-9_]*\\([^)]*block_size",
+    "expect": "present",
+    "meaning": "A function signature in the file accepts block_size.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     37
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

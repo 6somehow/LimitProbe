@@ -1,0 +1,22 @@
+{
+ "assessment": "supports",
+ "reasoning": "The paper requires SORTDESC(S,\u2206PPL). The cited regeneration path invokes ppl_probe, which saves a JSON summary and CSV; the shown reader returns CSV rows in file order. No shown code performs descending sorting or emits the paper's sorted sensitivity map, so the evidence supports the not_implemented finding.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "src/flexposit/sensitivity/ppl_probe.py",
+   "regex": "SORTDESC|sort_desc|sortdesc|reverse\\s*=\\s*True|\\bsorted\\s*\\(",
+   "expect": "absent",
+   "control": "json\\.dump|results_len|print\\(",
+   "meaning": "No descending-sort implementation in probe; control confirms file searched."
+  },
+  {
+   "file": "src/flexposit/mpq/channel_window.py",
+   "regex": "\\bsorted\\s*\\(|\\bsort\\s*\\(|reverse\\s*=\\s*True",
+   "expect": "absent",
+   "control": "read_sensitivity_windows|DictReader",
+   "meaning": "Reader returns CSV rows without sorting; control confirms function present."
+  }
+ ],
+ "would_confirm": "Run scripts/regen_sensitivity_ppl.sh and inspect its outputs for a descending-sorted sensitivity map, or search the full repository for SORTDESC or reverse=True sorting."
+}

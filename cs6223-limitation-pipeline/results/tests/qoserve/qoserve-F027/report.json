@@ -1,0 +1,97 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "qoserve-F027",
+ "artifact_id": "qoserve",
+ "status": "not_run",
+ "not_run": {
+  "code": "outcome_unsupported",
+  "reason": "effect type 'other': the branch has no raise in its body: the program rejects later, in code the target does not point to"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "When (seq.drop == 0) and (seq.mem_allocated == False) and ((now + service_time_required) > (seq.arrival_time + seq.ttft_deadline)): A not-yet-dropped, unallocated sequence whose estimated prefill service time would miss its ttft_deadline is dropped (drop incremented) and re-pushed to the prefill queue, skipping it this iteration. (sarathi/core/scheduler/deadline_scheduler.py:305)",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "sarathi/core/scheduler/deadline_scheduler.py:305",
+  "function": "sarathi/core/scheduler/deadline_scheduler.py::DeadlineScheduler._schedule",
+  "condition": "(seq.drop == 0) and (seq.mem_allocated == False) and ((now + service_time_required) > (seq.arrival_time + seq.ttft_deadline))"
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "Eager Relegation: If we cannot finish the request within its deadline, we drop it and re-add to the prefill queue",
+    "source": "code_comment",
+    "locator": "sarathi/core/scheduler/deadline_scheduler.py:304"
+   }
+  ],
+  "code": [
+   {
+    "file": "sarathi/core/scheduler/deadline_scheduler.py",
+    "line_start": 305,
+    "function": "sarathi/core/scheduler/deadline_scheduler.py::DeadlineScheduler._schedule",
+    "snippet": "if seq.drop == 0 and seq.mem_allocated == False and (now + service_time_required > seq.arrival_time + seq.ttft_deadline):"
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/qoserve/limitations_for_tests.json",
+  "findings_sha256": "79eb69f6ac7117b77ebe00293d1d328dff8bfffcd7cabc7556eaae435c1699e2",
+  "generated_at": "2026-11-18T00:46:02+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A0",
+  "tier_note": "the reading and the probes disagree",
+  "calibrated": false,
+  "assessment": "contradicts",
+  "reasoning": "The paper at line 304 explicitly describes eager relegation: dropping and re-adding a request that cannot meet its deadline. The code condition at line 305 matches that deadline-miss test. Therefore the behavior is disclosed, not undisclosed; the finding's category is contradicted, even though the code condition is consistent.",
+  "hardware_needed": false,
+  "would_confirm": "A diff of the paper's eager-relegation paragraph against the if-body at line 305 would settle whether the behavior is disclosed and implemented as claimed.",
+  "static": {
+   "cited": 1,
+   "grounded": true,
+   "items": [
+    {
+     "file": "sarathi/core/scheduler/deadline_scheduler.py",
+     "lines": "305-305",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": false,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "sarathi/core/scheduler/deadline_scheduler.py",
+    "regex": "now \\+ service_time_required\\) > \\(seq\\.arrival_time \\+ seq\\.ttft_deadline\\)",
+    "expect": "present",
+    "meaning": "Confirms the deadline-miss condition at line 305.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     305
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

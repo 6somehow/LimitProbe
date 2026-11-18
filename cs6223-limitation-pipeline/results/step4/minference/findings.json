@@ -44,6 +44,8 @@
      "sort": "bool"
     }
    },
+   "call_chain_status": "not_found",
+   "call_chain_note": "no static call chain from an entry point to this function (dynamic dispatch, a callback, or it is not on the entry's path)",
    "location": "minference/minference_configuration.py:56",
    "function": "minference/minference_configuration.py::MInferenceConfig.update_config_path"
   },
@@ -52,51 +54,6 @@
   "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
   "review": "unreviewed",
   "review_note": null
- },
- {
-  "schema_version": "0.2.0",
-  "finding_id": "minference-F002",
-  "artifact_id": "minference",
-  "category": "undisclosed",
-  "level": "L2",
-  "limitation_ids": [
-   "CL-B003"
-  ],
-  "verification_ids": [
-   "V014"
-  ],
-  "scope_status": "unknown",
-  "evaluated_in_paper": null,
-  "effect_type": "state",
-  "summary": "When ROPE_TYPE is not None: `ROPE_TYPE` is a module-level global computed once from the *first* attention module's `rotary_emb.forward` signature and then reused for every model/layer in the process (`if ROPE_TYPE is not None: return`). Loading a second model with a different RoPE signature in the same process keeps the first model's convention, and `get_cos_sin` then calls `self.rotary_emb` wi...",
-  "witness_hint": {
-   "format": "witness-v2",
-   "kind": "event_sequence",
-   "status": "solved",
-   "condition": "ROPE_TYPE is not None",
-   "path_prefix": [],
-   "sequence_note": "state-dependent: earlier calls must leave the program in the trigger state; the values below describe that state at the checked call",
-   "dropped_prefix": [],
-   "trigger": {
-    "ROPE_TYPE is None": false
-   },
-   "contrast": {
-    "ROPE_TYPE is None": true
-   },
-   "atoms": {
-    "ROPE_TYPE is None": {
-     "kind": "predicate",
-     "sort": "bool"
-    }
-   },
-   "location": "minference/modules/minference_forward.py:30",
-   "function": "minference/modules/minference_forward.py::set_rope_type"
-  },
-  "confidence": "llm_assisted",
-  "priority": 1,
-  "rationale": "3b: not_found; priority 1: undisclosed, state effect, witness reaches it",
-  "review": "real_but_minor",
-  "review_note": "blind review by an LLM subagent (round 3), not human: ROPE_TYPE caching only matters when mixing models with different RoPE signatures in one process; it is model-compat plumbing, not a limitation of the sparse mechanism."
  },
  {
   "schema_version": "0.2.0",
@@ -125,20 +82,31 @@
    ],
    "sequence_note": "state-dependent: earlier calls must leave the program in the trigger state; the values below describe that state at the checked call",
    "dropped_prefix": [],
+   "entry_terms": {
+    "path_prefix": {
+     "q_len != 1": "hidden_states.size()[1] != 1"
+    }
+   },
    "trigger": {
     "SEARCH_MASK is None": true,
     "q_len": 2,
-    "self.is_search": true
+    "self.is_search": true,
+    "hidden_states.size()[1]": 2
    },
    "contrast": {
     "SEARCH_MASK is None": false,
     "q_len": 2,
-    "self.is_search": true
+    "self.is_search": true,
+    "hidden_states.size()[1]": 2
    },
    "atoms": {
     "SEARCH_MASK is None": {
      "kind": "predicate",
      "sort": "bool"
+    },
+    "hidden_states.size()[1]": {
+     "kind": "derived",
+     "sort": "int"
     },
     "q_len": {
      "kind": "input",
@@ -149,17 +117,24 @@
      "sort": "bool"
     }
    },
-   "aliases_not_applied": {
-    "head_dim": "q.shape[-1]",
-    "qk_idxs": "[ii + q_len for ii in list(range(-last_q, 0, 1))]",
-    "vertical": "qk.sum(-2, keepdim=True)",
-    "vertical_topk": "torch.topk(-vertical, q_len - vertical_size, -1).indices",
-    "slash_topk": "slash",
-    "block_num": "(q_len - 1) // 32 + 1",
-    "block_topk": "torch.topk(-qk, block_num - block_num // topk_ratio, -1).indices",
-    "res2": "attn_weights_x[:, :, 2500:].sum(-1).mean(-1).squeeze().float().detach().cpu().numpy()"
-   },
-   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "minference/modules/minference_forward.py::minference_forward.forward",
+    "minference/modules/minference_forward.py::search_pattern"
+   ],
+   "call_sites": [
+    {
+     "caller": "minference/modules/minference_forward.py::minference_forward.forward",
+     "callee": "minference/modules/minference_forward.py::search_pattern",
+     "line": 520,
+     "resolved_by": "direct",
+     "args": {
+      "q": "q",
+      "k": "k",
+      "head": "head"
+     }
+    }
+   ],
    "location": "minference/modules/minference_forward.py:165-172",
    "function": "minference/modules/minference_forward.py::search_pattern"
   },
@@ -213,66 +188,32 @@
      "sort": "bool"
     }
    },
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.vertical_and_slash_kernel_static"
+   ],
+   "call_sites": [
+    {
+     "caller": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+     "callee": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.vertical_and_slash_kernel_static",
+     "line": 433,
+     "resolved_by": "direct",
+     "args": {
+      "q": "q",
+      "k": "k",
+      "v": "v",
+      "vertical_size": "vertical_size",
+      "slash_size": "slash_size"
+     }
+    }
+   ],
    "location": "minference/modules/minference_forward.py:390",
    "function": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.vertical_and_slash_kernel_static"
   },
   "confidence": "llm_assisted",
   "priority": 1,
   "rationale": "3b: not_found; priority 1: undisclosed, state effect, witness reaches it",
-  "review": "unreviewed",
-  "review_note": null
- },
- {
-  "schema_version": "0.2.0",
-  "finding_id": "minference-F005",
-  "artifact_id": "minference",
-  "category": "undisclosed",
-  "level": "L2",
-  "limitation_ids": [
-   "CL-B016"
-  ],
-  "verification_ids": [
-   "V027"
-  ],
-  "scope_status": "unknown",
-  "evaluated_in_paper": null,
-  "effect_type": "reject",
-  "summary": "When ty not in {\"stream_llm\", \"vertical_and_slash\", \"block_sparse\"}: The implementation is chosen by the `ty` string read from the user-supplied pattern JSON (`config_path`). Any other value in that file (e.g. a typo, or a pattern produced by a different search version) raises an uncaught `KeyError` at prefill time rather than falling back. (minference/modules/minference_forward.py:441)",
-  "witness_hint": {
-   "format": "witness-v2",
-   "kind": "input_value",
-   "status": "solved",
-   "condition": "ty not in {\"stream_llm\", \"vertical_and_slash\", \"block_sparse\"}",
-   "path_prefix": [
-    "def gather_last_q_vertical_slash_topk_v4(self, q, k, v, head_id)"
-   ],
-   "dropped_prefix": [
-    "def gather_last_q_vertical_slash_topk_v4(self, q, k, v, head_id)"
-   ],
-   "trigger": {
-    "ty": {
-     "not_in": [
-      "block_sparse",
-      "stream_llm",
-      "vertical_and_slash"
-     ]
-    }
-   },
-   "contrast": {
-    "ty": "block_sparse"
-   },
-   "atoms": {
-    "ty": {
-     "kind": "category",
-     "sort": "str"
-    }
-   },
-   "location": "minference/modules/minference_forward.py:441",
-   "function": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4"
-  },
-  "confidence": "llm_assisted",
-  "priority": 1,
-  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it; related (candidate pair, judged different): minference-F046",
   "review": "unreviewed",
   "review_note": null
  },
@@ -295,18 +236,20 @@
   "witness_hint": {
    "format": "witness-v2",
    "kind": "input_value",
-   "status": "trigger_only",
-   "condition": "True",
+   "status": "solved",
+   "condition": "self.layer_idx is None",
    "path_prefix": [
-    "past_key_value is not None",
-    "self.layer_idx is None"
+    "past_key_value is not None"
    ],
    "dropped_prefix": [],
    "trigger": {
-    "past_key_value is None": false,
-    "self.layer_idx is None": true
+    "self.layer_idx is None": true,
+    "past_key_value is None": false
    },
-   "note": "the condition holds on every point that reaches it; no contrast point exists",
+   "contrast": {
+    "self.layer_idx is None": false,
+    "past_key_value is None": false
+   },
    "atoms": {
     "past_key_value is None": {
      "kind": "predicate",
@@ -317,6 +260,13 @@
      "sort": "bool"
     }
    },
+   "condition_original": "True",
+   "decision_note": "unconditional statement inside a branch: the innermost path-prefix entry decides it",
+   "call_chain_status": "entry_is_target",
+   "call_chain": [
+    "minference/modules/minference_forward.py::minference_forward.forward"
+   ],
+   "call_sites": [],
    "location": "minference/modules/minference_forward.py:484-488",
    "function": "minference/modules/minference_forward.py::minference_forward.forward"
   },
@@ -325,74 +275,6 @@
   "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
   "review": "unreviewed",
   "review_note": null
- },
- {
-  "schema_version": "0.2.0",
-  "finding_id": "minference-F007",
-  "artifact_id": "minference",
-  "category": "undisclosed",
-  "level": "L2",
-  "limitation_ids": [
-   "CL-B017"
-  ],
-  "verification_ids": [
-   "V028"
-  ],
-  "scope_status": "unknown",
-  "evaluated_in_paper": null,
-  "effect_type": "reject",
-  "summary": "When self.is_search and os.path.exists(self.config_path) and self.layer_idx < len(config_list): With `is_search` enabled, if the output `config_path` already contains an entry for this layer, the forward pass hits a bare `assert False` and aborts — the search cannot be re-run into an existing file. Also, when `is_search` is true the sparse mechanism is never applied (`not self.is_search` in the...",
-  "witness_hint": {
-   "format": "witness-v2",
-   "kind": "input_value",
-   "status": "solved",
-   "condition": "self.is_search and os.path.exists(self.config_path) and self.layer_idx < len(config_list)",
-   "path_prefix": [
-    "def minference_forward()",
-    "def forward(self, hidden_states, attention_mask, position_ids, past_key_value, output_attentions, use_cache, **kwargs)"
-   ],
-   "dropped_prefix": [
-    "def minference_forward()",
-    "def forward(self, hidden_states, attention_mask, position_ids, past_key_value, output_attentions, use_cache, **kwargs)"
-   ],
-   "trigger": {
-    "self.is_search": true,
-    "os.path.exists(self.config_path)": true,
-    "self.layer_idx": 1,
-    "len(config_list)": 2
-   },
-   "contrast": {
-    "self.is_search": true,
-    "os.path.exists(self.config_path)": true,
-    "self.layer_idx": 2,
-    "len(config_list)": 2
-   },
-   "atoms": {
-    "len(config_list)": {
-     "kind": "derived",
-     "sort": "int"
-    },
-    "os.path.exists(self.config_path)": {
-     "kind": "predicate",
-     "sort": "bool"
-    },
-    "self.is_search": {
-     "kind": "predicate",
-     "sort": "bool"
-    },
-    "self.layer_idx": {
-     "kind": "derived",
-     "sort": "int"
-    }
-   },
-   "location": "minference/modules/minference_forward.py:504",
-   "function": "minference/modules/minference_forward.py::minference_forward.forward"
-  },
-  "confidence": "llm_assisted",
-  "priority": 1,
-  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
-  "review": "worth_testing",
-  "review_note": "blind review by an LLM subagent (round 1), not human: In search mode the code hits assert False when the config file already has an entry for the layer (true by default, since config_path comes from the shipped MODEL2PATH file), and search mode runs dense attention."
  },
  {
   "schema_version": "0.2.0",
@@ -450,71 +332,17 @@
     "cache_kwargs": "{'sin': sin, 'cos': cos}"
    },
    "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "call_chain_status": "not_found",
+   "calls_entry": [
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4"
+   ],
+   "call_chain_note": "this function calls the entry point, it is not called by it: it is a caller-side integration and has to be driven directly",
    "location": "minference/modules/minference_forward.py:681",
    "function": "minference/modules/minference_forward.py::minference_with_snapkv_forward.forward"
   },
   "confidence": "llm_assisted",
   "priority": 1,
   "rationale": "3b: not_found; priority 1: undisclosed, state effect, witness reaches it",
-  "review": "unreviewed",
-  "review_note": null
- },
- {
-  "schema_version": "0.2.0",
-  "finding_id": "minference-F009",
-  "artifact_id": "minference",
-  "category": "undisclosed",
-  "level": "L2",
-  "limitation_ids": [
-   "CL-B022"
-  ],
-  "verification_ids": [
-   "V033"
-  ],
-  "scope_status": "unknown",
-  "evaluated_in_paper": null,
-  "effect_type": "reject",
-  "summary": "When head_id not in self.best_pattern: The vLLM variant indexes `self.best_pattern[head_id]` directly (unlike the HF variant's `.get(..., default)`), so a pattern file whose per-layer dict lacks an entry for some head raises `KeyError` during prefill. `self.best_pattern` is rebuilt from the caller-supplied `pattern_config[layer_idx]` on every forward (line 790), so a short/mismatched pattern fi...",
-  "witness_hint": {
-   "format": "witness-v2",
-   "kind": "input_value",
-   "status": "solved",
-   "condition": "head_id not in self.best_pattern",
-   "path_prefix": [
-    "def gather_last_q_vertical_slash_topk_vllm(self, q, k, v, head_id)"
-   ],
-   "dropped_prefix": [
-    "def gather_last_q_vertical_slash_topk_vllm(self, q, k, v, head_id)"
-   ],
-   "trigger": {
-    "head_id in self.best_pattern": false
-   },
-   "contrast": {
-    "head_id in self.best_pattern": true
-   },
-   "atoms": {
-    "head_id in self.best_pattern": {
-     "kind": "predicate",
-     "sort": "bool"
-    }
-   },
-   "aliases_not_applied": {
-    "kv_seq_len": "k.size(2)",
-    "head_dim": "q.size(-1)",
-    "q_len": "q.shape[2]",
-    "bsz": "q.shape[0]",
-    "last_q": "min(64, q_len)",
-    "vertical": "qk.sum(-2, keepdim=True)",
-    "vertical_topk": "torch.topk(vertical, vertical_size, -1).indices",
-    "slash_topk": "slash"
-   },
-   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
-   "location": "minference/modules/minference_forward.py:754",
-   "function": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_vllm"
-  },
-  "confidence": "llm_assisted",
-  "priority": 1,
-  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
   "review": "unreviewed",
   "review_note": null
  },
@@ -541,53 +369,77 @@
    "condition": "not (Lq == Lk and Lk == Lv)",
    "path_prefix": [],
    "dropped_prefix": [],
-   "aliases": {
-    "Lq": "q.shape[-1]",
-    "Lk": "k.shape[-1]",
-    "Lv": "v.shape[-1]"
-   },
    "trigger": {
-    "Lq": 2,
+    "Lq": 1,
     "Lk": 2,
-    "Lv": 1,
-    "q.shape[-1]": 2,
-    "k.shape[-1]": 2,
-    "v.shape[-1]": 1
+    "Lv": 2
    },
    "contrast": {
     "Lq": 2,
     "Lk": 2,
-    "Lv": 2,
-    "q.shape[-1]": 2,
-    "k.shape[-1]": 2,
-    "v.shape[-1]": 2
+    "Lv": 2
    },
    "atoms": {
     "Lk": {
-     "kind": "local",
+     "kind": "input",
      "sort": "int"
     },
     "Lq": {
-     "kind": "local",
+     "kind": "input",
      "sort": "int"
     },
     "Lv": {
-     "kind": "local",
-     "sort": "int"
-    },
-    "k.shape[-1]": {
-     "kind": "derived",
-     "sort": "int"
-    },
-    "q.shape[-1]": {
-     "kind": "derived",
-     "sort": "int"
-    },
-    "v.shape[-1]": {
-     "kind": "derived",
+     "kind": "input",
      "sort": "int"
     }
    },
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.block_sparse_kernel",
+    "minference/ops/block_sparse_flash_attention.py::block_sparse_attention",
+    "minference/ops/block_sparse_flash_attention.py::_triton_block_sparse_attention"
+   ],
+   "call_sites": [
+    {
+     "caller": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+     "callee": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.block_sparse_kernel",
+     "line": 440,
+     "resolved_by": "reference",
+     "args": {}
+    },
+    {
+     "caller": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.block_sparse_kernel",
+     "callee": "minference/ops/block_sparse_flash_attention.py::block_sparse_attention",
+     "line": 413,
+     "resolved_by": "direct",
+     "args": {
+      "query": "q",
+      "key": "k",
+      "value": "v",
+      "top_k": "topk"
+     }
+    },
+    {
+     "caller": "minference/ops/block_sparse_flash_attention.py::block_sparse_attention",
+     "callee": "minference/ops/block_sparse_flash_attention.py::_triton_block_sparse_attention",
+     "line": 184,
+     "resolved_by": "direct",
+     "args": {
+      "q": "query",
+      "k": "key",
+      "v": "value",
+      "seqlens": "seqlens",
+      "block_index": "block_index",
+      "sm_scale": "sm_scale",
+      "block_size_M": "block_size_M",
+      "block_size_N": "block_size_N"
+     }
+    }
+   ],
+   "uncertain_steps": [
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4 -> minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.block_sparse_kernel (reference)"
+   ],
    "location": "minference/ops/block_sparse_flash_attention.py:126",
    "function": "minference/ops/block_sparse_flash_attention.py::_triton_block_sparse_attention"
   },
@@ -623,14 +475,14 @@
    ],
    "dropped_prefix": [],
    "trigger": {
-    "Lk": 15,
-    "Lq": 15,
-    "Lv": 15
+    "Lk": 127,
+    "Lq": 127,
+    "Lv": 127
    },
    "contrast": {
-    "Lk": 16,
-    "Lq": 16,
-    "Lv": 16
+    "Lk": 128,
+    "Lq": 128,
+    "Lv": 128
    },
    "atoms": {
     "Lk": {
@@ -646,12 +498,53 @@
      "sort": "int"
     }
    },
-   "aliases_not_applied": {
-    "Lq": "q.shape[-1]",
-    "Lk": "k.shape[-1]",
-    "Lv": "v.shape[-1]"
-   },
-   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.block_sparse_kernel",
+    "minference/ops/block_sparse_flash_attention.py::block_sparse_attention",
+    "minference/ops/block_sparse_flash_attention.py::_triton_block_sparse_attention"
+   ],
+   "call_sites": [
+    {
+     "caller": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+     "callee": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.block_sparse_kernel",
+     "line": 440,
+     "resolved_by": "reference",
+     "args": {}
+    },
+    {
+     "caller": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.block_sparse_kernel",
+     "callee": "minference/ops/block_sparse_flash_attention.py::block_sparse_attention",
+     "line": 413,
+     "resolved_by": "direct",
+     "args": {
+      "query": "q",
+      "key": "k",
+      "value": "v",
+      "top_k": "topk"
+     }
+    },
+    {
+     "caller": "minference/ops/block_sparse_flash_attention.py::block_sparse_attention",
+     "callee": "minference/ops/block_sparse_flash_attention.py::_triton_block_sparse_attention",
+     "line": 184,
+     "resolved_by": "direct",
+     "args": {
+      "q": "query",
+      "k": "key",
+      "v": "value",
+      "seqlens": "seqlens",
+      "block_index": "block_index",
+      "sm_scale": "sm_scale",
+      "block_size_M": "block_size_M",
+      "block_size_N": "block_size_N"
+     }
+    }
+   ],
+   "uncertain_steps": [
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4 -> minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.block_sparse_kernel (reference)"
+   ],
    "location": "minference/ops/block_sparse_flash_attention.py:127",
    "function": "minference/ops/block_sparse_flash_attention.py::_triton_block_sparse_attention"
   },
@@ -684,53 +577,103 @@
    "condition": "not (Lq == Lk and Lk == Lv)",
    "path_prefix": [],
    "dropped_prefix": [],
-   "aliases": {
-    "Lq": "q.shape[-1]",
-    "Lk": "k.shape[-1]",
-    "Lv": "v.shape[-1]"
-   },
    "trigger": {
-    "Lq": 1,
+    "Lq": 2,
     "Lk": 2,
-    "Lv": 2,
-    "q.shape[-1]": 1,
-    "k.shape[-1]": 2,
-    "v.shape[-1]": 2
+    "Lv": 1
    },
    "contrast": {
     "Lq": 2,
     "Lk": 2,
-    "Lv": 2,
-    "q.shape[-1]": 2,
-    "k.shape[-1]": 2,
-    "v.shape[-1]": 2
+    "Lv": 2
    },
    "atoms": {
     "Lk": {
-     "kind": "local",
+     "kind": "input",
      "sort": "int"
     },
     "Lq": {
-     "kind": "local",
+     "kind": "input",
      "sort": "int"
     },
     "Lv": {
-     "kind": "local",
-     "sort": "int"
-    },
-    "k.shape[-1]": {
-     "kind": "derived",
-     "sort": "int"
-    },
-    "q.shape[-1]": {
-     "kind": "derived",
-     "sort": "int"
-    },
-    "v.shape[-1]": {
-     "kind": "derived",
+     "kind": "input",
      "sort": "int"
     }
    },
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.dialted",
+    "minference/ops/pit_sparse_flash_attention_v2.py::vertical_slash_sparse_attention",
+    "minference/ops/pit_sparse_flash_attention_v2.py::_triton_mixed_sparse_attention"
+   ],
+   "call_sites": [
+    {
+     "caller": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+     "callee": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.dialted",
+     "line": 422,
+     "resolved_by": "direct",
+     "args": {
+      "q": "q",
+      "k": "k",
+      "v": "v",
+      "type": "'dilated1'"
+     }
+    },
+    {
+     "caller": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.dialted",
+     "callee": "minference/ops/pit_sparse_flash_attention_v2.py::vertical_slash_sparse_attention",
+     "line": 350,
+     "resolved_by": "direct",
+     "args": {
+      "query": "q",
+      "key": "k",
+      "value": "v",
+      "v_idx": "vertical_topk",
+      "s_idx": "slash"
+     }
+    },
+    {
+     "caller": "minference/ops/pit_sparse_flash_attention_v2.py::vertical_slash_sparse_attention",
+     "callee": "minference/ops/pit_sparse_flash_attention_v2.py::_triton_mixed_sparse_attention",
+     "line": 201,
+     "resolved_by": "direct",
+     "args": {
+      "q": "query",
+      "k": "key",
+      "v": "value",
+      "seqlens": "seqlens",
+      "block_count": "block_count",
+      "block_offset": "block_offset",
+      "column_count": "column_count",
+      "column_index": "column_index",
+      "sm_scale": "sm_scale",
+      "block_size_M": "block_size_M",
+      "block_size_N": "block_size_N"
+     }
+    }
+   ],
+   "other_chains": [
+    [
+     "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+     "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.dialted",
+     "minference/ops/pit_sparse_flash_attention_v2.py::vertical_slash_sparse_attention",
+     "minference/ops/pit_sparse_flash_attention_v2.py::_triton_mixed_sparse_attention"
+    ],
+    [
+     "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+     "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.vertical_and_slash_kernel_static",
+     "minference/ops/pit_sparse_flash_attention_v2.py::vertical_slash_sparse_attention",
+     "minference/ops/pit_sparse_flash_attention_v2.py::_triton_mixed_sparse_attention"
+    ],
+    [
+     "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+     "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.vertical_and_slash_kernel",
+     "minference/ops/pit_sparse_flash_attention_v2.py::vertical_slash_sparse_attention",
+     "minference/ops/pit_sparse_flash_attention_v2.py::_triton_mixed_sparse_attention"
+    ]
+   ],
    "location": "minference/ops/pit_sparse_flash_attention_v2.py:149",
    "function": "minference/ops/pit_sparse_flash_attention_v2.py::_triton_mixed_sparse_attention"
   },
@@ -766,14 +709,14 @@
    ],
    "dropped_prefix": [],
    "trigger": {
-    "Lk": 15,
-    "Lq": 15,
-    "Lv": 15
+    "Lk": 33,
+    "Lq": 33,
+    "Lv": 33
    },
    "contrast": {
-    "Lk": 16,
-    "Lq": 16,
-    "Lv": 16
+    "Lk": 32,
+    "Lq": 32,
+    "Lv": 32
    },
    "atoms": {
     "Lk": {
@@ -789,12 +732,79 @@
      "sort": "int"
     }
    },
-   "aliases_not_applied": {
-    "Lq": "q.shape[-1]",
-    "Lk": "k.shape[-1]",
-    "Lv": "v.shape[-1]"
-   },
-   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.dialted",
+    "minference/ops/pit_sparse_flash_attention_v2.py::vertical_slash_sparse_attention",
+    "minference/ops/pit_sparse_flash_attention_v2.py::_triton_mixed_sparse_attention"
+   ],
+   "call_sites": [
+    {
+     "caller": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+     "callee": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.dialted",
+     "line": 422,
+     "resolved_by": "direct",
+     "args": {
+      "q": "q",
+      "k": "k",
+      "v": "v",
+      "type": "'dilated1'"
+     }
+    },
+    {
+     "caller": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.dialted",
+     "callee": "minference/ops/pit_sparse_flash_attention_v2.py::vertical_slash_sparse_attention",
+     "line": 350,
+     "resolved_by": "direct",
+     "args": {
+      "query": "q",
+      "key": "k",
+      "value": "v",
+      "v_idx": "vertical_topk",
+      "s_idx": "slash"
+     }
+    },
+    {
+     "caller": "minference/ops/pit_sparse_flash_attention_v2.py::vertical_slash_sparse_attention",
+     "callee": "minference/ops/pit_sparse_flash_attention_v2.py::_triton_mixed_sparse_attention",
+     "line": 201,
+     "resolved_by": "direct",
+     "args": {
+      "q": "query",
+      "k": "key",
+      "v": "value",
+      "seqlens": "seqlens",
+      "block_count": "block_count",
+      "block_offset": "block_offset",
+      "column_count": "column_count",
+      "column_index": "column_index",
+      "sm_scale": "sm_scale",
+      "block_size_M": "block_size_M",
+      "block_size_N": "block_size_N"
+     }
+    }
+   ],
+   "other_chains": [
+    [
+     "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+     "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.dialted",
+     "minference/ops/pit_sparse_flash_attention_v2.py::vertical_slash_sparse_attention",
+     "minference/ops/pit_sparse_flash_attention_v2.py::_triton_mixed_sparse_attention"
+    ],
+    [
+     "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+     "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.vertical_and_slash_kernel_static",
+     "minference/ops/pit_sparse_flash_attention_v2.py::vertical_slash_sparse_attention",
+     "minference/ops/pit_sparse_flash_attention_v2.py::_triton_mixed_sparse_attention"
+    ],
+    [
+     "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+     "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.vertical_and_slash_kernel",
+     "minference/ops/pit_sparse_flash_attention_v2.py::vertical_slash_sparse_attention",
+     "minference/ops/pit_sparse_flash_attention_v2.py::_triton_mixed_sparse_attention"
+    ]
+   ],
    "location": "minference/ops/pit_sparse_flash_attention_v2.py:150",
    "function": "minference/ops/pit_sparse_flash_attention_v2.py::_triton_mixed_sparse_attention"
   },
@@ -827,27 +837,85 @@
    "condition": "Lk not in {16, 32, 64, 128}",
    "path_prefix": [],
    "dropped_prefix": [],
-   "aliases": {
-    "Lk": "k.shape[-1]"
-   },
    "trigger": {
-    "Lk": 129,
-    "k.shape[-1]": 129
+    "Lk": 17
    },
    "contrast": {
-    "Lk": 128,
-    "k.shape[-1]": 128
+    "Lk": 16
    },
    "atoms": {
     "Lk": {
-     "kind": "local",
-     "sort": "int"
-    },
-    "k.shape[-1]": {
-     "kind": "derived",
+     "kind": "input",
      "sort": "int"
     }
    },
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+    "minference/ops/streaming_kernel.py::streaming_forward",
+    "minference/ops/streaming_kernel.py::TritonMultiStageDotProductionAttention.append",
+    "minference/ops/streaming_kernel.py::_forward"
+   ],
+   "call_sites": [
+    {
+     "caller": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+     "callee": "minference/ops/streaming_kernel.py::streaming_forward",
+     "line": 428,
+     "resolved_by": "direct",
+     "args": {
+      "q": "q",
+      "k": "k",
+      "v": "v",
+      "n_init": "self.config.streaming_kwargs['n_init']",
+      "n_local": "self.config.streaming_kwargs['n_local']"
+     }
+    },
+    {
+     "caller": "minference/ops/streaming_kernel.py::streaming_forward",
+     "callee": "minference/ops/streaming_kernel.py::TritonMultiStageDotProductionAttention.append",
+     "line": 624,
+     "resolved_by": "direct",
+     "args": {
+      "q": "q",
+      "k": "k",
+      "v": "v",
+      "sliding_window": "n_local"
+     }
+    },
+    {
+     "caller": "minference/ops/streaming_kernel.py::TritonMultiStageDotProductionAttention.append",
+     "callee": "minference/ops/streaming_kernel.py::_forward",
+     "line": 563,
+     "resolved_by": "direct",
+     "args": {
+      "q": "q",
+      "k": "k",
+      "v": "v",
+      "sm_scale": "sm_scale",
+      "o": "self.o",
+      "m": "self.m",
+      "l": "self.l",
+      "sliding_window": "sliding_window",
+      "end": "end",
+      "init": "not self.init",
+      "complement_sliding_window": "complement_sliding_window"
+     }
+    }
+   ],
+   "other_chains": [
+    [
+     "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+     "minference/ops/streaming_kernel.py::streaming_forward",
+     "minference/ops/streaming_kernel.py::TritonMultiStageDotProductionAttention.append",
+     "minference/ops/streaming_kernel.py::_forward"
+    ],
+    [
+     "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+     "minference/ops/streaming_kernel.py::streaming_forward",
+     "minference/ops/streaming_kernel.py::TritonMultiStageDotProductionAttention.append",
+     "minference/ops/streaming_kernel.py::_forward"
+    ]
+   ],
    "location": "minference/ops/streaming_kernel.py:414",
    "function": "minference/ops/streaming_kernel.py::_forward"
   },
@@ -886,13 +954,19 @@
     "self.config.to_dict().get('streaming', False)"
    ],
    "dropped_prefix": [],
+   "entry_terms": {
+    "path_prefix": {
+     "not q_len == 1": "not q.shape[2] == 1"
+    }
+   },
    "trigger": {
     "q.dim()": 3,
     "q_len": 2,
     "self.config.to_dict().get('dilated1', False)": false,
     "self.config.to_dict().get('dilated2', False)": false,
     "self.config.to_dict().get('dense', False)": false,
-    "self.config.to_dict().get('streaming', False)": true
+    "self.config.to_dict().get('streaming', False)": true,
+    "q.shape[2]": 2
    },
    "contrast": {
     "q.dim()": 4,
@@ -900,10 +974,15 @@
     "self.config.to_dict().get('dilated1', False)": false,
     "self.config.to_dict().get('dilated2', False)": false,
     "self.config.to_dict().get('dense', False)": false,
-    "self.config.to_dict().get('streaming', False)": true
+    "self.config.to_dict().get('streaming', False)": true,
+    "q.shape[2]": 2
    },
    "atoms": {
     "q.dim()": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "q.shape[2]": {
      "kind": "derived",
      "sort": "int"
     },
@@ -928,6 +1007,26 @@
      "sort": "bool"
     }
    },
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+    "minference/ops/streaming_kernel.py::streaming_forward"
+   ],
+   "call_sites": [
+    {
+     "caller": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+     "callee": "minference/ops/streaming_kernel.py::streaming_forward",
+     "line": 428,
+     "resolved_by": "direct",
+     "args": {
+      "q": "q",
+      "k": "k",
+      "v": "v",
+      "n_init": "self.config.streaming_kwargs['n_init']",
+      "n_local": "self.config.streaming_kwargs['n_local']"
+     }
+    }
+   ],
    "location": "minference/ops/streaming_kernel.py:605",
    "function": "minference/ops/streaming_kernel.py::streaming_forward"
   },
@@ -967,6 +1066,11 @@
     "q.dim() == 4"
    ],
    "dropped_prefix": [],
+   "entry_terms": {
+    "path_prefix": {
+     "not q_len == 1": "not q.shape[2] == 1"
+    }
+   },
    "trigger": {
     "q.shape": 2,
     "k.shape": 2,
@@ -976,7 +1080,8 @@
     "self.config.to_dict().get('dilated2', False)": false,
     "self.config.to_dict().get('dense', False)": false,
     "self.config.to_dict().get('streaming', False)": true,
-    "q.dim()": 4
+    "q.dim()": 4,
+    "q.shape[2]": 2
    },
    "contrast": {
     "q.shape": 2,
@@ -987,7 +1092,8 @@
     "self.config.to_dict().get('dilated2', False)": false,
     "self.config.to_dict().get('dense', False)": false,
     "self.config.to_dict().get('streaming', False)": true,
-    "q.dim()": 4
+    "q.dim()": 4,
+    "q.shape[2]": 2
    },
    "atoms": {
     "k.shape": {
@@ -999,6 +1105,10 @@
      "sort": "int"
     },
     "q.shape": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "q.shape[2]": {
      "kind": "derived",
      "sort": "int"
     },
@@ -1027,6 +1137,26 @@
      "sort": "int"
     }
    },
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+    "minference/ops/streaming_kernel.py::streaming_forward"
+   ],
+   "call_sites": [
+    {
+     "caller": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+     "callee": "minference/ops/streaming_kernel.py::streaming_forward",
+     "line": 428,
+     "resolved_by": "direct",
+     "args": {
+      "q": "q",
+      "k": "k",
+      "v": "v",
+      "n_init": "self.config.streaming_kwargs['n_init']",
+      "n_local": "self.config.streaming_kwargs['n_local']"
+     }
+    }
+   ],
    "location": "minference/ops/streaming_kernel.py:606",
    "function": "minference/ops/streaming_kernel.py::streaming_forward"
   },
@@ -1071,75 +1201,10 @@
      "sort": "bool"
     }
    },
+   "call_chain_status": "not_found",
+   "call_chain_note": "no static call chain from an entry point to this function (dynamic dispatch, a callback, or it is not on the entry's path)",
    "location": "minference/patch.py:207",
    "function": "minference/patch.py::huggingface_forward.hf_forward"
-  },
-  "confidence": "llm_assisted",
-  "priority": 1,
-  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
-  "review": "unreviewed",
-  "review_note": null
- },
- {
-  "schema_version": "0.2.0",
-  "finding_id": "minference-F018",
-  "artifact_id": "minference",
-  "category": "undisclosed",
-  "level": "L2",
-  "limitation_ids": [
-   "CL-B038"
-  ],
-  "verification_ids": [
-   "V049"
-  ],
-  "scope_status": "unknown",
-  "evaluated_in_paper": null,
-  "effect_type": "reject",
-  "summary": "When not isinstance(model, (LlamaForCausalLM, MistralForCausalLM, Qwen2ForCausalLM)) and model.__class__.__name__ not in {\"MiniCPMForCausalLM\", \"Phi3ForCausalLM\", \"ChatGLMForConditionalGeneration\"}: `patch_hf` dispatches on the concrete model class and raises `ValueError(\"Only supports llama, mistral and qwen2 models.\")` for anything else, so the mechanism cannot be applied to other architectur...",
-  "witness_hint": {
-   "format": "witness-v2",
-   "kind": "input_value",
-   "status": "solved",
-   "condition": "not isinstance(model, (LlamaForCausalLM, MistralForCausalLM, Qwen2ForCausalLM)) and model.__class__.__name__ not in {\"MiniCPMForCausalLM\", \"Phi3ForCausalLM\", \"ChatGLMForConditionalGeneration\"}",
-   "path_prefix": [
-    "def patch_hf(model, attn_type, attn_kwargs, base, distance_scale, **kwargs)"
-   ],
-   "dropped_prefix": [
-    "def patch_hf(model, attn_type, attn_kwargs, base, distance_scale, **kwargs)"
-   ],
-   "trigger": {
-    "isinstance(model, (LlamaForCausalLM, MistralForCausalLM, Qwen2ForCausalLM))": false,
-    "model.__class__.__name__": {
-     "not_in": [
-      "ChatGLMForConditionalGeneration",
-      "MiniCPMForCausalLM",
-      "Phi3ForCausalLM"
-     ]
-    }
-   },
-   "contrast": {
-    "isinstance(model, (LlamaForCausalLM, MistralForCausalLM, Qwen2ForCausalLM))": false,
-    "model.__class__.__name__": "MiniCPMForCausalLM"
-   },
-   "atoms": {
-    "isinstance(model, (LlamaForCausalLM, MistralForCausalLM, Qwen2ForCausalLM))": {
-     "kind": "predicate",
-     "sort": "bool"
-    },
-    "model.__class__.__name__": {
-     "kind": "category",
-     "sort": "str"
-    }
-   },
-   "aliases_not_applied": {
-    "forward": "huggingface_forward(ATTN_FORWRAD[attn_type](**attn_kwargs))",
-    "layer_outputs": "decoder_layer(hidden_states, attention_mask=attention_mask, position_ids=self.position_bias, past_key_value=past_key_values[i] if past_key_values is not None else None, output_attentions=output_attentions, use_cache=use_cache)",
-    "end_idx": "min(hidden_states.size(1), start_idx + 32000)",
-    "_cache": "layer_outputs[2 if output_attentions else 1]"
-   },
-   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
-   "location": "minference/patch.py:1252",
-   "function": "minference/patch.py::patch_hf"
   },
   "confidence": "llm_assisted",
   "priority": 1,
@@ -1206,6 +1271,8 @@
      "sort": "str"
     }
    },
+   "call_chain_status": "not_found",
+   "call_chain_note": "no static call chain from an entry point to this function (dynamic dispatch, a callback, or it is not on the entry's path)",
    "location": "minference/patch.py:1253",
    "function": "minference/patch.py::patch_hf"
   },
@@ -1254,6 +1321,8 @@
      "sort": "bool"
     }
    },
+   "call_chain_status": "not_found",
+   "call_chain_note": "no static call chain from an entry point to this function (dynamic dispatch, a callback, or it is not on the entry's path)",
    "location": "minference/minference_configuration.py:52",
    "function": "minference/minference_configuration.py::MInferenceConfig.update_config_path"
   },
@@ -1320,10 +1389,23 @@
      "sort": "int"
     }
    },
-   "aliases_not_applied": {
-    "config": "self.config.to_dict()"
-   },
-   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "minference/modules/minference_forward.py::minference_forward.forward",
+    "minference/modules/minference_forward.py::init_minference_parameters"
+   ],
+   "call_sites": [
+    {
+     "caller": "minference/modules/minference_forward.py::minference_forward.forward",
+     "callee": "minference/modules/minference_forward.py::init_minference_parameters",
+     "line": 462,
+     "resolved_by": "unique_name",
+     "args": {}
+    }
+   ],
+   "uncertain_steps": [
+    "minference/modules/minference_forward.py::minference_forward.forward -> minference/modules/minference_forward.py::init_minference_parameters (unique_name)"
+   ],
    "location": "minference/modules/minference_forward.py:63",
    "function": "minference/modules/minference_forward.py::init_minference_parameters"
   },
@@ -1372,6 +1454,24 @@
      "sort": "str"
     }
    },
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "minference/modules/minference_forward.py::minference_forward.forward",
+    "minference/modules/minference_forward.py::search_pattern"
+   ],
+   "call_sites": [
+    {
+     "caller": "minference/modules/minference_forward.py::minference_forward.forward",
+     "callee": "minference/modules/minference_forward.py::search_pattern",
+     "line": 520,
+     "resolved_by": "direct",
+     "args": {
+      "q": "q",
+      "k": "k",
+      "head": "head"
+     }
+    }
+   ],
    "location": "minference/modules/minference_forward.py:192",
    "function": "minference/modules/minference_forward.py::search_pattern"
   },
@@ -1416,6 +1516,11 @@
      "sort": "int"
     }
    },
+   "call_chain_status": "entry_is_target",
+   "call_chain": [
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4"
+   ],
+   "call_sites": [],
    "location": "minference/modules/minference_forward.py:418-419",
    "function": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4"
   },
@@ -1460,6 +1565,11 @@
      "sort": "bool"
     }
    },
+   "call_chain_status": "entry_is_target",
+   "call_chain": [
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4"
+   ],
+   "call_sites": [],
    "location": "minference/modules/minference_forward.py:421",
    "function": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4"
   },
@@ -1504,6 +1614,11 @@
      "sort": "bool"
     }
    },
+   "call_chain_status": "entry_is_target",
+   "call_chain": [
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4"
+   ],
+   "call_sites": [],
    "location": "minference/modules/minference_forward.py:423",
    "function": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4"
   },
@@ -1570,6 +1685,11 @@
      "sort": "bool"
     }
    },
+   "call_chain_status": "entry_is_target",
+   "call_chain": [
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4"
+   ],
+   "call_sites": [],
    "location": "minference/modules/minference_forward.py:425-426",
    "function": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4"
   },
@@ -1614,6 +1734,11 @@
      "sort": "bool"
     }
    },
+   "call_chain_status": "entry_is_target",
+   "call_chain": [
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4"
+   ],
+   "call_sites": [],
    "location": "minference/modules/minference_forward.py:427",
    "function": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4"
   },
@@ -1658,6 +1783,11 @@
      "sort": "bool"
     }
    },
+   "call_chain_status": "entry_is_target",
+   "call_chain": [
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4"
+   ],
+   "call_sites": [],
    "location": "minference/modules/minference_forward.py:432",
    "function": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4"
   },
@@ -1702,6 +1832,11 @@
      "sort": "bool"
     }
    },
+   "call_chain_status": "entry_is_target",
+   "call_chain": [
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4"
+   ],
+   "call_sites": [],
    "location": "minference/modules/minference_forward.py:434",
    "function": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4"
   },
@@ -1775,6 +1910,11 @@
      "sort": "int"
     }
    },
+   "call_chain_status": "entry_is_target",
+   "call_chain": [
+    "minference/modules/minference_forward.py::minference_forward.forward"
+   ],
+   "call_sites": [],
    "location": "minference/modules/minference_forward.py:521",
    "function": "minference/modules/minference_forward.py::minference_forward.forward"
   },
@@ -1825,6 +1965,11 @@
      "sort": "int"
     }
    },
+   "call_chain_status": "not_found",
+   "calls_entry": [
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4"
+   ],
+   "call_chain_note": "this function calls the entry point, it is not called by it: it is a caller-side integration and has to be driven directly",
    "location": "minference/modules/minference_forward.py:613",
    "function": "minference/modules/minference_forward.py::minference_kv_cache_cpu_forward.forward"
   },
@@ -1878,6 +2023,8 @@
      "sort": "int"
     }
    },
+   "call_chain_status": "not_found",
+   "call_chain_note": "no static call chain from an entry point to this function (dynamic dispatch, a callback, or it is not on the entry's path)",
    "location": "minference/modules/minference_forward.py:756",
    "function": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_vllm"
   },
@@ -1928,6 +2075,8 @@
      "sort": "int"
     }
    },
+   "call_chain_status": "not_found",
+   "call_chain_note": "no static call chain from an entry point to this function (dynamic dispatch, a callback, or it is not on the entry's path)",
    "location": "minference/modules/minference_forward.py:864",
    "function": "minference/modules/minference_forward.py::minference_vllm_forward.forward"
   },
@@ -1987,6 +2136,8 @@
      "sort": "int"
     }
    },
+   "call_chain_status": "not_found",
+   "call_chain_note": "no static call chain from an entry point to this function (dynamic dispatch, a callback, or it is not on the entry's path)",
    "location": "minference/modules/snap_kv.py:321",
    "function": "minference/modules/snap_kv.py::SnapKVCluster.update_kv"
   },
@@ -2035,6 +2186,8 @@
      "sort": "str"
     }
    },
+   "call_chain_status": "not_found",
+   "call_chain_note": "no static call chain from an entry point to this function (dynamic dispatch, a callback, or it is not on the entry's path)",
    "location": "minference/modules/snap_kv.py:347",
    "function": "minference/modules/snap_kv.py::SnapKVCluster.update_kv"
   },
@@ -2043,54 +2196,6 @@
   "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
   "review": "unreviewed",
   "review_note": null
- },
- {
-  "schema_version": "0.2.0",
-  "finding_id": "minference-F036",
-  "artifact_id": "minference",
-  "category": "undisclosed",
-  "level": "L2",
-  "limitation_ids": [
-   "CL-B027"
-  ],
-  "verification_ids": [
-   "V038"
-  ],
-  "scope_status": "unknown",
-  "evaluated_in_paper": null,
-  "effect_type": "path_change",
-  "summary": "When q.dtype != torch.bfloat16: The Triton kernel's compute dtype is chosen from the input dtype: bfloat16 inputs use tl.bfloat16, but any other dtype (e.g. float32 or float16) is silently forced to tl.float16, so the kernel runs a different precision path than the caller's tensor dtype. (minference/ops/block_sparse_flash_attention.py:130)",
-  "witness_hint": {
-   "format": "witness-v2",
-   "kind": "input_value",
-   "status": "solved",
-   "condition": "q.dtype != torch.bfloat16",
-   "path_prefix": [],
-   "dropped_prefix": [],
-   "trigger": {
-    "q.dtype": {
-     "not_in": [
-      "torch.bfloat16"
-     ]
-    }
-   },
-   "contrast": {
-    "q.dtype": "torch.bfloat16"
-   },
-   "atoms": {
-    "q.dtype": {
-     "kind": "category",
-     "sort": "str"
-    }
-   },
-   "location": "minference/ops/block_sparse_flash_attention.py:130",
-   "function": "minference/ops/block_sparse_flash_attention.py::_triton_block_sparse_attention"
-  },
-  "confidence": "llm_assisted",
-  "priority": 2,
-  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
-  "review": "real_but_minor",
-  "review_note": "blind review by an LLM subagent (round 1), not human: Choosing the Triton compute dtype (non-bf16 cast to fp16 inside the kernel) is a kernel precision detail, not a limit of the sparse-attention mechanism."
  },
  {
   "schema_version": "0.2.0",
@@ -2118,13 +2223,19 @@
    "aliases": {
     "head_dim": "q.shape[-1]"
    },
+   "entry_terms": {
+    "condition": "q.shape[-1] not in [16, 32, 64, 128, 256, 512]",
+    "names": {
+     "head_dim": "q.shape[-1]"
+    }
+   },
    "trigger": {
-    "head_dim": 511,
-    "q.shape[-1]": 511
+    "head_dim": 33,
+    "q.shape[-1]": 33
    },
    "contrast": {
-    "head_dim": 512,
-    "q.shape[-1]": 512
+    "head_dim": 32,
+    "q.shape[-1]": 32
    },
    "atoms": {
     "head_dim": {
@@ -2136,6 +2247,26 @@
      "sort": "int"
     }
    },
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+    "minference/ops/streaming_kernel.py::streaming_forward"
+   ],
+   "call_sites": [
+    {
+     "caller": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+     "callee": "minference/ops/streaming_kernel.py::streaming_forward",
+     "line": 428,
+     "resolved_by": "direct",
+     "args": {
+      "q": "q",
+      "k": "k",
+      "v": "v",
+      "n_init": "self.config.streaming_kwargs['n_init']",
+      "n_local": "self.config.streaming_kwargs['n_local']"
+     }
+    }
+   ],
    "location": "minference/ops/streaming_kernel.py:609",
    "function": "minference/ops/streaming_kernel.py::streaming_forward"
   },
@@ -2172,13 +2303,23 @@
    "dropped_prefix": [
     "def streaming_forward(q, k, v, n_init, n_local)"
    ],
+   "aliases": {
+    "n_local": "self.config.streaming_kwargs['n_local']"
+   },
+   "entry_terms": {
+    "names": {
+     "n_local": "self.config.streaming_kwargs['n_local']"
+    }
+   },
    "trigger": {
     "k_len": 2,
-    "n_local": 1
+    "n_local": 1,
+    "self.config.streaming_kwargs['n_local']": 1
    },
    "contrast": {
     "k_len": 1,
-    "n_local": 1
+    "n_local": 1,
+    "self.config.streaming_kwargs['n_local']": 1
    },
    "atoms": {
     "k_len": {
@@ -2186,18 +2327,34 @@
      "sort": "int"
     },
     "n_local": {
-     "kind": "input",
+     "kind": "local",
+     "sort": "int"
+    },
+    "self.config.streaming_kwargs['n_local']": {
+     "kind": "derived",
      "sort": "int"
     }
    },
-   "aliases_not_applied": {
-    "head_dim": "q.shape[-1]",
-    "q_len": "q.size(2)",
-    "k_len": "k.size(2)",
-    "attn": "TritonMultiStageDotProductionAttention(q.shape, q.dtype, q.device)",
-    "target_dim": "2 ** math.ceil(math.log2(head_dim)) - head_dim"
-   },
-   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+    "minference/ops/streaming_kernel.py::streaming_forward"
+   ],
+   "call_sites": [
+    {
+     "caller": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+     "callee": "minference/ops/streaming_kernel.py::streaming_forward",
+     "line": 428,
+     "resolved_by": "direct",
+     "args": {
+      "q": "q",
+      "k": "k",
+      "v": "v",
+      "n_init": "self.config.streaming_kwargs['n_init']",
+      "n_local": "self.config.streaming_kwargs['n_local']"
+     }
+    }
+   ],
    "location": "minference/ops/streaming_kernel.py:620",
    "function": "minference/ops/streaming_kernel.py::streaming_forward"
   },
@@ -2267,6 +2424,8 @@
     "len_q": "query.size(1)"
    },
    "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "call_chain_status": "not_found",
+   "call_chain_note": "no static call chain from an entry point to this function (dynamic dispatch, a callback, or it is not on the entry's path)",
    "location": "minference/ops/streaming_kernel.py:701",
    "function": "minference/ops/streaming_kernel.py::stream_llm_forward.forward"
   },
@@ -2311,6 +2470,12 @@
      "sort": "bool"
     }
    },
+   "call_chain_status": "not_found",
+   "calls_entry": [
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+    "minference/modules/minference_forward.py::minference_forward.forward"
+   ],
+   "call_chain_note": "this function calls the entry point, it is not called by it: it is a caller-side integration and has to be driven directly",
    "location": "minference/patch.py:835",
    "function": "minference/patch.py::minference_patch"
   },
@@ -2355,6 +2520,12 @@
      "sort": "bool"
     }
    },
+   "call_chain_status": "not_found",
+   "calls_entry": [
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+    "minference/modules/minference_forward.py::minference_forward.forward"
+   ],
+   "call_chain_note": "this function calls the entry point, it is not called by it: it is a caller-side integration and has to be driven directly",
    "location": "minference/patch.py:840",
    "function": "minference/patch.py::minference_patch"
   },
@@ -2390,14 +2561,14 @@
    "trigger": {
     "s_idx": 1,
     "end_m": 2,
-    "start_m": 3,
-    "seqlen": 4
+    "start_m": 1,
+    "seqlen": 2
    },
    "contrast": {
-    "s_idx": 2,
-    "end_m": 2,
-    "start_m": 3,
-    "seqlen": 4
+    "s_idx": 1,
+    "end_m": 1,
+    "start_m": 1,
+    "seqlen": 2
    },
    "atoms": {
     "end_m": {
@@ -2422,6 +2593,8 @@
     "csrc/kernels.cpp:7-18"
    ],
    "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "call_chain_status": "not_found",
+   "call_chain_note": "csrc/vertical_slash_index.cu is not a Python file of the repo",
    "location": "csrc/vertical_slash_index.cu:27-99",
    "function": null
   },
@@ -2458,6 +2631,8 @@
     "minference/modules/minference_forward.py:99-197"
    ],
    "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The A-shape candidate set is hardcoded in search_pattern (vertical_size/slash_size derived from fixed values like 100/800), so the paper's {(1024,4096)} candidates are never used regardless of inputs.",
+   "call_chain_status": "not_found",
+   "call_chain_note": "experiments/README.md is not a Python file of the repo",
    "location": "experiments/README.md:13-30",
    "function": null
   },
@@ -2493,6 +2668,8 @@
     "minference/modules/minference_forward.py:99-197"
    ],
    "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The search_pattern function hardcodes vertical/slash candidate sizes internally and the experiment config never passes the paper's candidate set {(30,2048),(100,1800),(500,1500),(3000,200)}, so the paper's candidate enumeration is absent on every search call.",
+   "call_chain_status": "not_found",
+   "call_chain_note": "experiments/README.md is not a Python file of the repo",
    "location": "experiments/README.md:13-30",
    "function": null
   },
@@ -2528,6 +2705,8 @@
     "minference/modules/minference_forward.py:99-197"
    ],
    "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The paper's Block-Sparse {100} candidate setting is never represented in the config/experiment layer, so the gap appears on every search-pattern invocation regardless of input values.",
+   "call_chain_status": "not_found",
+   "call_chain_note": "experiments/README.md is not a Python file of the repo",
    "location": "experiments/README.md:13-30",
    "function": null
   },
@@ -2581,6 +2760,8 @@
     "minference/modules/minference_forward.py:430-442"
    ],
    "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "call_chain_status": "not_found",
+   "call_chain_note": "no static call chain from an entry point to this function (dynamic dispatch, a callback, or it is not on the entry's path)",
    "location": "experiments/infinite_bench/args.py:63-78",
    "function": null
   },
@@ -2632,6 +2813,8 @@
     "experiments/ppl/run_ppl.sh:7-12"
    ],
    "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "call_chain_status": "not_found",
+   "call_chain_note": "no static call chain from an entry point to this function (dynamic dispatch, a callback, or it is not on the entry's path)",
    "location": "experiments/infinite_bench/args.py:63-78",
    "function": null
   },
@@ -2683,6 +2866,8 @@
     "experiments/ppl/run_ppl.sh:7-12"
    ],
    "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "call_chain_status": "not_found",
+   "call_chain_note": "no static call chain from an entry point to this function (dynamic dispatch, a callback, or it is not on the entry's path)",
    "location": "experiments/infinite_bench/args.py:63-78",
    "function": null
   },
@@ -2744,6 +2929,12 @@
     "minference/ops/streaming_kernel.py:598-633"
    ],
    "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "call_chain_status": "not_found",
+   "calls_entry": [
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+    "minference/modules/minference_forward.py::minference_forward.forward"
+   ],
+   "call_chain_note": "this function calls the entry point, it is not called by it: it is a caller-side integration and has to be driven directly",
    "location": "minference/models_patch.py:66-73",
    "function": null
   },
@@ -2778,6 +2969,24 @@
     "experiments/README.md:13-30"
    ],
    "note": "the gap shows on every call through the cited code; any input reaching it is a witness. search_pattern always iterates a hardcoded candidate table and never accepts or uses a caller-provided sigma, so the paper's sigma-based loop is never realized on any call.",
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "minference/modules/minference_forward.py::minference_forward.forward",
+    "minference/modules/minference_forward.py::search_pattern"
+   ],
+   "call_sites": [
+    {
+     "caller": "minference/modules/minference_forward.py::minference_forward.forward",
+     "callee": "minference/modules/minference_forward.py::search_pattern",
+     "line": 520,
+     "resolved_by": "direct",
+     "args": {
+      "q": "q",
+      "k": "k",
+      "head": "head"
+     }
+    }
+   ],
    "location": "minference/modules/minference_forward.py:99-197",
    "function": null
   },
@@ -2813,6 +3022,24 @@
     "minference/modules/minference_forward.py:199-246"
    ],
    "note": "LLM gave no usable condition: names not in the cited code: is_search",
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "minference/modules/minference_forward.py::minference_forward.forward",
+    "minference/modules/minference_forward.py::search_pattern"
+   ],
+   "call_sites": [
+    {
+     "caller": "minference/modules/minference_forward.py::minference_forward.forward",
+     "callee": "minference/modules/minference_forward.py::search_pattern",
+     "line": 520,
+     "resolved_by": "direct",
+     "args": {
+      "q": "q",
+      "k": "k",
+      "head": "head"
+     }
+    }
+   ],
    "location": "minference/modules/minference_forward.py:99-197",
    "function": null
   },
@@ -2847,6 +3074,24 @@
     "minference/modules/minference_forward.py:199-246"
    ],
    "note": "LLM gave no usable condition: names not in the cited code: is_search",
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "minference/modules/minference_forward.py::minference_forward.forward",
+    "minference/modules/minference_forward.py::search_pattern"
+   ],
+   "call_sites": [
+    {
+     "caller": "minference/modules/minference_forward.py::minference_forward.forward",
+     "callee": "minference/modules/minference_forward.py::search_pattern",
+     "line": 520,
+     "resolved_by": "direct",
+     "args": {
+      "q": "q",
+      "k": "k",
+      "head": "head"
+     }
+    }
+   ],
    "location": "minference/modules/minference_forward.py:99-197",
    "function": null
   },
@@ -2881,6 +3126,24 @@
     "experiments/README.md:13-30"
    ],
    "note": "the gap shows on every call through the cited code; any input reaching it is a witness. search_pattern is always called with only (q, k, head) and never receives V, patterns, rho, t, or sigma, so the paper's six-input Algorithm 1 precondition can never be satisfied regardless of input values.",
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "minference/modules/minference_forward.py::minference_forward.forward",
+    "minference/modules/minference_forward.py::search_pattern"
+   ],
+   "call_sites": [
+    {
+     "caller": "minference/modules/minference_forward.py::minference_forward.forward",
+     "callee": "minference/modules/minference_forward.py::search_pattern",
+     "line": 520,
+     "resolved_by": "direct",
+     "args": {
+      "q": "q",
+      "k": "k",
+      "head": "head"
+     }
+    }
+   ],
    "location": "minference/modules/minference_forward.py:99-197",
    "function": null
   },
@@ -2915,6 +3178,24 @@
     "experiments/README.md:13-30"
    ],
    "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The search_pattern function always initializes its best-score tracking with numeric 0 / empty string rather than the paper's empty set, so negative-scoring candidates are never selected regardless of inputs.",
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "minference/modules/minference_forward.py::minference_forward.forward",
+    "minference/modules/minference_forward.py::search_pattern"
+   ],
+   "call_sites": [
+    {
+     "caller": "minference/modules/minference_forward.py::minference_forward.forward",
+     "callee": "minference/modules/minference_forward.py::search_pattern",
+     "line": 520,
+     "resolved_by": "direct",
+     "args": {
+      "q": "q",
+      "k": "k",
+      "head": "head"
+     }
+    }
+   ],
    "location": "minference/modules/minference_forward.py:99-197",
    "function": null
   },
@@ -2950,6 +3231,8 @@
     "minference/ops/block_sparse_flash_attention.py:80-111"
    ],
    "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The artifact's search_pattern_v2 selects patterns by output-difference count against a dense reference rather than minimizing t_sparse(M)+t_overhead(M), so the paper's time objective is never implemented on any call.",
+   "call_chain_status": "not_found",
+   "call_chain_note": "no static call chain from an entry point to this function (dynamic dispatch, a callback, or it is not on the entry's path)",
    "location": "minference/modules/minference_forward.py:199-246",
    "function": null
   },
@@ -2984,6 +3267,50 @@
     "minference/ops/block_sparse_flash_attention.py:78-111"
    ],
    "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The block index is always built from raw pooled dot products without softmax or 1/sqrt(d) scaling, so the paper's softmax-scaled block logits are never computed on any call.",
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.block_sparse_kernel",
+    "minference/ops/block_sparse_flash_attention.py::block_sparse_attention",
+    "minference/ops/block_sparse_flash_attention.py::_build_block_index"
+   ],
+   "call_sites": [
+    {
+     "caller": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+     "callee": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.block_sparse_kernel",
+     "line": 440,
+     "resolved_by": "reference",
+     "args": {}
+    },
+    {
+     "caller": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.block_sparse_kernel",
+     "callee": "minference/ops/block_sparse_flash_attention.py::block_sparse_attention",
+     "line": 413,
+     "resolved_by": "direct",
+     "args": {
+      "query": "q",
+      "key": "k",
+      "value": "v",
+      "top_k": "topk"
+     }
+    },
+    {
+     "caller": "minference/ops/block_sparse_flash_attention.py::block_sparse_attention",
+     "callee": "minference/ops/block_sparse_flash_attention.py::_build_block_index",
+     "line": 183,
+     "resolved_by": "direct",
+     "args": {
+      "query": "query",
+      "key": "key",
+      "top_k": "top_k",
+      "block_size_M": "block_size_N",
+      "block_size_N": "block_size_N"
+     }
+    }
+   ],
+   "uncertain_steps": [
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4 -> minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.block_sparse_kernel (reference)"
+   ],
    "location": "minference/ops/block_sparse_flash_attention.py:150-165",
    "function": null
   },
@@ -2992,6 +3319,66 @@
   "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 2: impl_deviates; related (candidate pair, judged different): minference-F063",
   "review": "unreviewed",
   "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F002",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B003"
+  ],
+  "verification_ids": [
+   "V014"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "When ROPE_TYPE is not None: `ROPE_TYPE` is a module-level global computed once from the *first* attention module's `rotary_emb.forward` signature and then reused for every model/layer in the process (`if ROPE_TYPE is not None: return`). Loading a second model with a different RoPE signature in the same process keeps the first model's convention, and `get_cos_sin` then calls `self.rotary_emb` wi...",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "ROPE_TYPE is not None",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "ROPE_TYPE is None": false
+   },
+   "contrast": {
+    "ROPE_TYPE is None": true
+   },
+   "atoms": {
+    "ROPE_TYPE is None": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "minference/modules/minference_forward.py::minference_forward.forward",
+    "minference/modules/minference_forward.py::set_rope_type"
+   ],
+   "call_sites": [
+    {
+     "caller": "minference/modules/minference_forward.py::minference_forward.forward",
+     "callee": "minference/modules/minference_forward.py::set_rope_type",
+     "line": 490,
+     "resolved_by": "direct",
+     "args": {
+      "self": "self"
+     }
+    }
+   ],
+   "location": "minference/modules/minference_forward.py:30",
+   "function": "minference/modules/minference_forward.py::set_rope_type"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: undisclosed, other effect",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 3), not human: ROPE_TYPE caching only matters when mixing models with different RoPE signatures in one process; it is model-compat plumbing, not a limitation of the sparse mechanism."
  },
  {
   "schema_version": "0.2.0",
@@ -3036,6 +3423,22 @@
      "sort": "bool"
     }
    },
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "minference/modules/minference_forward.py::minference_forward.forward",
+    "minference/modules/minference_forward.py::set_rope_type"
+   ],
+   "call_sites": [
+    {
+     "caller": "minference/modules/minference_forward.py::minference_forward.forward",
+     "callee": "minference/modules/minference_forward.py::set_rope_type",
+     "line": 490,
+     "resolved_by": "direct",
+     "args": {
+      "self": "self"
+     }
+    }
+   ],
    "location": "minference/modules/minference_forward.py:34",
    "function": "minference/modules/minference_forward.py::set_rope_type"
   },
@@ -3085,10 +3488,23 @@
      "sort": "bool"
     }
    },
-   "aliases_not_applied": {
-    "config": "self.config.to_dict()"
-   },
-   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "minference/modules/minference_forward.py::minference_forward.forward",
+    "minference/modules/minference_forward.py::init_minference_parameters"
+   ],
+   "call_sites": [
+    {
+     "caller": "minference/modules/minference_forward.py::minference_forward.forward",
+     "callee": "minference/modules/minference_forward.py::init_minference_parameters",
+     "line": 462,
+     "resolved_by": "unique_name",
+     "args": {}
+    }
+   ],
+   "uncertain_steps": [
+    "minference/modules/minference_forward.py::minference_forward.forward -> minference/modules/minference_forward.py::init_minference_parameters (unique_name)"
+   ],
    "location": "minference/modules/minference_forward.py:74",
    "function": "minference/modules/minference_forward.py::init_minference_parameters"
   },
@@ -3137,6 +3553,24 @@
      "sort": "str"
     }
    },
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "minference/modules/minference_forward.py::minference_forward.forward",
+    "minference/modules/minference_forward.py::search_pattern"
+   ],
+   "call_sites": [
+    {
+     "caller": "minference/modules/minference_forward.py::minference_forward.forward",
+     "callee": "minference/modules/minference_forward.py::search_pattern",
+     "line": 520,
+     "resolved_by": "direct",
+     "args": {
+      "q": "q",
+      "k": "k",
+      "head": "head"
+     }
+    }
+   ],
    "location": "minference/modules/minference_forward.py:194",
    "function": "minference/modules/minference_forward.py::search_pattern"
   },
@@ -3185,6 +3619,11 @@
      "sort": "bool"
     }
    },
+   "call_chain_status": "entry_is_target",
+   "call_chain": [
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4"
+   ],
+   "call_sites": [],
    "location": "minference/modules/minference_forward.py:430",
    "function": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4"
   },
@@ -3193,6 +3632,138 @@
   "rationale": "3b: not_found; priority 3: undisclosed, other effect; related (candidate pair, judged different): minference-F046",
   "review": "worth_testing",
   "review_note": "blind review by an LLM subagent (round 3), not human: Heads missing from the pattern config (or a missing/empty config_path) silently get a fixed default vertical_and_slash (1000, 6096) pattern; the 'whole sequence' claim only holds for q_len <= 6096."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F005",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B016"
+  ],
+  "verification_ids": [
+   "V027"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "When ty not in {\"stream_llm\", \"vertical_and_slash\", \"block_sparse\"}: The implementation is chosen by the `ty` string read from the user-supplied pattern JSON (`config_path`). Any other value in that file (e.g. a typo, or a pattern produced by a different search version) raises an uncaught `KeyError` at prefill time rather than falling back. (minference/modules/minference_forward.py:441)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "ty not in {\"stream_llm\", \"vertical_and_slash\", \"block_sparse\"}",
+   "path_prefix": [
+    "def gather_last_q_vertical_slash_topk_v4(self, q, k, v, head_id)"
+   ],
+   "dropped_prefix": [
+    "def gather_last_q_vertical_slash_topk_v4(self, q, k, v, head_id)"
+   ],
+   "trigger": {
+    "ty": {
+     "not_in": [
+      "block_sparse",
+      "stream_llm",
+      "vertical_and_slash"
+     ]
+    }
+   },
+   "contrast": {
+    "ty": "block_sparse"
+   },
+   "atoms": {
+    "ty": {
+     "kind": "category",
+     "sort": "str"
+    }
+   },
+   "call_chain_status": "entry_is_target",
+   "call_chain": [
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4"
+   ],
+   "call_sites": [],
+   "location": "minference/modules/minference_forward.py:441",
+   "function": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: undisclosed, other effect; related (candidate pair, judged different): minference-F046",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F007",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B017"
+  ],
+  "verification_ids": [
+   "V028"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "When self.is_search and os.path.exists(self.config_path) and self.layer_idx < len(config_list): With `is_search` enabled, if the output `config_path` already contains an entry for this layer, the forward pass hits a bare `assert False` and aborts — the search cannot be re-run into an existing file. Also, when `is_search` is true the sparse mechanism is never applied (`not self.is_search` in the...",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "self.is_search and os.path.exists(self.config_path) and self.layer_idx < len(config_list)",
+   "path_prefix": [
+    "def minference_forward()",
+    "def forward(self, hidden_states, attention_mask, position_ids, past_key_value, output_attentions, use_cache, **kwargs)"
+   ],
+   "dropped_prefix": [
+    "def minference_forward()",
+    "def forward(self, hidden_states, attention_mask, position_ids, past_key_value, output_attentions, use_cache, **kwargs)"
+   ],
+   "trigger": {
+    "self.is_search": true,
+    "os.path.exists(self.config_path)": true,
+    "self.layer_idx": 1,
+    "len(config_list)": 2
+   },
+   "contrast": {
+    "self.is_search": true,
+    "os.path.exists(self.config_path)": true,
+    "self.layer_idx": 2,
+    "len(config_list)": 2
+   },
+   "atoms": {
+    "len(config_list)": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "os.path.exists(self.config_path)": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "self.is_search": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "self.layer_idx": {
+     "kind": "derived",
+     "sort": "int"
+    }
+   },
+   "call_chain_status": "entry_is_target",
+   "call_chain": [
+    "minference/modules/minference_forward.py::minference_forward.forward"
+   ],
+   "call_sites": [],
+   "location": "minference/modules/minference_forward.py:504",
+   "function": "minference/modules/minference_forward.py::minference_forward.forward"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: undisclosed, other effect",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 1), not human: In search mode the code hits assert False when the config file already has an entry for the layer (true by default, since config_path comes from the shipped MODEL2PATH file), and search mode runs dense attention."
  },
  {
   "schema_version": "0.2.0",
@@ -3265,6 +3836,11 @@
      "sort": "int"
     }
    },
+   "call_chain_status": "entry_is_target",
+   "call_chain": [
+    "minference/modules/minference_forward.py::minference_forward.forward"
+   ],
+   "call_sites": [],
    "location": "minference/modules/minference_forward.py:523",
    "function": "minference/modules/minference_forward.py::minference_forward.forward"
   },
@@ -3308,7 +3884,7 @@
     "q_len": 2,
     "self.layer_idx": 1,
     "self.starting_layer": 2,
-    "self.is_search": false,
+    "self.is_search": true,
     "hidden_states.size()[1]": 2
    },
    "contrast": {
@@ -3316,7 +3892,7 @@
     "q_len": 2,
     "self.layer_idx": 1,
     "self.starting_layer": 2,
-    "self.is_search": false,
+    "self.is_search": true,
     "hidden_states.size()[1]": 2
    },
    "atoms": {
@@ -3345,6 +3921,11 @@
      "sort": "int"
     }
    },
+   "call_chain_status": "entry_is_target",
+   "call_chain": [
+    "minference/modules/minference_forward.py::minference_forward.forward"
+   ],
+   "call_sites": [],
    "location": "minference/modules/minference_forward.py:526",
    "function": "minference/modules/minference_forward.py::minference_forward.forward"
   },
@@ -3353,6 +3934,162 @@
   "rationale": "3b: not_found; priority 3: undisclosed, other effect",
   "review": "unreviewed",
   "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F009",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B022"
+  ],
+  "verification_ids": [
+   "V033"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "When head_id not in self.best_pattern: The vLLM variant indexes `self.best_pattern[head_id]` directly (unlike the HF variant's `.get(..., default)`), so a pattern file whose per-layer dict lacks an entry for some head raises `KeyError` during prefill. `self.best_pattern` is rebuilt from the caller-supplied `pattern_config[layer_idx]` on every forward (line 790), so a short/mismatched pattern fi...",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "head_id not in self.best_pattern",
+   "path_prefix": [
+    "def gather_last_q_vertical_slash_topk_vllm(self, q, k, v, head_id)"
+   ],
+   "dropped_prefix": [
+    "def gather_last_q_vertical_slash_topk_vllm(self, q, k, v, head_id)"
+   ],
+   "trigger": {
+    "head_id in self.best_pattern": false
+   },
+   "contrast": {
+    "head_id in self.best_pattern": true
+   },
+   "atoms": {
+    "head_id in self.best_pattern": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "aliases_not_applied": {
+    "kv_seq_len": "k.size(2)",
+    "head_dim": "q.size(-1)",
+    "q_len": "q.shape[2]",
+    "bsz": "q.shape[0]",
+    "last_q": "min(64, q_len)",
+    "vertical": "qk.sum(-2, keepdim=True)",
+    "vertical_topk": "torch.topk(vertical, vertical_size, -1).indices",
+    "slash_topk": "slash"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "call_chain_status": "not_found",
+   "call_chain_note": "no static call chain from an entry point to this function (dynamic dispatch, a callback, or it is not on the entry's path)",
+   "location": "minference/modules/minference_forward.py:754",
+   "function": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_vllm"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: undisclosed, other effect",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F036",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B027"
+  ],
+  "verification_ids": [
+   "V038"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "When q.dtype != torch.bfloat16: The Triton kernel's compute dtype is chosen from the input dtype: bfloat16 inputs use tl.bfloat16, but any other dtype (e.g. float32 or float16) is silently forced to tl.float16, so the kernel runs a different precision path than the caller's tensor dtype. (minference/ops/block_sparse_flash_attention.py:130)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "q.dtype != torch.bfloat16",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "q.dtype": {
+     "not_in": [
+      "torch.bfloat16"
+     ]
+    }
+   },
+   "contrast": {
+    "q.dtype": "torch.bfloat16"
+   },
+   "atoms": {
+    "q.dtype": {
+     "kind": "category",
+     "sort": "str"
+    }
+   },
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.block_sparse_kernel",
+    "minference/ops/block_sparse_flash_attention.py::block_sparse_attention",
+    "minference/ops/block_sparse_flash_attention.py::_triton_block_sparse_attention"
+   ],
+   "call_sites": [
+    {
+     "caller": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+     "callee": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.block_sparse_kernel",
+     "line": 440,
+     "resolved_by": "reference",
+     "args": {}
+    },
+    {
+     "caller": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.block_sparse_kernel",
+     "callee": "minference/ops/block_sparse_flash_attention.py::block_sparse_attention",
+     "line": 413,
+     "resolved_by": "direct",
+     "args": {
+      "query": "q",
+      "key": "k",
+      "value": "v",
+      "top_k": "topk"
+     }
+    },
+    {
+     "caller": "minference/ops/block_sparse_flash_attention.py::block_sparse_attention",
+     "callee": "minference/ops/block_sparse_flash_attention.py::_triton_block_sparse_attention",
+     "line": 184,
+     "resolved_by": "direct",
+     "args": {
+      "q": "query",
+      "k": "key",
+      "v": "value",
+      "seqlens": "seqlens",
+      "block_index": "block_index",
+      "sm_scale": "sm_scale",
+      "block_size_M": "block_size_M",
+      "block_size_N": "block_size_N"
+     }
+    }
+   ],
+   "uncertain_steps": [
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4 -> minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.block_sparse_kernel (reference)"
+   ],
+   "location": "minference/ops/block_sparse_flash_attention.py:130",
+   "function": "minference/ops/block_sparse_flash_attention.py::_triton_block_sparse_attention"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: undisclosed, other effect",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 1), not human: Choosing the Triton compute dtype (non-bf16 cast to fp16 inside the kernel) is a kernel precision detail, not a limit of the sparse-attention mechanism."
  },
  {
   "schema_version": "0.2.0",
@@ -3381,19 +4118,29 @@
    "dropped_prefix": [
     "def _build_block_index(query, key, top_k, block_size_M=64, block_size_N=64)"
    ],
+   "aliases": {
+    "top_k": "100",
+    "block_size_N": "64"
+   },
+   "entry_terms": {
+    "names": {
+     "top_k": "100",
+     "block_size_N": "64"
+    }
+   },
    "trigger": {
-    "top_k": 4,
-    "context_size": 4,
-    "block_size_N": 2
+    "top_k": 100,
+    "context_size": 6399,
+    "block_size_N": 64
    },
    "contrast": {
-    "top_k": 4,
-    "context_size": 4,
-    "block_size_N": 1
+    "top_k": 100,
+    "context_size": 6400,
+    "block_size_N": 64
    },
    "atoms": {
     "block_size_N": {
-     "kind": "input",
+     "kind": "local",
      "sort": "int"
     },
     "context_size": {
@@ -3401,21 +4148,54 @@
      "sort": "int"
     },
     "top_k": {
-     "kind": "input",
+     "kind": "local",
      "sort": "int"
     }
    },
-   "aliases_not_applied": {
-    "batch_size": "query.shape[0]",
-    "num_heads": "query.shape[1]",
-    "context_size": "query.shape[2]",
-    "head_dim": "query.shape[3]",
-    "query_pool": "query.reshape((batch_size, num_heads, -1, block_size_M, head_dim)).mean(dim=-2)",
-    "key_pool": "key.reshape((batch_size, num_heads, -1, block_size_N, head_dim)).mean(dim=-2)",
-    "arange_M": "torch.arange(query_pool.shape[-2], dtype=torch.int32, device=query.device) * block_size_M",
-    "arange_N": "torch.arange(key_pool.shape[-2], dtype=torch.int32, device=key.device) * block_size_N"
-   },
-   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.block_sparse_kernel",
+    "minference/ops/block_sparse_flash_attention.py::block_sparse_attention",
+    "minference/ops/block_sparse_flash_attention.py::_build_block_index"
+   ],
+   "call_sites": [
+    {
+     "caller": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+     "callee": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.block_sparse_kernel",
+     "line": 440,
+     "resolved_by": "reference",
+     "args": {}
+    },
+    {
+     "caller": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.block_sparse_kernel",
+     "callee": "minference/ops/block_sparse_flash_attention.py::block_sparse_attention",
+     "line": 413,
+     "resolved_by": "direct",
+     "args": {
+      "query": "q",
+      "key": "k",
+      "value": "v",
+      "top_k": "topk"
+     }
+    },
+    {
+     "caller": "minference/ops/block_sparse_flash_attention.py::block_sparse_attention",
+     "callee": "minference/ops/block_sparse_flash_attention.py::_build_block_index",
+     "line": 183,
+     "resolved_by": "direct",
+     "args": {
+      "query": "query",
+      "key": "key",
+      "top_k": "top_k",
+      "block_size_M": "block_size_N",
+      "block_size_N": "block_size_N"
+     }
+    }
+   ],
+   "uncertain_steps": [
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4 -> minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.block_sparse_kernel (reference)"
+   ],
    "location": "minference/ops/block_sparse_flash_attention.py:164",
    "function": "minference/ops/block_sparse_flash_attention.py::_build_block_index"
   },
@@ -3477,6 +4257,8 @@
     "num_warps": "4 if Lk <= 64 or block_size_M <= 64 else 8"
    },
    "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "call_chain_status": "not_found",
+   "call_chain_note": "no static call chain from an entry point to this function (dynamic dispatch, a callback, or it is not on the entry's path)",
    "location": "minference/ops/pit_sparse_flash_attention.py:150",
    "function": "minference/ops/pit_sparse_flash_attention.py::triton_sparse_forward"
   },
@@ -3514,10 +4296,10 @@
     "def vertical_slash_sparse_attention(query, key, value, v_idx, s_idx, block_size_M=64, block_size_N=64)"
    ],
    "trigger": {
-    "head_dim": 63
+    "head_dim": 511
    },
    "contrast": {
-    "head_dim": 64
+    "head_dim": 512
    },
    "atoms": {
     "head_dim": {
@@ -3525,14 +4307,56 @@
      "sort": "int"
     }
    },
-   "aliases_not_applied": {
-    "batch_size": "query.shape[0]",
-    "num_heads": "query.shape[1]",
-    "context_size": "query.shape[2]",
-    "head_dim": "query.shape[3]",
-    "pad": "block_size_M - (context_size & block_size_M - 1)"
-   },
-   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+    "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.dialted",
+    "minference/ops/pit_sparse_flash_attention_v2.py::vertical_slash_sparse_attention"
+   ],
+   "call_sites": [
+    {
+     "caller": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+     "callee": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.dialted",
+     "line": 422,
+     "resolved_by": "direct",
+     "args": {
+      "q": "q",
+      "k": "k",
+      "v": "v",
+      "type": "'dilated1'"
+     }
+    },
+    {
+     "caller": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.dialted",
+     "callee": "minference/ops/pit_sparse_flash_attention_v2.py::vertical_slash_sparse_attention",
+     "line": 350,
+     "resolved_by": "direct",
+     "args": {
+      "query": "q",
+      "key": "k",
+      "value": "v",
+      "v_idx": "vertical_topk",
+      "s_idx": "slash"
+     }
+    }
+   ],
+   "other_chains": [
+    [
+     "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+     "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.dialted",
+     "minference/ops/pit_sparse_flash_attention_v2.py::vertical_slash_sparse_attention"
+    ],
+    [
+     "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+     "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.vertical_and_slash_kernel_static",
+     "minference/ops/pit_sparse_flash_attention_v2.py::vertical_slash_sparse_attention"
+    ],
+    [
+     "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+     "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4.vertical_and_slash_kernel",
+     "minference/ops/pit_sparse_flash_attention_v2.py::vertical_slash_sparse_attention"
+    ]
+   ],
    "location": "minference/ops/pit_sparse_flash_attention_v2.py:188",
    "function": "minference/ops/pit_sparse_flash_attention_v2.py::vertical_slash_sparse_attention"
   },
@@ -3541,6 +4365,75 @@
   "rationale": "3b: not_found; priority 3: reviewed as wrong; related (candidate pair, judged different): minference-F055, minference-F073",
   "review": "wrong",
   "review_note": "blind review by an LLM subagent (round 3), not human: Zero-padding the head dim adds nothing to q.k dot products and sm_scale uses the original head_dim, so the softmax is unchanged, contrary to the claim."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "minference-F018",
+  "artifact_id": "minference",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B038"
+  ],
+  "verification_ids": [
+   "V049"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "When not isinstance(model, (LlamaForCausalLM, MistralForCausalLM, Qwen2ForCausalLM)) and model.__class__.__name__ not in {\"MiniCPMForCausalLM\", \"Phi3ForCausalLM\", \"ChatGLMForConditionalGeneration\"}: `patch_hf` dispatches on the concrete model class and raises `ValueError(\"Only supports llama, mistral and qwen2 models.\")` for anything else, so the mechanism cannot be applied to other architectur...",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "not isinstance(model, (LlamaForCausalLM, MistralForCausalLM, Qwen2ForCausalLM)) and model.__class__.__name__ not in {\"MiniCPMForCausalLM\", \"Phi3ForCausalLM\", \"ChatGLMForConditionalGeneration\"}",
+   "path_prefix": [
+    "def patch_hf(model, attn_type, attn_kwargs, base, distance_scale, **kwargs)"
+   ],
+   "dropped_prefix": [
+    "def patch_hf(model, attn_type, attn_kwargs, base, distance_scale, **kwargs)"
+   ],
+   "trigger": {
+    "isinstance(model, (LlamaForCausalLM, MistralForCausalLM, Qwen2ForCausalLM))": false,
+    "model.__class__.__name__": {
+     "not_in": [
+      "ChatGLMForConditionalGeneration",
+      "MiniCPMForCausalLM",
+      "Phi3ForCausalLM"
+     ]
+    }
+   },
+   "contrast": {
+    "isinstance(model, (LlamaForCausalLM, MistralForCausalLM, Qwen2ForCausalLM))": false,
+    "model.__class__.__name__": "ChatGLMForConditionalGeneration"
+   },
+   "atoms": {
+    "isinstance(model, (LlamaForCausalLM, MistralForCausalLM, Qwen2ForCausalLM))": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "model.__class__.__name__": {
+     "kind": "category",
+     "sort": "str"
+    }
+   },
+   "aliases_not_applied": {
+    "forward": "huggingface_forward(ATTN_FORWRAD[attn_type](**attn_kwargs))",
+    "layer_outputs": "decoder_layer(hidden_states, attention_mask=attention_mask, position_ids=self.position_bias, past_key_value=past_key_values[i] if past_key_values is not None else None, output_attentions=output_attentions, use_cache=use_cache)",
+    "end_idx": "min(hidden_states.size(1), start_idx + 32000)",
+    "_cache": "layer_outputs[2 if output_attentions else 1]"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "call_chain_status": "not_found",
+   "call_chain_note": "no static call chain from an entry point to this function (dynamic dispatch, a callback, or it is not on the entry's path)",
+   "location": "minference/patch.py:1252",
+   "function": "minference/patch.py::patch_hf"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: undisclosed, other effect",
+  "review": "unreviewed",
+  "review_note": null
  },
  {
   "schema_version": "0.2.0",
@@ -3580,6 +4473,8 @@
     "experiments/infinite_bench/args.py:60-81"
    ],
    "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "call_chain_status": "not_found",
+   "call_chain_note": "experiments/README.md is not a Python file of the repo",
    "location": "experiments/README.md:13-30",
    "function": null
   },
@@ -3616,6 +4511,8 @@
     "experiments/ppl/run_ppl.sh:7-12"
    ],
    "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The ablation variant 'Ours w/ only vertical' has no corresponding attn_type choice or configuration in args.py/run_ppl.sh, so the Table 7 only-vertical row cannot be reproduced on any call.",
+   "call_chain_status": "not_found",
+   "call_chain_note": "no static call chain from an entry point to this function (dynamic dispatch, a callback, or it is not on the entry's path)",
    "location": "experiments/infinite_bench/args.py:63-78",
    "function": null
   },
@@ -3668,6 +4565,8 @@
     "experiments/ppl/run_ppl.sh:7-12"
    ],
    "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "call_chain_status": "not_found",
+   "call_chain_note": "no static call chain from an entry point to this function (dynamic dispatch, a callback, or it is not on the entry's path)",
    "location": "experiments/infinite_bench/args.py:63-78",
    "function": null
   },
@@ -3696,27 +4595,47 @@
   "witness_hint": {
    "format": "witness-v2",
    "kind": "input_value",
-   "status": "trigger_only",
-   "condition": "True",
-   "path_prefix": [
-    "is_search"
-   ],
+   "status": "solved",
+   "condition": "is_search",
+   "path_prefix": [],
    "dropped_prefix": [],
    "trigger": {
     "is_search": true
    },
-   "note": "the condition holds on every point that reaches it; no contrast point exists",
+   "contrast": {
+    "is_search": false
+   },
    "atoms": {
     "is_search": {
      "kind": "input",
      "sort": "bool"
     }
    },
+   "condition_original": "True",
+   "decision_note": "unconditional statement inside a branch: the innermost path-prefix entry decides it",
    "code_locations": [
     "minference/modules/minference_forward.py:99-197",
     "experiments/README.md:13-30"
    ],
    "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "minference/modules/minference_forward.py::minference_forward.forward",
+    "minference/modules/minference_forward.py::search_pattern"
+   ],
+   "call_sites": [
+    {
+     "caller": "minference/modules/minference_forward.py::minference_forward.forward",
+     "callee": "minference/modules/minference_forward.py::search_pattern",
+     "line": 520,
+     "resolved_by": "direct",
+     "args": {
+      "q": "q",
+      "k": "k",
+      "head": "head"
+     }
+    }
+   ],
    "location": "minference/modules/minference_forward.py:99-197",
    "function": null
   },
@@ -3751,6 +4670,24 @@
     "experiments/README.md:13-30"
    ],
    "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The paper's iterative FLOPs-target adjustment loop (while |ti−t|>ε) is entirely absent from search_pattern, so the code never performs the described iterative adjustment on any call.",
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "minference/modules/minference_forward.py::minference_forward.forward",
+    "minference/modules/minference_forward.py::search_pattern"
+   ],
+   "call_sites": [
+    {
+     "caller": "minference/modules/minference_forward.py::minference_forward.forward",
+     "callee": "minference/modules/minference_forward.py::search_pattern",
+     "line": 520,
+     "resolved_by": "direct",
+     "args": {
+      "q": "q",
+      "k": "k",
+      "head": "head"
+     }
+    }
+   ],
    "location": "minference/modules/minference_forward.py:99-197",
    "function": null
   },
@@ -3785,6 +4722,24 @@
     "experiments/README.md:13-30"
    ],
    "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The search_pattern function never accumulates FLOPs-aligned candidates into rho after the while loop, so the missing accumulation step occurs on every invocation of the offline search path.",
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "minference/modules/minference_forward.py::minference_forward.forward",
+    "minference/modules/minference_forward.py::search_pattern"
+   ],
+   "call_sites": [
+    {
+     "caller": "minference/modules/minference_forward.py::minference_forward.forward",
+     "callee": "minference/modules/minference_forward.py::search_pattern",
+     "line": 520,
+     "resolved_by": "direct",
+     "args": {
+      "q": "q",
+      "k": "k",
+      "head": "head"
+     }
+    }
+   ],
    "location": "minference/modules/minference_forward.py:99-197",
    "function": null
   },
@@ -3819,6 +4774,24 @@
     "minference/modules/minference_forward.py:199-246"
    ],
    "note": "LLM gave no usable condition: names not in the cited code: is_search",
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "minference/modules/minference_forward.py::minference_forward.forward",
+    "minference/modules/minference_forward.py::search_pattern"
+   ],
+   "call_sites": [
+    {
+     "caller": "minference/modules/minference_forward.py::minference_forward.forward",
+     "callee": "minference/modules/minference_forward.py::search_pattern",
+     "line": 520,
+     "resolved_by": "direct",
+     "args": {
+      "q": "q",
+      "k": "k",
+      "head": "head"
+     }
+    }
+   ],
    "location": "minference/modules/minference_forward.py:99-197",
    "function": null
   },
@@ -3853,6 +4826,8 @@
     "minference/ops/pit_sparse_flash_attention_v2.py:173-206"
    ],
    "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The artifact's forward path never measures or exposes separate t_sparse and t_overhead timing components, so the paper's two-component timing definition is absent on every call.",
+   "call_chain_status": "not_found",
+   "call_chain_note": "no static call chain from an entry point to this function (dynamic dispatch, a callback, or it is not on the entry's path)",
    "location": "minference/modules/minference_forward.py:199-246",
    "function": null
   },

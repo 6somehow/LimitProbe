@@ -1,0 +1,36 @@
+{
+ "assessment": "contradicts",
+ "reasoning": "The transform puts the first nonzero of each 2-element group in A1 and the rest in A2. For input density d, A2 density is d^2/2, giving 12.5%, 8%, 4.5%, 2%, 0.5% for d=0.5..0.1\u2014exactly the paper's numbers. The run/draw scripts only log runtime, but the residual values are analytically derivable, so the claimed mismatch is not supported.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "script/figure16/a100/sparta.cu",
+   "regex": "A2\\[j\\]\\s*=\\s*A\\[j\\]",
+   "expect": "present",
+   "control": "A1\\[j\\]\\s*=\\s*A\\[j\\]",
+   "meaning": "A2 receives extra nonzeros per pair, matching paper's residual-density trend."
+  },
+  {
+   "file": "script/figure16/a100/sparta.cu",
+   "regex": "printf|std::cout|residual|sparsity",
+   "expect": "absent",
+   "control": "transform\\(",
+   "meaning": "No residual-sparsity print in split code; control confirms file searched."
+  },
+  {
+   "file": "script/figure16/a100/draw.py",
+   "regex": "Time=",
+   "expect": "present",
+   "control": "log_data",
+   "meaning": "Plot script parses only runtime, not residual sparsity."
+  },
+  {
+   "file": "script/figure16/a100/run.sh",
+   "regex": "residual",
+   "expect": "absent",
+   "control": "sparsity_ratio",
+   "meaning": "Run script loops input sparsity but never measures residual sparsity."
+  }
+ ],
+ "would_confirm": "Compute A2 nonzero density from the transform for input sparsities 0.5\u20130.9 and compare with 12.5/8/4.5/2/0.5%, while checking whether the paper defines these as density."
+}

@@ -135,6 +135,123 @@ python -m codeside.cli validate results/step4/*/findings.json
 
 `closest: false` 表示用的是退路求解（含非线性项），两点有效，但不保证最近。
 
+### 2026-11-15 新增：效果标签检查、调用链、入口名字、稳定编号
+
+格式名仍是 `witness-v2`，只加字段，旧字段含义不变。对应 `checklimits/REQUESTS_TO_STEP4.md` 的四条请求和 `E2E_PLAN.md` 的 W1–W3。
+
+**1. 效果标签要和目标语句相符（W2，`codeside/effect_anchor.py`，只用 AST）**
+
+测试侧在目标位置判断效果：`reject` 要求目标语句自己能抛异常，`path_change` / `state` 要求目标是 `if` / `while`。
+路线 B 有时把“程序最后拒绝了”标在只是开头的语句上。步骤 4 现在先检查并修正，修正写在 Limitation 的 `notes`
+和 `findings.report.json` 的 `effect_checks` 里：
+
+| 标签 | 目标语句 | 处理 |
+|---|---|---|
+| reject | `assert`、`raise`，或体内有 `raise` 的 `if` / `while` / `for` / `with` / `try` | 不变 |
+| reject | `except X:` 这一行，处理块里有 `raise` | 目标移到那条 `raise` |
+| reject | 其它（体内没有 `raise` 的 `if` / `while`、调用、赋值） | 改成 `other`，写明原因 |
+| path_change / state | `if` / `while` | 不变 |
+| path_change / state | 在某个 `if` / `while` 体内，且那个分支的条件就是本条的条件 | 目标移到那个分支 |
+| path_change / state | 其它 | 改成 `other`，写明原因（效果是值的变化，需要 differential 检查） |
+
+`other` 的条目测试侧目前不判断，报告里可以直接引用这里写的原因。
+
+按测试侧的约定（`checklimits/REQUESTS_TO_STEP4.md` 第 5 条），体内没有 `raise` 的 `if` / `while` 上的 `reject` 改成
+`other`，不改成 `path_change`：“分支被执行”比“输入被拒绝”弱，判成 `yes` 会被读成确认了拒绝。
+
+目标被移动时，`witness_hint` 里还有 `effect_location`（真正产生效果的语句，也就是新的 `code_evidence[0]`）、
+`labelled_location`（标签原来指的位置）和 `effect_location_reason`。
+
+**2. 调用链和参数对应（W1，`codeside/callgraph.py`）**
+
+`witness_hint` 新增：
+
+```json
+{
+ "call_chain_status": "resolved",      // resolved | entry_is_target | module_level | not_found
+ "call_chain": ["…::flex_prefill_attention", "…::get_active_blocks", "…::triton_bnhd_pool"],
+ "call_sites": [
+  {"caller": "…::flex_prefill_attention", "callee": "…::get_active_blocks", "line": 1856,
+   "resolved_by": "direct", "args": {"q": "q", "k": "k", "block_size": "block_size", "…": "…"}},
+  {"caller": "…::get_active_blocks", "callee": "…::triton_bnhd_pool", "line": 1719,
+   "resolved_by": "direct", "args": {"x": "k", "kernel_size": "block_size"}}],
+ "other_chains": [["…"]],              // 其它调用链（如第二个调用点）
+ "uncertain_steps": ["…"],             // 靠猜解析的调用，见下
+ "calls_entry": ["…"]                  // not_found 时：这个函数是调用入口的一方
+}
+```
+
+调用的解析方式（`resolved_by`）：`direct`（同文件、import 进来的函数、`Class(...)`、`obj = Class(...)` 之后的 `obj.m()`）、
+`self`、`import`（`module.f()`）是确定的；`unique_name`（方法名在仓库里唯一）、`override`（子类覆盖了 `self.m()`）、
+`reference`（嵌套函数被父函数传出去而不是调用）是猜的，会列在 `uncertain_steps`。
+类型未知且方法名不唯一的调用（`layer(x)`、多个 `forward`）解析不了，目标就是 `not_found`，不猜。
+入口优先取和目标同文件的入口函数（和测试侧选入口的规则一致）。
+
+**3. 被调函数的名字换成入口函数的名字（W3，`codeside/chain_bind.py`）**
+
+沿调用链把每一层的名字往上换：局部变量换成它的定义（`b, n, h, d = x.shape` 得 `d -> x.shape[3]`），
+形参换成调用点的实参（`x -> k`），直到入口函数。求解时条件和每条路径前缀都再用入口名字写一遍加进约束
+（原文也保留，所以 hint 仍给代码里用的名字的值）。路径前缀属于哪一层函数，按源码判断：
+调用链上哪个函数在调用点之前有这个条件。结果记在 `entry_terms`：
+
+```json
+"entry_terms": {"condition": "not k.shape[3] in {16, 32, 64, 128}",
+                "path_prefix": {"head_dim in {16, 32, 64, 128}": "k.shape[3] in {16, 32, 64, 128}"},
+                "names": {"d": "k.shape[3]", "q_len": "q.shape[1]"}}
+```
+
+加上这些约束后无解，就是从入口经这条调用链走不到：`status: infeasible`、`infeasible_because: call_chain`
+（priority 3）。有多条调用链时每条都试，全部无解才算。调用链里有猜的一步时不下这个结论，退回不带调用链的解，
+记 `entry_terms_dropped`。
+
+不换的情况（宁可不换，不能换错）：局部变量在循环或分支里赋值；定义的右边在定义之后又被改过；形参在使用前
+被重新赋值（`q = q.transpose(1, 2)`）；调用用了 `*args` / `**kwargs`；同一个名字在调用链的几层里含义不同
+（记在 `ambiguous_names`）。
+
+**4. Finding 编号跨运行不变**
+
+测试侧按 finding_id 归档结果。重跑步骤 4 时，由同一组 Limitation 组成的 Finding 沿用上一次的编号
+（读输出目录里已有的 `findings.json`），新的 Finding 取下一个空号。文件里的顺序仍按 priority。
+
+**5. 多行语句的 snippet 约定**
+
+步骤 4 把每条代码侧 Limitation 的 `snippet` 统一重写成一种形式（`codeside/effect_anchor.py::canonical_snippet`），
+路线 A 和路线 B 一样：
+
+| 语句 | snippet |
+|---|---|
+| `assert` | `assert <条件>`（去掉消息） |
+| `if` / `while`（含 `elif`） | `if <条件>:` / `while <条件>:`，只有头部 |
+| 其它 | `ast.unparse(语句)` 的第一行 |
+
+都是一行、去掉多余括号、最多 200 字符。之前路线 B 的 snippet 是源码原样的第一行，多行语句会只剩 `if (`；
+路线 A 的 assert 带着消息。现在不会了。使用方按解析后的条件比较，不要逐字比较。这个约定以后要改会先通知。
+
+**6. 没有对照点的两种写法（`trigger_only`）**
+
+路线 B 有两种条件写法会让 witness 没有 contrast，测试侧因此记 `witness_unusable`。求解前先改写（`witness.decision`）：
+
+* 条件又被抄进了自己的路径前缀（最后一条）：去掉这条，记 `prefix_dropped`。更前面同样文字的前缀条目来自调用链上的
+  其它函数（如入口函数自己的检查），保留。
+* 条件是 `True`（分支里无条件的 `raise`）：真正的判定是最内层的路径前缀条目，用它作条件，原来的记在 `condition_original`。
+
+五篇原来的 6 条 `trigger_only` 都因此有了 contrast（代码侧 nnsmith-F001、minference-F006，其余 4 条是论文侧）。
+
+**这次重跑的变化（五篇 289 条，编号不变，模型调用全部命中缓存）**
+
+| | FlexPrefill | NNSmith |
+|---|---|---|
+| 效果标签修正 | 2 条 | 14 条（其中 2 条移动目标） |
+| 测试侧“目标不能判断”（标签和语句不符） | 2 → 0 | 13 → 0 |
+| 改成 `other` 的（需要别的 oracle） | 2 | 12 |
+| 测试侧能判断的条数（`batch --list` 的规则） | 32 → 29 | 19 → 22 |
+| witness 新变成 infeasible | 4（F004、F005、F010、F011） | 0 |
+| 调用链 resolved / entry_is_target / module_level / not_found | 34 / 6 / 1 / 24 | 19 / 0 / 3 / 16 |
+
+FlexPrefill 能判断的条数减少，是因为 4 条被证明从入口走不到（其中 F010 是测试侧报告的那条），
+另有 1 条 `reject` 标在没有 `raise` 的 `if` 上，改成了 `other`（F047，盲审标 `wrong` 的那条）。
+D14 能不能从 residual 变成 eliminated，要测试侧用新的调用链重跑 agent 才知道，这里没有重跑。
+
 ## 结果（五篇）
 
 | 论文 | Limitation（代码+论文） | Finding | 两侧合并 | undisclosed | contradicts | stated_diff | docs_only | paper_stated | impl_deviates | not_impl | p1/p2/p3 | witness 可用 |

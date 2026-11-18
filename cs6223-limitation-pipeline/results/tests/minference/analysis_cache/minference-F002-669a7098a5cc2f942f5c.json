@@ -1,0 +1,32 @@
+{
+ "assessment": "unclear",
+ "reasoning": "Only the line `def set_rope_type(self):` is shown; the function body and any module-level `ROPE_TYPE` assignment are absent. The claim depends on a global being set once and an early return reusing it, neither of which is visible in the provided evidence. Text probes could confirm the code pattern, but the current evidence is insufficient.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "minference/modules/minference_forward.py",
+   "regex": "^ROPE_TYPE\\s*=\\s*None\\b",
+   "expect": "present",
+   "meaning": "Module-level ROPE_TYPE global exists."
+  },
+  {
+   "file": "minference/modules/minference_forward.py",
+   "regex": "global\\s+ROPE_TYPE",
+   "expect": "present",
+   "meaning": "Function mutates module-level ROPE_TYPE."
+  },
+  {
+   "file": "minference/modules/minference_forward.py",
+   "regex": "if\\s+ROPE_TYPE\\s+is\\s+not\\s+None[\\s\\S]{0,80}return",
+   "expect": "present",
+   "meaning": "Early return reuses first computed RoPE type."
+  },
+  {
+   "file": "minference/modules/minference_forward.py",
+   "regex": "rotary_emb\\.forward|inspect\\.signature|signature\\(",
+   "expect": "present",
+   "meaning": "RoPE type derived from rotary_emb signature."
+  }
+ ],
+ "would_confirm": "Inspect the full `set_rope_type` body and run two models with different `rotary_emb` signatures in one process to see whether the second reuses the first `ROPE_TYPE`."
+}

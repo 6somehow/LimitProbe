@@ -1,0 +1,29 @@
+{
+ "assessment": "supports",
+ "reasoning": "The cited launch script configures pipeline_parallel_size=1 and tensor_parallel_size=1, and the only replica_resource_mapping line is commented out. It contains no round-robin or load-balancing logic. This supports that the cited artifact run does not implement multi-replica round-robin distribution, though it does not exhaustively prove absence elsewhere in the repository.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "run_exp.sh",
+   "regex": "^[^#\\n]*replica_resource_mapping",
+   "expect": "absent",
+   "control": "replica_resource_mapping",
+   "meaning": "Active replica mapping is absent; only a commented line exists."
+  },
+  {
+   "file": "run_exp.sh",
+   "regex": "parallel_config_(pipeline|tensor)_parallel_size\\s+1",
+   "expect": "present",
+   "control": "parallel_config",
+   "meaning": "Pipeline and tensor parallel sizes are set to one replica."
+  },
+  {
+   "file": "run_exp.sh",
+   "regex": "round.?robin|load.?balanc",
+   "expect": "absent",
+   "control": "scheduler_config",
+   "meaning": "No round-robin or load-balancing logic appears in the launch script."
+  }
+ ],
+ "would_confirm": "Inspect the benchmark entrypoint and scheduler for replica selection/round-robin code, or run with multiple replicas and observe request distribution."
+}

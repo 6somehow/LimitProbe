@@ -1,0 +1,27 @@
+{
+ "assessment": "supports",
+ "reasoning": "The paper formula adds \u03b1\u00b7(Prefill_rem+Decode_rem) to arrival+TTLT. The comparator applies hybrid_prioritization_param only to remaining prompt tokens, with no decode term. The scheduler instead subtracts a decode estimate from tier_deadline using fixed execution_threshold_batched, not \u03b1. Thus the artifact lacks the \u03b1\u00b7Decode_rem term and uses a linear fixed-coefficient deadline deduction.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "sarathi/core/datatypes/sequence.py",
+   "regex": "hybrid_prioritization_param \\* self_remaining_tokens",
+   "expect": "present",
+   "meaning": "Shows \u03b1 is applied only to remaining prompt tokens."
+  },
+  {
+   "file": "sarathi/core/scheduler/deadline_scheduler.py",
+   "regex": "execution_threshold_batched",
+   "expect": "present",
+   "meaning": "Shows decode estimate is deducted using a fixed coefficient."
+  },
+  {
+   "file": "sarathi/core/datatypes/sequence.py",
+   "regex": "(?i)decode.*hybrid_prioritization_param|hybrid_prioritization_param.*decode",
+   "expect": "absent",
+   "control": "hybrid_prioritization_param",
+   "meaning": "No \u03b1-weighted decode term appears in the comparator."
+  }
+ ],
+ "would_confirm": "Inspect or run the scheduler with known prefill/decode remaining tokens and \u03b1 to verify whether priority uses \u03b1\u00b7Decode_rem or only a fixed execution_threshold_batched deduction."
+}
