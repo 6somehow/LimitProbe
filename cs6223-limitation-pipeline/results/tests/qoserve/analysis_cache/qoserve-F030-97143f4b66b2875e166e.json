@@ -1,0 +1,27 @@
+{
+ "assessment": "supports",
+ "reasoning": "The cited scripts launch a single Sarathi/DEADLINE benchmark process per run and assign one scheduler type per GPU. They contain no orchestration for independent per-QoS-bucket GPU clusters, so the paper's Sarathi-Silo baseline is not implemented in the shown code.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "fig10_11.sh",
+   "regex": "(?i)(silo|qos|bucket|cluster)",
+   "expect": "absent",
+   "control": "run_gpu_sweep",
+   "meaning": "No silo/QoS cluster orchestration; only per-GPU scheduler sweeps."
+  },
+  {
+   "file": "fig10_11.sh",
+   "regex": "run_gpu_sweep [0-9]+ \"(fcfs|srpf|edf|deadline)\"",
+   "expect": "present",
+   "meaning": "Each GPU runs one scheduler type, not independent QoS-bucket clusters."
+  },
+  {
+   "file": "fig7.sh",
+   "regex": "python -m sarathi\\.benchmark\\.main",
+   "expect": "present",
+   "meaning": "Only a single Sarathi benchmark process is launched per run."
+  }
+ ],
+ "would_confirm": "A repository-wide search for a launcher starting separate Sarathi replicas on distinct GPU clusters per QoS bucket; finding none confirms the gap."
+}

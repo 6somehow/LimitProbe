@@ -70,5 +70,71 @@
   "findings_file": "results/step4/flexposit/limitations_for_tests.json",
   "findings_sha256": "90fcaf23c2793dc03b49c54856e041483165536eff1522a25766022460b78f23",
   "generated_at": "2026-11-17T15:05:22+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The cited code computes delta as ppl_new - baseline_ppl and comments that negative is good, while paper Algorithm 2 defines ∆PPL = P_base - PPL(Mw,D). Thus the sign is reversed on every call; read_sensitivity_windows consumes delta_ppl unchanged. The evidence supports the impl_deviates finding.",
+  "hardware_needed": false,
+  "would_confirm": "Inspect or run ppl_probe.py on any window and compare the sign of delta_ppl to P_base - PPL(Mw,D).",
+  "static": {
+   "cited": 3,
+   "grounded": true,
+   "items": [
+    {
+     "file": "scripts/regen_sensitivity_ppl.sh",
+     "lines": "8-33",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "shell"
+    },
+    {
+     "file": "src/flexposit/sensitivity/ppl_probe.py",
+     "lines": "416-453",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "src/flexposit/mpq/channel_window.py",
+     "lines": "108-128",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "src/flexposit/sensitivity/ppl_probe.py",
+    "regex": "delta\\s*=\\s*ppl_new\\s*-\\s*baseline_ppl",
+    "expect": "present",
+    "meaning": "Confirms code computes upgraded minus baseline, opposite paper sign.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     425
+    ]
+   },
+   {
+    "file": "src/flexposit/sensitivity/ppl_probe.py",
+    "regex": "baseline_ppl\\s*-\\s*ppl_new",
+    "expect": "absent",
+    "meaning": "Shows no paper-order subtraction is used in this file.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "baseline_ppl",
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
  }
 }

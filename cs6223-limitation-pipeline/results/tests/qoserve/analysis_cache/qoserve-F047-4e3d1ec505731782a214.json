@@ -1,0 +1,26 @@
+{
+ "assessment": "supports",
+ "reasoning": "The shown scheduler has no prefill-queue preemption eligibility check. The prefill loop only performs deadline-based eager relegation/drop and chunking, while the decode loop explicitly says 'No pre-emption support'. Thus the paper's condition about an in-flight request being in the prefill queue is not implemented in the pinned code.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "sarathi/core/scheduler/deadline_scheduler.py",
+   "regex": "No pre-emption support",
+   "expect": "present",
+   "meaning": "Explicit comment confirms preemption is not implemented in this scheduler."
+  },
+  {
+   "file": "sarathi/core/scheduler/deadline_scheduler.py",
+   "regex": "prefill_queue[^\\n]*(preempt|in_flight|in-flight)|(preempt|in_flight|in-flight)[^\\n]*prefill_queue",
+   "expect": "absent",
+   "meaning": "No line links prefill queue membership to preemption eligibility."
+  },
+  {
+   "file": "sarathi/core/scheduler/deadline_scheduler.py",
+   "regex": "def _preempt|_preempt\\(",
+   "expect": "absent",
+   "meaning": "No preemption routine exists in the shown scheduler file."
+  }
+ ],
+ "would_confirm": "Run a scheduling scenario with an in-flight prefill request and verify whether the scheduler ever preempts based on prefill-queue membership."
+}

@@ -58,5 +58,54 @@
   "findings_file": "results/step4/qoserve/limitations_for_tests.json",
   "findings_sha256": "79eb69f6ac7117b77ebe00293d1d328dff8bfffcd7cabc7556eaae435c1699e2",
   "generated_at": "2026-11-18T00:46:02+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The cited config exposes only global scheduler parameters (execution_threshold, output_len_pred, hybrid_prioritization_param) and no per-request priority or QoS fields. That matches the finding that the script/config layer lacks per-request priority configuration, despite the paper claiming a request-level priority API. The evidence is limited to config.py, but the shown dataclass is the cited layer.",
+  "hardware_needed": false,
+  "would_confirm": "Inspect the request submission/API schema and scheduler call path for any per-request priority or QoS field.",
+  "static": {
+   "cited": 1,
+   "grounded": true,
+   "items": [
+    {
+     "file": "sarathi/config/config.py",
+     "lines": "284-311",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "sarathi/config/config.py",
+    "regex": "\\bpriority\\s*:\\s*(int|str|float|Optional\\[)",
+    "expect": "absent",
+    "meaning": "No per-request priority field; control confirms file searched.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "hybrid_prioritization_param\\s*:\\s*float",
+    "hit_lines": []
+   },
+   {
+    "file": "sarathi/config/config.py",
+    "regex": "\\b(ttft|tbt|ttlt)\\s*:\\s*(float|int|Optional\\[)",
+    "expect": "absent",
+    "meaning": "No per-request QoS fields; control confirms dataclass fields present.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "execution_threshold\\s*:\\s*float",
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
  }
 }

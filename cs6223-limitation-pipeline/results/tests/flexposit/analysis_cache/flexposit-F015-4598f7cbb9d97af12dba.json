@@ -1,0 +1,26 @@
+{
+ "assessment": "supports",
+ "reasoning": "The paper states the sign term is pushed into the FIFO at cyc0. The RTL instead maps fifo_in0 to sign_pack only when cycle1, and the FIFO write logic stores data_in0 under cycle1&valid. At cycle0 it writes zero_pack/data_in1/data_in2. This directly supports the claimed deviation: sign FIFO write occurs at cyc1, not cyc0.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "hardware/rtl/posit_decode_and_queue.v",
+   "regex": "cycle1\\s*\\?\\s*sign_pack",
+   "expect": "present",
+   "meaning": "Shows sign_pack is selected for FIFO input on cycle1."
+  },
+  {
+   "file": "hardware/rtl/posit_decode_and_queue.v",
+   "regex": "if\\s*\\(\\s*cycle1\\s*&\\s*valid\\s*\\)",
+   "expect": "present",
+   "meaning": "Shows FIFO data_in0 write is gated by cycle1."
+  },
+  {
+   "file": "hardware/rtl/posit_decode_and_queue.v",
+   "regex": "cycle0\\s*\\?\\s*zero_pack",
+   "expect": "present",
+   "meaning": "Shows cycle0 FIFO input is zero_pack, not sign_pack."
+  }
+ ],
+ "would_confirm": "A cycle-accurate RTL simulation showing FIFO write-enable and data_in0 on cycle0 versus cycle1 would settle the timing."
+}

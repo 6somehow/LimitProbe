@@ -1,0 +1,150 @@
+[
+ {
+  "kind": "missing_comparison",
+  "claim": "Tessera improves throughput by 20%–33% over the production baseline across five workloads at 4,096–12,288 GPUs.",
+  "limitation": "The headline production comparison is against Alibaba’s proprietary Megatron-LM fork, not a public baseline; the public Megatron-Core comparison is only at 256 GPUs, so the large-scale gain cannot be independently checked.",
+  "quotes": [
+   "we compare against Alibaba’s internal Megatron-LM fork, the production training stack used for the same Qwen3-family workloads before enabling Tessera.",
+   "we benchmark against the Internal Optimized Baseline defined in §6.1"
+  ],
+  "locator": "§6.1–6.2",
+  "check": null,
+  "would_confirm": "Release the internal baseline configuration or run the same five production workloads against public Megatron-Core at 4,096–12,288 GPUs."
+ },
+ {
+  "kind": "reproducibility",
+  "claim": "Tessera is a standalone library integrated with Megatron-LM and deployed in production.",
+  "limitation": "No code or artifact is public; the 11,000-line Python/2,000-line C++ implementation and internal Megatron-LM integration cannot be inspected or run, blocking reproduction of all results.",
+  "quotes": [
+   "Tessera is implemented as a standalone library (11,000 lines of Python and 2,000 lines of C++) integrated with Megatron-LM [22] (as a host framework).",
+   "We implemented Tessera atop Alibaba’s internal Megatron-LM"
+  ],
+  "locator": "§4",
+  "check": null,
+  "would_confirm": "Publicly release the Tessera source, build scripts, and integration patches."
+ },
+ {
+  "kind": "evaluation_scope",
+  "claim": "Tessera is a holistic framework for trillion-parameter heterogeneous MoE training.",
+  "limitation": "Production evidence covers only Qwen3/Qwen3-Next on Hopper/RoCE with proprietary data; non-Qwen models are tested only at 256 GPUs, so generality to other architectures, hardware, and datasets is unproven.",
+  "quotes": [
+   "Our production evaluation focuses on pre-training the Qwen3 and Qwen3-Next model families.",
+   "comprising NVIDIA Hopper GPU servers (each equipped with 8 GPUs) interconnected via a high-performance RoCE network.",
+   "All experiments use a mixture of proprietary internal datasets and open-source datasets."
+  ],
+  "locator": "§6.1",
+  "check": null,
+  "would_confirm": "Run production-scale training on non-Qwen MoE models and non-Hopper interconnects with public data."
+ },
+ {
+  "kind": "missing_comparison",
+  "claim": "Tessera’s profile-driven co-optimization systematically outperforms manual heuristics.",
+  "limitation": "The only empirical comparisons are an internal Megatron fork and Megatron-Core MoE; no head-to-head results are given for Comet, DualPipe, Zero Bubble, Alpa, or other overlap/partitioning systems discussed in related work.",
+  "quotes": [
+   "we compare Tessera against Megatron-Core MoE [36] on a 256-GPU cluster.",
+   "Tessera demonstrates that a unified, profile-driven co-optimization approach systematically outperforms manual heuristics"
+  ],
+  "locator": "§6.3, §8",
+  "check": null,
+  "would_confirm": "Benchmark Tessera against those systems on the same models and hardware."
+ },
+ {
+  "kind": "assumption",
+  "claim": "Tessera profiles post-overlap cost on a reference device group and reuses the plan across matching ranks.",
+  "limitation": "Plan quality depends on the reference group matching the target’s GPU type, topology, and interconnect; profiling is offline and can take up to 3,050 s, and drift or heterogeneity would invalidate cached costs.",
+  "quotes": [
+   "Tessera executes the synthesized schedule on a reference device group, a dedicated device set configured with the same TP/EP topology as the target rank, to measure ground-truth post-overlap cost.",
+   "Results are cached by device-mesh class and chunk specification for reuse across ranks and replicas with matching GPU type and interconnect pattern.",
+   "peaks at about 3,050 seconds at 128K for the trillion-scale PP8-C2 case"
+  ],
+  "locator": "§3.1.2, §6.7",
+  "check": null,
+  "would_confirm": "Compare plans profiled on the reference group against plans profiled on the actual target ranks under hardware/interconnect variation."
+ },
+ {
+  "kind": "assumption",
+  "claim": "The overlap-aware partitioner selects a partition that minimizes bottleneck post-overlap cost.",
+  "limitation": "The MILP minimizes a maximum-edge surrogate, not the full pipeline critical path, and searches only a bounded neighborhood around the serial baseline; better partitions outside that space are not considered.",
+  "quotes": [
+   "Tessera therefore uses the maximum selected post-overlap edge cost as a surrogate objective for partition selection.",
+   "Tessera restricts candidates to a bounded neighborhood around the baseline to keep overlap scheduling and profiling tractable."
+  ],
+  "locator": "§3.1.1, §3.1.3",
+  "check": null,
+  "would_confirm": "Compare against exhaustive or full-critical-path optimization on small models and measure end-to-end iteration time."
+ },
+ {
+  "kind": "evaluation_scope",
+  "claim": "The Dynamic Bubble Optimizer fills routing-induced idle slots and recovers throughput.",
+  "limitation": "DBO is isolated only on Qwen3-Next-M at 256 GPUs and 4K sequence length; production validation is two jobs, and controlled validation under infrastructure jitter is explicitly future work.",
+  "quotes": [
+   "We evaluate DBO’s speedup, overhead, and memory cost on Qwen3-Next-M (256 GPUs, 4K sequence length).",
+   "Systematic validation of this extension under controlled jitter conditions remains future work."
+  ],
+  "locator": "§6.6, §5",
+  "check": null,
+  "would_confirm": "Run controlled DBO on/off ablations at production scale and under injected network jitter."
+ },
+ {
+  "kind": "unsupported_claim",
+  "claim": "Static planning gave a ~13% boost and DBO raised Qwen3-XL MFU to 39.0% in the production trace.",
+  "limitation": "The two step changes in a two-week production trace are attributed to Static Planner and DBO without a controlled A/B; other cluster, workload, or software changes could explain the jumps.",
+  "quotes": [
+   "The first step-change (April 9) marks the deployment of Tessera’s Static Planner",
+   "The second jump (April 16) marks the activation of the Dynamic Bubble Optimizer"
+  ],
+  "locator": "§6.2, Fig. 9",
+  "check": null,
+  "would_confirm": "Randomize or repeatedly toggle Static Planner and DBO on the same production job and compare."
+ },
+ {
+  "kind": "assumption",
+  "claim": "DBO improves throughput with a bounded movable-task pool and acceptable memory cost.",
+  "limitation": "Aggressive bubble filling caused OOMs on memory-constrained workloads; results depend on a per-GPU pool cap of 8 and available memory headroom, and memory-constrained regimes are not systematically evaluated.",
+  "quotes": [
+   "aggressive bubble filling occasionally triggered out-of-memory (OOM) errors on memory-constrained workloads.",
+   "we cap the per-GPU movable-task pool at 8.",
+   "DBO increases peak memory by 2–4 percentage points of the per-GPU memory budget"
+  ],
+  "locator": "§5, §6.6",
+  "check": null,
+  "would_confirm": "Sweep memory headroom and pool caps, reporting throughput, OOM rate, and peak memory."
+ },
+ {
+  "kind": "evaluation_scope",
+  "claim": "Tessera’s event-driven overlap scheduler stays within ~1% of ILP on profiled post-overlap cost.",
+  "limitation": "Scheduler evaluation uses only Qwen3-Next-M at 4K with EP8/EP32; the ILP reference often hits a 300-s budget without a proven optimum, so the comparison is against a truncated solver.",
+  "quotes": [
+   "For Qwen3-Next-M at sequence length 4K, the EP32 and EP8 regimes produce 690 and 536 scheduling instances.",
+   "many hit the 300-s budget without a proven optimum.",
+   "staying within ∼1% of ILP on profiled post-overlap cost."
+  ],
+  "locator": "§6.5",
+  "check": null,
+  "would_confirm": "Evaluate on more models/sequence lengths and compare against exact or longer-budget ILP solutions."
+ },
+ {
+  "kind": "assumption",
+  "claim": "Co-optimizing partitioning and overlap scheduling yields the highest end-to-end throughput.",
+  "limitation": "The co-optimization experiment uses a mock router with uniform token distribution and disables DBO, removing the routing stochasticity that motivates the design; production behavior may differ.",
+  "quotes": [
+   "we employ a mock router that uniformly distributes tokens and disable DBO, isolating static plan efficiency from dynamic runtime variance."
+  ],
+  "locator": "§6.4",
+  "check": null,
+  "would_confirm": "Repeat the partition comparison with the real router and DBO enabled."
+ },
+ {
+  "kind": "unsupported_claim",
+  "claim": "Tessera introduces zero numerical divergence and no observed quality regression.",
+  "limitation": "Bit-identical loss is shown only in one deterministic-mode run; no convergence curves, held-out quality metrics, or seeds are reported, and production runs are not deterministic.",
+  "quotes": [
+   "The two runs produce bit-identical loss trajectories.",
+   "under deterministic mode.",
+   "the system has since sustained months of production pre-training without observed quality regression."
+  ],
+  "locator": "§6.2",
+  "check": null,
+  "would_confirm": "Release loss traces, seeds, and held-out evaluation results for Tessera and baseline runs."
+ }
+]

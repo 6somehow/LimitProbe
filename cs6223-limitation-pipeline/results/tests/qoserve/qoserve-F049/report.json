@@ -65,5 +65,80 @@
   "findings_file": "results/step4/qoserve/limitations_for_tests.json",
   "findings_sha256": "79eb69f6ac7117b77ebe00293d1d328dff8bfffcd7cabc7556eaae435c1699e2",
   "generated_at": "2026-11-18T00:46:02+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The shown deadline scheduler loop only pops from the prefill heap, chunks/drops requests, allocates memory, and appends to running. It contains no call to _preempt and no logic that frees or moves an in-flight partially prefilled request. The base scheduler defines _preempt, but the evidence does not show it being triggered. This matches the finding that preemption is not implemented in the scheduling path.",
+  "hardware_needed": false,
+  "would_confirm": "Search the whole repository for calls to _preempt and run a scheduling trace where a strict-QoS request arrives during partial prefill to see whether the in-flight request is preempted.",
+  "static": {
+   "cited": 3,
+   "grounded": true,
+   "items": [
+    {
+     "file": "sarathi/core/scheduler/deadline_scheduler.py",
+     "lines": "296-333",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "sarathi/core/scheduler/deadline_scheduler.py",
+     "lines": "184-204",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "sarathi/core/scheduler/base_scheduler.py",
+     "lines": "116-122",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "sarathi/core/scheduler/deadline_scheduler.py",
+    "regex": "self\\._preempt\\s*\\(",
+    "expect": "absent",
+    "meaning": "No preemption call in deadline scheduler; control confirms schedule method present.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "def _schedule\\s*\\(",
+    "hit_lines": []
+   },
+   {
+    "file": "sarathi/core/scheduler/deadline_scheduler.py",
+    "regex": "preempted_seq_ids\\s*\\.append",
+    "expect": "absent",
+    "meaning": "No preempted sequence recorded; control confirms variable declared.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "preempted_seq_ids\\s*:\\s*List",
+    "hit_lines": []
+   },
+   {
+    "file": "sarathi/core/scheduler/base_scheduler.py",
+    "regex": "self\\._preempt\\s*\\(",
+    "expect": "absent",
+    "meaning": "Preempt helper defined but not invoked in base scheduler; control confirms definition.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "def _preempt\\s*\\(",
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
  }
 }

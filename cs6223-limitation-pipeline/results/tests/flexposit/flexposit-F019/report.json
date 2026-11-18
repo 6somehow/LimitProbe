@@ -59,5 +59,81 @@
   "findings_file": "results/step4/flexposit/limitations_for_tests.json",
   "findings_sha256": "90fcaf23c2793dc03b49c54856e041483165536eff1522a25766022460b78f23",
   "generated_at": "2026-11-17T15:05:22+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The paper claims PEs accumulate in turn without stalls. The RTL explicitly routes a global stall into the cycle generator, freezes cycle shift registers when stalled, and gates FIFO reads with !stall. This shows a global backpressure path, contradicting the no-stall description. The absence of a shared accumulator is not directly proven by these snippets, but the stall deviation is supported.",
+  "hardware_needed": false,
+  "would_confirm": "A cycle-accurate RTL trace showing stall asserted during accumulation and freezing PE/cycle/FIFO progress would settle it.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "hardware/rtl/systolic_efficient.v",
+     "lines": "198-240",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "rtl"
+    },
+    {
+     "file": "hardware/rtl/mm_efficient.v",
+     "lines": "149-180",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "rtl"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "hardware/rtl/systolic_efficient.v",
+    "regex": "\\.stall\\s*\\(\\s*stall\\s*\\)",
+    "expect": "present",
+    "meaning": "Cycle generator receives global stall, contradicting no-stall claim.",
+    "status": "confirmed",
+    "hits": 3,
+    "hit_lines": [
+     207,
+     256,
+     308
+    ]
+   },
+   {
+    "file": "hardware/rtl/mm_efficient.v",
+    "regex": "rd_en\\s*\\(\\s*active_row\\[i\\]\\s*&&\\s*!stall\\s*\\)",
+    "expect": "present",
+    "meaning": "Activation FIFO reads are gated by global stall backpressure.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     157
+    ]
+   },
+   {
+    "file": "hardware/rtl/systolic_efficient.v",
+    "regex": "else if \\(!stall\\)",
+    "expect": "present",
+    "meaning": "Cycle shift registers stop advancing during stall.",
+    "status": "confirmed",
+    "hits": 5,
+    "hit_lines": [
+     234,
+     339,
+     642,
+     655,
+     683
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
  }
 }

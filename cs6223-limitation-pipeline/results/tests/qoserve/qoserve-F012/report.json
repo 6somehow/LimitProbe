@@ -65,5 +65,71 @@
   "findings_file": "results/step4/qoserve/limitations_for_tests.json",
   "findings_sha256": "79eb69f6ac7117b77ebe00293d1d328dff8bfffcd7cabc7556eaae435c1699e2",
   "generated_at": "2026-11-18T00:46:02+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The paper explicitly says the dynamic chunk size predictor uses a lightweight random forest trained on latency data. The cited code imports sklearn.linear_model.LinearRegression and instantiates LinearRegression in train_stratified_models. No random-forest import or estimator appears in the shown code. Thus the implementation deviates from the paper's stated model choice on every training call.",
+  "hardware_needed": false,
+  "would_confirm": "Inspect the full predictor training path and confirm no random-forest estimator is imported, instantiated, or fitted anywhere.",
+  "static": {
+   "cited": 3,
+   "grounded": true,
+   "items": [
+    {
+     "file": "chunk_size_predictor/predictor.py",
+     "lines": "1-41",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "chunk_size_predictor/predictor.py",
+     "lines": "55-116",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "chunk_size_predictor/predictor.py",
+     "lines": "213-254",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "chunk_size_predictor/predictor.py",
+    "regex": "RandomForest|RandomForestRegressor|sklearn\\.ensemble",
+    "expect": "absent",
+    "meaning": "Absence shows no random-forest model is imported or used in this file.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "LinearRegression",
+    "hit_lines": []
+   },
+   {
+    "file": "chunk_size_predictor/predictor.py",
+    "regex": "model\\s*=\\s*LinearRegression\\s*\\(",
+    "expect": "present",
+    "meaning": "Presence shows the script instantiates a linear regression model for training.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     86
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
  }
 }

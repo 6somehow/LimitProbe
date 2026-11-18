@@ -1,0 +1,20 @@
+{
+ "assessment": "supports",
+ "reasoning": "The paper says the decoder pushes exponent, mantissa, and zero flag into the per-column FIFO together as one decoded weight. The RTL instead writes data_in1, data_in2, filler slots, and data_in0 in separate branches/cycles, advancing wr_ptr by precision-1. This is a slot-wise write pattern, not a single bundled push, so the finding is supported.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "hardware/rtl/posit_decode_and_queue.v",
+   "regex": "mem\\[wr_ptr\\]\\s*<=\\s*data_in1",
+   "expect": "present",
+   "meaning": "Shows exponent written to its own FIFO slot."
+  },
+  {
+   "file": "hardware/rtl/posit_decode_and_queue.v",
+   "regex": "mem\\[\\(wr_ptr\\+1\\) % DEPTH\\]\\s*<=\\s*data_in2",
+   "expect": "present",
+   "meaning": "Shows mantissa written separately, not bundled."
+  }
+ ],
+ "would_confirm": "A cycle-level simulation or waveform of the FIFO write port would show whether exponent, mantissa, and zero flag are enqueued in one cycle or separate cycles."
+}

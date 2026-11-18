@@ -1,0 +1,26 @@
+{
+ "assessment": "supports",
+ "reasoning": "The shown checker only compares now + estimated prefill service time against arrival_time + ttft_deadline, and only when drop==0 and memory is unallocated. It has no TTLT term and no separate now > deadline check for already-violated requests. This matches the claimed deviation.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "sarathi/core/scheduler/deadline_scheduler.py",
+   "regex": "ttlt|TTLT",
+   "expect": "absent",
+   "meaning": "No TTLT handling in scheduler file"
+  },
+  {
+   "file": "sarathi/core/scheduler/deadline_scheduler.py",
+   "regex": "now\\s*\\+\\s*service_time_required\\s*\\)\\s*>\\s*\\(seq\\.arrival_time\\s*\\+\\s*seq\\.ttft_deadline\\)",
+   "expect": "present",
+   "meaning": "Only forward-looking TTFT deadline check present"
+  },
+  {
+   "file": "sarathi/core/scheduler/deadline_scheduler.py",
+   "regex": "now\\s*>\\s*\\(?seq\\.arrival_time\\s*\\+\\s*seq\\.ttft_deadline",
+   "expect": "absent",
+   "meaning": "No explicit already-violated TTFT check"
+  }
+ ],
+ "would_confirm": "A unit test with an already-expired TTFT/TTLT request and a future TTLT violation would show whether the scheduler rejects it."
+}
