@@ -1,0 +1,35 @@
+{
+ "assessment": "supports",
+ "reasoning": "The cited fig7.sh sets one DEADLINE chunk size of 256 and a SARATHI chunk size of 384, with no per-QoS bucket 2K setting. fig10_11.sh only sweeps scheduler types. Neither script instantiates a siloed baseline with bucket-specific chunk sizes, so the shown evidence supports the claimed missing silo baseline configuration.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "fig7.sh",
+   "regex": "(?i)silo",
+   "expect": "absent",
+   "control": "DEADLINE",
+   "meaning": "No silo baseline reference; control confirms scheduler config text is present."
+  },
+  {
+   "file": "fig7.sh",
+   "regex": "chunk_size\\s+(2048|2K|2000)",
+   "expect": "absent",
+   "control": "chunk_size\\s+256",
+   "meaning": "No 2K chunk setting; control shows chunk-size flags are searchable."
+  },
+  {
+   "file": "fig10_11.sh",
+   "regex": "(?i)silo",
+   "expect": "absent",
+   "control": "run_gpu_sweep",
+   "meaning": "Sweep script lacks silo baseline; control confirms file content searched."
+  },
+  {
+   "file": "fig7.sh",
+   "regex": "deadline_scheduler_config_chunk_size\\s+256",
+   "expect": "present",
+   "meaning": "Only strict-bucket chunk 256 appears, not per-bucket mapping."
+  }
+ ],
+ "would_confirm": "Search all benchmark scripts/configs for a siloed baseline path assigning chunk size 256 to the 50ms TBT bucket and 2048 to the other QoS buckets."
+}

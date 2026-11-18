@@ -59,5 +59,77 @@
   "findings_file": "results/step4/qoserve/limitations_for_tests.json",
   "findings_sha256": "79eb69f6ac7117b77ebe00293d1d328dff8bfffcd7cabc7556eaae435c1699e2",
   "generated_at": "2026-11-18T00:46:02+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The cited scripts launch a single Sarathi/DEADLINE benchmark process per run and assign one scheduler type per GPU. They contain no orchestration for independent per-QoS-bucket GPU clusters, so the paper's Sarathi-Silo baseline is not implemented in the shown code.",
+  "hardware_needed": false,
+  "would_confirm": "A repository-wide search for a launcher starting separate Sarathi replicas on distinct GPU clusters per QoS bucket; finding none confirms the gap.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "fig7.sh",
+     "lines": "76-106",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "shell"
+    },
+    {
+     "file": "fig10_11.sh",
+     "lines": "103-129",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "shell"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "fig10_11.sh",
+    "regex": "(?i)(silo|qos|bucket|cluster)",
+    "expect": "absent",
+    "meaning": "No silo/QoS cluster orchestration; only per-GPU scheduler sweeps.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "run_gpu_sweep",
+    "hit_lines": []
+   },
+   {
+    "file": "fig10_11.sh",
+    "regex": "run_gpu_sweep [0-9]+ \"(fcfs|srpf|edf|deadline)\"",
+    "expect": "present",
+    "meaning": "Each GPU runs one scheduler type, not independent QoS-bucket clusters.",
+    "status": "confirmed",
+    "hits": 4,
+    "hit_lines": [
+     126,
+     127,
+     128,
+     129
+    ]
+   },
+   {
+    "file": "fig7.sh",
+    "regex": "python -m sarathi\\.benchmark\\.main",
+    "expect": "present",
+    "meaning": "Only a single Sarathi benchmark process is launched per run.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     76
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
  }
 }

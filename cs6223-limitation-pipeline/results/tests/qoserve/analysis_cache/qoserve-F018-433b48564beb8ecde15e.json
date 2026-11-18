@@ -1,0 +1,22 @@
+{
+ "assessment": "supports",
+ "reasoning": "The cited config dataclass exposes only global scheduler knobs (execution_threshold, output_len_pred, hybrid_prioritization_param) and no per-request QoS/priority fields. That is consistent with the finding that request submission lacks per-request QoS configuration, though the shown snippet is config rather than a submission script.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "sarathi/config/config.py",
+   "regex": "(?i)(per[_-]?request|request[_-]?(qos|priority|ttft|tbt|ttlt)|qos[_-]?(ttft|tbt|ttlt|priority))",
+   "expect": "absent",
+   "control": "(?i)(DeadlineSchedulerConfig|hybrid_prioritization_param|execution_threshold)",
+   "meaning": "Miss shows no per-request QoS fields in this config dataclass."
+  },
+  {
+   "file": "sarathi/config/config.py",
+   "regex": "(?i)\\bqos\\b",
+   "expect": "absent",
+   "control": "(?i)DeadlineSchedulerConfig",
+   "meaning": "Miss shows QoS not configured here; control confirms file searched."
+  }
+ ],
+ "would_confirm": "Inspect the request-submission scripts/API for any per-request TTFT/TBT/TTLT/priority fields; if none, the finding holds."
+}

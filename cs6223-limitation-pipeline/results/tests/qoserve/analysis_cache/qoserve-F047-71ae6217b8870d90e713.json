@@ -1,0 +1,29 @@
+{
+ "assessment": "supports",
+ "reasoning": "The shown scheduler has no preemption eligibility check tied to the prefill queue. It even comments 'No pre-emption support', and preempted_seq_ids is initialized but never appended to. The prefill loop only handles deadline dropping and scheduling, not checking whether an in-flight request is in the prefill queue before preemption.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "sarathi/core/scheduler/deadline_scheduler.py",
+   "regex": "preempted_seq_ids\\.append",
+   "expect": "absent",
+   "control": "preempted_seq_ids",
+   "meaning": "No preemption is recorded; variable only initialized."
+  },
+  {
+   "file": "sarathi/core/scheduler/deadline_scheduler.py",
+   "regex": "preempt[^\\n]*prefill|prefill[^\\n]*preempt",
+   "expect": "absent",
+   "control": "self\\._prefill_queue",
+   "meaning": "No line links preemption with the prefill queue."
+  },
+  {
+   "file": "sarathi/core/scheduler/deadline_scheduler.py",
+   "regex": "prefill_queue[^\\n]*(preempt|evict)|(preempt|evict)[^\\n]*prefill_queue",
+   "expect": "absent",
+   "control": "heapq\\.heappush\\(self\\._prefill_queue",
+   "meaning": "No preemption/eviction check on prefill queue."
+  }
+ ],
+ "would_confirm": "A unit test that triggers memory pressure with a prefill-queued request and checks whether it is preempted would settle it."
+}

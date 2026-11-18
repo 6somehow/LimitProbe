@@ -1,0 +1,35 @@
+{
+ "assessment": "supports",
+ "reasoning": "The shown scheduler loop applies eager relegation based solely on deadline slack and drop count; it never checks seq.priority or seq.tier before relegating. Sequence initializes priority to a constant 1 and assigns tiers randomly, but the scheduler snippet has no low-priority-exhaustion gate. Thus the evidence supports the claim that this path treats requests uniformly by deadline.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "sarathi/core/scheduler/deadline_scheduler.py",
+   "regex": "seq\\.priority",
+   "expect": "absent",
+   "control": "seq\\.drop",
+   "meaning": "Scheduler never reads request priority; control shows drop logic present."
+  },
+  {
+   "file": "sarathi/core/scheduler/deadline_scheduler.py",
+   "regex": "seq\\.tier",
+   "expect": "absent",
+   "control": "seq\\.ttft_deadline",
+   "meaning": "Scheduler never consults tier; control shows deadline field used."
+  },
+  {
+   "file": "sarathi/core/scheduler/deadline_scheduler.py",
+   "regex": "TIER_DEADLINES",
+   "expect": "absent",
+   "control": "expected_prefill_throughput",
+   "meaning": "No tier-deadline gating in scheduler; control shows throughput logic present."
+  },
+  {
+   "file": "sarathi/core/datatypes/sequence.py",
+   "regex": "self\\.priority\\s*=\\s*1",
+   "expect": "present",
+   "meaning": "Priority is initialized to a constant, not differentiated per request."
+  }
+ ],
+ "would_confirm": "A unit test with mixed tiers and an exhausted low-priority queue would show whether high-priority requests are relegated only after low-priority exhaustion."
+}

@@ -59,5 +59,64 @@
   "findings_file": "results/step4/flexposit/limitations_for_tests.json",
   "findings_sha256": "90fcaf23c2793dc03b49c54856e041483165536eff1522a25766022460b78f23",
   "generated_at": "2026-11-17T15:05:22+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The paper says the decoder pushes exponent, mantissa, and zero flag into the per-column FIFO together as one decoded weight. The RTL instead writes data_in1, data_in2, filler slots, and data_in0 in separate branches/cycles, advancing wr_ptr by precision-1. This is a slot-wise write pattern, not a single bundled push, so the finding is supported.",
+  "hardware_needed": false,
+  "would_confirm": "A cycle-level simulation or waveform of the FIFO write port would show whether exponent, mantissa, and zero flag are enqueued in one cycle or separate cycles.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "hardware/rtl/posit_decode_and_queue.v",
+     "lines": "339-384",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "rtl"
+    },
+    {
+     "file": "hardware/model/flexposit_rtl_exact.py",
+     "lines": "118-161",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "hardware/rtl/posit_decode_and_queue.v",
+    "regex": "mem\\[wr_ptr\\]\\s*<=\\s*data_in1",
+    "expect": "present",
+    "meaning": "Shows exponent written to its own FIFO slot.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     348
+    ]
+   },
+   {
+    "file": "hardware/rtl/posit_decode_and_queue.v",
+    "regex": "mem\\[\\(wr_ptr\\+1\\) % DEPTH\\]\\s*<=\\s*data_in2",
+    "expect": "present",
+    "meaning": "Shows mantissa written separately, not bundled.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     349
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
  }
 }
