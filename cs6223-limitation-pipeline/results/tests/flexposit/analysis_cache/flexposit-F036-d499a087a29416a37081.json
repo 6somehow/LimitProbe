@@ -1,0 +1,26 @@
+{
+ "assessment": "unclear",
+ "reasoning": "The only shown evidence is the condition `if key not in ref_sd:` at line 208. It does not show that a warning is emitted or that the code skips/continues before applying window quantization. The finding may be true, but the displayed snippet is insufficient to confirm the warning-and-skip behavior.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "src/flexposit/mpq/channel_window.py",
+   "regex": "if key not in ref_sd:[\\s\\S]{0,200}(?:warn|warning|print)",
+   "expect": "present",
+   "meaning": "Missing-key branch contains a warning or print statement."
+  },
+  {
+   "file": "src/flexposit/mpq/channel_window.py",
+   "regex": "if key not in ref_sd:[\\s\\S]{0,300}\\bcontinue\\b",
+   "expect": "present",
+   "meaning": "Missing-key branch continues, skipping quantization for that layer."
+  },
+  {
+   "file": "src/flexposit/mpq/channel_window.py",
+   "regex": "if key not in ref_sd:[\\s\\S]{0,300}\\breturn\\b",
+   "expect": "present",
+   "meaning": "Missing-key branch returns early, skipping quantization for that layer."
+  }
+ ],
+ "would_confirm": "Inspect the full block under line 208 to verify whether it warns and then continues/returns before applying the requested window quantization."
+}

@@ -1,0 +1,20 @@
+{
+ "assessment": "supports",
+ "reasoning": "The paper states mantissa bits are shifted in until cycP. The RTL instead captures while man_count < MAN_WIDTH, and the model collects fraction bits only while len(fraction) < MAX_POSIT_FRACTION_BITS. Both use fixed width caps, not cycP, matching the claimed deviation.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "hardware/rtl/posit_decode_and_queue.v",
+   "regex": "man_count\\s*<\\s*MAN_WIDTH",
+   "expect": "present",
+   "meaning": "Shows mantissa capture stops at fixed MAN_WIDTH, not cycP."
+  },
+  {
+   "file": "hardware/model/flexposit_rtl_exact.py",
+   "regex": "len\\(fraction\\)\\s*<\\s*MAX_POSIT_FRACTION_BITS",
+   "expect": "present",
+   "meaning": "Shows fraction collection capped by MAX_POSIT_FRACTION_BITS, not cycP."
+  }
+ ],
+ "would_confirm": "Inspect or simulate the decoder to verify mantissa collection terminates on MAN_WIDTH/MAX_POSIT_FRACTION_BITS rather than a cycP signal."
+}

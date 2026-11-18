@@ -1,0 +1,36 @@
+{
+ "assessment": "supports",
+ "reasoning": "The code confirms the finding: when a request is about to miss its TTFT deadline, it increments seq.drop and pushes the same sequence back into self._prefill_queue. There is no separate relegated queue. The __lt__ method only orders dropped requests after non-dropped ones, so dropped requests remain in the prefill heap and can still be selected later.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "sarathi/core/scheduler/deadline_scheduler.py",
+   "regex": "relegated",
+   "expect": "absent",
+   "control": "prefill_queue",
+   "meaning": "No relegated queue name appears in scheduler code."
+  },
+  {
+   "file": "sarathi/core/scheduler/deadline_scheduler.py",
+   "regex": "seq\\.drop \\+= 1",
+   "expect": "present",
+   "control": "prefill_queue",
+   "meaning": "Drop flag is set instead of moving request."
+  },
+  {
+   "file": "sarathi/core/scheduler/deadline_scheduler.py",
+   "regex": "heappush\\(self\\._prefill_queue, seq\\)",
+   "expect": "present",
+   "control": "heappop\\(self\\._prefill_queue\\)",
+   "meaning": "Dropped request is reinserted into original prefill queue."
+  },
+  {
+   "file": "sarathi/core/datatypes/sequence.py",
+   "regex": "if self\\.drop != other\\.drop",
+   "expect": "present",
+   "control": "def __lt__",
+   "meaning": "Drop flag only affects ordering, not queue membership."
+  }
+ ],
+ "would_confirm": "A code inspection or test showing whether dropped requests are placed in a distinct queue and excluded from normal prefill scheduling would settle it."
+}

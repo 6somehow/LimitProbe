@@ -1,0 +1,22 @@
+{
+ "assessment": "contradicts",
+ "reasoning": "The code contradicts the finding. In cycle2, add_a is act_temp (the A term), while add_b is selected by data_in[DATA_WIDTH-1] and uses shifted_act. shifted_act is loaded with act_temp in cycle0 and right-shifted in cycle1, so by cycle2 it is A>>1. Thus cycle2 implements A + (b0 & (A>>1)), matching the paper, not using un-right-shifted A for the b0 term.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "hardware/rtl/fp8_pe_mac_stream.v",
+   "regex": "shifted_act\\s*<=\\s*shifted_act\\s*>>>\\s*1",
+   "expect": "present",
+   "control": "shifted_act\\s*<=\\s*act_temp",
+   "meaning": "Right shift occurs before cycle2; shifted_act is A>>1."
+  },
+  {
+   "file": "hardware/rtl/fp8_pe_mac_stream.v",
+   "regex": "add_b\\s*=\\s*data_in\\[DATA_WIDTH-1\\]\\s*\\?\\s*\\{\\{\\(ADDW-MUL_MAG_W\\)\\{1'b0\\}\\},\\s*shifted_act\\}",
+   "expect": "present",
+   "control": "add_a\\s*=\\s*\\{\\{\\(ADDW-MUL_MAG_W\\)\\{1'b0\\}\\},\\s*act_temp\\}",
+   "meaning": "Cycle2 b0 term selects shifted_act, not act_temp."
+  }
+ ],
+ "would_confirm": "Simulate or inspect cycle2 signals to verify shifted_act equals act_temp>>1 when add_b is selected."
+}

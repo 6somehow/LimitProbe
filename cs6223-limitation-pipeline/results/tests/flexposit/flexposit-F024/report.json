@@ -65,5 +65,97 @@
   "findings_file": "results/step4/flexposit/limitations_for_tests.json",
   "findings_sha256": "90fcaf23c2793dc03b49c54856e041483165536eff1522a25766022460b78f23",
   "generated_at": "2026-11-17T15:05:22+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The paper excerpt requires channel windows to be integer multiples of the systolic-array column count. The code shows ppl_probe defaults channel_window to 64, the script defaults it to 256, and fisher.py uses channel_window directly in range() with no visible modulo, assert, or alignment validation. Thus the lack of alignment checking is supported. Note that 64 is itself a multiple of 16, so the default-64 contrast alone does not prove misalignment.",
+  "hardware_needed": false,
+  "would_confirm": "Run the sensitivity probe with a non-multiple channel_window and check whether it errors or silently proceeds.",
+  "static": {
+   "cited": 3,
+   "grounded": true,
+   "items": [
+    {
+     "file": "src/flexposit/sensitivity/ppl_probe.py",
+     "lines": "72-75",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "src/flexposit/sensitivity/fisher.py",
+     "lines": "60-91",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "scripts/regen_sensitivity_ppl.sh",
+     "lines": "8-33",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "shell"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "src/flexposit/sensitivity/ppl_probe.py",
+    "regex": "--channel_window\", type=int, default=64",
+    "expect": "present",
+    "meaning": "Shows module-level default channel window is 64.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     74
+    ]
+   },
+   {
+    "file": "scripts/regen_sensitivity_ppl.sh",
+    "regex": "CHANNEL_WINDOW=.*256",
+    "expect": "present",
+    "meaning": "Shows script-level default channel window is 256.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     12
+    ]
+   },
+   {
+    "file": "src/flexposit/sensitivity/fisher.py",
+    "regex": "channel_window",
+    "expect": "present",
+    "meaning": "Shows channel_window is used to build evaluation windows.",
+    "status": "confirmed",
+    "hits": 13,
+    "hit_lines": [
+     17,
+     38,
+     52,
+     73,
+     74
+    ]
+   },
+   {
+    "file": "src/flexposit/sensitivity/fisher.py",
+    "regex": "channel_window\\s*%|%\\s*channel_window|is_multiple|alignment|aligned|divisible",
+    "expect": "absent",
+    "meaning": "No visible alignment/divisibility validation in window generation.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "channel_window",
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
  }
 }

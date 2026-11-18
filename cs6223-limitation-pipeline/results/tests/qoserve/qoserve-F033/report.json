@@ -59,5 +59,63 @@
   "findings_file": "results/step4/qoserve/limitations_for_tests.json",
   "findings_sha256": "79eb69f6ac7117b77ebe00293d1d328dff8bfffcd7cabc7556eaae435c1699e2",
   "generated_at": "2026-11-18T00:46:02+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The cited scripts launch POISSON synthetic runs at a single QPS per invocation and a fixed QPS sweep; no code alternates QPS 2.0/5 every 15 minutes. Thus the paper's transient-overload workload is not implemented in the shown artifact.",
+  "hardware_needed": false,
+  "would_confirm": "A script or config that alternates QPS between 2.0 and 5 every 15 minutes for 4 hours would confirm implementation; its absence confirms the gap.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "fig7.sh",
+     "lines": "76-106",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "shell"
+    },
+    {
+     "file": "fig10_11.sh",
+     "lines": "103-129",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "shell"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "fig7.sh",
+    "regex": "sleep\\s+900|15\\s*min|switch.*qps|qps.*switch|low.*high.*qps",
+    "expect": "absent",
+    "meaning": "No 15-minute QPS switching in cited run script; control confirms QPS config present.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "poisson_request_interval_generator_config_qps",
+    "hit_lines": []
+   },
+   {
+    "file": "fig10_11.sh",
+    "regex": "QPS_VALUES=\\([^)]*\\)",
+    "expect": "present",
+    "meaning": "Fixed QPS sweep array exists, not dynamic low/high switching.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     103
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
  }
 }
