@@ -1,0 +1,96 @@
+{
+  "test_id": "A-minference-F008",
+  "finding_id": "minference-F008",
+  "strategy": "S1",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {"name": "q_len", "value": 8, "why": "checked-call sequence length; the target decision only compares it with the cached length"},
+      {"name": "prelude_q_len", "value": 1, "why": "one-token earlier call registers self.kv_seq_len=1 before the checked call"},
+      {"name": "hidden_size", "value": 64, "why": "model width is not constrained by the witness"},
+      {"name": "num_heads", "value": 2, "why": "two query heads exercise grouped repeat_kv without extra cost"},
+      {"name": "head_dim", "value": 8, "why": "small head width keeps the CPU run cheap; the branch does not use it"},
+      {"name": "num_key_value_heads", "value": 1, "why": "one KV head makes num_key_value_groups=2 and checks repeat_kv"},
+      {"name": "batch_size", "value": 1, "why": "one sequence is enough and matches the witness pair"},
+      {"name": "layer_idx", "value": 0, "why": "below starting_layer so the post-target path stays on CPU gather_qkv"},
+      {"name": "starting_layer", "value": 10, "why": "forces the CPU dense fallback after the decision instead of GPU sparse attention"},
+      {"name": "window_size", "value": 4, "why": "SnapKV local window; smaller than max_capacity_prompt as required"},
+      {"name": "max_capacity_prompt", "value": 8, "why": "checked q_len reaches the compression branch in SnapKVCluster.update_kv"},
+      {"name": "kernel_size", "value": 3, "why": "odd pooling kernel used only inside the compression branch"},
+      {"name": "seed", "value": 0, "why": "fixes projection weights and hidden states for a deterministic pair"},
+      {"name": "config_path", "value": "", "why": "empty path means no external best-pattern file is loaded"}
+    ],
+    "positive_input": {"q_len": 8, "action": "call"},
+    "negative_input": {"q_len": 8, "action": "call"},
+    "boundary_variable": "prelude",
+    "positive_prelude": [],
+    "negative_prelude": [
+      {"action": "reset"},
+      {"action": "prelude"}
+    ],
+    "extra_negatives": [],
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at minference/modules/minference_forward.py:681",
+      "signal_location": "minference/modules/minference_forward.py:681"
+    },
+    "expected": {
+      "positive": "branch taken at minference/modules/minference_forward.py:681",
+      "negative": "branch not taken at minference/modules/minference_forward.py:681"
+    }
+  },
+  "execution": {
+    "entry_called": "minference/modules/minference_forward.py::minference_with_snapkv_forward.forward",
+    "entry_reason": "the declared entry gather_last_q_vertical_slash_topk_v4 is called by the target function, so the static chain status is not_found; the state-dependent witness names the target function and it must be driven directly",
+    "call_chain_index": 1,
+    "repo_files_modified": [],
+    "mocks": [
+      {
+        "symbol": "torch.arange",
+        "kind": "patch",
+        "reason": "the module builds LAST_Q_MASK with torch.arange(..., device='cuda') at import time; run the same arange on CPU",
+        "behavior": "sim",
+        "impl": "sim.py::cpu_arange",
+        "sim_class": "independent_native",
+        "sim_check": "check.py::check_arange"
+      },
+      {
+        "symbol": "minference.ops.block_sparse_flash_attention",
+        "kind": "fake_module",
+        "reason": "GPU-only triton/flash-attn module imported but not used before or at the target",
+        "behavior": "record_only",
+        "sim_class": "stub"
+      },
+      {
+        "symbol": "minference.ops.pit_sparse_flash_attention_v2",
+        "kind": "fake_module",
+        "reason": "GPU-only triton/minference.cuda module imported but not used before or at the target",
+        "behavior": "record_only",
+        "sim_class": "stub"
+      },
+      {
+        "symbol": "minference.ops.streaming_kernel",
+        "kind": "fake_module",
+        "reason": "GPU-only triton module imported but not used before or at the target",
+        "behavior": "record_only",
+        "sim_class": "stub"
+      }
+    ],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": ["true", "false"],
+    "condition_true_on_positive": false,
+    "condition_false_on_negative": false,
+    "positive_observed": "branch taken at minference/modules/minference_forward.py:681",
+    "negative_observed": "branch not taken at minference/modules/minference_forward.py:681"
+  },
+  "evidence": {}
+}

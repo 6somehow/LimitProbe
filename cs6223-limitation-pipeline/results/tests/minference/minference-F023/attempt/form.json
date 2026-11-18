@@ -1,0 +1,87 @@
+{
+  "test_id": "A-minference-F023",
+  "finding_id": "minference-F023",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "batch",
+        "value": 1,
+        "why": "the target condition reads only q.shape[2]; batch dimension is not used before the decision"
+      },
+      {
+        "name": "num_heads",
+        "value": 1,
+        "why": "the target condition reads only q.shape[2]; head count is not used before the decision"
+      },
+      {
+        "name": "head_dim",
+        "value": 8,
+        "why": "head width is not read by the decision; it is only used by dense below the target"
+      },
+      {
+        "name": "min_kv_len",
+        "value": 4,
+        "why": "k/v sequence length only has to be valid for k.size(2); it cannot change q.shape[2]"
+      },
+      {
+        "name": "dtype",
+        "value": "torch.float32",
+        "why": "branch depends only on an integer shape; float32 is the CPU-supported default"
+      },
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "fixed seed for determinism; tensors are constant so no random value affects the decision"
+      }
+    ],
+    "positive_input": {
+      "q_len": 1
+    },
+    "negative_input": {
+      "q_len": 2
+    },
+    "boundary_variable": "q_len",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at minference/modules/minference_forward.py:418",
+      "signal_location": "minference/modules/minference_forward.py:418"
+    },
+    "expected": {
+      "positive": "branch taken at minference/modules/minference_forward.py:418",
+      "negative": "branch not taken at minference/modules/minference_forward.py:418"
+    }
+  },
+  "execution": {
+    "entry_called": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [
+      {
+        "name": "import_time_cpu_shim",
+        "purpose": "CPU stand-in for the module-level torch.arange(device='cuda') LAST_Q_MASK constant and empty stubs for GPU-only sibling modules (flash_attn/pycuda/triton kernels) that are imported but never on the path to the target; the target function and its source file are the real repository code"
+      }
+    ],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "true",
+      "false"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at minference/modules/minference_forward.py:418",
+    "negative_observed": "branch not taken at minference/modules/minference_forward.py:418"
+  },
+  "evidence": {}
+}

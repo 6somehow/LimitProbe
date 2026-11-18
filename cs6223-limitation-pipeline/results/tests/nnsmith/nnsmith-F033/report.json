@@ -1,0 +1,137 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "nnsmith-F033",
+ "artifact_id": "nnsmith",
+ "status": "not_run",
+ "not_run": {
+  "code": "outcome_unsupported",
+  "reason": "effect type 'other': the target statement has no effect check yet"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "When os.getenv(\"NNSMITH_G_CONFIG\", \"1\") != \"1\": The environment variable NNSMITH_G_CONFIG selects which parameter-guidance table GuidedGen uses: \"0\" = PARAM_CONFIG0 (no parameter guidance at all, only input-shape guidance), \"1\" = PARAM_CONFIG1, \"2\" = PARAM_CONFIG2 (pads get symmetric bins). This changes the constraints added in `extra_constraints`/`post_process`, i.e. which models are generated...",
+  "review": "wrong",
+  "review_note": "blind review by an LLM subagent (round 3), not human: GuidedGen is never instantiated, so the NNSMITH_G_CONFIG selection is dead code.",
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "nnsmith/graph_gen.py:984",
+  "function": "nnsmith/graph_gen.py::GuidedGen.__init__",
+  "condition": "os.getenv(\"NNSMITH_G_CONFIG\", \"1\") != \"1\""
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "nnsmith/graph_gen.py",
+    "line_start": 984,
+    "function": "nnsmith/graph_gen.py::GuidedGen.__init__",
+    "snippet": "}[os.getenv(\"NNSMITH_G_CONFIG\", \"1\")]"
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/nnsmith/limitations_for_tests.json",
+  "findings_sha256": "3ec725e87dbddd4c992db2cb5e7881f511e70ce2ab61c81037bbb06a557aa5fb",
+  "generated_at": "2026-11-18T12:18:21+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "Line 984 directly uses os.getenv(\"NNSMITH_G_CONFIG\", \"1\") as a dict key, so the environment variable selects a configuration table. The snippet does not itself show the table names or that they alter extra_constraints/post_process, but the selection mechanism is confirmed; probes can verify the named tables and constraint hooks.",
+  "hardware_needed": false,
+  "would_confirm": "Inspect the dict at graph_gen.py:984 and trace PARAM_CONFIG0/1/2 into extra_constraints/post_process to verify the mapping and generated-model effects.",
+  "static": {
+   "cited": 1,
+   "grounded": true,
+   "items": [
+    {
+     "file": "nnsmith/graph_gen.py",
+     "lines": "984-984",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": true,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "nnsmith/graph_gen.py",
+    "regex": "PARAM_CONFIG0",
+    "expect": "present",
+    "meaning": "Shows config 0 table exists in the same file.",
+    "status": "confirmed",
+    "hits": 2,
+    "hit_lines": [
+     827,
+     981
+    ]
+   },
+   {
+    "file": "nnsmith/graph_gen.py",
+    "regex": "PARAM_CONFIG1",
+    "expect": "present",
+    "meaning": "Shows config 1 table exists in the same file.",
+    "status": "confirmed",
+    "hits": 12,
+    "hit_lines": [
+     881,
+     902,
+     904,
+     906,
+     907
+    ]
+   },
+   {
+    "file": "nnsmith/graph_gen.py",
+    "regex": "PARAM_CONFIG2",
+    "expect": "present",
+    "meaning": "Shows config 2 table exists in the same file.",
+    "status": "confirmed",
+    "hits": 5,
+    "hit_lines": [
+     958,
+     959,
+     960,
+     961,
+     983
+    ]
+   },
+   {
+    "file": "nnsmith/graph_gen.py",
+    "regex": "extra_constraints|post_process",
+    "expect": "present",
+    "meaning": "Shows config can feed constraint or post-processing logic.",
+    "status": "confirmed",
+    "hits": 8,
+    "hit_lines": [
+     180,
+     262,
+     668,
+     692,
+     768
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

@@ -58,7 +58,8 @@ def compact(f: dict) -> str:
     keep = {k: f[k] for k in ("finding_id", "category", "priority", "effect_type", "scope_status", "review", "summary")}
     w = {k: v for k, v in f["witness_hint"].items()
          if k in ("kind", "status", "condition", "path_prefix", "aliases", "trigger", "contrast", "atoms", "note",
-                  "location", "code_locations", "condition_source")}
+                  "location", "code_locations", "condition_source", "call_chain_status", "call_chain", "entry_terms",
+                  "infeasible_because")}
     if "note" in w:
         w["note"] = short(w["note"], 200)
     if len(w.get("atoms", {})) > 6:  # long atom lists add nothing to an example
@@ -164,12 +165,27 @@ def main() -> None:
           "| solved_contrast_outside_scope | contrast 只能取在论文 scope 外 | 同上，注意 contrast 不在论文范围内 |",
           "| trigger_only | 条件在路径上总是成立，没有对照点 | 只用 trigger |",
           "| always | 论文侧：每次走到引用代码都会出现 | 任意走到 `code_locations` 的输入 |",
-          "| infeasible | 条件和路径前缀矛盾，从入口很可能走不到 | 已降为 p3；可能是误报 |",
+          "| infeasible | 条件和路径前缀矛盾，从入口走不到。`infeasible_because: call_chain` 表示是把被调函数的名字"
+          "换成入口函数的名字之后才矛盾的（见下面“调用链”） | 已降为 p3，不用花预算 |",
           "| no_condition | 论文侧：没有可用条件 | 读 `note` 和 summary，人工判断 |",
           "| untranslatable / unknown | 条件翻译不了 / 求解超时 | 读 condition 原文 |", "",
+          "调用链（`call_chain_status`）：", "",
+          "| 值 | 意思 |", "|---|---|",
+          "| resolved | `call_chain` 是从入口函数到目标所在函数的真实调用链（入口在前）。`call_sites` 逐层给出调用所在行、"
+          "解析方式（`resolved_by`）和参数对应 `args`（被调函数的形参 -> 调用者里的表达式） |",
+          "| entry_is_target | 目标就在入口函数里 |",
+          "| module_level | 目标是模块级语句，import 时执行，没有调用链 |",
+          "| not_found | 静态分析找不到从入口到目标的调用链（动态分发、回调，或目标不在入口的路径上）。"
+          "有 `calls_entry` 时表示这个函数是调用入口的一方（如框架集成），要直接驱动它 |", "",
+          "- `uncertain_steps` 列出靠猜解析的调用（方法名在仓库里唯一、子类覆盖、嵌套函数被传出去）。",
+          "- `other_chains` 是其它调用链（例如同一个函数有两个调用点）。",
+          "- `entry_terms`：条件和路径前缀换成入口函数名字后的写法，以及每个名字对应的入口表达式"
+          "（如 `d` -> `k.shape[3]`）。有它时 `aliases` 也是用入口函数的名字写的。", "",
           "已知不足：",
-          "- `path_prefix` 混着调用链上各层函数的条件。同一个名字在调用者和被调用者里可能不是同一个东西"
-          "（例如两层里的 `q`）。所以别名只在单层时参与求解，其余只列在 `aliases_not_applied` 里。",
+          "- 没有调用链（not_found）时，`path_prefix` 仍混着各层函数的条件，同一个名字在调用者和被调用者里可能不是"
+          "同一个东西。这时别名只在单层时参与求解，其余只列在 `aliases_not_applied` 里。",
+          "- 多行语句的 `snippet` 是 `ast.unparse` 后的第一行：并成一行、去掉 assert 消息、去掉多余括号，最多 200 字符。"
+          "请按解析后的条件比较，不要逐字比较。",
           "- 论文侧条件由 LLM 写出，只核对过“名字都出现在引用的代码里”，**语义不一定对**，要当提示用。",
           "- 所有值都没有实际执行验证过。", "",
           "## 5. 按 effect 选 oracle（建议）", "",

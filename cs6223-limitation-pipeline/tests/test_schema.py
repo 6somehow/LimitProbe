@@ -18,7 +18,8 @@ def _records(path: Path):
     return [data]
 
 
-@pytest.mark.parametrize("path", sorted(DATA.rglob("*.json")), ids=lambda p: p.name)
+# pipeline.json is run config (written by `pipeline init --package-root`), not a record
+@pytest.mark.parametrize("path", sorted(p for p in DATA.rglob("*.json") if p.name != "pipeline.json"), ids=lambda p: p.name)
 def test_every_data_file_is_schema_valid(path):
     for rec in _records(path):
         errors = []

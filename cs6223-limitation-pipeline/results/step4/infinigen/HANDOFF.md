@@ -67,7 +67,7 @@
 | 来源 | solved | solved_contrast_outside_scope | trigger_only | always | infeasible | untranslatable | unknown | no_condition | 合计 |
 |---|---|---|---|---|---|---|---|---|---|
 | 代码侧 | 19 | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 20 |
-| 论文侧 | 6 | 0 | 1 | 4 | 0 | 0 | 0 | 0 | 11 |
+| 论文侧 | 7 | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 11 |
 | 两侧合并 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 
 按审阅状态（盲审由 LLM 子代理做，不是人工；只覆盖了部分代码侧条目）：
@@ -112,12 +112,26 @@
 | solved_contrast_outside_scope | contrast 只能取在论文 scope 外 | 同上，注意 contrast 不在论文范围内 |
 | trigger_only | 条件在路径上总是成立，没有对照点 | 只用 trigger |
 | always | 论文侧：每次走到引用代码都会出现 | 任意走到 `code_locations` 的输入 |
-| infeasible | 条件和路径前缀矛盾，从入口很可能走不到 | 已降为 p3；可能是误报 |
+| infeasible | 条件和路径前缀矛盾，从入口走不到。`infeasible_because: call_chain` 表示是把被调函数的名字换成入口函数的名字之后才矛盾的（见下面“调用链”） | 已降为 p3，不用花预算 |
 | no_condition | 论文侧：没有可用条件 | 读 `note` 和 summary，人工判断 |
 | untranslatable / unknown | 条件翻译不了 / 求解超时 | 读 condition 原文 |
 
+调用链（`call_chain_status`）：
+
+| 值 | 意思 |
+|---|---|
+| resolved | `call_chain` 是从入口函数到目标所在函数的真实调用链（入口在前）。`call_sites` 逐层给出调用所在行、解析方式（`resolved_by`）和参数对应 `args`（被调函数的形参 -> 调用者里的表达式） |
+| entry_is_target | 目标就在入口函数里 |
+| module_level | 目标是模块级语句，import 时执行，没有调用链 |
+| not_found | 静态分析找不到从入口到目标的调用链（动态分发、回调，或目标不在入口的路径上）。有 `calls_entry` 时表示这个函数是调用入口的一方（如框架集成），要直接驱动它 |
+
+- `uncertain_steps` 列出靠猜解析的调用（方法名在仓库里唯一、子类覆盖、嵌套函数被传出去）。
+- `other_chains` 是其它调用链（例如同一个函数有两个调用点）。
+- `entry_terms`：条件和路径前缀换成入口函数名字后的写法，以及每个名字对应的入口表达式（如 `d` -> `k.shape[3]`）。有它时 `aliases` 也是用入口函数的名字写的。
+
 已知不足：
-- `path_prefix` 混着调用链上各层函数的条件。同一个名字在调用者和被调用者里可能不是同一个东西（例如两层里的 `q`）。所以别名只在单层时参与求解，其余只列在 `aliases_not_applied` 里。
+- 没有调用链（not_found）时，`path_prefix` 仍混着各层函数的条件，同一个名字在调用者和被调用者里可能不是同一个东西。这时别名只在单层时参与求解，其余只列在 `aliases_not_applied` 里。
+- 多行语句的 `snippet` 是 `ast.unparse` 后的第一行：并成一行、去掉 assert 消息、去掉多余括号，最多 200 字符。请按解析后的条件比较，不要逐字比较。
 - 论文侧条件由 LLM 写出，只核对过“名字都出现在引用的代码里”，**语义不一定对**，要当提示用。
 - 所有值都没有实际执行验证过。
 
@@ -164,6 +178,7 @@
     "sort": "int"
    }
   },
+  "call_chain_status": "not_found",
   "location": "speedup/flexgen/infinigen/flex_opt.py:287"
  },
  "limitations": [
@@ -237,6 +252,7 @@
     "sort": "bool"
    }
   },
+  "call_chain_status": "not_found",
   "location": "speedup/flexgen/infinigen/flex_opt.py:442"
  },
  "limitations": [
@@ -285,6 +301,12 @@
    "src.device.device_type == DeviceType.MIXED"
   ],
   "note": "no values satisfy path prefix, condition and scope together",
+  "call_chain_status": "resolved",
+  "call_chain": [
+   "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha_gen",
+   "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice._sparse_attention_value",
+   "speedup/flexgen/infinigen/pytorch_backend.py::general_copy"
+  ],
   "location": "speedup/flexgen/infinigen/pytorch_backend.py:837"
  },
  "limitations": [
@@ -331,6 +353,7 @@
    "speedup/flexgen/infinigen/flex_opt.py:430-430"
   ],
   "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The control-plane component set is incomplete (Pool Manager missing) regardless of runtime inputs, so the gap m…",
+  "call_chain_status": "not_found",
   "location": "speedup/flexgen/infinigen/flex_opt.py:282"
  },
  "limitations": [
@@ -395,6 +418,7 @@
    "accuracy/src/modeling_opt_ours.py:259-269"
   ],
   "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+  "call_chain_status": "not_found",
   "location": "accuracy/perplexity/table2.sh:27-45"
  },
  "limitations": [
@@ -452,6 +476,7 @@
    "accuracy/src/modeling_opt_ours.py:224-228"
   ],
   "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+  "call_chain_status": "not_found",
   "location": "accuracy/perplexity/table2.sh:27-45"
  },
  "limitations": [
@@ -501,7 +526,7 @@
 | F019 | 论 | impl_deviates | 2 | other | solved |  | `accuracy/perplexity/table2.sh:27-45` | 论文要求淘汰后更新 GPU 部分 key cache；代码无该步骤（artifact 范围：缺更新步骤） |
 | F020 | 论 | impl_deviates | 2 | other | always |  | `speedup/flexgen/infinigen/flex_opt.py:282` | 控制平面组件集合不完整（缺Pool Manager） |
 | F021 | 论 | impl_deviates | 2 | other | solved |  | `speedup/flexgen/infinigen/flex_opt.py:513-524` | 论文要求A=V；代码A为V列按σq·σk排序重排，A≠V（artifact 范围：A为排序重排后的V，非论文所述A=V） |
-| F022 | 论 | impl_deviates | 2 | other | trigger_only |  | `speedup/infinigen/infinigen/kv_selection_controller.py:28-63` | 预取集合由 top-k(均值) 决定，而非严格 >max−alpha 的令牌集合 |
+| F022 | 论 | impl_deviates | 2 | other | solved |  | `speedup/infinigen/infinigen/kv_selection_controller.py:28-63` | 预取集合由 top-k(均值) 决定，而非严格 >max−alpha 的令牌集合 |
 | F023 | 论 | impl_deviates | 2 | other | solved |  | `speedup/infinigen/infinigen/kv_selection_controller.py:28-63` | 实验路径以绝对令牌数封顶，未实现 20% 比例上限 |
 | F024 | 论 | impl_deviates | 2 | other | solved |  | `speedup/infinigen/infinigen/partial_weight_generation_contr…` | 实验路径缺少K的逐元素绝对值 |
 | F025 | 论 | impl_deviates | 2 | other | always |  | `speedup/infinigen/infinigen/partial_weight_generation_contr…` | 求和对象缺少K_abs项 |

@@ -1,0 +1,181 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "nnsmith-F006",
+ "artifact_id": "nnsmith",
+ "status": "not_run",
+ "not_run": {
+  "code": "outcome_unsupported",
+  "reason": "effect type 'other': the branch has no raise in its body: the program rejects later, in code the target does not point to"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "When p.grad is not None and torch.any(p.grad != 0): If all parameter gradients are zero, ConstraintCheck.true(nonzero, ...) raises, aborting the backward step ('Gradients are all zero. Cannot make progress.'). (nnsmith/materialize/torch/symbolnet.py:188)",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 1), not human: Zero gradients raise ConstraintError, grad_input_gen breaks and returns None, so for such models the gradient search gives up and make_oracle ends up using random inputs.",
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "nnsmith/materialize/torch/symbolnet.py:188",
+  "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.backward",
+  "condition": "p.grad is not None and torch.any(p.grad != 0)"
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "if⟨𝑋,𝑊⟩ not changed then // Zero gradients",
+    "source": "paper",
+    "locator": "PDF p.7"
+   },
+   {
+    "quote": "⟨𝑋,𝑊⟩← randomly initialized values",
+    "source": "paper",
+    "locator": "PDF p.7"
+   },
+   {
+    "quote": "continue OUTER // Go to Line 3",
+    "source": "paper",
+    "locator": "PDF p.7"
+   }
+  ],
+  "code": [
+   {
+    "file": "nnsmith/materialize/torch/symbolnet.py",
+    "line_start": 188,
+    "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.backward",
+    "snippet": "if p.grad is not None and torch.any(p.grad != 0):"
+   },
+   {
+    "file": "nnsmith/materialize/torch/symbolnet.py",
+    "line_start": 191,
+    "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.backward",
+    "snippet": "ConstraintCheck.true(nonzero, 'Gradients are all zero. Cannot make progress.')"
+   },
+   {
+    "file": "nnsmith/materialize/torch/symbolnet.py",
+    "line_start": 229,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/nnsmith/limitations_for_tests.json",
+  "findings_sha256": "3ec725e87dbddd4c992db2cb5e7881f511e70ce2ab61c81037bbb06a557aa5fb",
+  "generated_at": "2026-11-18T12:18:06+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The shown code gates a nonzero-gradient flag on `p.grad is not None and torch.any(p.grad != 0)`, then calls `ConstraintCheck.true(...)` with the zero-gradient error message. Thus all-zero gradients make the check fail and raise, matching the finding. The paper instead says to reinitialize and continue OUTER, so the abort behavior is an undisclosed discrepancy.",
+  "hardware_needed": false,
+  "would_confirm": "Run backward on a network with all parameter gradients zero and observe whether it raises the zero-gradient ConstraintError instead of reinitializing and continuing.",
+  "static": {
+   "cited": 6,
+   "grounded": true,
+   "items": [
+    {
+     "file": "nnsmith/materialize/torch/symbolnet.py",
+     "lines": "188-188",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": true,
+     "kind": "python"
+    },
+    {
+     "file": "nnsmith/materialize/torch/symbolnet.py",
+     "lines": "191-191",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": false,
+     "kind": "python"
+    },
+    {
+     "file": "nnsmith/materialize/torch/symbolnet.py",
+     "lines": "229-293",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "nnsmith/materialize/torch/symbolnet.py",
+     "lines": "151-217",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "nnsmith/materialize/torch/__init__.py",
+     "lines": "31-41",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "experiments/nnsmith_gen_onnx.py",
+     "lines": "42-48",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "nnsmith/materialize/torch/symbolnet.py",
+    "regex": "if p\\.grad is not None and torch\\.any\\(p\\.grad != 0\\):",
+    "expect": "present",
+    "meaning": "Shows the code only treats gradients as nonzero when any element differs from zero.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     188
+    ]
+   },
+   {
+    "file": "nnsmith/materialize/torch/symbolnet.py",
+    "regex": "Gradients are all zero\\. Cannot make progress\\.",
+    "expect": "present",
+    "meaning": "Confirms the zero-gradient failure message exists in the file.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     192
+    ]
+   },
+   {
+    "file": "nnsmith/materialize/torch/symbolnet.py",
+    "regex": "nonzero\\s*=\\s*True",
+    "expect": "present",
+    "meaning": "Shows a nonzero flag is set only under the nonzero-gradient condition.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     189
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

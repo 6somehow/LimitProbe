@@ -1,0 +1,26 @@
+{
+ "assessment": "unclear",
+ "reasoning": "The only shown evidence is an assignment copying net.differentiable. It does not show a random probe forward pass, that any non-differentiable op flips the flag, or that search_one falls back to SamplingSearch. The fallback and probe behavior are central, so the finding is not established by the snippet.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "nnsmith/materialize/torch/input_gen.py",
+   "regex": "SamplingSearch\\.search_one",
+   "expect": "present",
+   "meaning": "Fallback call exists in this file, supporting the silent fallback claim."
+  },
+  {
+   "file": "nnsmith/materialize/torch/input_gen.py",
+   "regex": "def search_one",
+   "expect": "present",
+   "meaning": "search_one is defined here; its line 107 context can be inspected."
+  },
+  {
+   "file": "nnsmith/materialize/torch/input_gen.py",
+   "regex": "self\\.differentiable\\s*=\\s*self\\.net\\.differentiable",
+   "expect": "present",
+   "meaning": "Assignment shown; differentiable mirrors net, but not probe behavior."
+  }
+ ],
+ "would_confirm": "Inspect search_one and SymbolNet.forward to verify whether a single random probe sets net.differentiable and triggers SamplingSearch fallback."
+}

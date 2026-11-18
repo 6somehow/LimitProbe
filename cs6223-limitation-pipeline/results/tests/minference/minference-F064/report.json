@@ -1,0 +1,112 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "minference-F064",
+ "artifact_id": "minference",
+ "status": "not_run",
+ "not_run": {
+  "code": "outcome_unsupported",
+  "reason": "effect type 'other': the target assigns a value; the claimed effect is what that value changes later, which needs a differential check of outputs (the assignment itself would differ trivially)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "When q.dtype != torch.bfloat16: Any query dtype other than bfloat16 (float32, float64, float16 is fine) is silently treated as float16 in the Triton kernel, so a float32 model runs the sparse kernel in half precision without any check or cast of the inputs. (minference/ops/pit_sparse_flash_attention.py:150)",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "minference/ops/pit_sparse_flash_attention.py:150",
+  "function": "minference/ops/pit_sparse_flash_attention.py::triton_sparse_forward",
+  "condition": "q.dtype != torch.bfloat16"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "minference/ops/pit_sparse_flash_attention.py",
+    "line_start": 150,
+    "function": "minference/ops/pit_sparse_flash_attention.py::triton_sparse_forward",
+    "snippet": "dtype = tl.bfloat16 if q.dtype == torch.bfloat16 else tl.float16"
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/minference/limitations_for_tests.json",
+  "findings_sha256": "6f02cbec16ce4487c1b9166c2dc5f1f16704f168b135426edfe2df59ed9333bc",
+  "generated_at": "2026-11-18T17:26:42+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "Line 150 directly selects tl.float16 for every q.dtype except torch.bfloat16, so float32/float64/float16 queries all enter the Triton kernel as fp16. The shown evidence does not include any explicit non-bf16 check or input cast, and no paper evidence is recorded. This supports the finding, though the absence of checks elsewhere is only inferred from the cited line.",
+  "hardware_needed": true,
+  "would_confirm": "Run the sparse kernel with float32 q and compare its output/precision against explicit fp16 and fp32 reference kernels on GPU.",
+  "static": {
+   "cited": 1,
+   "grounded": true,
+   "items": [
+    {
+     "file": "minference/ops/pit_sparse_flash_attention.py",
+     "lines": "150-150",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": true,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "minference/ops/pit_sparse_flash_attention.py",
+    "regex": "dtype\\s*=\\s*tl\\.bfloat16\\s+if\\s+q\\.dtype\\s*==\\s*torch\\.bfloat16\\s+else\\s+tl\\.float16",
+    "expect": "present",
+    "meaning": "Confirms the exact non-bf16-to-fp16 dtype fallback.",
+    "status": "confirmed",
+    "hits": 2,
+    "hit_lines": [
+     150,
+     563
+    ]
+   },
+   {
+    "file": "minference/ops/pit_sparse_flash_attention.py",
+    "regex": "q\\.dtype\\s*==\\s*torch\\.(float32|float64|float16)",
+    "expect": "absent",
+    "meaning": "No explicit branch for other query dtypes; control confirms dtype comparison exists.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "q\\.dtype\\s*==\\s*torch\\.bfloat16",
+    "hit_lines": []
+   },
+   {
+    "file": "minference/ops/pit_sparse_flash_attention.py",
+    "regex": "q\\s*=\\s*q\\.(to|half|float)\\(",
+    "expect": "absent",
+    "meaning": "No visible cast of q before kernel; control confirms searched location.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "dtype\\s*=\\s*tl\\.bfloat16",
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

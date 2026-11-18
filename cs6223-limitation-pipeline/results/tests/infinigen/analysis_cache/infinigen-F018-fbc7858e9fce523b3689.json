@@ -1,0 +1,27 @@
+{
+ "assessment": "supports",
+ "reasoning": "The paper states the manager overwrites the selected victim slot. The shown attention code concatenates past_key_value with new key/value states, retaining all K/V, and table2.sh only passes an eviction policy. No overwrite step appears in the evidence. This supports the claimed implementation deviation, though the snippet does not fully show the masking mechanism.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "accuracy/src/modeling_opt_ours.py",
+   "regex": "(?i)victim|overwrit",
+   "expect": "absent",
+   "control": "past_key_value",
+   "meaning": "No victim-slot overwrite logic appears in this attention file."
+  },
+  {
+   "file": "accuracy/src/modeling_opt_ours.py",
+   "regex": "torch\\.cat\\(\\[past_key_value\\[0\\], key_states\\]",
+   "expect": "present",
+   "meaning": "Old and new keys are concatenated, retaining all K/V entries."
+  },
+  {
+   "file": "accuracy/perplexity/table2.sh",
+   "regex": "--eviction_policy",
+   "expect": "present",
+   "meaning": "The script only selects an eviction policy; it does not implement overwrite."
+  }
+ ],
+ "would_confirm": "Inspect or run the cache-update path to verify whether a selected victim slot is overwritten or all K/V are concatenated and masked."
+}

@@ -1,0 +1,27 @@
+{
+ "assessment": "supports",
+ "reasoning": "The shown code branches only on block_size None, 1, or else; it never compares block_size to the tensor shape. Any other value, including a shape-sized block, is routed to the generic blocksparse template. Thus the paper\u2019s whole-tensor block-size hint is not explicitly wired as a specialization, matching the not_implemented finding.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "sparta/specialization/specialize_kernel.py",
+   "regex": "block_size\\s*==\\s*(shape|matmul_shape|m|k|n)",
+   "expect": "absent",
+   "control": "block_size\\s*==\\s*1",
+   "meaning": "No shape-equality branch; only sentinel 1 branch exists."
+  },
+  {
+   "file": "sparta/specialization/specialize_kernel.py",
+   "regex": "block_size\\s*==\\s*None",
+   "expect": "present",
+   "meaning": "Block size is used as a None sentinel for dense selection."
+  },
+  {
+   "file": "sparta/specialization/specialize_kernel.py",
+   "regex": "blocksparse_matmul_template\\([^\\n]*block_size",
+   "expect": "present",
+   "meaning": "Non-sentinel block sizes are passed to generic blocksparse template."
+  }
+ ],
+ "would_confirm": "A static search or unit test that sets block_size to the tensor shape and checks whether a dedicated whole-tensor specialization is selected would settle it."
+}

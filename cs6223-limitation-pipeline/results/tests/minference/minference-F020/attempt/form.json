@@ -1,0 +1,80 @@
+{
+  "test_id": "A-minference-F020",
+  "finding_id": "minference-F020",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "attn_type_table",
+        "value": [
+          "minference",
+          "vllm",
+          "minference_with_dense",
+          "static",
+          "dilated1",
+          "dilated2",
+          "streaming",
+          "inf_llm",
+          "hf"
+        ],
+        "why": "The witness names the derived value self.attn_type, not an input. The driver encodes it as the integer attn_index into this stable table (the two MINFERENCE_ATTENTION_TYPES followed by the class's own STASTIC_ATTENTION_TYPES). Index 1 is non-static, index 2 is static, so the minimal pair and its integer neighbours straddle the membership boundary."
+      }
+    ],
+    "positive_input": {
+      "attn_index": 2,
+      "config_path": "user_supplied_pattern.json",
+      "model_name": "gradientai/Llama-3-8B-Instruct-262k"
+    },
+    "negative_input": {
+      "attn_index": 1,
+      "config_path": "user_supplied_pattern.json",
+      "model_name": "gradientai/Llama-3-8B-Instruct-262k"
+    },
+    "boundary_variable": "attn_index",
+    "positive_prelude": [],
+    "negative_prelude": [],
+    "extra_negatives": [
+      {
+        "attn_index": 0,
+        "config_path": "user_supplied_pattern.json",
+        "model_name": "gradientai/Llama-3-8B-Instruct-262k"
+      }
+    ],
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at minference/minference_configuration.py:52",
+      "signal_location": "minference/minference_configuration.py:52"
+    },
+    "expected": {
+      "positive": "branch taken at minference/minference_configuration.py:52",
+      "negative": "branch not taken at minference/minference_configuration.py:52"
+    }
+  },
+  "execution": {
+    "entry_called": "minference/minference_configuration.py::MInferenceConfig.update_config_path",
+    "entry_reason": "The step-4 call chain has status not_found: the listed call_chain[0] gather_last_q_vertical_slash_topk_v4 never calls update_config_path. The target's real caller is MInferenceConfig.__init__ (minference_configuration.py:42), so the driver instantiates the real MInferenceConfig and reaches the target line through that unmodified repository code.",
+    "call_chain_index": 1,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "true",
+      "false"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at minference/minference_configuration.py:52",
+    "negative_observed": "branch not taken at minference/minference_configuration.py:52"
+  },
+  "evidence": {}
+}

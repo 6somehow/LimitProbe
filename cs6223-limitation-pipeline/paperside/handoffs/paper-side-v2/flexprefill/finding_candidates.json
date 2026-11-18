@@ -1,0 +1,412 @@
+[
+  {
+    "title": "â 用 query 维平均/对角投影后的列和代替二维块和",
+    "scope": "local_entry",
+    "behavior_ids": [
+      "M04-B03-R01",
+      "M04-A02"
+    ],
+    "refs": [
+      "E1",
+      "E2",
+      "E5",
+      "E6"
+    ],
+    "boundary": "仅限 get_active_blocks 的 JSD 路径；slash 分支同样只做一维块和",
+    "unverified_effect": "未运行，未证明该替换对 τ 判定结果的实际偏差",
+    "artifact_id": "flexprefill",
+    "mechanism_id": "M04",
+    "claim_ids": [
+      "flexprefill:M04-B03-R01",
+      "flexprefill:M04-A02"
+    ],
+    "evidence_registry_ids": [
+      "M04:E1",
+      "M04:E2",
+      "M04:E5",
+      "M04:E6"
+    ]
+  },
+  {
+    "title": "池化内核仅支持一维块和，无法表达论文二维 sumpool",
+    "scope": "artifact",
+    "behavior_ids": [
+      "M04-B03-R01",
+      "M04-A02"
+    ],
+    "refs": [
+      "E5"
+    ],
+    "boundary": "torch_bhn_sumpool 与 bhn_sumpool_kernel 均为一维",
+    "unverified_effect": "未评估对最终稀疏索引与输出精度的影响",
+    "artifact_id": "flexprefill",
+    "mechanism_id": "M04",
+    "claim_ids": [
+      "flexprefill:M04-B03-R01",
+      "flexprefill:M04-A02"
+    ],
+    "evidence_registry_ids": [
+      "M04:E5"
+    ]
+  },
+  {
+    "title": "JSD 后直接改写预算而非返回 pattern",
+    "scope": "local_entry",
+    "behavior_ids": [
+      "M04-A03"
+    ],
+    "refs": [
+      "E3",
+      "E7"
+    ],
+    "boundary": "flex_prefill_attention 调用 get_active_blocks 后直接进入 triton_block_wise_attention",
+    "unverified_effect": "未验证预算收缩是否在效果上等价于论文 vertical_slash fallback",
+    "artifact_id": "flexprefill",
+    "mechanism_id": "M04",
+    "claim_ids": [
+      "flexprefill:M04-A03"
+    ],
+    "evidence_registry_ids": [
+      "M04:E3",
+      "M04:E7"
+    ]
+  },
+  {
+    "title": "ā 的构造用 mean(Q̂)·pool(K) 而非 pool(Q̂)·pool(K)",
+    "scope": "local_entry",
+    "behavior_ids": [
+      "M05-A02"
+    ],
+    "refs": [
+      "E2",
+      "E3"
+    ],
+    "boundary": "仅限 get_active_blocks 中 avg_qk 计算；â 与 JSD 计算本身符合公式",
+    "unverified_effect": "未运行实验，无法确定该差异是否改变任一 head 的 D_JS<τ 判定结果",
+    "artifact_id": "flexprefill",
+    "mechanism_id": "M05",
+    "claim_ids": [
+      "flexprefill:M05-A02"
+    ],
+    "evidence_registry_ids": [
+      "M05:E2",
+      "M05:E3"
+    ]
+  },
+  {
+    "title": "同一 ā 偏差进入 artifact 决策路径",
+    "scope": "artifact",
+    "behavior_ids": [
+      "M05-A02"
+    ],
+    "refs": [
+      "E2",
+      "E3",
+      "E6"
+    ],
+    "boundary": "tau=0.1 配置路径（patch.py）与默认 tau=0 路径均受影响",
+    "unverified_effect": "未执行 GPU 推理，模式判定与最终注意力输出的影响未量化",
+    "artifact_id": "flexprefill",
+    "mechanism_id": "M05",
+    "claim_ids": [
+      "flexprefill:M05-A02"
+    ],
+    "evidence_registry_ids": [
+      "M05:E2",
+      "M05:E3",
+      "M05:E6"
+    ]
+  },
+  {
+    "title": "query-aware 分支未做总和归一化，改用 γ*num_blocks 阈值",
+    "scope": "local_entry",
+    "behavior_ids": [
+      "M07-B03",
+      "M07-B05"
+    ],
+    "refs": [
+      "E1",
+      "E2"
+    ],
+    "boundary": "仅限 get_active_blocks 的 block_sparse_mask 分支；vertical/slash 主路径不受影响",
+    "unverified_effect": "未运行，无法证明 Σ¯A≈num_blocks 使阈值补偿等价",
+    "artifact_id": "flexprefill",
+    "mechanism_id": "M07",
+    "claim_ids": [
+      "flexprefill:M07-B03",
+      "flexprefill:M07-B05"
+    ],
+    "evidence_registry_ids": [
+      "M07:E1",
+      "M07:E2"
+    ]
+  },
+  {
+    "title": "query-aware 索引与 vertical/slash 索引取并集，非纯 Ia[1:K]",
+    "scope": "local_entry",
+    "behavior_ids": [
+      "M07-B06-R01"
+    ],
+    "refs": [
+      "E1",
+      "E5"
+    ],
+    "boundary": "同上分支",
+    "unverified_effect": "并集对最终稀疏注意力精度的影响未评估",
+    "artifact_id": "flexprefill",
+    "mechanism_id": "M07",
+    "claim_ids": [
+      "flexprefill:M07-B06-R01"
+    ],
+    "evidence_registry_ids": [
+      "M07:E1",
+      "M07:E5"
+    ]
+  },
+  {
+    "title": "累计阈值规则实现为保留 cumsum≤阈值 的前缀，未求最小 k",
+    "scope": "artifact",
+    "behavior_ids": [
+      "M07-B05"
+    ],
+    "refs": [
+      "E1",
+      "E2"
+    ],
+    "boundary": "score_cover_idx 同时被 vertical/slash 预算计算复用",
+    "unverified_effect": "边界差一项对 K 的影响未量化",
+    "artifact_id": "flexprefill",
+    "mechanism_id": "M07",
+    "claim_ids": [
+      "flexprefill:M07-B05"
+    ],
+    "evidence_registry_ids": [
+      "M07:E1",
+      "M07:E2"
+    ]
+  },
+  {
+    "title": "K_v/K_s 前缀判定用严格大于 γ 且被 //128+1 与 min/max_budget 覆盖，非论文最小 ≥γ 前缀",
+    "scope": "local_entry",
+    "behavior_ids": [
+      "M08-B05",
+      "M08-B06"
+    ],
+    "refs": [
+      "E2",
+      "E3"
+    ],
+    "boundary": "仅限 flex_prefill 模式 get_active_blocks 路径；vertical_slash 固定预算模式不属本机制",
+    "unverified_effect": "未运行，未证明该差异导致覆盖质量或输出错误",
+    "artifact_id": "flexprefill",
+    "mechanism_id": "M08",
+    "claim_ids": [
+      "flexprefill:M08-B05",
+      "flexprefill:M08-B06"
+    ],
+    "evidence_registry_ids": [
+      "M08:E2",
+      "M08:E3"
+    ]
+  },
+  {
+    "title": "同一前缀判定差异存在于块级 artifact 路径",
+    "scope": "artifact",
+    "behavior_ids": [
+      "M08-B05",
+      "M08-B06"
+    ],
+    "refs": [
+      "E2",
+      "E3",
+      "E4"
+    ],
+    "boundary": "块级粒度与预算截断叠加",
+    "unverified_effect": "未建立对最终稀疏注意力输出的影响",
+    "artifact_id": "flexprefill",
+    "mechanism_id": "M08",
+    "claim_ids": [
+      "flexprefill:M08-B05",
+      "flexprefill:M08-B06"
+    ],
+    "evidence_registry_ids": [
+      "M08:E2",
+      "M08:E3",
+      "M08:E4"
+    ]
+  },
+  {
+    "title": "min_budget 只约束 vertical/slash 子集块数，未约束每 head 最终激活 token 总数，Query-Aware 头无下限",
+    "scope": "local_entry",
+    "behavior_ids": [
+      "M10-B02"
+    ],
+    "refs": [
+      "E1",
+      "E2",
+      "E3",
+      "E4"
+    ],
+    "boundary": "仅限 commit a24b27 的 get_active_blocks 与 flex_prefill_attention 路径",
+    "unverified_effect": "并集是否实际 ≥1024 tokens 未运行验证",
+    "artifact_id": "flexprefill",
+    "mechanism_id": "M10",
+    "claim_ids": [
+      "flexprefill:M10-B02"
+    ],
+    "evidence_registry_ids": [
+      "M10:E1",
+      "M10:E2",
+      "M10:E3",
+      "M10:E4"
+    ]
+  },
+  {
+    "title": "实验脚本的 1024 预算同样落在子集块数下限上",
+    "scope": "artifact",
+    "behavior_ids": [
+      "M10-B02"
+    ],
+    "refs": [
+      "E1",
+      "E2",
+      "E8",
+      "E9"
+    ],
+    "boundary": "ruler.sh 的 flex_prefill 配置",
+    "unverified_effect": "RULER 分数与 head 计算量未实测",
+    "artifact_id": "flexprefill",
+    "mechanism_id": "M10",
+    "claim_ids": [
+      "flexprefill:M10-B02"
+    ],
+    "evidence_registry_ids": [
+      "M10:E1",
+      "M10:E2",
+      "M10:E8",
+      "M10:E9"
+    ]
+  },
+  {
+    "title": "推导步骤（界、松弛、Lagrangian、KKT、Eq.4/差式）在代码中缺失",
+    "scope": "local_entry",
+    "behavior_ids": [
+      "M11-B01",
+      "M11-B03",
+      "M11-B04",
+      "M11-B05",
+      "M11-A03",
+      "M11-A04",
+      "M11-A05",
+      "M11-A06",
+      "M11-A07",
+      "M11-A08"
+    ],
+    "refs": [
+      "E1",
+      "E2",
+      "E3"
+    ],
+    "boundary": "仅限 pinned commit 的 flex_prefill 包；推导为论文附录理论，非运行时必需",
+    "unverified_effect": "这些推导步骤的正确性未由代码检验",
+    "artifact_id": "flexprefill",
+    "mechanism_id": "M11",
+    "claim_ids": [
+      "flexprefill:M11-B01",
+      "flexprefill:M11-B03",
+      "flexprefill:M11-B04",
+      "flexprefill:M11-B05",
+      "flexprefill:M11-A03",
+      "flexprefill:M11-A04",
+      "flexprefill:M11-A05",
+      "flexprefill:M11-A06",
+      "flexprefill:M11-A07",
+      "flexprefill:M11-A08"
+    ],
+    "evidence_registry_ids": [
+      "M11:E1",
+      "M11:E2",
+      "M11:E3"
+    ]
+  },
+  {
+    "title": "实验路径无推导/对偶验证产物",
+    "scope": "artifact",
+    "behavior_ids": [
+      "M11-B01",
+      "M11-B03",
+      "M11-B04",
+      "M11-B05",
+      "M11-A03",
+      "M11-A04",
+      "M11-A05",
+      "M11-A06",
+      "M11-A07",
+      "M11-A08"
+    ],
+    "refs": [
+      "E6"
+    ],
+    "boundary": "仅检查 experiments/scripts/flex_prefill/ruler.sh",
+    "unverified_effect": "无对偶间隙或上界数值验证",
+    "artifact_id": "flexprefill",
+    "mechanism_id": "M11",
+    "claim_ids": [
+      "flexprefill:M11-B01",
+      "flexprefill:M11-B03",
+      "flexprefill:M11-B04",
+      "flexprefill:M11-B05",
+      "flexprefill:M11-A03",
+      "flexprefill:M11-A04",
+      "flexprefill:M11-A05",
+      "flexprefill:M11-A06",
+      "flexprefill:M11-A07",
+      "flexprefill:M11-A08"
+    ],
+    "evidence_registry_ids": [
+      "M11:E6"
+    ]
+  },
+  {
+    "title": "A100 80GB 单卡环境未在代码中实现或约束",
+    "scope": "local_entry",
+    "behavior_ids": [
+      "M12-A05"
+    ],
+    "refs": [
+      "E6"
+    ],
+    "boundary": "仅说明源码无硬件环境实现；实际运行硬件不可由源码证明",
+    "unverified_effect": "实验是否真在单卡 A100 80GB 上完成",
+    "artifact_id": "flexprefill",
+    "mechanism_id": "M12",
+    "claim_ids": [
+      "flexprefill:M12-A05"
+    ],
+    "evidence_registry_ids": [
+      "M12:E6"
+    ]
+  },
+  {
+    "title": "实验脚本未固定单卡与 GPU 型号",
+    "scope": "artifact",
+    "behavior_ids": [
+      "M12-A05"
+    ],
+    "refs": [
+      "E2",
+      "E3"
+    ],
+    "boundary": "accelerate launch 未传设备数/型号参数",
+    "unverified_effect": "实验运行设备配置",
+    "artifact_id": "flexprefill",
+    "mechanism_id": "M12",
+    "claim_ids": [
+      "flexprefill:M12-A05"
+    ],
+    "evidence_registry_ids": [
+      "M12:E2",
+      "M12:E3"
+    ]
+  }
+]

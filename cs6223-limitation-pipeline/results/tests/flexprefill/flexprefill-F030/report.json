@@ -1,0 +1,163 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "flexprefill-F030",
+ "artifact_id": "flexprefill",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "论文要求最小 k 使累计≥γ；代码取累计>γ 的最小 k（累计恰等于 γ 时多选一条），且 //128+1 放大、min/max_budget 覆盖，K_v 不再是论文定义的最小前缀（artifact 范围：>γ 而非 ≥γ，且 //128+1 与预算截断改变前缀长度）",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "flex_prefill/ops/flex_prefill_attention.py:1588-1591",
+  "function": null,
+  "condition": "torch.any(torch.cumsum(torch.sort(vertical, dim=-1, descending=True).values, dim=-1) == gamma) or torch.any(torch.cumsum(torch.sort(slash, dim=-1, descending=True).values, dim=-1) == gamma) or torch.any(score_cover_topk(vertical, gamma) // 128 + 1 != score_cover_topk(vertical, gamma)) or torch.any(score_cover_topk(slash, gamma) // 128 + 1 != score_cover_topk(slash, gamma)) or torch.any(score_cover_topk(vertical, gamma) // 128 + 1 < min_budget) or torch.any(score_cover_topk(vertical, gamma) // 128 + 1 > max_budget) or torch.any(score_cover_topk(slash, gamma) // 128 + 1 < min_budget) or torch.any(score_cover_topk(slash, gamma) // 128 + 1 > max_budget)"
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "# Sort vertical and slash attention scores Iv← argsort(av) Is← argsort(as) # Obtain the minimum computational budget making the sum of the scores exceedsγ Kv← min{k :P i∈Iv [1:k] av[i]≥γ}",
+    "source": "paper",
+    "locator": "PDF p.6, text lines 69-75"
+   },
+   {
+    "quote": "# Sort vertical and slash attention scores Iv← argsort(av) Is← argsort(as) # Obtain the minimum computational budget making the sum of the scores exceedsγ Kv← min{k :P i∈Iv [1:k] av[i]≥γ} Ks← min{k :P i∈Is[1:k] as[i]≥γ}",
+    "source": "paper",
+    "locator": "PDF p.6, text lines 69-77"
+   }
+  ],
+  "code": [
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "line_start": 1588,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "line_start": 1707,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "line_start": 1730,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/flexprefill/limitations_for_tests.json",
+  "findings_sha256": "0b8539b75ec0e2d602cd64b1a21959708ae3a6d53be00202f8825d92f313c066",
+  "generated_at": "2026-11-18T12:15:50+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The code's score_cover_topk counts cumsum <= gamma then adds 1, so it returns the first prefix whose sum exceeds gamma (and one extra when sum equals gamma), whereas the paper defines min k with sum >= gamma. The subsequent //128+1 and min/max_budget clamps further change the prefix length. Thus the artifact deviates as claimed.",
+  "hardware_needed": false,
+  "would_confirm": "Run score_cover_topk on a vector whose cumulative sum equals gamma and compare returned k to the paper's min{k: cumsum>=gamma}.",
+  "static": {
+   "cited": 3,
+   "grounded": true,
+   "items": [
+    {
+     "file": "flex_prefill/ops/flex_prefill_attention.py",
+     "lines": "1588-1591",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "flex_prefill/ops/flex_prefill_attention.py",
+     "lines": "1707-1716",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "flex_prefill/ops/flex_prefill_attention.py",
+     "lines": "1730-1758",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "regex": "def score_cover_topk\\(x: torch\\.Tensor, score: float\\):",
+    "expect": "present",
+    "meaning": "Confirms helper exists at cited location.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     1588
+    ]
+   },
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "regex": "cumsum_x <= score",
+    "expect": "present",
+    "meaning": "Shows strict > gamma selection via <= count plus one.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     1590
+    ]
+   },
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "regex": "score_cover_topk\\(vertical, gamma\\) // 128 \\+ 1",
+    "expect": "present",
+    "meaning": "Shows block-count scaling after score cover.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     1708
+    ]
+   },
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "regex": "num_vertical_blocks\\[num_vertical_blocks < min_budget\\] = min_budget",
+    "expect": "present",
+    "meaning": "Shows budget clamp alters prefix length.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     1710
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

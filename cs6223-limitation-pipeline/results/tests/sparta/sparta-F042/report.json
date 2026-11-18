@@ -1,0 +1,156 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "sparta-F042",
+ "artifact_id": "sparta",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "论文要求每个操作数 TeSA 各自带块大小；代码仅权重 TeSA 获得 block_size，输入/输出 TeSA 的 block_size 保持 None 且不被消费（artifact 范围：仅权重侧 hints 完整）",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "sparta/transformation/transform_policy.py:137-191",
+  "function": null,
+  "condition": "in_tesa.block_size is not None or out_tesa.block_size is not None"
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "Specialization hints: T: {Bit: 32, Block: 2x2}, W: {Bit: 32, Block: 2x2}",
+    "source": "paper",
+    "locator": "PDF p.8"
+   }
+  ],
+  "code": [
+   {
+    "file": "sparta/transformation/transform_policy.py",
+    "line_start": 137,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "sparta/transformation/weighted_block_cover.py",
+    "line_start": 104,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "sparta/specialization/specialize_kernel.py",
+    "line_start": 44,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/sparta/limitations_for_tests.json",
+  "findings_sha256": "af8cad7c4e91af73f84a27b96179739526bde952a669319c71cc4e157ac4b49f",
+  "generated_at": "2026-11-18T12:35:53+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The paper excerpt specifies block hints for T, W, and likely output, but the code assigns block_size only to w_tesa in wbc_matmul. Input and output TeSAs are passed through without block_size assignment, and kernel initialization reads only w_tesa.block_size. This matches the claimed implementation deviation: only weight-side block hints are complete.",
+  "hardware_needed": false,
+  "would_confirm": "A code-path test or static trace showing whether in_tesa.block_size and out_tesa.block_size are ever assigned or read would settle it.",
+  "static": {
+   "cited": 3,
+   "grounded": true,
+   "items": [
+    {
+     "file": "sparta/transformation/transform_policy.py",
+     "lines": "137-191",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "sparta/transformation/weighted_block_cover.py",
+     "lines": "104-144",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "sparta/specialization/specialize_kernel.py",
+     "lines": "44-77",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "sparta/transformation/weighted_block_cover.py",
+    "regex": "w_tesa\\.block_size\\s*=",
+    "expect": "present",
+    "meaning": "Weight TeSA receives block size; supports weight-only hint.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     118
+    ]
+   },
+   {
+    "file": "sparta/transformation/weighted_block_cover.py",
+    "regex": "(in_tesa|out_tesa)\\.block_size",
+    "expect": "absent",
+    "meaning": "No input/output block-size assignment in same file; supports asymmetry.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "w_tesa\\.block_size",
+    "hit_lines": []
+   },
+   {
+    "file": "sparta/specialization/specialize_kernel.py",
+    "regex": "block_size\\s*=\\s*w_tesa\\.block_size",
+    "expect": "present",
+    "meaning": "Kernel init consumes only weight block size.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     66
+    ]
+   },
+   {
+    "file": "sparta/specialization/specialize_kernel.py",
+    "regex": "(i_tesa|o_tesa)\\.block_size",
+    "expect": "absent",
+    "meaning": "Input/output block sizes are not consumed in kernel init.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "w_tesa\\.block_size",
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

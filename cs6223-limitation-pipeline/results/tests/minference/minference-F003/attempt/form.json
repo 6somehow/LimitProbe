@@ -1,0 +1,97 @@
+{
+  "test_id": "A-minference-F003",
+  "finding_id": "minference-F003",
+  "strategy": "S1",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {"name": "hidden_size", "value": 64, "why": "model width is not part of the witness; any width reaches the guard"},
+      {"name": "num_heads", "value": 1, "why": "one head is enough to run the search_pattern call once"},
+      {"name": "head_dim", "value": 64, "why": "attention head width is not constrained by the witness"},
+      {"name": "num_key_value_heads", "value": 1, "why": "no grouped-query attention is needed to reach the guard"},
+      {"name": "batch_size", "value": 1, "why": "the witness does not constrain batch size; one sequence suffices"},
+      {"name": "layer_idx", "value": 100, "why": "high layer index avoids any search-config assertion on a later call"},
+      {"name": "starting_layer", "value": 0, "why": "search mode ignores starting_layer; it only sets the config default"},
+      {"name": "config_path", "value": "f003_config.json", "why": "a non-existent search output path keeps init_minference_parameters from loading a search file"},
+      {"name": "seed", "value": 0, "why": "fixed seed for deterministic projection weights"}
+    ],
+    "positive_input": {"q_len": 2},
+    "negative_input": {"q_len": 2},
+    "boundary_variable": "prelude",
+    "positive_prelude": [],
+    "negative_prelude": [{"q_len": 2}],
+    "extra_negatives": [],
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at minference/modules/minference_forward.py:165",
+      "signal_location": "minference/modules/minference_forward.py:165"
+    },
+    "expected": {
+      "positive": "branch taken at minference/modules/minference_forward.py:165",
+      "negative": "branch not taken at minference/modules/minference_forward.py:165"
+    }
+  },
+  "execution": {
+    "entry_called": "minference/modules/minference_forward.py::minference_forward.forward",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [
+      {
+        "symbol": "torch.arange",
+        "kind": "patch",
+        "reason": "module-level LAST_Q_MASK arange asks for cuda at import; run the same arange on CPU",
+        "behavior": "sim",
+        "impl": "sim.py::cpu_arange",
+        "sim_class": "independent_native",
+        "sim_check": "check.py::check_arange"
+      },
+      {
+        "symbol": "torch.full",
+        "kind": "patch",
+        "reason": "the guard body builds its mask on cuda; the same fill runs on CPU",
+        "behavior": "sim",
+        "impl": "sim.py::cpu_full",
+        "sim_class": "independent_native",
+        "sim_check": "check.py::check_full"
+      },
+      {
+        "symbol": "minference.ops.block_sparse_flash_attention",
+        "kind": "fake_module",
+        "reason": "GPU-only triton/flash-attn module imported but not used before or at the target",
+        "behavior": "record_only",
+        "sim_class": "stub"
+      },
+      {
+        "symbol": "minference.ops.pit_sparse_flash_attention_v2",
+        "kind": "fake_module",
+        "reason": "GPU-only triton/minference.cuda module imported but not used before or at the target",
+        "behavior": "record_only",
+        "sim_class": "stub"
+      },
+      {
+        "symbol": "minference.ops.streaming_kernel",
+        "kind": "fake_module",
+        "reason": "GPU-only triton module imported but not used before or at the target",
+        "behavior": "record_only",
+        "sim_class": "stub"
+      }
+    ],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": ["true", "false"],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": false,
+    "positive_observed": "branch taken at minference/modules/minference_forward.py:165",
+    "negative_observed": "branch not taken at minference/modules/minference_forward.py:165"
+  },
+  "evidence": {}
+}

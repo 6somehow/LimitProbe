@@ -1,0 +1,27 @@
+{
+ "assessment": "supports",
+ "reasoning": "The deadline scheduler's _schedule path explicitly comments 'No pre-emption support' and uses can_append_slot assertions rather than calling _preempt. Preemption code exists in base_scheduler and sarathi_scheduler, but the shown deadline scheduling path does not execute it, matching the finding.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "sarathi/core/scheduler/deadline_scheduler.py",
+   "regex": "self\\._preempt\\(",
+   "expect": "absent",
+   "control": "def _schedule",
+   "meaning": "No preemption call in deadline scheduler; control confirms file searched."
+  },
+  {
+   "file": "sarathi/core/scheduler/deadline_scheduler.py",
+   "regex": "No pre-emption support",
+   "expect": "present",
+   "meaning": "Explicit comment states deadline path lacks preemption support."
+  },
+  {
+   "file": "sarathi/core/scheduler/deadline_scheduler.py",
+   "regex": "can_append_slot",
+   "expect": "present",
+   "meaning": "Deadline path checks slot append instead of preempting victims."
+  }
+ ],
+ "would_confirm": "Run the deadline scheduler with KV-cache pressure and a higher-priority arrival, then verify whether any running request is preempted."
+}

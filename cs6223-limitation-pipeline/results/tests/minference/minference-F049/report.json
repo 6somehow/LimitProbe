@@ -1,0 +1,125 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "minference-F049",
+ "artifact_id": "minference",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "论文 1k 全局/4k 局部；代码 128 全局/3968 局部，两参数均不符。",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "minference/models_patch.py:66-73",
+  "function": null,
+  "condition": "n_init == 128 and n_local == 3968"
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "compiler PIT [ZJZ+23]. We set the target FLOPst to 1k global tokens and 4k local windows in the A-shape pattern. We set last_q = 64 andblock_size = 64 in the Vertical-Slash and Block-Sparse",
+    "source": "paper",
+    "locator": "PDF p.6, text lines 32-33"
+   }
+  ],
+  "code": [
+   {
+    "file": "minference/models_patch.py",
+    "line_start": 66,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "minference/ops/streaming_kernel.py",
+    "line_start": 598,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/minference/limitations_for_tests.json",
+  "findings_sha256": "6f02cbec16ce4487c1b9166c2dc5f1f16704f168b135426edfe2df59ed9333bc",
+  "generated_at": "2026-11-18T17:25:00+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The paper states 1k global tokens and 4k local windows, while the pinned code sets n_init=128 and n_local=3968. Both values differ from the paper, so the finding is directly supported by the shown evidence.",
+  "hardware_needed": false,
+  "would_confirm": "Inspect the pinned configuration and paper text to verify the exact n_init and n_local values used.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "minference/models_patch.py",
+     "lines": "66-73",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "minference/ops/streaming_kernel.py",
+     "lines": "598-633",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "minference/models_patch.py",
+    "regex": "\"n_local\"\\s*:\\s*3968",
+    "expect": "present",
+    "meaning": "Confirms local window is 3968, not paper's 4k.",
+    "status": "confirmed",
+    "hits": 2,
+    "hit_lines": [
+     69,
+     79
+    ]
+   },
+   {
+    "file": "minference/models_patch.py",
+    "regex": "\"n_init\"\\s*:\\s*128",
+    "expect": "present",
+    "meaning": "Confirms global/init tokens are 128, not paper's 1k.",
+    "status": "confirmed",
+    "hits": 3,
+    "hit_lines": [
+     70,
+     79,
+     89
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

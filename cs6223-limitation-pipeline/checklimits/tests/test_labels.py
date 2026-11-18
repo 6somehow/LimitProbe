@@ -1,0 +1,150 @@
+import csv
+import json
+
+from checklimits import labels, stats
+
+
+def _results(tmp_path, spec):
+    """spec: {artifact: [(finding, verdict, level)]}"""
+    root = tmp_path / "res"
+    for art, fs in spec.items():
+        d = root / "tests" / art
+        idx = []
+        for fid, verdict, level in fs:
+            (d / fid).mkdir(parents=True)
+            rec = {"finding_id": fid, "verdict": verdict, "level": level, "defeaters": {"D1": "eliminated"},
+                   "finding": {"summary": f"claim {fid}", "category": "undisclosed", "location": "a.py:1", "condition": "n != 1"},
+                   "evidence": {"paper": [{"quote": "q " + fid}], "code": []},
+                   "observed": {"positive": "AssertionError at a.py:1", "negative": "no exception at a.py:1"}}
+            (d / fid / "report.json").write_text(json.dumps(rec))
+            idx.append({"finding_id": fid, "status": "tested", "verdict": verdict, "level": level, "not_run": None})
+        idx.append({"finding_id": f"{art}-skipped", "status": "not_run", "verdict": None, "level": None, "not_run": "no_code_location"})
+        (d / "index.json").write_text(json.dumps({"findings": idx}))
+    return root
+
+
+def test_sample_hides_the_harness_answer_and_covers_the_strata(tmp_path):
+    root = _results(tmp_path, {"a": [(f"a-F{i}", "yes", "L1") for i in range(8)] + [("a-F9", "yes", "L3"), ("a-F10", "no", "L1")]})
+    out = tmp_path / "sheets"
+    res = labels.sample(root, out, n=4, raters=("r1", "r2"), seed=1)
+    assert res["n"] == 4 and res["n_pool"] == 10
+    rows = list(csv.DictReader((out / "sheet_r1.csv").open()))
+    assert len(rows) == 4 and set(rows[0]) == set(labels.COLUMNS)
+    text = (out / "sheet_r1.csv").read_text()
+    assert "L3" not in text and "verdict" not in text.lower().replace("trigger_run", "")        # no verdict or level
+    key = json.loads((out / "key.json").read_text())["items"]
+    assert {(v["verdict"], v["level"]) for v in key.values()} >= {("yes", "L3"), ("no", "L1")}   # rare strata are drawn
+    assert "a-skipped" not in text                                                              # only tested Findings
+    assert (out / "sheet_r1.csv").read_text().splitlines()[0] == (out / "sheet_r2.csv").read_text().splitlines()[0]
+    assert labels.sample(root, tmp_path / "again", n=4, raters=("r1",), seed=1)["strata"] == res["strata"]
+    assert res["strata"] == {"yes/L1": 8, "yes/L3": 1, "no/L1": 1}                    # the pool, not what is left after drawing
+    assert sum(res["sampled"].values()) == 4
+
+
+def test_kappa_values():
+    assert labels.cohen_kappa(["a", "a", "b", "b"], ["a", "a", "b", "b"]) == 1.0
+    assert labels.cohen_kappa(["a", "a", "b", "b"], ["a", "b", "a", "b"]) == 0.0
+    assert labels.fleiss_kappa([["a", "a", "a"], ["b", "b", "b"]]) == 1.0
+    assert labels.fleiss_kappa([["a", "b", "a"], ["b", "a", "b"]]) < 0.2
+    assert labels.majority(["true", "true", "false"]) == "true" and labels.majority(["true", "false", "unclear"]) is None
+
+
+def test_evaluate_reports_agreement_and_confirmed_yes_by_level(tmp_path):
+    root = _results(tmp_path, {"a": [("a-F1", "yes", "L3"), ("a-F2", "yes", "L1"), ("a-F3", "yes", "L1"), ("a-F4", "no", "L1")]})
+    out = tmp_path / "s"
+    labels.sample(root, out, n=4, raters=("r1", "r2", "r3"), seed=3)
+    key = json.loads((out / "key.json").read_text())["items"]
+    truth = {"a-F1": ("true", "valid"), "a-F2": ("true", "valid"), "a-F3": ("false", "valid"), "a-F4": ("true", "valid")}
+    for r, flip in (("r1", None), ("r2", None), ("r3", "a-F2")):
+        rows = list(csv.DictReader((out / f"sheet_{r}.csv").open()))
+        for row in rows:
+            fid = key[row["item_id"]]["finding_id"]
+            q1, q2 = truth[fid]
+            if fid == flip:
+                q2 = "invalid"                                     # one dissenter does not change the majority
+            row["q1_finding_true"], row["q2_test_valid"] = q1, q2
+        with (out / f"sheet_{r}.csv").open("w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=labels.COLUMNS)
+            w.writeheader()
+            w.writerows(rows)
+    ev = labels.evaluate([out / f"sheet_{r}.csv" for r in ("r1", "r2", "r3")], out / "key.json")
+    assert ev["n_complete"] == 4
+    assert ev["agreement"]["q1"]["fleiss_kappa"] == 1.0 and ev["agreement"]["q2"]["fleiss_kappa"] < 1.0
+    y = ev["harness"]["yes_confirmed_by_majority"]
+    assert y["L3"]["claim_true_and_test_valid"] == 1 and y["L1"]["n"] == 2 and y["L1"]["claim_true_and_test_valid"] == 1   # F3's claim is false
+    assert y["all yes"]["n"] == 3 and y["all yes"]["claim_true_and_test_valid"] == 2
+    lo, hi = y["all yes"]["confirmed_wilson95"]
+    assert 0 < lo < 2 / 3 < hi < 1
+
+
+def test_wilson_interval_contains_the_estimate():
+    lo, hi = stats.wilson_interval(5, 5)
+    assert hi == 1.0 and 0.5 < lo < 0.6               # matches wilson_lower(5, 5)
+    assert abs(lo - stats.wilson_lower(5, 5)) < 1e-9
+    assert stats.wilson_interval(0, 0) == (0.0, 1.0)
+
+
+def test_labels_written_in_another_vocabulary_are_normalised(tmp_path):
+    p = tmp_path / "s.csv"
+    cols = labels.COLUMNS
+    rows = [dict.fromkeys(cols, "") | {"item_id": f"L0{i}", "q1_finding_true": a, "q2_test_valid": b}
+            for i, (a, b) in enumerate([("True", "Unverified"), ("Partially true", "Inconsistent"), ("false", "Valid"), ("", "")], 1)]
+    with p.open("w", newline="", encoding="utf-8-sig") as f:        # as a spreadsheet program saves it: BOM
+        w = csv.DictWriter(f, fieldnames=cols)
+        w.writeheader()
+        w.writerows(rows)
+    got = labels.read_sheet(p)
+    assert [(r["q1_finding_true"], r["q2_test_valid"]) for r in got.values()] == [
+        ("true", "unclear"), ("partial", "invalid"), ("false", "valid"), ("", "")]
+
+
+def test_yes_rates_separate_the_claim_from_the_test_and_say_how_many_tests_were_assessed(tmp_path):
+    root = _results(tmp_path, {"a": [("a-F1", "yes", "L1"), ("a-F2", "yes", "L1"), ("a-F3", "yes", "L3")]})
+    out = tmp_path / "s"
+    labels.sample(root, out, n=3, raters=("r1",), seed=2)
+    key = json.loads((out / "key.json").read_text())["items"]
+    want = {"a-F1": ("True", "Unverified"), "a-F2": ("Partially true", "Unverified"), "a-F3": ("True", "Valid")}
+    rows = list(csv.DictReader((out / "sheet_r1.csv").open()))
+    for r in rows:
+        r["q1_finding_true"], r["q2_test_valid"] = want[key[r["item_id"]]["finding_id"]]
+    with (out / "sheet_r1.csv").open("w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=labels.COLUMNS)
+        w.writeheader()
+        w.writerows(rows)
+    y = labels.evaluate([out / "sheet_r1.csv"], out / "key.json")["harness"]["yes_confirmed_by_majority"]
+    assert y["L1"]["n"] == 2 and y["L1"]["claim_true"] == 1 and y["L1"]["test_assessed"] == 0 and y["L1"]["confirmed_rate"] == 0.0
+    assert y["L3"]["claim_true"] == 1 and y["L3"]["claim_true_and_test_valid"] == 1 and y["L3"]["test_assessed"] == 1
+    assert y["all yes"]["n"] == 3 and y["all yes"]["claim_true"] == 2
+
+
+def test_agreement_with_a_baseline_only_counts_decided_items(tmp_path):
+    cols = labels.COLUMNS
+
+    def sheet(name, labs):
+        p = tmp_path / name
+        with p.open("w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=cols)
+            w.writeheader()
+            for i, (a, b) in enumerate(labs, 1):
+                w.writerow(dict.fromkeys(cols, "") | {"item_id": f"L0{i}", "q1_finding_true": a, "q2_test_valid": b})
+        return p
+    base = sheet("b.csv", [("True", "Unverified"), ("Partially true", "Unverified"), ("False", "Inconsistent")])
+    llm = sheet("l.csv", [("true", "valid"), ("true", "valid"), ("true", "invalid")])
+    out = labels.compare_to_baseline(base, [llm])
+    assert out["q1"]["items_compared"] == 2 and out["q1"]["agree"] == 1 and out["q1"]["disagreements"] == [{"item": "L03", "baseline": "false", "other": "true"}]
+    assert out["q2"]["items_compared"] == 1 and out["q2"]["agree"] == 1 and out["q2"]["baseline_decided"] == 1
+
+
+def test_refresh_key_follows_a_rule_change_and_remembers_the_old_value(tmp_path):
+    root = _results(tmp_path, {"a": [("a-F1", "yes", "L1"), ("a-F2", "yes", "L3")]})
+    out = tmp_path / "s"
+    labels.sample(root, out, n=2, raters=("r1",), seed=1)
+    rec = root / "tests" / "a" / "a-F1" / "report.json"
+    d = json.loads(rec.read_text())
+    d["verdict"], d["level"] = "inconclusive", "invalid"
+    rec.write_text(json.dumps(d))
+    changed = labels.refresh_key(out / "key.json", root)
+    assert list(changed.values()) == [{"finding_id": "a-F1", "was": "yes/L1", "now": "inconclusive/invalid"}]
+    items = json.loads((out / "key.json").read_text())["items"]
+    assert {v["finding_id"]: (v["verdict"], v["level"]) for v in items.values()}["a-F1"] == ("inconclusive", "invalid")
+    assert [v["previous"] for v in items.values() if "previous" in v] == ["yes/L1"]

@@ -1,0 +1,52 @@
+{
+  "test_id": "A-sparta-F002",
+  "finding_id": "sparta-F002",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {"name": "seed", "value": 0, "why": "fixed seed; the tensors are deterministic and do not use randomness"},
+      {"name": "rows", "value": 64, "why": "weight matrix has enough rows for one aligned (32,64) block and one aligned (32,128) block"},
+      {"name": "cols", "value": 128, "why": "width that makes both (32,64) and (32,128) covering blocks available"},
+      {"name": "region_a_rows", "value": 32, "why": "height of the fully dense region covered by one (32,64) block"},
+      {"name": "region_a_cols", "value": 64, "why": "width of the fully dense region covered by one (32,64) block"},
+      {"name": "region_b_per_half", "value": 1500, "why": "positives per 64-column half of region B; makes (32,128) the cheapest block there while keeping denser sub-blocks more expensive"},
+      {"name": "dtype", "value": "int32", "why": "weighted_block_cover numbers non-pruned elements in an int32 universe tensor"}
+    ],
+    "positive_input": {"pattern": 1},
+    "negative_input": {"pattern": 0},
+    "boundary_variable": "pattern",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "exception",
+      "spec": "RuntimeError raised at sparta/transformation/weighted_block_cover.py:123",
+      "signal_location": "sparta/transformation/weighted_block_cover.py:123"
+    },
+    "expected": {
+      "positive": "RuntimeError at sparta/transformation/weighted_block_cover.py:123",
+      "negative": "no exception at sparta/transformation/weighted_block_cover.py:123"
+    }
+  },
+  "execution": {
+    "entry_called": "sparta/propagation/propagate.py::propagate_sparsity",
+    "entry_reason": "The pinned propagate_sparsity is a no-op stub (it extracts ModelSparsityInfo and returns pre_sparsity) and step-4 reports call_chain_status not_found: no static or dynamic path from call_chain[0] to wbc_matmul exists. The driver calls the official entry first and then wbc_matmul (call_chain[1]) directly; the target module and function are the real, unmodified repository code.",
+    "call_chain_index": 1,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "RuntimeError at sparta/transformation/weighted_block_cover.py:123",
+    "negative_observed": "no exception at sparta/transformation/weighted_block_cover.py:123"
+  },
+  "evidence": {}
+}

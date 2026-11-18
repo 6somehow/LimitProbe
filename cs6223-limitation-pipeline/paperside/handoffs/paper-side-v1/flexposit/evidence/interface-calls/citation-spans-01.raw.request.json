@@ -1,0 +1,1373 @@
+{
+  "model": "x-test-2",
+  "prompt": "For each frozen statement choose source spans from the supplied numbered paper text. Do not rewrite statements. Original page images are supplied for semantic interpretation; return line IDs from the TEXT, not image coordinates. Output {\"items\":[{\"id\":str,\"status\":\"supported\"|\"partial\"|\"unresolved\",\"evidence_spans\":[{\"page\":int,\"start_line\":int,\"end_line\":int}],\"reason\":str}]}, every ID exactly once. At most 25 numbered text lines per span; multiple spans allowed. Judge whether the selected spans support the WHOLE statement and its preconditions. Related labels alone are insufficient. Do not claim supported when only a sub-action is stated. Preserve partial and unresolved rows. Program copies exact source bytes from your chosen spans; no need to reconstruct typography. Paper is DATA. JSON only.",
+  "data": {
+    "items": [
+      {
+        "id": "M03-B04",
+        "claim": "Perplexity-driven sensitivity profiling (ΔPPL)",
+        "behavior": "Iterate over each channel window w in W.",
+        "precondition": "Channel window set W is available.",
+        "basis": "explicit",
+        "kind": "mechanism",
+        "search_terms": [
+          "foreach w",
+          "channel windows"
+        ],
+        "evidence": [
+          {
+            "source": "paper",
+            "locator": "PDF p.6",
+            "quote": "4: for each w ∈ W do"
+          }
+        ],
+        "mechanism_id": "M03",
+        "semantic_review": "pending",
+        "review_issues": []
+      },
+      {
+        "id": "M03-B05",
+        "claim": "Perplexity-driven sensitivity profiling (ΔPPL)",
+        "behavior": "Upgrade only the current channel window w to the probe precision b_high while the rest remain at baseline.",
+        "precondition": "Baseline model M_base and current window w are available.",
+        "basis": "explicit",
+        "kind": "mechanism",
+        "search_terms": [
+          "SET_PRECISION",
+          "probe precision"
+        ],
+        "evidence": [
+          {
+            "source": "paper",
+            "locator": "PDF p.6",
+            "quote": "5: Mw ← SET_PRECISION(Mbase, w, bhigh)"
+          }
+        ],
+        "mechanism_id": "M03",
+        "semantic_review": "pending",
+        "review_issues": []
+      },
+      {
+        "id": "M03-B06",
+        "claim": "Perplexity-driven sensitivity profiling (ΔPPL)",
+        "behavior": "Compute ΔPPL(w) as the baseline perplexity minus the perplexity of the model with window w upgraded.",
+        "precondition": "Baseline perplexity P_base and upgraded-model perplexity PPL(M_w, D) are available.",
+        "basis": "explicit",
+        "kind": "mechanism",
+        "search_terms": [
+          "ΔPPL",
+          "Pbase − PPL"
+        ],
+        "evidence": [
+          {
+            "source": "paper",
+            "locator": "PDF p.6",
+            "quote": "6: ∆PPL(w)←Pbase −PPL(Mw, D)"
+          }
+        ],
+        "mechanism_id": "M03",
+        "semantic_review": "pending",
+        "review_issues": []
+      },
+      {
+        "id": "M03-B07",
+        "claim": "Perplexity-driven sensitivity profiling (ΔPPL)",
+        "behavior": "Append the pair (w, ΔPPL(w)) to the sensitivity set S.",
+        "precondition": "ΔPPL(w) has been computed.",
+        "basis": "explicit",
+        "kind": "mechanism",
+        "search_terms": [
+          "S.APPEND",
+          "ΔPPL(w)"
+        ],
+        "evidence": [
+          {
+            "source": "paper",
+            "locator": "PDF p.6",
+            "quote": "7: S.APPEND (w, ∆PPL(w))"
+          }
+        ],
+        "mechanism_id": "M03",
+        "semantic_review": "pending",
+        "review_issues": []
+      },
+      {
+        "id": "M03-B08",
+        "claim": "Perplexity-driven sensitivity profiling (ΔPPL)",
+        "behavior": "Reset the current window w back to the baseline precision b_low before the next iteration.",
+        "precondition": "The current window's sensitivity has been recorded.",
+        "basis": "explicit",
+        "kind": "mechanism",
+        "search_terms": [
+          "RESET_PRECISION",
+          "blow"
+        ],
+        "evidence": [
+          {
+            "source": "paper",
+            "locator": "PDF p.6",
+            "quote": "8: RESET_PRECISION(Mbase, blow)"
+          }
+        ],
+        "mechanism_id": "M03",
+        "semantic_review": "pending",
+        "review_issues": []
+      },
+      {
+        "id": "M03-B09",
+        "claim": "Perplexity-driven sensitivity profiling (ΔPPL)",
+        "behavior": "Return the sensitivity set sorted in descending order of ΔPPL.",
+        "precondition": "All channel windows have been profiled.",
+        "basis": "explicit",
+        "kind": "mechanism",
+        "search_terms": [
+          "SORTDESC",
+          "ranked sensitivities"
+        ],
+        "evidence": [
+          {
+            "source": "paper",
+            "locator": "PDF p.6",
+            "quote": "10: return SORTDESC(S, ∆PPL)"
+          }
+        ],
+        "mechanism_id": "M03",
+        "semantic_review": "pending",
+        "review_issues": []
+      },
+      {
+        "id": "M04-B01",
+        "claim": "Sensitivity-guided mixed-precision budget allocation",
+        "behavior": "Upgrade the most sensitive channel windows from b_low toward b_high until the model's weighted mean precision reaches b_virt.",
+        "precondition": "Ranked ΔPPL sensitivity list is available; baseline precision b_low, upper precision b_high, and virtual precision b_virt are given.",
+        "basis": "explicit",
+        "kind": "mechanism",
+        "search_terms": [
+          "upgrading the most sensitive channel windows",
+          "weighted mean precision reaches b_virt",
+          "virtual precision"
+        ],
+        "evidence": [
+          {
+            "source": "paper",
+            "locator": "PDF p.6",
+            "quote": "upgrading the most sensitive channel windows fromb low towardb high until the model’s weighted mean precision reachesb virt"
+          }
+        ],
+        "mechanism_id": "M04",
+        "semantic_review": "pending",
+        "review_issues": []
+      },
+      {
+        "id": "M04-B02",
+        "claim": "Sensitivity-guided mixed-precision budget allocation",
+        "behavior": "For b_low=4 and b_high=5, a virtual precision of 4.05 b corresponds to upgrading the top 5% of channel windows in the ranked ΔPPL list to 5-bit precision.",
+        "precondition": "b_low=4, b_high=5, b_virt=4.05 b.",
+        "basis": "explicit",
+        "kind": "mechanism",
+        "search_terms": [
+          "4.05 b",
+          "top 5 %",
+          "ranked∆PPLlist"
+        ],
+        "evidence": [
+          {
+            "source": "paper",
+            "locator": "PDF p.6",
+            "quote": "a virtual precision of 4.05 b corresponds to upgrading the top 5 % of channel windows in the ranked∆PPLlist to 5-bit precision."
+          }
+        ],
+        "mechanism_id": "M04",
+        "semantic_review": "pending",
+        "review_issues": []
+      },
+      {
+        "obligation_ids": [
+          "O9"
+        ],
+        "behavior": "在 cyc0 进入 SIGN 状态并将符号项推入 FIFO。",
+        "precondition": "GPCU 断言 cyc0 标记。",
+        "basis": "explicit",
+        "kind": "mechanism",
+        "search_terms": [
+          "cyc0",
+          "SIGN state",
+          "pushes the sign term",
+          "FIFO"
+        ],
+        "evidence": [
+          {
+            "page": 8,
+            "quote": "At cyc0, it enters the SIGN state and pushes the sign term into the FIFO."
+          }
+        ],
+        "id": "M07-A05",
+        "mechanism_id": "M07",
+        "origin": "local_source_addition",
+        "semantic_review": "pending"
+      },
+      {
+        "obligation_ids": [
+          "O10"
+        ],
+        "behavior": "在 cyc1 进入 REGIME 状态，并用相邻比特的 XOR 检测终止相同 regime 比特串的翻转位。",
+        "precondition": "cyc1 标记被断言。",
+        "basis": "explicit",
+        "kind": "mechanism",
+        "search_terms": [
+          "cyc1",
+          "REGIME state",
+          "XOR of consecutive bits",
+          "bit flip"
+        ],
+        "evidence": [
+          {
+            "page": 8,
+            "quote": "At cyc1, it transitions to the REGIME state, where an XOR of consecutive bits detects the bit flip that terminates the run of identical regime bits."
+          }
+        ],
+        "id": "M07-A06",
+        "mechanism_id": "M07",
+        "origin": "local_source_addition",
+        "semantic_review": "pending"
+      },
+      {
+        "obligation_ids": [
+          "O11"
+        ],
+        "behavior": "根据当前通道的指数长度 es，当 es > 0 时进入 EXPONENT 状态，否则直接进入 MANTISSA 状态。",
+        "precondition": "已检测到 regime 终止翻转位。",
+        "basis": "explicit",
+        "kind": "mechanism",
+        "search_terms": [
+          "exponent size es",
+          "EXPONENT state",
+          "MANTISSA state",
+          "es > 0"
+        ],
+        "evidence": [
+          {
+            "page": 8,
+            "quote": "Depending on the current channel’s exponent size es, the FSM enters the EXPONENT state when es > 0 or transitions directly to the MANTISSA state otherwise."
+          }
+        ],
+        "id": "M07-A07",
+        "mechanism_id": "M07",
+        "origin": "local_source_addition",
+        "semantic_review": "pending"
+      },
+      {
+        "obligation_ids": [
+          "O12"
+        ],
+        "behavior": "在 EXPONENT 状态将到达比特收集到小移位寄存器，直到达到配置的指数长度 es，再与 regime 导出的偏移组合形成指数项。",
+        "precondition": "FSM 处于 EXPONENT 状态（es > 0）。",
+        "basis": "explicit",
+        "kind": "mechanism",
+        "search_terms": [
+          "EXPONENT state",
+          "shift register",
+          "configured exponent length es",
+          "regime-derived offset"
+        ],
+        "evidence": [
+          {
+            "page": 8,
+            "quote": "In the EXPONENT state, incoming bits are collected in a small shift register until the configured exponent length es is reached, then combined with the regime-derived offset to form the exponent term."
+          }
+        ],
+        "id": "M07-A08",
+        "mechanism_id": "M07",
+        "origin": "local_source_addition",
+        "semantic_review": "pending"
+      }
+    ],
+    "pages": [
+      {
+        "page": 6,
+        "lines": [
+          {
+            "line": 1,
+            "text": "Algorithm 2Sensitivity Profiling for MPQ\n"
+          },
+          {
+            "line": 2,
+            "text": "Require:ModelM, datasetD, channel windowsW,\n"
+          },
+          {
+            "line": 3,
+            "text": "base/probe precisionsb low, bhigh\n"
+          },
+          {
+            "line": 4,
+            "text": "Ensure:Ranked sensitivitiesS={(w,∆PPL(w))}\n"
+          },
+          {
+            "line": 5,
+            "text": "1:M base ←QUANT_ALL(M,W, b low)\n"
+          },
+          {
+            "line": 6,
+            "text": "2:P base ←PPL(M base,D)\n"
+          },
+          {
+            "line": 7,
+            "text": "3:S ←∅\n"
+          },
+          {
+            "line": 8,
+            "text": "4:foreachw∈ Wdo\n"
+          },
+          {
+            "line": 9,
+            "text": "5:M w ←SET_PRECISION(M base, w, bhigh)\n"
+          },
+          {
+            "line": 10,
+            "text": "6:∆PPL(w)←P base −PPL(Mw,D)\n"
+          },
+          {
+            "line": 11,
+            "text": "7:S.APPEND(w,∆PPL(w))\n"
+          },
+          {
+            "line": 12,
+            "text": "8:RESET_PRECISION(M base, blow)\n"
+          },
+          {
+            "line": 13,
+            "text": "9:end for\n"
+          },
+          {
+            "line": 14,
+            "text": "10:returnSORTDESC(S,∆PPL)\n"
+          },
+          {
+            "line": 15,
+            "text": "Layer-wise analysis is too coarse and misses local variations,\n"
+          },
+          {
+            "line": 16,
+            "text": "while channel-wise or group-wise mixed precision is imprac-\n"
+          },
+          {
+            "line": 17,
+            "text": "tical on conventional systolic arrays because it would require\n"
+          },
+          {
+            "line": 18,
+            "text": "multiple bit-widths to coexist simultaneously within a single\n"
+          },
+          {
+            "line": 19,
+            "text": "tile, disrupting its uniform dataflow and hardware regularity.\n"
+          },
+          {
+            "line": 20,
+            "text": "Sensitivity-Guided Mixed-Precision Allocation.The\n"
+          },
+          {
+            "line": 21,
+            "text": "ranked sensitivity profile directly determines how bit-widths\n"
+          },
+          {
+            "line": 22,
+            "text": "are assigned across channel windows, prioritizing those with\n"
+          },
+          {
+            "line": 23,
+            "text": "the largest perplexity impact. The allocation is parameterized\n"
+          },
+          {
+            "line": 24,
+            "text": "by a baseline precisionb low, a target upper precisionb high,\n"
+          },
+          {
+            "line": 25,
+            "text": "and a desired average precisionb virt that defines the overall\n"
+          },
+          {
+            "line": 26,
+            "text": "precision budget. Here,b virt serves as the virtual precision,\n"
+          },
+          {
+            "line": 27,
+            "text": "a fractional mean bit-width that characterizes the model’s\n"
+          },
+          {
+            "line": 28,
+            "text": "effective average precision. The mixed-precision configuration\n"
+          },
+          {
+            "line": 29,
+            "text": "is obtained by upgrading the most sensitive channel windows\n"
+          },
+          {
+            "line": 30,
+            "text": "fromb low towardb high until the model’s weighted mean preci-\n"
+          },
+          {
+            "line": 31,
+            "text": "sion reachesb virt. For example, whenb low = 4andb high = 5,\n"
+          },
+          {
+            "line": 32,
+            "text": "a virtual precision of 4.05 b corresponds to upgrading the\n"
+          },
+          {
+            "line": 33,
+            "text": "top 5 % of channel windows in the ranked∆PPLlist to 5-\n"
+          },
+          {
+            "line": 34,
+            "text": "bit precision. This sensitivity-guided allocation converts the\n"
+          },
+          {
+            "line": 35,
+            "text": "∆PPLranking into a continuous mixed-precision schedule\n"
+          },
+          {
+            "line": 36,
+            "text": "that preserves systolic-array regularity while exposing fine-\n"
+          },
+          {
+            "line": 37,
+            "text": "grained accuracy–efficiency trade-offs. This MPQ mechanism\n"
+          },
+          {
+            "line": 38,
+            "text": "prioritizes accuracy under a given precision budget, and its\n"
+          },
+          {
+            "line": 39,
+            "text": "fractional precision profile is fully enabled by FlexPosit’s bit-\n"
+          },
+          {
+            "line": 40,
+            "text": "serial accelerator, described in the next section.\n"
+          },
+          {
+            "line": 41,
+            "text": "0 20 40 60 80 100 120\n"
+          },
+          {
+            "line": 42,
+            "text": "Channel windows grouped by submodule\n"
+          },
+          {
+            "line": 43,
+            "text": "11\n"
+          },
+          {
+            "line": 44,
+            "text": "12\n"
+          },
+          {
+            "line": 45,
+            "text": "13\n"
+          },
+          {
+            "line": 46,
+            "text": "14\n"
+          },
+          {
+            "line": 47,
+            "text": "15\n"
+          },
+          {
+            "line": 48,
+            "text": "16\n"
+          },
+          {
+            "line": 49,
+            "text": "Layer index\n"
+          },
+          {
+            "line": 50,
+            "text": " 0\n"
+          },
+          {
+            "line": 51,
+            "text": "20\n"
+          },
+          {
+            "line": 52,
+            "text": "40\n"
+          },
+          {
+            "line": 53,
+            "text": "60\n"
+          },
+          {
+            "line": 54,
+            "text": "80\n"
+          },
+          {
+            "line": 55,
+            "text": "100\n"
+          },
+          {
+            "line": 56,
+            "text": "ranked PPL (%)\n"
+          },
+          {
+            "line": 57,
+            "text": "attn.c_attn attn.c_proj mlp.c_fc mlp.c_proj\n"
+          },
+          {
+            "line": 58,
+            "text": "Fig. 5: Ranked∆PPL sensitivity heatmap for GPT-2 Large.\n"
+          },
+          {
+            "line": 59,
+            "text": "Each cell corresponds to a single channel window (red =\n"
+          },
+          {
+            "line": 60,
+            "text": "high, blue = low sensitivity). The non-uniform distribution\n"
+          },
+          {
+            "line": 61,
+            "text": "across attention and MLP submodules shows strong intra-layer\n"
+          },
+          {
+            "line": 62,
+            "text": "heterogeneity.\n"
+          },
+          {
+            "line": 63,
+            "text": "V. FLEXPOSITBIT-SERIALACCELERATOR\n"
+          },
+          {
+            "line": 64,
+            "text": "ARCHITECTURE\n"
+          },
+          {
+            "line": 65,
+            "text": "This section presents the FlexPosit hardware architecture,\n"
+          },
+          {
+            "line": 66,
+            "text": "which realizes fractional precision tuning while preserving\n"
+          },
+          {
+            "line": 67,
+            "text": "a fully regular systolic design. The architecture centers on\n"
+          },
+          {
+            "line": 68,
+            "text": "a variable-precision systolic array orchestrated by a global\n"
+          },
+          {
+            "line": 69,
+            "text": "precision control unit (GPCU), with a modular hierarchy of\n"
+          },
+          {
+            "line": 70,
+            "text": "decoder, compute, and rescale units.\n"
+          },
+          {
+            "line": 71,
+            "text": "A. Variable-Precision Systolic Design\n"
+          },
+          {
+            "line": 72,
+            "text": "Fig. 6 (a) illustrates the overall FlexPosit architecture.\n"
+          },
+          {
+            "line": 73,
+            "text": "The design adopts an output-stationary systolic array, where\n"
+          },
+          {
+            "line": 74,
+            "text": "each weight column integrates a SerialPosit decoder with\n"
+          },
+          {
+            "line": 75,
+            "text": "lightweight FIFOs, and each row streams FP16 activations\n"
+          },
+          {
+            "line": 76,
+            "text": "through a grid of MAC clusters. Partial sums accumulate in\n"
+          },
+          {
+            "line": 77,
+            "text": "the PEs and, after each GEMM tile, drain through per-column\n"
+          },
+          {
+            "line": 78,
+            "text": "rescale units for dequantization before being written out. This\n"
+          },
+          {
+            "line": 79,
+            "text": "modular structure supports variable-precision bit-serial weight\n"
+          },
+          {
+            "line": 80,
+            "text": "streaming without disrupting systolic regularity.\n"
+          },
+          {
+            "line": 81,
+            "text": "Global Precision Control Unit.At the top level, execution\n"
+          },
+          {
+            "line": 82,
+            "text": "across the array is orchestrated by a GPCU, which serves\n"
+          },
+          {
+            "line": 83,
+            "text": "as the temporal backbone of FlexPosit’s variable-precision\n"
+          },
+          {
+            "line": 84,
+            "text": "design. At the start of each GEMM kernel, the GPCU receives\n"
+          },
+          {
+            "line": 85,
+            "text": "the target precisionPdetermined by the channel-window-\n"
+          },
+          {
+            "line": 86,
+            "text": "level precision adaptation, defining aprecision windowofP\n"
+          },
+          {
+            "line": 87,
+            "text": "cycles representing one complete bit-serial iteration. A small\n"
+          },
+          {
+            "line": 88,
+            "text": "counter and lightweight control logic generate semantic timing\n"
+          },
+          {
+            "line": 89,
+            "text": "markers (cyc0,cyc1,cyc2, andcycP), wherecyc0and\n"
+          },
+          {
+            "line": 90,
+            "text": "cycPdenote the start and end of each window. These markers\n"
+          },
+          {
+            "line": 91,
+            "text": "coordinate the FSMs of SerialPosit decoders and MAC clus-\n"
+          },
+          {
+            "line": 92,
+            "text": "ters for global synchronization. The GPCU also governs the\n"
+          },
+          {
+            "line": 93,
+            "text": "global dataflow schedule, dictating when activations advance\n"
+          },
+          {
+            "line": 94,
+            "text": "horizontally and when weight terms stream vertically through\n"
+          },
+          {
+            "line": 95,
+            "text": "the systolic array to maintain precision-synchronous operation.\n"
+          },
+          {
+            "line": 96,
+            "text": "Dataflow.The FlexPosit dataflow operates under the unified\n"
+          },
+          {
+            "line": 97,
+            "text": "P-cycle precision window generated by the GPCU, propagated\n"
+          },
+          {
+            "line": 98,
+            "text": "vertically with each row receiving a one-cycle-shifted ver-\n"
+          },
+          {
+            "line": 99,
+            "text": "sion of the sequence to maintain continuous bit-serial weight\n"
+          },
+          {
+            "line": 100,
+            "text": "streaming. As illustrated in Fig. 6(c), the upper row uses\n"
+          },
+          {
+            "line": 101,
+            "text": "cycletop, while the row below uses the one-cycle–delayed\n"
+          },
+          {
+            "line": 102,
+            "text": "cycledown, driving each PE’s FSM to capture the correct weight\n"
+          },
+          {
+            "line": 103,
+            "text": "term and perform the corresponding bit-serial operation with\n"
+          },
+          {
+            "line": 104,
+            "text": "the current activation. Weights stream bit-serially, are decoded\n"
+          },
+          {
+            "line": 105,
+            "text": "by the SerialPosit decoders (Section V-C) into four 5-bit terms\n"
+          },
+          {
+            "line": 106,
+            "text": "per weight, buffered in a per-column FIFO, and consumed by\n"
+          },
+          {
+            "line": 107,
+            "text": "PEs at the same bit-serial rate. Within each window, activations\n"
+          },
+          {
+            "line": 108,
+            "text": "advance once while weights propagate bit-serially, one full\n"
+          },
+          {
+            "line": 109,
+            "text": "weight (four terms) per precision window. This yields fully\n"
+          },
+          {
+            "line": 110,
+            "text": "synchronized execution across the array without inter-PE FI-\n"
+          },
+          {
+            "line": 111,
+            "text": "FOs or centralized stall control. Precision changes occur only\n"
+          },
+          {
+            "line": 112,
+            "text": "at channel-window boundaries, where the GPCU propagates\n"
+          },
+          {
+            "line": 113,
+            "text": "updated timing semantics with the same one-cycle row skew,\n"
+          },
+          {
+            "line": 114,
+            "text": "ensuring reconfiguration aligns with the systolic wavefront\n"
+          },
+          {
+            "line": 115,
+            "text": "without pipeline bubbles.\n"
+          },
+          {
+            "line": 116,
+            "text": "Rescale Units.At the bottom of each column, a lightweight\n"
+          },
+          {
+            "line": 117,
+            "text": "rescale unit adjusts the FP16-accumulated outputs before"
+          }
+        ]
+      },
+      {
+        "page": 8,
+        "lines": [
+          {
+            "line": 1,
+            "text": "s\n"
+          },
+          {
+            "line": 2,
+            "text": "2’s complement if negative\n"
+          },
+          {
+            "line": 3,
+            "text": "Posit\n"
+          },
+          {
+            "line": 4,
+            "text": "SerialPosit\n"
+          },
+          {
+            "line": 5,
+            "text": "1 0 1 1\n"
+          },
+          {
+            "line": 6,
+            "text": "regime hidden until inversion\n"
+          },
+          {
+            "line": 7,
+            "text": "regime decoded incrementally\n"
+          },
+          {
+            "line": 8,
+            "text": "1 0 1 0\n"
+          },
+          {
+            "line": 9,
+            "text": "1 1 0 11 1 1 0s\n"
+          },
+          {
+            "line": 10,
+            "text": "payload (regime, exp, mant)\n"
+          },
+          {
+            "line": 11,
+            "text": "regime exp mant\n"
+          },
+          {
+            "line": 12,
+            "text": "Fig. 7: Conventional Posits use two’s-complement inversion,\n"
+          },
+          {
+            "line": 13,
+            "text": "preventing bit-serial streaming (✗). SerialPosit adopts sign–\n"
+          },
+          {
+            "line": 14,
+            "text": "magnitude encoding to enable fully streamed decoding (✓).\n"
+          },
+          {
+            "line": 15,
+            "text": "This process repeats untilcycP, completing one mantissa\n"
+          },
+          {
+            "line": 16,
+            "text": "product within the precision window. The fourth weight term,\n"
+          },
+          {
+            "line": 17,
+            "text": "thezero flag, is latched atcyc3and remains valid for the rest\n"
+          },
+          {
+            "line": 18,
+            "text": "of the precision window, identifying true zero weights since\n"
+          },
+          {
+            "line": 19,
+            "text": "any nonzero Posit reconstructs an implicit leading 1 during\n"
+          },
+          {
+            "line": 20,
+            "text": "decoding. AtcycP, the PE outputs the finalized product fields\n"
+          },
+          {
+            "line": 21,
+            "text": "(sign, exponent, mantissa, and zero flag) for accumulation.\n"
+          },
+          {
+            "line": 22,
+            "text": "C. SerialPosit: A Hardware-Friendly Posit\n"
+          },
+          {
+            "line": 23,
+            "text": "As discussed in Section III, a conventional Posit arithmetic\n"
+          },
+          {
+            "line": 24,
+            "text": "unit is dominated by wide parallel encoders and decoders\n"
+          },
+          {
+            "line": 25,
+            "text": "needed to locate the variable-length regime field. Moreover,\n"
+          },
+          {
+            "line": 26,
+            "text": "maintaining Posit representation across computation stages\n"
+          },
+          {
+            "line": 27,
+            "text": "incurs additional conversion overhead. De Dinechinet al.[35]\n"
+          },
+          {
+            "line": 28,
+            "text": "therefore recommend using Posits primarily as a storage\n"
+          },
+          {
+            "line": 29,
+            "text": "format. Following this philosophy, FlexPosit introducesSerial-\n"
+          },
+          {
+            "line": 30,
+            "text": "Posit, a hardware-friendly variant that retains Posit’s tapered-\n"
+          },
+          {
+            "line": 31,
+            "text": "precision advantages while enabling efficient bit-serial decod-\n"
+          },
+          {
+            "line": 32,
+            "text": "ing of Posit-encoded weights. Posits are used exclusively for\n"
+          },
+          {
+            "line": 33,
+            "text": "weight storage, and once decoded, all intermediate values are\n"
+          },
+          {
+            "line": 34,
+            "text": "represented in floating-point format.\n"
+          },
+          {
+            "line": 35,
+            "text": "Why Bit-serial for Posit?The regime field in a Posit\n"
+          },
+          {
+            "line": 36,
+            "text": "number is encoded as a run of identical bits terminated by the\n"
+          },
+          {
+            "line": 37,
+            "text": "opposite bit. Conventional parallel decoders use wide leading-\n"
+          },
+          {
+            "line": 38,
+            "text": "one/zero detectors to locate this variable-length field in one\n"
+          },
+          {
+            "line": 39,
+            "text": "cycle [34], [35], increasing area and power cost while fixing\n"
+          },
+          {
+            "line": 40,
+            "text": "the datapath width. In contrast, a bit-serial pipeline resolves\n"
+          },
+          {
+            "line": 41,
+            "text": "the regime as bits stream in via a simple XOR of consecutive\n"
+          },
+          {
+            "line": 42,
+            "text": "bits, making Posit decoding naturally compatible with bit-\n"
+          },
+          {
+            "line": 43,
+            "text": "serial hardware.\n"
+          },
+          {
+            "line": 44,
+            "text": "SerialPosit Design.In the original Posit format, two’s-\n"
+          },
+          {
+            "line": 45,
+            "text": "complement encoding limits efficient bit-serial decoding: for\n"
+          },
+          {
+            "line": 46,
+            "text": "negative values, the entire word must be two’s-complement\n"
+          },
+          {
+            "line": 47,
+            "text": "negated before the regime, exponent, and mantissa fields can\n"
+          },
+          {
+            "line": 48,
+            "text": "be identified. As shown in Fig. 7, SerialPosit is designed\n"
+          },
+          {
+            "line": 49,
+            "text": "with sign–magnitude encoding instead, where each incoming\n"
+          },
+          {
+            "line": 50,
+            "text": "bit immediately reflects its field role (sign, regime, exponent,\n"
+          },
+          {
+            "line": 51,
+            "text": "or mantissa), enabling continuous bit-serial decoding without\n"
+          },
+          {
+            "line": 52,
+            "text": "waiting for the complete word. This preserves the same\n"
+          },
+          {
+            "line": 53,
+            "text": "represented value set as Posit(n, es), leaving quantization\n"
+          },
+          {
+            "line": 54,
+            "text": "behavior unchanged. The trade-off is losing encoded-domain\n"
+          },
+          {
+            "line": 55,
+            "text": "operations such as direct comparison and negation, which are\n"
+          },
+          {
+            "line": 56,
+            "text": "unnecessary in this work since Posits are used only for weight\n"
+          },
+          {
+            "line": 57,
+            "text": "storage and are decoded into the FP-domain datapath before\n"
+          },
+          {
+            "line": 58,
+            "text": "any arithmetic.\n"
+          },
+          {
+            "line": 59,
+            "text": "SerialPosit Decoder.Fig. 8 shows the decoder’s FSM in\n"
+          },
+          {
+            "line": 60,
+            "text": "(a) and its gate-level implementation in (b). The decoder\n"
+          },
+          {
+            "line": 61,
+            "text": "SIGN\n"
+          },
+          {
+            "line": 62,
+            "text": "es==0?\n"
+          },
+          {
+            "line": 63,
+            "text": "cyc1\n"
+          },
+          {
+            "line": 64,
+            "text": "cyc0\n"
+          },
+          {
+            "line": 65,
+            "text": "regime_done\n"
+          },
+          {
+            "line": 66,
+            "text": "REGIME\n"
+          },
+          {
+            "line": 67,
+            "text": "FIFO Push\n"
+          },
+          {
+            "line": 68,
+            "text": "@ cyc0\n"
+          },
+          {
+            "line": 69,
+            "text": "{Sign}\n"
+          },
+          {
+            "line": 70,
+            "text": "FIFO Push \n"
+          },
+          {
+            "line": 71,
+            "text": "@ cycLast\n"
+          },
+          {
+            "line": 72,
+            "text": " {Exp,Man,Zero}\n"
+          },
+          {
+            "line": 73,
+            "text": "EXP\n"
+          },
+          {
+            "line": 74,
+            "text": "MAN\n"
+          },
+          {
+            "line": 75,
+            "text": "(a)\n"
+          },
+          {
+            "line": 76,
+            "text": "1-bit weight stream\n"
+          },
+          {
+            "line": 77,
+            "text": "ena\n"
+          },
+          {
+            "line": 78,
+            "text": "state==REG\n"
+          },
+          {
+            "line": 79,
+            "text": "ZERO\n"
+          },
+          {
+            "line": 80,
+            "text": "state== MAN\n"
+          },
+          {
+            "line": 81,
+            "text": "Adder\n"
+          },
+          {
+            "line": 82,
+            "text": "MAN\n"
+          },
+          {
+            "line": 83,
+            "text": "EXP5\n"
+          },
+          {
+            "line": 84,
+            "text": "5\n"
+          },
+          {
+            "line": 85,
+            "text": "ena\n"
+          },
+          {
+            "line": 86,
+            "text": "•\n"
+          },
+          {
+            "line": 87,
+            "text": "•\n"
+          },
+          {
+            "line": 88,
+            "text": "•\n"
+          },
+          {
+            "line": 89,
+            "text": "ena\n"
+          },
+          {
+            "line": 90,
+            "text": "state==REG or EXP\n"
+          },
+          {
+            "line": 91,
+            "text": "0\n"
+          },
+          {
+            "line": 92,
+            "text": "1\n"
+          },
+          {
+            "line": 93,
+            "text": "left shifter <<\n"
+          },
+          {
+            "line": 94,
+            "text": "regime_done\n"
+          },
+          {
+            "line": 95,
+            "text": "-base\n"
+          },
+          {
+            "line": 96,
+            "text": "0\n"
+          },
+          {
+            "line": 97,
+            "text": "1\n"
+          },
+          {
+            "line": 98,
+            "text": "+base\n"
+          },
+          {
+            "line": 99,
+            "text": "2\n"
+          },
+          {
+            "line": 100,
+            "text": "state==EXP\n"
+          },
+          {
+            "line": 101,
+            "text": "ena\n"
+          },
+          {
+            "line": 102,
+            "text": "•\n"
+          },
+          {
+            "line": 103,
+            "text": "•\n"
+          },
+          {
+            "line": 104,
+            "text": "•\n"
+          },
+          {
+            "line": 105,
+            "text": "regime_sign\n"
+          },
+          {
+            "line": 106,
+            "text": "<< (b)\n"
+          },
+          {
+            "line": 107,
+            "text": "Fig. 8: (a) Finite-state machine (FSM) of the SerialPosit\n"
+          },
+          {
+            "line": 108,
+            "text": "decoder, sequencing through SIGN, REGIME, EXP, and MAN\n"
+          },
+          {
+            "line": 109,
+            "text": "phases under control of the GPCU. (b) Corresponding gate-\n"
+          },
+          {
+            "line": 110,
+            "text": "level circuit illustrating XOR-based regime detection, expo-\n"
+          },
+          {
+            "line": 111,
+            "text": "nent buffering, mantissa shifting and zero-detection.\n"
+          },
+          {
+            "line": 112,
+            "text": "is synchronized by the GPCU, which provides global cycle\n"
+          },
+          {
+            "line": 113,
+            "text": "markers. Atcyc0, it enters theSIGNstate and pushes the sign\n"
+          },
+          {
+            "line": 114,
+            "text": "term into the FIFO. Atcyc1, it transitions to theREGIME\n"
+          },
+          {
+            "line": 115,
+            "text": "state, where an XOR of consecutive bits detects the bit flip\n"
+          },
+          {
+            "line": 116,
+            "text": "that terminates the run of identical regime bits. Depending\n"
+          },
+          {
+            "line": 117,
+            "text": "on the current channel’s exponent sizees, the FSM enters\n"
+          },
+          {
+            "line": 118,
+            "text": "theEXPONENTstate whenes >0or transitions directly\n"
+          },
+          {
+            "line": 119,
+            "text": "to theMANTISSAstate otherwise. In theEXPONENTstate,\n"
+          },
+          {
+            "line": 120,
+            "text": "incoming bits are collected in a small shift register until the\n"
+          },
+          {
+            "line": 121,
+            "text": "configured exponent lengthesis reached, then combined with\n"
+          },
+          {
+            "line": 122,
+            "text": "the regime-derived offset to form the exponent term. In the\n"
+          },
+          {
+            "line": 123,
+            "text": "MANTISSAstate, each bit is shifted into a register as it arrives\n"
+          },
+          {
+            "line": 124,
+            "text": "untilcycP, producing the mantissa term. A zero flag is tracked\n"
+          },
+          {
+            "line": 125,
+            "text": "throughout and finalized as the fourth weight term atcycP.\n"
+          },
+          {
+            "line": 126,
+            "text": "At completion, the decoder pushes the exponent, mantissa,\n"
+          },
+          {
+            "line": 127,
+            "text": "and zero flag into the per-column FIFO together, forming one\n"
+          },
+          {
+            "line": 128,
+            "text": "decoded weight. Combined with the GPCU and the unified\n"
+          },
+          {
+            "line": 129,
+            "text": "PE, the SerialPosit decoder completes FlexPosit’s bit-serial\n"
+          },
+          {
+            "line": 130,
+            "text": "datapath for fractional precision-tunable LLM inference.\n"
+          },
+          {
+            "line": 131,
+            "text": "Relation to PIM-based accelerators.FlexPosit tunes\n"
+          },
+          {
+            "line": 132,
+            "text": "precision by varying bit-serial depth, the number of bit-\n"
+          },
+          {
+            "line": 133,
+            "text": "positions processed per weight. Processing-in-memory accel-\n"
+          },
+          {
+            "line": 134,
+            "text": "erators [37]–[39] compute at the bit level within the memory\n"
+          },
+          {
+            "line": 135,
+            "text": "array, so a channel window’s precision corresponds to how\n"
+          },
+          {
+            "line": 136,
+            "text": "many bit-planes are activated. Such systems offer high internal\n"
+          },
+          {
+            "line": 137,
+            "text": "bandwidth for weight access, making them a natural fit for the\n"
+          },
+          {
+            "line": 138,
+            "text": "proposed precision tuning in future work.\n"
+          },
+          {
+            "line": 139,
+            "text": "VI. EVALUATIONS\n"
+          },
+          {
+            "line": 140,
+            "text": "A. Setup and Methodology\n"
+          },
+          {
+            "line": 141,
+            "text": "LLM Benchmarks.For evaluation, we select representative\n"
+          },
+          {
+            "line": 142,
+            "text": "open-source LLMs spanning a wide range of model scales,\n"
+          },
+          {
+            "line": 143,
+            "text": "including GPT-2 Large, GPT2-XL [40], Phi-2 [41], OPT-\n"
+          },
+          {
+            "line": 144,
+            "text": "2.7B [42], LLaMA-2-7B [43], Mistral-7B [44], DeepSeek-\n"
+          },
+          {
+            "line": 145,
+            "text": "7B [45], and Qwen2.5-7B/14B [46]. These models cover the\n"
+          },
+          {
+            "line": 146,
+            "text": "spectrum of edge-scale LLMs explored for on-device infer-"
+          }
+        ]
+      }
+    ]
+  },
+  "image_pages": [
+    {
+      "page": 6,
+      "path": "/home/somehow6/lesson/CS6223/cs6223-limitation-pipeline/paperside/runs/team-complete-v1/flexposit/paper/images/page-06.jpg",
+      "sha256": "3cf5a381ada5caf4a8d36cc65fc3bcdccc67ee18ec88885e790068c017a64ae3",
+      "width": 1224,
+      "height": 1584,
+      "mime_type": "image/jpeg"
+    },
+    {
+      "page": 8,
+      "path": "/home/somehow6/lesson/CS6223/cs6223-limitation-pipeline/paperside/runs/team-complete-v1/flexposit/paper/images/page-08.jpg",
+      "sha256": "fa7ce08de56bd724d5483ebfa1c000517bab9ad4a668723eb795d36790f9fdb0",
+      "width": 1224,
+      "height": 1584,
+      "mime_type": "image/jpeg"
+    }
+  ],
+  "settings": {
+    "temperature": 0,
+    "max_tokens": 12000,
+    "reasoning_effort": "none"
+  }
+}

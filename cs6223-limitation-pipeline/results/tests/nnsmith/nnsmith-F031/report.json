@@ -1,0 +1,112 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "nnsmith-F031",
+ "artifact_id": "nnsmith",
+ "status": "not_run",
+ "not_run": {
+  "code": "outcome_unsupported",
+  "reason": "effect type 'other': the target is a call whose effect is not an exception at that line (for example a check that returns False)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "When int(os.getenv(\"NNSMITH_BITS\", 30)) != 30: The number of bits used to split the integer-domain symbols into groups is read from NNSMITH_BITS (default 30). A smaller value makes `random_group` produce more, smaller groups, i.e. a different (coarser) integer encoding of the same abstract graph, changing which graphs the solver accepts. (nnsmith/graph_gen.py:190)",
+  "review": "wrong",
+  "review_note": "blind review by an LLM subagent (round 1), not human: NNSMITH_BITS is only read when use_bitvec is True, which is hard-coded False, so this code is dead.",
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "nnsmith/graph_gen.py:190",
+  "function": "nnsmith/graph_gen.py::SimpleGenerator.new_syms",
+  "condition": "int(os.getenv(\"NNSMITH_BITS\", 30)) != 30"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "nnsmith/graph_gen.py",
+    "line_start": 190,
+    "function": "nnsmith/graph_gen.py::SimpleGenerator.new_syms",
+    "snippet": "map(len, random_group(int(os.getenv(\"NNSMITH_BITS\", 30)), len(names)))"
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/nnsmith/limitations_for_tests.json",
+  "findings_sha256": "3ec725e87dbddd4c992db2cb5e7881f511e70ce2ab61c81037bbb06a557aa5fb",
+  "generated_at": "2026-11-18T12:18:21+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A0",
+  "tier_note": "the reading and the probes disagree",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The shown line directly reads NNSMITH_BITS with default 30 and passes it to random_group, matching the finding's core. It does not itself prove the downstream grouping or solver-acceptance effect, but the code evidence supports the undisclosed env-var behavior.",
+  "hardware_needed": false,
+  "would_confirm": "Run the solver with NNSMITH_BITS=30 and a smaller value and compare accepted graph sets, after inspecting random_group.",
+  "static": {
+   "cited": 1,
+   "grounded": true,
+   "items": [
+    {
+     "file": "nnsmith/graph_gen.py",
+     "lines": "190-190",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": true,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "nnsmith/graph_gen.py",
+    "regex": "NNSMITH_BITS",
+    "expect": "present",
+    "meaning": "Confirms env var is read in graph_gen.py.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     190
+    ]
+   },
+   {
+    "file": "nnsmith/graph_gen.py",
+    "regex": "def random_group",
+    "expect": "present",
+    "meaning": "Confirms random_group is defined in same file for behavior check.",
+    "status": "refuted",
+    "hits": 0,
+    "hit_lines": []
+   },
+   {
+    "file": "nnsmith/graph_gen.py",
+    "regex": "random_group",
+    "expect": "present",
+    "meaning": "Confirms random_group is called in this file.",
+    "status": "confirmed",
+    "hits": 2,
+    "hit_lines": [
+     27,
+     190
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

@@ -1,0 +1,29 @@
+{
+ "assessment": "supports",
+ "reasoning": "The cited code generates transform_options but the loop that would iterate plans, specialize kernels, and select by latency is inside a triple-quoted comment. The function then returns best_kernels and best_aggr_type, which remain None. This directly matches the finding that plan search is disabled.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "sparta/transformation/transform_policy.py",
+   "regex": "# skip, waiting for more official end-to-end",
+   "expect": "present",
+   "control": "for w_tesas in weight_tesas",
+   "meaning": "Shows the plan-iteration block is explicitly disabled by a comment."
+  },
+  {
+   "file": "sparta/transformation/transform_policy.py",
+   "regex": "return best_kernels, best_aggr_type",
+   "expect": "present",
+   "control": "best_latency = float\\('inf'\\)",
+   "meaning": "Shows function returns unset best kernels after no selection."
+  },
+  {
+   "file": "sparta/transformation/transform_policy.py",
+   "regex": "transform_options = wbc_matmuls\\(in_tesas\\[0\\], w_tesas, out_tesas\\[0\\]\\)",
+   "expect": "present",
+   "control": "def transform_matmul",
+   "meaning": "Shows options are generated but not iterated for selection."
+  }
+ ],
+ "would_confirm": "Run transform_matmul on a TeSA with multiple transform_options and check whether any specialize_matmul call or non-None best_kernels is produced."
+}

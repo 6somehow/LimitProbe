@@ -1,0 +1,167 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "minference-F043",
+ "artifact_id": "minference",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "实验配置未体现{(1024,4096)}，实际候选为(100,800)",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "always",
+  "location": "experiments/README.md:13-30",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "We set the target FLOPs t to be the same as 1k global tokens and 4k local window tokens in the A-shape pattern.",
+    "source": "paper",
+    "locator": "PDF p.18"
+   },
+   {
+    "quote": "A-shape {(1024, 4096)}",
+    "source": "paper",
+    "locator": "PDF p.18"
+   },
+   {
+    "quote": "A-shape represents the global tokens and local window number",
+    "source": "paper",
+    "locator": "PDF p.18"
+   }
+  ],
+  "code": [
+   {
+    "file": "minference/modules/minference_forward.py",
+    "line_start": 99,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "experiments/README.md",
+    "line_start": 13,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/minference/limitations_for_tests.json",
+  "findings_sha256": "6f02cbec16ce4487c1b9166c2dc5f1f16704f168b135426edfe2df59ed9333bc",
+  "generated_at": "2026-11-18T17:25:00+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A1",
+  "tier_note": "the reading is unclear; probes alone do not decide it",
+  "calibrated": false,
+  "assessment": "unclear",
+  "reasoning": "The paper states A-shape candidates {(1024,4096)}, but the cited code excerpt only defines parameterized search functions and never shows the candidate pairs (100,800) or (1024,4096). The README search command also omits candidate values. Thus the shown evidence does not establish what candidates are actually used.",
+  "hardware_needed": false,
+  "would_confirm": "Search the full candidate list used by search_pattern and compare its (vertical_size, slash_size) pairs against the paper's {(1024,4096)}.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "minference/modules/minference_forward.py",
+     "lines": "99-197",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "experiments/README.md",
+     "lines": "13-30",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "doc"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "1024|4096",
+    "expect": "absent",
+    "meaning": "Paper A-shape values are not in the cited search code.",
+    "status": "refuted",
+    "hits": 2,
+    "control": "def search_pattern",
+    "hit_lines": [
+     232,
+     338
+    ]
+   },
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "100\\s*,\\s*800|\\(100\\s*,\\s*800\\)",
+    "expect": "present",
+    "meaning": "Shows whether the claimed (100,800) candidate pair is hardcoded.",
+    "status": "confirmed",
+    "hits": 3,
+    "hit_lines": [
+     179,
+     230,
+     232
+    ]
+   },
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "vertical_size|slash_size",
+    "expect": "present",
+    "meaning": "Confirms search is parameterized, so candidate values may be supplied elsewhere.",
+    "status": "confirmed",
+    "hits": 54,
+    "hit_lines": [
+     103,
+     111,
+     116,
+     117,
+     130
+    ]
+   },
+   {
+    "file": "experiments/README.md",
+    "regex": "1024|4096|100|800",
+    "expect": "absent",
+    "meaning": "README search command does not specify the disputed candidate values.",
+    "status": "refuted",
+    "hits": 10,
+    "control": "is_search",
+    "hit_lines": [
+     35,
+     55,
+     71,
+     75,
+     79
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

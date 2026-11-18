@@ -1,0 +1,22 @@
+{
+ "assessment": "supports",
+ "reasoning": "The paper says TeSA output is computed via TeSA algebra following the operator's computation flow, implying element-wise operators need corresponding flows. The shown code defines only Algebra add/mul and algebra_matmul, and the only test exercises matmul. No unary, division, or power propagation appears in the cited file, so the claimed implementation gap is supported.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "sparta/propagation/talgebra.py",
+   "regex": "(?i)def\\s+algebra_(unary|div|divide|pow|exp|log|relu|sigmoid)",
+   "expect": "absent",
+   "control": "def\\s+algebra_matmul",
+   "meaning": "No element-wise algebra function beyond matmul is defined."
+  },
+  {
+   "file": "sparta/propagation/talgebra.py",
+   "regex": "(?i)(torch\\.(div|pow)|\\bunary\\b|\\bdivision\\b|\\bpower\\b)",
+   "expect": "absent",
+   "control": "algebra_matmul",
+   "meaning": "No division, power, or unary propagation code is present."
+  }
+ ],
+ "would_confirm": "Search the full talgebra.py and propagation modules for any non-matmul operator flow; if none exists, the finding is confirmed."
+}

@@ -1,0 +1,32 @@
+{
+ "assessment": "supports",
+ "reasoning": "The README explicitly says the test chip moves to FP8 activations, and the RTL instantiates fp8_pe_mac_stream. In systolic_efficient.v, each row i receives act_in[i], and the activation propagates east via pe_act_out[i][j-1], so one activation is used per row rather than four distinct FP16 activations per cluster. This matches the claimed implementation deviation.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "hardware/README.md",
+   "regex": "moves to FP8 activations",
+   "expect": "present",
+   "meaning": "Confirms the test chip uses FP8 activations, not FP16."
+  },
+  {
+   "file": "hardware/rtl/systolic_efficient.v",
+   "regex": "act_in\\[i\\]",
+   "expect": "present",
+   "meaning": "Shows each row receives its own activation input."
+  },
+  {
+   "file": "hardware/rtl/systolic_efficient.v",
+   "regex": "pe_act_out\\[i\\]\\[j-1\\]",
+   "expect": "present",
+   "meaning": "Shows activation propagates east within a row, one per row."
+  },
+  {
+   "file": "hardware/rtl/fp8_pe_mac_stream.v",
+   "regex": "module fp8_pe_mac_stream",
+   "expect": "present",
+   "meaning": "Confirms the PE module is an FP8 MAC datapath."
+  }
+ ],
+ "would_confirm": "Inspect the paper's cluster/PE activation mapping and the RTL row/column activation wiring to verify FP8 versus FP16 and one-per-row versus four-distinct-per-cluster."
+}

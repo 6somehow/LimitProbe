@@ -1,0 +1,27 @@
+{
+ "assessment": "supports",
+ "reasoning": "The shown code returns [(tesa,)] from transform_tesas and wbc_matmuls only accumulates wbc_matmul outputs. In the multi-block branch, wbc_matmul calls decompose_blocked_tesas but discards its result and raises. Thus no cumulative decomposition list is returned, matching the finding. The paper snippet alone is terse, but the code behavior is clear.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "sparta/transformation/transform_policy.py",
+   "regex": "return \\[\\(tesa,\\)\\]",
+   "expect": "present",
+   "meaning": "transform_tesas returns only the original tesa, not a decomposition list."
+  },
+  {
+   "file": "sparta/transformation/weighted_block_cover.py",
+   "regex": "return decompose_blocked_tesas",
+   "expect": "absent",
+   "control": "def wbc_matmuls",
+   "meaning": "The multi-block decomposition result is never returned."
+  },
+  {
+   "file": "sparta/transformation/weighted_block_cover.py",
+   "regex": "decompose_blocked_tesas\\(w_tesa, chosen_blocks, unique_block_sizes\\)\\s*\\n\\s*raise",
+   "expect": "present",
+   "meaning": "Multi-block path raises instead of returning decomposed candidates."
+  }
+ ],
+ "would_confirm": "Run transform_tesas/wbc_matmuls on a multi-block TeSA and check whether the returned list contains all decomposed sub-tensors rather than a single tuple or an exception."
+}

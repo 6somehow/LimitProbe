@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 # Wrapper the code agent calls instead of `python -m checklimits` (works from any directory).
+# In a blind run (CL_SOCKET set) the harness is not in the agent's sandbox: the command goes to the cl service.
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if [ -n "$CL_SOCKET" ]; then
+  exec /usr/bin/env python3 "$HERE/agent/cl_client.py" "$@"
+fi
 export PYTHONPATH="$HERE${PYTHONPATH:+:$PYTHONPATH}"
 exec /home/somehow6/miniconda3/envs/findlimit/bin/python -m checklimits "$@"

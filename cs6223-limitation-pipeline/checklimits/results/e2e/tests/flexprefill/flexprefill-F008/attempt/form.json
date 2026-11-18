@@ -1,0 +1,106 @@
+{
+  "test_id": "A-flexprefill-F008",
+  "finding_id": "flexprefill-F008",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "num_q_heads",
+        "value": 1,
+        "why": "head count is not part of the witness; the target assert only reads block_idx.shape, so one query head keeps the CPU path minimal"
+      },
+      {
+        "name": "num_kv_heads",
+        "value": 1,
+        "why": "KV head count is not part of the witness; it is only used by asserts after the target line"
+      },
+      {
+        "name": "gamma",
+        "value": 0.9,
+        "why": "attention coverage ratio needed to enter get_active_blocks; the entry fails on the CPU-only GPU kernel before gamma can affect the target decision"
+      },
+      {
+        "name": "tau",
+        "value": 0.1,
+        "why": "query-aware head threshold needed to enter get_active_blocks; the entry fails on the CPU-only GPU kernel before tau can affect the target decision"
+      },
+      {
+        "name": "q_values",
+        "value": "torch.zeros",
+        "why": "tensor values are irrelevant to the target assert, which reads only block_idx.shape and q_len/k_len shapes; zeros are deterministic"
+      },
+      {
+        "name": "k_values",
+        "value": "torch.zeros",
+        "why": "tensor values are irrelevant to the target assert; zeros are deterministic"
+      },
+      {
+        "name": "v_values",
+        "value": "torch.zeros",
+        "why": "tensor values are irrelevant to the target assert; zeros are deterministic"
+      },
+      {
+        "name": "block_idx_values",
+        "value": "torch.zeros",
+        "why": "only block_idx.shape (num_block) is read by the target assert; index values matter only below the target"
+      }
+    ],
+    "positive_input": {
+      "batch_size": 1,
+      "block_size": 128,
+      "head_dim": 32,
+      "k_len": 257,
+      "min_budget": 128,
+      "num_block": 7,
+      "q_len": 257,
+      "total_q_blocks": 3
+    },
+    "negative_input": {
+      "batch_size": 1,
+      "block_size": 128,
+      "head_dim": 32,
+      "k_len": 257,
+      "min_budget": 128,
+      "num_block": 6,
+      "q_len": 257,
+      "total_q_blocks": 3
+    },
+    "boundary_variable": "num_block",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "exception",
+      "spec": "AssertionError raised at flex_prefill/ops/flex_prefill_attention.py:1256",
+      "signal_location": "flex_prefill/ops/flex_prefill_attention.py:1256"
+    },
+    "expected": {
+      "positive": "AssertionError at flex_prefill/ops/flex_prefill_attention.py:1256",
+      "negative": "no exception at flex_prefill/ops/flex_prefill_attention.py:1256"
+    }
+  },
+  "execution": {
+    "entry_called": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention",
+    "entry_reason": "The official entry flex_prefill_attention is called first. On CPU it reaches get_active_blocks, which launches Triton GPU kernels (triton_bnhd_pool, triton_bhn_sumpool) before the target and fails with RuntimeError; mocking those would place stand-ins before the target. The driver therefore continues on the same official call chain with triton_block_wise_attention, which accepts block_idx directly and executes the real pre-target checks and the target assert unchanged.",
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "false",
+      "true"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "AssertionError at flex_prefill/ops/flex_prefill_attention.py:1256",
+    "negative_observed": "no exception at flex_prefill/ops/flex_prefill_attention.py:1256"
+  },
+  "evidence": {}
+}

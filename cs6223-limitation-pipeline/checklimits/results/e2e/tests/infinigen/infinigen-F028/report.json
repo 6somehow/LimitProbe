@@ -1,0 +1,51 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "infinigen-F028",
+ "artifact_id": "infinigen",
+ "status": "not_run",
+ "not_run": {
+  "code": "env_unavailable",
+  "reason": "repository third_party/InfiniGen is not checked out"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "path_change",
+  "priority": 3,
+  "summary": "When warmup or partial_weight_ratio is None: In TorchDevice.mha, the partial-weight index (which heads/rows of the query projection are used for the InfiniGen speculation) is only computed when warmup is False and partial_weight_ratio is not None. Otherwise partial_weight_index stays None (line 325) and is returned as None (line 379), so mha_gen receives p_w_q=None and the KV speculation is sil...",
+  "review": "wrong",
+  "review_note": "blind review by an LLM subagent (round 1), not human: partial_weight_index being None does not make mha_gen get p_w_q=None; p_w_q comes from partial_weight_read_buf (filled by the next layer) whenever enable_prefetching is set, so speculation is not skipped as claimed.",
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "speedup/flexgen/infinigen/pytorch_backend.py:326",
+  "function": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha",
+  "condition": "warmup or partial_weight_ratio is None"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+    "line_start": 326,
+    "function": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha",
+    "snippet": "if not warmup and partial_weight_ratio is not None:"
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/infinigen/limitations_for_tests.json",
+  "findings_sha256": "51f6ee77be8f16b8743e78f2c11ea0c6b263e1a3c56aed29de35c9cfebb6dcf0",
+  "generated_at": "2026-11-16T16:10:00+08:00"
+ }
+}

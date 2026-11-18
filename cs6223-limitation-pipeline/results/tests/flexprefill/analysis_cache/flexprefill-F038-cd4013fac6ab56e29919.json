@@ -1,0 +1,32 @@
+{
+ "assessment": "unclear",
+ "reasoning": "The code evidence clearly shows JSD<tau setting vertical/slash budgets and then calling get_active_blocks, not returning a pattern in the cited lines. However, the shown paper text only mentions sqrt-JSD and does not include Algorithm 2's return behavior, so the alleged paper/code deviation is not fully established.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "regex": "block_sparse_mask\\s*=\\s*kl_div\\s*<\\s*tau",
+   "expect": "present",
+   "meaning": "Threshold comparison creates mask used for budget rewrite."
+  },
+  {
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "regex": "num_vertical_blocks\\[block_sparse_mask\\]\\s*=\\s*min_budget",
+   "expect": "present",
+   "meaning": "Mask rewrites vertical budget instead of returning pattern."
+  },
+  {
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "regex": "num_slash_blocks\\[block_sparse_mask\\]\\s*=\\s*min_budget",
+   "expect": "present",
+   "meaning": "Mask rewrites slash budget instead of returning pattern."
+  },
+  {
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "regex": "get_active_blocks\\(",
+   "expect": "present",
+   "meaning": "Index selection continues after threshold-based budget rewrite."
+  }
+ ],
+ "would_confirm": "A trace of get_active_blocks plus the paper's Algorithm 2 text would show whether JSD<tau returns a pattern or only adjusts budgets."
+}

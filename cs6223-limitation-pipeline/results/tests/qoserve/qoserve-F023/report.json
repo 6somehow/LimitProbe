@@ -1,0 +1,144 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "qoserve-F023",
+ "artifact_id": "qoserve",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "论文要求移入独立 relegated 队列；代码仅设 drop 标志并放回原 prefill 队列，无 relegated 队列结构，且 drop 请求仍可被再次选中调度。（artifact 范围：。）",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "sarathi/core/scheduler/deadline_scheduler.py:296-333",
+  "function": null,
+  "condition": "self.scheduler_type == 'deadline' or self.scheduler_type == 'deadline_no_dynamic_chunking'"
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "if a request has already violated its TTFT / TTLT deadline, or is about to violate it in the current iteration, then QoServe de-prioritizes this request into a relegated queue",
+    "source": "paper",
+    "locator": "PDF p.6"
+   }
+  ],
+  "code": [
+   {
+    "file": "sarathi/core/scheduler/deadline_scheduler.py",
+    "line_start": 296,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "sarathi/core/datatypes/sequence.py",
+    "line_start": 88,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/qoserve/limitations_for_tests.json",
+  "findings_sha256": "79eb69f6ac7117b77ebe00293d1d328dff8bfffcd7cabc7556eaae435c1699e2",
+  "generated_at": "2026-11-18T00:46:02+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The code confirms the finding: when a request is about to miss its TTFT deadline, it increments seq.drop and pushes the same sequence back into self._prefill_queue. There is no separate relegated queue. The __lt__ method only orders dropped requests after non-dropped ones, so dropped requests remain in the prefill heap and can still be selected later.",
+  "hardware_needed": false,
+  "would_confirm": "A code inspection or test showing whether dropped requests are placed in a distinct queue and excluded from normal prefill scheduling would settle it.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "sarathi/core/scheduler/deadline_scheduler.py",
+     "lines": "296-333",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "sarathi/core/datatypes/sequence.py",
+     "lines": "88-109",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "sarathi/core/scheduler/deadline_scheduler.py",
+    "regex": "relegated",
+    "expect": "absent",
+    "meaning": "No relegated queue name appears in scheduler code.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "prefill_queue",
+    "hit_lines": []
+   },
+   {
+    "file": "sarathi/core/scheduler/deadline_scheduler.py",
+    "regex": "seq\\.drop \\+= 1",
+    "expect": "present",
+    "meaning": "Drop flag is set instead of moving request.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     306
+    ]
+   },
+   {
+    "file": "sarathi/core/scheduler/deadline_scheduler.py",
+    "regex": "heappush\\(self\\._prefill_queue, seq\\)",
+    "expect": "present",
+    "meaning": "Dropped request is reinserted into original prefill queue.",
+    "status": "confirmed",
+    "hits": 2,
+    "hit_lines": [
+     237,
+     307
+    ]
+   },
+   {
+    "file": "sarathi/core/datatypes/sequence.py",
+    "regex": "if self\\.drop != other\\.drop",
+    "expect": "present",
+    "meaning": "Drop flag only affects ordering, not queue membership.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     99
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

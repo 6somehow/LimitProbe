@@ -1,0 +1,103 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "flexprefill-F021",
+ "artifact_id": "flexprefill",
+ "status": "tested",
+ "not_run": null,
+ "verdict": "yes",
+ "level": "L1",
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "effect on positive input, none on negative input",
+ "observed": {
+  "positive": "branch taken at flex_prefill/modules/patch.py:501",
+  "negative": "branch not taken at flex_prefill/modules/patch.py:501"
+ },
+ "defeaters": {
+  "D1": "eliminated",
+  "D2": "eliminated",
+  "D3": "residual",
+  "D4": "eliminated",
+  "D5": "eliminated",
+  "D6": "refuted",
+  "D7": "eliminated",
+  "D8": "eliminated",
+  "D9": "eliminated",
+  "D10": "eliminated",
+  "D11": "eliminated",
+  "D12": "eliminated",
+  "D13": "residual",
+  "D14": "residual"
+ },
+ "open_doubts": [
+  {
+   "id": "D3",
+   "name": "oracle can see the effect",
+   "status": "residual",
+   "evidence": "only 3 mutants (< n_min=4); killed 3"
+  },
+  {
+   "id": "D6",
+   "name": "verdict-bearing observations do not depend on stand-ins",
+   "status": "refuted",
+   "evidence": "verdict-bearing observations: positive simulated:stub, negative simulated:stub"
+  },
+  {
+   "id": "D13",
+   "name": "inputs inside the paper's scope",
+   "status": "residual",
+   "evidence": "scope_status=unknown"
+  },
+  {
+   "id": "D14",
+   "name": "official entry point was called",
+   "status": "residual",
+   "evidence": "deeper entry (index 1); reason recorded: The step-4 hand-off builds call_chain[0] from artifact.json entry_points (flex_prefill_attention), but the real call graph is not part of the hand-off and flex_prefill_attention never calls patch_vllm_model. The target lives in patch_vllm_model, reached through its public wrapper patch_model; the driver therefore calls patch_vllm_model directly."
+  }
+ ],
+ "next_steps": [
+  "D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location",
+  "D6 (refuted): move stand-ins after the target line, or replace stubs with a fake or the repository's own reference implementation",
+  "D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)"
+ ],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "path_change",
+  "priority": 2,
+  "summary": "When \"attention\" in type(m).__name__.lower() and hasattr(m, \"impl\"): Only modules whose class name contains 'attention' and expose an 'impl' attribute get their forward replaced; others keep the original implementation. (flex_prefill/modules/patch.py:501)",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 3), not human: Matching modules by class name to patch vLLM attention is internal plumbing that every attention layer satisfies; no user condition is involved.",
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "flex_prefill/modules/patch.py:501",
+  "function": "flex_prefill/modules/patch.py::patch_vllm_model",
+  "condition": "\"attention\" in type(m).__name__.lower() and hasattr(m, \"impl\")"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "flex_prefill/modules/patch.py",
+    "line_start": 501,
+    "function": "flex_prefill/modules/patch.py::patch_vllm_model",
+    "snippet": "if 'attention' in type(m).__name__.lower() and hasattr(m, 'impl'):"
+   }
+  ]
+ },
+ "files": {
+  "execution_report": "execution_report.json",
+  "testcase": "testcase.json",
+  "attempt": "attempt"
+ },
+ "provenance": {
+  "findings_file": "results/step4/flexprefill/limitations_for_tests.json",
+  "findings_sha256": "0b8539b75ec0e2d602cd64b1a21959708ae3a6d53be00202f8825d92f313c066",
+  "generated_at": "2026-11-17T02:14:55+08:00",
+  "source": "reaudit",
+  "attempt_origin": "results/e2e/tests/flexprefill/flexprefill-F021/attempt",
+  "n_attempts_found": 2,
+  "profile": "default-v1"
+ }
+}

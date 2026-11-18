@@ -1,0 +1,166 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "flexposit-F012",
+ "artifact_id": "flexposit",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "论文要求 FP16 激活与全浮点域 MAC；RTL 激活为 FP8 且累加为块浮点整数尾数，非逐项浮点累加。",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "always",
+  "location": "hardware/README.md:3-9",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "Processing Element.Each PE, depicted in Fig. 6(b), forms the basic compute unit within the 4-way MAC cluster, op- erating on the decoded weight terms and FP16 activations to perform multiply-accumulate entirely in the floating-point domain. Each MAC cluster contains four PEs sharing one",
+    "source": "paper",
+    "locator": "PDF p.7, text lines 151-155"
+   }
+  ],
+  "code": [
+   {
+    "file": "hardware/README.md",
+    "line_start": 3,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "hardware/rtl/fp8_pe_mac_stream.v",
+    "line_start": 497,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "hardware/rtl/fp8_pe_mac_stream.v",
+    "line_start": 31,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/flexposit/limitations_for_tests.json",
+  "findings_sha256": "90fcaf23c2793dc03b49c54856e041483165536eff1522a25766022460b78f23",
+  "generated_at": "2026-11-17T15:05:22+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The paper excerpt explicitly requires FP16 activations and multiply-accumulate entirely in the floating-point domain. The RTL instead instantiates an FP8 PE MAC stream with FP8 activation parameters and a pe_bfp_acc block-floating-point accumulator using an integer mantissa. The README also states the test chip moves to FP8 activations. This directly supports the claimed implementation deviation.",
+  "hardware_needed": false,
+  "would_confirm": "Inspect the RTL datapath and accumulator implementation to verify FP8 activations and block-floating-point integer accumulation are unconditional.",
+  "static": {
+   "cited": 4,
+   "grounded": true,
+   "items": [
+    {
+     "file": "hardware/README.md",
+     "lines": "3-9",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "doc"
+    },
+    {
+     "file": "hardware/rtl/fp8_pe_mac_stream.v",
+     "lines": "497-621",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "rtl"
+    },
+    {
+     "file": "hardware/rtl/fp8_pe_mac_stream.v",
+     "lines": "31-80",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "rtl"
+    },
+    {
+     "file": "hardware/rtl/fp8_pe_mac_stream.v",
+     "lines": "395-423",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "rtl"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "hardware/README.md",
+    "regex": "FP8 activations",
+    "expect": "present",
+    "meaning": "README states test chip uses FP8 activations, unlike paper RTL.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     9
+    ]
+   },
+   {
+    "file": "hardware/rtl/fp8_pe_mac_stream.v",
+    "regex": "module\\s+fp8_pe_mac_stream",
+    "expect": "present",
+    "meaning": "RTL module is explicitly an FP8 PE MAC stream.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     497
+    ]
+   },
+   {
+    "file": "hardware/rtl/fp8_pe_mac_stream.v",
+    "regex": "module\\s+pe_bfp_acc",
+    "expect": "present",
+    "meaning": "Accumulator module is block-floating-point, not per-item float.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     31
+    ]
+   },
+   {
+    "file": "hardware/rtl/fp8_pe_mac_stream.v",
+    "regex": "ACC_MANW\\s*=\\s*12",
+    "expect": "present",
+    "meaning": "Accumulator mantissa is an integer-width parameter.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     506
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

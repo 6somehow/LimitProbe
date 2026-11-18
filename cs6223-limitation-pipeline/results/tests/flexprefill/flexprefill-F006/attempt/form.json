@@ -1,0 +1,101 @@
+{
+  "test_id": "A-flexprefill-F006",
+  "finding_id": "flexprefill-F006",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "num_q_heads",
+        "value": 2,
+        "why": "q/k/v head count is not part of the Region condition; 2 query heads lets block_idx[0] be a list of two head tensors so len(block_idx[0]) == num_q_heads on the negative"
+      },
+      {
+        "name": "num_kv_heads",
+        "value": 2,
+        "why": "matches num_q_heads so the later GQA assertion (below the target) is not the thing under test"
+      },
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "fixed seed for deterministic CPU tensor contents; contents do not enter the target condition"
+      }
+    ],
+    "positive_input": {
+      "batch_size": 1,
+      "block_size": 128,
+      "head_dim": 32,
+      "k_len": 257,
+      "min_budget": 256,
+      "q_len": 257,
+      "block_idx_layout": "base",
+      "block_idx_nesting": 1
+    },
+    "negative_input": {
+      "batch_size": 1,
+      "block_size": 128,
+      "head_dim": 32,
+      "k_len": 257,
+      "min_budget": 256,
+      "q_len": 257,
+      "block_idx_layout": "base",
+      "block_idx_nesting": 2
+    },
+    "boundary_variable": "block_idx_nesting",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "exception",
+      "spec": "AssertionError raised at flex_prefill/ops/flex_prefill_attention.py:1240",
+      "signal_location": "flex_prefill/ops/flex_prefill_attention.py:1240"
+    },
+    "expected": {
+      "positive": "AssertionError at flex_prefill/ops/flex_prefill_attention.py:1240",
+      "negative": "no exception at flex_prefill/ops/flex_prefill_attention.py:1240"
+    },
+    "extra_negatives": [
+      {
+        "batch_size": 1,
+        "block_size": 128,
+        "head_dim": 32,
+        "k_len": 257,
+        "min_budget": 256,
+        "q_len": 257,
+        "block_idx_layout": "m1"
+      },
+      {
+        "batch_size": 1,
+        "block_size": 128,
+        "head_dim": 32,
+        "k_len": 257,
+        "min_budget": 256,
+        "q_len": 257,
+        "block_idx_layout": "m2"
+      }
+    ]
+  },
+  "execution": {
+    "entry_called": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention",
+    "entry_reason": "flex_prefill_attention (call_chain[0]) does not take block_idx; it builds list[list[Tensor]] internally via get_active_blocks, so the malformed list-of-Tensor shape the Region is about cannot be supplied through it without patching code that runs before the target. The driver therefore calls the target function triton_block_wise_prefill_attention (call_chain[1]) directly with a real q/k/v and an explicitly constructed block_idx; the target line and its own body are the real repository code and no stand-ins are used.",
+    "call_chain_index": 1,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "false",
+      "true"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "AssertionError at flex_prefill/ops/flex_prefill_attention.py:1241",
+    "negative_observed": "no exception at flex_prefill/ops/flex_prefill_attention.py:1240"
+  },
+  "evidence": {}
+}

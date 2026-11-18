@@ -1,0 +1,548 @@
+[
+  {
+    "title": "每通道 scale 以 8-bit 存储、5-bit 硬件字段导出，非论文 4-bit 索引",
+    "scope": "local_entry",
+    "behavior_ids": [
+      "M01-B08"
+    ],
+    "refs": [
+      "E2",
+      "E6"
+    ],
+    "boundary": "仅限 api.quantize/LayerState 与 export 路径；未检查其他打包格式。",
+    "unverified_effect": "4-bit 元数据开销未实现，实际元数据宽度更大。",
+    "artifact_id": "flexposit",
+    "mechanism_id": "M01",
+    "claim_ids": [
+      "flexposit:M01-B08"
+    ],
+    "evidence_registry_ids": [
+      "M01:E2",
+      "M01:E6"
+    ]
+  },
+  {
+    "title": "硬件导出/仿真路径将激活量化为 FP8 E4M3，而非 FP16",
+    "scope": "artifact",
+    "behavior_ids": [
+      "M01-B10"
+    ],
+    "refs": [
+      "E6",
+      "E8"
+    ],
+    "boundary": "仅限 export_tile/array_tb 硬件 GEMM 仿真路径；Python 模型前向仍为 FP16 激活。",
+    "unverified_effect": "硬件路径的激活精度与论文 FP16 声明不一致，端到端精度影响未评估。",
+    "artifact_id": "flexposit",
+    "mechanism_id": "M01",
+    "claim_ids": [
+      "flexposit:M01-B10"
+    ],
+    "evidence_registry_ids": [
+      "M01:E6",
+      "M01:E8"
+    ]
+  },
+  {
+    "title": "窗口大小无阵列列数整数倍约束，且无 Qwen 1024 规则",
+    "scope": "local_entry",
+    "behavior_ids": [
+      "M02-B01",
+      "M02-B03-R01",
+      "M02-B03-R02"
+    ],
+    "refs": [
+      "E1",
+      "E2",
+      "E3"
+    ],
+    "boundary": "仅限 api.py::quantize/plan_windows 与 mpq/channel_window.py 的 CSV 消费路径",
+    "unverified_effect": "若外部 CSV 以256/1024生成，实际窗口数值可对齐，但入口不保证",
+    "artifact_id": "flexposit",
+    "mechanism_id": "M02",
+    "claim_ids": [
+      "flexposit:M02-B01",
+      "flexposit:M02-B03-R01",
+      "flexposit:M02-B03-R02"
+    ],
+    "evidence_registry_ids": [
+      "M02:E1",
+      "M02:E2",
+      "M02:E3"
+    ]
+  },
+  {
+    "title": "脚本默认256但模块默认64，Qwen 无1024分支，无对齐校验",
+    "scope": "artifact",
+    "behavior_ids": [
+      "M02-B01",
+      "M02-B03-R02"
+    ],
+    "refs": [
+      "E4",
+      "E5",
+      "E6"
+    ],
+    "boundary": "仅限 regen_sensitivity_ppl.sh 与 ppl_probe/fisher 的窗口枚举",
+    "unverified_effect": "手动设 CHANNEL_WINDOW=1024 可绕过，但非实现的分支",
+    "artifact_id": "flexposit",
+    "mechanism_id": "M02",
+    "claim_ids": [
+      "flexposit:M02-B01",
+      "flexposit:M02-B03-R02"
+    ],
+    "evidence_registry_ids": [
+      "M02:E4",
+      "M02:E5",
+      "M02:E6"
+    ]
+  },
+  {
+    "title": "ΔPPL 符号与论文公式相反",
+    "scope": "local_entry",
+    "behavior_ids": [
+      "M03-B06",
+      "M03-A01"
+    ],
+    "refs": [
+      "E5",
+      "E8",
+      "E9"
+    ],
+    "boundary": "ppl_probe.py 与 ppl_probe_conv1d.py 均为 PPL_new−P_base；下游升序取最负值可补偿排序，但剖析数值与论文定义相反。",
+    "unverified_effect": "未运行；端到端位宽分配与论文一致性未证明。",
+    "artifact_id": "flexposit",
+    "mechanism_id": "M03",
+    "claim_ids": [
+      "flexposit:M03-B06",
+      "flexposit:M03-A01"
+    ],
+    "evidence_registry_ids": [
+      "M03:E5",
+      "M03:E8",
+      "M03:E9"
+    ]
+  },
+  {
+    "title": "剖析入口未返回降序排序敏感度图",
+    "scope": "local_entry",
+    "behavior_ids": [
+      "M03-B09"
+    ],
+    "refs": [
+      "E6",
+      "E9"
+    ],
+    "boundary": "排序下移到 mpq/channel_window.py 消费端；剖析产物为未排序 CSV。",
+    "unverified_effect": "下游排序能否完全复现 SORTDESC 未运行验证。",
+    "artifact_id": "flexposit",
+    "mechanism_id": "M03",
+    "claim_ids": [
+      "flexposit:M03-B09"
+    ],
+    "evidence_registry_ids": [
+      "M03:E6",
+      "M03:E9"
+    ]
+  },
+  {
+    "title": "剖析实验路径产物未排序且 ΔPPL 反号",
+    "scope": "artifact",
+    "behavior_ids": [
+      "M03-B06",
+      "M03-B09",
+      "M03-A01"
+    ],
+    "refs": [
+      "E1",
+      "E5",
+      "E6",
+      "E9"
+    ],
+    "boundary": "regen_sensitivity_ppl.sh 产出的 sensitivity.csv 为未排序、反号 delta_ppl。",
+    "unverified_effect": "未运行脚本，未验证下游分配结果与论文 Pareto 曲线一致。",
+    "artifact_id": "flexposit",
+    "mechanism_id": "M03",
+    "claim_ids": [
+      "flexposit:M03-B06",
+      "flexposit:M03-B09",
+      "flexposit:M03-A01"
+    ],
+    "evidence_registry_ids": [
+      "M03:E1",
+      "M03:E5",
+      "M03:E6",
+      "M03:E9"
+    ]
+  },
+  {
+    "title": "Python 量化入口不含 GPCU 时序机制（仅格式分配）",
+    "scope": "local_entry",
+    "behavior_ids": [
+      "M05-B01",
+      "M05-B02",
+      "M05-B03",
+      "M05-B04",
+      "M05-B05-R01",
+      "M05-B05-R02",
+      "M05-B06",
+      "M05-A01",
+      "M05-A02",
+      "M05-A03"
+    ],
+    "refs": [
+      "E5",
+      "E7"
+    ],
+    "boundary": "仅限 src/flexposit 的 quantize/plan_windows 路径；hardware/ 下 RTL 另行评估。",
+    "unverified_effect": "Python 侧不产生任何周期/标记/FSM 行为，故时序效果未建立。",
+    "artifact_id": "flexposit",
+    "mechanism_id": "M05",
+    "claim_ids": [
+      "flexposit:M05-B01",
+      "flexposit:M05-B02",
+      "flexposit:M05-B03",
+      "flexposit:M05-B04",
+      "flexposit:M05-B05-R01",
+      "flexposit:M05-B05-R02",
+      "flexposit:M05-B06",
+      "flexposit:M05-A01",
+      "flexposit:M05-A02",
+      "flexposit:M05-A03"
+    ],
+    "evidence_registry_ids": [
+      "M05:E5",
+      "M05:E7"
+    ]
+  },
+  {
+    "title": "精度仅在 tile 起始锁存，无通道窗口边界重配置路径",
+    "scope": "local_entry",
+    "behavior_ids": [
+      "M06-A01"
+    ],
+    "refs": [
+      "E9",
+      "E3"
+    ],
+    "boundary": "仅限 systolic/cycle_gen 的 precision_reg 与 start_pulse 逻辑。",
+    "unverified_effect": "窗口边界重配置的无气泡性未建立。",
+    "artifact_id": "flexposit",
+    "mechanism_id": "M06",
+    "claim_ids": [
+      "flexposit:M06-A01"
+    ],
+    "evidence_registry_ids": [
+      "M06:E9",
+      "M06:E3"
+    ]
+  },
+  {
+    "title": "符号项入 FIFO 的周期与论文相反（cyc1 而非 cyc0）",
+    "scope": "artifact",
+    "behavior_ids": [
+      "M07-A05"
+    ],
+    "refs": [
+      "E3",
+      "E4",
+      "E5"
+    ],
+    "boundary": "仅限 hardware/rtl/posit_decode_and_queue.v 的 beat_fifo_burst 写端口映射；未运行仿真验证下游 PE 时序",
+    "unverified_effect": "符号项仍每权重入 FIFO 一次，但触发周期偏移是否影响 PE 累加正确性未证明",
+    "artifact_id": "flexposit",
+    "mechanism_id": "M07",
+    "claim_ids": [
+      "flexposit:M07-A05"
+    ],
+    "evidence_registry_ids": [
+      "M07:E3",
+      "M07:E4",
+      "M07:E5"
+    ]
+  },
+  {
+    "title": "符号 FIFO 写入时刻为 cyc1 而非 cyc0",
+    "scope": "local_entry",
+    "behavior_ids": [
+      "M08-B02"
+    ],
+    "refs": [
+      "E1",
+      "E2",
+      "E3"
+    ],
+    "boundary": "posit_decode_and_queue.v 的 fifo_in0 与 beat_fifo_burst 写使能；仅此 RTL 路径。",
+    "unverified_effect": "一拍偏移是否被下游 PE beat 协议吸收未证明。",
+    "artifact_id": "flexposit",
+    "mechanism_id": "M08",
+    "claim_ids": [
+      "flexposit:M08-B02"
+    ],
+    "evidence_registry_ids": [
+      "M08:E1",
+      "M08:E2",
+      "M08:E3"
+    ]
+  },
+  {
+    "title": "尾数收集以 MAN_WIDTH 上限终止而非 cycP",
+    "scope": "local_entry",
+    "behavior_ids": [
+      "M08-B06"
+    ],
+    "refs": [
+      "E1",
+      "E5"
+    ],
+    "boundary": "posit_decoder 的 man_count<MAN_WIDTH 分支；模型同样以固定上限截断。",
+    "unverified_effect": "对 P>5 或短尾数权重是否与 cycP 终止等价未证明。",
+    "artifact_id": "flexposit",
+    "mechanism_id": "M08",
+    "claim_ids": [
+      "flexposit:M08-B06"
+    ],
+    "evidence_registry_ids": [
+      "M08:E1",
+      "M08:E5"
+    ]
+  },
+  {
+    "title": "exp/man/zero 分槽写入而非完成时一起推入",
+    "scope": "local_entry",
+    "behavior_ids": [
+      "M08-B08"
+    ],
+    "refs": [
+      "E2",
+      "E3"
+    ],
+    "boundary": "beat_fifo_burst 的 cycle0&re 写路径与零填充槽。",
+    "unverified_effect": "下游 PE 按 beat 重建一个权重的语义等价性未证明。",
+    "artifact_id": "flexposit",
+    "mechanism_id": "M08",
+    "claim_ids": [
+      "flexposit:M08-B08"
+    ],
+    "evidence_registry_ids": [
+      "M08:E2",
+      "M08:E3"
+    ]
+  },
+  {
+    "title": "测试芯片 RTL 以每 PE 独立累加器替代簇级共享时分复用累加器",
+    "scope": "artifact",
+    "behavior_ids": [
+      "M09-B04-R01",
+      "M09-B04-R02",
+      "M09-B05-R02",
+      "M09-A03",
+      "M09-A04"
+    ],
+    "refs": [
+      "E1",
+      "E4",
+      "E5"
+    ],
+    "boundary": "hardware/README.md 自述相对论文 RTL 改为 FP8 激活与每 PE 一累加器；结论限于该 pinned 测试芯片 RTL，不代表论文历史 RTL。",
+    "unverified_effect": "共享累加器带来的面积/能效收益未评估（无综合/功耗数据）。",
+    "artifact_id": "flexposit",
+    "mechanism_id": "M09",
+    "claim_ids": [
+      "flexposit:M09-B04-R01",
+      "flexposit:M09-B04-R02",
+      "flexposit:M09-B05-R02",
+      "flexposit:M09-A03",
+      "flexposit:M09-A04"
+    ],
+    "evidence_registry_ids": [
+      "M09:E1",
+      "M09:E4",
+      "M09:E5"
+    ]
+  },
+  {
+    "title": "RTL 无 4-PE MAC 簇与 4/P 簇吞吐结构",
+    "scope": "artifact",
+    "behavior_ids": [
+      "M09-B01",
+      "M09-B02-R01",
+      "M09-B02-R02",
+      "M09-B03",
+      "M09-A01",
+      "M09-A02"
+    ],
+    "refs": [
+      "E2",
+      "E3",
+      "E4"
+    ],
+    "boundary": "systolic_efficient.v 为 N×N 阵列，行间 1 周期延迟；无簇模块。",
+    "unverified_effect": "4/P 吞吐与 FP16 MAC 速率匹配未建立。",
+    "artifact_id": "flexposit",
+    "mechanism_id": "M09",
+    "claim_ids": [
+      "flexposit:M09-B01",
+      "flexposit:M09-B02-R01",
+      "flexposit:M09-B02-R02",
+      "flexposit:M09-B03",
+      "flexposit:M09-A01",
+      "flexposit:M09-A02"
+    ],
+    "evidence_registry_ids": [
+      "M09:E2",
+      "M09:E3",
+      "M09:E4"
+    ]
+  },
+  {
+    "title": "激活格式与累加域偏离论文 FP16/浮点声明",
+    "scope": "artifact",
+    "behavior_ids": [
+      "M09-B02-R02",
+      "M09-A05"
+    ],
+    "refs": [
+      "E1",
+      "E4",
+      "E5",
+      "E6"
+    ],
+    "boundary": "ACT_EBITS=4/ACT_MBITS=3 的 FP8 风格激活；块浮点累加器。",
+    "unverified_effect": "数值精度影响未评估。",
+    "artifact_id": "flexposit",
+    "mechanism_id": "M09",
+    "claim_ids": [
+      "flexposit:M09-B02-R02",
+      "flexposit:M09-A05"
+    ],
+    "evidence_registry_ids": [
+      "M09:E1",
+      "M09:E4",
+      "M09:E5",
+      "M09:E6"
+    ]
+  },
+  {
+    "title": "cyc2 首步用权重符号位与未右移 A，非 b0&(A>>1)",
+    "scope": "local_entry",
+    "behavior_ids": [
+      "M10-B03"
+    ],
+    "refs": [
+      "E1",
+      "E2",
+      "E8"
+    ],
+    "boundary": "仅 pe_fp8_compute cycle2 分支；B04 递推与 A01/A02 构造/右移本身符合",
+    "unverified_effect": "未仿真，乘积数值影响未建立",
+    "artifact_id": "flexposit",
+    "mechanism_id": "M10",
+    "claim_ids": [
+      "flexposit:M10-B03"
+    ],
+    "evidence_registry_ids": [
+      "M10:E1",
+      "M10:E2",
+      "M10:E8"
+    ]
+  },
+  {
+    "title": "零标志在 cycP 而非 cyc3 锁存，窗口内无保持",
+    "scope": "local_entry",
+    "behavior_ids": [
+      "M10-B06"
+    ],
+    "refs": [
+      "E2",
+      "E8",
+      "E9"
+    ],
+    "boundary": "仅 PE 侧零标志锁存时刻；解码器生成与 B07 输出不受影响",
+    "unverified_effect": "锁存时刻对累加/时序影响未验证",
+    "artifact_id": "flexposit",
+    "mechanism_id": "M10",
+    "claim_ids": [
+      "flexposit:M10-B06"
+    ],
+    "evidence_registry_ids": [
+      "M10:E2",
+      "M10:E8",
+      "M10:E9"
+    ]
+  },
+  {
+    "title": "artifact 仿真路径复用同一 PE，B03/B06 偏差同样存在",
+    "scope": "artifact",
+    "behavior_ids": [
+      "M10-B03",
+      "M10-B06"
+    ],
+    "refs": [
+      "E1",
+      "E2",
+      "E7",
+      "E8",
+      "E9"
+    ],
+    "boundary": "tb/scripts 驱动 systolic_efficient.v 同一实例化，无替代 PE",
+    "unverified_effect": "未运行 array_tb/single_pe_es_tb，数值影响未建立",
+    "artifact_id": "flexposit",
+    "mechanism_id": "M10",
+    "claim_ids": [
+      "flexposit:M10-B03",
+      "flexposit:M10-B06"
+    ],
+    "evidence_registry_ids": [
+      "M10:E1",
+      "M10:E2",
+      "M10:E7",
+      "M10:E8",
+      "M10:E9"
+    ]
+  },
+  {
+    "title": "ship-out 存在 ready 背压与一拍填充延迟，与“无停顿写出”不符",
+    "scope": "local_entry",
+    "behavior_ids": [
+      "M11-B03-R02"
+    ],
+    "refs": [
+      "E3",
+      "E4"
+    ],
+    "boundary": "仅限 hardware/rtl/systolic_efficient.v 的 ship-out FSM 与 stage 寄存器；未评估上层 mm_efficient 是否吸收该背压。",
+    "unverified_effect": "未测量稳态吞吐，无法证明停顿不影响整体流水；数值结果等价性未受影响。",
+    "artifact_id": "flexposit",
+    "mechanism_id": "M11",
+    "claim_ids": [
+      "flexposit:M11-B03-R02"
+    ],
+    "evidence_registry_ids": [
+      "M11:E3",
+      "M11:E4"
+    ]
+  },
+  {
+    "title": "artifact 仿真路径同样受 stage 握手约束",
+    "scope": "artifact",
+    "behavior_ids": [
+      "M11-B03-R02"
+    ],
+    "refs": [
+      "E3",
+      "E7"
+    ],
+    "boundary": "hardware/tb/array_tb.v 与 run_array_test.py 的仿真路径。",
+    "unverified_effect": "仿真未测量无停顿吞吐，仅验证数值。",
+    "artifact_id": "flexposit",
+    "mechanism_id": "M11",
+    "claim_ids": [
+      "flexposit:M11-B03-R02"
+    ],
+    "evidence_registry_ids": [
+      "M11:E3",
+      "M11:E7"
+    ]
+  }
+]

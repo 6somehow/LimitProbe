@@ -1,0 +1,29 @@
+{
+ "assessment": "supports",
+ "reasoning": "The shown line directly implements `or [0]`, so if the filtered candidate list is empty, es=0 is used. This supports the claimed silent fallback. The line alone does not prove max_es=nsize-1 or downstream quantization, and no paper evidence is recorded, so disclosure is not assessable from the evidence shown.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "src/flexposit/mpq/channel_window.py",
+   "regex": "max_es\\s*=\\s*[^\\n]*nsize\\s*-\\s*1",
+   "expect": "present",
+   "control": "es_list",
+   "meaning": "Confirms max_es equals nsize-1, the threshold in the finding."
+  },
+  {
+   "file": "src/flexposit/mpq/channel_window.py",
+   "regex": "es_list\\s*=\\s*\\[e for e in es_cands if e <= max_es\\] or \\[0\\]",
+   "expect": "present",
+   "control": "es_list",
+   "meaning": "Directly shows empty filtered candidates fall back to es=0."
+  },
+  {
+   "file": "src/flexposit/mpq/channel_window.py",
+   "regex": "es_list",
+   "expect": "present",
+   "control": "es_cands",
+   "meaning": "Shows the fallback list is referenced in this file."
+  }
+ ],
+ "would_confirm": "Call the function with es_cands all greater than nsize-1 and check whether it silently quantizes with es=0 rather than raising or reporting."
+}

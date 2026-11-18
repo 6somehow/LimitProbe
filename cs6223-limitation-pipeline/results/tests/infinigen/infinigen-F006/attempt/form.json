@@ -1,0 +1,54 @@
+{
+  "test_id": "A-infinigen-F006",
+  "finding_id": "infinigen-F006",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {"name": "seed", "value": 0, "why": "fixed seed for reproducible tensor initialisation"},
+      {"name": "batch_size", "value": 1, "why": "smallest batch; the assertion reads only attn_sparsity"},
+      {"name": "target_seq_len", "value": 1, "why": "decoding step has one target token; assertion does not depend on it"},
+      {"name": "n_head", "value": 1, "why": "single attention head; assertion does not depend on head count"},
+      {"name": "head_dim", "value": 2, "why": "smallest usable head width for the real layer_norm/linear code"},
+      {"name": "mask_len", "value": 2, "why": "attention-mask width only feeds src_s after the target decision"},
+      {"name": "cache_shape", "value": [1, 1, 2], "why": "tiny mixed-cache stand-in object; only its shape[0] is read before the assert"},
+      {"name": "donate", "value": [false, false], "why": "do not delete the input tensors during the test"},
+      {"name": "compress_cache", "value": false, "why": "uncompressed path avoids compression devices before the target"}
+    ],
+    "positive_input": {"attn_sparsity": 0.999},
+    "negative_input": {"attn_sparsity": 1},
+    "boundary_variable": "attn_sparsity",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "exception",
+      "spec": "AssertionError raised at speedup/flexgen/infinigen/pytorch_backend.py:464",
+      "signal_location": "speedup/flexgen/infinigen/pytorch_backend.py:464"
+    },
+    "expected": {
+      "positive": "AssertionError at speedup/flexgen/infinigen/pytorch_backend.py:464",
+      "negative": "no exception at speedup/flexgen/infinigen/pytorch_backend.py:464"
+    }
+  },
+  "execution": {
+    "entry_called": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha_gen",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": ["false", "true"],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "AssertionError at speedup/flexgen/infinigen/pytorch_backend.py:464",
+    "negative_observed": "no exception at speedup/flexgen/infinigen/pytorch_backend.py:464"
+  },
+  "evidence": {}
+}

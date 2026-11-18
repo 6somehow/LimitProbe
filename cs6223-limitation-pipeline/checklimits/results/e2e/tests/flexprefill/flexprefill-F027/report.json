@@ -1,0 +1,116 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "flexprefill-F027",
+ "artifact_id": "flexprefill",
+ "status": "tested",
+ "not_run": null,
+ "verdict": "yes",
+ "level": "L1",
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "effect on positive input, none on negative input",
+ "observed": {
+  "positive": "AssertionError at flex_prefill/ops/vertical_slash_attention.py:264",
+  "negative": "no exception at flex_prefill/ops/vertical_slash_attention.py:264 (later RuntimeError at triton/runtime/driver.py:8)"
+ },
+ "defeaters": {
+  "D1": "eliminated",
+  "D2": "eliminated",
+  "D3": "residual",
+  "D4": "eliminated",
+  "D5": "residual",
+  "D6": "residual",
+  "D7": "eliminated",
+  "D8": "eliminated",
+  "D9": "eliminated",
+  "D10": "eliminated",
+  "D11": "eliminated",
+  "D12": "eliminated",
+  "D13": "residual",
+  "D14": "residual"
+ },
+ "open_doubts": [
+  {
+   "id": "D3",
+   "name": "oracle can see the effect",
+   "status": "residual",
+   "evidence": "only 2 mutants (< n_min=4); killed 2"
+  },
+  {
+   "id": "D5",
+   "name": "control pair differs in one factor, negative adjacent to the boundary",
+   "status": "residual",
+   "evidence": "one factor differs; adjacency not measurable: boundary variable 'dtype' is not an integer (value 'bfloat16')"
+  },
+  {
+   "id": "D6",
+   "name": "verdict-bearing observations do not depend on stand-ins",
+   "status": "residual",
+   "evidence": "verdict-bearing observations: positive simulated:fake, negative simulated:fake"
+  },
+  {
+   "id": "D13",
+   "name": "inputs inside the paper's scope",
+   "status": "residual",
+   "evidence": "scope_status=unknown"
+  },
+  {
+   "id": "D14",
+   "name": "official entry point was called",
+   "status": "residual",
+   "evidence": "deeper entry (index 1); reason recorded: call_chain[0] flex_prefill_attention never calls the target: its sparse path calls triton_block_wise_attention, while the real caller of triton_vertical_slash_attention is vertical_slash_attention in the same file; the hand-off note says the real call graph between the chain entries is not part of the witness. The target is the vertical-slash kernel's own dtype guard, so the kernel is the deepest testable entry and is called directly."
+  }
+ ],
+ "next_steps": [
+  "D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location",
+  "D5 (residual): change exactly one factor between positive and negative, and make the negative the point next to the boundary",
+  "D6 (residual): move stand-ins after the target line, or replace stubs with a fake or the repository's own reference implementation",
+  "D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)"
+ ],
+ "finding": {
+  "category": "stated_differently",
+  "step4_level": "L2",
+  "effect_type": "reject",
+  "priority": 2,
+  "summary": "When q.dtype != torch.bfloat16: Rejects any query tensor not in bfloat16, so callers using fp16/fp32 cannot run this kernel. (flex_prefill/ops/vertical_slash_attention.py:264)",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 2), not human: bf16 assert sits in the vertical-slash baseline kernel, not the FlexPrefill path.",
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "flex_prefill/ops/vertical_slash_attention.py:264",
+  "function": "flex_prefill/ops/vertical_slash_attention.py::triton_vertical_slash_attention",
+  "condition": "q.dtype != torch.bfloat16"
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "Note: The current version only supports inference with a batch size of 1 and has only been tested with bfloat16 precision.",
+    "source": "readme",
+    "locator": "README.md / FlexPrefill Sparse Attention Function"
+   }
+  ],
+  "code": [
+   {
+    "file": "flex_prefill/ops/vertical_slash_attention.py",
+    "line_start": 264,
+    "function": "flex_prefill/ops/vertical_slash_attention.py::triton_vertical_slash_attention",
+    "snippet": "assert q.dtype == torch.bfloat16"
+   }
+  ]
+ },
+ "files": {
+  "execution_report": "execution_report.json",
+  "testcase": "testcase.json",
+  "attempt": "attempt"
+ },
+ "provenance": {
+  "findings_file": "results/step4/flexprefill/limitations_for_tests.json",
+  "findings_sha256": "0b8539b75ec0e2d602cd64b1a21959708ae3a6d53be00202f8825d92f313c066",
+  "generated_at": "2026-11-17T02:16:12+08:00",
+  "source": "reaudit",
+  "attempt_origin": "results/e2e/tests/flexprefill/flexprefill-F027/attempt",
+  "n_attempts_found": 2,
+  "profile": "default-v1"
+ }
+}

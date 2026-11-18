@@ -1,0 +1,131 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "qoserve-F014",
+ "artifact_id": "qoserve",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "缺 Qwen/70B 与 4 小时控制",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "trigger_only",
+  "location": "fig7.sh:76-106",
+  "function": null,
+  "condition": "MODEL in ('Qwen', '70B') or True"
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "their deadlines. For these single replica experiments, we com- pare against the Sarathi-FCFS and Sarathi-EDF baselines. Figure 7 shows the goodput while serving requests over a 4- hour period across three different datasets and models listed in Table 1. As shown, QoServe achieves 1.5x to 2.4x higher",
+    "source": "paper",
+    "locator": "PDF p.9, text lines 83-87"
+   }
+  ],
+  "code": [
+   {
+    "file": "fig7.sh",
+    "line_start": 76,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "fig7.sh",
+    "line_start": 8,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/qoserve/limitations_for_tests.json",
+  "findings_sha256": "79eb69f6ac7117b77ebe00293d1d328dff8bfffcd7cabc7556eaae435c1699e2",
+  "generated_at": "2026-11-18T00:46:02+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The Fig.7 script names three traces but no Qwen/70B model; it uses $MODEL. Its time_limit is 33000000000, not an explicit 4-hour value (if microseconds, ~9.2h). Thus the shown artifact lacks the paper's stated Qwen/70B and 4-hour setup. The model could be external, but the script itself does not show it.",
+  "hardware_needed": false,
+  "would_confirm": "Check fig7.sh and any sourced environment for MODEL and time_limit to see if Qwen/70B is run and whether the cap equals 4 hours.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "fig7.sh",
+     "lines": "76-106",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "shell"
+    },
+    {
+     "file": "fig7.sh",
+     "lines": "8-32",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "shell"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "fig7.sh",
+    "regex": "Qwen|70B|Qwen2|Llama-?70",
+    "expect": "absent",
+    "meaning": "No Qwen/70B model named in Fig.7 script.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "MODEL",
+    "hit_lines": []
+   },
+   {
+    "file": "fig7.sh",
+    "regex": "time_limit\\s+14400(000000)?|4\\s*hour|4h",
+    "expect": "absent",
+    "meaning": "No explicit 4-hour time limit; script sets 33000000000.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "time_limit",
+    "hit_lines": []
+   },
+   {
+    "file": "fig7.sh",
+    "regex": "time_limit\\s+33000000000",
+    "expect": "present",
+    "meaning": "Fig.7 uses 33e9 time limit, not 4h.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     89
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

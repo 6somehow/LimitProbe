@@ -1,0 +1,5420 @@
+[
+  {
+    "id": "M01-B01",
+    "claim_type": "semantic_effect",
+    "requirement": "稀疏注意力输出为 Softmax((1/√d)(QKᵀ+M_S))，即仅在 S 上归一化 softmax 后乘 V。",
+    "paper": {
+      "page": 2,
+      "quote": "A(Q, K, V, S) = Softmax(1/√d (Q·K⊤ + MS))"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "入口稀疏分支把 block_idx 交给 triton_block_wise_attention 进入 Triton prefill kernel；qk=tl.dot(q,k)*softmax_scale，默认 1/√head_dim，未激活块不参与 m_i/lse_i 累加。",
+      "discrepancy": "",
+      "equivalence": "exp2/log2 重标定与在线 softmax 递推数值等价；块级 S 与逐元素 M_S 等价。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2",
+        "E3",
+        "E4"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "triton_block_wise_prefill_attention 的 K/V 循环只遍历 block_idx 指定块，块内 causal 掩码置 −∞，softmax_scale=1/√d·log2(e)，acc_o 按 exp2(m_i−lse_i) 归一化。",
+      "discrepancy": "",
+      "equivalence": "在线 softmax 与 exp2 重标定等价于论文公式。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E3",
+        "E4",
+        "E5"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M01-B01",
+    "mechanism_id": "M01",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention（README 声明的稀疏注意力入口），稀疏分支经 get_active_blocks 得 block_idx 后调用 triton_block_wise_attention → triton_block_wise_prefill_attention。",
+      "artifact": "同一 pinned commit 的 Triton 稀疏 prefill kernel 路径（triton_block_wise_prefill_attention 的 softmax_scale、causal 掩码、block_idx 驱动 K/V 循环）；依赖 triton==3.0.0（setup.py 声明），快照未固定历史运行时。"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M01:E1",
+        "M01:E2",
+        "M01:E3",
+        "M01:E4"
+      ],
+      "artifact": [
+        "M01:E2",
+        "M01:E3",
+        "M01:E4",
+        "M01:E5"
+      ]
+    }
+  },
+  {
+    "id": "M01-B02",
+    "claim_type": "mechanism_step",
+    "requirement": "掩码 M_S[i,j]=0 当 (i,j)∈S，否则 −∞。",
+    "paper": {
+      "page": 3,
+      "quote": "MS[i,j] = 0, if (i,j)∈ S, −∞, otherwise."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "S 以 block_idx 表示；kernel 只对激活块算 qk，未激活块不进入 softmax 统计；激活块内非因果位置由 tl.where(off_m>=i+off_n,0,-inf) 置 −∞。",
+      "discrepancy": "",
+      "equivalence": "块级激活是元素级 S 的粗化；跳过未激活块与加 −∞ 对 softmax 等价。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2",
+        "E3",
+        "E5"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "prefill kernel 中 qk += tl.where(causal 条件,0,-inf) 后接 tl.dot(q,k)*softmax_scale；非激活块不加载 K/V。",
+      "discrepancy": "",
+      "equivalence": "跳过未激活块与 −∞ 掩码语义等价。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E3",
+        "E5"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M01-B02",
+    "mechanism_id": "M01",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention（README 声明的稀疏注意力入口），稀疏分支经 get_active_blocks 得 block_idx 后调用 triton_block_wise_attention → triton_block_wise_prefill_attention。",
+      "artifact": "同一 pinned commit 的 Triton 稀疏 prefill kernel 路径（triton_block_wise_prefill_attention 的 softmax_scale、causal 掩码、block_idx 驱动 K/V 循环）；依赖 triton==3.0.0（setup.py 声明），快照未固定历史运行时。"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M01:E1",
+        "M01:E2",
+        "M01:E3",
+        "M01:E5"
+      ],
+      "artifact": [
+        "M01:E3",
+        "M01:E5"
+      ]
+    }
+  },
+  {
+    "id": "M01-B03-R01",
+    "claim_type": "mechanism_step",
+    "requirement": "全局索引集 S 为各 query 子集 S_i 的并集，S=∪_{i=1}^{L} S_i。",
+    "paper": {
+      "page": 2,
+      "quote": "whose indexes form the set S = ∪L i=1 Si"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "get_active_blocks 为每个 head 返回按 query 块组织的激活块索引（block_idx[b][h]），入口按 head 汇总计算比例；kernel 对每个 query 块只遍历其自身激活块列表。",
+      "discrepancy": "",
+      "equivalence": "以 query 块为单位组织 S_i 是元素级并集的块级粗化，语义一致。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E6"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "triton_block_wise_prefill_attention 以 block_idx 中每个 query 块对应的激活块列表驱动 K/V 循环，各 query 激活集合独立给出。",
+      "discrepancy": "",
+      "equivalence": "块级并集与元素级并集等价（块内再以 causal 掩码细化）。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E5",
+        "E6"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M01-B03-R01",
+    "mechanism_id": "M01",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention（README 声明的稀疏注意力入口），稀疏分支经 get_active_blocks 得 block_idx 后调用 triton_block_wise_attention → triton_block_wise_prefill_attention。",
+      "artifact": "同一 pinned commit 的 Triton 稀疏 prefill kernel 路径（triton_block_wise_prefill_attention 的 softmax_scale、causal 掩码、block_idx 驱动 K/V 循环）；依赖 triton==3.0.0（setup.py 声明），快照未固定历史运行时。"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M01:E1",
+        "M01:E6"
+      ],
+      "artifact": [
+        "M01:E5",
+        "M01:E6"
+      ]
+    }
+  },
+  {
+    "id": "M01-B03-R02",
+    "claim_type": "mechanism_step",
+    "requirement": "每个 S_i 只含因果位置：S_i⊆{(i,j)|1≤j≤i}。",
+    "paper": {
+      "page": 2,
+      "quote": "Si⊆{ (i,j )| 1≤j≤i, j∈ Z}"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "稀疏分支调用 triton_block_wise_attention（文档注明 causal attention），kernel 内以 off_m>=i+off_n 掩码未来位置；get_active_blocks 按因果块网格生成索引。",
+      "discrepancy": "",
+      "equivalence": "块级激活可能含块内未来位置，但块内 causal 掩码保证实际参与 softmax 的 (i,j) 满足 j≤i。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2",
+        "E3",
+        "E6"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "prefill kernel causal 分支 hi=min(K_LEN,(pid_q+1)*BLOCK_SIZE_Q) 且 qk 加因果 −∞ 掩码。",
+      "discrepancy": "",
+      "equivalence": "循环上界与块内掩码共同保证 j≤i。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E3",
+        "E5"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M01-B03-R02",
+    "mechanism_id": "M01",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention（README 声明的稀疏注意力入口），稀疏分支经 get_active_blocks 得 block_idx 后调用 triton_block_wise_attention → triton_block_wise_prefill_attention。",
+      "artifact": "同一 pinned commit 的 Triton 稀疏 prefill kernel 路径（triton_block_wise_prefill_attention 的 softmax_scale、causal 掩码、block_idx 驱动 K/V 循环）；依赖 triton==3.0.0（setup.py 声明），快照未固定历史运行时。"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M01:E1",
+        "M01:E2",
+        "M01:E3",
+        "M01:E6"
+      ],
+      "artifact": [
+        "M01:E3",
+        "M01:E5"
+      ]
+    }
+  },
+  {
+    "id": "M01-A01",
+    "claim_type": "mechanism_step",
+    "requirement": "注意力分数为 Q 与 K 的缩放点积，按 head 维度 d 的平方根归一化。",
+    "paper": {
+      "page": 2,
+      "quote": "The attention score for each position is computed as the scaled dot product between the query matrix Q and the key matrix K, normalized by the square root of the head dimension d."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "softmax_scale 默认 None 时取 1/math.sqrt(head_dim)*log2(e)，kernel 中 qk=tl.dot(q,k)*softmax_scale，配合 exp2 实现 1/√d 缩放。",
+      "discrepancy": "",
+      "equivalence": "log2(e) 因子与 exp2 组合等价于以 e 为底的 softmax 缩放。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E3",
+        "E4"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "triton_flash_prefill 与块稀疏 prefill 路径均使用同一 softmax_scale 约定（1/√head_dim·log2 e）。",
+      "discrepancy": "",
+      "equivalence": "数值等价实现。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E3",
+        "E4"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M01-A01",
+    "mechanism_id": "M01",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention（README 声明的稀疏注意力入口），稀疏分支经 get_active_blocks 得 block_idx 后调用 triton_block_wise_attention → triton_block_wise_prefill_attention。",
+      "artifact": "同一 pinned commit 的 Triton 稀疏 prefill kernel 路径（triton_block_wise_prefill_attention 的 softmax_scale、causal 掩码、block_idx 驱动 K/V 循环）；依赖 triton==3.0.0（setup.py 声明），快照未固定历史运行时。"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M01:E3",
+        "M01:E4"
+      ],
+      "artifact": [
+        "M01:E3",
+        "M01:E4"
+      ]
+    }
+  },
+  {
+    "id": "M01-A02",
+    "claim_type": "semantic_effect",
+    "requirement": "稀疏注意力只计算 S 中的 query-key 对，而非全部对。",
+    "paper": {
+      "page": 2,
+      "quote": "sparse attention limits computation to a subset of query-key pairs whose indexes form the set S"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "入口在 q_len>max(2*block_size, min_budget 块) 时走稀疏分支：get_active_blocks 产生 block_idx，triton_block_wise_attention 只对激活块做 QKᵀ 与 PV；计算比例按激活块数/总块数返回。",
+      "discrepancy": "",
+      "equivalence": "块级跳过未激活块即限制计算到 S；短序列回退全/causal flash attention 属论文未覆盖边界，不违反 S 内计算语义。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2",
+        "E5",
+        "E6"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "prefill kernel 的 K/V 循环仅遍历 block_idx 给出的块，未激活块不加载、不参与 dot。",
+      "discrepancy": "",
+      "equivalence": "块级稀疏计算与元素级 S 限制等价（块内再以 causal 掩码细化）。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E3",
+        "E5",
+        "E6"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M01-A02",
+    "mechanism_id": "M01",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention（README 声明的稀疏注意力入口），稀疏分支经 get_active_blocks 得 block_idx 后调用 triton_block_wise_attention → triton_block_wise_prefill_attention。",
+      "artifact": "同一 pinned commit 的 Triton 稀疏 prefill kernel 路径（triton_block_wise_prefill_attention 的 softmax_scale、causal 掩码、block_idx 驱动 K/V 循环）；依赖 triton==3.0.0（setup.py 声明），快照未固定历史运行时。"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M01:E1",
+        "M01:E2",
+        "M01:E5",
+        "M01:E6"
+      ],
+      "artifact": [
+        "M01:E3",
+        "M01:E5",
+        "M01:E6"
+      ]
+    }
+  },
+  {
+    "id": "M02-B01-R01",
+    "claim_type": "mechanism_step",
+    "requirement": "以全注意力 A(Q,K,V) 为参照，最小化稀疏结果 A(Q,K,V,S) 与它的偏差",
+    "paper": {
+      "page": 3,
+      "quote": "min_S |A(Q, K, V )− A(Q, K, V, S)| ,"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "入口不直接求解 Eq.1，而是用最后 block_size 个 query 的 softmax 注意力（E6）计算 vertical/slash 分数，用 score_cover_topk 取累积覆盖 ≥gamma 的块数（E3），再按 topk 选块（E2），最后只在这些块上做精确 softmax 注意力（E4）。",
+      "discrepancy": "",
+      "equivalence": "论文自述运行规则是累积注意力约束而非直接求解器；以注意力质量覆盖为代理近似最小化偏差，属语义等价实现。",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2",
+        "E3",
+        "E4",
+        "E6"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "同一路径：gamma 覆盖块数 + min/max_budget 截断 + tau 头级 KL 阈值（E2），块索引经 transform_veritcal_slash_idx 合并后送入 triton 块稀疏注意力（E4/E5）。",
+      "discrepancy": "",
+      "equivalence": "代理目标与论文声明的累积注意力约束一致；未做端到端精度实验，偏差最小化的数值效果未确立。",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2",
+        "E4",
+        "E5"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M02-B01-R01",
+    "mechanism_id": "M02",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention（README 声明的公开入口，含 get_active_blocks 选择与 triton_block_wise_attention 稀疏计算）",
+      "artifact": "同一入口的完整实验/内核路径：flex_prefill_attention → get_active_blocks（score_cover_topk/score_cover_idx、min/max_budget、tau 头级阈值）→ triton_block_wise_attention → triton_block_wise_prefill_attention；依赖 triton 3.0.0 与可选 flash_attn（未固定历史版本）"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M02:E1",
+        "M02:E2",
+        "M02:E3",
+        "M02:E4",
+        "M02:E6"
+      ],
+      "artifact": [
+        "M02:E1",
+        "M02:E2",
+        "M02:E4",
+        "M02:E5"
+      ]
+    }
+  },
+  {
+    "id": "M02-B02",
+    "claim_type": "mechanism_step",
+    "requirement": "最小化选中子集大小 |S|",
+    "paper": {
+      "page": 3,
+      "quote": "The second objective seeks to minimize the size of the selected subset S, which directly relates to the computational efficiency."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "score_cover_topk 返回满足累积覆盖 ≥gamma 的最小前缀长度（E3），即质量约束下尽量小的块数；min_budget 仅作下界，max_budget 作上界（E2）。",
+      "discrepancy": "",
+      "equivalence": "以“覆盖阈值下的最小 top-k”实现 |S| 最小化，与论文目标语义一致；块粒度（128）是离散化差异，非违背。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E3"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "块数经 min/max_budget 裁剪后用于 topk 选择，并返回 computational_ratio=激活块数/总块数（E1），直接度量 |S| 相对规模。",
+      "discrepancy": "",
+      "equivalence": "计算比例度量与 |S| 目标一致；未验证相对全注意力的实际加速。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2",
+        "E3"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M02-B02",
+    "mechanism_id": "M02",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention（README 声明的公开入口，含 get_active_blocks 选择与 triton_block_wise_attention 稀疏计算）",
+      "artifact": "同一入口的完整实验/内核路径：flex_prefill_attention → get_active_blocks（score_cover_topk/score_cover_idx、min/max_budget、tau 头级阈值）→ triton_block_wise_attention → triton_block_wise_prefill_attention；依赖 triton 3.0.0 与可选 flash_attn（未固定历史版本）"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M02:E2",
+        "M02:E3"
+      ],
+      "artifact": [
+        "M02:E1",
+        "M02:E2",
+        "M02:E3"
+      ]
+    }
+  },
+  {
+    "id": "M02-A01",
+    "claim_type": "mechanism_step",
+    "requirement": "把偏差目标与 |S| 目标作为相互竞争的目标平衡，而非合并为单一标量目标",
+    "paper": {
+      "page": 3,
+      "quote": "The goal of the dynamic sparse attention system is to achieve a balance between computational efficiency and attention effectiveness. This can be formally expressed as a multi-objective optimization problem:"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "两目标以约束形式分离：gamma 控制注意力质量覆盖（效果），min_budget/max_budget 控制块数（效率），tau 按头自适应降低预算（E2）；未出现把二者加权成单一标量的目标函数。",
+      "discrepancy": "",
+      "equivalence": "约束式（质量阈值下最小化规模）是双目标平衡的等价表述，符合论文“balance”措辞。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2",
+        "E3"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "同一入口暴露 gamma、tau、min_budget、max_budget 四个独立旋钮（E1 签名与文档）；无标量化合并。",
+      "discrepancy": "",
+      "equivalence": "参数化分离两目标，语义等价。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M02-A01",
+    "mechanism_id": "M02",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention（README 声明的公开入口，含 get_active_blocks 选择与 triton_block_wise_attention 稀疏计算）",
+      "artifact": "同一入口的完整实验/内核路径：flex_prefill_attention → get_active_blocks（score_cover_topk/score_cover_idx、min/max_budget、tau 头级阈值）→ triton_block_wise_attention → triton_block_wise_prefill_attention；依赖 triton 3.0.0 与可选 flash_attn（未固定历史版本）"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M02:E1",
+        "M02:E2",
+        "M02:E3"
+      ],
+      "artifact": [
+        "M02:E1",
+        "M02:E2"
+      ]
+    }
+  },
+  {
+    "id": "M02-A02",
+    "claim_type": "semantic_effect",
+    "requirement": "按 M_S[i,j]=0（(i,j)∈S）、−∞（否则）构造掩码，并用它计算 A(Q,K,V,S)",
+    "paper": {
+      "page": 3,
+      "quote": "MS[i,j ] = 0, if (i,j )∈ S, −∞, otherwise."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "未显式构造稠密 M_S；改为块索引集合 block_idx（E5 合并 vertical/slash 索引），triton 内核只遍历激活块，未选块不参与 softmax 归约，等价于掩码为 −∞；因果掩码在 E6 以 −inf 填充。",
+      "discrepancy": "",
+      "equivalence": "块稀疏索引 + 跳过未选块，与显式 −∞ 掩码在 softmax 语义上等价（未选位置权重为 0）；块粒度使 S 为块级集合，属论文块化实现的合理离散化。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E4",
+        "E5",
+        "E6"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "triton_block_wise_attention 依据 block_idx 分派 prefill/decode 内核（E4），仅对激活块做 QK^T/softmax/PV。",
+      "discrepancy": "",
+      "equivalence": "与掩码语义等价；未运行内核验证数值，但控制流证据充分。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E4",
+        "E5"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M02-A02",
+    "mechanism_id": "M02",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention（README 声明的公开入口，含 get_active_blocks 选择与 triton_block_wise_attention 稀疏计算）",
+      "artifact": "同一入口的完整实验/内核路径：flex_prefill_attention → get_active_blocks（score_cover_topk/score_cover_idx、min/max_budget、tau 头级阈值）→ triton_block_wise_attention → triton_block_wise_prefill_attention；依赖 triton 3.0.0 与可选 flash_attn（未固定历史版本）"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M02:E4",
+        "M02:E5",
+        "M02:E6"
+      ],
+      "artifact": [
+        "M02:E4",
+        "M02:E5"
+      ]
+    }
+  },
+  {
+    "id": "M03-B01",
+    "claim_type": "mechanism_step",
+    "requirement": "取最后 block_size 个查询向量作为代表子集 Q̂。",
+    "paper": {
+      "page": 4,
+      "quote": "We select the last block_size query vectors, denoted as Q̂, as a representative subset for subsequent estimation."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "last_q = q[:, -block_size:, :, :]/sqrt(d)，即最后 block_size 个查询；block_size 默认 128，断言取值 {16,32,64,128}。",
+      "discrepancy": "",
+      "equivalence": "切片语义与 Q[−block_size:] 一致；q_len<=max(2*block_size,min_budget) 走 dense 分支，属短序列早退，不改变长序列选择规则。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2",
+        "E3"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "同一 get_active_blocks 由 flex_prefill_attention 在长序列路径调用，block_size 由入口参数传入（默认 128）。",
+      "discrepancy": "",
+      "equivalence": "Triton 内核不改变 Q̂ 选择；flash_attn 仅用于短序列/dense 分支。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2",
+        "E3"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M03-B01",
+    "mechanism_id": "M03",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（主仓库唯一实现路径，含 Q̂ 选择、JSD 判定、vertical/slash 与 query-aware 索引）",
+      "artifact": "同一 Triton/PyTorch 路径：flex_prefill_attention 调用 get_active_blocks 后进入 triton_block_wise_attention；flash_attn/triton 为外部未固定快照，仅作声明依赖"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M03:E1",
+        "M03:E2",
+        "M03:E3"
+      ],
+      "artifact": [
+        "M03:E1",
+        "M03:E2",
+        "M03:E3"
+      ]
+    }
+  },
+  {
+    "id": "M03-B02",
+    "claim_type": "semantic_effect",
+    "requirement": "Q̂ 的代表注意力分数只计算一次，并同时用于模式判定与 Vertical-Slash 索引选择。",
+    "paper": {
+      "page": 7,
+      "quote": "We choose the last block_size query vector as the representative query set Q̂ for both sparse pattern determination and Vertical-Slash sparse index selection, which allows the representative attention score to be computed only once and reused"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "qk=softmax(last_q·Kᵀ) 只算一次（E3）；vertical=qk.mean(-2)、slash=sum_all_diagonal_matrix(qk)/qk.shape[-2] 直接复用该 qk 做覆盖与 topk（E3,E2 1705-1756）；同一 qk 的块池化结果用于 JSD 判定（E4）。",
+      "discrepancy": "",
+      "equivalence": "Â 与 â 由同一 qk 派生（vertical 即块池化 â，avg_qk 为池化估计 ā），满足“算一次并复用”；未见第二次重算 Q̂Kᵀ。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E3",
+        "E4"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "同一函数内复用，无跨模块重复计算；triton_block_wise_attention 只消费 block_idx，不重算代表分数。",
+      "discrepancy": "",
+      "equivalence": "复用发生在 Python 侧张量上，Triton 内核不改变该数据流。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2",
+        "E3"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M03-B02",
+    "mechanism_id": "M03",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（主仓库唯一实现路径，含 Q̂ 选择、JSD 判定、vertical/slash 与 query-aware 索引）",
+      "artifact": "同一 Triton/PyTorch 路径：flex_prefill_attention 调用 get_active_blocks 后进入 triton_block_wise_attention；flash_attn/triton 为外部未固定快照，仅作声明依赖"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M03:E2",
+        "M03:E3",
+        "M03:E4"
+      ],
+      "artifact": [
+        "M03:E1",
+        "M03:E2",
+        "M03:E3"
+      ]
+    }
+  },
+  {
+    "id": "M03-A01",
+    "claim_type": "mechanism_step",
+    "requirement": "Q̂ 为 Q 的严格子集（Q̂ ⊂ Q），即代表集不含全部查询。",
+    "paper": {
+      "page": 6,
+      "quote": "Â ← softmax(Q̂Kᵀ/√d), where Q̂ ⊂ Q"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "last_q 仅取最后 block_size 行；入口在 q_len<=max(2*block_size, ceil(min_budget/block_size)*block_size) 时走 dense 分支，故进入该路径时 q_len>2*block_size，|Q̂|=block_size<q_len。",
+      "discrepancy": "",
+      "equivalence": "严格子集条件由入口早退保证；短序列 dense 分支不产生 Q̂，不违反该条件。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2",
+        "E3"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "同上，长序列路径 |Q̂|=block_size<q_len。",
+      "discrepancy": "",
+      "equivalence": "无额外依赖影响该切片。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M03-A01",
+    "mechanism_id": "M03",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（主仓库唯一实现路径，含 Q̂ 选择、JSD 判定、vertical/slash 与 query-aware 索引）",
+      "artifact": "同一 Triton/PyTorch 路径：flex_prefill_attention 调用 get_active_blocks 后进入 triton_block_wise_attention；flash_attn/triton 为外部未固定快照，仅作声明依赖"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M03:E1",
+        "M03:E2",
+        "M03:E3"
+      ],
+      "artifact": [
+        "M03:E1",
+        "M03:E2"
+      ]
+    }
+  },
+  {
+    "id": "M03-A02",
+    "claim_type": "mechanism_step",
+    "requirement": "Sparse Pattern Search 用 ā=softmax(pool(Q̂)pool(K)ᵀ/√d) 作为估计分布。",
+    "paper": {
+      "page": 6,
+      "quote": "ā← softmax(pool(Q̂)pool(K)ᵀ/√d)"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "avg_k=triton_bnhd_pool(k,block_size)（块均值池化，E6），avg_qk=softmax(einsum(last_q.mean(1), avg_k)/√d)（E4 1722-1725），即 pool(Q̂) 与 pool(K) 的缩放点积 softmax。",
+      "discrepancy": "",
+      "equivalence": "last_q 已含 1/√d 缩放，等价于 /√d；块均值池化与论文 avgpool 语义等价。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E4",
+        "E6"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "同一 Python 计算，池化由 triton_bnhd_pool 完成。",
+      "discrepancy": "",
+      "equivalence": "内核实现细节不改变池化语义。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E4",
+        "E6"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M03-A02",
+    "mechanism_id": "M03",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（主仓库唯一实现路径，含 Q̂ 选择、JSD 判定、vertical/slash 与 query-aware 索引）",
+      "artifact": "同一 Triton/PyTorch 路径：flex_prefill_attention 调用 get_active_blocks 后进入 triton_block_wise_attention；flash_attn/triton 为外部未固定快照，仅作声明依赖"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M03:E4",
+        "M03:E6"
+      ],
+      "artifact": [
+        "M03:E4",
+        "M03:E6"
+      ]
+    }
+  },
+  {
+    "id": "M03-A03",
+    "claim_type": "mechanism_step",
+    "requirement": "Sparse Pattern Search 用 â=pool(softmax(Q̂Kᵀ/√d)) 作为真实块级分布。",
+    "paper": {
+      "page": 6,
+      "quote": "â← pool(softmax(Q̂Kᵀ/√d))"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "qk=softmax(last_q·Kᵀ)（含因果掩码，E3 1699-1703），vertical=qk.mean(-2) 后经 torch_bhn_sumpool(vertical,block_size) 得块级和池化（E3 1706, E2 1715），作为 JSD 的 â 输入（E4 1726）。",
+      "discrepancy": "",
+      "equivalence": "先对查询维求均值再按块 sumpool 与 pool(softmax(...)) 的块和语义一致；因果掩码是因果注意力前提下的必要约束。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E3",
+        "E4"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "同一路径，无外部依赖介入。",
+      "discrepancy": "",
+      "equivalence": "无。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E3",
+        "E4"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M03-A03",
+    "mechanism_id": "M03",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（主仓库唯一实现路径，含 Q̂ 选择、JSD 判定、vertical/slash 与 query-aware 索引）",
+      "artifact": "同一 Triton/PyTorch 路径：flex_prefill_attention 调用 get_active_blocks 后进入 triton_block_wise_attention；flash_attn/triton 为外部未固定快照，仅作声明依赖"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M03:E2",
+        "M03:E3",
+        "M03:E4"
+      ],
+      "artifact": [
+        "M03:E2",
+        "M03:E3",
+        "M03:E4"
+      ]
+    }
+  },
+  {
+    "id": "M03-A04",
+    "claim_type": "mechanism_step",
+    "requirement": "Vertical Slash Index Search 用 Â=softmax(Q̂Kᵀ/√d) 计算子集注意力图。",
+    "paper": {
+      "page": 6,
+      "quote": "Â ← softmax(Q̂Kᵀ/√d), where Q̂ ⊂ Q"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "vertical=qk.mean(-2)、slash=sum_all_diagonal_matrix(qk)/qk.shape[-2] 均直接来自同一 softmax(last_q·Kᵀ)（E3 1703-1706），随后做覆盖 topk 与 transform_veritcal_slash_idx（E2 1707-1758）。",
+      "discrepancy": "",
+      "equivalence": "vertical 为查询维均值、slash 为对角和归一化，是 sum_vertical/sum_slash 的等价聚合；未重算 Â。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E3"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "同一 Python 计算，结果 block_idx 传入 triton_block_wise_attention。",
+      "discrepancy": "",
+      "equivalence": "无。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2",
+        "E3"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M03-A04",
+    "mechanism_id": "M03",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（主仓库唯一实现路径，含 Q̂ 选择、JSD 判定、vertical/slash 与 query-aware 索引）",
+      "artifact": "同一 Triton/PyTorch 路径：flex_prefill_attention 调用 get_active_blocks 后进入 triton_block_wise_attention；flash_attn/triton 为外部未固定快照，仅作声明依赖"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M03:E2",
+        "M03:E3"
+      ],
+      "artifact": [
+        "M03:E1",
+        "M03:E2",
+        "M03:E3"
+      ]
+    }
+  },
+  {
+    "id": "M03-A05",
+    "claim_type": "mechanism_step",
+    "requirement": "Query Aware Index Search 不使用 Q̂，而对完整 Q、K 池化：Q̄=pool(Q), K̄=pool(K)。",
+    "paper": {
+      "page": 6,
+      "quote": "Q̄ ← pool(Q), K̄ ← pool(K)"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "对 block_sparse_mask（JSD<τ）为真的 (b,h)，avg_q 由完整 q[b,:,h,:] 按块均值池化（含末块 pad 校正），avg_k 为 pool(K)，attn=softmax(avg_q·avg_k/√d) 后 score_cover_idx 取索引（E5 1761-1778）。",
+      "discrepancy": "",
+      "equivalence": "逐头循环与算法4 的批量池化等价；使用完整 Q 而非 last_q，符合“不使用 Q̂”。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E4",
+        "E5",
+        "E6"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "同一路径，结果并入 block_idx 后由 Triton 内核消费。",
+      "discrepancy": "",
+      "equivalence": "无。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E5"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M03-A05",
+    "mechanism_id": "M03",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（主仓库唯一实现路径，含 Q̂ 选择、JSD 判定、vertical/slash 与 query-aware 索引）",
+      "artifact": "同一 Triton/PyTorch 路径：flex_prefill_attention 调用 get_active_blocks 后进入 triton_block_wise_attention；flash_attn/triton 为外部未固定快照，仅作声明依赖"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M03:E4",
+        "M03:E5",
+        "M03:E6"
+      ],
+      "artifact": [
+        "M03:E1",
+        "M03:E5"
+      ]
+    }
+  },
+  {
+    "id": "M03-A06",
+    "claim_type": "mechanism_step",
+    "requirement": "|Q̂| = block_size（Q 查询数不少于 block_size 时）。",
+    "paper": {
+      "page": 6,
+      "quote": "select Q̂ = Q[−block_size:]"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "last_q 形状为 [B, block_size, H, D]（E3 1677），block_size 默认 128 且断言在 {16,32,64,128}；进入该路径时 q_len>2*block_size，故切片长度恰为 block_size。",
+      "discrepancy": "",
+      "equivalence": "无。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2",
+        "E3"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "同上，block_size 由入口参数传入，实验默认 128。",
+      "discrepancy": "",
+      "equivalence": "无。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E3"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M03-A06",
+    "mechanism_id": "M03",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（主仓库唯一实现路径，含 Q̂ 选择、JSD 判定、vertical/slash 与 query-aware 索引）",
+      "artifact": "同一 Triton/PyTorch 路径：flex_prefill_attention 调用 get_active_blocks 后进入 triton_block_wise_attention；flash_attn/triton 为外部未固定快照，仅作声明依赖"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M03:E1",
+        "M03:E2",
+        "M03:E3"
+      ],
+      "artifact": [
+        "M03:E1",
+        "M03:E3"
+      ]
+    }
+  },
+  {
+    "id": "M04-B01",
+    "claim_type": "mechanism_step",
+    "requirement": "取最后 block_size 个 query 作为 Q̂",
+    "paper": {
+      "page": 4,
+      "quote": "We select the last block_size query vectors, denoted as Q̂, as a representative subset for subsequent estimation."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "last_q=q[:,-block_size:,:,:]/√d，用于 qk 与 avg_qk",
+      "discrepancy": "",
+      "equivalence": "缩放提前到 Q̂，与 Q̂Kᵀ/√d 等价",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E3"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "同一 last_q 切片进入池化与 JSD 路径",
+      "discrepancy": "",
+      "equivalence": "切片位置与论文 Q[−block_size:] 一致，无额外变换",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E3"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M04-B01",
+    "mechanism_id": "M04",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（__init__ 导出，模块 patch 调用此 ops 入口）",
+      "artifact": "同一入口的池化/JSD 内核路径：triton_bnhd_pool/bnhd_pool_kernel、torch_bhn_sumpool/bhn_sumpool_kernel、square_root_js_divergence；无独立实验脚本，tests/test_llm.py 仅调用该入口"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M04:E1",
+        "M04:E3"
+      ],
+      "artifact": [
+        "M04:E1",
+        "M04:E3"
+      ]
+    }
+  },
+  {
+    "id": "M04-B02-R01",
+    "claim_type": "mechanism_step",
+    "requirement": "ā=softmax(avgpool(Q̂)avgpool(K)ᵀ/√d)，核=block_size",
+    "paper": {
+      "page": 4,
+      "quote": "¯a = softmax(avgpool( ˆQ)avgpool(K)⊤/√d)"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "avg_k=triton_bnhd_pool(k,block_size)；avg_qk=einsum(last_q.mean(1),avg_k)/√d 后 softmax",
+      "discrepancy": "",
+      "equivalence": "Q̂ 恰为一块，last_q.mean(1) 等价 avgpool(Q̂)；GQA 用 repeat 对齐 KV 头",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E3",
+        "E4"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "bnhd_pool_kernel pool_type==0 分支 sum/cur_block_size_n，BLOCK_SIZE_N=kernel_size",
+      "discrepancy": "",
+      "equivalence": "末块按实际长度归一，边界与 avgpool 语义等价",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E4"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M04-B02-R01",
+    "mechanism_id": "M04",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（__init__ 导出，模块 patch 调用此 ops 入口）",
+      "artifact": "同一入口的池化/JSD 内核路径：triton_bnhd_pool/bnhd_pool_kernel、torch_bhn_sumpool/bhn_sumpool_kernel、square_root_js_divergence；无独立实验脚本，tests/test_llm.py 仅调用该入口"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M04:E3",
+        "M04:E4"
+      ],
+      "artifact": [
+        "M04:E4"
+      ]
+    }
+  },
+  {
+    "id": "M04-B03-R01",
+    "claim_type": "mechanism_step",
+    "requirement": "â=sumpool(softmax(Q̂Kᵀ/√d))，softmax 先于 sumpool，核=block_size",
+    "paper": {
+      "page": 4,
+      "quote": "ˆa = sumpool(softmax( ˆQK⊤/√d))"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "qk=softmax(Q̂Kᵀ/√d) 后先 vertical=qk.mean(-2)、slash=sum_all_diagonal_matrix(qk)/qk.shape[-2]，再对这两个长度 seq_len 向量做 torch_bhn_sumpool(·,block_size)；JSD 的 â 操作数为 vertical",
+      "discrepancy": "论文要求对 softmax 矩阵做 block_size×block_size 二维块和；代码先沿 query 维平均/对角投影再沿 key 维块和，â 为列和向量，丢弃块内 query 结构",
+      "equivalence": "仅当 sumpool 弱化为 key 方向一维块和才相符；p.4 公式与 p.6 Algorithm 2 的 pool(softmax(...)) 指二维块池化，故不等价",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2",
+        "E3",
+        "E5",
+        "E6",
+        "E8"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "torch_bhn_sumpool 与 bhn_sumpool_kernel 仅沿 seq_len 一维块和，输入已为 query 维归约后的 vertical/slash",
+      "discrepancy": "池化内核无法表达论文二维 sumpool(softmax 矩阵)，实际 â 为列和向量",
+      "equivalence": "同上，仅在一维弱化解释下等价，与原文不符",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E5"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M04-B03-R01",
+    "mechanism_id": "M04",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（__init__ 导出，模块 patch 调用此 ops 入口）",
+      "artifact": "同一入口的池化/JSD 内核路径：triton_bnhd_pool/bnhd_pool_kernel、torch_bhn_sumpool/bhn_sumpool_kernel、square_root_js_divergence；无独立实验脚本，tests/test_llm.py 仅调用该入口"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M04:E1",
+        "M04:E2",
+        "M04:E3",
+        "M04:E5",
+        "M04:E6",
+        "M04:E8"
+      ],
+      "artifact": [
+        "M04:E2",
+        "M04:E5"
+      ]
+    }
+  },
+  {
+    "id": "M04-A01",
+    "claim_type": "mechanism_step",
+    "requirement": "avgpool 与 sumpool 核大小均等于 block_size",
+    "paper": {
+      "page": 4,
+      "quote": "where the kernel size of the pooling operation is equal to block_size"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "triton_bnhd_pool(k,block_size) 与 torch_bhn_sumpool(vertical/slash,block_size) 均用 block_size；默认 128，断言 {16,32,64,128}",
+      "discrepancy": "",
+      "equivalence": "两处池化核均取同一 block_size 参数，与论文一致",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E3",
+        "E4",
+        "E5"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "两内核 BLOCK_SIZE_N=kernel_size=block_size",
+      "discrepancy": "",
+      "equivalence": "内核 BLOCK_SIZE_N 直接绑定 kernel_size，等价",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E4",
+        "E5"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M04-A01",
+    "mechanism_id": "M04",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（__init__ 导出，模块 patch 调用此 ops 入口）",
+      "artifact": "同一入口的池化/JSD 内核路径：triton_bnhd_pool/bnhd_pool_kernel、torch_bhn_sumpool/bhn_sumpool_kernel、square_root_js_divergence；无独立实验脚本，tests/test_llm.py 仅调用该入口"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M04:E3",
+        "M04:E4",
+        "M04:E5"
+      ],
+      "artifact": [
+        "M04:E4",
+        "M04:E5"
+      ]
+    }
+  },
+  {
+    "id": "M04-A02",
+    "claim_type": "semantic_effect",
+    "requirement": "ā 为估计分布、â 为真实分布，作为 JSD 两操作数",
+    "paper": {
+      "page": 4,
+      "quote": "¯a represents the estimated distribution and ˆa represents the true distribution"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "square_root_js_divergence(avg_qk,vertical)：第一操作数 avg_qk 为池化估计，第二操作数 vertical 为 query 维平均后的列和",
+      "discrepancy": "ā 角色正确；â 角色由 vertical 承担，但 vertical 非论文 sumpool(softmax(Q̂Kᵀ/√d)) 块和，真实分布操作数被替换",
+      "equivalence": "两者均为归一化分布可作 JSD 输入，但语义与论文 â 不同，不等价",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E3",
+        "E6"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "JSD 调用点固定传 avg_qk 与 vertical，slash 未参与 JSD",
+      "discrepancy": "同上，â 操作数非论文块和",
+      "equivalence": "调用点参数顺序与论文 (ā,â) 一致，但第二操作数内容不等价",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E3",
+        "E6"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M04-A02",
+    "mechanism_id": "M04",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（__init__ 导出，模块 patch 调用此 ops 入口）",
+      "artifact": "同一入口的池化/JSD 内核路径：triton_bnhd_pool/bnhd_pool_kernel、torch_bhn_sumpool/bhn_sumpool_kernel、square_root_js_divergence；无独立实验脚本，tests/test_llm.py 仅调用该入口"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M04:E2",
+        "M04:E3",
+        "M04:E6"
+      ],
+      "artifact": [
+        "M04:E3",
+        "M04:E6"
+      ]
+    }
+  },
+  {
+    "id": "M04-A03",
+    "claim_type": "mechanism_step",
+    "requirement": "输出 ā、â 供 JSD 比较，本机制内不做阈值/模式判定",
+    "paper": {
+      "page": 4,
+      "quote": "3. Distribution Comparison: We quantify the discrepancy between these distributions using the square root of the Jensen-Shannon divergence"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "get_active_blocks 算完 JSD 立即 block_sparse_mask=kl_div<tau，并据此把 num_vertical_blocks/num_slash_blocks 置为 min_budget，随后进入 topk 索引",
+      "discrepancy": "论文 Algorithm 2 以 JSD<τ 返回 pattern(query_specific/vertical_slash)；代码不返回模式，而用同一阈值改写预算并继续 vertical/slash 索引，阈值判定与索引选择在本机制内耦合",
+      "equivalence": "阈值比较存在但结果语义不同（预算收缩 vs pattern 返回），非等价",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E3",
+        "E7"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "同一入口内 JSD→阈值→预算改写→transform_veritcal_slash_idx 连续执行，无独立返回两分布接口",
+      "discrepancy": "同上",
+      "equivalence": "无独立 pattern 返回路径，与 Algorithm 2 接口不等价",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E3",
+        "E7"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M04-A03",
+    "mechanism_id": "M04",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（__init__ 导出，模块 patch 调用此 ops 入口）",
+      "artifact": "同一入口的池化/JSD 内核路径：triton_bnhd_pool/bnhd_pool_kernel、torch_bhn_sumpool/bhn_sumpool_kernel、square_root_js_divergence；无独立实验脚本，tests/test_llm.py 仅调用该入口"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M04:E3",
+        "M04:E7"
+      ],
+      "artifact": [
+        "M04:E3",
+        "M04:E7"
+      ]
+    }
+  },
+  {
+    "id": "M05-B01",
+    "claim_type": "mechanism_step",
+    "requirement": "以 m=½(ā+â) 计算 ā 与 â 的 JSD（KL 项之和的一半）",
+    "paper": {
+      "page": 4,
+      "quote": "where m = 1/2(ā+â) is the mean distribution, and DKL(·||·) denotes the Kullback-Leibler divergence."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "square_root_js_divergence 取 m=(p+q)/2，返回 0.5*Σp·log(p/m)+0.5*Σq·log(q/m) 的平方根；p=avg_qk（ā），q=vertical（â）",
+      "discrepancy": "",
+      "equivalence": "p·log(p/m) 即 DKL(p||m) 的逐项形式，等价",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E3"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "同一函数在 flex_prefill_attention→get_active_blocks 路径中被调用（E6→E3）",
+      "discrepancy": "",
+      "equivalence": "同上",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E3",
+        "E6"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M05-B01",
+    "mechanism_id": "M05",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（tau 由 modules/patch.py 以 flex_prefill_tau=0.1 传入）",
+      "artifact": "同一 Triton/PyTorch 实现路径：flex_prefill_attention 的块索引决策 + triton_block_wise_attention 消费 block_idx；依赖 torch/triton/einops（setup.py 声明），未执行"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M05:E1",
+        "M05:E3"
+      ],
+      "artifact": [
+        "M05:E1",
+        "M05:E3",
+        "M05:E6"
+      ]
+    }
+  },
+  {
+    "id": "M05-B02",
+    "claim_type": "mechanism_step",
+    "requirement": "对 JSD 取平方根得 D_JS",
+    "paper": {
+      "page": 4,
+      "quote": "We quantify the discrepancy between these distributions using the square root of the Jensen-Shannon divergence"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "torch.sqrt 包裹 JSD 和式，结果赋给 kl_div 变量",
+      "discrepancy": "",
+      "equivalence": "变量名 kl_div 仅为命名，语义为 √JSD",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E3"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "同路径，sqrt 结果直接用于阈值比较",
+      "discrepancy": "",
+      "equivalence": "同上",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E3",
+        "E6"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M05-B02",
+    "mechanism_id": "M05",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（tau 由 modules/patch.py 以 flex_prefill_tau=0.1 传入）",
+      "artifact": "同一 Triton/PyTorch 实现路径：flex_prefill_attention 的块索引决策 + triton_block_wise_attention 消费 block_idx；依赖 torch/triton/einops（setup.py 声明），未执行"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M05:E1",
+        "M05:E3"
+      ],
+      "artifact": [
+        "M05:E1",
+        "M05:E3",
+        "M05:E6"
+      ]
+    }
+  },
+  {
+    "id": "M05-B03-R01",
+    "claim_type": "mechanism_step",
+    "requirement": "若 D_JS<τ 则模式为 query_specific",
+    "paper": {
+      "page": 6,
+      "quote": "if dJS < τ then pattern ← query_specific"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "block_sparse_mask = kl_div < tau；命中 head 在 E4 循环中计算全 query 的块池化注意力并并入 query-aware 块索引",
+      "discrepancy": "",
+      "equivalence": "以布尔掩码+按 head 追加块索引代替显式 pattern 标签，语义等价",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E3",
+        "E4"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "tau 由 flex_prefill_attention 传入，默认配置 flex_prefill_tau=0.1；block_idx 被 triton_block_wise_attention 消费",
+      "discrepancy": "",
+      "equivalence": "同上；函数签名默认 tau=0 但配置路径显式给 0.1",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E3",
+        "E4",
+        "E6",
+        "E7",
+        "E8"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M05-B03-R01",
+    "mechanism_id": "M05",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（tau 由 modules/patch.py 以 flex_prefill_tau=0.1 传入）",
+      "artifact": "同一 Triton/PyTorch 实现路径：flex_prefill_attention 的块索引决策 + triton_block_wise_attention 消费 block_idx；依赖 torch/triton/einops（setup.py 声明），未执行"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M05:E3",
+        "M05:E4"
+      ],
+      "artifact": [
+        "M05:E3",
+        "M05:E4",
+        "M05:E6",
+        "M05:E7",
+        "M05:E8"
+      ]
+    }
+  },
+  {
+    "id": "M05-B03-R02",
+    "claim_type": "mechanism_step",
+    "requirement": "否则（D_JS≥τ）模式为 vertical_slash",
+    "paper": {
+      "page": 6,
+      "quote": "else pattern ← vertical_slash"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "未命中掩码的 head 不进入 query-aware 循环，仅保留 transform_veritcal_slash_idx 生成的 vertical∪slash 块索引",
+      "discrepancy": "",
+      "equivalence": "以“不追加 query-aware 块”实现回退，等价于 vertical_slash 分支",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E3",
+        "E4"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "回退索引经 block_idx 进入 triton_block_wise_attention",
+      "discrepancy": "",
+      "equivalence": "同上",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E4",
+        "E6"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M05-B03-R02",
+    "mechanism_id": "M05",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（tau 由 modules/patch.py 以 flex_prefill_tau=0.1 传入）",
+      "artifact": "同一 Triton/PyTorch 实现路径：flex_prefill_attention 的块索引决策 + triton_block_wise_attention 消费 block_idx；依赖 torch/triton/einops（setup.py 声明），未执行"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M05:E3",
+        "M05:E4"
+      ],
+      "artifact": [
+        "M05:E4",
+        "M05:E6"
+      ]
+    }
+  },
+  {
+    "id": "M05-A01",
+    "claim_type": "mechanism_step",
+    "requirement": "取 Q̂=Q[−block_size:]",
+    "paper": {
+      "page": 6,
+      "quote": "select Q̂ = Q[−block_size:]"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "last_q = q[:, -block_size:, :, :]/√d，随后与 K 做 einsum",
+      "discrepancy": "",
+      "equivalence": "缩放提前到 Q 上，数学等价",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "同路径；q_len≤2*block_size 时走 dense 分支不进入该步，属论文未覆盖的短序列情形",
+      "discrepancy": "",
+      "equivalence": "同上",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E6"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M05-A01",
+    "mechanism_id": "M05",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（tau 由 modules/patch.py 以 flex_prefill_tau=0.1 传入）",
+      "artifact": "同一 Triton/PyTorch 实现路径：flex_prefill_attention 的块索引决策 + triton_block_wise_attention 消费 block_idx；依赖 torch/triton/einops（setup.py 声明），未执行"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M05:E2"
+      ],
+      "artifact": [
+        "M05:E2",
+        "M05:E6"
+      ]
+    }
+  },
+  {
+    "id": "M05-A02",
+    "claim_type": "mechanism_step",
+    "requirement": "ā=softmax(pool(Q̂)pool(K)ᵀ/√d)",
+    "paper": {
+      "page": 6,
+      "quote": "ā ← softmax(pool(Q̂)pool(K)ᵀ/√d)"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "avg_qk = einsum(last_q.mean(1), triton_bnhd_pool(k,block_size)) 后 softmax；即对 Q̂ 先取均值再与池化 K 相乘，而非先对 Q̂ 做块池化再相乘",
+      "discrepancy": "论文要求 pool(Q̂)（块池化，保留每块一个向量）与 pool(K) 相乘；代码把 Q̂ 的 block_size 行压成单一均值向量，得到 1×num_blocks 的分布，而非 num_blocks×num_blocks 的块级分布",
+      "equivalence": "当 Q̂ 恰为一个块时两者形状一致；但 Q̂ 含 block_size 行且块大小=block_size 时，代码的均值池化与论文的块池化在一般情形下不同（论文未规定 Q̂ 的块划分，故差异程度未定）",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E3"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "同一 avg_qk 计算被用于 D_JS 比较，进而决定 block_sparse_mask",
+      "discrepancy": "同上：ā 的构造为 mean(Q̂)·pool(K) 而非 pool(Q̂)·pool(K)",
+      "equivalence": "同上；未运行实验，无法证明对模式判定无影响",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E3",
+        "E6"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M05-A02",
+    "mechanism_id": "M05",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（tau 由 modules/patch.py 以 flex_prefill_tau=0.1 传入）",
+      "artifact": "同一 Triton/PyTorch 实现路径：flex_prefill_attention 的块索引决策 + triton_block_wise_attention 消费 block_idx；依赖 torch/triton/einops（setup.py 声明），未执行"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M05:E2",
+        "M05:E3"
+      ],
+      "artifact": [
+        "M05:E2",
+        "M05:E3",
+        "M05:E6"
+      ]
+    }
+  },
+  {
+    "id": "M05-A03",
+    "claim_type": "mechanism_step",
+    "requirement": "â=pool(softmax(Q̂Kᵀ/√d))",
+    "paper": {
+      "page": 6,
+      "quote": "â ← pool(softmax(Q̂Kᵀ/√d))"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "qk=softmax(last_q·Kᵀ)（含因果掩码），vertical=qk.mean(-2) 后 torch_bhn_sumpool(vertical, block_size)",
+      "discrepancy": "",
+      "equivalence": "先对 Q̂ 行取均值再按块求和池化，与对 softmax 结果按块池化在块对齐时等价（Q̂ 为最后 block_size 行，恰为末块）",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E3"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "vertical 作为 â 传入 square_root_js_divergence",
+      "discrepancy": "",
+      "equivalence": "同上",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E3",
+        "E6"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M05-A03",
+    "mechanism_id": "M05",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（tau 由 modules/patch.py 以 flex_prefill_tau=0.1 传入）",
+      "artifact": "同一 Triton/PyTorch 实现路径：flex_prefill_attention 的块索引决策 + triton_block_wise_attention 消费 block_idx；依赖 torch/triton/einops（setup.py 声明），未执行"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M05:E2",
+        "M05:E3"
+      ],
+      "artifact": [
+        "M05:E2",
+        "M05:E3",
+        "M05:E6"
+      ]
+    }
+  },
+  {
+    "id": "M05-A04",
+    "claim_type": "guarantee",
+    "requirement": "采用 JSD 因其对称性与有界性，使模式判定更稳定可靠",
+    "paper": {
+      "page": 4,
+      "quote": "We adopt the Jensen-Shannon divergence for its symmetry and boundedness properties, which ensure a more stable and reliable pattern determination."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "使用 √JSD（对称、有界于 [0,√ln2]）作为唯一比较度量，未使用非对称 KL",
+      "discrepancy": "",
+      "equivalence": "对称性/有界性由 JSD 定义本身保证；代码实现与公式一致",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "同一度量贯穿决策路径",
+      "discrepancy": "",
+      "equivalence": "同上；“更稳定可靠”的经验性收益未做实验验证，但该性质由度量选择直接给出",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E3"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M05-A04",
+    "mechanism_id": "M05",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（tau 由 modules/patch.py 以 flex_prefill_tau=0.1 传入）",
+      "artifact": "同一 Triton/PyTorch 实现路径：flex_prefill_attention 的块索引决策 + triton_block_wise_attention 消费 block_idx；依赖 torch/triton/einops（setup.py 声明），未执行"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M05:E1"
+      ],
+      "artifact": [
+        "M05:E1",
+        "M05:E3"
+      ]
+    }
+  },
+  {
+    "id": "M05-A05",
+    "claim_type": "semantic_effect",
+    "requirement": "返回所选模式标签给调用方",
+    "paper": {
+      "page": 6,
+      "quote": "return pattern"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "get_active_blocks 返回 block_idx（按 head 的块索引集合），其中已编码 query-aware 或 vertical/slash 的选择；调用方 flex_prefill_attention 直接消费",
+      "discrepancy": "",
+      "equivalence": "论文的 pattern 标签被具体化为块索引集合，属等价表示；未返回字符串标签不构成语义缺失",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E4",
+        "E6"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "block_idx 传入 triton_block_wise_attention 计算最终输出",
+      "discrepancy": "",
+      "equivalence": "同上",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E4",
+        "E6"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M05-A05",
+    "mechanism_id": "M05",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（tau 由 modules/patch.py 以 flex_prefill_tau=0.1 传入）",
+      "artifact": "同一 Triton/PyTorch 实现路径：flex_prefill_attention 的块索引决策 + triton_block_wise_attention 消费 block_idx；依赖 torch/triton/einops（setup.py 声明），未执行"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M05:E4",
+        "M05:E6"
+      ],
+      "artifact": [
+        "M05:E4",
+        "M05:E6"
+      ]
+    }
+  },
+  {
+    "id": "M05-A06",
+    "claim_type": "mechanism_step",
+    "requirement": "按 pattern 分派：query_specific→Query Aware Index，vertical_slash→Vertical Slash Index",
+    "paper": {
+      "page": 6,
+      "quote": "if pattern == query_specific then S ← Query Aware Index(Q, K, γ) else if pattern == vertical_slash then S ← Vertical Slash Index(Q, K, γ)"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "先由 transform_veritcal_slash_idx 生成 vertical∪slash 索引（对应 Vertical Slash Index），再对 block_sparse_mask 命中的 head 用 score_cover_idx(attn, γ*num_blocks) 追加 query-aware 块（对应 Query Aware Index），二者并集作为 S",
+      "discrepancy": "",
+      "equivalence": "以“基础 vertical/slash 索引 + 条件追加 query-aware 索引”实现分派，而非互斥 if/else；对命中 head 结果包含 query-aware 块，对未命中 head 结果即 vertical/slash 索引，语义等价",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E4",
+        "E6"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "同一 block_idx 被 triton_block_wise_attention 使用；γ 由 gamma 参数传入",
+      "discrepancy": "",
+      "equivalence": "同上",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E4",
+        "E6",
+        "E8"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M05-A06",
+    "mechanism_id": "M05",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（tau 由 modules/patch.py 以 flex_prefill_tau=0.1 传入）",
+      "artifact": "同一 Triton/PyTorch 实现路径：flex_prefill_attention 的块索引决策 + triton_block_wise_attention 消费 block_idx；依赖 torch/triton/einops（setup.py 声明），未执行"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M05:E4",
+        "M05:E6"
+      ],
+      "artifact": [
+        "M05:E4",
+        "M05:E6",
+        "M05:E8"
+      ]
+    }
+  },
+  {
+    "id": "M06-B01",
+    "claim_type": "mechanism_step",
+    "requirement": "按 query 选最小子集 S_i，使 S_i 内归一化注意力质量≥γ，最小化 Σ|S_i|",
+    "paper": {
+      "page": 5,
+      "quote": "min_{S_i} Σ_{i=1}^n |S_i| subject to Σ_{(i,j)∈S_i} exp(Qi·K⊤j/√d)/Σ_{j′=1}^i exp(Qi·K⊤j′/√d) ≥γ,∀i∈ [n]"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "score_cover_topk/score_cover_idx 对降序分数 cumsum，取累计首次超 γ 的最小前缀；块/线选择后经 transform_veritcal_slash_idx 取并集成 S。",
+      "discrepancy": "",
+      "equivalence": "在估计（池化/代表 query）分数上按块/线粒度实现最小覆盖前缀，符合论文 boundary；γ 为注意力质量目标而非固定稀疏比。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2",
+        "E4"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "模块层与 patch 层均以 flex_prefill_gamma（默认 0.9）传入同一 ops 入口，选择逻辑相同。",
+      "discrepancy": "",
+      "equivalence": "min_budget=1024 为下限保护，不改变 γ 覆盖准则。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E5",
+        "E6",
+        "E7"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M06-B01",
+    "mechanism_id": "M06",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention（README 公开入口）及直接委托 get_active_blocks / score_cover_topk / score_cover_idx / transform_veritcal_slash_idx / triton_block_wise_attention",
+      "artifact": "同 commit 模型集成与实验路径：flex_prefill/modules/llama/flex_prefill_attention.py 调用 ops 入口、flex_prefill/modules/patch.py 的 vLLM prefill 分支与 flex_prefill 配置（gamma/tau/min_budget）"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M06:E1",
+        "M06:E2",
+        "M06:E4"
+      ],
+      "artifact": [
+        "M06:E5",
+        "M06:E6",
+        "M06:E7"
+      ]
+    }
+  },
+  {
+    "id": "M06-B02",
+    "claim_type": "mechanism_step",
+    "requirement": "Query-Aware 头：平均池化 Q/K 估块注意力，降序选块至累计归一化分数超 γ",
+    "paper": {
+      "page": 5,
+      "quote": "Estimate the block-wise attention scores by first average-pooling the queries and keys, then computing the attention. ... Sort the blocks in descending order and select blocks in order until the sum of their normalized attention scores exceeds the threshold γ"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "E2 1761-1778：对 block_sparse_mask 命中头，用块内均值 avg_q 与 triton_bnhd_pool 的 avg_k 点积、causal mask、softmax 得块注意力，score_cover_idx(attn, gamma*num_blocks) 降序累计选块并与 vertical/slash 索引并集。",
+      "discrepancy": "",
+      "equivalence": "γ*num_blocks 缩放与块粒度归一化等价于块级累计质量阈值；Query-Aware 由 JS 散度<τ 触发。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E1"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "模块层与 patch 层均把 tau、gamma 传入同一入口，Query-Aware 分支可达。",
+      "discrepancy": "",
+      "equivalence": "配置项 flex_prefill_tau/gamma 原样透传，未改写阈值语义。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E5",
+        "E6",
+        "E7"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M06-B02",
+    "mechanism_id": "M06",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention（README 公开入口）及直接委托 get_active_blocks / score_cover_topk / score_cover_idx / transform_veritcal_slash_idx / triton_block_wise_attention",
+      "artifact": "同 commit 模型集成与实验路径：flex_prefill/modules/llama/flex_prefill_attention.py 调用 ops 入口、flex_prefill/modules/patch.py 的 vLLM prefill 分支与 flex_prefill 配置（gamma/tau/min_budget）"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M06:E2",
+        "M06:E1"
+      ],
+      "artifact": [
+        "M06:E5",
+        "M06:E6",
+        "M06:E7"
+      ]
+    }
+  },
+  {
+    "id": "M06-B03",
+    "claim_type": "mechanism_step",
+    "requirement": "Vertical-Slash 头：代表 Q̂ 算注意力，求 vertical/slash 线均分，降序选线至累计≥γ，再扩展全矩阵",
+    "paper": {
+      "page": 5,
+      "quote": "Select a representative query subset Q̂ and compute attention scores, then calculate average scores for the vertical and slash lines. ... Extend selected lines to the entire attention matrix, forming the sparse index set S."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "E2 1677-1716：取最后 block_size 个 query 作 Q̂，算 qk、softmax，sum_all_diagonal_matrix 得 slash、mean(-2) 得 vertical，score_cover_topk(·,γ) 得线数；1731-1758 降序 topk 选线，经 transform_veritcal_slash_idx 扩展为块索引（E4）。",
+      "discrepancy": "",
+      "equivalence": "线数 //128+1 与 min/max_budget 截断属预算保护；代表 query 子集与论文 Q̂ 一致，线→块扩展语义等价。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E4",
+        "E1"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "模型集成路径同样调用该入口，Vertical-Slash 为默认回退模式。",
+      "discrepancy": "",
+      "equivalence": "集成层仅透传 gamma/tau/budget，不改变线选择与扩展逻辑。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E5",
+        "E6"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M06-B03",
+    "mechanism_id": "M06",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention（README 公开入口）及直接委托 get_active_blocks / score_cover_topk / score_cover_idx / transform_veritcal_slash_idx / triton_block_wise_attention",
+      "artifact": "同 commit 模型集成与实验路径：flex_prefill/modules/llama/flex_prefill_attention.py 调用 ops 入口、flex_prefill/modules/patch.py 的 vLLM prefill 分支与 flex_prefill 配置（gamma/tau/min_budget）"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M06:E2",
+        "M06:E4",
+        "M06:E1"
+      ],
+      "artifact": [
+        "M06:E5",
+        "M06:E6"
+      ]
+    }
+  },
+  {
+    "id": "M06-A01",
+    "claim_type": "mechanism_step",
+    "requirement": "γ 作为两类头共享预算准则，在头类型决策后统一应用",
+    "paper": {
+      "page": 5,
+      "quote": "After deciding whether an attention head belongs to Query-Aware or Vertical-Slash, we attempt to minimize the computation while ensuring effectiveness."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "get_active_blocks 先由 kl_div<tau 定 Query-Aware（block_sparse_mask），再对两类头统一用同一 gamma 做 score_cover_topk/score_cover_idx。",
+      "discrepancy": "",
+      "equivalence": "同函数内先分类后统一应用 γ，符合论文顺序。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "单一 flex_prefill_gamma 配置同时供两类头使用（E7、E5、E6）。",
+      "discrepancy": "",
+      "equivalence": "共享同一 gamma 配置项，无按头类型分设阈值。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E7",
+        "E5",
+        "E6"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M06-A01",
+    "mechanism_id": "M06",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention（README 公开入口）及直接委托 get_active_blocks / score_cover_topk / score_cover_idx / transform_veritcal_slash_idx / triton_block_wise_attention",
+      "artifact": "同 commit 模型集成与实验路径：flex_prefill/modules/llama/flex_prefill_attention.py 调用 ops 入口、flex_prefill/modules/patch.py 的 vLLM prefill 分支与 flex_prefill 配置（gamma/tau/min_budget）"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M06:E2"
+      ],
+      "artifact": [
+        "M06:E7",
+        "M06:E5",
+        "M06:E6"
+      ]
+    }
+  },
+  {
+    "id": "M06-A02",
+    "claim_type": "mechanism_step",
+    "requirement": "Algorithm 1 输入 Q,K,V,τ,γ",
+    "paper": {
+      "page": 5,
+      "quote": "The algorithm takes the query matrix Q, key matrix K, value matrix V , sparse pattern threshold τ and cumulative attention threshold γ as input."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "flex_prefill_attention(q,k,v,gamma,tau,...) 签名与论文输入一致（E3 1791-1803）。",
+      "discrepancy": "",
+      "equivalence": "额外 min/max_budget、block_size 为实现细节，不违背输入要求。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E3"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "模块层以 config.flex_prefill_gamma/tau 传入，patch 层以 cfg 字典传入（E5、E6）。",
+      "discrepancy": "",
+      "equivalence": "两处均提供 Q,K,V,τ,γ 四类输入，参数来源不同但语义一致。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E5",
+        "E6"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M06-A02",
+    "mechanism_id": "M06",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention（README 公开入口）及直接委托 get_active_blocks / score_cover_topk / score_cover_idx / transform_veritcal_slash_idx / triton_block_wise_attention",
+      "artifact": "同 commit 模型集成与实验路径：flex_prefill/modules/llama/flex_prefill_attention.py 调用 ops 入口、flex_prefill/modules/patch.py 的 vLLM prefill 分支与 flex_prefill 配置（gamma/tau/min_budget）"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M06:E3"
+      ],
+      "artifact": [
+        "M06:E5",
+        "M06:E6"
+      ]
+    }
+  },
+  {
+    "id": "M06-A03",
+    "claim_type": "semantic_effect",
+    "requirement": "用所得稀疏索引 S 执行稀疏注意力并返回最终注意力结果",
+    "paper": {
+      "page": 5,
+      "quote": "The algorithm performs sparse attention computation for each attention head using the obtained sparse index and returns the final attention result."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "E3 1856-1889：get_active_blocks 得 block_idx 后调用 triton_block_wise_attention(q,k,v,block_idx,...) 并返回 attn_out（可选附计算比例）。",
+      "discrepancy": "",
+      "equivalence": "块级稀疏 kernel 使用同一 S 计算并返回输出，语义等价。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E3",
+        "E2"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "模块层将返回 attn_output 经 o_proj 输出；patch 层写回 output 缓冲（E5、E6）。",
+      "discrepancy": "",
+      "equivalence": "集成层消费同一返回张量，未替换为全注意力结果。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E5",
+        "E6"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M06-A03",
+    "mechanism_id": "M06",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention（README 公开入口）及直接委托 get_active_blocks / score_cover_topk / score_cover_idx / transform_veritcal_slash_idx / triton_block_wise_attention",
+      "artifact": "同 commit 模型集成与实验路径：flex_prefill/modules/llama/flex_prefill_attention.py 调用 ops 入口、flex_prefill/modules/patch.py 的 vLLM prefill 分支与 flex_prefill 配置（gamma/tau/min_budget）"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M06:E3",
+        "M06:E2"
+      ],
+      "artifact": [
+        "M06:E5",
+        "M06:E6"
+      ]
+    }
+  },
+  {
+    "id": "M06-A04",
+    "claim_type": "guarantee",
+    "requirement": "Eq.3 优化理由的推导在 Appendix A 给出（本页不展开）",
+    "paper": {
+      "page": 5,
+      "quote": "The detailed rationale behind optimizing Equation (3) is provided in Appendix A."
+    },
+    "local_entry": {
+      "review_state": "pending",
+      "verdict": null,
+      "actual": "已检查 p.5 仅含指向 Appendix A 的引用；Appendix A 推导文本未在本次可读页面中获取，未评估其是否支撑 Eq.3。",
+      "discrepancy": "",
+      "equivalence": "",
+      "effect_status": "not_established",
+      "pending_reason": "需读取 Appendix A 原文核对推导；当前仅有 p.5。",
+      "refs": []
+    },
+    "artifact": {
+      "review_state": "pending",
+      "verdict": null,
+      "actual": "已检查 ops/模块/patch 路径均无理论推导实现，代码侧无可对齐对象；Appendix A 未获取。",
+      "discrepancy": "",
+      "equivalence": "",
+      "effect_status": "not_established",
+      "pending_reason": "需 Appendix A 文本；artifact 路径不实现该推导。",
+      "refs": [
+        "E3"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M06-A04",
+    "mechanism_id": "M06",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention（README 公开入口）及直接委托 get_active_blocks / score_cover_topk / score_cover_idx / transform_veritcal_slash_idx / triton_block_wise_attention",
+      "artifact": "同 commit 模型集成与实验路径：flex_prefill/modules/llama/flex_prefill_attention.py 调用 ops 入口、flex_prefill/modules/patch.py 的 vLLM prefill 分支与 flex_prefill 配置（gamma/tau/min_budget）"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [],
+      "artifact": [
+        "M06:E3"
+      ]
+    }
+  },
+  {
+    "id": "M07-B01",
+    "claim_type": "mechanism_step",
+    "requirement": "对 Q、K 应用池化核得到 ¯Q、¯K",
+    "paper": {
+      "page": 6,
+      "quote": "¯Q← pool(Q), ¯K← pool(K)"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "1719-1721 行 triton_bnhd_pool(k, block_size) 得 avg_k；1767-1772 行对 q 按块求均值得 avg_q（末块按 pad 修正）",
+      "discrepancy": "",
+      "equivalence": "块级均值池化与 Triton avg pool 语义等价于 pool(Q)/pool(K)",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E3"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "同一 Triton 池化内核与块均值路径",
+      "discrepancy": "",
+      "equivalence": "同上",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E3"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M07-B01",
+    "mechanism_id": "M07",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::get_active_blocks（flex_prefill_attention 调用），其中 block_sparse_mask 分支为 query-aware 索引选择",
+      "artifact": "同一 Triton/PyTorch 路径：triton_bnhd_pool、torch_bhn_sumpool、score_cover_idx、transform_veritcal_slash_idx 及 flex_prefill_attention 内核调用链；无独立实验脚本或外部依赖参与该机制"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M07:E1",
+        "M07:E3"
+      ],
+      "artifact": [
+        "M07:E1",
+        "M07:E3"
+      ]
+    }
+  },
+  {
+    "id": "M07-B02",
+    "claim_type": "mechanism_step",
+    "requirement": "¯A←softmax(¯Q¯Kᵀ/√d)",
+    "paper": {
+      "page": 6,
+      "quote": "¯A← softmax( ¯Q ¯K⊤/√d)"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "1773-1776 行 einsum(avg_q/√d, avg_k) 后 masked_fill 因果掩码并 softmax(dim=-1)",
+      "discrepancy": "",
+      "equivalence": "因果掩码是因果注意力的必要约束，不改变 softmax 估计语义",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "同上，纯 PyTorch 计算",
+      "discrepancy": "",
+      "equivalence": "同上",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M07-B02",
+    "mechanism_id": "M07",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::get_active_blocks（flex_prefill_attention 调用），其中 block_sparse_mask 分支为 query-aware 索引选择",
+      "artifact": "同一 Triton/PyTorch 路径：triton_bnhd_pool、torch_bhn_sumpool、score_cover_idx、transform_veritcal_slash_idx 及 flex_prefill_attention 内核调用链；无独立实验脚本或外部依赖参与该机制"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M07:E1"
+      ],
+      "artifact": [
+        "M07:E1"
+      ]
+    }
+  },
+  {
+    "id": "M07-B03",
+    "claim_type": "mechanism_step",
+    "requirement": "展平 ¯A 并除以全部元素之和归一化",
+    "paper": {
+      "page": 6,
+      "quote": "¯A← flatten( ¯A/Σ_{i, j} ¯A[i,j])"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "1776 行仅 .view(-1) 展平，未除以总和；1777 行改用 γ*num_blocks 作阈值",
+      "discrepancy": "论文要求先除以 Σ¯A 再展平；代码未归一化，改以放大阈值补偿",
+      "equivalence": "仅当 Σ¯A≈num_blocks 时近似等价；代码未显式归一化，不能视为严格等价",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "同上",
+      "discrepancy": "同上",
+      "equivalence": "同上",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M07-B03",
+    "mechanism_id": "M07",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::get_active_blocks（flex_prefill_attention 调用），其中 block_sparse_mask 分支为 query-aware 索引选择",
+      "artifact": "同一 Triton/PyTorch 路径：triton_bnhd_pool、torch_bhn_sumpool、score_cover_idx、transform_veritcal_slash_idx 及 flex_prefill_attention 内核调用链；无独立实验脚本或外部依赖参与该机制"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M07:E1",
+        "M07:E2"
+      ],
+      "artifact": [
+        "M07:E1",
+        "M07:E2"
+      ]
+    }
+  },
+  {
+    "id": "M07-B04",
+    "claim_type": "mechanism_step",
+    "requirement": "对展平归一化后的 ¯A 做 argsort 得 Ia",
+    "paper": {
+      "page": 6,
+      "quote": "Ia← argsort( ¯A)"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "score_cover_idx 1595 行 torch.sort(x, dim=-1, descending=True) 返回排序值与索引 idx",
+      "discrepancy": "",
+      "equivalence": "降序 sort 返回的索引即 argsort 降序排列，语义等价",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "同上",
+      "discrepancy": "",
+      "equivalence": "同上",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M07-B04",
+    "mechanism_id": "M07",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::get_active_blocks（flex_prefill_attention 调用），其中 block_sparse_mask 分支为 query-aware 索引选择",
+      "artifact": "同一 Triton/PyTorch 路径：triton_bnhd_pool、torch_bhn_sumpool、score_cover_idx、transform_veritcal_slash_idx 及 flex_prefill_attention 内核调用链；无独立实验脚本或外部依赖参与该机制"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M07:E1",
+        "M07:E2"
+      ],
+      "artifact": [
+        "M07:E1",
+        "M07:E2"
+      ]
+    }
+  },
+  {
+    "id": "M07-B05",
+    "claim_type": "mechanism_step",
+    "requirement": "K←min{k: Σ_{i∈Ia[1:k]} ¯A[i] ≥ γ}",
+    "paper": {
+      "page": 6,
+      "quote": "K← min{k :Σ_{i∈Ia[1:k]} ¯A[i]≥γ}"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "score_cover_idx 1596-1597 行 cumsum 后把 cumsum>score 的位置置 0，保留 cumsum≤γ*num_blocks 的前缀；未求最小 k，直接返回索引数组",
+      "discrepancy": "论文取累计和 ≥γ 的最小前缀长度 K；代码保留累计和 ≤γ*num_blocks 的项，边界条件与阈值尺度均不同，且未显式求 K",
+      "equivalence": "保留 cumsum≤阈值 与取最小 k 使 cumsum≥阈值 在离散边界上相差一项，且阈值放大 num_blocks 倍，不等价",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "同上",
+      "discrepancy": "同上",
+      "equivalence": "同上",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M07-B05",
+    "mechanism_id": "M07",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::get_active_blocks（flex_prefill_attention 调用），其中 block_sparse_mask 分支为 query-aware 索引选择",
+      "artifact": "同一 Triton/PyTorch 路径：triton_bnhd_pool、torch_bhn_sumpool、score_cover_idx、transform_veritcal_slash_idx 及 flex_prefill_attention 内核调用链；无独立实验脚本或外部依赖参与该机制"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M07:E1",
+        "M07:E2"
+      ],
+      "artifact": [
+        "M07:E1",
+        "M07:E2"
+      ]
+    }
+  },
+  {
+    "id": "M07-B06-R01",
+    "claim_type": "mechanism_step",
+    "requirement": "S←Ia[1:K]",
+    "paper": {
+      "page": 6,
+      "quote": "S← Ia[1 :K]"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "1777-1778 行 block_topk=score_cover_idx(...) 后与已有 block_idx[b][h]（vertical/slash 索引）做 torch.unique(cat(...)) 合并",
+      "discrepancy": "论文要求 S 为 Ia 前 K 项；代码把 query-aware 前缀与 vertical/slash 索引取并集，S 不是纯 Ia[1:K]",
+      "equivalence": "并集包含 Ia[1:K] 但额外加入 V/S 索引，集合更大，不满足 S=Ia[1:K]",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E5"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "同上",
+      "discrepancy": "同上",
+      "equivalence": "同上",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E5"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M07-B06-R01",
+    "mechanism_id": "M07",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::get_active_blocks（flex_prefill_attention 调用），其中 block_sparse_mask 分支为 query-aware 索引选择",
+      "artifact": "同一 Triton/PyTorch 路径：triton_bnhd_pool、torch_bhn_sumpool、score_cover_idx、transform_veritcal_slash_idx 及 flex_prefill_attention 内核调用链；无独立实验脚本或外部依赖参与该机制"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M07:E1",
+        "M07:E5"
+      ],
+      "artifact": [
+        "M07:E1",
+        "M07:E5"
+      ]
+    }
+  },
+  {
+    "id": "M07-B06-R02",
+    "claim_type": "mechanism_step",
+    "requirement": "返回稀疏索引集 S",
+    "paper": {
+      "page": 6,
+      "quote": "return S"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "1779 行 return block_idx，即每 (b,h) 的索引列表",
+      "discrepancy": "",
+      "equivalence": "返回 list[list[Tensor]] 与论文集合 S 语义等价",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "同上",
+      "discrepancy": "",
+      "equivalence": "同上",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M07-B06-R02",
+    "mechanism_id": "M07",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::get_active_blocks（flex_prefill_attention 调用），其中 block_sparse_mask 分支为 query-aware 索引选择",
+      "artifact": "同一 Triton/PyTorch 路径：triton_bnhd_pool、torch_bhn_sumpool、score_cover_idx、transform_veritcal_slash_idx 及 flex_prefill_attention 内核调用链；无独立实验脚本或外部依赖参与该机制"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M07:E1"
+      ],
+      "artifact": [
+        "M07:E1"
+      ]
+    }
+  },
+  {
+    "id": "M07-A01",
+    "claim_type": "mechanism_step",
+    "requirement": "将稀疏索引集 S 返回给调用者（O8）",
+    "paper": {
+      "page": 6,
+      "quote": "return S"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "get_active_blocks 1779 行 return block_idx，调用方接收并用于后续稀疏注意力",
+      "discrepancy": "",
+      "equivalence": "与 R02 同一返回点，满足返回义务",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "同上",
+      "discrepancy": "",
+      "equivalence": "同上",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M07-A01",
+    "mechanism_id": "M07",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::get_active_blocks（flex_prefill_attention 调用），其中 block_sparse_mask 分支为 query-aware 索引选择",
+      "artifact": "同一 Triton/PyTorch 路径：triton_bnhd_pool、torch_bhn_sumpool、score_cover_idx、transform_veritcal_slash_idx 及 flex_prefill_attention 内核调用链；无独立实验脚本或外部依赖参与该机制"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M07:E1"
+      ],
+      "artifact": [
+        "M07:E1"
+      ]
+    }
+  },
+  {
+    "id": "M08-B01",
+    "claim_type": "mechanism_step",
+    "requirement": "用代表性查询子集 Q̂⊂Q 计算 Â=softmax(Q̂Kᵀ/√d)",
+    "paper": {
+      "page": 6,
+      "quote": "ˆA← softmax( ˆQK⊤/√d),where ˆQ⊂ Q"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "last_q=q[:,-block_size:]（Q̂=尾部块），qk=einsum(last_q/√d,k)，因果区 masked_fill 后 softmax(dim=-1)",
+      "discrepancy": "",
+      "equivalence": "Q̂ 取尾部块与 Algorithm 2 的 Q[-block_size:] 一致；先除 √d 再 softmax 等价；因果掩码是因果注意力的必要细化",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "同上，get_active_blocks 在 q_len>2*block_size 时被调用",
+      "discrepancy": "",
+      "equivalence": "块级实现仍以 Q̂ 子集注意力为输入",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E7"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M08-B01",
+    "mechanism_id": "M08",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（pattern=flex_prefill 的模块入口 llama_flex_prefill_attention_forward 调用它）",
+      "artifact": "同一 flex_prefill 路径的索引选择+块稀疏注意力内核：get_active_blocks、score_cover_topk、sum_all_diagonal_matrix、transform_veritcal_slash_idx、triton_block_wise_attention；不含 vertical_slash 固定预算模式与 minfer 外部依赖"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M08:E1"
+      ],
+      "artifact": [
+        "M08:E1",
+        "M08:E7"
+      ]
+    }
+  },
+  {
+    "id": "M08-B02",
+    "claim_type": "mechanism_step",
+    "requirement": "沿垂直方向求和并按 Â 总和归一化得 a_v",
+    "paper": {
+      "page": 6,
+      "quote": "av← sum_vertical( ˆA)/Σ_{i, j} ˆA[i,j]"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "vertical=qk.mean(-2)（qk 为 softmax 概率，行和为 1）",
+      "discrepancy": "",
+      "equivalence": "softmax 行归一化使 ΣÂ=行数，mean(-2) 与 sum_vertical/Σ 数学等价",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "vertical 再经 torch_bhn_sumpool 按 block_size 聚合为块级垂直分数",
+      "discrepancy": "",
+      "equivalence": "块级聚合是粒度近似，不改变归一化语义",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E3"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M08-B02",
+    "mechanism_id": "M08",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（pattern=flex_prefill 的模块入口 llama_flex_prefill_attention_forward 调用它）",
+      "artifact": "同一 flex_prefill 路径的索引选择+块稀疏注意力内核：get_active_blocks、score_cover_topk、sum_all_diagonal_matrix、transform_veritcal_slash_idx、triton_block_wise_attention；不含 vertical_slash 固定预算模式与 minfer 外部依赖"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M08:E1"
+      ],
+      "artifact": [
+        "M08:E1",
+        "M08:E3"
+      ]
+    }
+  },
+  {
+    "id": "M08-B03",
+    "claim_type": "mechanism_step",
+    "requirement": "沿斜线方向求和并按 Â 总和归一化得 a_s",
+    "paper": {
+      "page": 6,
+      "quote": "as← sum_slash( ˆA)/Σ_{i, j} ˆA[i,j]"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "slash=sum_all_diagonal_matrix(qk)/qk.shape[-2]",
+      "discrepancy": "",
+      "equivalence": "as_strided 求每条斜线和；除以查询行数等价于除以 ΣÂ",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E6"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "slash 再经 sumpool 成块级斜线分数",
+      "discrepancy": "",
+      "equivalence": "块级聚合粒度近似",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E3"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M08-B03",
+    "mechanism_id": "M08",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（pattern=flex_prefill 的模块入口 llama_flex_prefill_attention_forward 调用它）",
+      "artifact": "同一 flex_prefill 路径的索引选择+块稀疏注意力内核：get_active_blocks、score_cover_topk、sum_all_diagonal_matrix、transform_veritcal_slash_idx、triton_block_wise_attention；不含 vertical_slash 固定预算模式与 minfer 外部依赖"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M08:E1",
+        "M08:E6"
+      ],
+      "artifact": [
+        "M08:E1",
+        "M08:E3"
+      ]
+    }
+  },
+  {
+    "id": "M08-B04-R01",
+    "claim_type": "mechanism_step",
+    "requirement": "对 a_v argsort 得 I_v",
+    "paper": {
+      "page": 6,
+      "quote": "Iv← argsort(av)"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "score_cover_topk 内 torch.sort(vertical,descending=True)；随后 vertical.topk 取索引",
+      "discrepancy": "",
+      "equivalence": "降序由“取累计质量最小前缀”隐含；topk 索引即 I_v 前缀",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E4"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "同上，块级 a_v 上排序",
+      "discrepancy": "",
+      "equivalence": "块级排序与 token 级排序语义一致（粒度不同）",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E4"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M08-B04-R01",
+    "mechanism_id": "M08",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（pattern=flex_prefill 的模块入口 llama_flex_prefill_attention_forward 调用它）",
+      "artifact": "同一 flex_prefill 路径的索引选择+块稀疏注意力内核：get_active_blocks、score_cover_topk、sum_all_diagonal_matrix、transform_veritcal_slash_idx、triton_block_wise_attention；不含 vertical_slash 固定预算模式与 minfer 外部依赖"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M08:E2",
+        "M08:E4"
+      ],
+      "artifact": [
+        "M08:E2",
+        "M08:E4"
+      ]
+    }
+  },
+  {
+    "id": "M08-B04-R02",
+    "claim_type": "mechanism_step",
+    "requirement": "对 a_s argsort 得 I_s",
+    "paper": {
+      "page": 6,
+      "quote": "Is← argsort(as)"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "score_cover_topk 对 slash 降序排序；slash.topk 取索引后转为 (num_blocks-1)-idx 斜线偏移",
+      "discrepancy": "",
+      "equivalence": "斜线坐标变换不改变排序/前缀选择语义",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E4"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "同上",
+      "discrepancy": "",
+      "equivalence": "块级粒度近似",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E4"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M08-B04-R02",
+    "mechanism_id": "M08",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（pattern=flex_prefill 的模块入口 llama_flex_prefill_attention_forward 调用它）",
+      "artifact": "同一 flex_prefill 路径的索引选择+块稀疏注意力内核：get_active_blocks、score_cover_topk、sum_all_diagonal_matrix、transform_veritcal_slash_idx、triton_block_wise_attention；不含 vertical_slash 固定预算模式与 minfer 外部依赖"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M08:E2",
+        "M08:E4"
+      ],
+      "artifact": [
+        "M08:E2",
+        "M08:E4"
+      ]
+    }
+  },
+  {
+    "id": "M08-B05",
+    "claim_type": "mechanism_step",
+    "requirement": "K_v=min{k: 前 k 个 a_v 累计≥γ}",
+    "paper": {
+      "page": 6,
+      "quote": "Kv← min{k :Σ_{i∈Iv [1:k]} av[i]≥γ}"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "score_cover_topk 返回 sum(cumsum<=γ)+1，即首个累计“严格超过”γ 的 k；num_vertical_blocks=该值//128+1，再被 min_budget/max_budget 截断",
+      "discrepancy": "论文要求最小 k 使累计≥γ；代码取累计>γ 的最小 k（累计恰等于 γ 时多选一条），且 //128+1 放大、min/max_budget 覆盖，K_v 不再是论文定义的最小前缀",
+      "equivalence": "块级预算与 min/max_budget 是工程约束，但 ≥/> 边界差异与预算覆盖未被等价性论证消除",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E3"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "同上，块级 K_v 进入 vertical.topk 与 transform_veritcal_slash_idx",
+      "discrepancy": "同上：>γ 而非 ≥γ，且 //128+1 与预算截断改变前缀长度",
+      "equivalence": "未证明对最终 S 的覆盖质量无影响",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E3",
+        "E4"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M08-B05",
+    "mechanism_id": "M08",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（pattern=flex_prefill 的模块入口 llama_flex_prefill_attention_forward 调用它）",
+      "artifact": "同一 flex_prefill 路径的索引选择+块稀疏注意力内核：get_active_blocks、score_cover_topk、sum_all_diagonal_matrix、transform_veritcal_slash_idx、triton_block_wise_attention；不含 vertical_slash 固定预算模式与 minfer 外部依赖"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M08:E2",
+        "M08:E3"
+      ],
+      "artifact": [
+        "M08:E2",
+        "M08:E3",
+        "M08:E4"
+      ]
+    }
+  },
+  {
+    "id": "M08-B06",
+    "claim_type": "mechanism_step",
+    "requirement": "K_s=min{k: 前 k 个 a_s 累计≥γ}",
+    "paper": {
+      "page": 6,
+      "quote": "Ks← min{k :Σ_{i∈Is[1:k]} as[i]≥γ}"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "num_slash_blocks=score_cover_topk(slash,γ)//128+1，同样为 >γ 的最小 k 并放大/截断",
+      "discrepancy": "论文要求 ≥γ 的最小前缀；代码用 >γ 且 //128+1、min/max_budget 覆盖",
+      "equivalence": "未证明等价",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E3"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "同上，块级 K_s 用于 slash.topk",
+      "discrepancy": "同上",
+      "equivalence": "未证明等价",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E3",
+        "E4"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M08-B06",
+    "mechanism_id": "M08",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（pattern=flex_prefill 的模块入口 llama_flex_prefill_attention_forward 调用它）",
+      "artifact": "同一 flex_prefill 路径的索引选择+块稀疏注意力内核：get_active_blocks、score_cover_topk、sum_all_diagonal_matrix、transform_veritcal_slash_idx、triton_block_wise_attention；不含 vertical_slash 固定预算模式与 minfer 外部依赖"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M08:E2",
+        "M08:E3"
+      ],
+      "artifact": [
+        "M08:E2",
+        "M08:E3",
+        "M08:E4"
+      ]
+    }
+  },
+  {
+    "id": "M08-B07",
+    "claim_type": "mechanism_step",
+    "requirement": "S_v=I_v[1:K_v]，S_s=I_s[1:K_s]",
+    "paper": {
+      "page": 6,
+      "quote": "Sv← Iv[1 :Kv], Ss← Is[1 :Ks]"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "vertical.topk(min(num_vertical_blocks.max(),num_blocks)) 取前 K_v 索引，超出各自 K 的位置置 0；slash 同理",
+      "discrepancy": "",
+      "equivalence": "批量 topk 后按每头 K 掩码等价于逐头取前 K 项；置 0 填充项在并集/因果过滤中被吸收",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E4"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "同上，随后 transform_veritcal_slash_idx 展开为块坐标",
+      "discrepancy": "",
+      "equivalence": "块坐标展开是“扩展到整个注意力矩阵”的实现",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E4",
+        "E5"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M08-B07",
+    "mechanism_id": "M08",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（pattern=flex_prefill 的模块入口 llama_flex_prefill_attention_forward 调用它）",
+      "artifact": "同一 flex_prefill 路径的索引选择+块稀疏注意力内核：get_active_blocks、score_cover_topk、sum_all_diagonal_matrix、transform_veritcal_slash_idx、triton_block_wise_attention；不含 vertical_slash 固定预算模式与 minfer 外部依赖"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M08:E4"
+      ],
+      "artifact": [
+        "M08:E4",
+        "M08:E5"
+      ]
+    }
+  },
+  {
+    "id": "M08-B08-R01",
+    "claim_type": "mechanism_step",
+    "requirement": "S=S_v∪S_s",
+    "paper": {
+      "page": 6,
+      "quote": "S← Sv∪ Ss"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "transform_veritcal_slash_idx 中 torch.cat((s_idx,v_idx)) 后 torch.unique 去重",
+      "discrepancy": "",
+      "equivalence": "unique(cat) 即集合并",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E5"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "同上；query-aware 头再与 block_topk 并集（E8），属 Algorithm 2 分支",
+      "discrepancy": "",
+      "equivalence": "并集语义保持",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E5",
+        "E8"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M08-B08-R01",
+    "mechanism_id": "M08",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（pattern=flex_prefill 的模块入口 llama_flex_prefill_attention_forward 调用它）",
+      "artifact": "同一 flex_prefill 路径的索引选择+块稀疏注意力内核：get_active_blocks、score_cover_topk、sum_all_diagonal_matrix、transform_veritcal_slash_idx、triton_block_wise_attention；不含 vertical_slash 固定预算模式与 minfer 外部依赖"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M08:E5"
+      ],
+      "artifact": [
+        "M08:E5",
+        "M08:E8"
+      ]
+    }
+  },
+  {
+    "id": "M08-B08-R02",
+    "claim_type": "semantic_effect",
+    "requirement": "返回稀疏索引集 S",
+    "paper": {
+      "page": 6,
+      "quote": "return S"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "get_active_blocks 返回 block_idx（每 batch/head 块索引列表），flex_prefill_attention 传给 triton_block_wise_attention",
+      "discrepancy": "",
+      "equivalence": "返回块级索引而非 token 级索引，是块稀疏实现的等价表示",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E4",
+        "E7"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "block_idx 被 triton_block_wise_attention 消费计算稀疏注意力输出",
+      "discrepancy": "",
+      "equivalence": "索引被实际用于稀疏计算，非仅收集透传",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E7"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M08-B08-R02",
+    "mechanism_id": "M08",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（pattern=flex_prefill 的模块入口 llama_flex_prefill_attention_forward 调用它）",
+      "artifact": "同一 flex_prefill 路径的索引选择+块稀疏注意力内核：get_active_blocks、score_cover_topk、sum_all_diagonal_matrix、transform_veritcal_slash_idx、triton_block_wise_attention；不含 vertical_slash 固定预算模式与 minfer 外部依赖"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M08:E4",
+        "M08:E7"
+      ],
+      "artifact": [
+        "M08:E7"
+      ]
+    }
+  },
+  {
+    "id": "M08-A01",
+    "claim_type": "mechanism_step",
+    "requirement": "将选中的垂直/斜线扩展到整个注意力矩阵形成 S",
+    "paper": {
+      "page": 5,
+      "quote": "Extend selected lines to the entire attention matrix, forming the sparse index set S."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "transform_veritcal_slash_idx 把垂直块索引展开为 row_block*num_blocks+col 并过滤非因果项，斜线展开为 range*num_blocks+range+idx*num_blocks 并过滤越界，再并集",
+      "discrepancy": "",
+      "equivalence": "块坐标展开即把线扩展到整个矩阵；因果过滤是因果注意力的必要约束",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E5"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "展开后的 block_idx 直接驱动 triton_block_wise_attention 的块循环",
+      "discrepancy": "",
+      "equivalence": "同上",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E5",
+        "E7"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M08-A01",
+    "mechanism_id": "M08",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（pattern=flex_prefill 的模块入口 llama_flex_prefill_attention_forward 调用它）",
+      "artifact": "同一 flex_prefill 路径的索引选择+块稀疏注意力内核：get_active_blocks、score_cover_topk、sum_all_diagonal_matrix、transform_veritcal_slash_idx、triton_block_wise_attention；不含 vertical_slash 固定预算模式与 minfer 外部依赖"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M08:E5"
+      ],
+      "artifact": [
+        "M08:E5",
+        "M08:E7"
+      ]
+    }
+  },
+  {
+    "id": "M09-B01",
+    "claim_type": "mechanism_step",
+    "requirement": "用 Q、K、τ 调用 Sparse Pattern Search 决定每个头的稀疏模式（JSD<τ→query_specific，否则 vertical_slash）。",
+    "paper": {
+      "page": 6,
+      "quote": "pattern← Sparse Pattern Search (Q, K,τ )"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "get_active_blocks 取最后 block_size 个 query 与 K 算 qk，softmax 后得 vertical/slash 池化分数，并以 avg_qk 与 vertical 的平方根 JS 散度与 tau 比较得 block_sparse_mask（kl_div<tau 为 query_specific 分支）。",
+      "discrepancy": "",
+      "equivalence": "以块级池化近似替代逐 token 池化，用 mask 而非 pattern 字符串；判定语义（JSD<τ 选 query_specific）一致。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "同一函数在 Triton 路径前执行，模式判定结果决定后续索引选择分支。",
+      "discrepancy": "",
+      "equivalence": "同上；判定为纯 PyTorch 前置步骤，不依赖未固定内核。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M09-B01",
+    "mechanism_id": "M09",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention（README 声明的公开入口；含 get_active_blocks 模式判定/索引选择与 triton_block_wise_attention 稀疏计算）",
+      "artifact": "同一 pinned commit 的 flex_prefill 包执行路径：ops/flex_prefill_attention.py 的 Triton 内核（triton_block_wise_prefill_attention 等）及 modules/*/flex_prefill_attention.py 模型接入；flash_attn/triton 为外部快照，未固定历史版本"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M09:E2"
+      ],
+      "artifact": [
+        "M09:E1",
+        "M09:E2"
+      ]
+    }
+  },
+  {
+    "id": "M09-B02",
+    "claim_type": "mechanism_step",
+    "requirement": "pattern==query_specific 时用 Q、K、γ 经 Query Aware Index 得 S。",
+    "paper": {
+      "page": 6,
+      "quote": "if pattern == query_specific then S← Query Aware Index(Q, K,γ )"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "对 block_sparse_mask 为真的 (b,h)，用块均值 query 与池化 K 算块级注意力、softmax，再 score_cover_idx(attn, gamma*num_blocks) 取累计覆盖 γ 的块集合并与 vertical/slash 索引取并集。",
+      "discrepancy": "",
+      "equivalence": "块粒度索引、gamma*num_blocks 归一化阈值实现累计覆盖，与算法4“排序取累计≥γ 的最小集合”语义等价（块粒度）。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E3"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "所得 block_idx 直接传入 triton_block_wise_attention 作为激活块。",
+      "discrepancy": "",
+      "equivalence": "同上。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2",
+        "E4"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M09-B02",
+    "mechanism_id": "M09",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention（README 声明的公开入口；含 get_active_blocks 模式判定/索引选择与 triton_block_wise_attention 稀疏计算）",
+      "artifact": "同一 pinned commit 的 flex_prefill 包执行路径：ops/flex_prefill_attention.py 的 Triton 内核（triton_block_wise_prefill_attention 等）及 modules/*/flex_prefill_attention.py 模型接入；flash_attn/triton 为外部快照，未固定历史版本"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M09:E2",
+        "M09:E3"
+      ],
+      "artifact": [
+        "M09:E1",
+        "M09:E2",
+        "M09:E4"
+      ]
+    }
+  },
+  {
+    "id": "M09-B03",
+    "claim_type": "mechanism_step",
+    "requirement": "pattern==vertical_slash 时用 Q、K、γ 经 Vertical Slash Index 得 S。",
+    "paper": {
+      "page": 6,
+      "quote": "else if pattern == vertical_slash then S← Vertical Slash Index(Q, K,γ )"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "score_cover_topk 对 vertical/slash 分数求累计覆盖 γ 的块数，经 min/max_budget 裁剪后 topk 选线，transform_veritcal_slash_idx 将竖线与斜线扩展为块网格并取并集。",
+      "discrepancy": "",
+      "equivalence": "块粒度线扩展替代 token 粒度，并强制保留首竖线/末斜线块及预算上下限（论文未禁止的工程约束）；核心“按累计 γ 选竖线与斜线并扩展”一致。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E3"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "block_idx 传入 Triton 稀疏注意力内核。",
+      "discrepancy": "",
+      "equivalence": "同上。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E4"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M09-B03",
+    "mechanism_id": "M09",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention（README 声明的公开入口；含 get_active_blocks 模式判定/索引选择与 triton_block_wise_attention 稀疏计算）",
+      "artifact": "同一 pinned commit 的 flex_prefill 包执行路径：ops/flex_prefill_attention.py 的 Triton 内核（triton_block_wise_prefill_attention 等）及 modules/*/flex_prefill_attention.py 模型接入；flash_attn/triton 为外部快照，未固定历史版本"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M09:E2",
+        "M09:E3"
+      ],
+      "artifact": [
+        "M09:E1",
+        "M09:E4"
+      ]
+    }
+  },
+  {
+    "id": "M09-B04-R01",
+    "claim_type": "semantic_effect",
+    "requirement": "用所得 S 计算 y=A(Q,K,V,S)。",
+    "paper": {
+      "page": 6,
+      "quote": "y← A(Q, K, V, S)"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "triton_block_wise_attention 按 block_idx 仅对激活块做因果注意力（q_len>1 走 prefill 内核），返回 attn_out。",
+      "discrepancy": "",
+      "equivalence": "块级稀疏注意力等价于在 S 上做 softmax 加权求和；数值等价未实测。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E4"
+      ]
+    },
+    "artifact": {
+      "review_state": "pending",
+      "verdict": null,
+      "actual": "Triton 内核 triton_block_wise_prefill_attention 的块掩码/softmax 归一化细节未逐行核验，且 triton 3.0.0 快照未固定历史版本。",
+      "discrepancy": "",
+      "equivalence": "",
+      "effect_status": "not_established",
+      "pending_reason": "需核验 triton_block_wise_prefill_attention 是否严格只累加 block_idx 内块并正确归一化（含因果掩码），并确认 triton 版本对齐。",
+      "refs": [
+        "E4"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M09-B04-R01",
+    "mechanism_id": "M09",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention（README 声明的公开入口；含 get_active_blocks 模式判定/索引选择与 triton_block_wise_attention 稀疏计算）",
+      "artifact": "同一 pinned commit 的 flex_prefill 包执行路径：ops/flex_prefill_attention.py 的 Triton 内核（triton_block_wise_prefill_attention 等）及 modules/*/flex_prefill_attention.py 模型接入；flash_attn/triton 为外部快照，未固定历史版本"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M09:E1",
+        "M09:E4"
+      ],
+      "artifact": [
+        "M09:E4"
+      ]
+    }
+  },
+  {
+    "id": "M09-B04-R02",
+    "claim_type": "semantic_effect",
+    "requirement": "返回 y 作为流水线输出。",
+    "paper": {
+      "page": 6,
+      "quote": "return y"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "函数返回 attn_out（return_computational_ratio 时返回 (attn_out, ratio)）。",
+      "discrepancy": "",
+      "equivalence": "附加可选计算比例返回值不改变默认返回 y 的语义。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "modules/*/flex_prefill_attention.py 将 attn_output 回写为注意力输出。",
+      "discrepancy": "",
+      "equivalence": "同上。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M09-B04-R02",
+    "mechanism_id": "M09",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention（README 声明的公开入口；含 get_active_blocks 模式判定/索引选择与 triton_block_wise_attention 稀疏计算）",
+      "artifact": "同一 pinned commit 的 flex_prefill 包执行路径：ops/flex_prefill_attention.py 的 Triton 内核（triton_block_wise_prefill_attention 等）及 modules/*/flex_prefill_attention.py 模型接入；flash_attn/triton 为外部快照，未固定历史版本"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M09:E1"
+      ],
+      "artifact": [
+        "M09:E1"
+      ]
+    }
+  },
+  {
+    "id": "M09-A01",
+    "claim_type": "mechanism_step",
+    "requirement": "解码阶段由稀疏计算切换为稠密计算。",
+    "paper": {
+      "page": 5,
+      "quote": "Algorithm 1 presents the overall procedure of our proposed method for efficient sparse attention computation."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "q_len==1 时直接调用 flash_attn_func/triton_flash_attention 稠密解码注意力并返回；q_len 过小时亦回退稠密因果注意力。",
+      "discrepancy": "",
+      "equivalence": "以 q_len==1 作为解码判据，等价于论文“解码用稠密”的边界。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E5"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "模型接入层在解码步调用同一入口，走稠密分支。",
+      "discrepancy": "",
+      "equivalence": "同上。",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E5"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M09-A01",
+    "mechanism_id": "M09",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention（README 声明的公开入口；含 get_active_blocks 模式判定/索引选择与 triton_block_wise_attention 稀疏计算）",
+      "artifact": "同一 pinned commit 的 flex_prefill 包执行路径：ops/flex_prefill_attention.py 的 Triton 内核（triton_block_wise_prefill_attention 等）及 modules/*/flex_prefill_attention.py 模型接入；flash_attn/triton 为外部快照，未固定历史版本"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M09:E5"
+      ],
+      "artifact": [
+        "M09:E5"
+      ]
+    }
+  },
+  {
+    "id": "M10-B01-R01",
+    "claim_type": "mechanism_step",
+    "requirement": "每个 query block 的稀疏计算保留第一个 key block",
+    "paper": {
+      "page": 7,
+      "quote": "we retain the first and last key blocks of each query block"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "vertical[..., :1]=inf 使 vertical topk 必含 block 0；transform 后 v_idx 中 block0 对每个 query block 均保留（v_idx//num_blocks<v_idx%num_blocks 过滤只删上三角）",
+      "discrepancy": "",
+      "equivalence": "以分数置 inf 而非显式白名单实现保留，语义等价；Query-Aware 分支 block_topk 为并集，不破坏保留",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E3"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "ruler.sh 的 flex_prefill 配置经 patch.py 进入同一 get_active_blocks 路径",
+      "discrepancy": "",
+      "equivalence": "同一实现，仅配置不同",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E3",
+        "E8",
+        "E9"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M10-B01-R01",
+    "mechanism_id": "M10",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（主库实现入口，被 modules/llama|glm|qwen2 与 vllm patch 调用）",
+      "artifact": "experiments/scripts/flex_prefill/ruler.sh（--cfg flex_prefill_min_budget=1024,gamma=0.95/0.9,block_size=128）→ run_ruler.py → patch.py → flex_prefill_attention 的 Triton 稀疏 kernel 路径"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M10:E2",
+        "M10:E3"
+      ],
+      "artifact": [
+        "M10:E2",
+        "M10:E3",
+        "M10:E8",
+        "M10:E9"
+      ]
+    }
+  },
+  {
+    "id": "M10-B01-R02",
+    "claim_type": "mechanism_step",
+    "requirement": "每个 query block 保留最后一个 key block",
+    "paper": {
+      "page": 7,
+      "quote": "we retain the first and last key blocks of each query block"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "slash[..., -1:]=inf 使 slash topk 必含对角块（每 query block 的最后一个 key block）；s_idx 构造为 range_blocks*num_blocks+range_blocks+s_idx*num_blocks，对角块恒在",
+      "discrepancy": "",
+      "equivalence": "对角块即因果下每 query block 的末 key block，语义等价",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E3"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "实验脚本配置走同一 kernel 路径",
+      "discrepancy": "",
+      "equivalence": "同一实现",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E3",
+        "E8"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M10-B01-R02",
+    "mechanism_id": "M10",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（主库实现入口，被 modules/llama|glm|qwen2 与 vllm patch 调用）",
+      "artifact": "experiments/scripts/flex_prefill/ruler.sh（--cfg flex_prefill_min_budget=1024,gamma=0.95/0.9,block_size=128）→ run_ruler.py → patch.py → flex_prefill_attention 的 Triton 稀疏 kernel 路径"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M10:E2",
+        "M10:E3"
+      ],
+      "artifact": [
+        "M10:E2",
+        "M10:E3",
+        "M10:E8"
+      ]
+    }
+  },
+  {
+    "id": "M10-B02",
+    "claim_type": "mechanism_step",
+    "requirement": "每个 attention head 至少计算 1024 tokens",
+    "paper": {
+      "page": 7,
+      "quote": "requiring each attention head to compute at least 1024 tokens"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "min_budget 被换算为 ceil(min_budget/block_size) 个 block 并作为 num_vertical_blocks/num_slash_blocks 的下限（E1），但该下限只约束 vertical 与 slash 两个子集各自的 topk 数量；最终 block_idx 是二者并集（E3），且 Query-Aware 分支的 block_topk 不受 min_budget 约束（E2 1727-1729 仅对 block_sparse_mask 头设 min_budget，非 mask 头无下限）。",
+      "discrepancy": "论文要求每 head 计算 token 数 ≥1024；代码下限作用于两个子集各自的块数而非该 head 最终激活块总数，且 Query-Aware 头路径无下限，故不能保证每 head 总计算量 ≥1024 tokens。",
+      "equivalence": "若 vertical/slash 并集恰好覆盖 ≥8 块则效果可能满足，但代码未对并集或 Query-Aware 头施加该约束，无等价保证。",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2",
+        "E3",
+        "E4"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "deviates",
+      "actual": "ruler.sh 传 flex_prefill_min_budget=1024，经 patch.py 与 llama 模块传入同一 get_active_blocks，故同样只对 vertical/slash 子集设块数下限",
+      "discrepancy": "实验配置的 1024 预算未转化为每 head 最终激活 token 数下限，Query-Aware 头无下限",
+      "equivalence": "无；配置值正确但语义落点不同",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2",
+        "E3",
+        "E8",
+        "E9"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M10-B02",
+    "mechanism_id": "M10",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（主库实现入口，被 modules/llama|glm|qwen2 与 vllm patch 调用）",
+      "artifact": "experiments/scripts/flex_prefill/ruler.sh（--cfg flex_prefill_min_budget=1024,gamma=0.95/0.9,block_size=128）→ run_ruler.py → patch.py → flex_prefill_attention 的 Triton 稀疏 kernel 路径"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M10:E1",
+        "M10:E2",
+        "M10:E3",
+        "M10:E4"
+      ],
+      "artifact": [
+        "M10:E1",
+        "M10:E2",
+        "M10:E3",
+        "M10:E8",
+        "M10:E9"
+      ]
+    }
+  },
+  {
+    "id": "M10-B03",
+    "claim_type": "semantic_effect",
+    "requirement": "最小预算阈值防止极高稀疏比 head 崩溃并提升性能",
+    "paper": {
+      "page": 9,
+      "quote": "setting a minimum budget threshold enhances performance and prevents the collapse of attention heads with extremely high sparsity ratios"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "min_budget 下限抬升低覆盖 head 的块数（E1），并在 Query-Aware 头处将预算设为 min_budget（E2 1728-1729），避免 head 只选极少块",
+      "discrepancy": "",
+      "equivalence": "机制上存在防止 head 计算量塌缩的下限；性能提升属实验结论",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "实验脚本以 min_budget=1024 运行 RULER，与 Table 10 的 1024 行对应",
+      "discrepancy": "",
+      "equivalence": "配置与论文设置一致",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2",
+        "E8"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M10-B03",
+    "mechanism_id": "M10",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（主库实现入口，被 modules/llama|glm|qwen2 与 vllm patch 调用）",
+      "artifact": "experiments/scripts/flex_prefill/ruler.sh（--cfg flex_prefill_min_budget=1024,gamma=0.95/0.9,block_size=128）→ run_ruler.py → patch.py → flex_prefill_attention 的 Triton 稀疏 kernel 路径"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M10:E1",
+        "M10:E2"
+      ],
+      "artifact": [
+        "M10:E1",
+        "M10:E2",
+        "M10:E8"
+      ]
+    }
+  },
+  {
+    "id": "M10-A01",
+    "claim_type": "semantic_effect",
+    "requirement": "γ 高时最小预算不必要；γ 小时需应用阈值",
+    "paper": {
+      "page": 24,
+      "quote": "when γ is high, the model effectively captures most of the important tokens, making a minimum budget limit unnecessary. However, with smaller γ, the number of tokens selected by some attention heads may be insufficient, causing them to malfunction"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "min_budget 为无条件下限，但 score_cover_topk 在 γ 高时已选足够块，下限不改变结果（E1,E5）；γ 小时下限生效",
+      "discrepancy": "",
+      "equivalence": "代码不按 γ 条件分支，但下限仅在低覆盖时起作用，与论文描述一致",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E5"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "脚本对 Yi/Qwen 用 γ=0.9、其余 0.95，均配 min_budget=1024，与 Table 10 设置一致",
+      "discrepancy": "",
+      "equivalence": "配置一致",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E5",
+        "E8"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M10-A01",
+    "mechanism_id": "M10",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（主库实现入口，被 modules/llama|glm|qwen2 与 vllm patch 调用）",
+      "artifact": "experiments/scripts/flex_prefill/ruler.sh（--cfg flex_prefill_min_budget=1024,gamma=0.95/0.9,block_size=128）→ run_ruler.py → patch.py → flex_prefill_attention 的 Triton 稀疏 kernel 路径"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M10:E1",
+        "M10:E5"
+      ],
+      "artifact": [
+        "M10:E1",
+        "M10:E5",
+        "M10:E8"
+      ]
+    }
+  },
+  {
+    "id": "M10-A02",
+    "claim_type": "semantic_effect",
+    "requirement": "最小预算无需过大，继续增大不再提升",
+    "paper": {
+      "page": 24,
+      "quote": "this minimum budget limit does not need to be excessive, as increasing the budget further does not lead to better results"
+    },
+    "local_entry": {
+      "review_state": "pending",
+      "verdict": null,
+      "actual": "代码仅提供 min_budget 参数，无饱和/上限逻辑可检验",
+      "discrepancy": "",
+      "equivalence": "",
+      "effect_status": "not_established",
+      "pending_reason": "该结论为 Table 10 的实验性饱和观察，需运行 1024/2048 对比实验，静态源码无法判定",
+      "refs": [
+        "E1"
+      ]
+    },
+    "artifact": {
+      "review_state": "pending",
+      "verdict": null,
+      "actual": "脚本仅固定 1024，未含 2048 对照",
+      "discrepancy": "",
+      "equivalence": "",
+      "effect_status": "not_established",
+      "pending_reason": "需执行 Table 10 的 min_budget=2048 配置并比较 RULER 分数",
+      "refs": [
+        "E8"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M10-A02",
+    "mechanism_id": "M10",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（主库实现入口，被 modules/llama|glm|qwen2 与 vllm patch 调用）",
+      "artifact": "experiments/scripts/flex_prefill/ruler.sh（--cfg flex_prefill_min_budget=1024,gamma=0.95/0.9,block_size=128）→ run_ruler.py → patch.py → flex_prefill_attention 的 Triton 稀疏 kernel 路径"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M10:E1"
+      ],
+      "artifact": [
+        "M10:E8"
+      ]
+    }
+  },
+  {
+    "id": "M10-A03",
+    "claim_type": "mechanism_step",
+    "requirement": "预算先由 γ 分配，最小预算仅作为下限抬升低于阈值的 head",
+    "paper": {
+      "page": 7,
+      "quote": "by adjusting the parameter γ, we assign a tailored computational budget to each attention head in real-time for each input scenario"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "num_vertical_blocks=score_cover_topk(vertical,gamma)//128+1 后以 min_budget 抬升、max_budget 截断（E1），即 γ 定预算、下限只抬升",
+      "discrepancy": "",
+      "equivalence": "下限以块数形式施加，语义等价于 token 下限的向上取整",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E4"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "脚本同时传 gamma 与 min_budget，经 patch.py 进入同一逻辑",
+      "discrepancy": "",
+      "equivalence": "同一实现",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E4",
+        "E8",
+        "E9"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M10-A03",
+    "mechanism_id": "M10",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention → get_active_blocks（主库实现入口，被 modules/llama|glm|qwen2 与 vllm patch 调用）",
+      "artifact": "experiments/scripts/flex_prefill/ruler.sh（--cfg flex_prefill_min_budget=1024,gamma=0.95/0.9,block_size=128）→ run_ruler.py → patch.py → flex_prefill_attention 的 Triton 稀疏 kernel 路径"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M10:E1",
+        "M10:E4"
+      ],
+      "artifact": [
+        "M10:E1",
+        "M10:E4",
+        "M10:E8",
+        "M10:E9"
+      ]
+    }
+  },
+  {
+    "id": "M11-B01",
+    "claim_type": "guarantee",
+    "requirement": "推导全/稀疏注意力差上界 (1−a_S)Σ|v_j|",
+    "paper": {
+      "page": 19,
+      "quote": "= (1−aS) LX j=1 |vj|"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "absent",
+      "actual": "入口仅 softmax 后按块累积质量选块（E1,E2），无注意力差/上界计算或断言",
+      "discrepancy": "论文要求给出并推导误差上界；代码无该推导或对应计算",
+      "equivalence": "无等价实现：上界为分析性结论，非运行时计算",
+      "effect_status": "not_applicable",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "absent",
+      "actual": "实验脚本仅传 gamma/tau（E6），无上界验证或误差度量",
+      "discrepancy": "论文要求的上界推导在实验路径无对应实现或检验",
+      "equivalence": "无",
+      "effect_status": "not_applicable",
+      "pending_reason": "",
+      "refs": [
+        "E6"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M11-B01",
+    "mechanism_id": "M11",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention 及 get_active_blocks/score_cover_topk/score_cover_idx 调用链（唯一与 γ 累积注意力目标相关的实现入口）",
+      "artifact": "同一 pinned commit 的 flex_prefill 包 + experiments/scripts/flex_prefill/ruler.sh（flex_prefill_gamma=0.95 配置）构成的实验路径；无独立推导/证明构建产物"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M11:E1",
+        "M11:E2"
+      ],
+      "artifact": [
+        "M11:E6"
+      ]
+    }
+  },
+  {
+    "id": "M11-B02",
+    "claim_type": "mechanism_step",
+    "requirement": "原问题：max_S Σ_{j∈S}a_j s.t. |S|≤γ_S",
+    "paper": {
+      "page": 19,
+      "quote": "max S⊆[L] X j∈S exp(xj)PL j′=1 exp(x′ j) , subject to |S|≤ γS"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "score_cover_topk 对降序分数 cumsum 取覆盖 score 的最少元素数；get_active_blocks 以 gamma 为质量阈值选块（E1,E2）",
+      "discrepancy": "",
+      "equivalence": "以累积质量阈值替代显式 |S|≤γ_S 约束，属 Eq.3 的贪心等价实现（规模由质量隐式决定）",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "flex_prefill_gamma=0.95 经 cfg 传入 flex_prefill_attention（E6,E4）",
+      "discrepancy": "",
+      "equivalence": "同上，块级近似",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E4",
+        "E6"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M11-B02",
+    "mechanism_id": "M11",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention 及 get_active_blocks/score_cover_topk/score_cover_idx 调用链（唯一与 γ 累积注意力目标相关的实现入口）",
+      "artifact": "同一 pinned commit 的 flex_prefill 包 + experiments/scripts/flex_prefill/ruler.sh（flex_prefill_gamma=0.95 配置）构成的实验路径；无独立推导/证明构建产物"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M11:E1",
+        "M11:E2"
+      ],
+      "artifact": [
+        "M11:E4",
+        "M11:E6"
+      ]
+    }
+  },
+  {
+    "id": "M11-B03",
+    "claim_type": "mechanism_step",
+    "requirement": "将二值 z_j 松弛为 0≤z_j≤1",
+    "paper": {
+      "page": 20,
+      "quote": "Step 2: Relax Binary Variables Relaxing to continuous variables:"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "absent",
+      "actual": "代码无 z_j 变量或松弛步骤；选块为离散 topk/累积阈值（E1,E2）",
+      "discrepancy": "论文要求显式连续松弛步骤；代码无该步骤",
+      "equivalence": "离散贪心选块不实现松弛；松弛是证明手段而非运行时必需",
+      "effect_status": "not_applicable",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "absent",
+      "actual": "实验路径无松弛相关代码",
+      "discrepancy": "同上",
+      "equivalence": "无",
+      "effect_status": "not_applicable",
+      "pending_reason": "",
+      "refs": [
+        "E6"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M11-B03",
+    "mechanism_id": "M11",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention 及 get_active_blocks/score_cover_topk/score_cover_idx 调用链（唯一与 γ 累积注意力目标相关的实现入口）",
+      "artifact": "同一 pinned commit 的 flex_prefill 包 + experiments/scripts/flex_prefill/ruler.sh（flex_prefill_gamma=0.95 配置）构成的实验路径；无独立推导/证明构建产物"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M11:E1",
+        "M11:E2"
+      ],
+      "artifact": [
+        "M11:E6"
+      ]
+    }
+  },
+  {
+    "id": "M11-B04",
+    "claim_type": "mechanism_step",
+    "requirement": "构造含 λ、μ_j、ν_j 的 Lagrangian",
+    "paper": {
+      "page": 20,
+      "quote": "Step 3: Lagrangian Formulation Let’s form the Lagrangian for the primal problem:"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "absent",
+      "actual": "入口调用链无 Lagrangian/乘子代码（E1,E2）",
+      "discrepancy": "论文要求构造 Lagrangian；代码无",
+      "equivalence": "无",
+      "effect_status": "not_applicable",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "absent",
+      "actual": "实验路径无",
+      "discrepancy": "同上",
+      "equivalence": "无",
+      "effect_status": "not_applicable",
+      "pending_reason": "",
+      "refs": [
+        "E6"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M11-B04",
+    "mechanism_id": "M11",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention 及 get_active_blocks/score_cover_topk/score_cover_idx 调用链（唯一与 γ 累积注意力目标相关的实现入口）",
+      "artifact": "同一 pinned commit 的 flex_prefill 包 + experiments/scripts/flex_prefill/ruler.sh（flex_prefill_gamma=0.95 配置）构成的实验路径；无独立推导/证明构建产物"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M11:E1",
+        "M11:E2"
+      ],
+      "artifact": [
+        "M11:E6"
+      ]
+    }
+  },
+  {
+    "id": "M11-B05",
+    "claim_type": "mechanism_step",
+    "requirement": "应用 KKT 平稳性与互补松弛条件",
+    "paper": {
+      "page": 20,
+      "quote": "Step 4: KKT Conditions The KKT conditions give:"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "absent",
+      "actual": "入口调用链无 KKT 条件代码（E1,E2）",
+      "discrepancy": "论文要求 KKT 条件；代码无",
+      "equivalence": "无",
+      "effect_status": "not_applicable",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "absent",
+      "actual": "无",
+      "discrepancy": "同上",
+      "equivalence": "无",
+      "effect_status": "not_applicable",
+      "pending_reason": "",
+      "refs": [
+        "E6"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M11-B05",
+    "mechanism_id": "M11",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention 及 get_active_blocks/score_cover_topk/score_cover_idx 调用链（唯一与 γ 累积注意力目标相关的实现入口）",
+      "artifact": "同一 pinned commit 的 flex_prefill 包 + experiments/scripts/flex_prefill/ruler.sh（flex_prefill_gamma=0.95 配置）构成的实验路径；无独立推导/证明构建产物"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M11:E1",
+        "M11:E2"
+      ],
+      "artifact": [
+        "M11:E6"
+      ]
+    }
+  },
+  {
+    "id": "M11-B06",
+    "claim_type": "mechanism_step",
+    "requirement": "最优结构：a_j>λ 时 z_j=1，a_j<λ 时 z_j=0",
+    "paper": {
+      "page": 20,
+      "quote": "1 if exp(xj )PL j′ =1 exp(xj′ ) >λ"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "score_cover_idx 对降序分数累积，cumsum>score 的索引置 0，保留累积质量首次达阈值前的元素（E1,E3）",
+      "discrepancy": "",
+      "equivalence": "等价于以阈值 λ 选分数超过 λ 的位置（λ 由累积质量反解），语义一致",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E3"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "block_topk = score_cover_idx(attn, gamma*num_blocks)（E3）",
+      "discrepancy": "",
+      "equivalence": "块级近似，语义一致",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E3"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M11-B06",
+    "mechanism_id": "M11",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention 及 get_active_blocks/score_cover_topk/score_cover_idx 调用链（唯一与 γ 累积注意力目标相关的实现入口）",
+      "artifact": "同一 pinned commit 的 flex_prefill 包 + experiments/scripts/flex_prefill/ruler.sh（flex_prefill_gamma=0.95 配置）构成的实验路径；无独立推导/证明构建产物"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M11:E1",
+        "M11:E3"
+      ],
+      "artifact": [
+        "M11:E3"
+      ]
+    }
+  },
+  {
+    "id": "M11-B07",
+    "claim_type": "mechanism_step",
+    "requirement": "对偶目标 min|S| s.t. Σ_{j∈S}a_j ≥ γ_a",
+    "paper": {
+      "page": 21,
+      "quote": "The dual objective minimizes the size of the selected subset S while ensuring that the sum of normalized attention scores in the subset is greater than or equal to a threshold γa."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "score_cover_topk 返回覆盖 score 的最少元素数；score_cover_idx 返回累积质量≥阈值的索引集（E1,E3）",
+      "discrepancy": "",
+      "equivalence": "排序+累积和实现最小规模满足质量阈值，与对偶目标语义一致（块级近似）",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E3"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "gamma 经 flex_prefill_attention 传入 get_active_blocks 用于 score_cover_*（E4,E2）",
+      "discrepancy": "",
+      "equivalence": "同上",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E4"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M11-B07",
+    "mechanism_id": "M11",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention 及 get_active_blocks/score_cover_topk/score_cover_idx 调用链（唯一与 γ 累积注意力目标相关的实现入口）",
+      "artifact": "同一 pinned commit 的 flex_prefill 包 + experiments/scripts/flex_prefill/ruler.sh（flex_prefill_gamma=0.95 配置）构成的实验路径；无独立推导/证明构建产物"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M11:E1",
+        "M11:E3"
+      ],
+      "artifact": [
+        "M11:E2",
+        "M11:E4"
+      ]
+    }
+  },
+  {
+    "id": "M11-A01",
+    "claim_type": "mechanism_step",
+    "requirement": "定义全注意力与稀疏注意力公式",
+    "paper": {
+      "page": 19,
+      "quote": "A(Q, K, V ) = PL j=1 exj vjPL j′ =1 e xj′ and the sparse attention computation for this subset is: A(Q, K, V, S) =P j∈S exj vjP j′ ∈S e xj′ ."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "triton_block_wise_attention 在 block_idx 上做 softmax 加权求和即稀疏注意力；全注意力由 flash_attn_func 路径提供（E4）",
+      "discrepancy": "",
+      "equivalence": "块级稀疏注意力与公式语义一致",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E4"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "实验脚本调用 flex_prefill 路径（E6）",
+      "discrepancy": "",
+      "equivalence": "同上",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E4",
+        "E6"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M11-A01",
+    "mechanism_id": "M11",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention 及 get_active_blocks/score_cover_topk/score_cover_idx 调用链（唯一与 γ 累积注意力目标相关的实现入口）",
+      "artifact": "同一 pinned commit 的 flex_prefill 包 + experiments/scripts/flex_prefill/ruler.sh（flex_prefill_gamma=0.95 配置）构成的实验路径；无独立推导/证明构建产物"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M11:E4"
+      ],
+      "artifact": [
+        "M11:E4",
+        "M11:E6"
+      ]
+    }
+  },
+  {
+    "id": "M11-A02",
+    "claim_type": "mechanism_step",
+    "requirement": "定义归一化注意力分数 a_j",
+    "paper": {
+      "page": 19,
+      "quote": "Let the attention scores be defined as aj = exj PL j′ =1 e xj′ ."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "qk 经 softmax(dim=-1) 得归一化分数，再按块池化（E2）",
+      "discrepancy": "",
+      "equivalence": "softmax 输出即 a_j",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "同上",
+      "discrepancy": "",
+      "equivalence": "同上",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M11-A02",
+    "mechanism_id": "M11",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention 及 get_active_blocks/score_cover_topk/score_cover_idx 调用链（唯一与 γ 累积注意力目标相关的实现入口）",
+      "artifact": "同一 pinned commit 的 flex_prefill 包 + experiments/scripts/flex_prefill/ruler.sh（flex_prefill_gamma=0.95 配置）构成的实验路径；无独立推导/证明构建产物"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M11:E2"
+      ],
+      "artifact": [
+        "M11:E2"
+      ]
+    }
+  },
+  {
+    "id": "M11-A03",
+    "claim_type": "mechanism_step",
+    "requirement": "将全/稀疏注意力差表达为 Σ_{j∉S}a_jv_j − (1/Σ_{j∈S}a_j − 1)Σ_{j'∈S}a_{j'}v_{j'}",
+    "paper": {
+      "page": 19,
+      "quote": "= X j̸∈S ajvj−  1P j∈Saj − 1 ! X j′∈S aj′vj′"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "absent",
+      "actual": "入口调用链无该差式或等价计算（E1,E2）",
+      "discrepancy": "论文要求该代数表达；代码无",
+      "equivalence": "无",
+      "effect_status": "not_applicable",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "absent",
+      "actual": "无",
+      "discrepancy": "同上",
+      "equivalence": "无",
+      "effect_status": "not_applicable",
+      "pending_reason": "",
+      "refs": [
+        "E6"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M11-A03",
+    "mechanism_id": "M11",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention 及 get_active_blocks/score_cover_topk/score_cover_idx 调用链（唯一与 γ 累积注意力目标相关的实现入口）",
+      "artifact": "同一 pinned commit 的 flex_prefill 包 + experiments/scripts/flex_prefill/ruler.sh（flex_prefill_gamma=0.95 配置）构成的实验路径；无独立推导/证明构建产物"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M11:E1",
+        "M11:E2"
+      ],
+      "artifact": [
+        "M11:E6"
+      ]
+    }
+  },
+  {
+    "id": "M11-A04",
+    "claim_type": "mechanism_step",
+    "requirement": "定义 a_S 及界 a_k≤a_S (k∈S)、a_k≤1−a_S (k∉S)",
+    "paper": {
+      "page": 19,
+      "quote": "LetaS =P j∈Saj. Then, ak≤ aS fork∈ S, and ak≤ 1−aS fork̸∈ S."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "absent",
+      "actual": "无 a_S 定义或该界的使用（E1,E2）",
+      "discrepancy": "论文要求该界；代码无",
+      "equivalence": "无",
+      "effect_status": "not_applicable",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "absent",
+      "actual": "无",
+      "discrepancy": "同上",
+      "equivalence": "无",
+      "effect_status": "not_applicable",
+      "pending_reason": "",
+      "refs": [
+        "E6"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M11-A04",
+    "mechanism_id": "M11",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention 及 get_active_blocks/score_cover_topk/score_cover_idx 调用链（唯一与 γ 累积注意力目标相关的实现入口）",
+      "artifact": "同一 pinned commit 的 flex_prefill 包 + experiments/scripts/flex_prefill/ruler.sh（flex_prefill_gamma=0.95 配置）构成的实验路径；无独立推导/证明构建产物"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M11:E1",
+        "M11:E2"
+      ],
+      "artifact": [
+        "M11:E6"
+      ]
+    }
+  },
+  {
+    "id": "M11-A05",
+    "claim_type": "mechanism_step",
+    "requirement": "陈述约束优化问题 Eq.4",
+    "paper": {
+      "page": 19,
+      "quote": "min S |A(Q, K, V )− A(Q, K, V, S)| subject to |S|≤ γS S⊆{ (i,j )| 1≤j≤i, i,j∈ Z} (4)"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "absent",
+      "actual": "代码无 Eq.4 形式化问题；仅以 gamma 阈值选块（E2）",
+      "discrepancy": "论文要求陈述该约束问题；代码无对应形式化",
+      "equivalence": "选块是其实用近似，但未实现该问题陈述",
+      "effect_status": "not_applicable",
+      "pending_reason": "",
+      "refs": [
+        "E2"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "absent",
+      "actual": "无",
+      "discrepancy": "同上",
+      "equivalence": "无",
+      "effect_status": "not_applicable",
+      "pending_reason": "",
+      "refs": [
+        "E6"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M11-A05",
+    "mechanism_id": "M11",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention 及 get_active_blocks/score_cover_topk/score_cover_idx 调用链（唯一与 γ 累积注意力目标相关的实现入口）",
+      "artifact": "同一 pinned commit 的 flex_prefill 包 + experiments/scripts/flex_prefill/ruler.sh（flex_prefill_gamma=0.95 配置）构成的实验路径；无独立推导/证明构建产物"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M11:E2"
+      ],
+      "artifact": [
+        "M11:E6"
+      ]
+    }
+  },
+  {
+    "id": "M11-A06",
+    "claim_type": "mechanism_step",
+    "requirement": "引入二值变量 z_j 重写原问题",
+    "paper": {
+      "page": 20,
+      "quote": "Step 1: Binary Variables Ifzj = 1 ifj∈S andzj = 0 otherwise, the primal objective is:"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "absent",
+      "actual": "无 z_j 变量；选块以索引集合表示（E3）",
+      "discrepancy": "论文要求二值变量重写；代码无",
+      "equivalence": "索引集合可表示选择，但无该重写步骤",
+      "effect_status": "not_applicable",
+      "pending_reason": "",
+      "refs": [
+        "E3"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "absent",
+      "actual": "无",
+      "discrepancy": "同上",
+      "equivalence": "无",
+      "effect_status": "not_applicable",
+      "pending_reason": "",
+      "refs": [
+        "E6"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M11-A06",
+    "mechanism_id": "M11",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention 及 get_active_blocks/score_cover_topk/score_cover_idx 调用链（唯一与 γ 累积注意力目标相关的实现入口）",
+      "artifact": "同一 pinned commit 的 flex_prefill 包 + experiments/scripts/flex_prefill/ruler.sh（flex_prefill_gamma=0.95 配置）构成的实验路径；无独立推导/证明构建产物"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M11:E3"
+      ],
+      "artifact": [
+        "M11:E6"
+      ]
+    }
+  },
+  {
+    "id": "M11-A07",
+    "claim_type": "mechanism_step",
+    "requirement": "KKT 平稳性 ∂L/∂z_j=0",
+    "paper": {
+      "page": 20,
+      "quote": "1. Stationarity: ∂L ∂zj =− exp(xj)PL j′=1 exp(xj′) +λ−µj +νj = 0"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "absent",
+      "actual": "入口调用链无平稳性条件（E1,E2）",
+      "discrepancy": "论文要求平稳性条件；代码无",
+      "equivalence": "无",
+      "effect_status": "not_applicable",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "absent",
+      "actual": "无",
+      "discrepancy": "同上",
+      "equivalence": "无",
+      "effect_status": "not_applicable",
+      "pending_reason": "",
+      "refs": [
+        "E6"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M11-A07",
+    "mechanism_id": "M11",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention 及 get_active_blocks/score_cover_topk/score_cover_idx 调用链（唯一与 γ 累积注意力目标相关的实现入口）",
+      "artifact": "同一 pinned commit 的 flex_prefill 包 + experiments/scripts/flex_prefill/ruler.sh（flex_prefill_gamma=0.95 配置）构成的实验路径；无独立推导/证明构建产物"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M11:E1",
+        "M11:E2"
+      ],
+      "artifact": [
+        "M11:E6"
+      ]
+    }
+  },
+  {
+    "id": "M11-A08",
+    "claim_type": "mechanism_step",
+    "requirement": "KKT 互补松弛条件",
+    "paper": {
+      "page": 20,
+      "quote": "2. Complementary slackness: λ( LX j=1 zj−γS) = 0 µjzj = 0 νj(zj− 1) = 0"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "absent",
+      "actual": "入口调用链无互补松弛条件（E1,E2）",
+      "discrepancy": "论文要求互补松弛；代码无",
+      "equivalence": "无",
+      "effect_status": "not_applicable",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E2"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "absent",
+      "actual": "无",
+      "discrepancy": "同上",
+      "equivalence": "无",
+      "effect_status": "not_applicable",
+      "pending_reason": "",
+      "refs": [
+        "E6"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M11-A08",
+    "mechanism_id": "M11",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention 及 get_active_blocks/score_cover_topk/score_cover_idx 调用链（唯一与 γ 累积注意力目标相关的实现入口）",
+      "artifact": "同一 pinned commit 的 flex_prefill 包 + experiments/scripts/flex_prefill/ruler.sh（flex_prefill_gamma=0.95 配置）构成的实验路径；无独立推导/证明构建产物"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M11:E1",
+        "M11:E2"
+      ],
+      "artifact": [
+        "M11:E6"
+      ]
+    }
+  },
+  {
+    "id": "M11-A09",
+    "claim_type": "mechanism_step",
+    "requirement": "单查询对偶问题 min Σz_j s.t. 质量≥γ_a",
+    "paper": {
+      "page": 20,
+      "quote": "Step 6: Duality The dual problem becomes finding minimum|S| (or equivalentlyPL j=1zj) that achieves required attention massγa."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "score_cover_topk 求最小覆盖数，score_cover_idx 求满足质量阈值的集合（E1,E3）",
+      "discrepancy": "",
+      "equivalence": "排序+累积和即最小规模满足质量阈值，语义等价（块级）",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E3"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "gamma 传入 get_active_blocks 使用（E2,E4）",
+      "discrepancy": "",
+      "equivalence": "同上",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E4"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M11-A09",
+    "mechanism_id": "M11",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention 及 get_active_blocks/score_cover_topk/score_cover_idx 调用链（唯一与 γ 累积注意力目标相关的实现入口）",
+      "artifact": "同一 pinned commit 的 flex_prefill 包 + experiments/scripts/flex_prefill/ruler.sh（flex_prefill_gamma=0.95 配置）构成的实验路径；无独立推导/证明构建产物"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M11:E1",
+        "M11:E3"
+      ],
+      "artifact": [
+        "M11:E2",
+        "M11:E4"
+      ]
+    }
+  },
+  {
+    "id": "M11-A10",
+    "claim_type": "mechanism_step",
+    "requirement": "将单查询对偶目标在 i∈[n] 上聚合得 Eq.3",
+    "paper": {
+      "page": 20,
+      "quote": "The general objective for all query positions, as shown in Equation (3), can be obtained by aggre- gating the objectives for individual query positions (Equation (8)) across alli∈ [n]"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "get_active_blocks 对 last_q 行 softmax 后按块累积选块，逐头/逐查询聚合（E2,E3）",
+      "discrepancy": "",
+      "equivalence": "以块级、逐头聚合实现 Eq.3 的实用形式",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E3"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "实验路径调用同一入口（E6）",
+      "discrepancy": "",
+      "equivalence": "同上",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E6"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M11-A10",
+    "mechanism_id": "M11",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention 及 get_active_blocks/score_cover_topk/score_cover_idx 调用链（唯一与 γ 累积注意力目标相关的实现入口）",
+      "artifact": "同一 pinned commit 的 flex_prefill 包 + experiments/scripts/flex_prefill/ruler.sh（flex_prefill_gamma=0.95 配置）构成的实验路径；无独立推导/证明构建产物"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M11:E2",
+        "M11:E3"
+      ],
+      "artifact": [
+        "M11:E2",
+        "M11:E6"
+      ]
+    }
+  },
+  {
+    "id": "M11-A11",
+    "claim_type": "guarantee",
+    "requirement": "断言 γ_a 为原问题最优注意力质量，凸松弛保证零对偶间隙，强对偶成立",
+    "paper": {
+      "page": 21,
+      "quote": "γa corresponds to the optimal attention mass achieved in the primal problem. The equivalence holds by strong duality, as the primal problem’s convex relaxation ensures zero duality gap."
+    },
+    "local_entry": {
+      "review_state": "pending",
+      "verdict": null,
+      "actual": "入口仅实现贪心选块（E1,E3），无强对偶/零间隙证明或检验",
+      "discrepancy": "",
+      "equivalence": "",
+      "effect_status": "not_established",
+      "pending_reason": "需数学审查该强对偶断言（二值原问题松弛后是否零间隙）及 γ_a 与最优质量对应；代码不可提供证明",
+      "refs": [
+        "E1",
+        "E3"
+      ]
+    },
+    "artifact": {
+      "review_state": "pending",
+      "verdict": null,
+      "actual": "实验脚本仅传 gamma（E6），无对偶间隙度量",
+      "discrepancy": "",
+      "equivalence": "",
+      "effect_status": "not_established",
+      "pending_reason": "需在实验路径检验选块结果与穷举最优质量/最小规模的差距，当前未执行",
+      "refs": [
+        "E6"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M11-A11",
+    "mechanism_id": "M11",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention 及 get_active_blocks/score_cover_topk/score_cover_idx 调用链（唯一与 γ 累积注意力目标相关的实现入口）",
+      "artifact": "同一 pinned commit 的 flex_prefill 包 + experiments/scripts/flex_prefill/ruler.sh（flex_prefill_gamma=0.95 配置）构成的实验路径；无独立推导/证明构建产物"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M11:E1",
+        "M11:E3"
+      ],
+      "artifact": [
+        "M11:E6"
+      ]
+    }
+  },
+  {
+    "id": "M11-A12",
+    "claim_type": "semantic_effect",
+    "requirement": "建立 Eq.7 与 Eq.3 联系，指出子集大小与注意力分数的权衡",
+    "paper": {
+      "page": 21,
+      "quote": "By deriving the dual form and showing that it is equivalent to our main objective, we establish a strong connection between the Equation (7) and Equation (3) formulations."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "score_cover_topk/idx 以质量阈值隐式决定规模，体现大小-质量权衡（E1,E3）",
+      "discrepancy": "",
+      "equivalence": "贪心累积质量实现即该权衡的实用形式",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E3"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "gamma 参数控制该权衡（E6）",
+      "discrepancy": "",
+      "equivalence": "同上",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E6"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M11-A12",
+    "mechanism_id": "M11",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention 及 get_active_blocks/score_cover_topk/score_cover_idx 调用链（唯一与 γ 累积注意力目标相关的实现入口）",
+      "artifact": "同一 pinned commit 的 flex_prefill 包 + experiments/scripts/flex_prefill/ruler.sh（flex_prefill_gamma=0.95 配置）构成的实验路径；无独立推导/证明构建产物"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M11:E1",
+        "M11:E3"
+      ],
+      "artifact": [
+        "M11:E6"
+      ]
+    }
+  },
+  {
+    "id": "M12-B01",
+    "claim_type": "mechanism_step",
+    "requirement": "用 PyTorch 构建基于 FlashAttention 的自定义长上下文注意力流水线",
+    "paper": {
+      "page": 7,
+      "quote": "we implement a custom pipeline using PyTorch, building on FlashAttention (Dao, 2024)"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "flex_prefill_attention 为 PyTorch 函数，内部 Triton 分块稀疏注意力；patch.py 替换 HF 注意力",
+      "discrepancy": "",
+      "equivalence": "Triton 分块在线 softmax 实现 FlashAttention 式注意力，属等价实现",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E6"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "run_ruler/run_infinitebench 经 patch_model 注入 flex_prefill，模型以 flash_attention_2 加载",
+      "discrepancy": "",
+      "equivalence": "实验路径使用自定义流水线而非原生 dense 注意力",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1",
+        "E5"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M12-B01",
+    "mechanism_id": "M12",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention 及其 Triton kernel，加 flex_prefill/modules/patch.py 的配置默认值与模型 patch 路径",
+      "artifact": "experiments/scripts/flex_prefill/{ruler.sh,infinitebench.sh} + experiments/benchmark/{run_ruler.py,run_infinitebench.py} 实验路径，含其调用的 flex_prefill 包与 setup.py/README 声明的依赖（triton==3.0.0，flash_attn 可选）"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M12:E1",
+        "M12:E6"
+      ],
+      "artifact": [
+        "M12:E1",
+        "M12:E5"
+      ]
+    }
+  },
+  {
+    "id": "M12-B02",
+    "claim_type": "mechanism_step",
+    "requirement": "利用 Triton 优化 GPU 加速计算",
+    "paper": {
+      "page": 7,
+      "quote": "Our implementation leverages Triton (Tillet et al., 2019) for optimizing the performance of GPU-accelerated computations"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "flex_prefill_attention.py import triton/triton.language，含 @triton.jit kernel 与 num_warps/num_stages 调优",
+      "discrepancy": "",
+      "equivalence": "Triton kernel 即论文所述 GPU 加速实现",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E6"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "setup.py 声明 triton==3.0.0；实验脚本调用的即该 Triton 实现",
+      "discrepancy": "",
+      "equivalence": "依赖声明与调用路径一致",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E8",
+        "E2"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M12-B02",
+    "mechanism_id": "M12",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention 及其 Triton kernel，加 flex_prefill/modules/patch.py 的配置默认值与模型 patch 路径",
+      "artifact": "experiments/scripts/flex_prefill/{ruler.sh,infinitebench.sh} + experiments/benchmark/{run_ruler.py,run_infinitebench.py} 实验路径，含其调用的 flex_prefill 包与 setup.py/README 声明的依赖（triton==3.0.0，flash_attn 可选）"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M12:E6"
+      ],
+      "artifact": [
+        "M12:E8",
+        "M12:E2"
+      ]
+    }
+  },
+  {
+    "id": "M12-B03",
+    "claim_type": "mechanism_step",
+    "requirement": "所有实验使用 block_size=128",
+    "paper": {
+      "page": 7,
+      "quote": "uses ablock_size = 128 in all experiments"
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "ATTENTION_CONFIG_EXAMPLE 中 flex_prefill/vertical_slash 的 block_size 默认 128，patch_model_config 未指定时填入",
+      "discrepancy": "",
+      "equivalence": "默认配置即 128，与论文一致",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "ruler.sh 与 infinitebench.sh 全部 flex_prefill 命令均显式传 block_size=128",
+      "discrepancy": "",
+      "equivalence": "脚本显式配置与论文一致",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E3"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M12-B03",
+    "mechanism_id": "M12",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention 及其 Triton kernel，加 flex_prefill/modules/patch.py 的配置默认值与模型 patch 路径",
+      "artifact": "experiments/scripts/flex_prefill/{ruler.sh,infinitebench.sh} + experiments/benchmark/{run_ruler.py,run_infinitebench.py} 实验路径，含其调用的 flex_prefill 包与 setup.py/README 声明的依赖（triton==3.0.0，flash_attn 可选）"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M12:E1"
+      ],
+      "artifact": [
+        "M12:E2",
+        "M12:E3"
+      ]
+    }
+  },
+  {
+    "id": "M12-B04",
+    "claim_type": "mechanism_step",
+    "requirement": "所有模型 τ=0.1",
+    "paper": {
+      "page": 7,
+      "quote": "The sparse pattern threshold τ is set to 0.1 for all models."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "flex_prefill_tau 默认 0.1",
+      "discrepancy": "",
+      "equivalence": "默认阈值与论文一致",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "两个实验脚本所有 flex_prefill 命令均传 flex_prefill_tau=0.1",
+      "discrepancy": "",
+      "equivalence": "脚本显式配置与论文一致",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E3"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M12-B04",
+    "mechanism_id": "M12",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention 及其 Triton kernel，加 flex_prefill/modules/patch.py 的配置默认值与模型 patch 路径",
+      "artifact": "experiments/scripts/flex_prefill/{ruler.sh,infinitebench.sh} + experiments/benchmark/{run_ruler.py,run_infinitebench.py} 实验路径，含其调用的 flex_prefill 包与 setup.py/README 声明的依赖（triton==3.0.0，flash_attn 可选）"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M12:E1"
+      ],
+      "artifact": [
+        "M12:E2",
+        "M12:E3"
+      ]
+    }
+  },
+  {
+    "id": "M12-B05-R01",
+    "claim_type": "mechanism_step",
+    "requirement": "Yi-9B-200k 与 Qwen2-7B-Instruct 用 γ=0.9，其余模型 0.95",
+    "paper": {
+      "page": 7,
+      "quote": "We set γ = 0.9 for Yi-9B-200k and Qwen2-7B-Instruct model, and 0.95 for the other models."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "默认 flex_prefill_gamma=0.9，可被 cfg 覆盖",
+      "discrepancy": "",
+      "equivalence": "默认值不区分模型，但实验脚本按模型显式覆盖，机制层不构成违背",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E1"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "ruler.sh/infinitebench.sh：Llama-3.1-8B 与 glm-4-9b-chat-1m 用 0.95；Yi-9B-200K 与 Qwen2-7B-Instruct 用 0.9",
+      "discrepancy": "",
+      "equivalence": "脚本按模型取值与论文一致",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E3"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M12-B05-R01",
+    "mechanism_id": "M12",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention 及其 Triton kernel，加 flex_prefill/modules/patch.py 的配置默认值与模型 patch 路径",
+      "artifact": "experiments/scripts/flex_prefill/{ruler.sh,infinitebench.sh} + experiments/benchmark/{run_ruler.py,run_infinitebench.py} 实验路径，含其调用的 flex_prefill 包与 setup.py/README 声明的依赖（triton==3.0.0，flash_attn 可选）"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M12:E1"
+      ],
+      "artifact": [
+        "M12:E2",
+        "M12:E3"
+      ]
+    }
+  },
+  {
+    "id": "M12-B05-R02",
+    "claim_type": "semantic_effect",
+    "requirement": "通过调节 γ 为每个注意力头、每个输入场景实时分配定制计算预算",
+    "paper": {
+      "page": 7,
+      "quote": "by adjusting the parameter γ, we assign a tailored computational budget to each attention head in real-time for each input scenario"
+    },
+    "local_entry": {
+      "review_state": "pending",
+      "verdict": null,
+      "actual": "已确认 γ 作为参数传入 flex_prefill_attention 且配置含 min_budget=1024；未读 kernel 内 γ→逐头预算映射代码",
+      "discrepancy": "",
+      "equivalence": "",
+      "effect_status": "not_established",
+      "pending_reason": "需读 flex_prefill_attention 中 gamma 参与预算/阈值计算的 host 与 kernel 代码，确认预算按头、按输入动态生成",
+      "refs": [
+        "E1",
+        "E6"
+      ]
+    },
+    "artifact": {
+      "review_state": "pending",
+      "verdict": null,
+      "actual": "脚本按模型设置 γ；未验证运行时每头预算随输入变化",
+      "discrepancy": "",
+      "equivalence": "",
+      "effect_status": "not_established",
+      "pending_reason": "需在 flex_prefill_attention 预算计算路径核对逐头/逐输入动态预算",
+      "refs": [
+        "E2",
+        "E3"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M12-B05-R02",
+    "mechanism_id": "M12",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention 及其 Triton kernel，加 flex_prefill/modules/patch.py 的配置默认值与模型 patch 路径",
+      "artifact": "experiments/scripts/flex_prefill/{ruler.sh,infinitebench.sh} + experiments/benchmark/{run_ruler.py,run_infinitebench.py} 实验路径，含其调用的 flex_prefill 包与 setup.py/README 声明的依赖（triton==3.0.0，flash_attn 可选）"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M12:E1",
+        "M12:E6"
+      ],
+      "artifact": [
+        "M12:E2",
+        "M12:E3"
+      ]
+    }
+  },
+  {
+    "id": "M12-B06",
+    "claim_type": "mechanism_step",
+    "requirement": "所有实验使用贪心解码",
+    "paper": {
+      "page": 7,
+      "quote": "All experiments were conducted using greedy decoding to maintain consistency across results."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "注意力实现本身不涉及解码；解码由实验脚本控制",
+      "discrepancy": "",
+      "equivalence": "贪心属调用侧配置，非注意力实现职责，不构成违背",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E6"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "run_ruler.py 与 run_infinitebench.py 均 do_sample = False if top_p <= 0；utils.py 中 --top_p 默认 -1，脚本未覆盖，故走贪心分支",
+      "discrepancy": "",
+      "equivalence": "贪心由 top_p<=0 分支触发，属等价实现",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E4",
+        "E5",
+        "E9"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M12-B06",
+    "mechanism_id": "M12",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention 及其 Triton kernel，加 flex_prefill/modules/patch.py 的配置默认值与模型 patch 路径",
+      "artifact": "experiments/scripts/flex_prefill/{ruler.sh,infinitebench.sh} + experiments/benchmark/{run_ruler.py,run_infinitebench.py} 实验路径，含其调用的 flex_prefill 包与 setup.py/README 声明的依赖（triton==3.0.0，flash_attn 可选）"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M12:E6"
+      ],
+      "artifact": [
+        "M12:E4",
+        "M12:E5",
+        "M12:E9"
+      ]
+    }
+  },
+  {
+    "id": "M12-A01",
+    "claim_type": "mechanism_step",
+    "requirement": "取最后 block_size 个 query 向量作为代表查询集 Q̂，用于稀疏模式判定与 Vertical-Slash 索引选择",
+    "paper": {
+      "page": 7,
+      "quote": "We choose the last block_size query vector as the representative query set ˆQ for both sparse pattern determination and Vertical-Slash sparse index selection"
+    },
+    "local_entry": {
+      "review_state": "pending",
+      "verdict": null,
+      "actual": "未读 flex_prefill_attention 中构造 Q̂ 的切片代码",
+      "discrepancy": "",
+      "equivalence": "",
+      "effect_status": "not_established",
+      "pending_reason": "需读 flex_prefill_attention 中 Q̂ 切片（如 q[:, -block_size:]）并确认同时供模式判定与索引选择使用",
+      "refs": [
+        "E6"
+      ]
+    },
+    "artifact": {
+      "review_state": "pending",
+      "verdict": null,
+      "actual": "实验脚本不涉及该切片逻辑",
+      "discrepancy": "",
+      "equivalence": "",
+      "effect_status": "not_established",
+      "pending_reason": "依赖 local_entry 的 Q̂ 切片核对结果",
+      "refs": [
+        "E2"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M12-A01",
+    "mechanism_id": "M12",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention 及其 Triton kernel，加 flex_prefill/modules/patch.py 的配置默认值与模型 patch 路径",
+      "artifact": "experiments/scripts/flex_prefill/{ruler.sh,infinitebench.sh} + experiments/benchmark/{run_ruler.py,run_infinitebench.py} 实验路径，含其调用的 flex_prefill 包与 setup.py/README 声明的依赖（triton==3.0.0，flash_attn 可选）"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M12:E6"
+      ],
+      "artifact": [
+        "M12:E2"
+      ]
+    }
+  },
+  {
+    "id": "M12-A02",
+    "claim_type": "semantic_effect",
+    "requirement": "代表注意力分数只计算一次并在模式判定与稀疏索引选择中复用",
+    "paper": {
+      "page": 7,
+      "quote": "which allows the representative attention score to be computed only once and reused in both attention pattern determination and sparse index selection"
+    },
+    "local_entry": {
+      "review_state": "pending",
+      "verdict": null,
+      "actual": "未定位代表分数计算点与两处消费点",
+      "discrepancy": "",
+      "equivalence": "",
+      "effect_status": "not_established",
+      "pending_reason": "需在 flex_prefill_attention 中确认同一代表分数张量被模式判定与索引选择共用而非重复计算",
+      "refs": [
+        "E6"
+      ]
+    },
+    "artifact": {
+      "review_state": "pending",
+      "verdict": null,
+      "actual": "实验脚本不涉及",
+      "discrepancy": "",
+      "equivalence": "",
+      "effect_status": "not_established",
+      "pending_reason": "依赖 local_entry 代表分数复用核对",
+      "refs": [
+        "E2"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M12-A02",
+    "mechanism_id": "M12",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention 及其 Triton kernel，加 flex_prefill/modules/patch.py 的配置默认值与模型 patch 路径",
+      "artifact": "experiments/scripts/flex_prefill/{ruler.sh,infinitebench.sh} + experiments/benchmark/{run_ruler.py,run_infinitebench.py} 实验路径，含其调用的 flex_prefill 包与 setup.py/README 声明的依赖（triton==3.0.0，flash_attn 可选）"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M12:E6"
+      ],
+      "artifact": [
+        "M12:E2"
+      ]
+    }
+  },
+  {
+    "id": "M12-A03",
+    "claim_type": "mechanism_step",
+    "requirement": "每个 query block 保留首、末 key block",
+    "paper": {
+      "page": 7,
+      "quote": "we retain the first and last key blocks of each query block"
+    },
+    "local_entry": {
+      "review_state": "pending",
+      "verdict": null,
+      "actual": "未读 kernel 中索引构造处",
+      "discrepancy": "",
+      "equivalence": "",
+      "effect_status": "not_established",
+      "pending_reason": "需读 flex_prefill_attention 索引构造，确认首/末 key block 被无条件加入每个 query block 的索引集",
+      "refs": [
+        "E6"
+      ]
+    },
+    "artifact": {
+      "review_state": "pending",
+      "verdict": null,
+      "actual": "实验脚本不涉及",
+      "discrepancy": "",
+      "equivalence": "",
+      "effect_status": "not_established",
+      "pending_reason": "依赖 local_entry 索引构造核对",
+      "refs": [
+        "E2"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M12-A03",
+    "mechanism_id": "M12",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention 及其 Triton kernel，加 flex_prefill/modules/patch.py 的配置默认值与模型 patch 路径",
+      "artifact": "experiments/scripts/flex_prefill/{ruler.sh,infinitebench.sh} + experiments/benchmark/{run_ruler.py,run_infinitebench.py} 实验路径，含其调用的 flex_prefill 包与 setup.py/README 声明的依赖（triton==3.0.0，flash_attn 可选）"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M12:E6"
+      ],
+      "artifact": [
+        "M12:E2"
+      ]
+    }
+  },
+  {
+    "id": "M12-A04",
+    "claim_type": "mechanism_step",
+    "requirement": "每个注意力头至少计算 1024 个 token",
+    "paper": {
+      "page": 7,
+      "quote": "while also requiring each attention head to compute at least 1024 tokens"
+    },
+    "local_entry": {
+      "review_state": "pending",
+      "verdict": null,
+      "actual": "配置含 flex_prefill_min_budget=1024，但未读 kernel 中该下限如何施加到每头预算",
+      "discrepancy": "",
+      "equivalence": "",
+      "effect_status": "not_established",
+      "pending_reason": "需读 flex_prefill_attention 中 min_budget 参与预算下限截断的代码，确认逐头生效",
+      "refs": [
+        "E1",
+        "E6"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "supports",
+      "actual": "ruler.sh 与 infinitebench.sh 所有 flex_prefill 命令均传 flex_prefill_min_budget=1024",
+      "discrepancy": "",
+      "equivalence": "脚本显式配置下限 1024，与论文一致",
+      "effect_status": "supported",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E3"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M12-A04",
+    "mechanism_id": "M12",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention 及其 Triton kernel，加 flex_prefill/modules/patch.py 的配置默认值与模型 patch 路径",
+      "artifact": "experiments/scripts/flex_prefill/{ruler.sh,infinitebench.sh} + experiments/benchmark/{run_ruler.py,run_infinitebench.py} 实验路径，含其调用的 flex_prefill 包与 setup.py/README 声明的依赖（triton==3.0.0，flash_attn 可选）"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M12:E1",
+        "M12:E6"
+      ],
+      "artifact": [
+        "M12:E2",
+        "M12:E3"
+      ]
+    }
+  },
+  {
+    "id": "M12-A05",
+    "claim_type": "mechanism_step",
+    "requirement": "实验在单卡 NVIDIA A100 80GB 上运行",
+    "paper": {
+      "page": 7,
+      "quote": "Our experiments are conducted in a computing environment equipped with a single NVIDIA A100 GPU with 80GB of memory."
+    },
+    "local_entry": {
+      "review_state": "completed",
+      "verdict": "absent",
+      "actual": "代码仅有 gpu_info() 与按 GPU 名（h100/a100）选 num_warps/num_stages 的调优分支，无 A100 80GB 环境约束或校验",
+      "discrepancy": "论文要求单卡 A100 80GB 环境；代码只按 GPU 名调优，不实现也不约束该硬件条件",
+      "equivalence": "硬件环境属外部运行条件，源码无法证明；代码中不存在对应实现",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E6"
+      ]
+    },
+    "artifact": {
+      "review_state": "completed",
+      "verdict": "absent",
+      "actual": "实验脚本用 accelerate launch 启动，未指定单卡或 GPU 型号，无 A100 80GB 约束",
+      "discrepancy": "论文要求单卡 A100 80GB；脚本未固定设备数量或型号，accelerate 可多进程运行",
+      "equivalence": "脚本无任何设备数/型号参数，不存在等价约束",
+      "effect_status": "not_established",
+      "pending_reason": "",
+      "refs": [
+        "E2",
+        "E3"
+      ]
+    },
+    "artifact_id": "flexprefill",
+    "claim_id": "flexprefill:M12-A05",
+    "mechanism_id": "M12",
+    "scope_definition": {
+      "local_entry": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention 及其 Triton kernel，加 flex_prefill/modules/patch.py 的配置默认值与模型 patch 路径",
+      "artifact": "experiments/scripts/flex_prefill/{ruler.sh,infinitebench.sh} + experiments/benchmark/{run_ruler.py,run_infinitebench.py} 实验路径，含其调用的 flex_prefill 包与 setup.py/README 声明的依赖（triton==3.0.0，flash_attn 可选）"
+    },
+    "evidence_registry_ids": {
+      "local_entry": [
+        "M12:E6"
+      ],
+      "artifact": [
+        "M12:E2",
+        "M12:E3"
+      ]
+    }
+  }
+]

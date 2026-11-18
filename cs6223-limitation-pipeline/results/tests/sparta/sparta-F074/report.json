@@ -1,0 +1,132 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "sparta-F074",
+ "artifact_id": "sparta",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "not_implemented",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "论文要求 while 搜索；artifact 路径仅单遍枚举",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "always",
+  "location": "sparta/transformation/transform_policy.py:158-191",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "while P.HasBudget() and P.PerfNotSatisﬁed() do",
+    "source": "paper",
+    "locator": "PDF p.7"
+   }
+  ],
+  "code": [
+   {
+    "file": "sparta/transformation/transform_policy.py",
+    "line_start": 158,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "sparta/specialization/specialize_kernel.py",
+    "line_start": 18,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/sparta/limitations_for_tests.json",
+  "findings_sha256": "af8cad7c4e91af73f84a27b96179739526bde952a669319c71cc4e157ac4b49f",
+  "generated_at": "2026-11-18T12:35:53+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The cited transform_matmul has no while HasBudget/PerfNotSatisfied loop; its inner transform_options specialization loop is commented out, and specialize_matmul is explicitly mocked. Thus the shown path performs only a single enumeration over weight_tesas and cannot implement the paper's budget/performance-driven search.",
+  "hardware_needed": false,
+  "would_confirm": "Run transform_matmul on any input and verify it never iterates under HasBudget/PerfNotSatisfied and never calls a real specialize_matmul.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "sparta/transformation/transform_policy.py",
+     "lines": "158-191",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "sparta/specialization/specialize_kernel.py",
+     "lines": "18-42",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "sparta/transformation/transform_policy.py",
+    "regex": "while\\s+P\\.HasBudget",
+    "expect": "absent",
+    "meaning": "No paper-style budget while loop in transform_matmul",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "def\\s+transform_matmul",
+    "hit_lines": []
+   },
+   {
+    "file": "sparta/transformation/transform_policy.py",
+    "regex": "# skip, waiting for more official end-to-end",
+    "expect": "present",
+    "meaning": "Inner specialization/enumeration loop is disabled by commenting",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     179
+    ]
+   },
+   {
+    "file": "sparta/specialization/specialize_kernel.py",
+    "regex": "# mocked for now",
+    "expect": "present",
+    "meaning": "Specialization and latency profiling are mocked, not real search",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     22
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

@@ -1,0 +1,89 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "flexprefill-F007",
+ "artifact_id": "flexprefill",
+ "status": "tested",
+ "not_run": null,
+ "verdict": "yes",
+ "level": "L2",
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "effect on positive input, none on negative input",
+ "observed": {
+  "positive": "AssertionError at flex_prefill/ops/flex_prefill_attention.py:1245",
+  "negative": "no exception at flex_prefill/ops/flex_prefill_attention.py:1245 (later RuntimeError at triton/runtime/driver.py:8)"
+ },
+ "defeaters": {
+  "D1": "eliminated",
+  "D2": "eliminated",
+  "D3": "eliminated",
+  "D4": "eliminated",
+  "D5": "eliminated",
+  "D6": "eliminated",
+  "D7": "eliminated",
+  "D8": "eliminated",
+  "D9": "eliminated",
+  "D10": "eliminated",
+  "D11": "eliminated",
+  "D12": "eliminated",
+  "D13": "residual",
+  "D14": "residual"
+ },
+ "open_doubts": [
+  {
+   "id": "D13",
+   "name": "inputs inside the paper's scope",
+   "status": "residual",
+   "evidence": "scope_status=unknown"
+  },
+  {
+   "id": "D14",
+   "name": "official entry point was called",
+   "status": "residual",
+   "evidence": "deeper entry (index 1); reason recorded: flex_prefill_attention (call_chain[0]) has no block_idx parameter: it calls get_active_blocks, whose transform_veritcal_slash_idx builds the list as [ [unique(...) for h in range(num_heads)] for b in range(batch_size) ], with num_heads taken from q.shape[2]. Therefore len(block_idx) is always batch_size and len(block_idx[0]) is always num_q_heads, so neither half of the guard at line 1245 can fail through the official entry. The guard constrains a caller-supplied list[list[Tensor]] block_idx, so the driver calls call_chain[1] (triton_block_wise_attention), which forwards block_idx unchanged to the target function."
+  }
+ ],
+ "next_steps": [
+  "D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)"
+ ],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "reject",
+  "priority": 1,
+  "summary": "When not (len(block_idx) == batch_size and len(block_idx[0]) == num_q_heads): AssertionError (flex_prefill/ops/flex_prefill_attention.py:1245)",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "flex_prefill/ops/flex_prefill_attention.py:1245",
+  "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention",
+  "condition": "not (len(block_idx) == batch_size and len(block_idx[0]) == num_q_heads)"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "line_start": 1245,
+    "function": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_prefill_attention",
+    "snippet": "assert len(block_idx) == batch_size and len(block_idx[0]) == num_q_heads"
+   }
+  ]
+ },
+ "files": {
+  "execution_report": "execution_report.json",
+  "testcase": "testcase.json",
+  "attempt": "attempt"
+ },
+ "provenance": {
+  "findings_file": "results/step4/flexprefill/limitations_for_tests.json",
+  "findings_sha256": "0b8539b75ec0e2d602cd64b1a21959708ae3a6d53be00202f8825d92f313c066",
+  "generated_at": "2026-11-17T02:11:54+08:00",
+  "source": "reaudit",
+  "attempt_origin": "results/e2e/tests/flexprefill/flexprefill-F007/attempt",
+  "n_attempts_found": 2,
+  "profile": "default-v1"
+ }
+}

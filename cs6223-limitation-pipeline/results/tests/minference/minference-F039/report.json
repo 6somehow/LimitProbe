@@ -1,0 +1,99 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "minference-F039",
+ "artifact_id": "minference",
+ "status": "tested",
+ "not_run": null,
+ "verdict": "yes",
+ "level": "L1",
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "effect on positive input, none on negative input",
+ "observed": {
+  "positive": "branch taken at minference/ops/streaming_kernel.py:701 (later RuntimeError at triton/runtime/driver.py:20)",
+  "negative": "branch not taken at minference/ops/streaming_kernel.py:701 (later RuntimeError at triton/runtime/driver.py:20)"
+ },
+ "defeaters": {
+  "D1": "eliminated",
+  "D2": "eliminated",
+  "D3": "residual",
+  "D4": "eliminated",
+  "D5": "eliminated",
+  "D6": "eliminated",
+  "D7": "eliminated",
+  "D8": "eliminated",
+  "D9": "eliminated",
+  "D10": "eliminated",
+  "D11": "eliminated",
+  "D12": "eliminated",
+  "D13": "residual",
+  "D14": "residual"
+ },
+ "open_doubts": [
+  {
+   "id": "D3",
+   "name": "oracle can see the effect",
+   "status": "residual",
+   "evidence": "only 2 mutants (< n_min=4); killed 2"
+  },
+  {
+   "id": "D13",
+   "name": "inputs inside the paper's scope",
+   "status": "residual",
+   "evidence": "scope_status=unknown"
+  },
+  {
+   "id": "D14",
+   "name": "official entry point was called",
+   "status": "residual",
+   "evidence": "deeper entry (index 1); reason recorded: step-4 static analysis reports call_chain_status=not_found: the declared entry gather_last_q_vertical_slash_topk_v4 never calls the stream_llm_forward closure, so the target is called directly (the closure factory is a public symbol in the same file)"
+  }
+ ],
+ "next_steps": [
+  "D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location",
+  "D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)"
+ ],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "path_change",
+  "priority": 2,
+  "summary": "When len_k <= n_local + n_init: The KV cache kept for subsequent decoding is either the full h_k/h_v or a concatenation of the first n_init keys and the last n_local keys, depending on caller-supplied n_local/n_init and the accumulated length. This changes what state later calls see. (minference/ops/streaming_kernel.py:701)",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 1), not human: Truncating the KV cache to sink plus local tokens belongs to the StreamingLLM baseline forward (stream_llm_forward), not to MInference.",
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "minference/ops/streaming_kernel.py:701",
+  "function": "minference/ops/streaming_kernel.py::stream_llm_forward.forward",
+  "condition": "len_k <= n_local + n_init"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "minference/ops/streaming_kernel.py",
+    "line_start": 701,
+    "function": "minference/ops/streaming_kernel.py::stream_llm_forward.forward",
+    "snippet": "if len_k <= n_local + n_init:"
+   }
+  ]
+ },
+ "files": {
+  "execution_report": "execution_report.json",
+  "testcase": "testcase.json",
+  "attempt": "attempt"
+ },
+ "provenance": {
+  "findings_file": "results/step4/minference/limitations_for_tests.json",
+  "findings_sha256": "6f02cbec16ce4487c1b9166c2dc5f1f16704f168b135426edfe2df59ed9333bc",
+  "generated_at": "2026-11-18T17:12:50+08:00",
+  "source": "agent",
+  "attempt_origin": "scratch/agent_runs/e2e-f039-0abf53",
+  "agent_tokens": 2205204,
+  "agent_wall_s": 412.8,
+  "lock_tampered": false,
+  "profile": "default-v1"
+ },
+ "analysis": null
+}

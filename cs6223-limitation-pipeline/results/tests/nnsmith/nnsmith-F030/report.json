@@ -1,0 +1,119 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "nnsmith-F030",
+ "artifact_id": "nnsmith",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "论文要求每轮随机选一半；代码仅首轮随机，后续轮固定丢弃后半段",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "nnsmith/graph_gen.py:1029-1058",
+  "function": null,
+  "condition": "len(cur_cons) > 0 and self.check_sat(*cur_cons) != z3.sat"
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "18 𝐶𝑏← randomly select |𝐶𝑏| 2 constraints in𝐶𝑏",
+    "source": "paper",
+    "locator": "PDF p.6, text lines 48-49"
+   }
+  ],
+  "code": [
+   {
+    "file": "nnsmith/graph_gen.py",
+    "line_start": 1029,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/nnsmith/limitations_for_tests.json",
+  "findings_sha256": "3ec725e87dbddd4c992db2cb5e7881f511e70ce2ab61c81037bbb06a557aa5fb",
+  "generated_at": "2026-11-18T12:18:21+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The code shuffles all constraints once, then in the unsat backoff loop repeatedly truncates the current list to its first half. It does not reshuffle before each halving, so later rounds deterministically discard the latter half of the current ordering, matching the finding.",
+  "hardware_needed": false,
+  "would_confirm": "Instrument post_process to log cur_cons across backoff iterations and verify no reshuffle occurs after the initial shuffle.",
+  "static": {
+   "cited": 1,
+   "grounded": true,
+   "items": [
+    {
+     "file": "nnsmith/graph_gen.py",
+     "lines": "1029-1058",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "nnsmith/graph_gen.py",
+    "regex": "random\\.shuffle\\(shuffled\\)",
+    "expect": "present",
+    "meaning": "Shows constraints are shuffled once before the backoff loop.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     1050
+    ]
+   },
+   {
+    "file": "nnsmith/graph_gen.py",
+    "regex": "while self\\.check_sat\\(\\*cur_cons\\) != z3\\.sat:",
+    "expect": "present",
+    "meaning": "Shows the repeated backoff loop where halving occurs.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     1052
+    ]
+   },
+   {
+    "file": "nnsmith/graph_gen.py",
+    "regex": "cur_cons = cur_cons\\[: len\\(cur_cons\\) // 2\\]",
+    "expect": "present",
+    "meaning": "Shows each failed round keeps only the first half, not a fresh random half.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     1053
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

@@ -10,6 +10,7 @@ NUS CS6223 课程项目。给定系统研究论文 + 代码仓库，论文侧和
   路线 A 静态分析 `codeside/extractor.py`；路线 B 静态 + LLM `codeside/hybrid_extractor.py`；B-agent 自由探索 `codeside/agent_extractor.py`；B-sweep 分块通读 `codeside/sweep_extractor.py` + 复核 `codeside/relevance_filter.py`；对照组纯 LLM `codeside/llm_extractor.py`
 - 步骤 3b：代码 → 论文验证——`codeside/verify3b.py`，说明和结果见 `docs/06_3b_eval.md`；B → 3b 端到端见 `docs/07_pipeline_b_3b.md`
 - 步骤 4：整合成 Finding（去重、分类、priority、witness_hint）——`codeside/integrate.py` + `codeside/step4_llm.py` + `codeside/witness.py`，说明和结果见 `docs/09_step4_findings.md`
+  - 效果标签检查 `codeside/effect_anchor.py`、调用链和参数对应 `codeside/callgraph.py`、被调函数名字换成入口名字 `codeside/chain_bind.py`（2026-11-15，`E2E_PLAN.md` 的 W1–W3）；Finding 编号跨运行不变
 - 共享 schema——`schema/models.py`
 
 队友：Zhaopeng（论文侧：步骤 1、3a、agent 编排、baseline；代码在 `paperside/`），Shanghao（步骤 5–6：测试生成与执行）。
@@ -46,6 +47,7 @@ out/               生成结果（不提交）
 ```bash
 python -m pipeline status                       # 每篇论文各步骤是否完成
 python -m pipeline run <id> --pdf P --run-paper-side   # 新论文：跑完整条 pipeline（先 init，见 docs/10_pipeline.md）
+python -m pipeline test <id> [--run-agent]      # 测试侧：每条 Finding 一份 report.json + LIMITATIONS.md
 pip install -e ".[dev]"            # 依赖：pydantic；测试：pytest；可选：z3-solver
 scripts/fetch_pilot.sh             # 克隆 FlexPrefill @ a24b27b
 scripts/fetch_dataset.sh           # 按 data/*/artifact.json 克隆四篇 + pilot 到固定 commit
@@ -90,7 +92,8 @@ python -m schema.export_json_schema
 
 ## 当前状态（交接时）
 
-- schema v0.2.0（草稿，待三人确认：Finding 7 类 + review 字段）；132 个测试全部通过。
+- schema v0.2.0（草稿，待三人确认：Finding 7 类 + review 字段）；165 个测试全部通过（`checklimits/` 另有 239 个）。
+- `python -m pipeline test <id>` 调测试侧（`checklimits/CONTRACT_TEST_REPORT.md`），输出 `results/tests/<id>/` 和 `results/report/<id>/LIMITATIONS.md`。
 - 路线 B（静态 + LLM）已在 pilot 和四篇上各入口运行 3 次（`x-test-2`，prompt `hybrid-v3`，只新增、不删除 A 的结果），结果在 `out/routes/`。
 - pilot 上路线 A：recall 16/16、extra 10、cond_exact 13/13。
 - 抽取器支持类方法（`file::Class.method`）、`self.method()`、一层嵌套函数（`file::outer.inner`）、`--package-root`。

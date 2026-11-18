@@ -1,0 +1,92 @@
+{
+  "test_id": "A-nnsmith-F015",
+  "finding_id": "nnsmith-F015",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "fixed RNG seed so repeated runs and the clean-checkout replay are deterministic (T6/D8)"
+      },
+      {
+        "name": "backend_type",
+        "value": "torch",
+        "why": "non-tflite backend so the TFLite CUDA-cleanup branch before the target is skipped"
+      },
+      {
+        "name": "backend_target",
+        "value": "cpu",
+        "why": "CPU-only machine; this value is not consulted before the target decision"
+      },
+      {
+        "name": "backend_optmax",
+        "value": 1,
+        "why": "neutral backend option; only read after the target branch has been decided"
+      },
+      {
+        "name": "cmp_with",
+        "value": null,
+        "why": "no comparison backend; only read if backend_type were tflite, which it is not"
+      },
+      {
+        "name": "filter_type",
+        "value": "__checklimits_invalid__",
+        "why": "unknown filter name makes __init__ stop deterministically after the target decision with a ValueError instead of initialising a backend"
+      },
+      {
+        "name": "filter_patch",
+        "value": [],
+        "why": "no filter patch files; avoids filesystem access after the target"
+      }
+    ],
+    "positive_input": {
+      "crash_safe": 0,
+      "test_timeout": 1000
+    },
+    "negative_input": {
+      "crash_safe": 1,
+      "test_timeout": 1000
+    },
+    "boundary_variable": "crash_safe",
+    "scale": null,
+    "positive_prelude": [],
+    "negative_prelude": [],
+    "extra_negatives": [],
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at nnsmith/cli/fuzz.py:60",
+      "signal_location": "nnsmith/cli/fuzz.py:60"
+    },
+    "expected": {
+      "positive": "branch taken at nnsmith/cli/fuzz.py:60",
+      "negative": "branch not taken at nnsmith/cli/fuzz.py:60"
+    }
+  },
+  "execution": {
+    "entry_called": "nnsmith/cli/fuzz.py::FuzzingLoop.__init__",
+    "entry_reason": "The upstream call chain is inconsistent for this finding: call_chain[0] is PracticalHybridSearch.search_one, which has no call edge to FuzzingLoop.__init__ (FuzzingLoop.run would indirectly materialise inputs, not the reverse). The target is therefore reached by constructing the target function's own class directly; no stand-ins are used.",
+    "call_chain_index": 1,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "false",
+      "true"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at nnsmith/cli/fuzz.py:60",
+    "negative_observed": "branch not taken at nnsmith/cli/fuzz.py:60"
+  },
+  "evidence": {}
+}

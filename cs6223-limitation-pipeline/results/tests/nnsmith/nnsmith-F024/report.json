@@ -1,0 +1,147 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "nnsmith-F024",
+ "artifact_id": "nnsmith",
+ "status": "not_run",
+ "not_run": {
+  "code": "outcome_unsupported",
+  "reason": "effect type 'other': the target assigns a value; the claimed effect is what that value changes later, which needs a differential check of outputs (the assignment itself would differ trivially)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "When max_time is None: The gradient-based input search budget is taken from the environment (NNSMITH_GRAD_TIME, default 0.5 s). The `while time.time() - st < max_time` loop at line 257 can therefore exit before any satisfying input is found, in which case `grad_input_gen` returns None (line 293) and the caller falls back to random sampling. (nnsmith/materialize/torch/symbolnet.py:234)",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "nnsmith/materialize/torch/symbolnet.py:234",
+  "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.grad_input_gen",
+  "condition": "max_time is None"
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "raise failed to find viable⟨𝑋,𝑊⟩",
+    "source": "paper",
+    "locator": "PDF p.7"
+   }
+  ],
+  "code": [
+   {
+    "file": "nnsmith/materialize/torch/symbolnet.py",
+    "line_start": 234,
+    "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.grad_input_gen",
+    "snippet": "max_time = float(os.getenv('NNSMITH_GRAD_TIME', 0.5))"
+   },
+   {
+    "file": "nnsmith/materialize/torch/symbolnet.py",
+    "line_start": 229,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "experiments/nnsmith_gen_onnx.py",
+    "line_start": 42,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/nnsmith/limitations_for_tests.json",
+  "findings_sha256": "3ec725e87dbddd4c992db2cb5e7881f511e70ce2ab61c81037bbb06a557aa5fb",
+  "generated_at": "2026-11-18T12:18:06+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The shown code reads NNSMITH_GRAD_TIME with default 0.5, loops only while under max_time, and returns sat_inputs (None) without raising. That directly contradicts the paper's 'raise failed to find viable'. The random-sampling fallback is not in the snippet, but the timeout/None discrepancy is supported.",
+  "hardware_needed": false,
+  "would_confirm": "Trace PracticalHybridSearch.search to see whether a None from grad_input_gen triggers random sampling.",
+  "static": {
+   "cited": 3,
+   "grounded": true,
+   "items": [
+    {
+     "file": "nnsmith/materialize/torch/symbolnet.py",
+     "lines": "234-234",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": false,
+     "kind": "python"
+    },
+    {
+     "file": "nnsmith/materialize/torch/symbolnet.py",
+     "lines": "229-293",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "experiments/nnsmith_gen_onnx.py",
+     "lines": "42-48",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "nnsmith/materialize/torch/symbolnet.py",
+    "regex": "NNSMITH_GRAD_TIME",
+    "expect": "present",
+    "meaning": "env budget default is read",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     234
+    ]
+   },
+   {
+    "file": "nnsmith/materialize/torch/symbolnet.py",
+    "regex": "while time\\.time\\(\\) - st < max_time",
+    "expect": "present",
+    "meaning": "loop can exit on timeout",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     257
+    ]
+   },
+   {
+    "file": "nnsmith/materialize/torch/symbolnet.py",
+    "regex": "return sat_inputs",
+    "expect": "present",
+    "meaning": "timeout returns None, not raise",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     293
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

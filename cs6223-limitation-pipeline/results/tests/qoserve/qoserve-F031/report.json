@@ -1,0 +1,141 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "qoserve-F031",
+ "artifact_id": "qoserve",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "not_implemented",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "silo 基线整体缺失，无按桶 chunk 配置",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "always",
+  "location": "fig7.sh:76-106",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "The strictest QoS bucket with 50ms TBT deadline uses a chunk size of 256, while the other two QoS classes use a large chunk size of 2K to maximize throughput in the siloed baselines.",
+    "source": "paper",
+    "locator": "PDF p.8"
+   }
+  ],
+  "code": [
+   {
+    "file": "fig7.sh",
+    "line_start": 76,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "fig10_11.sh",
+    "line_start": 103,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/qoserve/limitations_for_tests.json",
+  "findings_sha256": "79eb69f6ac7117b77ebe00293d1d328dff8bfffcd7cabc7556eaae435c1699e2",
+  "generated_at": "2026-11-18T00:46:02+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The cited fig7.sh sets one DEADLINE chunk size of 256 and a SARATHI chunk size of 384, with no per-QoS bucket 2K setting. fig10_11.sh only sweeps scheduler types. Neither script instantiates a siloed baseline with bucket-specific chunk sizes, so the shown evidence supports the claimed missing silo baseline configuration.",
+  "hardware_needed": false,
+  "would_confirm": "Search all benchmark scripts/configs for a siloed baseline path assigning chunk size 256 to the 50ms TBT bucket and 2048 to the other QoS buckets.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "fig7.sh",
+     "lines": "76-106",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "shell"
+    },
+    {
+     "file": "fig10_11.sh",
+     "lines": "103-129",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "shell"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "fig7.sh",
+    "regex": "(?i)silo",
+    "expect": "absent",
+    "meaning": "No silo baseline reference; control confirms scheduler config text is present.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "DEADLINE",
+    "hit_lines": []
+   },
+   {
+    "file": "fig7.sh",
+    "regex": "chunk_size\\s+(2048|2K|2000)",
+    "expect": "absent",
+    "meaning": "No 2K chunk setting; control shows chunk-size flags are searchable.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "chunk_size\\s+256",
+    "hit_lines": []
+   },
+   {
+    "file": "fig10_11.sh",
+    "regex": "(?i)silo",
+    "expect": "absent",
+    "meaning": "Sweep script lacks silo baseline; control confirms file content searched.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "run_gpu_sweep",
+    "hit_lines": []
+   },
+   {
+    "file": "fig7.sh",
+    "regex": "deadline_scheduler_config_chunk_size\\s+256",
+    "expect": "present",
+    "meaning": "Only strict-bucket chunk 256 appears, not per-bucket mapping.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     99
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

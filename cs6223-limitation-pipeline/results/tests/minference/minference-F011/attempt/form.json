@@ -1,0 +1,158 @@
+{
+  "test_id": "A-minference-F011",
+  "finding_id": "minference-F011",
+  "strategy": "S1",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "batch",
+        "value": 1,
+        "why": "single batch is enough; the target decision is per head dimension and does not depend on batch size"
+      },
+      {
+        "name": "heads",
+        "value": 1,
+        "why": "single head is enough; the decision is reached per call and does not depend on the number of heads"
+      },
+      {
+        "name": "seq_len",
+        "value": 64,
+        "why": "the witness contains no sequence length; 64 is the smallest context used by the block-sparse path and yields one top-k block"
+      },
+      {
+        "name": "dtype",
+        "value": "float16",
+        "why": "the block-sparse kernel is fp16-only; dtype does not affect the integer head-dimension assert"
+      },
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "fixes the random tensors so repeated runs are identical"
+      },
+      {
+        "name": "head_id",
+        "value": 0,
+        "why": "selects the single block_sparse pattern entry; the target decision is independent of which head index is used"
+      },
+      {
+        "name": "pattern",
+        "value": "block_sparse",
+        "why": "selects the block_sparse branch that contains the limitation; the witness identifies that path"
+      }
+    ],
+    "positive_input": {
+      "Lk": 127,
+      "Lq": 127,
+      "Lv": 127
+    },
+    "negative_input": {
+      "Lk": 128,
+      "Lq": 127,
+      "Lv": 127
+    },
+    "boundary_variable": "Lk",
+    "scale": null,
+    "extra_negatives": [
+      {
+        "Lk": 16,
+        "Lq": 16,
+        "Lv": 16
+      },
+      {
+        "Lk": 32,
+        "Lq": 32,
+        "Lv": 32
+      },
+      {
+        "Lk": 64,
+        "Lq": 64,
+        "Lv": 64
+      },
+      {
+        "Lk": 128,
+        "Lq": 128,
+        "Lv": 128
+      }
+    ],
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "exception",
+      "spec": "AssertionError raised at minference/ops/block_sparse_flash_attention.py:127",
+      "signal_location": "minference/ops/block_sparse_flash_attention.py:127"
+    },
+    "expected": {
+      "positive": "AssertionError at minference/ops/block_sparse_flash_attention.py:127",
+      "negative": "no exception at minference/ops/block_sparse_flash_attention.py:127"
+    }
+  },
+  "execution": {
+    "entry_called": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [
+      {
+        "symbol": "pycuda",
+        "kind": "fake_module",
+        "reason": "pycuda is not installed and needs a GPU; block_sparse_flash_attention imports it but never uses it before the target assertion",
+        "behavior": "return_first_arg",
+        "sim_class": "stub"
+      },
+      {
+        "symbol": "pycuda.autoprimaryctx",
+        "kind": "fake_module",
+        "reason": "submodule imported by block_sparse_flash_attention solely to configure a CUDA context, which is unavailable on this CPU-only host",
+        "behavior": "return_first_arg",
+        "sim_class": "stub"
+      },
+      {
+        "symbol": "pycuda.compiler",
+        "kind": "fake_module",
+        "reason": "SourceModule is imported at module load but kernel compilation is never reached before the target assertion",
+        "behavior": "return_first_arg",
+        "sim_class": "stub"
+      },
+      {
+        "symbol": "flash_attn",
+        "kind": "fake_module",
+        "reason": "flash-attn is a GPU-only optional dependency and is not installed; the block_sparse path does not call it",
+        "behavior": "return_first_arg",
+        "sim_class": "stub"
+      },
+      {
+        "symbol": "minference.cuda",
+        "kind": "fake_module",
+        "reason": "precompiled CUDA extension is not shipped in the repository; only convert_vertical_slash_indexes is imported and the block_sparse path never calls it",
+        "behavior": "return_first_arg",
+        "sim_class": "stub"
+      }
+    ],
+    "hooks": [
+      {
+        "name": "minference_namespace_shim",
+        "purpose": "driver loads the real entry module from minference/modules/minference_forward.py through a namespace package object, skipping minference/__init__.py which imports unrelated optional and GPU modules; no function on the call chain is replaced"
+      },
+      {
+        "name": "import_time_cuda_arange",
+        "purpose": "minference_forward.py creates a module-level tensor with device='cuda' at import; driver maps torch.arange to CPU during import only, and that LAST_Q_MASK tensor is unused on the block_sparse path"
+      }
+    ],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "false",
+      "true"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "AssertionError at minference/ops/block_sparse_flash_attention.py:127",
+    "negative_observed": "no exception at minference/ops/block_sparse_flash_attention.py:127"
+  },
+  "evidence": {}
+}

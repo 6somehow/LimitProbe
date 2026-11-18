@@ -1,0 +1,3826 @@
+{
+  "claims": [
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M01-B01",
+      "artifact_id": "qoserve",
+      "mechanism": "M01",
+      "statement": "Assign each request to one of two QoS classes: interactive or non-interactive.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "3.2 QoS Classes and Deadlines\nQoServe defines two QoS classes: interactive and non in-\nteractive. Interactive requests use two SLOs — TTFT (time\nto first token) and TBT (token-by-token latency), which en-\nsure immediate responsiveness and consistent pacing. Non-\ninteractive requests have a single TTLT (total latency) target,\nfocused on overall completion. Although, we define two\nQoS classes, the application owner is free to specify their\ncustom SLO targets within the class, allowing for flexibility\nand customization to specific application needs as shown\nin Table 3.",
+          "source": "paper",
+          "locator": "PDF p.5, text lines 20-30"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M01-B02",
+      "artifact_id": "qoserve",
+      "mechanism": "M01",
+      "statement": "For an interactive request, set the first-token deadline D_first = t_arrival + SLO_TTFT.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "𝐷𝑓𝑖𝑟𝑠𝑡 =𝑡𝑎𝑟𝑟𝑖𝑣𝑎𝑙+𝑆𝐿𝑂𝑇𝑇𝐹𝑇 , (1)",
+          "source": "paper",
+          "locator": "PDF p.5"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M01-B03",
+      "artifact_id": "qoserve",
+      "mechanism": "M01",
+      "statement": "For an interactive request, set per-token deadline D_n = t_arrival + SLO_TTFT + (n-1)*SLO_TBT for token position n.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "𝐷𝑛 =𝑡𝑎𝑟𝑟𝑖𝑣𝑎𝑙+𝑆𝐿𝑂𝑇𝑇𝐹𝑇 +(𝑛− 1)· 𝑆𝐿𝑂𝑇𝐵𝑇, (2)",
+          "source": "paper",
+          "locator": "PDF p.5"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M01-B04",
+      "artifact_id": "qoserve",
+      "mechanism": "M01",
+      "statement": "For a non-interactive request, set a single completion deadline D_total = t_arrival + SLO_TTLT.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "𝐷𝑡𝑜𝑡𝑎𝑙 =𝑡𝑎𝑟𝑟𝑖𝑣𝑎𝑙+𝑆𝐿𝑂𝑇𝑇𝐿𝑇 (3)",
+          "source": "paper",
+          "locator": "PDF p.5"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M01-B05",
+      "artifact_id": "qoserve",
+      "mechanism": "M01",
+      "statement": "Allow the application owner to specify custom SLO targets within a QoS class.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "the application owner is free to specify their\ncustom SLO targets within the class",
+          "source": "paper",
+          "locator": "PDF p.5"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M01-A01",
+      "artifact_id": "qoserve",
+      "mechanism": "M01",
+      "statement": "将本机制为每个请求导出的截止时间作为后续调度决策的输入，且调度目标为最小化截止时间违约并最大化吞吐。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Once we have defined the deadlines for each request,\nQoServe scheduling aims to minimize deadline violations\nwhile maximizing throughput.",
+          "source": "paper",
+          "locator": "PDF p.5"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M01-A02",
+      "artifact_id": "qoserve",
+      "mechanism": "M01",
+      "statement": "本机制仅导出每请求截止时间，不执行调度、分块大小选择或优先级排序。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Once we have defined the deadlines for each request,\nQoServe scheduling aims to minimize deadline violations\nwhile maximizing throughput.",
+          "source": "paper",
+          "locator": "PDF p.5"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M02-B01",
+      "artifact_id": "qoserve",
+      "mechanism": "M02",
+      "statement": "Compute per-decode-request slack as the next-token deadline (Eq. 2) minus current time.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "we define\nslack as the difference between the deadline for the next\ntoken (Eq. 2) and current time",
+          "source": "paper",
+          "locator": "PDF p.5"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M02-B02",
+      "artifact_id": "qoserve",
+      "mechanism": "M02",
+      "statement": "Using the accumulated slack and decode-phase request characteristics, compute the chunk size that maximizes throughput under the latency budget.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "serviced. For each request in the decode queue, we define\nslack as the difference between the deadline for the next\ntoken (Eq. 2) and current time. Using this slack and charac-\nteristics of the requests in decode phase, we calculate the\nchunk size which maximizes throughput under the given\nlatency budget. We elaborate on the design in Section 3.6.1",
+          "source": "paper",
+          "locator": "PDF p.5, text lines 62-67"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M02-B03",
+      "artifact_id": "qoserve",
+      "mechanism": "M02",
+      "statement": "When slack accumulates, increase the chunk size to add more prefill tokens from queued requests.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "We\nexploit this slack by dynamically increasing the chunk size,\nadding more prefill tokens from requests B and D",
+          "source": "paper",
+          "locator": "PDF p.7"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M02-B04",
+      "artifact_id": "qoserve",
+      "mechanism": "M02",
+      "statement": "When an interactive request enters decode, revert to the smaller chunk size needed to meet its TBT.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "we\nrevert to the original smaller chunk size necessary to meet its\nTBT",
+          "source": "paper",
+          "locator": "PDF p.7"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M02-B05",
+      "artifact_id": "qoserve",
+      "mechanism": "M02",
+      "statement": "When no remaining requests impose strict TBT constraints, increase chunk size to maximize throughput while respecting TTLT deadlines.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "completes faster than predicted. Once A completes and no\nremaining requests impose strict TBT constraints, we again\nincrease chunk size to maximize throughput while respect-\ning the TTLT deadlines of ongoing requests. This approach",
+          "source": "paper",
+          "locator": "PDF p.7, text lines 13-16"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M02-B06",
+      "artifact_id": "qoserve",
+      "mechanism": "M02",
+      "statement": "Changing chunk size at runtime requires only pulling the appropriate number of tokens from the pending prefill queue.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Modifying the chunk size at runtime incurs\nno additional cost — simply requiring pulling appropriate\nnumber of tokens from the pending prefill queue.",
+          "source": "paper",
+          "locator": "PDF p.7"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M02-A01",
+      "artifact_id": "qoserve",
+      "mechanism": "M02",
+      "statement": "选择满足所有延迟预算的最大 prefill chunk size，而不是采用满足最严格 QoS 类所需的最小 chunk size。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "A naïve approach for co-scheduling jobs of different QoS\nclasses with deadlines on TTFT, TBT, and TTLT would be\nto use the smallest chunk size necessary to meet the latency\nconstraint of the strictest QoS class. However, this results in\nlow throughput and high cost for all service classes.",
+          "source": "paper",
+          "locator": "PDF p.5"
+        },
+        {
+          "quote": "QoServe employs dynamic chunking to opportunistically\nmaximize the chunk size for the prefill request by exploiting\nany slack in the deadlines of the requests being currently\nserviced.",
+          "source": "paper",
+          "locator": "PDF p.5"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M02-A02",
+      "artifact_id": "qoserve",
+      "mechanism": "M02",
+      "statement": "当交互式请求正在解码且解码完成快于预测时，利用累积的残余 slack 调整 chunk size。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "we\nrevert to the original smaller chunk size necessary to meet its\nTBT, though we still exploit slack accumulated if decoding\ncompletes faster than predicted.",
+          "source": "paper",
+          "locator": "PDF p.7"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M02-A03",
+      "artifact_id": "qoserve",
+      "mechanism": "M02",
+      "statement": "根据吞吐-块大小性能剖面，将 chunk size 上限设为吞吐饱和点（约 2500）。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "We set the chunk size\nmaximizing the throughput using the performance profile in\nFigure 4. As throughput saturates around 2500, we choose\nthat as the maximum chunk size.",
+          "source": "paper",
+          "locator": "PDF p.10"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M02-A04",
+      "artifact_id": "qoserve",
+      "mechanism": "M02",
+      "statement": "在每个调度迭代中，基于当前解码队列的 slack 重新计算 chunk size，使其逐迭代动态调整。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "illustrates how dynamic chunking adapts to varying slack\nunder load and dynamically tunes chunk size per iteration.",
+          "source": "paper",
+          "locator": "PDF p.7"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M02-A05",
+      "artifact_id": "qoserve",
+      "mechanism": "M02",
+      "statement": "动态 chunk size 预测器根据批统计（如请求数、上下文长度等）确定在延迟约束下最大化吞吐的最优 chunk size。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "3.6.1 Dynamic chunking batch predictor. Given the\nstatistics of the requests in a batch, e.g. number of requests,\ncontext lengths, etc., the dynamic chunk size predictor de-\ntermines the optimal chunk size that maximizes throughput\nwhile adhering to the latency constraints. For this, we train",
+          "source": "paper",
+          "locator": "PDF p.7, text lines 48-52"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M02-A06",
+      "artifact_id": "qoserve",
+      "mechanism": "M02",
+      "statement": "将预测器调优为低估 chunk size，以牺牲少量吞吐为代价避免过预测导致延迟增加。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "We tune the model to err on the side of under-predicting\nchunk size. While this may scarcely miss on fully maximizing\nthroughput; it ensures no inadvertent latency increase due to\nover-prediction.",
+          "source": "paper",
+          "locator": "PDF p.7"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M02-A07",
+      "artifact_id": "qoserve",
+      "mechanism": "M02",
+      "statement": "预测器在 CPU 上运行，开销可忽略，chunk size 预测误差小于 10%。",
+      "kind": "guarantee",
+      "evidence": [
+        {
+          "quote": "The prediction runs on the CPU and incurs a negligible\noverhead with < 10% error margin on chunk size prediction.",
+          "source": "paper",
+          "locator": "PDF p.7"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M02-A08",
+      "artifact_id": "qoserve",
+      "mechanism": "M02",
+      "statement": "在 PD 解耦模式下，因 prefill 节点使用 8K 大默认 chunk size 而不利用动态分块，故吞吐增益低于 PD 共置。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "We set a large chunk size of 8K as default\nas we are not constrained by TBT in the prefill nodes for\ndisaggregated serving.",
+          "source": "paper",
+          "locator": "PDF p.9"
+        },
+        {
+          "quote": "The throughput gains are lower compared to PD colocation\nbecause we are unable to exploit dynamic chunking here,\nbecause of the large baseline chunk size.",
+          "source": "paper",
+          "locator": "PDF p.9"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M02-A09",
+      "artifact_id": "qoserve",
+      "mechanism": "M02",
+      "statement": "动态分块维护 TBT 截止时间，因此交互式请求的混合优先级公式只考虑 TTFT 截止时间。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "𝑃𝑖 =𝑡𝑖𝑎𝑟𝑟𝑖𝑣𝑎𝑙+𝑆𝐿𝑂𝑖𝑇𝑇𝐹𝑇 +𝛼∗𝑃𝑟𝑒𝑓𝑖𝑙𝑙 𝑖𝑟𝑒𝑚. (4)\nNote that we only consider the TTFT deadline, as TBT dead-\nlines are maintained by our dynamic chunking scheme. For",
+          "source": "paper",
+          "locator": "PDF p.5, text lines 97-99"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M03-B01",
+      "artifact_id": "qoserve",
+      "mechanism": "M03",
+      "statement": "Predict the execution time of a candidate batch from batch statistics (number of requests, context lengths, etc.).",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "3.6.1 Dynamic chunking batch predictor. Given the\nstatistics of the requests in a batch, e.g. number of requests,\ncontext lengths, etc., the dynamic chunk size predictor de-\ntermines the optimal chunk size that maximizes throughput\nwhile adhering to the latency constraints. For this, we train\na lightweight random forest model which predicts the execu-\ntion time of a given batch. The model is trained on latency",
+          "source": "paper",
+          "locator": "PDF p.7, text lines 48-54"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M03-B02",
+      "artifact_id": "qoserve",
+      "mechanism": "M03",
+      "statement": "Select the chunk size that maximizes throughput while adhering to latency constraints, using the predicted execution time.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "context lengths, etc., the dynamic chunk size predictor de-\ntermines the optimal chunk size that maximizes throughput\nwhile adhering to the latency constraints. For this, we train",
+          "source": "paper",
+          "locator": "PDF p.7, text lines 50-52"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M03-B03",
+      "artifact_id": "qoserve",
+      "mechanism": "M03",
+      "statement": "Train the model on latency profiles of MLP and attention operations collected at varying chunk sizes, batch sizes, and context lengths.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "The model is trained on latency\nprofiles of MLP and attention operation collected at varying\nchunk sizes, batch sizes as well as context lengths.",
+          "source": "paper",
+          "locator": "PDF p.7"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M03-B04",
+      "artifact_id": "qoserve",
+      "mechanism": "M03",
+      "statement": "Collect training profiles using the Vidur inference simulator harness.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "chunk sizes, batch sizes as well as context lengths. To collect\nthis data, we use a lightweight harness exposed by an infer-\nence simulator Vidur [3], and collect profiles for each model,\nhardware, and parallelism configuration of interest.",
+          "source": "paper",
+          "locator": "PDF p.7, text lines 56-59"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M03-B05",
+      "artifact_id": "qoserve",
+      "mechanism": "M03",
+      "statement": "Tune the model to under-predict chunk size to avoid latency overshoot from over-prediction.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "We tune the model to err on the side of under-predicting\nchunk size.",
+          "source": "paper",
+          "locator": "PDF p.7"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M03-B06-R01",
+      "artifact_id": "qoserve",
+      "mechanism": "M03",
+      "statement": "Run the random-forest prediction on the CPU.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "The prediction runs on the CPU",
+          "source": "paper",
+          "locator": "PDF p.7"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M03-B06-R02",
+      "artifact_id": "qoserve",
+      "mechanism": "M03",
+      "statement": "Incur negligible prediction overhead.",
+      "kind": "guarantee",
+      "evidence": [
+        {
+          "quote": "incurs a negligible\noverhead",
+          "source": "paper",
+          "locator": "PDF p.7"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M03-B06-R03",
+      "artifact_id": "qoserve",
+      "mechanism": "M03",
+      "statement": "Predict chunk size with less than 10% error margin.",
+      "kind": "guarantee",
+      "evidence": [
+        {
+          "quote": "with < 10% error margin on chunk size prediction",
+          "source": "paper",
+          "locator": "PDF p.7"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M03-A01",
+      "artifact_id": "qoserve",
+      "mechanism": "M03",
+      "statement": "Modify the chunk size at runtime at no additional cost by pulling the appropriate number of tokens from the pending prefill queue.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Modifying the chunk size at runtime incurs\nno additional cost — simply requiring pulling appropriate\nnumber of tokens from the pending prefill queue.",
+          "source": "paper",
+          "locator": "PDF p.7"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M03-A02",
+      "artifact_id": "qoserve",
+      "mechanism": "M03",
+      "statement": "Dynamically tune the chunk size per scheduling iteration, adapting to varying slack under load.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "illustrates how dynamic chunking adapts to varying slack\nunder load and dynamically tunes chunk size per iteration",
+          "source": "paper",
+          "locator": "PDF p.7"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M04-B01",
+      "artifact_id": "qoserve",
+      "mechanism": "M04",
+      "statement": "Compute interactive request priority as P_i = t_arrival + SLO_TTFT + α*Prefill_rem, using only the TTFT deadline term (TBT handled by dynamic chunking).",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "𝑃𝑖 =𝑡𝑖𝑎𝑟𝑟𝑖𝑣𝑎𝑙+𝑆𝐿𝑂𝑖𝑇𝑇𝐹𝑇 +𝛼∗𝑃𝑟𝑒𝑓𝑖𝑙𝑙 𝑖𝑟𝑒𝑚",
+          "source": "paper",
+          "locator": "PDF p.5"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M04-B02",
+      "artifact_id": "qoserve",
+      "mechanism": "M04",
+      "statement": "Compute non-interactive request priority as P_i = t_arrival + SLO_TTLT + α*(Prefill_rem + Decode_rem).",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "𝑃𝑖 =𝑡𝑖𝑎𝑟𝑟𝑖𝑣𝑎𝑙+𝑆𝐿𝑂𝑖𝑇𝑇𝐿𝑇+𝛼∗(𝑃𝑟𝑒𝑓𝑖𝑙𝑙 𝑖𝑟𝑒𝑚+𝐷𝑒𝑐𝑜𝑑𝑒𝑖𝑟𝑒𝑚)",
+          "source": "paper",
+          "locator": "PDF p.5"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M04-B03",
+      "artifact_id": "qoserve",
+      "mechanism": "M04",
+      "statement": "Interpolate between EDF and SRPF via α so that low load yields EDF characteristics and overload yields SRPF-like semantics while maintaining fairness.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "This allows us to get EDF characteristics\nat low loads, and leverage SRPF semantics under overload\nconditions while maintaining fairness",
+          "source": "paper",
+          "locator": "PDF p.5"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M04-B04",
+      "artifact_id": "qoserve",
+      "mechanism": "M04",
+      "statement": "Order the prefill priority queue by comparing drop_status first, then hybrid priority (lower priority value selected first).",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "if job1.drop_status ≠ job2.drop_status then",
+          "source": "paper",
+          "locator": "PDF p.6"
+        },
+        {
+          "quote": "return priority1 < priority2",
+          "source": "paper",
+          "locator": "PDF p.6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M04-A01",
+      "artifact_id": "qoserve",
+      "mechanism": "M04",
+      "statement": "在优先级队列比较器中，按交互式形式计算被比较作业的优先级：priority = arrival_time + TTFT_SLO + α × rem_prefill_tokens。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "priority1← job1.arrival_time+ job1.TTFT_SLO+𝛼× job1.rem_prefill_tokens",
+          "source": "paper",
+          "locator": "PDF p.6"
+        },
+        {
+          "quote": "priority2← job2.arrival_time+ job2.TTFT_SLO+𝛼× job2.rem_prefill_tokens",
+          "source": "paper",
+          "locator": "PDF p.6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M04-A02",
+      "artifact_id": "qoserve",
+      "mechanism": "M04",
+      "statement": "在计算非交互式请求优先级时，将 Decode_rem 作为“计算所有 decode token 所需时间”的估计量纳入剩余工作项。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "where𝐷𝑒𝑐𝑜𝑑𝑒𝑟𝑒𝑚 indicates the time to compute all the de-\ncode tokens. Since decode length is unknown in LLM in-",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 14-15"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M04-A03",
+      "artifact_id": "qoserve",
+      "mechanism": "M04",
+      "statement": "当新到达请求具有更高混合优先级（含严格 QoS 目标）时，可抢占已处理若干 prefill chunk 的在途请求，以优先服务新请求。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Note that our hybrid prioritization\nscheduling can preempt an in-flight request for which a few\nprefill chunks have already been processed to instead service\na new request with strict QoS target (see eq 4).",
+          "source": "paper",
+          "locator": "PDF p.6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M05-B01",
+      "artifact_id": "qoserve",
+      "mechanism": "M05",
+      "statement": "Estimate Decode_rem for non-interactive requests using per-application historical decode-token statistics, over-approximating by two standard deviations.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Therefore, given an application, we can use historic informa-\ntion on the decode tokens generated by that application and\nover-approximate it by two standard deviations. We show in",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 20-22"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M05-B02",
+      "artifact_id": "qoserve",
+      "mechanism": "M05",
+      "statement": "Maintain a running history of token generation patterns per application to estimate expected decode length.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "we maintain a running history of token\ngeneration patterns per application to estimate the expected\ndecode length",
+          "source": "paper",
+          "locator": "PDF p.7"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M06-B01",
+      "artifact_id": "qoserve",
+      "mechanism": "M06",
+      "statement": "Before admitting a chosen prefill request, validate that it has not already violated and will not violate its QoS targets in the current iteration.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "The\nviolation checker module validates that the chosen request\nhas not already violated (or will not violate) its QoS targets\nin the current iteration",
+          "source": "paper",
+          "locator": "PDF p.4"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M06-B02-R01",
+      "artifact_id": "qoserve",
+      "mechanism": "M06",
+      "statement": "若被选中的 prefill 请求已违反其 TTFT/TTLT 截止时间，或将在当前迭代中违反，则将其标记为降级并移入 relegated 队列。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "if a request has already violated its TTFT / TTLT\ndeadline, or is about to violate it in the current iteration, then\nQoServe de-prioritizes this request into a relegated queue",
+          "source": "paper",
+          "locator": "PDF p.6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M06-B02-R02",
+      "artifact_id": "qoserve",
+      "mechanism": "M06",
+      "statement": "在将被选中请求移入 relegated 队列后，重新选择一个不同的 prefill 请求用于当前迭代。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "it is eagerly moved into\nthe relegated queue and a different prefill request is chosen",
+          "source": "paper",
+          "locator": "PDF p.4"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M06-B03",
+      "artifact_id": "qoserve",
+      "mechanism": "M06",
+      "statement": "Serve relegated requests opportunistically during periods of lower system load, ensuring eventual completion without permanent rejection.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "The relegated requests are serviced opportunistically during\nperiods of lower system load, ensuring eventual completion\nwithout permanent rejection",
+          "source": "paper",
+          "locator": "PDF p.4"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M06-B04-R01",
+      "artifact_id": "qoserve",
+      "mechanism": "M06",
+      "statement": "在多租户部署中，使用应用提示（如 free vs paid 层级）优先将低优先级请求降级到 relegated 队列。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "In multi-tenant deployments, we also use application hints\nsuch as free vs paid tier to preferentially relegate low-priority\nrequests to ensure stability of service to the high priority\nones.",
+          "source": "paper",
+          "locator": "PDF p.6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M06-B04-R02",
+      "artifact_id": "qoserve",
+      "mechanism": "M06",
+      "statement": "仅当没有更多低优先级请求时，才主动将已违反截止时间的高优先级请求降级，以防止级联截止时间违规。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Only when there are no more low-priority requests,\nQoServe proactively relegates high-priority requests that\nhave violated their deadlines to prevent cascading deadline\nviolations.",
+          "source": "paper",
+          "locator": "PDF p.6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M06-A01",
+      "artifact_id": "qoserve",
+      "mechanism": "M06",
+      "statement": "在过载条件下，通过降级约 5% 的请求来维持多数请求的延迟 SLO。",
+      "kind": "guarantee",
+      "evidence": [
+        {
+          "quote": "As shown in Figure 5, by relegating just\n5% of the requests, we can maintain latency SLOs even under\nvery high overload conditions.",
+          "source": "paper",
+          "locator": "PDF p.6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M06-A02",
+      "artifact_id": "qoserve",
+      "mechanism": "M06",
+      "statement": "在优先级队列比较器中，先比较两个作业的 drop_status 字段，drop_status 较小者优先。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "26: function COMPARATOR(job1, job2)\n27: if job1.drop_status ≠ job2.drop_status then\n28: return job1.drop_status < job2.drop_status",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 77-79"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M07-B01-R01",
+      "artifact_id": "qoserve",
+      "mechanism": "M07",
+      "statement": "A request may be preempted to accommodate another request only when the preempting request has higher priority than the in-flight request.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "we\npreempt a request to accommodate another with a higher\npriority only if",
+          "source": "paper",
+          "locator": "PDF p.6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M07-B01-R02",
+      "artifact_id": "qoserve",
+      "mechanism": "M07",
+      "statement": "Preemption eligibility requires that the in-flight request is in the prefill queue.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "(1) the in-flight request is in the prefill queue",
+          "source": "paper",
+          "locator": "PDF p.6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M07-B02",
+      "artifact_id": "qoserve",
+      "mechanism": "M07",
+      "statement": "Requests in the decode queue are never preempted.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "requests in the decode queue are never preempted",
+          "source": "paper",
+          "locator": "PDF p.6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M07-B03",
+      "artifact_id": "qoserve",
+      "mechanism": "M07",
+      "statement": "A prefill request is preempted only if preempting it for one iteration does not lead to a deadline violation.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "preempting that request for an iteration does not lead to\ndeadline violation",
+          "source": "paper",
+          "locator": "PDF p.6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M07-A01",
+      "artifact_id": "qoserve",
+      "mechanism": "M07",
+      "statement": "Preemption is applied to avoid head-of-line blocking of small interactive requests behind long batch requests.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "is a desirable capability as it avoids head-of-line blocking of\nsmall interactive requests behind long batch requests",
+          "source": "paper",
+          "locator": "PDF p.6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M07-A02",
+      "artifact_id": "qoserve",
+      "mechanism": "M07",
+      "statement": "Preemption is restricted so that the KV-cache for each request remains in the GPU for the shortest necessary duration, minimizing memory pressure.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "TBT violation. This also ensures that the KV-cache for each\nrequest remains in the GPU for the shortest necessary dura-\ntion, thereby minimizing memory pressure. The pseudocode",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 97-99"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M08-B01",
+      "artifact_id": "qoserve",
+      "mechanism": "M08",
+      "statement": "A request entering the system is placed into the prefill queue.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "When a request\nenters the system, it is put into the prefill queue.",
+          "source": "paper",
+          "locator": "PDF p.4"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M08-B02",
+      "artifact_id": "qoserve",
+      "mechanism": "M08",
+      "statement": "Each iteration constructs a batch consisting of all requests in the decode queue and a prefill chunk from a request in the prefill queue.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "enters the system, it is put into the prefill queue. In each iter-\nation, QoServe constructs a batch consisting of all requests\nin the decode queue and a prefill-chunk from a request in the\nprefill queue. The prefill selector uses hybrid prioritization",
+          "source": "paper",
+          "locator": "PDF p.4, text lines 74-77"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M08-B03",
+      "artifact_id": "qoserve",
+      "mechanism": "M08",
+      "statement": "The prefill selector uses hybrid prioritization to select the prefill request for the current batch.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "The prefill selector uses hybrid prioritization\nto select the prefill request for the current batch.",
+          "source": "paper",
+          "locator": "PDF p.4"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M08-B04",
+      "artifact_id": "qoserve",
+      "mechanism": "M08",
+      "statement": "The violation checker validates that the chosen request has not already violated or will not violate its QoS targets in the current iteration.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "The\nviolation checker module validates that the chosen request\nhas not already violated (or will not violate) its QoS targets\nin the current iteration.",
+          "source": "paper",
+          "locator": "PDF p.4"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M08-B05",
+      "artifact_id": "qoserve",
+      "mechanism": "M08",
+      "statement": "If the chosen request violates or will violate its QoS targets, it is eagerly moved into the relegated queue and a different prefill request is chosen.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "If it does, it is eagerly moved into\nthe relegated queue and a different prefill request is chosen.",
+          "source": "paper",
+          "locator": "PDF p.4"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M08-B06",
+      "artifact_id": "qoserve",
+      "mechanism": "M08",
+      "statement": "Relegated requests are serviced opportunistically during periods of lower system load, ensuring eventual completion without permanent rejection.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "The relegated requests are serviced opportunistically during\nperiods of lower system load, ensuring eventual completion\nwithout permanent rejection",
+          "source": "paper",
+          "locator": "PDF p.4"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M08-B07",
+      "artifact_id": "qoserve",
+      "mechanism": "M08",
+      "statement": "Once the prefill portion of a request is completed, it is moved to the decode queue.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Once the prefill portion of a request is completed,\nit is moved to the decode queue",
+          "source": "paper",
+          "locator": "PDF p.5"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M08-B08",
+      "artifact_id": "qoserve",
+      "mechanism": "M08",
+      "statement": "Algorithm 1 gathers all decode requests and computes the decode context and minimum decode slack.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "selected_jobs← GET_ALL_DECODES",
+          "source": "paper",
+          "locator": "PDF p.6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M08-B09",
+      "artifact_id": "qoserve",
+      "mechanism": "M08",
+      "statement": "Algorithm 1 obtains the prefill budget C from the predictor using the number of decodes, decode context, and minimum decode slack.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "𝐶← GET_PREFILL_BUDGET(num_decodes, batch_decode_context, min_decode_slack)",
+          "source": "paper",
+          "locator": "PDF p.6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M08-B10",
+      "artifact_id": "qoserve",
+      "mechanism": "M08",
+      "statement": "Algorithm 1 loops while the accumulated prefill token count is less than the prefill budget C.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "while prefill_token_count <𝐶 do",
+          "source": "paper",
+          "locator": "PDF p.6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M08-B11",
+      "artifact_id": "qoserve",
+      "mechanism": "M08",
+      "statement": "If the top job WILL_VIOLATE, Algorithm 1 sets its relegation status to true, pushes it back into the priority queue, and continues the loop.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "if WILL_VIOLATE(top_job) then",
+          "source": "paper",
+          "locator": "PDF p.6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M08-B12",
+      "artifact_id": "qoserve",
+      "mechanism": "M08",
+      "statement": "Otherwise, Algorithm 1 takes min(C - prefill_token_count, REM_TOKENS(top)) tokens for the job, increments the prefill token count, records the tokens taken, appends the job to selected jobs, and pops it from the queue.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "curr_job_tokens← min(𝐶− prefill_token_count, REM_TOKENS(top))",
+          "source": "paper",
+          "locator": "PDF p.6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M08-B13",
+      "artifact_id": "qoserve",
+      "mechanism": "M08",
+      "statement": "Algorithm 1 processes the selected batch after the prefill token loop terminates.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "PROCESS_BATCH(selected_jobs)",
+          "source": "paper",
+          "locator": "PDF p.6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M08-B14",
+      "artifact_id": "qoserve",
+      "mechanism": "M08",
+      "statement": "The priority queue comparator orders jobs first by drop_status, then by hybrid priority.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "if job1.drop_status ≠ job2.drop_status then",
+          "source": "paper",
+          "locator": "PDF p.6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M08-A01",
+      "artifact_id": "qoserve",
+      "mechanism": "M08",
+      "statement": "A lightweight predictor estimates the latency of the batch to ensure QoS targets are not violated while maximizing chunk size for efficiency.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "A lightweight predictor\nis then used to estimate the latency of the batch to make\nsure that the QoS targets are not violated, while maximizing\nthe chunk size for efficiency.",
+          "source": "paper",
+          "locator": "PDF p.4"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M08-A02",
+      "artifact_id": "qoserve",
+      "mechanism": "M08",
+      "statement": "A mixed batch of prefill and decode tokens is constructed using the chosen prefill chunk and the requests in the decode queue.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "A mixed batch of prefill\nand decode tokens is constructed using the chosen prefill\nchunk and the requests in the decode queue",
+          "source": "paper",
+          "locator": "PDF p.4"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M08-A03",
+      "artifact_id": "qoserve",
+      "mechanism": "M08",
+      "statement": "The mixed batch is dispatched to the execution engine on the GPU for processing.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "6 dispatched to the execution engine on the GPU for pro-\ncessing. 7 Once the prefill portion of a request is completed,",
+          "source": "paper",
+          "locator": "PDF p.5, text lines 16-17"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M08-A04",
+      "artifact_id": "qoserve",
+      "mechanism": "M08",
+      "statement": "CREATE_BATCH initializes job_queue as a PRIORITY_QUEUE using COMPARATOR.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "job_queue← PRIORITY_QUEUE(COMPARATOR)",
+          "source": "paper",
+          "locator": "PDF p.6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M08-A05",
+      "artifact_id": "qoserve",
+      "mechanism": "M08",
+      "statement": "CREATE_BATCH initializes prefill_token_count to 0.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "prefill_token_count← 0",
+          "source": "paper",
+          "locator": "PDF p.6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M08-A06",
+      "artifact_id": "qoserve",
+      "mechanism": "M08",
+      "statement": "Each loop iteration reads the top job from job_queue via TOP.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "top_job← job_queue.TOP",
+          "source": "paper",
+          "locator": "PDF p.6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M08-A07",
+      "artifact_id": "qoserve",
+      "mechanism": "M08",
+      "statement": "The prefill selector's hybrid prioritization can preempt an in-flight request for which prefill chunks have already been processed to service a new request with a strict QoS target.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "our hybrid prioritization\nscheduling can preempt an in-flight request for which a few\nprefill chunks have already been processed to instead service\na new request with strict QoS target",
+          "source": "paper",
+          "locator": "PDF p.6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M08-A08",
+      "artifact_id": "qoserve",
+      "mechanism": "M08",
+      "statement": "Selective preemption only preempts a request if (1) the in-flight request is in the prefill queue (decode-queue requests are never preempted) and (2) preempting it for an iteration does not lead to deadline violation.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "we\npreempt a request to accommodate another with a higher\npriority only if (1) the in-flight request is in the prefill queue\n(i.e., requests in the decode queue are never preempted), and\n(2) preempting that request for an iteration does not lead to\ndeadline violation.",
+          "source": "paper",
+          "locator": "PDF p.6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M08-A09",
+      "artifact_id": "qoserve",
+      "mechanism": "M08",
+      "statement": "Requests in the decode queue are not preempted because TBT targets are typically strict (tens of ms) and preemption would significantly increase TBT violation chances.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "deadline violation. We do not preempt requests in the de-\ncode queue as TBT targets are typically strict (10s of ms), and\nthus preempting them significantly increases the chances of\nTBT violation. This also ensures that the KV-cache for each",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 94-97"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M08-A10",
+      "artifact_id": "qoserve",
+      "mechanism": "M08",
+      "statement": "Selective preemption keeps each request's KV-cache in the GPU for the shortest necessary duration, minimizing memory pressure.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "TBT violation. This also ensures that the KV-cache for each\nrequest remains in the GPU for the shortest necessary dura-\ntion, thereby minimizing memory pressure. The pseudocode",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 97-99"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M09-B01",
+      "artifact_id": "qoserve",
+      "mechanism": "M09",
+      "statement": "A mixed batch of prefill and decode tokens is constructed using the chosen prefill chunk and the requests in the decode queue.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "A mixed batch of prefill\nand decode tokens is constructed using the chosen prefill\nchunk and the requests in the decode queue",
+          "source": "paper",
+          "locator": "PDF p.4"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M09-B02",
+      "artifact_id": "qoserve",
+      "mechanism": "M09",
+      "statement": "The mixed batch is dispatched to the execution engine on the GPU for processing.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "6 dispatched to the execution engine on the GPU for pro-\ncessing. 7 Once the prefill portion of a request is completed,",
+          "source": "paper",
+          "locator": "PDF p.5, text lines 16-17"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M09-B03",
+      "artifact_id": "qoserve",
+      "mechanism": "M09",
+      "statement": "Modifying the chunk size at runtime incurs no additional cost, requiring only pulling the appropriate number of tokens from the pending prefill queue.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Modifying the chunk size at runtime incurs\nno additional cost — simply requiring pulling appropriate\nnumber of tokens from the pending prefill queue.",
+          "source": "paper",
+          "locator": "PDF p.7"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M09-A01",
+      "artifact_id": "qoserve",
+      "mechanism": "M09",
+      "statement": "Prefill 与 decode token 在批中通过 fused prefill-decode MLP 融合，以提升内存受限 decode 阶段的计算效率。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "serve requests using chunked-prefills, where each iteration\nprocesses a fixed number of tokens (called chunk size), which\nincludes both prefill and decode tokens from different re-\nquests using fused prefill-decode MLP to improve the com-\npute efficiency of memory-bound decode phase [5]. However,",
+          "source": "paper",
+          "locator": "PDF p.5, text lines 45-49"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M09-A02",
+      "artifact_id": "qoserve",
+      "mechanism": "M09",
+      "statement": "批构建严格使用上游已确定的 prefill chunk 大小（prefill token 数），不自行改变或重新选择该大小。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "A mixed batch of prefill\nand decode tokens is constructed using the chosen prefill\nchunk and the requests in the decode queue",
+          "source": "paper",
+          "locator": "PDF p.4"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M10-B01-R01",
+      "artifact_id": "qoserve",
+      "mechanism": "M10",
+      "statement": "For fixed-QPS runs, perform an offline sweep of α over the range 0 to 10.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "decode length.𝛼 is a configurable hyperparameter. For fixed-\nQPS runs, we perform an offline sweep of𝛼 values from 0 to\n10 and select the value that minimizes SLO violations. An𝛼",
+          "source": "paper",
+          "locator": "PDF p.7, text lines 35-37"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M10-B01-R02",
+      "artifact_id": "qoserve",
+      "mechanism": "M10",
+      "statement": "Select the swept α value that minimizes SLO violations.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "select the value that minimizes SLO violations",
+          "source": "paper",
+          "locator": "PDF p.7"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M10-B02",
+      "artifact_id": "qoserve",
+      "mechanism": "M10",
+      "statement": "Use α = 8 ms/token as the selected fixed-QPS value providing the best trade-off.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "decode length.𝛼 is a configurable hyperparameter. For fixed-\nQPS runs, we perform an offline sweep of𝛼 values from 0 to\n10 and select the value that minimizes SLO violations. An𝛼\nof 8 ms/token provided the best trade-off, reducing violations\nwithout affecting tail latency. For variable-QPS, we employ",
+          "source": "paper",
+          "locator": "PDF p.7, text lines 35-39"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M10-B03-R01",
+      "artifact_id": "qoserve",
+      "mechanism": "M10",
+      "statement": "For variable-QPS workloads, use load-adaptive tuning of α instead of a single fixed value.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "For variable-QPS, we employ\nload-adaptive tuning",
+          "source": "paper",
+          "locator": "PDF p.7"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M10-B03-R02",
+      "artifact_id": "qoserve",
+      "mechanism": "M10",
+      "statement": "At low load, set α = 1 ms/token.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "without affecting tail latency. For variable-QPS, we employ\nload-adaptive tuning. At low loads, we set𝛼 = 1 ms/token",
+          "source": "paper",
+          "locator": "PDF p.7, text lines 39-40"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M10-B04",
+      "artifact_id": "qoserve",
+      "mechanism": "M10",
+      "statement": "Use larger α values at high load to reduce deadline violations.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "This optimizes tail latency at low loads while minimizing\ndeadline violations at high loads",
+          "source": "paper",
+          "locator": "PDF p.7"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M10-A01",
+      "artifact_id": "qoserve",
+      "mechanism": "M10",
+      "statement": "Justify the low-load choice α = 1 ms/token by noting that smaller α values achieve comparable violation rates and median latency while limiting tail latency.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "as Figure 14 shows that smaller values achieve comparable\nviolation rates and median latency while limiting tail latency",
+          "source": "paper",
+          "locator": "PDF p.7"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M10-A02",
+      "artifact_id": "qoserve",
+      "mechanism": "M10",
+      "statement": "Increasing α causes the system to increasingly deprioritize longer requests, reducing median latency for all requests at the cost of violating deadlines for most long requests.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "values of 𝛼, our hybrid prioritization parameter. As 𝛼 in-\ncreases, the system increasingly deprioritizes longer requests.\nThis significantly reduces median latency for all requests\nbut comes at the cost of violating deadlines for most long\nrequests. This demonstrates the importance of tuning this",
+          "source": "paper",
+          "locator": "PDF p.12, text lines 54-58"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M10-A03",
+      "artifact_id": "qoserve",
+      "mechanism": "M10",
+      "statement": "Tune α as load increases to strike a balance between low median latency and fair service for long requests.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "This demonstrates the importance of tuning this\nparameter as load increases to strike a balance between low\nmedian latency and fair service for long requests",
+          "source": "paper",
+          "locator": "PDF p.12"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M11-B01",
+      "artifact_id": "qoserve",
+      "mechanism": "M11",
+      "statement": "Extend the Sarathi scheduler on top of vLLM to implement QoServe, retaining vLLM tensor parallelism and PagedAttention.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "We implemented QoServe by extending the Sarathi sched-\nuler [4], which is built on top of the vLLM inference sys-\ntem [11]. The implementation focuses on enhancing the\nscheduler component while maintaining compatibility with\nvLLM’s efficient tensor parallelism and PagedAttention mech-",
+          "source": "paper",
+          "locator": "PDF p.7, text lines 21-25"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M11-B02-R01",
+      "artifact_id": "qoserve",
+      "mechanism": "M11",
+      "statement": "At request submission, the extended vLLM API associates each inference request with its QoS requirements (TTFT, TBT, and/or TTLT).",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "anisms. We extended the vLLM API to associate each in-\nference request with its corresponding QoS requirements\n(TTFT, TBT, and/or TTLT) and priority level during request\nsubmission. The hybrid prioritization policy is implemented",
+          "source": "paper",
+          "locator": "PDF p.7, text lines 26-29"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M11-B02-R02",
+      "artifact_id": "qoserve",
+      "mechanism": "M11",
+      "statement": "At request submission, the extended vLLM API associates each inference request with a priority level.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "anisms. We extended the vLLM API to associate each in-\nference request with its corresponding QoS requirements\n(TTFT, TBT, and/or TTLT) and priority level during request\nsubmission. The hybrid prioritization policy is implemented",
+          "source": "paper",
+          "locator": "PDF p.7, text lines 26-29"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M11-B03-R01",
+      "artifact_id": "qoserve",
+      "mechanism": "M11",
+      "statement": "The hybrid prioritization policy is realized using a priority queue whose ordering incorporates both deadline proximity and estimated processing time.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "submission. The hybrid prioritization policy is implemented\nusing a priority queue that incorporates both deadline prox-\nimity and estimated processing time, with the interpolation\nfactor𝛼 configurable as a deployment parameter. For non-",
+          "source": "paper",
+          "locator": "PDF p.7, text lines 29-32"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M11-B03-R02",
+      "artifact_id": "qoserve",
+      "mechanism": "M11",
+      "statement": "The interpolation factor alpha of the priority queue is configurable as a deployment parameter.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "imity and estimated processing time, with the interpolation\nfactor𝛼 configurable as a deployment parameter. For non-",
+          "source": "paper",
+          "locator": "PDF p.7, text lines 31-32"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M11-B04",
+      "artifact_id": "qoserve",
+      "mechanism": "M11",
+      "statement": "Maintain a running per-application history of token generation patterns to estimate expected decode length for non-interactive requests.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "factor𝛼 configurable as a deployment parameter. For non-\ninteractive requests, we maintain a running history of token\ngeneration patterns per application to estimate the expected\ndecode length.𝛼 is a configurable hyperparameter. For fixed-",
+          "source": "paper",
+          "locator": "PDF p.7, text lines 32-35"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M11-B05",
+      "artifact_id": "qoserve",
+      "mechanism": "M11",
+      "statement": "Add a priority field to each request enabling relegation decisions based on application hints such as free-tier versus premium users.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "we add a priority field to each request that\nenables relegation decisions based on application hints such\nas free-tier versus premium users",
+          "source": "paper",
+          "locator": "PDF p.7"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M12-B01-R01",
+      "artifact_id": "qoserve",
+      "mechanism": "M12",
+      "statement": "在 PD 分离服务中，对 prefill 节点应用 hybrid prioritization。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "4.1.3 Goodput under PD disaggregation. QoServe’s\ntechniques of hybrid prioritization and eager relegation are\ndirectly applicable to the prefill nodes of disaggregated serv-",
+          "source": "paper",
+          "locator": "PDF p.9, text lines 94-96"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M12-B01-R02",
+      "artifact_id": "qoserve",
+      "mechanism": "M12",
+      "statement": "在 PD 分离服务中，对 prefill 节点应用 eager relegation。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "4.1.3 Goodput under PD disaggregation. QoServe’s\ntechniques of hybrid prioritization and eager relegation are\ndirectly applicable to the prefill nodes of disaggregated serv-",
+          "source": "paper",
+          "locator": "PDF p.9, text lines 94-96"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M12-B02",
+      "artifact_id": "qoserve",
+      "mechanism": "M12",
+      "statement": "Set a large default chunk size of 8K for prefill nodes since TBT does not constrain prefills.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "We set a large chunk size of 8K as default\nas we are not constrained by TBT in the prefill nodes for\ndisaggregated serving",
+          "source": "paper",
+          "locator": "PDF p.9"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M12-B03",
+      "artifact_id": "qoserve",
+      "mechanism": "M12",
+      "statement": "Keep decode replicas unchanged, working with a maximum batch size that meets the strictest TBT.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "the number of decode\nreplicas and their SLO attainment is identical as they work\nwith a maximum batch size that meets the strictest TBT",
+          "source": "paper",
+          "locator": "PDF p.9"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M12-A01",
+      "artifact_id": "qoserve",
+      "mechanism": "M12",
+      "statement": "在 PD 分离配置中，不支持 decode 节点上的不同 TBT SLO，并将该能力留待未来工作。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "with a maximum batch size that meets the strictest TBT. Ef-\nficiently supporting different TBT SLOs in the decode nodes\nis left to future work. As shown in Figure 8, across models,",
+          "source": "paper",
+          "locator": "PDF p.9, text lines 106-108"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M12-A02",
+      "artifact_id": "qoserve",
+      "mechanism": "M12",
+      "statement": "在 PD 分离配置中，不利用 dynamic chunking 的吞吐收益，因为基线 chunk size 为 8K。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "The throughput gains are lower compared to PD colocation\nbecause we are unable to exploit dynamic chunking here,\nbecause of the large baseline chunk size.",
+          "source": "paper",
+          "locator": "PDF p.9"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M12-A03",
+      "artifact_id": "qoserve",
+      "mechanism": "M12",
+      "statement": "在 PD 分离评估中，报告每个 prefill 副本支持的最大 goodput。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "we\nuse the Sarathi-FCFS and Sarathi-EDF baselines for these\nexperiments and report the maximum goodput supported\nper (prefill) replica.",
+          "source": "paper",
+          "locator": "PDF p.9"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M12-A04",
+      "artifact_id": "qoserve",
+      "mechanism": "M12",
+      "statement": "在 PD 分离实验中，使用 Sarathi-FCFS 与 Sarathi-EDF 作为基线，与共置场景一致。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "As done in the colocated case, we\nuse the Sarathi-FCFS and Sarathi-EDF baselines for these\nexperiments",
+          "source": "paper",
+          "locator": "PDF p.9"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M12-A05",
+      "artifact_id": "qoserve",
+      "mechanism": "M12",
+      "statement": "在 vLLM 的 PD 分离模式上，使用 Az-conv trace 与 Table 3 中相同的 QoS 类进行评估。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "We evaluate QoServe on the PD disaggregated mode of\nvLLM [1] using the Az-conv trace with identical QoS classes\nfrom Table 3.",
+          "source": "paper",
+          "locator": "PDF p.9"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M13-B01",
+      "artifact_id": "qoserve",
+      "mechanism": "M13",
+      "statement": "Compute goodput as the number of requests served per replica per second while meeting p99 latency targets, allowing at most 1% of total requests to violate deadlines.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "system’s goodput, which we define as the number of requests\nserved per replica per second while meeting the latency tar-\ngets (p99). We allow at most 1% of total requests to violate\ntheir deadlines. For these single replica experiments, we com-",
+          "source": "paper",
+          "locator": "PDF p.9, text lines 80-83"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M13-B02",
+      "artifact_id": "qoserve",
+      "mechanism": "M13",
+      "statement": "Generate request arrival times using a Poisson distribution while preserving prefill and decode token counts of the source traces.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Request arrival times are generated\nusing a Poisson distribution, [4, 13], while maintaining the\nprefill and decode token counts of the respective traces.",
+          "source": "paper",
+          "locator": "PDF p.8"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M13-B03",
+      "artifact_id": "qoserve",
+      "mechanism": "M13",
+      "statement": "Divide the dataset into three equal parts and assign each part a different application type, QoS bucket, and SLO.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "emulate different applications, we divide the dataset into\nthree equal parts, and assign each part with a different ap-\nplication type and the corresponding QoS bucket and SLO.",
+          "source": "paper",
+          "locator": "PDF p.8, text lines 25-27"
+        },
+        {
+          "quote": "of experiments, we assume an equal mix of requests from\nthese three representative application categories (33% each).",
+          "source": "paper",
+          "locator": "PDF p.8, text lines 38-39"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M13-B04",
+      "artifact_id": "qoserve",
+      "mechanism": "M13",
+      "statement": "Assign QoS bucket SLOs: Q1 interactive with 6s TTFT and 50ms TBT, Q2 non-interactive with 600s TTLT, Q3 non-interactive with 1800s TTLT.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Q1 33.33% 6 50 -",
+          "source": "paper",
+          "locator": "PDF p.8"
+        },
+        {
+          "quote": "Q2 33.33% - - 600",
+          "source": "paper",
+          "locator": "PDF p.8"
+        },
+        {
+          "quote": "Q3 33.33% - - 1800",
+          "source": "paper",
+          "locator": "PDF p.8"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M13-B05-R01",
+      "artifact_id": "qoserve",
+      "mechanism": "M13",
+      "statement": "构建 Sarathi-Silo 基线：每个 QoS 桶分配独立 GPU 集群，每个副本运行 Sarathi 调度器。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Sarathi-Silo (SOTA), the\nState-of-the-art siloed deployment where each QoS bucket\nis assigned an independent GPU cluster with each replica\nrunning a Sarathi scheduler",
+          "source": "paper",
+          "locator": "PDF p.8"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M13-B05-R02",
+      "artifact_id": "qoserve",
+      "mechanism": "M13",
+      "statement": "构建 Sarathi-FCFS 基线：在统一集群上跨所有 QoS 层协同调度，使用 Sarathi 的 FCFS 策略。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "running a Sarathi scheduler (2) Sarathi-FCFS, which co-\nschedules requests across all QoS Tiers on a unified cluster",
+          "source": "paper",
+          "locator": "PDF p.8, text lines 48-49"
+        },
+        {
+          "quote": "using Sarathi with FCFS policy, and (3) Sarathi-EDF, which",
+          "source": "paper",
+          "locator": "PDF p.8, text lines 56-56"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M13-B05-R03",
+      "artifact_id": "qoserve",
+      "mechanism": "M13",
+      "statement": "构建 Sarathi-EDF 基线：跨层协同调度并在 Sarathi 上采用 Earliest Deadline First 策略。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "using Sarathi with FCFS policy, and (3) Sarathi-EDF, which\nagain co-schedules but also imparts deadline-awareness dur-\ning scheduling by using the Earliest Deadline First policy on\nSarathi. The strictest QoS bucket with 50ms TBT deadline",
+          "source": "paper",
+          "locator": "PDF p.8, text lines 56-59"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M13-B06-R01",
+      "artifact_id": "qoserve",
+      "mechanism": "M13",
+      "statement": "在 siloed 基线中，最严格 QoS 桶（50ms TBT）使用 chunk size 256，其余两个 QoS 类使用 2K 大 chunk size。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "The strictest QoS bucket with 50ms TBT deadline\nuses a chunk size of 256, while the other two QoS classes\nuse a large chunk size of 2K to maximize throughput in the\nsiloed baselines.",
+          "source": "paper",
+          "locator": "PDF p.8"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M13-B06-R02",
+      "artifact_id": "qoserve",
+      "mechanism": "M13",
+      "statement": "在共享集群基线中，chunk size 设为 256 以满足最严格层的 TBT 目标。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "For shared cluster baselines, the chunk size\nchosen is 256, to meet the TBT targets of the strictest tier.",
+          "source": "paper",
+          "locator": "PDF p.8"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M13-B07",
+      "artifact_id": "qoserve",
+      "mechanism": "M13",
+      "statement": "Run all experiments with PD colocation and chunking enabled by default, except the PD disaggregation experiments.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "By default, all experiments are run with PD colocation\nwith chunking enabled, except in (§4.1.3) where the experi-\nments are run with PD disaggregation. We evaluate differ-",
+          "source": "paper",
+          "locator": "PDF p.8, text lines 64-66"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M13-B08",
+      "artifact_id": "qoserve",
+      "mechanism": "M13",
+      "statement": "Allocate silo baseline replicas by capacity estimation from per-replica throughput per QoS tier (7 replicas for Q1, 3 each for Q2 and Q3).",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "The silo baseline\nallocates dedicated replicas based on capacity estimation\nfrom per-replica throughput for each QoS tier: 7 replicas\nfor Q1 and 3 each for Q2 and Q3, totaling 13 GPUs.",
+          "source": "paper",
+          "locator": "PDF p.8"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M13-B09",
+      "artifact_id": "qoserve",
+      "mechanism": "M13",
+      "statement": "Use round-robin load balancing across replicas in both silo and QoServe deployments.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Both\ndeployments use round-robin load balancing across replicas.",
+          "source": "paper",
+          "locator": "PDF p.8"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M13-B10",
+      "artifact_id": "qoserve",
+      "mechanism": "M13",
+      "statement": "Classify requests as long if prompt token count is at or above the 90th percentile, and short otherwise, for violation analysis.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "length (combined across all QoS buckets). We classify re-\nquests as long if their prompt token count is greater than\nor equal to the 90th percentile, and short otherwise. Our",
+          "source": "paper",
+          "locator": "PDF p.11, text lines 43-45"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M13-B11-R01",
+      "artifact_id": "qoserve",
+      "mechanism": "M13",
+      "statement": "生成昼夜负载：QPS 在低点 2.0 与高点 5 之间每 15 分钟变化一次，总时长 4 小时。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Load in the system\nvaries dynamically between low (QPS:2.0) and high (QPS:5)\npoints every 15 minutes over a total of 4 hours as shown in\nFigure 12(a).",
+          "source": "paper",
+          "locator": "PDF p.11"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M13-B11-R02",
+      "artifact_id": "qoserve",
+      "mechanism": "M13",
+      "statement": "该负载模式采用 2.5× 峰谷比，与 LLM 生产 trace 记录的请求率波动一致。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "This\npattern incorporates a 2.5× peak-to-trough ratio consistent\nwith request rate variability documented in LLM production\ntraces [9].",
+          "source": "paper",
+          "locator": "PDF p.11"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M13-B12",
+      "artifact_id": "qoserve",
+      "mechanism": "M13",
+      "statement": "Mark a random 20% of requests in each QoS bucket as low priority based on application hints, and the remaining 80% as high priority or Important.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "we mark a random set of 20% of requests\nin each QoS bucket as low priority, based on application hints.\nThe remaining 80% of requests in each bucket are marked as\nhigh priority or Important.",
+          "source": "paper",
+          "locator": "PDF p.11"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M13-B13",
+      "artifact_id": "qoserve",
+      "mechanism": "M13",
+      "statement": "Evaluate skewed workload compositions 70-15-15 (interactive dominant) and 15-15-70 (batch-dominant) at 4.5 QPS.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Workload mix. We evaluate QoServe under skewed work-\nload distributions: 70-15-15 (interactive dominant) and 15-15-\n70 (batch-dominant) at 4.5 QPS. Table 6 presents p99 laten-",
+          "source": "paper",
+          "locator": "PDF p.12, text lines 64-66"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M13-A01",
+      "artifact_id": "qoserve",
+      "mechanism": "M13",
+      "statement": "在跨负载的截止时间违规实验中纳入 Sarathi-SRPF 作为对比方案。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Sarathi-FCFS Sarathi-SRPF Sarathi-EDF QoServe",
+          "source": "paper",
+          "locator": "PDF p.11"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M13-A02",
+      "artifact_id": "qoserve",
+      "mechanism": "M13",
+      "statement": "不报告非 chunked 的 vanilla vLLM 基线，因为 Sarathi 通过 chunking 已展示更高吞吐。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Since Sarathi demonstrates superior\nthroughput over vanilla vLLM through chunking, we do not\npresent the non-chunked vLLM baseline.",
+          "source": "paper",
+          "locator": "PDF p.8"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M13-A03",
+      "artifact_id": "qoserve",
+      "mechanism": "M13",
+      "statement": "按阶段执行评估：先均匀负载下的 goodput（§4.1）与延迟/SLO 违规（§4.2），再瞬态负载尖峰（§4.3），最后各技术消融（§4.4）。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Setup. We first evaluateQoServe under uniform load condi-\ntions to identify the impact of our design on goodput (§4.1)\nas well as on latency and SLO violations (§4.2). Next, we\nevaluate how QoServe performs under transient spikes in\nload (§4.3), and finally we perform detailed ablation of our\nindividual techniques (§4.4).",
+          "source": "paper",
+          "locator": "PDF p.8, text lines 74-79"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M13-A04",
+      "artifact_id": "qoserve",
+      "mechanism": "M13",
+      "statement": "将 silo 分配缩减为与 QoServe GPU 数匹配的 6,2,2 副本以验证资源效率。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "line violations with 23% fewer GPUs. To validate QoServe’s\nresource efficiency, we reduce the silo allocation to match\nQoServe’s GPU count (6,2,2 replicas), which causes viola-\ntions to surge to 60.4%. An alternate 4,3,3 allocation faces",
+          "source": "paper",
+          "locator": "PDF p.8, text lines 94-97"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M13-A05",
+      "artifact_id": "qoserve",
+      "mechanism": "M13",
+      "statement": "评估 4,3,3 的替代 silo 分配。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "An alternate 4,3,3 allocation faces\napproximately 95% Q1 violations with p99 latency of 385.36s.",
+          "source": "paper",
+          "locator": "PDF p.8"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M13-A06",
+      "artifact_id": "qoserve",
+      "mechanism": "M13",
+      "statement": "单副本 goodput 实验在 4 小时周期内跨三个数据集与三个模型对比 Sarathi-FCFS 与 Sarathi-EDF。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "their deadlines. For these single replica experiments, we com-\npare against the Sarathi-FCFS and Sarathi-EDF baselines.\nFigure 7 shows the goodput while serving requests over a 4-\nhour period across three different datasets and models listed\nin Table 1. As shown, QoServe achieves 1.5x to 2.4x higher",
+          "source": "paper",
+          "locator": "PDF p.9, text lines 83-87"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M13-A07",
+      "artifact_id": "qoserve",
+      "mechanism": "M13",
+      "statement": "在 PD 解耦实验中设置 8K 的大默认 chunk size，因为 prefill 节点不受 TBT 约束。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "We set a large chunk size of 8K as default\nas we are not constrained by TBT in the prefill nodes for\ndisaggregated serving.",
+          "source": "paper",
+          "locator": "PDF p.9"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M13-A08",
+      "artifact_id": "qoserve",
+      "mechanism": "M13",
+      "statement": "在 PD 解耦实验中，各部署的 decode 副本数及其 SLO 达成保持一致，使用满足最严格 TBT 的最大 batch size。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "In all deployments, the number of decode\nreplicas and their SLO attainment is identical as they work\nwith a maximum batch size that meets the strictest TBT.",
+          "source": "paper",
+          "locator": "PDF p.9"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M13-A09",
+      "artifact_id": "qoserve",
+      "mechanism": "M13",
+      "statement": "消融从 Sarathi-EDF 基线开始，将所有请求标记为 important，依次叠加 dynamic chunking、eager relegation、hybrid prioritization。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "we tag all requests\nas important and evaluate three design elements—dynamic\nchunking, hybrid prioritization, and eager relegation—starting\nwith the Sarathi-EDF baseline.",
+          "source": "paper",
+          "locator": "PDF p.12"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M13-A10",
+      "artifact_id": "qoserve",
+      "mechanism": "M13",
+      "statement": "消融表报告每种配置的最优负载 QPS 与高负载（QPS=6）违规百分比。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Config Optimal Load High load (QPS=6)QPS % gain % viol % impr.",
+          "source": "paper",
+          "locator": "PDF p.12"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M13-A11",
+      "artifact_id": "qoserve",
+      "mechanism": "M13",
+      "statement": "hybrid prioritization 消融在三个不同 alpha 值下变化系统负载，并报告中位延迟与截止时间违规百分比。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "To further illustrate the impact of hybrid prioritization,\nFigure 14 plots the median latency and percentage of dead-\nline violations as we vary system load across three different\nvalues of 𝛼, our hybrid prioritization parameter. As 𝛼 in-",
+          "source": "paper",
+          "locator": "PDF p.12, text lines 51-54"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M14-B01-R01",
+      "artifact_id": "qoserve",
+      "mechanism": "M14",
+      "statement": "提供 tester.sh 作为约 5 分钟的快速验证运行脚本。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "tester.sh: Quick validation run (∼5 minutes)",
+          "source": "paper",
+          "locator": "PDF p.16"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M14-B01-R02",
+      "artifact_id": "qoserve",
+      "mechanism": "M14",
+      "statement": "提供 fig7.sh 以复现 Figure 7 的 PD colocation goodput（13 小时，仅 Llama3-8B TP1）。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "• fig7.sh: Goodput with PD colocation (13 hours, Llama3-\n8B TP1 only)",
+          "source": "paper",
+          "locator": "PDF p.16, text lines 15-16"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M14-B01-R03",
+      "artifact_id": "qoserve",
+      "mechanism": "M14",
+      "statement": "提供 fig7_tiny.sh 以在单 A100 上以缩减形式复现 Figure 7 的 PD colocation goodput（8 小时）。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "fig7_tiny.sh: Goodput with PD colocation (8 hours,\nsingle A100)",
+          "source": "paper",
+          "locator": "PDF p.16"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M14-B01-R04",
+      "artifact_id": "qoserve",
+      "mechanism": "M14",
+      "statement": "提供 fig8.sh 以复现 Figure 8 的 PD disaggregation goodput（8 小时，仅 Llama3-8B TP1）。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "fig8.sh: Goodput with PD disaggregation (8 hours,\nLlama3-8B TP1 only)",
+          "source": "paper",
+          "locator": "PDF p.16"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M14-B01-R05",
+      "artifact_id": "qoserve",
+      "mechanism": "M14",
+      "statement": "提供 fig10_11.sh 以复现 Figures 10–11 的负载下延迟与违约（40 小时）。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "fig10_11.sh: Latency and violations under load (40\nhours)",
+          "source": "paper",
+          "locator": "PDF p.16"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M14-B01-R06",
+      "artifact_id": "qoserve",
+      "mechanism": "M14",
+      "statement": "提供 fig10_11_tiny.sh 以在单 A100 上以缩减形式复现 Figures 10–11 的负载下延迟与违约（11 小时）。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "fig10_11_tiny.sh: Latency and violations under load\n(11 hours, single A100)",
+          "source": "paper",
+          "locator": "PDF p.16"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M14-B02",
+      "artifact_id": "qoserve",
+      "mechanism": "M14",
+      "statement": "Save raw logs to benchmark_output/ and plots/graphs to paper_plots/.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Results are saved to benchmark_output/ (raw logs) and\npaper_plots/ (plots and graphs).",
+          "source": "paper",
+          "locator": "PDF p.16"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M14-B03",
+      "artifact_id": "qoserve",
+      "mechanism": "M14",
+      "statement": "Expose QoS tiers for modification in sequence.py line 11.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "QoS tiers: sequence.py (line 11)",
+          "source": "paper",
+          "locator": "PDF p.16"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M14-B04",
+      "artifact_id": "qoserve",
+      "mechanism": "M14",
+      "statement": "Expose hybrid prioritization α for modification in sequence.py line 79.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "• Hybrid prioritization𝛼: sequence.py (line 79)",
+          "source": "paper",
+          "locator": "PDF p.16, text lines 47-47"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M14-B05",
+      "artifact_id": "qoserve",
+      "mechanism": "M14",
+      "statement": "Expose scheduling logic for modification in deadline_scheduler.py.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Scheduling logic: deadline_scheduler.py",
+          "source": "paper",
+          "locator": "PDF p.16"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M14-B06",
+      "artifact_id": "qoserve",
+      "mechanism": "M14",
+      "statement": "Lock GPU clocks as described in README to obtain reproducible measurements.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "GPU clock locking (described in README) is essential for re-\nproducible measurements. The current artifact uses a smaller",
+          "source": "paper",
+          "locator": "PDF p.16, text lines 52-53"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M14-B07-R01",
+      "artifact_id": "qoserve",
+      "mechanism": "M14",
+      "statement": "提供可在单 A100 GPU 上运行的 tiny 脚本变体。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "For\nresource-constrained environments, tiny scripts are provided\nthat run on a single A100 GPU with reduced execution times\nwhile preserving core trends.",
+          "source": "paper",
+          "locator": "PDF p.15"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M14-B07-R02",
+      "artifact_id": "qoserve",
+      "mechanism": "M14",
+      "statement": "tiny 脚本以缩减的执行时间运行并保留核心趋势。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "tiny scripts are provided\nthat run on a single A100 GPU with reduced execution times\nwhile preserving core trends.",
+          "source": "paper",
+          "locator": "PDF p.15"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M14-B08",
+      "artifact_id": "qoserve",
+      "mechanism": "M14",
+      "statement": "Use fewer requests and a coarser QPS sweep than the paper in the artifact to keep runtime manageable.",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Note: artifact uses fewer\nrequests and coarser QPS sweep than paper for manageable\nruntime; trends and relative performance remain consistent.",
+          "source": "paper",
+          "locator": "PDF p.16"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M14-B09-R01",
+      "artifact_id": "qoserve",
+      "mechanism": "M14",
+      "statement": "当前 artifact 在 Azure Code Trace 上复现 Llama3-8B TP1 的 Figure 7 与 Figures 10–11 结果。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Current artifact reproduces Llama3-8B TP1 on\nAzure Code Trace.",
+          "source": "paper",
+          "locator": "PDF p.16"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M14-B09-R02",
+      "artifact_id": "qoserve",
+      "mechanism": "M14",
+      "statement": "当前 artifact 在 Azure Conv. Trace 上复现 Llama3-8B TP1 的 Figure 8 结果。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Current artifact reproduces Llama3-8B TP1 on Azure\nConv. Trace.",
+          "source": "paper",
+          "locator": "PDF p.16"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M14-A01",
+      "artifact_id": "qoserve",
+      "mechanism": "M14",
+      "statement": "通过 GitHub 公开获取 artifact，并从 Zenodo（DOI 10.5281/zenodo.18218177）下载归档版本。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "A.3.1 How to access. The artifact is publicly available\non GitHub and archived on Zenodo with DOI: 10.5281/zen-\nodo.18218177.",
+          "source": "paper",
+          "locator": "PDF p.15, text lines 102-104"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M14-A02",
+      "artifact_id": "qoserve",
+      "mechanism": "M14",
+      "statement": "创建 conda 环境并通过 pip 安装依赖。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Refer to README for detailed installation instructions. Sum-\nmary: create conda environment, install dependencies via\npip, download datasets, exportHF_TOKEN, and configure GPU\nclocks for reproducibility.",
+          "source": "paper",
+          "locator": "PDF p.16, text lines 8-11"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M14-A03",
+      "artifact_id": "qoserve",
+      "mechanism": "M14",
+      "statement": "导出 HF_TOKEN 环境变量。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "pip, download datasets, exportHF_TOKEN, and configure GPU",
+          "source": "paper",
+          "locator": "PDF p.16, text lines 10-10"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M14-A04",
+      "artifact_id": "qoserve",
+      "mechanism": "M14",
+      "statement": "由脚本自动从公共 Azure blob storage 下载 ShareGPT 与 Azure Code/Conversation 数据集。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "A.3.4 Data sets. ShareGPT [19] and Azure production\ntraces (Code, Conversation) [15]. Scripts automatically down-\nload datasets from public Azure blob storage.",
+          "source": "paper",
+          "locator": "PDF p.16, text lines 2-4"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M14-A05",
+      "artifact_id": "qoserve",
+      "mechanism": "M14",
+      "statement": "通过 Hugging Face 访问 Llama3-8B、Qwen-7B、Llama3-70B 模型，需具备模型访问权限的 HF token。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "Llama3-8B, Qwen-7B, Llama3-70B accessed\nvia Hugging Face (requires HF token with model access).",
+          "source": "paper",
+          "locator": "PDF p.16"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M14-A06",
+      "artifact_id": "qoserve",
+      "mechanism": "M14",
+      "statement": "在 4×A100 80GB NVLink 节点上运行评估脚本。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "The evaluation scripts\nassume a 4×A100 80GB node with NVLink.",
+          "source": "paper",
+          "locator": "PDF p.15"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M14-A07",
+      "artifact_id": "qoserve",
+      "mechanism": "M14",
+      "statement": "Qwen-7B 实验使用至少 2×A100 且成对 NVLink（TP2）。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "assume a 4×A100 80GB node with NVLink. Qwen-7B re-\nquires minimum 2×A100 with pairwise NVLink (TP2). Llama3-",
+          "source": "paper",
+          "locator": "PDF p.15, text lines 106-107"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M14-A08",
+      "artifact_id": "qoserve",
+      "mechanism": "M14",
+      "statement": "Llama3-70B 实验使用 4×H100 80GB NVLink（TP4）。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "quires minimum 2×A100 with pairwise NVLink (TP2). Llama3-\n70B requires 4×H100 80GB GPUs with NVLink (TP4). For",
+          "source": "paper",
+          "locator": "PDF p.15, text lines 107-108"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M14-A09",
+      "artifact_id": "qoserve",
+      "mechanism": "M14",
+      "statement": "按 README 安装 Python 3.10、PyTorch 2.3.0、CUDA 12.1、FlashInfer 0.1.1 的软件环境。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "A.3.3 Software dependencies. Python 3.10, PyTorch 2.3.0,\nCUDA 12.1, FlashInfer 0.1.1. See README for complete de-\npendency list and installation instructions.",
+          "source": "paper",
+          "locator": "PDF p.15, text lines 112-114"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M14-A10",
+      "artifact_id": "qoserve",
+      "mechanism": "M14",
+      "statement": "为 artifact 预留约 150 GB 磁盘空间。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "How much disk space required?:∼150 GB",
+          "source": "paper",
+          "locator": "PDF p.15"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "claim_id": "qoserve:M14-A11",
+      "artifact_id": "qoserve",
+      "mechanism": "M14",
+      "statement": "预留 20–60 分钟完成工作流准备。",
+      "kind": "capability",
+      "evidence": [
+        {
+          "quote": "How much time to prepare workflow?: 20–60 minutes",
+          "source": "paper",
+          "locator": "PDF p.15"
+        }
+      ]
+    }
+  ],
+  "scope": [
+    {
+      "schema_version": "0.2.0",
+      "scope_id": "qoserve-scope-001",
+      "artifact_id": "qoserve",
+      "param": "qos_class_count",
+      "kind": "interval",
+      "lower": 2.0,
+      "upper": 2.0,
+      "values": null,
+      "unit": "classes",
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "QoServe defines two QoS classes: interactive and non in-\nteractive. Interactive requests use two SLOs — TTFT (time\nto first token) and TBT (token-by-token latency), which en-\nsure immediate responsiveness and consistent pacing. Non-\ninteractive requests have a single TTLT (total latency) target,\nfocused on overall completion. Although, we define two",
+          "source": "paper",
+          "locator": "PDF p.5, text lines 21-26"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "scope_id": "qoserve-scope-002",
+      "artifact_id": "qoserve",
+      "param": "interactive_slo_metrics",
+      "kind": "set",
+      "lower": null,
+      "upper": null,
+      "values": [
+        "TTFT",
+        "TBT"
+      ],
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "teractive. Interactive requests use two SLOs — TTFT (time\nto first token) and TBT (token-by-token latency), which en-\nsure immediate responsiveness and consistent pacing. Non-",
+          "source": "paper",
+          "locator": "PDF p.5, text lines 22-24"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "scope_id": "qoserve-scope-003",
+      "artifact_id": "qoserve",
+      "param": "noninteractive_slo_metrics",
+      "kind": "set",
+      "lower": null,
+      "upper": null,
+      "values": [
+        "TTLT"
+      ],
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "sure immediate responsiveness and consistent pacing. Non-\ninteractive requests have a single TTLT (total latency) target,\nfocused on overall completion. Although, we define two",
+          "source": "paper",
+          "locator": "PDF p.5, text lines 24-26"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "scope_id": "qoserve-scope-004",
+      "artifact_id": "qoserve",
+      "param": "custom_slo_targets",
+      "kind": "boolean",
+      "lower": null,
+      "upper": null,
+      "values": null,
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "focused on overall completion. Although, we define two\nQoS classes, the application owner is free to specify their\ncustom SLO targets within the class, allowing for flexibility\nand customization to specific application needs as shown\nin Table 3.",
+          "source": "paper",
+          "locator": "PDF p.5, text lines 26-30"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "scope_id": "qoserve-scope-005",
+      "artifact_id": "qoserve",
+      "param": "scheduling_mode",
+      "kind": "set",
+      "lower": null,
+      "upper": null,
+      "values": [
+        "PD_colocation",
+        "PD_disaggregation"
+      ],
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "By default, all experiments are run with PD colocation\nwith chunking enabled, except in (§4.1.3) where the experi-\nments are run with PD disaggregation. We evaluate differ-",
+          "source": "paper",
+          "locator": "PDF p.8, text lines 64-66"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "scope_id": "qoserve-scope-006",
+      "artifact_id": "qoserve",
+      "param": "chunked_prefill",
+      "kind": "boolean",
+      "lower": null,
+      "upper": null,
+      "values": null,
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "Scheduling. In this work, we assume co-located LLM in-\nference scheduling as seen in popular serving frameworks\nlike vLLM [11] and SGLang [21] where prefills and decodes\nof a request are executed on the same replica using chun-\nked prefills [4] for better serving efficiency. Chunked prefills",
+          "source": "paper",
+          "locator": "PDF p.3, text lines 14-18"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "scope_id": "qoserve-scope-007",
+      "artifact_id": "qoserve",
+      "param": "prefill_decode_colocation",
+      "kind": "boolean",
+      "lower": null,
+      "upper": null,
+      "values": null,
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "Scheduling. In this work, we assume co-located LLM in-\nference scheduling as seen in popular serving frameworks\nlike vLLM [11] and SGLang [21] where prefills and decodes\nof a request are executed on the same replica using chun-",
+          "source": "paper",
+          "locator": "PDF p.3, text lines 14-17"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "scope_id": "qoserve-scope-008",
+      "artifact_id": "qoserve",
+      "param": "decode_queue_preemption",
+      "kind": "boolean",
+      "lower": null,
+      "upper": null,
+      "values": null,
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "To avoid this, QoServe uses selective preemption, where we\npreempt a request to accommodate another with a higher\npriority only if (1) the in-flight request is in the prefill queue\n(i.e., requests in the decode queue are never preempted), and",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 89-92"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "scope_id": "qoserve-scope-009",
+      "artifact_id": "qoserve",
+      "param": "preemption_condition",
+      "kind": "free_text",
+      "lower": null,
+      "upper": null,
+      "values": null,
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "preempt a request to accommodate another with a higher\npriority only if (1) the in-flight request is in the prefill queue\n(i.e., requests in the decode queue are never preempted), and\n(2) preempting that request for an iteration does not lead to\ndeadline violation. We do not preempt requests in the de-",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 90-94"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "scope_id": "qoserve-scope-010",
+      "artifact_id": "qoserve",
+      "param": "tbt_targets",
+      "kind": "free_text",
+      "lower": null,
+      "upper": null,
+      "values": null,
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "deadline violation. We do not preempt requests in the de-\ncode queue as TBT targets are typically strict (10s of ms), and\nthus preempting them significantly increases the chances of\nTBT violation. This also ensures that the KV-cache for each",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 94-97"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "scope_id": "qoserve-scope-011",
+      "artifact_id": "qoserve",
+      "param": "alpha_fixed_qps_sweep",
+      "kind": "interval",
+      "lower": 0.0,
+      "upper": 10.0,
+      "values": null,
+      "unit": "ms/token",
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "decode length.𝛼 is a configurable hyperparameter. For fixed-\nQPS runs, we perform an offline sweep of𝛼 values from 0 to\n10 and select the value that minimizes SLO violations. An𝛼",
+          "source": "paper",
+          "locator": "PDF p.7, text lines 35-37"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "scope_id": "qoserve-scope-012",
+      "artifact_id": "qoserve",
+      "param": "alpha_fixed_qps_selected",
+      "kind": "interval",
+      "lower": 8.0,
+      "upper": 8.0,
+      "values": null,
+      "unit": "ms/token",
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "10 and select the value that minimizes SLO violations. An𝛼\nof 8 ms/token provided the best trade-off, reducing violations\nwithout affecting tail latency. For variable-QPS, we employ",
+          "source": "paper",
+          "locator": "PDF p.7, text lines 37-39"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "scope_id": "qoserve-scope-013",
+      "artifact_id": "qoserve",
+      "param": "alpha_low_load",
+      "kind": "interval",
+      "lower": 1.0,
+      "upper": 1.0,
+      "values": null,
+      "unit": "ms/token",
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "without affecting tail latency. For variable-QPS, we employ\nload-adaptive tuning. At low loads, we set𝛼 = 1 ms/token\nas Figure 14 shows that smaller values achieve comparable",
+          "source": "paper",
+          "locator": "PDF p.7, text lines 39-41"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "scope_id": "qoserve-scope-014",
+      "artifact_id": "qoserve",
+      "param": "alpha_configurable",
+      "kind": "boolean",
+      "lower": null,
+      "upper": null,
+      "values": null,
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "imity and estimated processing time, with the interpolation\nfactor𝛼 configurable as a deployment parameter. For non-\ninteractive requests, we maintain a running history of token\ngeneration patterns per application to estimate the expected\ndecode length.𝛼 is a configurable hyperparameter. For fixed-",
+          "source": "paper",
+          "locator": "PDF p.7, text lines 31-35"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "scope_id": "qoserve-scope-015",
+      "artifact_id": "qoserve",
+      "param": "predictor_model",
+      "kind": "free_text",
+      "lower": null,
+      "upper": null,
+      "values": null,
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "while adhering to the latency constraints. For this, we train\na lightweight random forest model which predicts the execu-\ntion time of a given batch. The model is trained on latency",
+          "source": "paper",
+          "locator": "PDF p.7, text lines 52-54"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "scope_id": "qoserve-scope-016",
+      "artifact_id": "qoserve",
+      "param": "predictor_error_margin",
+      "kind": "free_text",
+      "lower": null,
+      "upper": null,
+      "values": null,
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "The prediction runs on the CPU and incurs a negligible\noverhead with < 10% error margin on chunk size prediction.\nWe tune the model to err on the side of under-predicting",
+          "source": "paper",
+          "locator": "PDF p.7, text lines 60-62"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "scope_id": "qoserve-scope-017",
+      "artifact_id": "qoserve",
+      "param": "predictor_training_data",
+      "kind": "free_text",
+      "lower": null,
+      "upper": null,
+      "values": null,
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "tion time of a given batch. The model is trained on latency\nprofiles of MLP and attention operation collected at varying\nchunk sizes, batch sizes as well as context lengths. To collect\nthis data, we use a lightweight harness exposed by an infer-\nence simulator Vidur [3], and collect profiles for each model,\nhardware, and parallelism configuration of interest.",
+          "source": "paper",
+          "locator": "PDF p.7, text lines 54-59"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "scope_id": "qoserve-scope-018",
+      "artifact_id": "qoserve",
+      "param": "decode_length_estimation",
+      "kind": "free_text",
+      "lower": null,
+      "upper": null,
+      "values": null,
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "Therefore, given an application, we can use historic informa-\ntion on the decode tokens generated by that application and\nover-approximate it by two standard deviations. We show in\n(§4.4.1) that this simple prediction sufficiently captures the",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 20-23"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "scope_id": "qoserve-scope-019",
+      "artifact_id": "qoserve",
+      "param": "max_chunk_size",
+      "kind": "interval",
+      "lower": 2500.0,
+      "upper": 2500.0,
+      "values": null,
+      "unit": "tokens",
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "latency slack to optimize chunk sizes. We set the chunk size\nmaximizing the throughput using the performance profile in\nFigure 4. As throughput saturates around 2500, we choose\nthat as the maximum chunk size. Note that 2500 chunk size\ndelivers 2× higher throughput compared to the default 256",
+          "source": "paper",
+          "locator": "PDF p.10, text lines 44-48"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "scope_id": "qoserve-scope-020",
+      "artifact_id": "qoserve",
+      "param": "pd_disagg_prefill_chunk_size",
+      "kind": "interval",
+      "lower": 8192.0,
+      "upper": 8192.0,
+      "values": null,
+      "unit": "tokens",
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "from Table 3. We set a large chunk size of 8K as default\nas we are not constrained by TBT in the prefill nodes for\ndisaggregated serving. As done in the colocated case, we",
+          "source": "paper",
+          "locator": "PDF p.9, text lines 99-101"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "scope_id": "qoserve-scope-021",
+      "artifact_id": "qoserve",
+      "param": "goodput_violation_tolerance",
+      "kind": "interval",
+      "lower": 0.0,
+      "upper": 1.0,
+      "values": null,
+      "unit": "percent",
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "gets (p99). We allow at most 1% of total requests to violate\ntheir deadlines. For these single replica experiments, we com-",
+          "source": "paper",
+          "locator": "PDF p.9, text lines 82-83"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "scope_id": "qoserve-scope-022",
+      "artifact_id": "qoserve",
+      "param": "arrival_process",
+      "kind": "free_text",
+      "lower": null,
+      "upper": null,
+      "values": null,
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "services in Azure [15]. Request arrival times are generated\nusing a Poisson distribution, [4, 13], while maintaining the\nprefill and decode token counts of the respective traces. To",
+          "source": "paper",
+          "locator": "PDF p.8, text lines 22-24"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "scope_id": "qoserve-scope-023",
+      "artifact_id": "qoserve",
+      "param": "workload_composition",
+      "kind": "free_text",
+      "lower": null,
+      "upper": null,
+      "values": null,
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "interactive applications we only track TTLT. In the first set\nof experiments, we assume an equal mix of requests from\nthese three representative application categories (33% each).",
+          "source": "paper",
+          "locator": "PDF p.8, text lines 37-39"
+        },
+        {
+          "quote": "Workload mix. We evaluate QoServe under skewed work-\nload distributions: 70-15-15 (interactive dominant) and 15-15-\n70 (batch-dominant) at 4.5 QPS. Table 6 presents p99 laten-",
+          "source": "paper",
+          "locator": "PDF p.12, text lines 64-66"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "scope_id": "qoserve-scope-024",
+      "artifact_id": "qoserve",
+      "param": "priority_hints",
+      "kind": "free_text",
+      "lower": null,
+      "upper": null,
+      "values": null,
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "In multi-tenant deployments, we also use application hints\nsuch as free vs paid tier to preferentially relegate low-priority\nrequests to ensure stability of service to the high priority",
+          "source": "paper",
+          "locator": "PDF p.6, text lines 37-39"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "scope_id": "qoserve-scope-025",
+      "artifact_id": "qoserve",
+      "param": "relegation_behavior",
+      "kind": "free_text",
+      "lower": null,
+      "upper": null,
+      "values": null,
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "The relegated requests are serviced opportunistically during\nperiods of lower system load, ensuring eventual completion\nwithout permanent rejection; while enabling graceful degra-",
+          "source": "paper",
+          "locator": "PDF p.4, text lines 83-85"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "scope_id": "qoserve-scope-026",
+      "artifact_id": "qoserve",
+      "param": "tensor_parallelism",
+      "kind": "set",
+      "lower": null,
+      "upper": null,
+      "values": [
+        1,
+        2,
+        4
+      ],
+      "unit": "TP degree",
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "Models and Hardware. We evaluate QoServe across three\ndifferent models, tensor parallel (TP) degrees, two hardware\nplatforms, and attention mechanisms to demonstrate the\ndiversity and generality of our results across models and\nhardware configurations, as shown in Table 1. Our evaluation",
+          "source": "paper",
+          "locator": "PDF p.8, text lines 12-16"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "scope_id": "qoserve-scope-027",
+      "artifact_id": "qoserve",
+      "param": "attention_mechanisms",
+      "kind": "set",
+      "lower": null,
+      "upper": null,
+      "values": [
+        "GQA",
+        "MHA"
+      ],
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "Model GPU (TP) Attention\nLlama3-8B A100 - 80GB (TP1) GQA\nQwen-7B A100 - 80GB (TP2) MHA\nLlama3-70B H100 - 80GB (TP4) GQA\nTable 1. Model configurations and hardware setup",
+          "source": "paper",
+          "locator": "PDF p.8, text lines 2-6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "scope_id": "qoserve-scope-028",
+      "artifact_id": "qoserve",
+      "param": "gpu_memory",
+      "kind": "interval",
+      "lower": 80.0,
+      "upper": 80.0,
+      "values": null,
+      "unit": "GB",
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "Model GPU (TP) Attention\nLlama3-8B A100 - 80GB (TP1) GQA\nQwen-7B A100 - 80GB (TP2) MHA\nLlama3-70B H100 - 80GB (TP4) GQA\nTable 1. Model configurations and hardware setup",
+          "source": "paper",
+          "locator": "PDF p.8, text lines 2-6"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "scope_id": "qoserve-scope-029",
+      "artifact_id": "qoserve",
+      "param": "hardware_platforms",
+      "kind": "set",
+      "lower": null,
+      "upper": null,
+      "values": [
+        "A100",
+        "H100"
+      ],
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "Models and Hardware. We evaluate QoServe across three\ndifferent models, tensor parallel (TP) degrees, two hardware\nplatforms, and attention mechanisms to demonstrate the",
+          "source": "paper",
+          "locator": "PDF p.8, text lines 12-14"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "scope_id": "qoserve-scope-030",
+      "artifact_id": "qoserve",
+      "param": "software_stack",
+      "kind": "free_text",
+      "lower": null,
+      "upper": null,
+      "values": null,
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "A.3.3 Software dependencies. Python 3.10, PyTorch 2.3.0,\nCUDA 12.1, FlashInfer 0.1.1. See README for complete de-\npendency list and installation instructions.",
+          "source": "paper",
+          "locator": "PDF p.15, text lines 112-114"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "scope_id": "qoserve-scope-031",
+      "artifact_id": "qoserve",
+      "param": "base_framework",
+      "kind": "free_text",
+      "lower": null,
+      "upper": null,
+      "values": null,
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "We implemented QoServe by extending the Sarathi sched-\nuler [4], which is built on top of the vLLM inference sys-\ntem [11]. The implementation focuses on enhancing the",
+          "source": "paper",
+          "locator": "PDF p.7, text lines 21-23"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "scope_id": "qoserve-scope-032",
+      "artifact_id": "qoserve",
+      "param": "decode_node_multi_tbt",
+      "kind": "boolean",
+      "lower": null,
+      "upper": null,
+      "values": null,
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "with a maximum batch size that meets the strictest TBT. Ef-\nficiently supporting different TBT SLOs in the decode nodes\nis left to future work. As shown in Figure 8, across models,",
+          "source": "paper",
+          "locator": "PDF p.9, text lines 106-108"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "scope_id": "qoserve-scope-033",
+      "artifact_id": "qoserve",
+      "param": "autoscaling_migration",
+      "kind": "boolean",
+      "lower": null,
+      "upper": null,
+      "values": null,
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "uses a similar adaptive chunking policy as Medha. We do not\nimplement autoscaling and request migration in PolyServe\nor QoServe to compare only the core techniques.",
+          "source": "paper",
+          "locator": "PDF p.13, text lines 80-82"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "scope_id": "qoserve-scope-034",
+      "artifact_id": "qoserve",
+      "param": "non_chunked_vllm_baseline",
+      "kind": "boolean",
+      "lower": null,
+      "upper": null,
+      "values": null,
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "tem implementations. Since Sarathi demonstrates superior\nthroughput over vanilla vLLM through chunking, we do not\npresent the non-chunked vLLM baseline.",
+          "source": "paper",
+          "locator": "PDF p.8, text lines 71-73"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "scope_id": "qoserve-scope-035",
+      "artifact_id": "qoserve",
+      "param": "load_balancing",
+      "kind": "free_text",
+      "lower": null,
+      "upper": null,
+      "values": null,
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "deadline violations using 10 mixed-workload replicas. Both\ndeployments use round-robin load balancing across replicas.",
+          "source": "paper",
+          "locator": "PDF p.8, text lines 91-92"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "scope_id": "qoserve-scope-036",
+      "artifact_id": "qoserve",
+      "param": "gpu_clock_locking",
+      "kind": "boolean",
+      "lower": null,
+      "upper": null,
+      "values": null,
+      "unit": null,
+      "explicit": true,
+      "evidence": [
+        {
+          "quote": "GPU clock locking (described in README) is essential for re-\nproducible measurements. The current artifact uses a smaller",
+          "source": "paper",
+          "locator": "PDF p.16, text lines 52-53"
+        }
+      ]
+    }
+  ],
+  "eval_points": [
+    {
+      "schema_version": "0.2.0",
+      "eval_id": "qoserve-eval_points-001",
+      "artifact_id": "qoserve",
+      "config": {
+        "model": "Llama3-8B",
+        "gpu": "A100",
+        "tensor_parallelism": 1,
+        "attention": "GQA",
+        "dataset": "Azure Code",
+        "scheduling_mode": "PD_colocation",
+        "qos_buckets": 3,
+        "workload_composition": "33-33-33",
+        "load_qps": 35,
+        "replicas": 10
+      },
+      "evidence": [
+        {
+          "quote": "4.1.1 Cluster-scale evaluation. We evaluate QoServe\nover a cluster of 16 A100 GPUs (4 nodes, 4 GPUs per node)\nwith pairwise NVLink and 80GB memory per GPU. Table 4\npresents the results for serving the Az-Code trace at 35 QPS\nacross 360K requests (equally split among 3 QoS classes\nas shown in Table 3) using Llama3-8B. The silo baseline\nallocates dedicated replicas based on capacity estimation\nfrom per-replica throughput for each QoS tier: 7 replicas\nfor Q1 and 3 each for Q2 and Q3, totaling 13 GPUs. In con-\ntrast, QoServe meets the latency SLOs at each tier, with no\ndeadline violations using 10 mixed-workload replicas. Both\ndeployments use round-robin load balancing across replicas.",
+          "source": "paper",
+          "locator": "PDF p.8, text lines 81-92"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "eval_id": "qoserve-eval_points-002",
+      "artifact_id": "qoserve",
+      "config": {
+        "model": "Llama3-8B",
+        "gpu": "A100",
+        "tensor_parallelism": 1,
+        "attention": "GQA",
+        "dataset": "Azure Code",
+        "scheduling_mode": "PD_colocation",
+        "qos_buckets": 3,
+        "workload_composition": "33-33-33",
+        "duration_hours": 4
+      },
+      "evidence": [
+        {
+          "quote": "Figure 7 shows the goodput while serving requests over a 4-\nhour period across three different datasets and models listed\nin Table 1. As shown, QoServe achieves 1.5x to 2.4x higher",
+          "source": "paper",
+          "locator": "PDF p.9, text lines 85-87"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "eval_id": "qoserve-eval_points-003",
+      "artifact_id": "qoserve",
+      "config": {
+        "model": "Qwen-7B",
+        "gpu": "A100",
+        "tensor_parallelism": 2,
+        "attention": "MHA",
+        "dataset": "Azure Conv",
+        "scheduling_mode": "PD_colocation",
+        "qos_buckets": 3,
+        "workload_composition": "33-33-33",
+        "duration_hours": 4
+      },
+      "evidence": [
+        {
+          "quote": "Figure 7 shows the goodput while serving requests over a 4-\nhour period across three different datasets and models listed\nin Table 1. As shown, QoServe achieves 1.5x to 2.4x higher",
+          "source": "paper",
+          "locator": "PDF p.9, text lines 85-87"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "eval_id": "qoserve-eval_points-004",
+      "artifact_id": "qoserve",
+      "config": {
+        "model": "Llama3-70B",
+        "gpu": "H100",
+        "tensor_parallelism": 4,
+        "attention": "GQA",
+        "dataset": "ShareGPT",
+        "scheduling_mode": "PD_colocation",
+        "qos_buckets": 3,
+        "workload_composition": "33-33-33",
+        "duration_hours": 4
+      },
+      "evidence": [
+        {
+          "quote": "Figure 7 shows the goodput while serving requests over a 4-\nhour period across three different datasets and models listed\nin Table 1. As shown, QoServe achieves 1.5x to 2.4x higher",
+          "source": "paper",
+          "locator": "PDF p.9, text lines 85-87"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "eval_id": "qoserve-eval_points-005",
+      "artifact_id": "qoserve",
+      "config": {
+        "model": "Llama3-8B",
+        "gpu": "A100",
+        "tensor_parallelism": 1,
+        "dataset": "Azure Conv",
+        "scheduling_mode": "PD_disaggregation",
+        "prefill_chunk_size": 8192,
+        "qos_buckets": 3
+      },
+      "evidence": [
+        {
+          "quote": "ing. We evaluate QoServe on the PD disaggregated mode of\nvLLM [1] using the Az-conv trace with identical QoS classes\nfrom Table 3. We set a large chunk size of 8K as default\nas we are not constrained by TBT in the prefill nodes for",
+          "source": "paper",
+          "locator": "PDF p.9, text lines 97-100"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "eval_id": "qoserve-eval_points-006",
+      "artifact_id": "qoserve",
+      "config": {
+        "model": "Qwen-7B",
+        "gpu": "A100",
+        "tensor_parallelism": 2,
+        "dataset": "Azure Conv",
+        "scheduling_mode": "PD_disaggregation",
+        "prefill_chunk_size": 8192,
+        "qos_buckets": 3
+      },
+      "evidence": [
+        {
+          "quote": "is left to future work. As shown in Figure 8, across models,\nhardware and parallelism, QoServe achieves better prefill\ngoodput (QPS) compared to the baselines. This directly trans-",
+          "source": "paper",
+          "locator": "PDF p.9, text lines 108-110"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "eval_id": "qoserve-eval_points-007",
+      "artifact_id": "qoserve",
+      "config": {
+        "model": "Llama3-70B",
+        "gpu": "H100",
+        "tensor_parallelism": 4,
+        "dataset": "Azure Conv",
+        "scheduling_mode": "PD_disaggregation",
+        "prefill_chunk_size": 8192,
+        "qos_buckets": 3
+      },
+      "evidence": [
+        {
+          "quote": "is left to future work. As shown in Figure 8, across models,\nhardware and parallelism, QoServe achieves better prefill\ngoodput (QPS) compared to the baselines. This directly trans-",
+          "source": "paper",
+          "locator": "PDF p.9, text lines 108-110"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "eval_id": "qoserve-eval_points-008",
+      "artifact_id": "qoserve",
+      "config": {
+        "model": "Llama3-8B",
+        "gpu": "A100",
+        "tensor_parallelism": 1,
+        "dataset": "Azure Code",
+        "scheduling_mode": "PD_colocation",
+        "qos_buckets": 3,
+        "load_qps_min": 2,
+        "load_qps_max": 6
+      },
+      "evidence": [
+        {
+          "quote": "Latency. Figure 10 shows the median and p95 latency across\nall requests for Llama3-8B on the Azure-Code dataset. As",
+          "source": "paper",
+          "locator": "PDF p.10, text lines 60-61"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "eval_id": "qoserve-eval_points-009",
+      "artifact_id": "qoserve",
+      "config": {
+        "model": "Llama3-8B",
+        "gpu": "A100",
+        "tensor_parallelism": 1,
+        "dataset": "Azure Code",
+        "scheduling_mode": "PD_colocation",
+        "qos_buckets": 3,
+        "load_qps_min": 2,
+        "load_qps_max": 6,
+        "metric": "violation_rate"
+      },
+      "evidence": [
+        {
+          "quote": "Deadline violations. For the same workload, Figure 11(a)\nshows the overall percentage of SLO violations across all\nrequests as load varies. QoServe maintains zero deadline vi-",
+          "source": "paper",
+          "locator": "PDF p.10, text lines 95-97"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "eval_id": "qoserve-eval_points-010",
+      "artifact_id": "qoserve",
+      "config": {
+        "model": "Llama3-8B",
+        "gpu": "A100",
+        "tensor_parallelism": 1,
+        "dataset": "Azure Code",
+        "scheduling_mode": "PD_colocation",
+        "qos_buckets": 3,
+        "load_qps_low": 2.0,
+        "load_qps_high": 5,
+        "duration_hours": 4,
+        "low_priority_fraction": 0.2
+      },
+      "evidence": [
+        {
+          "quote": "evaluation with diurnal load patterns. Load in the system\nvaries dynamically between low (QPS:2.0) and high (QPS:5)\npoints every 15 minutes over a total of 4 hours as shown in\nFigure 12(a). This workload pattern models realistic diurnal\nrequest rate variations typically observed over a weekly cycle\nin production, compressed into a shorter evaluation time-\nframe to facilitate the 4-hour experimental duration. This\npattern incorporates a 2.5× peak-to-trough ratio consistent\nwith request rate variability documented in LLM production\ntraces [9]. To evaluate QoServe handling of requests with\nmultiple priorities, we mark a random set of 20% of requests\nin each QoS bucket as low priority, based on application hints.",
+          "source": "paper",
+          "locator": "PDF p.11, text lines 85-96"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "eval_id": "qoserve-eval_points-011",
+      "artifact_id": "qoserve",
+      "config": {
+        "model": "Llama3-8B",
+        "gpu": "A100",
+        "tensor_parallelism": 1,
+        "dataset": "Azure Code",
+        "scheduling_mode": "PD_colocation",
+        "qos_buckets": 3,
+        "load_qps": 6,
+        "ablation": "DC"
+      },
+      "evidence": [
+        {
+          "quote": "QoServe (DC) 3.3 20% 74 26%",
+          "source": "paper",
+          "locator": "PDF p.12, text lines 43-43"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "eval_id": "qoserve-eval_points-012",
+      "artifact_id": "qoserve",
+      "config": {
+        "model": "Llama3-8B",
+        "gpu": "A100",
+        "tensor_parallelism": 1,
+        "dataset": "Azure Code",
+        "scheduling_mode": "PD_colocation",
+        "qos_buckets": 3,
+        "load_qps": 6,
+        "ablation": "DC+ER"
+      },
+      "evidence": [
+        {
+          "quote": "QoServe (DC+ER) 3.6 9% 26 68%",
+          "source": "paper",
+          "locator": "PDF p.12, text lines 44-44"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "eval_id": "qoserve-eval_points-013",
+      "artifact_id": "qoserve",
+      "config": {
+        "model": "Llama3-8B",
+        "gpu": "A100",
+        "tensor_parallelism": 1,
+        "dataset": "Azure Code",
+        "scheduling_mode": "PD_colocation",
+        "qos_buckets": 3,
+        "load_qps": 6,
+        "ablation": "DC+ER+HP"
+      },
+      "evidence": [
+        {
+          "quote": "QoServe (DC+ER+HP) 3.65 1.4% 16 32%",
+          "source": "paper",
+          "locator": "PDF p.12, text lines 45-45"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "eval_id": "qoserve-eval_points-014",
+      "artifact_id": "qoserve",
+      "config": {
+        "model": "Llama3-8B",
+        "gpu": "A100",
+        "tensor_parallelism": 1,
+        "dataset": "Azure Code",
+        "scheduling_mode": "PD_colocation",
+        "qos_buckets": 3,
+        "workload_composition": "70-15-15",
+        "load_qps": 4.5
+      },
+      "evidence": [
+        {
+          "quote": "Workload mix. We evaluate QoServe under skewed work-\nload distributions: 70-15-15 (interactive dominant) and 15-15-\n70 (batch-dominant) at 4.5 QPS. Table 6 presents p99 laten-",
+          "source": "paper",
+          "locator": "PDF p.12, text lines 64-66"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "eval_id": "qoserve-eval_points-015",
+      "artifact_id": "qoserve",
+      "config": {
+        "model": "Llama3-8B",
+        "gpu": "A100",
+        "tensor_parallelism": 1,
+        "dataset": "Azure Code",
+        "scheduling_mode": "PD_colocation",
+        "qos_buckets": 3,
+        "workload_composition": "15-15-70",
+        "load_qps": 4.5
+      },
+      "evidence": [
+        {
+          "quote": "Workload mix. We evaluate QoServe under skewed work-\nload distributions: 70-15-15 (interactive dominant) and 15-15-\n70 (batch-dominant) at 4.5 QPS. Table 6 presents p99 laten-",
+          "source": "paper",
+          "locator": "PDF p.12, text lines 64-66"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "eval_id": "qoserve-eval_points-016",
+      "artifact_id": "qoserve",
+      "config": {
+        "model": "Llama3-8B",
+        "gpu": "A100",
+        "tensor_parallelism": 1,
+        "dataset": "Azure Conv",
+        "scheduling_mode": "PD_colocation",
+        "qos_buckets": 3,
+        "slo_q1_ttft_s": 3,
+        "slo_q1_tbt_ms": 50,
+        "slo_q2_ttlt_s": 600,
+        "slo_q3_ttlt_s": 1000
+      },
+      "evidence": [
+        {
+          "quote": "Varying SLO. We modify the SLO targets to (3s, 50ms), (6s,\n50ms), and (1000s) for Q1, Q2, and Q3 respectively, with equal\nrequest distribution. This configuration increases the propor-",
+          "source": "paper",
+          "locator": "PDF p.13, text lines 30-32"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "eval_id": "qoserve-eval_points-017",
+      "artifact_id": "qoserve",
+      "config": {
+        "model": "Llama3-8B",
+        "gpu": "A100",
+        "tensor_parallelism": 1,
+        "dataset": "Azure Conv",
+        "scheduling_mode": "PD_colocation",
+        "qos_buckets": 2,
+        "slo_q1_tbt_ms": 50,
+        "slo_q2_tbt_ms": 100,
+        "slo_ttft_s": 6,
+        "load_qps": 50
+      },
+      "evidence": [
+        {
+          "quote": "perimental setup comprises two interactive job categories:\nQ1: 50ms TBT and Q2: 100ms TBT, both maintaining 6s TTFT\nSLOs. We determine the A100 GPU requirements for serving\nLlama3-8B on Azure Conversation traces at 50 QPS total load,",
+          "source": "paper",
+          "locator": "PDF p.13, text lines 85-88"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.2.0",
+      "eval_id": "qoserve-eval_points-018",
+      "artifact_id": "qoserve",
+      "config": {
+        "model": "Llama3-8B",
+        "gpu": "A100",
+        "tensor_parallelism": 1,
+        "dataset": "synthetic",
+        "scheduling_mode": "PD_colocation",
+        "prefill_tokens": 10000,
+        "decode_tokens": 500,
+        "batches": 1000
+      },
+      "evidence": [
+        {
+          "quote": "Figure 15a compares chunk size choices between QoServe\nand Medha across 1000 consecutive batches using a synthetic\ntrace (10K prefill tokens, 500 decode tokens per request) on\nLlama3-8B since chunking overhead is negligible for the me-",
+          "source": "paper",
+          "locator": "PDF p.13, text lines 46-49"
+        }
+      ]
+    }
+  ],
+  "bindings": [
+    {
+      "schema_version": "0.2.0",
+      "binding_id": "qoserve-binding-019",
+      "artifact_id": "qoserve",
+      "paper_term": "goodput_violation_tolerance",
+      "kind": "parameter",
+      "code_symbol": "VIOLATION_THRESHOLD",
+      "location": {
+        "file": "paper_plot_scripts/fig8_cap.py",
+        "line_start": 16,
+        "line_end": 16,
+        "function": null,
+        "snippet": null
+      },
+      "certain": true,
+      "rationale": "LLM-assisted static mapping, independent review pending. VIOLATION_THRESHOLD = 1.0 in the plotting script directly encodes the paper's 1% violation tolerance used to compute goodput capacity. Static scalar with matching unit (percent)."
+    },
+    {
+      "schema_version": "0.2.0",
+      "binding_id": "qoserve-binding-035",
+      "artifact_id": "qoserve",
+      "paper_term": "QoS classes and per-request deadline derivation",
+      "kind": "mechanism_entry",
+      "code_symbol": "Sequence._get_TBT_deadline",
+      "location": {
+        "file": "sarathi/core/datatypes/sequence.py",
+        "line_start": 111,
+        "line_end": 116,
+        "function": null,
+        "snippet": null
+      },
+      "certain": true,
+      "rationale": "LLM-assisted static mapping, independent review pending. _get_TBT_deadline computes per-token TBT deadlines from ttft_deadline and decode_iteration, matching the paper's D_n = t_arrival + SLO_TTFT + (n-1)*SLO_TBT derivation. Qualified method with read evidence."
+    },
+    {
+      "schema_version": "0.2.0",
+      "binding_id": "qoserve-binding-037",
+      "artifact_id": "qoserve",
+      "paper_term": "Random-forest batch latency predictor",
+      "kind": "mechanism_entry",
+      "code_symbol": "DeadlineScheduler._predict_batch_time",
+      "location": {
+        "file": "sarathi/core/scheduler/deadline_scheduler.py",
+        "line_start": 58,
+        "line_end": 103,
+        "function": null,
+        "snippet": null
+      },
+      "certain": false,
+      "rationale": "LLM-assisted static mapping, independent review pending. _predict_batch_time predicts batch execution time, but uses stratified linear models (coefficients), not a random forest. Mechanism role matches but model class differs, so not certain."
+    },
+    {
+      "schema_version": "0.2.0",
+      "binding_id": "qoserve-binding-038",
+      "artifact_id": "qoserve",
+      "paper_term": "Hybrid prioritization (EDF–SRPF interpolation)",
+      "kind": "mechanism_entry",
+      "code_symbol": "Sequence.__lt__",
+      "location": {
+        "file": "sarathi/core/datatypes/sequence.py",
+        "line_start": 88,
+        "line_end": 109,
+        "function": null,
+        "snippet": null
+      },
+      "certain": true,
+      "rationale": "LLM-assisted static mapping, independent review pending. __lt__ implements the hybrid priority comparator combining ttft_deadline + arrival_time + hybrid_prioritization_param * remaining_tokens, matching the paper's EDF-SRPF interpolation formula."
+    },
+    {
+      "schema_version": "0.2.0",
+      "binding_id": "qoserve-binding-039",
+      "artifact_id": "qoserve",
+      "paper_term": "Decode-length over-approximation from history",
+      "kind": "mechanism_entry",
+      "code_symbol": "DeadlineScheduler._schedule",
+      "location": {
+        "file": "sarathi/core/scheduler/deadline_scheduler.py",
+        "line_start": 230,
+        "line_end": 236,
+        "function": null,
+        "snippet": null
+      },
+      "certain": false,
+      "rationale": "LLM-assisted static mapping, independent review pending. _schedule uses output_len_pred or num_decode_tokens to estimate TTFT deadline for TTLT tiers, but does not implement the two-standard-deviation over-approximation from per-application history described in the paper. Semantics differ."
+    },
+    {
+      "schema_version": "0.2.0",
+      "binding_id": "qoserve-binding-040",
+      "artifact_id": "qoserve",
+      "paper_term": "Violation checker and eager relegation",
+      "kind": "mechanism_entry",
+      "code_symbol": "DeadlineScheduler._schedule",
+      "location": {
+        "file": "sarathi/core/scheduler/deadline_scheduler.py",
+        "line_start": 300,
+        "line_end": 308,
+        "function": null,
+        "snippet": null
+      },
+      "certain": true,
+      "rationale": "LLM-assisted static mapping, independent review pending. _schedule implements eager relegation: if now + service_time_required > arrival_time + ttft_deadline, seq.drop is incremented and re-pushed to prefill queue, matching the paper's violation checker and relegation."
+    },
+    {
+      "schema_version": "0.2.0",
+      "binding_id": "qoserve-binding-041",
+      "artifact_id": "qoserve",
+      "paper_term": "Selective preemption",
+      "kind": "mechanism_entry",
+      "code_symbol": "BaseScheduler._preempt",
+      "location": {
+        "file": "sarathi/core/scheduler/base_scheduler.py",
+        "line_start": 116,
+        "line_end": 122,
+        "function": null,
+        "snippet": null
+      },
+      "certain": false,
+      "rationale": "LLM-assisted static mapping, independent review pending. _preempt frees a seq and reinserts into waiting, but the deadline scheduler does not call it (preempted_seq_ids stays empty); the paper's selective preemption (prefill-only, no deadline violation) is not implemented in the deadline scheduler reads."
+    },
+    {
+      "schema_version": "0.2.0",
+      "binding_id": "qoserve-binding-043",
+      "artifact_id": "qoserve",
+      "paper_term": "Mixed prefill-decode batch construction and dispatch",
+      "kind": "mechanism_entry",
+      "code_symbol": "ModelRunner._prepare_inputs",
+      "location": {
+        "file": "sarathi/model_executor/model_runner.py",
+        "line_start": 58,
+        "line_end": 108,
+        "function": null,
+        "snippet": null
+      },
+      "certain": true,
+      "rationale": "LLM-assisted static mapping, independent review pending. _prepare_inputs builds a fused input tensor from both prompt chunks and decode tokens, matching the paper's mixed prefill-decode batch construction."
+    },
+    {
+      "schema_version": "0.2.0",
+      "binding_id": "qoserve-binding-044",
+      "artifact_id": "qoserve",
+      "paper_term": "α tuning procedure (offline sweep and load-adaptive)",
+      "kind": "mechanism_entry",
+      "code_symbol": "hybrid_prioritization_param",
+      "location": {
+        "file": "sarathi/config/config.py",
+        "line_start": 305,
+        "line_end": 308,
+        "function": null,
+        "snippet": null
+      },
+      "certain": false,
+      "rationale": "LLM-assisted static mapping, independent review pending. hybrid_prioritization_param is the alpha config field, but no offline sweep or load-adaptive tuning procedure is implemented in the reads; only a static default exists."
+    },
+    {
+      "schema_version": "0.2.0",
+      "binding_id": "qoserve-binding-045",
+      "artifact_id": "qoserve",
+      "paper_term": "vLLM/Sarathi extension with per-request QoS API fields",
+      "kind": "mechanism_entry",
+      "code_symbol": "Sequence.__init__",
+      "location": {
+        "file": "sarathi/core/datatypes/sequence.py",
+        "line_start": 23,
+        "line_end": 80,
+        "function": null,
+        "snippet": null
+      },
+      "certain": true,
+      "rationale": "LLM-assisted static mapping, independent review pending. Sequence.__init__ adds ttft_deadline, tier, tier_deadline, num_decode_tokens, hybrid_prioritization_param, and priority fields per request, matching the paper's per-request QoS API extension on Sarathi/vLLM."
+    },
+    {
+      "schema_version": "0.2.0",
+      "binding_id": "qoserve-binding-047",
+      "artifact_id": "qoserve",
+      "paper_term": "Evaluation methodology: goodput metric, baselines, and workload construction",
+      "kind": "mechanism_entry",
+      "code_symbol": "calculate_violation",
+      "location": {
+        "file": "paper_plot_scripts/fig8_cap.py",
+        "line_start": 60,
+        "line_end": 97,
+        "function": null,
+        "snippet": null
+      },
+      "certain": true,
+      "rationale": "LLM-assisted static mapping, independent review pending. calculate_violation computes per-tier violation percentages against SLO_THRESHOLDS and averages them, matching the paper's goodput/violation methodology with 1% tolerance."
+    },
+    {
+      "schema_version": "0.2.0",
+      "binding_id": "qoserve-binding-048",
+      "artifact_id": "qoserve",
+      "paper_term": "Artifact reproduction workflow",
+      "kind": "mechanism_entry",
+      "code_symbol": "run_trace_batch",
+      "location": {
+        "file": "fig7.sh",
+        "line_start": 129,
+        "line_end": 157,
+        "function": null,
+        "snippet": null
+      },
+      "certain": true,
+      "rationale": "LLM-assisted static mapping, independent review pending. run_trace_batch orchestrates per-figure benchmark runs across GPUs with hardcoded QPS sweeps, matching the paper's artifact reproduction workflow (fig7.sh etc.)."
+    }
+  ]
+}

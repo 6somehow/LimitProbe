@@ -1,0 +1,51 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "minference-F038",
+ "artifact_id": "minference",
+ "status": "not_run",
+ "not_run": {
+  "code": "env_unavailable",
+  "reason": "repository third_party/MInference is not checked out"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "path_change",
+  "priority": 2,
+  "summary": "When k_len > n_local: The streaming (StreamingLLM) variant only keeps the `n_init` sink tokens when the KV length exceeds `n_local`; for shorter sequences it degenerates to plain sliding-window attention with no attention sinks, so the same head runs a different algorithm depending on the input length. `n_init`/`n_local` come from `config.streaming_kwargs`. (minference/ops/streaming_kernel.py:620)",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 1), not human: When k_len <= n_local the sliding window already covers every key, so skipping the sink pass gives the same result; this is an implementation detail.",
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "minference/ops/streaming_kernel.py:620",
+  "function": "minference/ops/streaming_kernel.py::streaming_forward",
+  "condition": "k_len > n_local"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "minference/ops/streaming_kernel.py",
+    "line_start": 620,
+    "function": "minference/ops/streaming_kernel.py::streaming_forward",
+    "snippet": "if k_len > n_local:"
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/minference/limitations_for_tests.json",
+  "findings_sha256": "6f02cbec16ce4487c1b9166c2dc5f1f16704f168b135426edfe2df59ed9333bc",
+  "generated_at": "2026-11-16T16:10:00+08:00"
+ }
+}

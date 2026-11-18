@@ -1,0 +1,455 @@
+{
+  "method": "Independent static source-assisted agent review/corrections proposed; not human gold; no model API or target execution. Original outputs, claims and conformance judgments remain unchanged.",
+  "source_paper_side_sha256": "b91e415d4266372b6a060b6bcd6eeb1f6dca6e40e2dfcc1ddca7023b843cb79d",
+  "scope_replacements": [
+    {
+      "original_id": "nnsmith-scope-006",
+      "reason": "Confirmed example-to-global-scope error: the float32/float64 pair is the sample Pool2d specification in Listing2, not an exhaustive system-wide dtype support set. Section4 explicitly infers operator/dtype support per target compiler. Preserve those conditional facts in free_text; do not infer additional universally supported dtypes from source enums.",
+      "records": [
+        {
+          "schema_version": "0.1.0",
+          "scope_id": "nnsmith-scope-006",
+          "artifact_id": "nnsmith",
+          "param": "tensor_dtype",
+          "kind": "free_text",
+          "lower": null,
+          "upper": null,
+          "values": null,
+          "unit": null,
+          "explicit": true,
+          "evidence": [
+            {
+              "quote": "Listing 2: Sample specification for the 2D Pooling operator.\nclass Pool2d ( AbsOpBase ) :\ninput_type = # [( input #1 types ) , ...]\n[( AbsTensor ( float32 , 4) , AbsTensor ( float64 , 4) ) ]\noutput_type = # [( output #1 types ) , ...]\n[( AbsTensor ( float32 , 4) , AbsTensor ( float64 , 4) ) ]",
+              "source": "paper",
+              "locator": "PDF p.4, text lines 2-7"
+            },
+            {
+              "quote": "Since DL compilers vary in operator and data type support, we\ninfer the set of operators supported by the compiler being tested by\ntrying to compile single-operator models with different data types.\nWe use this information when generating graphs, so as to avoid\n“Not-Implemented” errors.",
+              "source": "paper",
+              "locator": "PDF p.7, text lines 92-96"
+            }
+          ]
+        }
+      ],
+      "hold_original": true
+    },
+    {
+      "original_id": "nnsmith-scope-018",
+      "reason": "Confirmed representation mismatch: x86CPU and Docker access are jointly required artifact conditions, not alternative values of one hardware platform parameter. Preserve the exact conjunction as free_text; dedicated software dependency/Linux records remain unchanged.",
+      "records": [
+        {
+          "schema_version": "0.1.0",
+          "scope_id": "nnsmith-scope-018",
+          "artifact_id": "nnsmith",
+          "param": "artifact_platform",
+          "kind": "free_text",
+          "lower": null,
+          "upper": null,
+          "values": null,
+          "unit": null,
+          "explicit": true,
+          "evidence": [
+            {
+              "quote": "HTML documentation. To fully evaluate the artifact, a X86-CPU\nplatform with docker access is needed, with approximately 21 hours\nof machine time and 1 hour of manual inspection time.",
+              "source": "paper",
+              "locator": "PDF p.13, text lines 3-5"
+            }
+          ]
+        }
+      ],
+      "hold_original": true
+    },
+    {
+      "original_id": "nnsmith-scope-020",
+      "reason": "Confirmed outcome/input-role and approximation error: approximately/about21hours of machine time is an artifact reproduction estimate, not an exact input constraint or supported-runtime singleton. Hold original with its source; no execution was performed to verify that estimate.",
+      "records": [],
+      "hold_original": true
+    }
+  ],
+  "evaluation_replacements": [
+    {
+      "original_id": "nnsmith-eval_points-001",
+      "reason": "Source-context completion only: p8 lines83-103 jointly states the default coverage software versions, machine/OS/compiler, equal-probability insertion, bins7, initial learning rate.5, epsilon1e-10, default graph size10 and4hour coverage runs. These remain evaluated settings, not global supported domains.",
+      "records": [
+        {
+          "schema_version": "0.1.0",
+          "eval_id": "nnsmith-eval_points-001",
+          "artifact_id": "nnsmith",
+          "config": {
+            "system_under_test": "onnxruntime",
+            "onnxruntime_version": "v1.12_c556f5",
+            "pytorch_version": "v1.13_dev20220615",
+            "fuzzing_duration_hours": 4,
+            "attribute_binning_bins_k": 7,
+            "default_graph_size": 10,
+            "forward_backward_insertion_prob": 0.5,
+            "gradient_search_initial_lr": 0.5,
+            "tensor_inequality_epsilon": 1e-10,
+            "hardware_cpu": "intel_10700k_16threads",
+            "hardware_memory_gb": 64,
+            "os": "ubuntu_20.04",
+            "compiler": "clang_14"
+          },
+          "evidence": [
+            {
+              "quote": "latest compiler versions over the last tenvspace months, the default\nsoftware versions used in evaluation are: ONNXRuntime v1.12\n(c556f5), TVM v0.8 ( 9ab3a1), TensorRT v8.4 and PyTorch v1.13\n(dev20220615).",
+              "source": "paper",
+              "locator": "PDF p.8, text lines 88-91"
+            },
+            {
+              "quote": "10. For coverage evaluation, we run fuzzers for 4 hours by default\n(following Tzer [31]) as we observe that code coverage curves\ngenerally converge before that point (e.g., as shown in Figure 4).",
+              "source": "paper",
+              "locator": "PDF p.8, text lines 101-103"
+            },
+            {
+              "quote": "Experimental configuration. The testbed hardware configura-\ntions include: 1) Intel 10700k CPU (16 threads); 2) 64 GB memory\n(3200 Mhz); and 3) 2TB NVMe SSD. The operating system is Ubuntu\n20.04 and targeted DL systems are compiled by Clang 14 under\nrelease mode. Except that we performed bug findings on various\nlatest compiler versions over the last tenvspace months, the default\nsoftware versions used in evaluation are: ONNXRuntime v1.12\n(c556f5), TVM v0.8 ( 9ab3a1), TensorRT v8.4 and PyTorch v1.13\n(dev20220615).\nWhen evaluating NNSmith, for Algorithm 1 we choose between\nforward and backward at every insertion randomly with equal\nprobability. For the binning approach we use 𝑘 = 7 bins (§3.2)\nto ensure a decent amount of attribute diversity while keeping\nthe models small for fuzzing efficiency. For the gradient search,\nthe initial learning rate is set to be 0.5, 𝜖 in the tensor inequality\nloss function is set to 10−10. While LEMON does not explicitly\ncontrol the graph sizes (since it mutates existing models), we set\nthe default generated graph size ofNNSmith and GraphFuzzer to be\n10. For coverage evaluation, we run fuzzers for 4 hours by default\n(following Tzer [31]) as we observe that code coverage curves\ngenerally converge before that point (e.g., as shown in Figure 4).",
+              "source": "paper",
+              "locator": "PDF p.8, text lines 83-103"
+            }
+          ]
+        }
+      ],
+      "hold_original": true
+    },
+    {
+      "original_id": "nnsmith-eval_points-002",
+      "reason": "Source-context completion only: p8 lines83-103 jointly states the default coverage software versions, machine/OS/compiler, equal-probability insertion, bins7, initial learning rate.5, epsilon1e-10, default graph size10 and4hour coverage runs. These remain evaluated settings, not global supported domains.",
+      "records": [
+        {
+          "schema_version": "0.1.0",
+          "eval_id": "nnsmith-eval_points-002",
+          "artifact_id": "nnsmith",
+          "config": {
+            "system_under_test": "tvm",
+            "tvm_version": "v0.8_9ab3a1",
+            "pytorch_version": "v1.13_dev20220615",
+            "fuzzing_duration_hours": 4,
+            "attribute_binning_bins_k": 7,
+            "default_graph_size": 10,
+            "forward_backward_insertion_prob": 0.5,
+            "gradient_search_initial_lr": 0.5,
+            "tensor_inequality_epsilon": 1e-10,
+            "hardware_cpu": "intel_10700k_16threads",
+            "hardware_memory_gb": 64,
+            "os": "ubuntu_20.04",
+            "compiler": "clang_14"
+          },
+          "evidence": [
+            {
+              "quote": "latest compiler versions over the last tenvspace months, the default\nsoftware versions used in evaluation are: ONNXRuntime v1.12\n(c556f5), TVM v0.8 ( 9ab3a1), TensorRT v8.4 and PyTorch v1.13\n(dev20220615).",
+              "source": "paper",
+              "locator": "PDF p.8, text lines 88-91"
+            },
+            {
+              "quote": "Experimental configuration. The testbed hardware configura-\ntions include: 1) Intel 10700k CPU (16 threads); 2) 64 GB memory\n(3200 Mhz); and 3) 2TB NVMe SSD. The operating system is Ubuntu\n20.04 and targeted DL systems are compiled by Clang 14 under\nrelease mode. Except that we performed bug findings on various\nlatest compiler versions over the last tenvspace months, the default\nsoftware versions used in evaluation are: ONNXRuntime v1.12\n(c556f5), TVM v0.8 ( 9ab3a1), TensorRT v8.4 and PyTorch v1.13\n(dev20220615).\nWhen evaluating NNSmith, for Algorithm 1 we choose between\nforward and backward at every insertion randomly with equal\nprobability. For the binning approach we use 𝑘 = 7 bins (§3.2)\nto ensure a decent amount of attribute diversity while keeping\nthe models small for fuzzing efficiency. For the gradient search,\nthe initial learning rate is set to be 0.5, 𝜖 in the tensor inequality\nloss function is set to 10−10. While LEMON does not explicitly\ncontrol the graph sizes (since it mutates existing models), we set\nthe default generated graph size ofNNSmith and GraphFuzzer to be\n10. For coverage evaluation, we run fuzzers for 4 hours by default\n(following Tzer [31]) as we observe that code coverage curves\ngenerally converge before that point (e.g., as shown in Figure 4).",
+              "source": "paper",
+              "locator": "PDF p.8, text lines 83-103"
+            }
+          ]
+        }
+      ],
+      "hold_original": true
+    },
+    {
+      "original_id": "nnsmith-eval_points-003",
+      "reason": "Conservative missing joint provenance: the TensorRT description says optimized for NVIDIA GPUs, but does not identify an actual experimental GPU configuration. Remove the generic hardware_gpu assignment, keep the directly stated TensorRT/PyTorch default versions and coverage exclusion, and add the software-version source. No claim is made that TensorRT can run without appropriate hardware.",
+      "records": [
+        {
+          "schema_version": "0.1.0",
+          "eval_id": "nnsmith-eval_points-003",
+          "artifact_id": "nnsmith",
+          "config": {
+            "system_under_test": "tensorrt",
+            "tensorrt_version": "v8.4",
+            "pytorch_version": "v1.13_dev20220615",
+            "coverage_evaluated": false
+          },
+          "evidence": [
+            {
+              "quote": "• TensorRT [45] is a compiler and runtime highly optimized for\nNVIDIA GPUs and has been used by more than 350k developers\nacross 27.5k companies. Since TensorRT is closed-sourced, we\nexclude it for coverage evaluation.",
+              "source": "paper",
+              "locator": "PDF p.8, text lines 79-82"
+            },
+            {
+              "quote": "latest compiler versions over the last tenvspace months, the default\nsoftware versions used in evaluation are: ONNXRuntime v1.12\n(c556f5), TVM v0.8 ( 9ab3a1), TensorRT v8.4 and PyTorch v1.13\n(dev20220615).",
+              "source": "paper",
+              "locator": "PDF p.8, text lines 88-91"
+            }
+          ]
+        }
+      ],
+      "hold_original": true
+    },
+    {
+      "original_id": "nnsmith-eval_points-004",
+      "reason": "Conservative missing joint provenance: the cited exporter bug-finding summary covers accumulated findings, while p8 lines87-91 explicitly separates ten months of bug finding on various latest versions from default evaluation versions. Remove an unproven exact PyTorch version for this finding regime; do not deny that the default coverage environment used the stated version.",
+      "records": [
+        {
+          "schema_version": "0.1.0",
+          "eval_id": "nnsmith-eval_points-004",
+          "artifact_id": "nnsmith",
+          "config": {
+            "system_under_test": "pytorch_exporter"
+          },
+          "evidence": [
+            {
+              "quote": "ers are awaiting developer responses. Interestingly, in addition to\ncompiler bugs, since NNSmith generates models through PyTorch\nONNX exporter (§4), it also found 10 conversion bugs in PyTorch",
+              "source": "paper",
+              "locator": "PDF p.10, text lines 118-120"
+            },
+            {
+              "quote": "release mode. Except that we performed bug findings on various\nlatest compiler versions over the last tenvspace months, the default\nsoftware versions used in evaluation are: ONNXRuntime v1.12\n(c556f5), TVM v0.8 ( 9ab3a1), TensorRT v8.4 and PyTorch v1.13\n(dev20220615).",
+              "source": "paper",
+              "locator": "PDF p.8, text lines 87-91"
+            }
+          ]
+        }
+      ],
+      "hold_original": true
+    },
+    {
+      "original_id": "nnsmith-eval_points-005",
+      "reason": "Confirmed role clarification: [1,9] is the Sampling baseline range used to initialize all methods fairly (p10 lines62-66), not a bound on values explored by gradient search. Rename initialization_sampling_range and preserve the explicit at-least-one vulnerable operator precondition. Existing model groups and maximum64ms timeout describe the reported experiment series, not a universal scope.",
+      "records": [
+        {
+          "schema_version": "0.1.0",
+          "eval_id": "nnsmith-eval_points-005",
+          "artifact_id": "nnsmith",
+          "config": {
+            "search_method": "gradient_proxy_derivative",
+            "model_sizes_nodes": [
+              10,
+              20,
+              30
+            ],
+            "models_per_group": 512,
+            "per_model_timeout_ms_max": 64,
+            "initialization_sampling_range": [
+              1,
+              9
+            ],
+            "minimum_vulnerable_operators_per_model": 1
+          },
+          "evidence": [
+            {
+              "quote": "without proxy derivatives. The experiment is conducted on three\nmodel groups, each of which contains 512 models of 10, 20 and\n30 nodes respectively. Every model has at least one vulnerable\noperator. The Sampling baseline randomly samples values from\nthe range of[1, 9] which is empirically obtained selecting the best\none from various tested ranges. For fairness, all methods run on\nthe same groups of models with the same initial weights/inputs\ngenerated by the Sampling baseline. We assign different per-model\nsearching timeouts (i.e.,𝑖× 8ms where𝑖∈[ 1, 8]) to each method\nand observe the ratio of models with numeric-valid inputs/weights",
+              "source": "paper",
+              "locator": "PDF p.10, text lines 59-68"
+            },
+            {
+              "quote": "Gradient guidance. Figure 11 evaluates the effectiveness of three\ninput/weight searching methods: 1) Sampling: randomly initializ-\ning test case values; 2) Gradient (Proxy Deriv.) : searching values\nvia the full gradient-based approach; and 3) Gradient: method two\nwithout proxy derivatives. The experiment is conducted on three\nmodel groups, each of which contains 512 models of 10, 20 and\n30 nodes respectively. Every model has at least one vulnerable\noperator. The Sampling baseline randomly samples values from\nthe range of[1, 9] which is empirically obtained selecting the best\none from various tested ranges. For fairness, all methods run on\nthe same groups of models with the same initial weights/inputs\ngenerated by the Sampling baseline. We assign different per-model\nsearching timeouts (i.e.,𝑖× 8ms where𝑖∈[ 1, 8]) to each method\nand observe the ratio of models with numeric-valid inputs/weights\n(y-axis) over group-wide average searching time (x-axis). Figure 11",
+              "source": "paper",
+              "locator": "PDF p.10, text lines 55-69"
+            }
+          ]
+        }
+      ],
+      "hold_original": true
+    },
+    {
+      "original_id": "nnsmith-eval_points-006",
+      "reason": "Source-context/precondition completion only: p10 lines55-69 jointly defines Gradient without proxy derivatives, the same512-model groups of10/20/30nodes and at least one vulnerable operator per model. This is an NNSmith component ablation, not an external fuzzer baseline. Retain it active with its actual experimental precondition.",
+      "records": [
+        {
+          "schema_version": "0.1.0",
+          "eval_id": "nnsmith-eval_points-006",
+          "artifact_id": "nnsmith",
+          "config": {
+            "search_method": "gradient_no_proxy",
+            "model_sizes_nodes": [
+              10,
+              20,
+              30
+            ],
+            "models_per_group": 512,
+            "minimum_vulnerable_operators_per_model": 1
+          },
+          "evidence": [
+            {
+              "quote": "Gradient guidance. Figure 11 evaluates the effectiveness of three\ninput/weight searching methods: 1) Sampling: randomly initializ-\ning test case values; 2) Gradient (Proxy Deriv.) : searching values\nvia the full gradient-based approach; and 3) Gradient: method two\nwithout proxy derivatives. The experiment is conducted on three",
+              "source": "paper",
+              "locator": "PDF p.10, text lines 55-59"
+            },
+            {
+              "quote": "Gradient guidance. Figure 11 evaluates the effectiveness of three\ninput/weight searching methods: 1) Sampling: randomly initializ-\ning test case values; 2) Gradient (Proxy Deriv.) : searching values\nvia the full gradient-based approach; and 3) Gradient: method two\nwithout proxy derivatives. The experiment is conducted on three\nmodel groups, each of which contains 512 models of 10, 20 and\n30 nodes respectively. Every model has at least one vulnerable\noperator. The Sampling baseline randomly samples values from\nthe range of[1, 9] which is empirically obtained selecting the best\none from various tested ranges. For fairness, all methods run on\nthe same groups of models with the same initial weights/inputs\ngenerated by the Sampling baseline. We assign different per-model\nsearching timeouts (i.e.,𝑖× 8ms where𝑖∈[ 1, 8]) to each method\nand observe the ratio of models with numeric-valid inputs/weights\n(y-axis) over group-wide average searching time (x-axis). Figure 11",
+              "source": "paper",
+              "locator": "PDF p.10, text lines 55-69"
+            }
+          ]
+        }
+      ],
+      "hold_original": true
+    },
+    {
+      "original_id": "nnsmith-eval_points-007",
+      "reason": "Confirmed source-type/consumer-boundary correction: Sampling, LEMON, GraphFuzzer and Tzer are comparison baselines, not configurations establishing NNSmith coverage. ScopeChecker does not filter baseline or search_method keys; withdraw this record from active EvalPoint and retain a source-backed baseline observation separately. No baseline result is denied.",
+      "records": [],
+      "hold_original": true
+    },
+    {
+      "original_id": "nnsmith-eval_points-008",
+      "reason": "Confirmed source-type/consumer-boundary correction: Sampling, LEMON, GraphFuzzer and Tzer are comparison baselines, not configurations establishing NNSmith coverage. ScopeChecker does not filter baseline or search_method keys; withdraw this record from active EvalPoint and retain a source-backed baseline observation separately. No baseline result is denied.",
+      "records": [],
+      "hold_original": true
+    },
+    {
+      "original_id": "nnsmith-eval_points-009",
+      "reason": "Confirmed source-type/consumer-boundary correction: Sampling, LEMON, GraphFuzzer and Tzer are comparison baselines, not configurations establishing NNSmith coverage. ScopeChecker does not filter baseline or search_method keys; withdraw this record from active EvalPoint and retain a source-backed baseline observation separately. No baseline result is denied.",
+      "records": [],
+      "hold_original": true
+    },
+    {
+      "original_id": "nnsmith-eval_points-010",
+      "reason": "Confirmed source-type/consumer-boundary correction: Sampling, LEMON, GraphFuzzer and Tzer are comparison baselines, not configurations establishing NNSmith coverage. ScopeChecker does not filter baseline or search_method keys; withdraw this record from active EvalPoint and retain a source-backed baseline observation separately. No baseline result is denied.",
+      "records": [],
+      "hold_original": true
+    }
+  ],
+  "reported_observations": [
+    {
+      "original_id": "nnsmith-eval_points-007",
+      "source_type": "baseline_comparison",
+      "consumer_status": "Not active EvalPoint; contextual reported experiment only.",
+      "reason": "Current ScopeChecker does not filter method/baseline labels. This baseline setup must not count as NNSmith test coverage or support domain.",
+      "records": [
+        {
+          "schema_version": "0.1.0",
+          "eval_id": "nnsmith-eval_points-007",
+          "artifact_id": "nnsmith",
+          "config": {
+            "search_method": "sampling",
+            "sampling_range": [
+              1,
+              9
+            ],
+            "model_sizes_nodes": [
+              10,
+              20,
+              30
+            ],
+            "models_per_group": 512
+          },
+          "evidence": [
+            {
+              "quote": "operator. The Sampling baseline randomly samples values from\nthe range of[1, 9] which is empirically obtained selecting the best\none from various tested ranges. For fairness, all methods run on",
+              "source": "paper",
+              "locator": "PDF p.10, text lines 62-64"
+            },
+            {
+              "quote": "Gradient guidance. Figure 11 evaluates the effectiveness of three\ninput/weight searching methods: 1) Sampling: randomly initializ-\ning test case values; 2) Gradient (Proxy Deriv.) : searching values\nvia the full gradient-based approach; and 3) Gradient: method two\nwithout proxy derivatives. The experiment is conducted on three\nmodel groups, each of which contains 512 models of 10, 20 and\n30 nodes respectively. Every model has at least one vulnerable\noperator. The Sampling baseline randomly samples values from\nthe range of[1, 9] which is empirically obtained selecting the best\none from various tested ranges. For fairness, all methods run on\nthe same groups of models with the same initial weights/inputs\ngenerated by the Sampling baseline. We assign different per-model\nsearching timeouts (i.e.,𝑖× 8ms where𝑖∈[ 1, 8]) to each method\nand observe the ratio of models with numeric-valid inputs/weights\n(y-axis) over group-wide average searching time (x-axis). Figure 11",
+              "source": "paper",
+              "locator": "PDF p.10, text lines 55-69"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "original_id": "nnsmith-eval_points-008",
+      "source_type": "baseline_comparison",
+      "consumer_status": "Not active EvalPoint; contextual reported experiment only.",
+      "reason": "Current ScopeChecker does not filter method/baseline labels. This baseline setup must not count as NNSmith test coverage or support domain.",
+      "records": [
+        {
+          "schema_version": "0.1.0",
+          "eval_id": "nnsmith-eval_points-008",
+          "artifact_id": "nnsmith",
+          "config": {
+            "baseline": "lemon",
+            "fuzzing_duration_hours": 4,
+            "input_format": "onnx"
+          },
+          "evidence": [
+            {
+              "quote": "• LEMON [59] is a mutation-based model generator that mutates\npre-trained Keras [18] models [ 60]. We convert Keras models\ninto ONNX, to reuse the same differential testing and evaluation\nframework of NNSmith for fair comparison;",
+              "source": "paper",
+              "locator": "PDF p.8, text lines 41-44"
+            },
+            {
+              "quote": "control the graph sizes (since it mutates existing models), we set\nthe default generated graph size ofNNSmith and GraphFuzzer to be\n10. For coverage evaluation, we run fuzzers for 4 hours by default\n(following Tzer [31]) as we observe that code coverage curves\ngenerally converge before that point (e.g., as shown in Figure 4).\n5.2 End-to-end Coverage Efficiency\nWe first compare NNSmith with our graph-level baselines ( i.e.,\nGraphFuzzer and LEMON) in terms of code coverage on TVM and\nONNXRuntime (since TensorRT is closed-sourced). Figure 4 shows\nthe coverage growth (y axis) over four hours (x axis). As is shown",
+              "source": "paper",
+              "locator": "PDF p.8, text lines 99-108"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "original_id": "nnsmith-eval_points-009",
+      "source_type": "baseline_comparison",
+      "consumer_status": "Not active EvalPoint; contextual reported experiment only.",
+      "reason": "Current ScopeChecker does not filter method/baseline labels. This baseline setup must not count as NNSmith test coverage or support domain.",
+      "records": [
+        {
+          "schema_version": "0.1.0",
+          "eval_id": "nnsmith-eval_points-009",
+          "artifact_id": "nnsmith",
+          "config": {
+            "baseline": "graphfuzzer",
+            "fuzzing_duration_hours": 4,
+            "default_graph_size": 10
+          },
+          "evidence": [
+            {
+              "quote": "control the graph sizes (since it mutates existing models), we set\nthe default generated graph size ofNNSmith and GraphFuzzer to be\n10. For coverage evaluation, we run fuzzers for 4 hours by default",
+              "source": "paper",
+              "locator": "PDF p.8, text lines 99-101"
+            },
+            {
+              "quote": "control the graph sizes (since it mutates existing models), we set\nthe default generated graph size ofNNSmith and GraphFuzzer to be\n10. For coverage evaluation, we run fuzzers for 4 hours by default\n(following Tzer [31]) as we observe that code coverage curves\ngenerally converge before that point (e.g., as shown in Figure 4).\n5.2 End-to-end Coverage Efficiency\nWe first compare NNSmith with our graph-level baselines ( i.e.,\nGraphFuzzer and LEMON) in terms of code coverage on TVM and\nONNXRuntime (since TensorRT is closed-sourced). Figure 4 shows\nthe coverage growth (y axis) over four hours (x axis). As is shown",
+              "source": "paper",
+              "locator": "PDF p.8, text lines 99-108"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "original_id": "nnsmith-eval_points-010",
+      "source_type": "baseline_comparison",
+      "consumer_status": "Not active EvalPoint; contextual reported experiment only.",
+      "reason": "Current ScopeChecker does not filter method/baseline labels. This baseline setup must not count as NNSmith test coverage or support domain.",
+      "records": [
+        {
+          "schema_version": "0.1.0",
+          "eval_id": "nnsmith-eval_points-010",
+          "artifact_id": "nnsmith",
+          "config": {
+            "baseline": "tzer",
+            "system_under_test": "tvm",
+            "fuzzing_duration_hours": 4
+          },
+          "evidence": [
+            {
+              "quote": "• Tzer [31] is a coverage-guided and mutation-based fuzzer tar-\ngeting TVM’s low-level IR. As DNNs generated by NNSmith can\nalso be lowered to low-level IR, we compareTzer with NNSmith\nto see if NNSmith can well cover low-level optimizations as\nTzer.",
+              "source": "paper",
+              "locator": "PDF p.8, text lines 55-59"
+            },
+            {
+              "quote": "control the graph sizes (since it mutates existing models), we set\nthe default generated graph size ofNNSmith and GraphFuzzer to be\n10. For coverage evaluation, we run fuzzers for 4 hours by default\n(following Tzer [31]) as we observe that code coverage curves\ngenerally converge before that point (e.g., as shown in Figure 4).\n5.2 End-to-end Coverage Efficiency\nWe first compare NNSmith with our graph-level baselines ( i.e.,\nGraphFuzzer and LEMON) in terms of code coverage on TVM and\nONNXRuntime (since TensorRT is closed-sourced). Figure 4 shows\nthe coverage growth (y axis) over four hours (x axis). As is shown",
+              "source": "paper",
+              "locator": "PDF p.8, text lines 99-108"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "proposed_result_summary": {
+    "claims_unchanged": 139,
+    "scope": 22,
+    "eval_points": 8,
+    "solver_bindings_unchanged": 0,
+    "navigation_bindings_unchanged": 24,
+    "expected_total_bindings_after_strict_finalize": 24,
+    "scope_replacements": 3,
+    "active_scope_removals": 1,
+    "evaluation_replacements": 10,
+    "active_evaluation_removals": 4,
+    "reported_observation_groups": 4,
+    "reported_observation_records": 4,
+    "conformance_rows_unchanged": 140,
+    "conformance_unchanged": true,
+    "not_applied": true
+  }
+}

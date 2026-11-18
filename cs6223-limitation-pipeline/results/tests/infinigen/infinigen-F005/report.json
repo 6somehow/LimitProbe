@@ -1,0 +1,99 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "infinigen-F005",
+ "artifact_id": "infinigen",
+ "status": "tested",
+ "not_run": null,
+ "verdict": "yes",
+ "level": "L2",
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "effect on positive input, none on negative input",
+ "observed": {
+  "positive": "AssertionError at speedup/flexgen/infinigen/flex_opt.py:1359",
+  "negative": "no exception at speedup/flexgen/infinigen/flex_opt.py:1359 (later RuntimeError at torch/cuda/_utils.py:46)"
+ },
+ "defeaters": {
+  "D1": "eliminated",
+  "D2": "eliminated",
+  "D3": "eliminated",
+  "D4": "eliminated",
+  "D5": "eliminated",
+  "D6": "residual",
+  "D7": "eliminated",
+  "D8": "eliminated",
+  "D9": "eliminated",
+  "D10": "eliminated",
+  "D11": "eliminated",
+  "D12": "eliminated",
+  "D13": "residual",
+  "D14": "residual"
+ },
+ "open_doubts": [
+  {
+   "id": "D6",
+   "name": "verdict-bearing observations do not depend on stand-ins",
+   "status": "residual",
+   "evidence": "verdict-bearing observations: positive simulated:fake, negative simulated:fake; stand-in checks: transformers.AutoTokenizer.from_pretrained agrees"
+  },
+  {
+   "id": "D13",
+   "name": "inputs inside the paper's scope",
+   "status": "residual",
+   "evidence": "scope_status=unknown"
+  },
+  {
+   "id": "D14",
+   "name": "official entry point was called",
+   "status": "residual",
+   "evidence": "deeper entry (index 1); reason recorded: The official mha entry is downstream of run_flexgen and never calls it; the guarded branch is only reachable by calling run_flexgen directly."
+  }
+ ],
+ "next_steps": [
+  "D6 (residual): move stand-ins after the target line, or replace stubs with a fake or the repository's own reference implementation",
+  "D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)"
+ ],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "reject",
+  "priority": 1,
+  "summary": "When args.compress_cache and args.attn_sparsity < 1.0: Combining cache compression with attention sparsity (the InfiniGen KV selection path) is not implemented; the run aborts. (speedup/flexgen/infinigen/flex_opt.py:1359)",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 2), not human: This is FlexGen's own check against combining cache compression with its top-k sparse attention (attn_sparsity<1); it is not the InfiniGen KV selection path as claimed.",
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "speedup/flexgen/infinigen/flex_opt.py:1359",
+  "function": "speedup/flexgen/infinigen/flex_opt.py::run_flexgen",
+  "condition": "args.compress_cache and args.attn_sparsity < 1.0"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "speedup/flexgen/infinigen/flex_opt.py",
+    "line_start": 1359,
+    "function": "speedup/flexgen/infinigen/flex_opt.py::run_flexgen",
+    "snippet": "assert not (args.compress_cache and args.attn_sparsity < 1.0)"
+   }
+  ]
+ },
+ "files": {
+  "execution_report": "execution_report.json",
+  "testcase": "testcase.json",
+  "attempt": "attempt"
+ },
+ "provenance": {
+  "findings_file": "results/step4/infinigen/limitations_for_tests.json",
+  "findings_sha256": "51f6ee77be8f16b8743e78f2c11ea0c6b263e1a3c56aed29de35c9cfebb6dcf0",
+  "generated_at": "2026-11-18T13:03:49+08:00",
+  "source": "agent",
+  "attempt_origin": "scratch/agent_runs/e2e-f005-462ae4",
+  "agent_tokens": 4008828,
+  "agent_wall_s": 7119.5,
+  "lock_tampered": false,
+  "profile": "default-v1"
+ },
+ "analysis": null
+}

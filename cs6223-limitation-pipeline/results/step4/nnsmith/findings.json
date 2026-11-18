@@ -18,12 +18,13 @@
   "witness_hint": {
    "format": "witness-v2",
    "kind": "input_value",
-   "status": "trigger_only",
+   "status": "solved",
    "condition": "gres_config not in (\"3\", \"4\", \"5\")",
-   "path_prefix": [
-    "gres_config not in (\"3\", \"4\", \"5\")"
-   ],
+   "path_prefix": [],
    "dropped_prefix": [],
+   "entry_terms": {
+    "condition": "os.getenv('NNSMITH_GRES', '4') not in ('3', '4', '5')"
+   },
    "trigger": {
     "gres_config": {
      "not_in": [
@@ -31,21 +32,117 @@
       "4",
       "5"
      ]
+    },
+    "os.getenv('NNSMITH_GRES', '4')": {
+     "not_in": [
+      "3",
+      "4",
+      "5"
+     ]
     }
    },
-   "note": "the condition holds on every point that reaches it; no contrast point exists",
+   "contrast": {
+    "gres_config": "3",
+    "os.getenv('NNSMITH_GRES', '4')": "3"
+   },
    "atoms": {
     "gres_config": {
      "kind": "category",
      "sort": "str"
+    },
+    "os.getenv('NNSMITH_GRES', '4')": {
+     "kind": "category",
+     "sort": "str"
     }
    },
-   "aliases_not_applied": {
-    "ret": "[]",
-    "inp": "input_shapes[0]",
-    "gres_config": "os.getenv('NNSMITH_GRES', '4')",
-    "ub": "min(src_len, dst_len)"
-   },
+   "prefix_dropped": [
+    "gres_config not in (\"3\", \"4\", \"5\")"
+   ],
+   "decision_note": "the last path-prefix entry repeated the condition; dropped",
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "nnsmith/graph_gen.py::random_model_gen",
+    "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+    "nnsmith/graph_gen.py::SimpleGenerator.try_insert_node_type",
+    "nnsmith/graph_gen.py::SimpleGenerator.try_forward_insert",
+    "nnsmith/graph_gen.py::PureSymbolGen.try_forward_insert_at",
+    "nnsmith/abstract/op.py::AbsOpBase.checked_requires",
+    "nnsmith/abstract/op.py::Reshape.requires"
+   ],
+   "call_sites": [
+    {
+     "caller": "nnsmith/graph_gen.py::random_model_gen",
+     "callee": "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+     "line": 1075,
+     "resolved_by": "direct",
+     "args": {
+      "max_node_size": "max_nodes",
+      "max_gen_millisec": "timeout_ms"
+     }
+    },
+    {
+     "caller": "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+     "callee": "nnsmith/graph_gen.py::SimpleGenerator.try_insert_node_type",
+     "line": 246,
+     "resolved_by": "self",
+     "args": {
+      "node_t": "node_t"
+     }
+    },
+    {
+     "caller": "nnsmith/graph_gen.py::SimpleGenerator.try_insert_node_type",
+     "callee": "nnsmith/graph_gen.py::SimpleGenerator.try_forward_insert",
+     "line": 557,
+     "resolved_by": "self",
+     "args": {
+      "op": "op"
+     }
+    },
+    {
+     "caller": "nnsmith/graph_gen.py::SimpleGenerator.try_forward_insert",
+     "callee": "nnsmith/graph_gen.py::PureSymbolGen.try_forward_insert_at",
+     "line": 513,
+     "resolved_by": "override",
+     "args": {
+      "node": "op",
+      "itensor_idx": "itensor_idx"
+     }
+    },
+    {
+     "caller": "nnsmith/graph_gen.py::PureSymbolGen.try_forward_insert_at",
+     "callee": "nnsmith/abstract/op.py::AbsOpBase.checked_requires",
+     "line": 673,
+     "resolved_by": "unique_name",
+     "args": {
+      "input_shapes": "input_shapes"
+     }
+    },
+    {
+     "caller": "nnsmith/abstract/op.py::AbsOpBase.checked_requires",
+     "callee": "nnsmith/abstract/op.py::Reshape.requires",
+     "line": 319,
+     "resolved_by": "override",
+     "args": {
+      "input_shapes": "input_shapes"
+     }
+    }
+   ],
+   "other_chains": [
+    [
+     "nnsmith/graph_gen.py::random_model_gen",
+     "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+     "nnsmith/graph_gen.py::SimpleGenerator.try_insert_node_type",
+     "nnsmith/graph_gen.py::SimpleGenerator.try_backward_insert",
+     "nnsmith/graph_gen.py::PureSymbolGen.try_occupy_placeholder",
+     "nnsmith/abstract/op.py::AbsOpBase.checked_requires",
+     "nnsmith/abstract/op.py::Reshape.requires"
+    ]
+   ],
+   "uncertain_steps": [
+    "nnsmith/graph_gen.py::SimpleGenerator.try_forward_insert -> nnsmith/graph_gen.py::PureSymbolGen.try_forward_insert_at (override)",
+    "nnsmith/graph_gen.py::PureSymbolGen.try_forward_insert_at -> nnsmith/abstract/op.py::AbsOpBase.checked_requires (unique_name)",
+    "nnsmith/abstract/op.py::AbsOpBase.checked_requires -> nnsmith/abstract/op.py::Reshape.requires (override)"
+   ],
    "location": "nnsmith/abstract/op.py:1563",
    "function": "nnsmith/abstract/op.py::Reshape.requires"
   },
@@ -54,50 +151,6 @@
   "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
   "review": "real_but_minor",
   "review_note": "blind review by an LLM subagent (round 2), not human: Rejecting an invalid value of an internal env knob is config validation, not a limit of what the mechanism supports."
- },
- {
-  "schema_version": "0.2.0",
-  "finding_id": "nnsmith-F002",
-  "artifact_id": "nnsmith",
-  "category": "undisclosed",
-  "level": "L2",
-  "limitation_ids": [
-   "CL-B008"
-  ],
-  "verification_ids": [
-   "V008"
-  ],
-  "scope_status": "unknown",
-  "evaluated_in_paper": null,
-  "effect_type": "reject",
-  "summary": "When not check_sat(): If the requested output rank cannot be satisfied by the rank-increment loop (e.g. out_abs_tensor ndims inconsistent with the max reachable rank), the loop never terminates, effectively rejecting/hanging on that output shape. (nnsmith/abstract/op.py:2083)",
-  "witness_hint": {
-   "format": "witness-v2",
-   "kind": "input_value",
-   "status": "solved",
-   "condition": "not check_sat()",
-   "path_prefix": [],
-   "dropped_prefix": [],
-   "trigger": {
-    "check_sat()": false
-   },
-   "contrast": {
-    "check_sat()": true
-   },
-   "atoms": {
-    "check_sat()": {
-     "kind": "predicate",
-     "sort": "bool"
-    }
-   },
-   "location": "nnsmith/abstract/op.py:2083",
-   "function": "nnsmith/abstract/op.py::MatMul.deduct_inp_ranks_and_dtype"
-  },
-  "confidence": "llm_assisted",
-  "priority": 1,
-  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
-  "review": "unreviewed",
-  "review_note": null
  },
  {
   "schema_version": "0.2.0",
@@ -114,7 +167,7 @@
   "scope_status": "unknown",
   "evaluated_in_paper": null,
   "effect_type": "reject",
-  "summary": "When isinstance(e, InternalError): InternalError from make_testcase is propagated, aborting the fuzzing loop, while other exceptions are swallowed and the loop continues. (nnsmith/cli/fuzz.py:179)",
+  "summary": "When isinstance(e, InternalError): InternalError from make_testcase is propagated, aborting the fuzzing loop, while other exceptions are swallowed and the loop continues. (nnsmith/cli/fuzz.py:180)",
   "witness_hint": {
    "format": "witness-v2",
    "kind": "input_value",
@@ -134,14 +187,22 @@
      "sort": "bool"
     }
    },
-   "location": "nnsmith/cli/fuzz.py:179",
-   "function": "nnsmith/cli/fuzz.py::FuzzingLoop.run"
+   "call_chain_status": "not_found",
+   "calls_entry": [
+    "nnsmith/graph_gen.py::random_model_gen"
+   ],
+   "call_chain_note": "this function calls the entry point, it is not called by it: it is a caller-side integration and has to be driven directly",
+   "location": "nnsmith/cli/fuzz.py:180",
+   "function": "nnsmith/cli/fuzz.py::FuzzingLoop.run",
+   "effect_location": "nnsmith/cli/fuzz.py:180",
+   "labelled_location": "nnsmith/cli/fuzz.py:179",
+   "effect_location_reason": "nnsmith/cli/fuzz.py:179 is an `except` header; the exception is raised by the raise in its handler"
   },
   "confidence": "llm_assisted",
   "priority": 1,
   "rationale": "3b: found in code_comment; 3b found, but only a code comment (rule: does not count as stated); priority 1: undisclosed, reject effect, witness reaches it",
-  "review": "real_but_minor",
-  "review_note": "blind review by an LLM subagent (round 3), not human: Re-raising internal errors while logging other generator failures is error-handling plumbing."
+  "review": "unreviewed",
+  "review_note": null
  },
  {
   "schema_version": "0.2.0",
@@ -192,264 +253,29 @@
      "sort": "int"
     }
    },
-   "aliases_not_applied": {
-    "init_time": "time.time()",
-    "node_t": "self.pick_next_op_type()"
-   },
-   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "nnsmith/graph_gen.py::random_model_gen",
+    "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen"
+   ],
+   "call_sites": [
+    {
+     "caller": "nnsmith/graph_gen.py::random_model_gen",
+     "callee": "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+     "line": 1075,
+     "resolved_by": "direct",
+     "args": {
+      "max_node_size": "max_nodes",
+      "max_gen_millisec": "timeout_ms"
+     }
+    }
+   ],
    "location": "nnsmith/graph_gen.py:260",
    "function": "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen"
   },
   "confidence": "llm_assisted",
   "priority": 1,
   "rationale": "3b: contradicted in paper; priority 1: contradicts_docs, reject effect, witness reaches it",
-  "review": "unreviewed",
-  "review_note": null
- },
- {
-  "schema_version": "0.2.0",
-  "finding_id": "nnsmith-F005",
-  "artifact_id": "nnsmith",
-  "category": "undisclosed",
-  "level": "L2",
-  "limitation_ids": [
-   "CL-B016"
-  ],
-  "verification_ids": [
-   "V016"
-  ],
-  "scope_status": "unknown",
-  "evaluated_in_paper": null,
-  "effect_type": "reject",
-  "summary": "When isinstance(op, Expand) and oshape.ndims < op.expand_last_dim: Placeholder shapes with fewer dims than the Expand op's expand_last_dim are skipped as backward-insertion candidates, excluding them from consideration. (nnsmith/graph_gen.py:524)",
-  "witness_hint": {
-   "format": "witness-v2",
-   "kind": "input_value",
-   "status": "solved",
-   "condition": "isinstance(op, Expand) and oshape.ndims < op.expand_last_dim",
-   "path_prefix": [],
-   "dropped_prefix": [],
-   "trigger": {
-    "isinstance(op, Expand)": true,
-    "oshape.ndims": 1,
-    "op.expand_last_dim": 2
-   },
-   "contrast": {
-    "isinstance(op, Expand)": true,
-    "oshape.ndims": 2,
-    "op.expand_last_dim": 2
-   },
-   "atoms": {
-    "isinstance(op, Expand)": {
-     "kind": "predicate",
-     "sort": "bool"
-    },
-    "op.expand_last_dim": {
-     "kind": "derived",
-     "sort": "int"
-    },
-    "oshape.ndims": {
-     "kind": "derived",
-     "sort": "int"
-    }
-   },
-   "location": "nnsmith/graph_gen.py:524",
-   "function": "nnsmith/graph_gen.py::SimpleGenerator.try_backward_insert"
-  },
-  "confidence": "llm_assisted",
-  "priority": 1,
-  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
-  "review": "real_but_minor",
-  "review_note": "blind review by an LLM subagent (round 2), not human: Skipping placeholders whose rank is too low for Expand is an operator-specific shape-validity invariant, not a user-facing limitation."
- },
- {
-  "schema_version": "0.2.0",
-  "finding_id": "nnsmith-F006",
-  "artifact_id": "nnsmith",
-  "category": "undisclosed",
-  "level": "L2",
-  "limitation_ids": [
-   "CL-B028",
-   "CL-B029",
-   "nnsmith-gap-M08-B06",
-   "nnsmith-gap-M08-B08"
-  ],
-  "verification_ids": [
-   "V028",
-   "V029"
-  ],
-  "scope_status": "unknown",
-  "evaluated_in_paper": null,
-  "effect_type": "reject",
-  "summary": "When p.grad is not None and torch.any(p.grad != 0): If all parameter gradients are zero, ConstraintCheck.true(nonzero, ...) raises, aborting the backward step ('Gradients are all zero. Cannot make progress.'). (nnsmith/materialize/torch/symbolnet.py:188)",
-  "witness_hint": {
-   "format": "witness-v2",
-   "kind": "input_value",
-   "status": "solved",
-   "condition": "p.grad is not None and torch.any(p.grad != 0)",
-   "path_prefix": [],
-   "dropped_prefix": [],
-   "trigger": {
-    "p.grad is None": false,
-    "torch.any(p.grad != 0)": true
-   },
-   "contrast": {
-    "p.grad is None": false,
-    "torch.any(p.grad != 0)": false
-   },
-   "atoms": {
-    "p.grad is None": {
-     "kind": "predicate",
-     "sort": "bool"
-    },
-    "torch.any(p.grad != 0)": {
-     "kind": "predicate",
-     "sort": "bool"
-    }
-   },
-   "location": "nnsmith/materialize/torch/symbolnet.py:188",
-   "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.backward"
-  },
-  "confidence": "llm_assisted",
-  "priority": 1,
-  "rationale": "3b: not_found; merged (LLM: same issue): CL-B029, nnsmith-gap-M08-B06, nnsmith-gap-M08-B08; paper side also reports: impl_deviates; priority 1: undisclosed, reject effect, witness reaches it; related (candidate pair, judged different): nnsmith-F024, nnsmith-F025",
-  "review": "worth_testing",
-  "review_note": "blind review by an LLM subagent (round 1), not human: Zero gradients raise ConstraintError, grad_input_gen breaks and returns None, so for such models the gradient search gives up and make_oracle ends up using random inputs."
- },
- {
-  "schema_version": "0.2.0",
-  "finding_id": "nnsmith-F007",
-  "artifact_id": "nnsmith",
-  "category": "undisclosed",
-  "level": "L2",
-  "limitation_ids": [
-   "CL-B034"
-  ],
-  "verification_ids": [
-   "V034"
-  ],
-  "scope_status": "unknown",
-  "evaluated_in_paper": null,
-  "effect_type": "reject",
-  "summary": "When loss_fn.dispatch(type(op)) is not None: If an op produces NaN/Inf but has no registered loss function, ConstraintCheck.true at line 403 fails with 'op=... has no torch_loss but produces NaN or INF!', aborting the search. (nnsmith/materialize/torch/symbolnet.py:385)",
-  "witness_hint": {
-   "format": "witness-v2",
-   "kind": "input_value",
-   "status": "solved",
-   "condition": "loss_fn.dispatch(type(op)) is not None",
-   "path_prefix": [
-    "self.check_intermediate_numeric or (self.use_gradient and not self.stop_updating_loss)",
-    "self.invalid_found_last and (self.use_gradient and not self.stop_updating_loss)"
-   ],
-   "dropped_prefix": [],
-   "trigger": {
-    "loss_fn.dispatch(type(op)) is None": false,
-    "self.check_intermediate_numeric": false,
-    "self.use_gradient": true,
-    "self.stop_updating_loss": false,
-    "self.invalid_found_last": true
-   },
-   "contrast": {
-    "loss_fn.dispatch(type(op)) is None": true,
-    "self.check_intermediate_numeric": false,
-    "self.use_gradient": true,
-    "self.stop_updating_loss": false,
-    "self.invalid_found_last": true
-   },
-   "atoms": {
-    "loss_fn.dispatch(type(op)) is None": {
-     "kind": "predicate",
-     "sort": "bool"
-    },
-    "self.check_intermediate_numeric": {
-     "kind": "predicate",
-     "sort": "bool"
-    },
-    "self.invalid_found_last": {
-     "kind": "predicate",
-     "sort": "bool"
-    },
-    "self.stop_updating_loss": {
-     "kind": "predicate",
-     "sort": "bool"
-    },
-    "self.use_gradient": {
-     "kind": "predicate",
-     "sort": "bool"
-    }
-   },
-   "aliases_not_applied": {
-    "tensor_map": "{}",
-    "input_tensors": "[tensor_map[idx] for idx in inps]"
-   },
-   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
-   "location": "nnsmith/materialize/torch/symbolnet.py:385",
-   "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.forward"
-  },
-  "confidence": "llm_assisted",
-  "priority": 1,
-  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
-  "review": "worth_testing",
-  "review_note": "blind review by an LLM subagent (round 1), not human: When gradient search is running and an op with no registered loss function produces NaN/Inf, a ConstraintError ends the gradient search, so such ops cannot be repaired."
- },
- {
-  "schema_version": "0.2.0",
-  "finding_id": "nnsmith-F008",
-  "artifact_id": "nnsmith",
-  "category": "undisclosed",
-  "level": "L2",
-  "limitation_ids": [
-   "CL-B036"
-  ],
-  "verification_ids": [
-   "V036"
-  ],
-  "scope_status": "unknown",
-  "evaluated_in_paper": null,
-  "effect_type": "reject",
-  "summary": "When self.loss is not None: If two vulnerable ops both produce NaN/Inf in the same forward pass, the second one trips this check and raises ConstraintError, which aborts the gradient search (caught in grad_input_gen, line 268 -> break) instead of optimising for either loss. (nnsmith/materialize/torch/symbolnet.py:421)",
-  "witness_hint": {
-   "format": "witness-v2",
-   "kind": "input_value",
-   "status": "solved",
-   "condition": "self.loss is not None",
-   "path_prefix": [
-    "class SymbolNet",
-    "def forward",
-    "if self.check_intermediate_numeric or (self.use_gradient and not self.stop_updating_loss)",
-    "if self.invalid_found_last and (self.use_gradient and not self.stop_updating_loss)"
-   ],
-   "dropped_prefix": [
-    "class SymbolNet",
-    "def forward",
-    "if self.check_intermediate_numeric or (self.use_gradient and not self.stop_updating_loss)",
-    "if self.invalid_found_last and (self.use_gradient and not self.stop_updating_loss)"
-   ],
-   "trigger": {
-    "self.loss is None": false
-   },
-   "contrast": {
-    "self.loss is None": true
-   },
-   "atoms": {
-    "self.loss is None": {
-     "kind": "predicate",
-     "sort": "bool"
-    }
-   },
-   "aliases_not_applied": {
-    "tensor_map": "{}",
-    "input_tensors": "[tensor_map[idx] for idx in inps]",
-    "msg": "f'loss_{loss_suf}: {l.min().data:.3f} ~ {l.max().data:.3f} ~ {torch.sum((l > 0) * l).item()}'",
-    "loss_name": "f'{op}_{loss_suf}'"
-   },
-   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
-   "location": "nnsmith/materialize/torch/symbolnet.py:421",
-   "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.forward"
-  },
-  "confidence": "llm_assisted",
-  "priority": 1,
-  "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
   "review": "unreviewed",
   "review_note": null
  },
@@ -479,14 +305,14 @@
    "trigger": {
     "carry": true,
     "left_size": 1,
-    "right_size": 2,
-    "ARITH_MAX_WIDTH": 2
+    "right_size": 1,
+    "ARITH_MAX_WIDTH": 1
    },
    "contrast": {
     "carry": true,
     "left_size": 1,
-    "right_size": 2,
-    "ARITH_MAX_WIDTH": 3
+    "right_size": 1,
+    "ARITH_MAX_WIDTH": 2
    },
    "atoms": {
     "ARITH_MAX_WIDTH": {
@@ -506,6 +332,8 @@
      "sort": "int"
     }
    },
+   "call_chain_status": "not_found",
+   "call_chain_note": "no static call chain from an entry point to this function (dynamic dispatch, a callback, or it is not on the entry's path)",
    "location": "nnsmith/abstract/arith.py:74",
    "function": "nnsmith/abstract/arith.py::align_bvs"
   },
@@ -568,6 +396,8 @@
      "sort": "int"
     }
    },
+   "call_chain_status": "not_found",
+   "call_chain_note": "no static call chain from an entry point to this function (dynamic dispatch, a callback, or it is not on the entry's path)",
    "location": "nnsmith/abstract/arith.py:79",
    "function": "nnsmith/abstract/arith.py::align_bvs"
   },
@@ -616,6 +446,12 @@
      "sort": "str"
     }
    },
+   "call_chain_status": "module_level",
+   "call_chain": [
+    "nnsmith/abstract/op.py::<module>"
+   ],
+   "call_sites": [],
+   "call_chain_note": "module-level statement: it runs at import, no call chain",
    "location": "nnsmith/abstract/op.py:25",
    "function": "nnsmith/abstract/op.py::<module>"
   },
@@ -660,6 +496,90 @@
      "sort": "bool"
     }
    },
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "nnsmith/graph_gen.py::random_model_gen",
+    "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+    "nnsmith/graph_gen.py::SimpleGenerator.try_insert_node_type",
+    "nnsmith/graph_gen.py::SimpleGenerator.try_forward_insert",
+    "nnsmith/graph_gen.py::PureSymbolGen.try_forward_insert_at",
+    "nnsmith/abstract/op.py::AbsOpBase.checked_requires",
+    "nnsmith/abstract/op.py::Pool2d.requires"
+   ],
+   "call_sites": [
+    {
+     "caller": "nnsmith/graph_gen.py::random_model_gen",
+     "callee": "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+     "line": 1075,
+     "resolved_by": "direct",
+     "args": {
+      "max_node_size": "max_nodes",
+      "max_gen_millisec": "timeout_ms"
+     }
+    },
+    {
+     "caller": "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+     "callee": "nnsmith/graph_gen.py::SimpleGenerator.try_insert_node_type",
+     "line": 246,
+     "resolved_by": "self",
+     "args": {
+      "node_t": "node_t"
+     }
+    },
+    {
+     "caller": "nnsmith/graph_gen.py::SimpleGenerator.try_insert_node_type",
+     "callee": "nnsmith/graph_gen.py::SimpleGenerator.try_forward_insert",
+     "line": 557,
+     "resolved_by": "self",
+     "args": {
+      "op": "op"
+     }
+    },
+    {
+     "caller": "nnsmith/graph_gen.py::SimpleGenerator.try_forward_insert",
+     "callee": "nnsmith/graph_gen.py::PureSymbolGen.try_forward_insert_at",
+     "line": 513,
+     "resolved_by": "override",
+     "args": {
+      "node": "op",
+      "itensor_idx": "itensor_idx"
+     }
+    },
+    {
+     "caller": "nnsmith/graph_gen.py::PureSymbolGen.try_forward_insert_at",
+     "callee": "nnsmith/abstract/op.py::AbsOpBase.checked_requires",
+     "line": 673,
+     "resolved_by": "unique_name",
+     "args": {
+      "input_shapes": "input_shapes"
+     }
+    },
+    {
+     "caller": "nnsmith/abstract/op.py::AbsOpBase.checked_requires",
+     "callee": "nnsmith/abstract/op.py::Pool2d.requires",
+     "line": 319,
+     "resolved_by": "override",
+     "args": {
+      "input_shapes": "input_shapes"
+     }
+    }
+   ],
+   "other_chains": [
+    [
+     "nnsmith/graph_gen.py::random_model_gen",
+     "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+     "nnsmith/graph_gen.py::SimpleGenerator.try_insert_node_type",
+     "nnsmith/graph_gen.py::SimpleGenerator.try_backward_insert",
+     "nnsmith/graph_gen.py::PureSymbolGen.try_occupy_placeholder",
+     "nnsmith/abstract/op.py::AbsOpBase.checked_requires",
+     "nnsmith/abstract/op.py::Pool2d.requires"
+    ]
+   ],
+   "uncertain_steps": [
+    "nnsmith/graph_gen.py::SimpleGenerator.try_forward_insert -> nnsmith/graph_gen.py::PureSymbolGen.try_forward_insert_at (override)",
+    "nnsmith/graph_gen.py::PureSymbolGen.try_forward_insert_at -> nnsmith/abstract/op.py::AbsOpBase.checked_requires (unique_name)",
+    "nnsmith/abstract/op.py::AbsOpBase.checked_requires -> nnsmith/abstract/op.py::Pool2d.requires (override)"
+   ],
    "location": "nnsmith/abstract/op.py:910",
    "function": "nnsmith/abstract/op.py::Pool2d.requires"
   },
@@ -668,65 +588,6 @@
   "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
   "review": "worth_testing",
   "review_note": "blind review by an LLM subagent (round 1), not human: NNSMITH_Z3_CONS_FLOPS=off removes the FLOPS bound from the solver constraints (and other values fail an assert at import), an env-driven switch in how FLOPS are limited."
- },
- {
-  "schema_version": "0.2.0",
-  "finding_id": "nnsmith-F013",
-  "artifact_id": "nnsmith",
-  "category": "undisclosed",
-  "level": "L2",
-  "limitation_ids": [
-   "CL-B005"
-  ],
-  "verification_ids": [
-   "V005"
-  ],
-  "scope_status": "unknown",
-  "evaluated_in_paper": null,
-  "effect_type": "path_change",
-  "summary": "When gres_config != \"4\": The environment variable NNSMITH_GRES selects the reshape grouping strategy: \"5\" = one group (flatten), \"3\" = min(src_len, dst_len) groups, \"4\" (default) = random number of groups weighted by 2**i. Any other value raises ValueError, rejecting the model. The chosen grouping changes the generated reshape constraints and hence the accepted graphs. (nnsmith/abstract/op.py:1...",
-  "witness_hint": {
-   "format": "witness-v2",
-   "kind": "input_value",
-   "status": "solved",
-   "condition": "gres_config != \"4\"",
-   "path_prefix": [
-    "class Reshape",
-    "def requires"
-   ],
-   "dropped_prefix": [
-    "class Reshape",
-    "def requires"
-   ],
-   "trigger": {
-    "gres_config": {
-     "not_in": [
-      "4"
-     ]
-    }
-   },
-   "contrast": {
-    "gres_config": "4"
-   },
-   "atoms": {
-    "gres_config": {
-     "kind": "category",
-     "sort": "str"
-    }
-   },
-   "aliases_not_applied": {
-    "ret": "[]",
-    "inp": "input_shapes[0]"
-   },
-   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
-   "location": "nnsmith/abstract/op.py:1552",
-   "function": "nnsmith/abstract/op.py::Reshape.requires"
-  },
-  "confidence": "llm_assisted",
-  "priority": 2,
-  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
-  "review": "unreviewed",
-  "review_note": null
  },
  {
   "schema_version": "0.2.0",
@@ -767,6 +628,90 @@
      "sort": "str"
     }
    },
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "nnsmith/graph_gen.py::random_model_gen",
+    "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+    "nnsmith/graph_gen.py::SimpleGenerator.try_insert_node_type",
+    "nnsmith/graph_gen.py::SimpleGenerator.try_forward_insert",
+    "nnsmith/graph_gen.py::PureSymbolGen.try_forward_insert_at",
+    "nnsmith/abstract/op.py::AbsOpBase.checked_requires",
+    "nnsmith/abstract/op.py::Reshape.requires"
+   ],
+   "call_sites": [
+    {
+     "caller": "nnsmith/graph_gen.py::random_model_gen",
+     "callee": "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+     "line": 1075,
+     "resolved_by": "direct",
+     "args": {
+      "max_node_size": "max_nodes",
+      "max_gen_millisec": "timeout_ms"
+     }
+    },
+    {
+     "caller": "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+     "callee": "nnsmith/graph_gen.py::SimpleGenerator.try_insert_node_type",
+     "line": 246,
+     "resolved_by": "self",
+     "args": {
+      "node_t": "node_t"
+     }
+    },
+    {
+     "caller": "nnsmith/graph_gen.py::SimpleGenerator.try_insert_node_type",
+     "callee": "nnsmith/graph_gen.py::SimpleGenerator.try_forward_insert",
+     "line": 557,
+     "resolved_by": "self",
+     "args": {
+      "op": "op"
+     }
+    },
+    {
+     "caller": "nnsmith/graph_gen.py::SimpleGenerator.try_forward_insert",
+     "callee": "nnsmith/graph_gen.py::PureSymbolGen.try_forward_insert_at",
+     "line": 513,
+     "resolved_by": "override",
+     "args": {
+      "node": "op",
+      "itensor_idx": "itensor_idx"
+     }
+    },
+    {
+     "caller": "nnsmith/graph_gen.py::PureSymbolGen.try_forward_insert_at",
+     "callee": "nnsmith/abstract/op.py::AbsOpBase.checked_requires",
+     "line": 673,
+     "resolved_by": "unique_name",
+     "args": {
+      "input_shapes": "input_shapes"
+     }
+    },
+    {
+     "caller": "nnsmith/abstract/op.py::AbsOpBase.checked_requires",
+     "callee": "nnsmith/abstract/op.py::Reshape.requires",
+     "line": 319,
+     "resolved_by": "override",
+     "args": {
+      "input_shapes": "input_shapes"
+     }
+    }
+   ],
+   "other_chains": [
+    [
+     "nnsmith/graph_gen.py::random_model_gen",
+     "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+     "nnsmith/graph_gen.py::SimpleGenerator.try_insert_node_type",
+     "nnsmith/graph_gen.py::SimpleGenerator.try_backward_insert",
+     "nnsmith/graph_gen.py::PureSymbolGen.try_occupy_placeholder",
+     "nnsmith/abstract/op.py::AbsOpBase.checked_requires",
+     "nnsmith/abstract/op.py::Reshape.requires"
+    ]
+   ],
+   "uncertain_steps": [
+    "nnsmith/graph_gen.py::SimpleGenerator.try_forward_insert -> nnsmith/graph_gen.py::PureSymbolGen.try_forward_insert_at (override)",
+    "nnsmith/graph_gen.py::PureSymbolGen.try_forward_insert_at -> nnsmith/abstract/op.py::AbsOpBase.checked_requires (unique_name)",
+    "nnsmith/abstract/op.py::AbsOpBase.checked_requires -> nnsmith/abstract/op.py::Reshape.requires (override)"
+   ],
    "location": "nnsmith/abstract/op.py:1587",
    "function": "nnsmith/abstract/op.py::Reshape.requires"
   },
@@ -817,6 +762,8 @@
      "sort": "bool"
     }
    },
+   "call_chain_status": "not_found",
+   "call_chain_note": "no static call chain from an entry point to this function (dynamic dispatch, a callback, or it is not on the entry's path)",
    "location": "nnsmith/cli/fuzz.py:60",
    "function": "nnsmith/cli/fuzz.py::FuzzingLoop.__init__"
   },
@@ -861,6 +808,11 @@
      "sort": "bool"
     }
    },
+   "call_chain_status": "not_found",
+   "calls_entry": [
+    "nnsmith/graph_gen.py::random_model_gen"
+   ],
+   "call_chain_note": "this function calls the entry point, it is not called by it: it is a caller-side integration and has to be driven directly",
    "location": "nnsmith/cli/model_gen.py:31",
    "function": "nnsmith/cli/model_gen.py::main"
   },
@@ -917,11 +869,23 @@
      "sort": "bool"
     }
    },
-   "aliases_not_applied": {
-    "init_time": "time.time()",
-    "node_t": "self.pick_next_op_type()"
-   },
-   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "nnsmith/graph_gen.py::random_model_gen",
+    "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen"
+   ],
+   "call_sites": [
+    {
+     "caller": "nnsmith/graph_gen.py::random_model_gen",
+     "callee": "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+     "line": 1075,
+     "resolved_by": "direct",
+     "args": {
+      "max_node_size": "max_nodes",
+      "max_gen_millisec": "timeout_ms"
+     }
+    }
+   ],
    "location": "nnsmith/graph_gen.py:256",
    "function": "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen"
   },
@@ -946,7 +910,7 @@
   "scope_status": "unknown",
   "evaluated_in_paper": null,
   "effect_type": "path_change",
-  "summary": "When NNSMITH_LIMNF_V == \"1\": With NNSMITH_LIMNF_V=1 the per-op float-count constraints accumulated in `self.n_floats_cons` are added to the solver instead of the single aggregate constraint, so the same seed yields different accepted graphs depending on the environment variable. (nnsmith/graph_gen.py:259)",
+  "summary": "When NNSMITH_LIMNF_V == \"1\": With NNSMITH_LIMNF_V=1 the per-op float-count constraints accumulated in `self.n_floats_cons` are added to the solver instead of the single aggregate constraint, so the same seed yields different accepted graphs depending on the environment variable. (nnsmith/graph_gen.py:258)",
   "witness_hint": {
    "format": "witness-v2",
    "kind": "input_value",
@@ -978,13 +942,28 @@
      "sort": "str"
     }
    },
-   "aliases_not_applied": {
-    "init_time": "time.time()",
-    "node_t": "self.pick_next_op_type()"
-   },
-   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
-   "location": "nnsmith/graph_gen.py:259",
-   "function": "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen"
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "nnsmith/graph_gen.py::random_model_gen",
+    "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen"
+   ],
+   "call_sites": [
+    {
+     "caller": "nnsmith/graph_gen.py::random_model_gen",
+     "callee": "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+     "line": 1075,
+     "resolved_by": "direct",
+     "args": {
+      "max_node_size": "max_nodes",
+      "max_gen_millisec": "timeout_ms"
+     }
+    }
+   ],
+   "location": "nnsmith/graph_gen.py:258",
+   "function": "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+   "effect_location": "nnsmith/graph_gen.py:258",
+   "labelled_location": "nnsmith/graph_gen.py:259",
+   "effect_location_reason": "the expr statement at nnsmith/graph_gen.py:259 is not a branch; it runs in the body of the if at line 258, whose test is the limitation's condition"
   },
   "confidence": "llm_assisted",
   "priority": 2,
@@ -1033,6 +1012,33 @@
      "sort": "int"
     }
    },
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "nnsmith/graph_gen.py::random_model_gen",
+    "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+    "nnsmith/graph_gen.py::SimpleGenerator.try_insert_node_type"
+   ],
+   "call_sites": [
+    {
+     "caller": "nnsmith/graph_gen.py::random_model_gen",
+     "callee": "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+     "line": 1075,
+     "resolved_by": "direct",
+     "args": {
+      "max_node_size": "max_nodes",
+      "max_gen_millisec": "timeout_ms"
+     }
+    },
+    {
+     "caller": "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+     "callee": "nnsmith/graph_gen.py::SimpleGenerator.try_insert_node_type",
+     "line": 246,
+     "resolved_by": "self",
+     "args": {
+      "node_t": "node_t"
+     }
+    }
+   ],
    "location": "nnsmith/graph_gen.py:556",
    "function": "nnsmith/graph_gen.py::SimpleGenerator.try_insert_node_type"
   },
@@ -1077,6 +1083,8 @@
      "sort": "bool"
     }
    },
+   "call_chain_status": "not_found",
+   "call_chain_note": "no static call chain from an entry point to this function (dynamic dispatch, a callback, or it is not on the entry's path)",
    "location": "nnsmith/graph_gen.py:944",
    "function": "nnsmith/graph_gen.py::__GROUP_RESHAPE"
   },
@@ -1121,6 +1129,8 @@
      "sort": "bool"
     }
    },
+   "call_chain_status": "not_found",
+   "call_chain_note": "no static call chain from an entry point to this function (dynamic dispatch, a callback, or it is not on the entry's path)",
    "location": "nnsmith/materialize/torch/__init__.py:47",
    "function": "nnsmith/materialize/torch/__init__.py::TorchModel.make_oracle"
   },
@@ -1165,6 +1175,8 @@
      "sort": "bool"
     }
    },
+   "call_chain_status": "not_found",
+   "call_chain_note": "no static call chain from an entry point to this function (dynamic dispatch, a callback, or it is not on the entry's path)",
    "location": "nnsmith/materialize/torch/input_gen.py:93",
    "function": "nnsmith/materialize/torch/input_gen.py::PracticalHybridSearch.__init__"
   },
@@ -1176,57 +1188,98 @@
  },
  {
   "schema_version": "0.2.0",
-  "finding_id": "nnsmith-F023",
+  "finding_id": "nnsmith-F006",
   "artifact_id": "nnsmith",
   "category": "undisclosed",
   "level": "L2",
   "limitation_ids": [
-   "CL-B027"
+   "CL-B028",
+   "CL-B029",
+   "nnsmith-gap-M08-B06",
+   "nnsmith-gap-M08-B08"
   ],
   "verification_ids": [
-   "V027"
+   "V028",
+   "V029"
   ],
   "scope_status": "unknown",
   "evaluated_in_paper": null,
-  "effect_type": "path_change",
-  "summary": "When self.differentiable is False: The variant is decided by a single probe forward pass on random inputs: `self.net.differentiable` is set by SymbolNet.forward (it becomes False as soon as any op is non-differentiable or a numeric check fails). If that one random probe happens to hit a non-differentiable path, `search_one` (line 107) silently falls back to `SamplingSearch.search_one` for all s...",
+  "effect_type": "other",
+  "summary": "When p.grad is not None and torch.any(p.grad != 0): If all parameter gradients are zero, ConstraintCheck.true(nonzero, ...) raises, aborting the backward step ('Gradients are all zero. Cannot make progress.'). (nnsmith/materialize/torch/symbolnet.py:188)",
   "witness_hint": {
    "format": "witness-v2",
    "kind": "input_value",
    "status": "solved",
-   "condition": "self.differentiable is False",
-   "path_prefix": [
-    "class PracticalHybridSearch",
-    "def __init__"
-   ],
-   "dropped_prefix": [
-    "class PracticalHybridSearch",
-    "def __init__"
-   ],
+   "condition": "p.grad is not None and torch.any(p.grad != 0)",
+   "path_prefix": [],
+   "dropped_prefix": [],
    "trigger": {
-    "self.differentiable": false
+    "p.grad is None": false,
+    "torch.any(p.grad != 0)": true
    },
    "contrast": {
-    "self.differentiable": true
+    "p.grad is None": false,
+    "torch.any(p.grad != 0)": false
    },
    "atoms": {
-    "self.differentiable": {
+    "p.grad is None": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "torch.any(p.grad != 0)": {
      "kind": "predicate",
      "sort": "bool"
     }
    },
-   "aliases_not_applied": {
-    "diff_test_inp": "self.net.get_random_inps(use_cuda=self.use_cuda)"
-   },
-   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
-   "location": "nnsmith/materialize/torch/input_gen.py:98",
-   "function": "nnsmith/materialize/torch/input_gen.py::PracticalHybridSearch.__init__"
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "nnsmith/materialize/torch/input_gen.py::PracticalHybridSearch.search_one",
+    "nnsmith/materialize/torch/input_gen.py::GradSearch.search_one",
+    "nnsmith/materialize/torch/symbolnet.py::SymbolNet.grad_input_gen",
+    "nnsmith/materialize/torch/symbolnet.py::SymbolNet.backward"
+   ],
+   "call_sites": [
+    {
+     "caller": "nnsmith/materialize/torch/input_gen.py::PracticalHybridSearch.search_one",
+     "callee": "nnsmith/materialize/torch/input_gen.py::GradSearch.search_one",
+     "line": 108,
+     "resolved_by": "direct",
+     "args": {
+      "self": "self",
+      "start_inp": "start_inp",
+      "timeout_ms": "timeout_ms"
+     }
+    },
+    {
+     "caller": "nnsmith/materialize/torch/input_gen.py::GradSearch.search_one",
+     "callee": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.grad_input_gen",
+     "line": 80,
+     "resolved_by": "unique_name",
+     "args": {
+      "init_tensors": "start_inp",
+      "use_cuda": "self.use_cuda",
+      "max_time": "timeout_s"
+     }
+    },
+    {
+     "caller": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.grad_input_gen",
+     "callee": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.backward",
+     "line": 264,
+     "resolved_by": "self",
+     "args": {}
+    }
+   ],
+   "uncertain_steps": [
+    "nnsmith/materialize/torch/input_gen.py::GradSearch.search_one -> nnsmith/materialize/torch/symbolnet.py::SymbolNet.grad_input_gen (unique_name)"
+   ],
+   "location": "nnsmith/materialize/torch/symbolnet.py:188",
+   "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.backward"
   },
   "confidence": "llm_assisted",
   "priority": 2,
-  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
-  "review": "unreviewed",
-  "review_note": null
+  "rationale": "3b: not_found; merged (LLM: same issue): CL-B029, nnsmith-gap-M08-B06, nnsmith-gap-M08-B08; paper side also reports: impl_deviates; priority 2: impl_deviates; related (candidate pair, judged different): nnsmith-F024, nnsmith-F025",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 1), not human: Zero gradients raise ConstraintError, grad_input_gen breaks and returns None, so for such models the gradient search gives up and make_oracle ends up using random inputs."
  },
  {
   "schema_version": "0.2.0",
@@ -1258,18 +1311,66 @@
     "class SymbolNet",
     "def grad_input_gen"
    ],
+   "aliases": {
+    "max_time is None": "(None if timeout_ms is None else timeout_ms / 1000) is None"
+   },
+   "entry_terms": {
+    "condition": "(None if timeout_ms is None else timeout_ms / 1000) is None",
+    "names": {
+     "max_time is None": "(None if timeout_ms is None else timeout_ms / 1000) is None"
+    }
+   },
    "trigger": {
-    "max_time is None": true
+    "max_time is None": true,
+    "None if timeout_ms is None else timeout_ms / 1000 is None": true
    },
    "contrast": {
-    "max_time is None": false
+    "max_time is None": false,
+    "None if timeout_ms is None else timeout_ms / 1000 is None": false
    },
    "atoms": {
+    "None if timeout_ms is None else timeout_ms / 1000 is None": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
     "max_time is None": {
      "kind": "predicate",
      "sort": "bool"
     }
    },
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "nnsmith/materialize/torch/input_gen.py::PracticalHybridSearch.search_one",
+    "nnsmith/materialize/torch/input_gen.py::GradSearch.search_one",
+    "nnsmith/materialize/torch/symbolnet.py::SymbolNet.grad_input_gen"
+   ],
+   "call_sites": [
+    {
+     "caller": "nnsmith/materialize/torch/input_gen.py::PracticalHybridSearch.search_one",
+     "callee": "nnsmith/materialize/torch/input_gen.py::GradSearch.search_one",
+     "line": 108,
+     "resolved_by": "direct",
+     "args": {
+      "self": "self",
+      "start_inp": "start_inp",
+      "timeout_ms": "timeout_ms"
+     }
+    },
+    {
+     "caller": "nnsmith/materialize/torch/input_gen.py::GradSearch.search_one",
+     "callee": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.grad_input_gen",
+     "line": 80,
+     "resolved_by": "unique_name",
+     "args": {
+      "init_tensors": "start_inp",
+      "use_cuda": "self.use_cuda",
+      "max_time": "timeout_s"
+     }
+    }
+   ],
+   "uncertain_steps": [
+    "nnsmith/materialize/torch/input_gen.py::GradSearch.search_one -> nnsmith/materialize/torch/symbolnet.py::SymbolNet.grad_input_gen (unique_name)"
+   ],
    "location": "nnsmith/materialize/torch/symbolnet.py:234",
    "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.grad_input_gen"
   },
@@ -1314,6 +1415,39 @@
      "sort": "bool"
     }
    },
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "nnsmith/materialize/torch/input_gen.py::PracticalHybridSearch.search_one",
+    "nnsmith/materialize/torch/input_gen.py::GradSearch.search_one",
+    "nnsmith/materialize/torch/symbolnet.py::SymbolNet.grad_input_gen"
+   ],
+   "call_sites": [
+    {
+     "caller": "nnsmith/materialize/torch/input_gen.py::PracticalHybridSearch.search_one",
+     "callee": "nnsmith/materialize/torch/input_gen.py::GradSearch.search_one",
+     "line": 108,
+     "resolved_by": "direct",
+     "args": {
+      "self": "self",
+      "start_inp": "start_inp",
+      "timeout_ms": "timeout_ms"
+     }
+    },
+    {
+     "caller": "nnsmith/materialize/torch/input_gen.py::GradSearch.search_one",
+     "callee": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.grad_input_gen",
+     "line": 80,
+     "resolved_by": "unique_name",
+     "args": {
+      "init_tensors": "start_inp",
+      "use_cuda": "self.use_cuda",
+      "max_time": "timeout_s"
+     }
+    }
+   ],
+   "uncertain_steps": [
+    "nnsmith/materialize/torch/input_gen.py::GradSearch.search_one -> nnsmith/materialize/torch/symbolnet.py::SymbolNet.grad_input_gen (unique_name)"
+   ],
    "location": "nnsmith/materialize/torch/symbolnet.py:238",
    "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.grad_input_gen"
   },
@@ -1322,120 +1456,6 @@
   "rationale": "3b: not_found; priority 2: undisclosed, path_change effect; related (candidate pair, judged different): nnsmith-F006, nnsmith-F024",
   "review": "worth_testing",
   "review_note": "blind review by an LLM subagent (round 2), not human: Gradient-guided value search optimizes only floating-point inputs; integer inputs are never searched."
- },
- {
-  "schema_version": "0.2.0",
-  "finding_id": "nnsmith-F026",
-  "artifact_id": "nnsmith",
-  "category": "undisclosed",
-  "level": "L2",
-  "limitation_ids": [
-   "CL-B032"
-  ],
-  "verification_ids": [
-   "V032"
-  ],
-  "scope_status": "unknown",
-  "evaluated_in_paper": null,
-  "effect_type": "path_change",
-  "summary": "When output_tensors[i].grad_fn is None: `differentiable` is reset to True at the start of every forward (line 313) and AND-ed with each op output's grad_fn. PracticalHybridSearch.__init__ reads this flag after one probe forward, so a single non-differentiable op (or a non-float input) permanently disables the gradient search for the whole model. (nnsmith/materialize/torch/symbolnet.py:358)",
-  "witness_hint": {
-   "format": "witness-v2",
-   "kind": "input_value",
-   "status": "solved",
-   "condition": "output_tensors[i].grad_fn is None",
-   "path_prefix": [
-    "class SymbolNet",
-    "def forward"
-   ],
-   "dropped_prefix": [
-    "class SymbolNet",
-    "def forward"
-   ],
-   "trigger": {
-    "output_tensors[i].grad_fn is None": true
-   },
-   "contrast": {
-    "output_tensors[i].grad_fn is None": false
-   },
-   "atoms": {
-    "output_tensors[i].grad_fn is None": {
-     "kind": "predicate",
-     "sort": "bool"
-    }
-   },
-   "aliases_not_applied": {
-    "tensor_map": "{}",
-    "input_tensors": "[tensor_map[idx] for idx in inps]"
-   },
-   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
-   "location": "nnsmith/materialize/torch/symbolnet.py:358",
-   "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.forward"
-  },
-  "confidence": "llm_assisted",
-  "priority": 2,
-  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
-  "review": "unreviewed",
-  "review_note": null
- },
- {
-  "schema_version": "0.2.0",
-  "finding_id": "nnsmith-F027",
-  "artifact_id": "nnsmith",
-  "category": "undisclosed",
-  "level": "L2",
-  "limitation_ids": [
-   "CL-B035"
-  ],
-  "verification_ids": [
-   "V035"
-  ],
-  "scope_status": "unknown",
-  "evaluated_in_paper": null,
-  "effect_type": "path_change",
-  "summary": "When vul_op_loss is None: When an op produces NaN/Inf but has no registered loss function (`loss_fn.dispatch(type(op)) is None`), the constraint check raises ConstraintError, which `grad_input_gen` catches at line 268 and turns into `break` (line 286) — the gradient search aborts and returns None, so the caller silently falls back to random sampling for that model. (nnsmith/materialize/torch/sy...",
-  "witness_hint": {
-   "format": "witness-v2",
-   "kind": "input_value",
-   "status": "solved",
-   "condition": "vul_op_loss is None",
-   "path_prefix": [
-    "class SymbolNet",
-    "def forward",
-    "if self.check_intermediate_numeric or (self.use_gradient and not self.stop_updating_loss)",
-    "if self.invalid_found_last and (self.use_gradient and not self.stop_updating_loss)"
-   ],
-   "dropped_prefix": [
-    "class SymbolNet",
-    "def forward",
-    "if self.check_intermediate_numeric or (self.use_gradient and not self.stop_updating_loss)",
-    "if self.invalid_found_last and (self.use_gradient and not self.stop_updating_loss)"
-   ],
-   "trigger": {
-    "vul_op_loss is None": true
-   },
-   "contrast": {
-    "vul_op_loss is None": false
-   },
-   "atoms": {
-    "vul_op_loss is None": {
-     "kind": "predicate",
-     "sort": "bool"
-    }
-   },
-   "aliases_not_applied": {
-    "tensor_map": "{}",
-    "input_tensors": "[tensor_map[idx] for idx in inps]"
-   },
-   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
-   "location": "nnsmith/materialize/torch/symbolnet.py:403",
-   "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.forward"
-  },
-  "confidence": "llm_assisted",
-  "priority": 2,
-  "rationale": "3b: not_found; priority 2: undisclosed, path_change effect",
-  "review": "unreviewed",
-  "review_note": null
  },
  {
   "schema_version": "0.2.0",
@@ -1481,6 +1501,12 @@
     "nnsmith/graph_gen.py:50-70"
    ],
    "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "call_chain_status": "module_level",
+   "call_chain": [
+    "nnsmith/abstract/op.py::<module>"
+   ],
+   "call_sites": [],
+   "call_chain_note": "module-level statement: it runs at import, no call chain",
    "location": "nnsmith/abstract/op.py:1053-1080",
    "function": null
   },
@@ -1515,6 +1541,12 @@
     "nnsmith/graph_gen.py:50-70"
    ],
    "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The Conv2d padding 0-bin specialization described in the paper is entirely absent from the pinned op.py/graph_gen.py path, so the gap manifests on every concretization of an NCHWConv2d regardless of input values.",
+   "call_chain_status": "module_level",
+   "call_chain": [
+    "nnsmith/abstract/op.py::<module>"
+   ],
+   "call_sites": [],
+   "call_chain_note": "module-level statement: it runs at import, no call chain",
    "location": "nnsmith/abstract/op.py:1332-1360",
    "function": null
   },
@@ -1573,12 +1605,224 @@
     "nnsmith/graph_gen.py:1029-1058"
    ],
    "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "nnsmith/graph_gen.py::random_model_gen",
+    "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+    "nnsmith/graph_gen.py::GuidedGen.post_process"
+   ],
+   "call_sites": [
+    {
+     "caller": "nnsmith/graph_gen.py::random_model_gen",
+     "callee": "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+     "line": 1075,
+     "resolved_by": "direct",
+     "args": {
+      "max_node_size": "max_nodes",
+      "max_gen_millisec": "timeout_ms"
+     }
+    },
+    {
+     "caller": "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+     "callee": "nnsmith/graph_gen.py::GuidedGen.post_process",
+     "line": 262,
+     "resolved_by": "override",
+     "args": {}
+    }
+   ],
+   "uncertain_steps": [
+    "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen -> nnsmith/graph_gen.py::GuidedGen.post_process (override)"
+   ],
    "location": "nnsmith/graph_gen.py:1029-1058",
    "function": null
   },
   "confidence": "llm_assisted",
   "priority": 2,
   "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates; related (candidate pair, judged different): nnsmith-F035, nnsmith-F036, nnsmith-F037",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F013",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B005"
+  ],
+  "verification_ids": [
+   "V005"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "When gres_config != \"4\": The environment variable NNSMITH_GRES selects the reshape grouping strategy: \"5\" = one group (flatten), \"3\" = min(src_len, dst_len) groups, \"4\" (default) = random number of groups weighted by 2**i. Any other value raises ValueError, rejecting the model. The chosen grouping changes the generated reshape constraints and hence the accepted graphs. (nnsmith/abstract/op.py:1...",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "gres_config != \"4\"",
+   "path_prefix": [
+    "class Reshape",
+    "def requires"
+   ],
+   "dropped_prefix": [
+    "class Reshape",
+    "def requires"
+   ],
+   "trigger": {
+    "gres_config": {
+     "not_in": [
+      "4"
+     ]
+    }
+   },
+   "contrast": {
+    "gres_config": "4"
+   },
+   "atoms": {
+    "gres_config": {
+     "kind": "category",
+     "sort": "str"
+    }
+   },
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "nnsmith/graph_gen.py::random_model_gen",
+    "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+    "nnsmith/graph_gen.py::SimpleGenerator.try_insert_node_type",
+    "nnsmith/graph_gen.py::SimpleGenerator.try_forward_insert",
+    "nnsmith/graph_gen.py::PureSymbolGen.try_forward_insert_at",
+    "nnsmith/abstract/op.py::AbsOpBase.checked_requires",
+    "nnsmith/abstract/op.py::Reshape.requires"
+   ],
+   "call_sites": [
+    {
+     "caller": "nnsmith/graph_gen.py::random_model_gen",
+     "callee": "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+     "line": 1075,
+     "resolved_by": "direct",
+     "args": {
+      "max_node_size": "max_nodes",
+      "max_gen_millisec": "timeout_ms"
+     }
+    },
+    {
+     "caller": "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+     "callee": "nnsmith/graph_gen.py::SimpleGenerator.try_insert_node_type",
+     "line": 246,
+     "resolved_by": "self",
+     "args": {
+      "node_t": "node_t"
+     }
+    },
+    {
+     "caller": "nnsmith/graph_gen.py::SimpleGenerator.try_insert_node_type",
+     "callee": "nnsmith/graph_gen.py::SimpleGenerator.try_forward_insert",
+     "line": 557,
+     "resolved_by": "self",
+     "args": {
+      "op": "op"
+     }
+    },
+    {
+     "caller": "nnsmith/graph_gen.py::SimpleGenerator.try_forward_insert",
+     "callee": "nnsmith/graph_gen.py::PureSymbolGen.try_forward_insert_at",
+     "line": 513,
+     "resolved_by": "override",
+     "args": {
+      "node": "op",
+      "itensor_idx": "itensor_idx"
+     }
+    },
+    {
+     "caller": "nnsmith/graph_gen.py::PureSymbolGen.try_forward_insert_at",
+     "callee": "nnsmith/abstract/op.py::AbsOpBase.checked_requires",
+     "line": 673,
+     "resolved_by": "unique_name",
+     "args": {
+      "input_shapes": "input_shapes"
+     }
+    },
+    {
+     "caller": "nnsmith/abstract/op.py::AbsOpBase.checked_requires",
+     "callee": "nnsmith/abstract/op.py::Reshape.requires",
+     "line": 319,
+     "resolved_by": "override",
+     "args": {
+      "input_shapes": "input_shapes"
+     }
+    }
+   ],
+   "other_chains": [
+    [
+     "nnsmith/graph_gen.py::random_model_gen",
+     "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+     "nnsmith/graph_gen.py::SimpleGenerator.try_insert_node_type",
+     "nnsmith/graph_gen.py::SimpleGenerator.try_backward_insert",
+     "nnsmith/graph_gen.py::PureSymbolGen.try_occupy_placeholder",
+     "nnsmith/abstract/op.py::AbsOpBase.checked_requires",
+     "nnsmith/abstract/op.py::Reshape.requires"
+    ]
+   ],
+   "uncertain_steps": [
+    "nnsmith/graph_gen.py::SimpleGenerator.try_forward_insert -> nnsmith/graph_gen.py::PureSymbolGen.try_forward_insert_at (override)",
+    "nnsmith/graph_gen.py::PureSymbolGen.try_forward_insert_at -> nnsmith/abstract/op.py::AbsOpBase.checked_requires (unique_name)",
+    "nnsmith/abstract/op.py::AbsOpBase.checked_requires -> nnsmith/abstract/op.py::Reshape.requires (override)"
+   ],
+   "location": "nnsmith/abstract/op.py:1552",
+   "function": "nnsmith/abstract/op.py::Reshape.requires"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: undisclosed, other effect",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F002",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B008"
+  ],
+  "verification_ids": [
+   "V008"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "When not check_sat(): If the requested output rank cannot be satisfied by the rank-increment loop (e.g. out_abs_tensor ndims inconsistent with the max reachable rank), the loop never terminates, effectively rejecting/hanging on that output shape. (nnsmith/abstract/op.py:2083)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "not check_sat()",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "check_sat()": false
+   },
+   "contrast": {
+    "check_sat()": true
+   },
+   "atoms": {
+    "check_sat()": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "call_chain_status": "not_found",
+   "call_chain_note": "no static call chain from an entry point to this function (dynamic dispatch, a callback, or it is not on the entry's path)",
+   "location": "nnsmith/abstract/op.py:2083",
+   "function": "nnsmith/abstract/op.py::MatMul.deduct_inp_ranks_and_dtype"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: undisclosed, other effect",
   "review": "unreviewed",
   "review_note": null
  },
@@ -1596,7 +1840,7 @@
   ],
   "scope_status": "unknown",
   "evaluated_in_paper": null,
-  "effect_type": "path_change",
+  "effect_type": "other",
   "summary": "When int(os.getenv(\"NNSMITH_BITS\", 30)) != 30: The number of bits used to split the integer-domain symbols into groups is read from NNSMITH_BITS (default 30). A smaller value makes `random_group` produce more, smaller groups, i.e. a different (coarser) integer encoding of the same abstract graph, changing which graphs the solver accepts. (nnsmith/graph_gen.py:190)",
   "witness_hint": {
    "format": "witness-v2",
@@ -1612,7 +1856,7 @@
     "def new_syms"
    ],
    "trigger": {
-    "int(os.getenv('NNSMITH_BITS', 30))": 31
+    "int(os.getenv('NNSMITH_BITS', 30))": 29
    },
    "contrast": {
     "int(os.getenv('NNSMITH_BITS', 30))": 30
@@ -1623,10 +1867,57 @@
      "sort": "int"
     }
    },
-   "aliases_not_applied": {
-    "bv_sizes": "list(map(len, random_group(int(os.getenv('NNSMITH_BITS', 30)), len(names))))"
-   },
-   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "nnsmith/graph_gen.py::random_model_gen",
+    "nnsmith/graph_gen.py::SimpleGenerator.__init__",
+    "nnsmith/graph_gen.py::SimpleGenerator.create_placeholder",
+    "nnsmith/graph_gen.py::SimpleGenerator.new_syms"
+   ],
+   "call_sites": [
+    {
+     "caller": "nnsmith/graph_gen.py::random_model_gen",
+     "callee": "nnsmith/graph_gen.py::SimpleGenerator.__init__",
+     "line": 1069,
+     "resolved_by": "direct",
+     "args": {
+      "opset": "opset",
+      "init_rank": "init_rank",
+      "seed": "seed"
+     },
+     "star_args": true
+    },
+    {
+     "caller": "nnsmith/graph_gen.py::SimpleGenerator.__init__",
+     "callee": "nnsmith/graph_gen.py::SimpleGenerator.create_placeholder",
+     "line": 148,
+     "resolved_by": "self",
+     "args": {
+      "rank": "init_rank",
+      "dtype": "DType.float32 if init_fp else None"
+     }
+    },
+    {
+     "caller": "nnsmith/graph_gen.py::SimpleGenerator.create_placeholder",
+     "callee": "nnsmith/graph_gen.py::SimpleGenerator.new_syms",
+     "line": 166,
+     "resolved_by": "self",
+     "args": {
+      "names": "['v%s_%s' % (self.monotonic_placeholder_id, k) for k in range(rank)]"
+     }
+    }
+   ],
+   "other_chains": [
+    [
+     "nnsmith/graph_gen.py::random_model_gen",
+     "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+     "nnsmith/graph_gen.py::SimpleGenerator.try_insert_node_type",
+     "nnsmith/graph_gen.py::SimpleGenerator.try_backward_insert",
+     "nnsmith/graph_gen.py::PureSymbolGen.try_occupy_placeholder",
+     "nnsmith/graph_gen.py::SimpleGenerator.create_placeholder",
+     "nnsmith/graph_gen.py::SimpleGenerator.new_syms"
+    ]
+   ],
    "location": "nnsmith/graph_gen.py:190",
    "function": "nnsmith/graph_gen.py::SimpleGenerator.new_syms"
   },
@@ -1635,6 +1926,99 @@
   "rationale": "3b: not_found; priority 3: reviewed as wrong",
   "review": "wrong",
   "review_note": "blind review by an LLM subagent (round 1), not human: NNSMITH_BITS is only read when use_bitvec is True, which is hard-coded False, so this code is dead."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F005",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B016"
+  ],
+  "verification_ids": [
+   "V016"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "When isinstance(op, Expand) and oshape.ndims < op.expand_last_dim: Placeholder shapes with fewer dims than the Expand op's expand_last_dim are skipped as backward-insertion candidates, excluding them from consideration. (nnsmith/graph_gen.py:524)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "isinstance(op, Expand) and oshape.ndims < op.expand_last_dim",
+   "path_prefix": [],
+   "dropped_prefix": [],
+   "trigger": {
+    "isinstance(op, Expand)": true,
+    "oshape.ndims": 1,
+    "op.expand_last_dim": 2
+   },
+   "contrast": {
+    "isinstance(op, Expand)": true,
+    "oshape.ndims": 2,
+    "op.expand_last_dim": 2
+   },
+   "atoms": {
+    "isinstance(op, Expand)": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "op.expand_last_dim": {
+     "kind": "derived",
+     "sort": "int"
+    },
+    "oshape.ndims": {
+     "kind": "derived",
+     "sort": "int"
+    }
+   },
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "nnsmith/graph_gen.py::random_model_gen",
+    "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+    "nnsmith/graph_gen.py::SimpleGenerator.try_insert_node_type",
+    "nnsmith/graph_gen.py::SimpleGenerator.try_backward_insert"
+   ],
+   "call_sites": [
+    {
+     "caller": "nnsmith/graph_gen.py::random_model_gen",
+     "callee": "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+     "line": 1075,
+     "resolved_by": "direct",
+     "args": {
+      "max_node_size": "max_nodes",
+      "max_gen_millisec": "timeout_ms"
+     }
+    },
+    {
+     "caller": "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+     "callee": "nnsmith/graph_gen.py::SimpleGenerator.try_insert_node_type",
+     "line": 246,
+     "resolved_by": "self",
+     "args": {
+      "node_t": "node_t"
+     }
+    },
+    {
+     "caller": "nnsmith/graph_gen.py::SimpleGenerator.try_insert_node_type",
+     "callee": "nnsmith/graph_gen.py::SimpleGenerator.try_backward_insert",
+     "line": 560,
+     "resolved_by": "self",
+     "args": {
+      "op": "op"
+     }
+    }
+   ],
+   "location": "nnsmith/graph_gen.py:524",
+   "function": "nnsmith/graph_gen.py::SimpleGenerator.try_backward_insert"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: undisclosed, other effect",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 2), not human: Skipping placeholders whose rank is too low for Expand is an operator-specific shape-validity invariant, not a user-facing limitation."
  },
  {
   "schema_version": "0.2.0",
@@ -1675,6 +2059,66 @@
      "sort": "str"
     }
    },
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "nnsmith/graph_gen.py::random_model_gen",
+    "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+    "nnsmith/graph_gen.py::GuidedGen.post_process",
+    "nnsmith/graph_gen.py::GuidedGen.extra_constraints",
+    "nnsmith/graph_gen.py::range_constrain"
+   ],
+   "call_sites": [
+    {
+     "caller": "nnsmith/graph_gen.py::random_model_gen",
+     "callee": "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+     "line": 1075,
+     "resolved_by": "direct",
+     "args": {
+      "max_node_size": "max_nodes",
+      "max_gen_millisec": "timeout_ms"
+     }
+    },
+    {
+     "caller": "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+     "callee": "nnsmith/graph_gen.py::GuidedGen.post_process",
+     "line": 262,
+     "resolved_by": "override",
+     "args": {}
+    },
+    {
+     "caller": "nnsmith/graph_gen.py::GuidedGen.post_process",
+     "callee": "nnsmith/graph_gen.py::GuidedGen.extra_constraints",
+     "line": 1040,
+     "resolved_by": "self",
+     "args": {
+      "node": "op",
+      "input_shapes": "itensors"
+     }
+    },
+    {
+     "caller": "nnsmith/graph_gen.py::GuidedGen.extra_constraints",
+     "callee": "nnsmith/graph_gen.py::range_constrain",
+     "line": 1026,
+     "resolved_by": "direct",
+     "args": {
+      "param": "param",
+      "lb": "lb",
+      "ub": "ub"
+     }
+    }
+   ],
+   "other_chains": [
+    [
+     "nnsmith/graph_gen.py::random_model_gen",
+     "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+     "nnsmith/graph_gen.py::GuidedGen.post_process",
+     "nnsmith/graph_gen.py::GuidedGen.gen_ph_cons",
+     "nnsmith/graph_gen.py::range_constrain"
+    ]
+   ],
+   "uncertain_steps": [
+    "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen -> nnsmith/graph_gen.py::GuidedGen.post_process (override)"
+   ],
    "location": "nnsmith/graph_gen.py:834",
    "function": "nnsmith/graph_gen.py::range_constrain"
   },
@@ -1698,7 +2142,7 @@
   ],
   "scope_status": "unknown",
   "evaluated_in_paper": null,
-  "effect_type": "path_change",
+  "effect_type": "other",
   "summary": "When os.getenv(\"NNSMITH_G_CONFIG\", \"1\") != \"1\": The environment variable NNSMITH_G_CONFIG selects which parameter-guidance table GuidedGen uses: \"0\" = PARAM_CONFIG0 (no parameter guidance at all, only input-shape guidance), \"1\" = PARAM_CONFIG1, \"2\" = PARAM_CONFIG2 (pads get symmetric bins). This changes the constraints added in `extra_constraints`/`post_process`, i.e. which models are generated...",
   "witness_hint": {
    "format": "witness-v2",
@@ -1729,6 +2173,8 @@
      "sort": "str"
     }
    },
+   "call_chain_status": "not_found",
+   "call_chain_note": "no static call chain from an entry point to this function (dynamic dispatch, a callback, or it is not on the entry's path)",
    "location": "nnsmith/graph_gen.py:984",
    "function": "nnsmith/graph_gen.py::GuidedGen.__init__"
   },
@@ -1773,6 +2219,45 @@
      "sort": "bool"
     }
    },
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "nnsmith/graph_gen.py::random_model_gen",
+    "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+    "nnsmith/graph_gen.py::GuidedGen.post_process",
+    "nnsmith/graph_gen.py::GuidedGen.extra_constraints"
+   ],
+   "call_sites": [
+    {
+     "caller": "nnsmith/graph_gen.py::random_model_gen",
+     "callee": "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+     "line": 1075,
+     "resolved_by": "direct",
+     "args": {
+      "max_node_size": "max_nodes",
+      "max_gen_millisec": "timeout_ms"
+     }
+    },
+    {
+     "caller": "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+     "callee": "nnsmith/graph_gen.py::GuidedGen.post_process",
+     "line": 262,
+     "resolved_by": "override",
+     "args": {}
+    },
+    {
+     "caller": "nnsmith/graph_gen.py::GuidedGen.post_process",
+     "callee": "nnsmith/graph_gen.py::GuidedGen.extra_constraints",
+     "line": 1040,
+     "resolved_by": "self",
+     "args": {
+      "node": "op",
+      "input_shapes": "itensors"
+     }
+    }
+   ],
+   "uncertain_steps": [
+    "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen -> nnsmith/graph_gen.py::GuidedGen.post_process (override)"
+   ],
    "location": "nnsmith/graph_gen.py:1016",
    "function": "nnsmith/graph_gen.py::GuidedGen.extra_constraints"
   },
@@ -1829,6 +2314,34 @@
      "sort": "int"
     }
    },
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "nnsmith/graph_gen.py::random_model_gen",
+    "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+    "nnsmith/graph_gen.py::GuidedGen.post_process"
+   ],
+   "call_sites": [
+    {
+     "caller": "nnsmith/graph_gen.py::random_model_gen",
+     "callee": "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+     "line": 1075,
+     "resolved_by": "direct",
+     "args": {
+      "max_node_size": "max_nodes",
+      "max_gen_millisec": "timeout_ms"
+     }
+    },
+    {
+     "caller": "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+     "callee": "nnsmith/graph_gen.py::GuidedGen.post_process",
+     "line": 262,
+     "resolved_by": "override",
+     "args": {}
+    }
+   ],
+   "uncertain_steps": [
+    "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen -> nnsmith/graph_gen.py::GuidedGen.post_process (override)"
+   ],
    "location": "nnsmith/graph_gen.py:1044",
    "function": "nnsmith/graph_gen.py::GuidedGen.post_process"
   },
@@ -1879,6 +2392,34 @@
      "sort": "int"
     }
    },
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "nnsmith/graph_gen.py::random_model_gen",
+    "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+    "nnsmith/graph_gen.py::GuidedGen.post_process"
+   ],
+   "call_sites": [
+    {
+     "caller": "nnsmith/graph_gen.py::random_model_gen",
+     "callee": "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+     "line": 1075,
+     "resolved_by": "direct",
+     "args": {
+      "max_node_size": "max_nodes",
+      "max_gen_millisec": "timeout_ms"
+     }
+    },
+    {
+     "caller": "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+     "callee": "nnsmith/graph_gen.py::GuidedGen.post_process",
+     "line": 262,
+     "resolved_by": "override",
+     "args": {}
+    }
+   ],
+   "uncertain_steps": [
+    "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen -> nnsmith/graph_gen.py::GuidedGen.post_process (override)"
+   ],
    "location": "nnsmith/graph_gen.py:1052",
    "function": "nnsmith/graph_gen.py::GuidedGen.post_process"
   },
@@ -1915,13 +2456,13 @@
    "dropped_prefix": [],
    "trigger": {
     "len(cur_cons)": 0,
-    "self.check_sat(*cur_cons)": 2,
-    "z3.sat": 1
+    "self.check_sat(*cur_cons)": 1,
+    "z3.sat": 2
    },
    "contrast": {
     "len(cur_cons)": 1,
-    "self.check_sat(*cur_cons)": 2,
-    "z3.sat": 1
+    "self.check_sat(*cur_cons)": 1,
+    "z3.sat": 2
    },
    "atoms": {
     "len(cur_cons)": {
@@ -1937,16 +2478,34 @@
      "sort": "int"
     }
    },
-   "aliases_not_applied": {
-    "graph": "self.abstract_graph",
-    "shuffled_nids": "list(graph.nodes)",
-    "all_cons": "[]",
-    "shuffled": "list(range(len(all_cons)))",
-    "op": "graph.nodes[node_id]['op']",
-    "itensor_idx": "graph.nodes[node_id]['itensor_idx']",
-    "itensors": "[self.tensor_dataflow[i].type for i in itensor_idx]"
-   },
-   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "call_chain_status": "resolved",
+   "call_chain": [
+    "nnsmith/graph_gen.py::random_model_gen",
+    "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+    "nnsmith/graph_gen.py::GuidedGen.post_process"
+   ],
+   "call_sites": [
+    {
+     "caller": "nnsmith/graph_gen.py::random_model_gen",
+     "callee": "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+     "line": 1075,
+     "resolved_by": "direct",
+     "args": {
+      "max_node_size": "max_nodes",
+      "max_gen_millisec": "timeout_ms"
+     }
+    },
+    {
+     "caller": "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen",
+     "callee": "nnsmith/graph_gen.py::GuidedGen.post_process",
+     "line": 262,
+     "resolved_by": "override",
+     "args": {}
+    }
+   ],
+   "uncertain_steps": [
+    "nnsmith/graph_gen.py::SimpleGenerator.abstract_gen -> nnsmith/graph_gen.py::GuidedGen.post_process (override)"
+   ],
    "location": "nnsmith/graph_gen.py:1054",
    "function": "nnsmith/graph_gen.py::GuidedGen.post_process"
   },
@@ -1955,6 +2514,119 @@
   "rationale": "3b: not_found; priority 3: reviewed as wrong; related (candidate pair, judged different): nnsmith-F030",
   "review": "wrong",
   "review_note": "blind review by an LLM subagent (round 3), not human: GuidedGen.post_process is never reached because GuidedGen is never instantiated."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F023",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B027"
+  ],
+  "verification_ids": [
+   "V027"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "When self.differentiable is False: The variant is decided by a single probe forward pass on random inputs: `self.net.differentiable` is set by SymbolNet.forward (it becomes False as soon as any op is non-differentiable or a numeric check fails). If that one random probe happens to hit a non-differentiable path, `search_one` (line 107) silently falls back to `SamplingSearch.search_one` for all s...",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "self.differentiable is False",
+   "path_prefix": [
+    "class PracticalHybridSearch",
+    "def __init__"
+   ],
+   "dropped_prefix": [
+    "class PracticalHybridSearch",
+    "def __init__"
+   ],
+   "trigger": {
+    "self.differentiable": false
+   },
+   "contrast": {
+    "self.differentiable": true
+   },
+   "atoms": {
+    "self.differentiable": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "aliases_not_applied": {
+    "diff_test_inp": "self.net.get_random_inps(use_cuda=self.use_cuda)"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "call_chain_status": "not_found",
+   "call_chain_note": "no static call chain from an entry point to this function (dynamic dispatch, a callback, or it is not on the entry's path)",
+   "location": "nnsmith/materialize/torch/input_gen.py:98",
+   "function": "nnsmith/materialize/torch/input_gen.py::PracticalHybridSearch.__init__"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: undisclosed, other effect",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F026",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B032"
+  ],
+  "verification_ids": [
+   "V032"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "When output_tensors[i].grad_fn is None: `differentiable` is reset to True at the start of every forward (line 313) and AND-ed with each op output's grad_fn. PracticalHybridSearch.__init__ reads this flag after one probe forward, so a single non-differentiable op (or a non-float input) permanently disables the gradient search for the whole model. (nnsmith/materialize/torch/symbolnet.py:358)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "output_tensors[i].grad_fn is None",
+   "path_prefix": [
+    "class SymbolNet",
+    "def forward"
+   ],
+   "dropped_prefix": [
+    "class SymbolNet",
+    "def forward"
+   ],
+   "trigger": {
+    "output_tensors[i].grad_fn is None": true
+   },
+   "contrast": {
+    "output_tensors[i].grad_fn is None": false
+   },
+   "atoms": {
+    "output_tensors[i].grad_fn is None": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "aliases_not_applied": {
+    "tensor_map": "{}",
+    "input_tensors": "[tensor_map[idx] for idx in inps]"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "call_chain_status": "not_found",
+   "call_chain_note": "no static call chain from an entry point to this function (dynamic dispatch, a callback, or it is not on the entry's path)",
+   "location": "nnsmith/materialize/torch/symbolnet.py:358",
+   "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.forward"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: undisclosed, other effect",
+  "review": "unreviewed",
+  "review_note": null
  },
  {
   "schema_version": "0.2.0",
@@ -1986,8 +2658,8 @@
    },
    "contrast": {
     "self.check_intermediate_numeric": false,
-    "self.use_gradient": false,
-    "self.stop_updating_loss": false
+    "self.use_gradient": true,
+    "self.stop_updating_loss": true
    },
    "atoms": {
     "self.check_intermediate_numeric": {
@@ -2003,6 +2675,8 @@
      "sort": "bool"
     }
    },
+   "call_chain_status": "not_found",
+   "call_chain_note": "no static call chain from an entry point to this function (dynamic dispatch, a callback, or it is not on the entry's path)",
    "location": "nnsmith/materialize/torch/symbolnet.py:382",
    "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.forward"
   },
@@ -2011,5 +2685,207 @@
   "rationale": "3b: not_found; priority 3: reviewed as wrong",
   "review": "wrong",
   "review_note": "blind review by an LLM subagent (round 1), not human: The real condition is check_intermediate_numeric or (use_gradient and not stop_updating_loss), and invalid_found_last is reset to False at the start of every forward, so the claimed dependence on earlier state does not exist."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F007",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B034"
+  ],
+  "verification_ids": [
+   "V034"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "When loss_fn.dispatch(type(op)) is not None: If an op produces NaN/Inf but has no registered loss function, ConstraintCheck.true at line 403 fails with 'op=... has no torch_loss but produces NaN or INF!', aborting the search. (nnsmith/materialize/torch/symbolnet.py:385)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "loss_fn.dispatch(type(op)) is not None",
+   "path_prefix": [
+    "self.check_intermediate_numeric or (self.use_gradient and not self.stop_updating_loss)",
+    "self.invalid_found_last and (self.use_gradient and not self.stop_updating_loss)"
+   ],
+   "dropped_prefix": [],
+   "trigger": {
+    "loss_fn.dispatch(type(op)) is None": false,
+    "self.check_intermediate_numeric": false,
+    "self.use_gradient": true,
+    "self.stop_updating_loss": false,
+    "self.invalid_found_last": true
+   },
+   "contrast": {
+    "loss_fn.dispatch(type(op)) is None": true,
+    "self.check_intermediate_numeric": false,
+    "self.use_gradient": true,
+    "self.stop_updating_loss": false,
+    "self.invalid_found_last": true
+   },
+   "atoms": {
+    "loss_fn.dispatch(type(op)) is None": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "self.check_intermediate_numeric": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "self.invalid_found_last": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "self.stop_updating_loss": {
+     "kind": "predicate",
+     "sort": "bool"
+    },
+    "self.use_gradient": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "aliases_not_applied": {
+    "tensor_map": "{}",
+    "input_tensors": "[tensor_map[idx] for idx in inps]"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "call_chain_status": "not_found",
+   "call_chain_note": "no static call chain from an entry point to this function (dynamic dispatch, a callback, or it is not on the entry's path)",
+   "location": "nnsmith/materialize/torch/symbolnet.py:385",
+   "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.forward"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: undisclosed, other effect",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 1), not human: When gradient search is running and an op with no registered loss function produces NaN/Inf, a ConstraintError ends the gradient search, so such ops cannot be repaired."
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F027",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B035"
+  ],
+  "verification_ids": [
+   "V035"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "When vul_op_loss is None: When an op produces NaN/Inf but has no registered loss function (`loss_fn.dispatch(type(op)) is None`), the constraint check raises ConstraintError, which `grad_input_gen` catches at line 268 and turns into `break` (line 286) — the gradient search aborts and returns None, so the caller silently falls back to random sampling for that model. (nnsmith/materialize/torch/sy...",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "vul_op_loss is None",
+   "path_prefix": [
+    "class SymbolNet",
+    "def forward",
+    "if self.check_intermediate_numeric or (self.use_gradient and not self.stop_updating_loss)",
+    "if self.invalid_found_last and (self.use_gradient and not self.stop_updating_loss)"
+   ],
+   "dropped_prefix": [
+    "class SymbolNet",
+    "def forward",
+    "if self.check_intermediate_numeric or (self.use_gradient and not self.stop_updating_loss)",
+    "if self.invalid_found_last and (self.use_gradient and not self.stop_updating_loss)"
+   ],
+   "trigger": {
+    "vul_op_loss is None": true
+   },
+   "contrast": {
+    "vul_op_loss is None": false
+   },
+   "atoms": {
+    "vul_op_loss is None": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "aliases_not_applied": {
+    "tensor_map": "{}",
+    "input_tensors": "[tensor_map[idx] for idx in inps]"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "call_chain_status": "not_found",
+   "call_chain_note": "no static call chain from an entry point to this function (dynamic dispatch, a callback, or it is not on the entry's path)",
+   "location": "nnsmith/materialize/torch/symbolnet.py:403",
+   "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.forward"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: undisclosed, other effect",
+  "review": "unreviewed",
+  "review_note": null
+ },
+ {
+  "schema_version": "0.2.0",
+  "finding_id": "nnsmith-F008",
+  "artifact_id": "nnsmith",
+  "category": "undisclosed",
+  "level": "L2",
+  "limitation_ids": [
+   "CL-B036"
+  ],
+  "verification_ids": [
+   "V036"
+  ],
+  "scope_status": "unknown",
+  "evaluated_in_paper": null,
+  "effect_type": "other",
+  "summary": "When self.loss is not None: If two vulnerable ops both produce NaN/Inf in the same forward pass, the second one trips this check and raises ConstraintError, which aborts the gradient search (caught in grad_input_gen, line 268 -> break) instead of optimising for either loss. (nnsmith/materialize/torch/symbolnet.py:421)",
+  "witness_hint": {
+   "format": "witness-v2",
+   "kind": "input_value",
+   "status": "solved",
+   "condition": "self.loss is not None",
+   "path_prefix": [
+    "class SymbolNet",
+    "def forward",
+    "if self.check_intermediate_numeric or (self.use_gradient and not self.stop_updating_loss)",
+    "if self.invalid_found_last and (self.use_gradient and not self.stop_updating_loss)"
+   ],
+   "dropped_prefix": [
+    "class SymbolNet",
+    "def forward",
+    "if self.check_intermediate_numeric or (self.use_gradient and not self.stop_updating_loss)",
+    "if self.invalid_found_last and (self.use_gradient and not self.stop_updating_loss)"
+   ],
+   "trigger": {
+    "self.loss is None": false
+   },
+   "contrast": {
+    "self.loss is None": true
+   },
+   "atoms": {
+    "self.loss is None": {
+     "kind": "predicate",
+     "sort": "bool"
+    }
+   },
+   "aliases_not_applied": {
+    "tensor_map": "{}",
+    "input_tensors": "[tensor_map[idx] for idx in inps]",
+    "msg": "f'loss_{loss_suf}: {l.min().data:.3f} ~ {l.max().data:.3f} ~ {torch.sum((l > 0) * l).item()}'",
+    "loss_name": "f'{op}_{loss_suf}'"
+   },
+   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+   "call_chain_status": "not_found",
+   "call_chain_note": "no static call chain from an entry point to this function (dynamic dispatch, a callback, or it is not on the entry's path)",
+   "location": "nnsmith/materialize/torch/symbolnet.py:421",
+   "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.forward"
+  },
+  "confidence": "llm_assisted",
+  "priority": 3,
+  "rationale": "3b: not_found; priority 3: undisclosed, other effect",
+  "review": "unreviewed",
+  "review_note": null
  }
 ]

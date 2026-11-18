@@ -1,0 +1,123 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "flexposit-F023",
+ "artifact_id": "flexposit",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "论文要求激活保持 FP16；硬件导出/仿真路径把激活转成 FP8 E4M3。",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "always",
+  "location": "src/flexposit/export.py:105-141",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "only the weights are quantized while activations remain in FP16",
+    "source": "paper",
+    "locator": "PDF p.5"
+   }
+  ],
+  "code": [
+   {
+    "file": "src/flexposit/export.py",
+    "line_start": 105,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "hardware/tb/array_tb.v",
+    "line_start": 10,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/flexposit/limitations_for_tests.json",
+  "findings_sha256": "90fcaf23c2793dc03b49c54856e041483165536eff1522a25766022460b78f23",
+  "generated_at": "2026-11-17T15:05:22+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The paper states activations remain FP16, but export_tile explicitly quantizes activations with fp8_e4m3_encode and array_tb.v labels act.mem as FP8 E4M3. This is an unconditional conversion in the cited export/hardware path, so the implementation deviates from the paper. The evidence is code-level, not requiring a hardware run.",
+  "hardware_needed": false,
+  "would_confirm": "Run export_tile on FP16 activations and inspect act.mem/array_tb input width to verify values are FP8 E4M3 rather than FP16.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "src/flexposit/export.py",
+     "lines": "105-141",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "hardware/tb/array_tb.v",
+     "lines": "10-36",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "rtl"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "src/flexposit/export.py",
+    "regex": "fp8_e4m3_encode\\(",
+    "expect": "present",
+    "meaning": "Activation encoding to FP8 is present in export path.",
+    "status": "confirmed",
+    "hits": 2,
+    "hit_lines": [
+     68,
+     139
+    ]
+   },
+   {
+    "file": "hardware/tb/array_tb.v",
+    "regex": "FP8 E4M3 activation codes",
+    "expect": "present",
+    "meaning": "Testbench documents FP8 activation input, corroborating export.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     14
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}
