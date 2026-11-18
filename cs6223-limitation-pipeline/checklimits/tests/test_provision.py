@@ -82,3 +82,18 @@ def test_install_pins_skips_only_what_cannot_be_installed(tmp_path, monkeypatch)
     assert "numpy" in calls and not any("#" in c for c in calls if not c.endswith("pins.txt"))
     ok, skipped = pv.install_pins(tmp_path / "py", ["numpy"], tmp_path / "pins.txt", tmp_path / "log", 10)
     assert ok and skipped == []
+
+
+def test_setup_py_requires_reads_the_literal_list(tmp_path):
+    from checklimits.provision import setup_py_requires
+    (tmp_path / "setup.py").write_text('import torch\nINSTALL_REQUIRES = [\n    "transformers>=4.37.0",\n    "torch",\n    "flash_attn",\n]\nQ = ["x"]\n')
+    assert setup_py_requires(tmp_path) == ["transformers>=4.37.0", "torch", "flash_attn"]
+    assert setup_py_requires(tmp_path / "none") == []
+
+
+def test_gpu_only_missing_module_is_named_only_for_gpu_packages():
+    from checklimits.e2e import _gpu_only_missing
+    assert _gpu_only_missing("ModuleNotFoundError: No module named 'flash_attn'") == "flash_attn"
+    assert _gpu_only_missing("ModuleNotFoundError: No module named 'flash_attn.layers'") == "flash_attn"
+    assert _gpu_only_missing("ModuleNotFoundError: No module named 'transformers'") is None
+    assert _gpu_only_missing("ImportError: boom") is None

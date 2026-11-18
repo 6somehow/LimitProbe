@@ -1,3 +1,5 @@
+> **已作废（2026-11-18）：** 这份请求不再转给 Wanting。她的部分由 Shanghao 一侧自己做。下面的内容保留作记录；§6 的两个问题（`override` 指向从未实例化的类；`infeasible` 只覆盖入口参数的线性约束）仍然存在，要做时见本文。
+
 # 测试侧对 step 4 输出的请求（给 Wanting，2026-11-12）
 
 来自对 `results/step4/flexprefill/limitations_for_tests.json` 的 33 条批量运行（`BATCH_RESULTS.md`）。每条都有证据位置；优先级按对测试置信度的影响排。

@@ -55,7 +55,7 @@ def describe_other(lim_notes: str, snippet: str) -> str:
         return "no statement at the code location, so there is nothing to observe"
     try:
         kind = type(ast.parse(snippet if not snippet.endswith(":") else snippet + " pass").body[0]).__name__
-    except SyntaxError:
+    except (SyntaxError, IndexError):          # IndexError: the snippet holds only comments or blank lines
         kind = "?"
     if kind in ("Assign", "AugAssign", "AnnAssign"):
         return ("the target assigns a value; the claimed effect is what that value changes later, which needs a "
