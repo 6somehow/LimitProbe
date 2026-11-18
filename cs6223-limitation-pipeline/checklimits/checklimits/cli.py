@@ -64,7 +64,31 @@ def cmd_test(a: argparse.Namespace) -> int:
         a.artifact, results_root=Path(a.results_root) if a.results_root else DEFAULT_RESULTS_ROOT,
         attempts_roots=[Path(p) for p in a.attempts_root] if a.attempts_root else None, run_agent=a.run_agent,
         only=a.only, workers=a.workers, fast=a.fast, strict=a.strict, skip_envcheck=a.skip_envcheck, python=a.python,
-        provision=a.provision, **_e2e_args(a)))
+        provision=a.provision, analyze=a.analyze, model=a.model, **_e2e_args(a)))
+
+
+def cmd_paper_only(a: argparse.Namespace) -> int:
+    import os
+    from .e2e import DEFAULT_RESULTS_ROOT, InputError
+    from .paper_only import run_paper_only
+
+    def go():
+        base, key = os.environ.get("SOCLAAS_BASE_URL") or "", os.environ.get("SOCLAAS_API_KEY") or ""
+        if not base or not key:
+            raise InputError("needs SOCLAAS_BASE_URL and SOCLAAS_API_KEY (through the relay: python -m pipeline doctor)")
+        if not Path(a.pdf).is_file():
+            raise InputError(f"no PDF at {a.pdf}")
+        return run_paper_only(a.artifact, Path(a.pdf), title=a.title or a.artifact, venue=a.venue or "",
+                              results_root=Path(a.results_root) if a.results_root else DEFAULT_RESULTS_ROOT,
+                              model=a.model or os.environ.get("PIPELINE_MODEL") or "x-test-2", base_url=base, key=key)
+    return _e2e_guard(go)
+
+
+def cmd_analyze(a: argparse.Namespace) -> int:
+    from .e2e import DEFAULT_RESULTS_ROOT, run_analysis
+    return _e2e_guard(lambda: run_analysis(
+        a.artifact, results_root=Path(a.results_root) if a.results_root else DEFAULT_RESULTS_ROOT,
+        model=a.model, workers=a.workers, force=a.force, **_e2e_args(a)))
 
 
 def cmd_report(a: argparse.Namespace) -> int:
@@ -293,7 +317,24 @@ def main(argv: list[str] | None = None) -> int:
     te.add_argument("--skip-envcheck", action="store_true")
     te.add_argument("--provision", action="store_true",
                     help="if the environment check fails and the repository is checked out, build scratch/venv_<artifact> first")
+    te.add_argument("--analyze", action="store_true",
+                    help="add an analysis (tier A0-A2, not a verdict) to every Finding that was not tested; needs the relay")
+    te.add_argument("--model", default=None, help="model for --analyze (default PIPELINE_MODEL, else x-test-2)")
     te.set_defaults(fn=cmd_test)
+    po = sub.add_parser("paper-only", help="a paper with no public code: reading-based candidates, tier A1 at most")
+    po.add_argument("artifact")
+    po.add_argument("--pdf", required=True)
+    po.add_argument("--title")
+    po.add_argument("--venue")
+    po.add_argument("--model", default=None)
+    po.add_argument("--results-root", default=None)
+    po.set_defaults(fn=cmd_paper_only)
+    an = sub.add_parser("analyze", help="add analyses to the not-tested Findings already on disk (no test is run)")
+    _common(an)
+    an.add_argument("--model", default=None)
+    an.add_argument("--workers", type=int, default=3)
+    an.add_argument("--force", action="store_true", help="redo analyses that already exist (answers stay cached)")
+    an.set_defaults(fn=cmd_analyze)
     rp = sub.add_parser("report", help="regenerate LIMITATIONS.md from the records on disk")
     _common(rp)
     rp.add_argument("--strict", action="store_true")

@@ -6,6 +6,7 @@ Finding ends up as exactly one record with either a result or the reason it was 
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -279,7 +280,8 @@ def run_test(artifact: str, *, findings_file: str, data_dir: str, repo_rel: str,
              results_root: Path = DEFAULT_RESULTS_ROOT, attempts_roots: Optional[list[Path]] = None,
              run_agent: bool = False, only: Optional[list[str]] = None, workers: int = 3, fast: bool = False,
              strict: bool = False, skip_envcheck: bool = False, python: Optional[str] = None,
-             root: Path = PIPELINE_ROOT, provision: bool = False) -> dict[str, Any]:
+             root: Path = PIPELINE_ROOT, provision: bool = False, analyze: bool = False,
+             model: Optional[str] = None) -> dict[str, Any]:
     findings, art, sha = _load_inputs(findings_file, data_dir, root)
     tdir = results_root / "tests" / artifact
     tdir.mkdir(parents=True, exist_ok=True)
@@ -334,8 +336,48 @@ def run_test(artifact: str, *, findings_file: str, data_dir: str, repo_rel: str,
                                                  "generated_at": now_iso()})
                 write_record(tdir / fid, rec)
                 by_id[fid] = rec
-    return _finish(artifact, art, findings, [by_id[f["finding_id"]] for f in findings], env, findings_file, sha,
-                   results_root, strict)
+    recs = [by_id[f["finding_id"]] for f in findings]
+    if analyze:
+        _analyze_records(findings, recs, tdir, repo_rel, model, root, workers)
+    return _finish(artifact, art, findings, recs, env, findings_file, sha, results_root, strict)
+
+
+def _analyze_records(findings: list[dict[str, Any]], recs: list[TestRecord], tdir: Path, repo_rel: str,
+                     model: Optional[str], root: Path, workers: int, force: bool = False) -> int:
+    """Add an analysis (analysis.py) to every not_run record that has none; the record stays not_run."""
+    from .analysis import analyze
+    model = model or os.environ.get("PIPELINE_MODEL") or "x-test-2"
+    base = os.environ.get("SOCLAAS_BASE_URL") or ""
+    key = os.environ.get("SOCLAAS_API_KEY") or ""
+    if not base or not key:
+        raise InputError("analysis needs SOCLAAS_BASE_URL and SOCLAAS_API_KEY (through the relay: python -m pipeline doctor)")
+    repo = root / repo_rel
+    repo = repo if repo.is_dir() else None
+    raw_by = {f["finding_id"]: f for f in findings}
+    todo = [r for r in recs if r.status == "not_run" and (force or r.analysis is None)]
+
+    def one(r: TestRecord) -> None:
+        r.analysis = analyze(raw_by[r.finding_id], repo, model=model, base_url=base, key=key,
+                             cache_dir=tdir / "analysis_cache")
+        write_record(tdir / r.finding_id, r)
+
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        list(ex.map(one, todo))
+    return len(todo)
+
+
+def run_analysis(artifact: str, *, findings_file: str, data_dir: str, repo_rel: str,
+                 results_root: Path = DEFAULT_RESULTS_ROOT, model: Optional[str] = None, workers: int = 3,
+                 force: bool = False, root: Path = PIPELINE_ROOT) -> dict[str, Any]:
+    """Analyse the not_run records already on disk; no test is run."""
+    findings, art, sha = _load_inputs(findings_file, data_dir, root)
+    tdir = results_root / "tests" / artifact
+    recs = [read_record(tdir / f["finding_id"] / "report.json") for f in findings]
+    n = _analyze_records(findings, recs, tdir, repo_rel, model, root, workers, force)
+    env = json.loads((tdir / "ENV.json").read_text()) if (tdir / "ENV.json").exists() else None
+    out = _finish(artifact, art, findings, recs, env, findings_file, sha, results_root, False)
+    out["analysed"] = n
+    return out
 
 
 def run_report(artifact: str, *, findings_file: str, data_dir: str, results_root: Path = DEFAULT_RESULTS_ROOT,

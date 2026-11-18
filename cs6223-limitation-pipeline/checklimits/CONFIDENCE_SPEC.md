@@ -279,3 +279,32 @@ agent 可以写 `condition.py` 谓词代替 Region.condition 来求 D2。谓词�
 ## 21. D5 的邻点探测对超时重试（2026-11-17）
 
 NNSmith 的 `random_model_gen` 用 `max_gen_millisec` 限时，机器负载高时邻点探测（`neg+`、`neg-`）可能在判出目标之前超时，D5 变 `open`，档位掉级（F035 chain-3 在 3 个并行 worker 下从 L3 掉到 L1）。现在 `harness._run_bva` 对没有判出目标的邻点探测最多再单独跑 `BVA_RETRIES = 2` 次。只重跑未判出的探测：已判出的结果不会被覆盖，重试只能把 `open` 变成有测量值的结果，不会把任何档位的判断改成别的方向；仍然判不出的保持 `open`。没有改任何阈值或规则，所以没有重跑基准和 `results/e2e/`。有两个测试（`test_mutate_bva.py`）。这没有"证明"负载问题消失：真实机器上的并行重审还没有重做，重做时仍建议 `--workers 1` 或 2。
+
+## 22. 分析通道：不能测的 Finding 也给分析，但另立档位（2026-11-18）
+
+`not_run` 的 Finding（`no_code_location`、`outcome_unsupported`、纯论文）不再只有一行原因。`checklimits analyze` / `pipeline analyze` / `pipeline e2e`（默认）给每条加一个 `analysis` 块（`report.json` 的可选字段，契约不升版本）。它**不是测试**：永远没有 `yes`/`no`，没有 L 档。
+
+三步，可信度由高到低：
+1. **静态证据核对（确定性）**：Finding 引用的文件在固定 commit 里存在、行号在范围内、引用的片段在那里。
+2. **探针（由 harness 执行）**：语言模型可以提出正则探针（"脚本里没有 `wget`"）。探针只能看 Finding 引用过的文件；`absent` 型探针必须带一个 `control` 正则，且它在同一文件里命中，否则记为 `unanchored`，不算数（"没找到"太容易满足）。
+3. **语言模型的读法**：`supports` / `contradicts` / `unclear`，带理由，答案缓存。
+
+档位（未校准，和 L 档不是一个量表）：
+
+| 档 | 条件 |
+|---|---|
+| A2 | 引用的代码找到了，至少一个探针跑了且与读法一致 |
+| A1 | 只有文字读法：纯论文、没有仓库、或没法写探针 |
+| A0 | 证据没法落地（引用的文件或行不存在），或读法与探针矛盾，或模型没给出可用答案 |
+
+**纯论文**（`checklimits paper-only` / `pipeline paper-only`，例如没有公开代码的 Tessera）：模型读 PDF 全文，列出读者能从文字确定的限制（假设、评测范围、缺失对比、数字不一致）。harness 核对每条引用**逐字出现在 PDF 里**，否则整条丢弃并计数；候选可带一个算术检查，其中每个数字必须出现在引用里，由 harness 求值。档位最高 A1。记录用 `<id>-P001…` 编号，`not_run.code = no_code_location`，`finding.category = paper_only:<kind>`，不走步骤 4 的 schema。
+
+限制：探针是文本搜索，不是语义分析；模型提出的探针可能选错文件或正则；A2 只说"找到的文本与读法一致"。没有人工核对，没有校准。
+
+## 23. 加速器代码的替身要自证（2026-11-18）
+
+没有 GPU 不是放弃一条 Finding 的理由。agent 可以用 CPU 替身（`sim.py`）代替 CUDA/Triton 核或硬件块，并用 `MockDecl.sim_check = "check.py::fn"` 声明怎么证明替身算的是核算的：`fn(sim)` 返回 `{"ok","detail","kind"}`，可以是和 CPU 参考实现在小规模随机输入上的数值比较，不变量检查（softmax 行和为 1、mask 生效、形状），或用 sympy / z3 对公式做符号证明。
+
+agent 写检查，所以 harness 不直接信它：`simcheck.py` 在子进程里先对替身跑一次（必须 ok），再对"被破坏的替身"（输出放大、取负、清零）各跑一次。破坏后仍然通过的检查看不见错误，记为 `vacuous`。状态：`agrees` / `disagrees` / `vacuous` / `error`。**只有 `disagrees` 改变档位**（D6 refuted）；`agrees` 只写进 D6 的证据，替身的证据状态仍由 `sim_class` 决定（`simulated:*`，档位上限不变）。
+
+验证：FlexPrefill F07 的 `bnhd_pool` 替身加上 `sim_check` 后，在真实 harness 里为 `agrees`（`tests/test_simcheck.py` 另有 5 个单测：agrees、disagrees、vacuous、error、未声明）。还没有让 agent 在一条真正需要 GPU 的新 Finding 上自己写 `sim_check` 并跑完。

@@ -279,6 +279,56 @@ def e2e(a) -> None:
         a.model = a.model or e.get("PIPELINE_MODEL") or "x-test-2"
         P.run(a.artifact_id, a)
         a.provision = True
+        a.analyze = not getattr(a, "no_analyze", False)
         out = P.test(a.artifact_id, a)
     print(f"[done] {a.artifact_id}: {P._rel(P.Paths(a.artifact_id).report)}")
     print(f"  tested {out['counts'].get('tested')} of {out.get('n_input')} Findings")
+
+
+def analyze_cmd(a) -> None:
+    """Analyse the not-tested Findings already on disk (checklimits analyze), with the relay started for the call."""
+    import subprocess
+    e = P.env()
+    if report(check_environment(e, a.artifact_id, paper_side=False, agent=False, pdf=None)):
+        sys.exit("stopped: fix the FAIL lines above (nothing was run)")
+    with Relay(e):
+        ok, detail = probe_models()
+        if not ok:
+            sys.exit(f"stopped: the model service did not answer through the relay: {detail}")
+        point_children_at_relay()
+        cmd = [sys.executable, "-m", "checklimits", "analyze", a.artifact_id, "--results-root", str(P.ROOT / "results"),
+               "--workers", str(a.workers)] + (["--force"] if a.force else [])
+        if a.model:
+            cmd += ["--model", a.model]
+        p = subprocess.run(cmd, cwd=P.CHECKLIMITS, env=P.env(), stdout=subprocess.PIPE, text=True)
+    out = P.last_json(p.stdout) or {}
+    if p.returncode != 0:
+        sys.exit(f"analyze failed (exit {p.returncode}): {out.get('error') or out.get('problems')}")
+    print(f"[done] {a.artifact_id}: analysed {out.get('analysed')} Findings; tiers {out['counts'].get('analysis_tiers')}")
+    print(f"  report: {out.get('report')}")
+
+
+def paper_only_cmd(a) -> None:
+    """A paper with no public code: reading-based candidates (tier A1 at most), with the relay started for the call."""
+    import subprocess
+    e = P.env()
+    if not Path(a.pdf).is_file():
+        sys.exit(f"stopped: no PDF at {a.pdf}")
+    if report(check_environment(e, None, paper_side=False, agent=False)):
+        sys.exit("stopped: fix the FAIL lines above (nothing was run)")
+    with Relay(e):
+        ok, detail = probe_models()
+        if not ok:
+            sys.exit(f"stopped: the model service did not answer through the relay: {detail}")
+        point_children_at_relay()
+        cmd = [sys.executable, "-m", "checklimits", "paper-only", a.artifact_id, "--pdf", str(Path(a.pdf).resolve()),
+               "--results-root", str(P.ROOT / "results")]
+        for k in ("title", "venue", "model"):
+            if getattr(a, k, None):
+                cmd += ["--" + k, getattr(a, k)]
+        p = subprocess.run(cmd, cwd=P.CHECKLIMITS, env=P.env(), stdout=subprocess.PIPE, text=True)
+    out = P.last_json(p.stdout) or {}
+    if p.returncode != 0:
+        sys.exit(f"paper-only failed (exit {p.returncode}): {out.get('error')}")
+    print(f"[done] {a.artifact_id}: {out['n_records']} candidates (all tier A1), {out['dropped']} dropped for quotes not in the PDF")
+    print(f"  report: {out.get('report')}")

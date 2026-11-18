@@ -89,6 +89,7 @@ class Measurements:
     bva: Optional[BvaResult] = None
     # D6
     info: list[InfoItem] = field(default_factory=list)
+    sim_checks: dict = field(default_factory=dict)       # {mock symbol: simcheck result}
     # D7
     probe_effect_free: Optional[bool] = None
     # D8, D9
@@ -202,8 +203,13 @@ def evaluate_defeaters(m: Measurements, p: Profile) -> list[DefeaterResult]:
         w = worst_state([i.evidence_state for i in bearing])
         st = {"direct": "eliminated", "simulated:reference": "residual", "simulated:fake": "residual",
               "simulated:stub": "refuted"}[w]
-        out.append(_d("D6", st, "verdict-bearing observations: " + ", ".join(f"{i.run} {i.evidence_state}" for i in bearing),
-                      worst=w))
+        note = ""
+        if m.sim_checks:
+            note = "; stand-in checks: " + ", ".join(f"{k} {v.get('status')}" for k, v in sorted(m.sim_checks.items()))
+            if any(v.get("status") == "disagrees" for v in m.sim_checks.values()):
+                st = "refuted"                       # a stand-in that disagrees with its own reference is wrong
+        out.append(_d("D6", st, "verdict-bearing observations: " + ", ".join(f"{i.run} {i.evidence_state}" for i in bearing)
+                      + note, worst=w))
 
     out.append(_d("D7", "open" if m.probe_effect_free is None else "eliminated" if m.probe_effect_free else "refuted",
                   {None: "untraced run not made", True: "traced and untraced runs show the same observable result",
