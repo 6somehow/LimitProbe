@@ -1,0 +1,111 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "flexposit-F031",
+ "artifact_id": "flexposit",
+ "status": "tested",
+ "not_run": null,
+ "verdict": "yes",
+ "level": "L1",
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "effect on positive input, none on negative input",
+ "observed": {
+  "positive": "ValueError at src/flexposit/export.py:132",
+  "negative": "no exception at src/flexposit/export.py:131"
+ },
+ "defeaters": {
+  "D1": "eliminated",
+  "D2": "eliminated",
+  "D3": "residual",
+  "D4": "eliminated",
+  "D5": "residual",
+  "D6": "eliminated",
+  "D7": "eliminated",
+  "D8": "eliminated",
+  "D9": "eliminated",
+  "D10": "eliminated",
+  "D11": "eliminated",
+  "D12": "eliminated",
+  "D13": "residual",
+  "D14": "residual"
+ },
+ "open_doubts": [
+  {
+   "id": "D3",
+   "name": "oracle can see the effect",
+   "status": "residual",
+   "evidence": "only 3 mutants (< n_min=4); killed 3"
+  },
+  {
+   "id": "D5",
+   "name": "control pair differs in one factor, negative adjacent to the boundary",
+   "status": "residual",
+   "evidence": "one factor differs; adjacency not measurable: boundary variable 'selection' is not an integer (value 'inside')"
+  },
+  {
+   "id": "D13",
+   "name": "inputs inside the paper's scope",
+   "status": "residual",
+   "evidence": "scope_status=unknown"
+  },
+  {
+   "id": "D14",
+   "name": "official entry point was called",
+   "status": "residual",
+   "evidence": "the official entry started first but the target line did not run inside it; reason recorded: Step 4 reports call_chain_status=not_found: export_tile is a separate export-API function and quantize never calls it. The driver calls the official entry quantize first to build the QuantState that export_tile consumes, then calls export_tile on that state; the target therefore runs just after the entry returns, not inside it."
+  }
+ ],
+ "next_steps": [
+  "D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location",
+  "D5 (residual): change exactly one factor between positive and negative, and make the negative the point next to the boundary",
+  "D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)"
+ ],
+ "finding": {
+  "category": "docs_only",
+  "step4_level": "L2",
+  "effect_type": "reject",
+  "priority": 3,
+  "summary": "When len(sizes) != 1: export_tile raises ValueError when the selected output channels span more than one Posit size (nsize), so a tile cannot mix channel windows; the caller must pick columns inside a single window. (src/flexposit/export.py:131)",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "src/flexposit/export.py:131",
+  "function": "src/flexposit/export.py::export_tile",
+  "condition": "len(sizes) != 1"
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "All ``n`` channels must share one Posit size (true inside a channel window).",
+    "source": "docstring",
+    "locator": "src/flexposit/export.py:121 (export_tile)"
+   }
+  ],
+  "code": [
+   {
+    "file": "src/flexposit/export.py",
+    "line_start": 131,
+    "function": "src/flexposit/export.py::export_tile",
+    "snippet": "if len(sizes) != 1:"
+   }
+  ]
+ },
+ "files": {
+  "execution_report": "execution_report.json",
+  "testcase": "testcase.json",
+  "attempt": "attempt"
+ },
+ "provenance": {
+  "findings_file": "results/step4/flexposit/limitations_for_tests.json",
+  "findings_sha256": "90fcaf23c2793dc03b49c54856e041483165536eff1522a25766022460b78f23",
+  "generated_at": "2026-11-17T15:15:16+08:00",
+  "source": "agent",
+  "attempt_origin": "scratch/agent_runs/e2e-f031-4514f2",
+  "agent_tokens": 3979905,
+  "agent_wall_s": 665.5,
+  "lock_tampered": false,
+  "profile": "default-v1"
+ }
+}

@@ -63,8 +63,8 @@ def test_prefix_contradiction_is_infeasible():
     assert h["status"] == "infeasible"
 
 
-def test_condition_equal_to_prefix_has_no_contrast():
-    h = solve(cond("q_len != 1", ["q_len != 1"]), None, "reject")
+def test_condition_implied_by_the_prefix_has_no_contrast():
+    h = solve(cond("q_len != 1", ["q_len > 3"]), None, "reject")
     assert h["status"] == "trigger_only" and "contrast" not in h
 
 
@@ -258,3 +258,19 @@ def test_merged_finding_takes_the_higher_priority():
 
     fs, _ = integrate("a", code, vers, paper, None, Rules(), Context(judge=J()))
     assert len(fs) == 1 and fs[0].category == "undisclosed" and fs[0].priority == 2
+
+
+def test_condition_copied_into_its_own_prefix_still_gets_a_contrast():
+    h = solve(cond('mode not in ("3", "4")', ['mode not in ("3", "4")']), None, "reject")
+    assert h["status"] == "solved" and h["prefix_dropped"] == ['mode not in ("3", "4")']
+    assert h["contrast"]["mode"] in ("3", "4")
+    # an equal entry earlier in the prefix comes from another function and stays
+    h = solve(cond("not (q_len == 1)", ["not (q_len == 1)", "x > 0", "q_len < 5"]), None, "reject")
+    assert "prefix_dropped" not in h
+
+
+def test_unconditional_raise_is_decided_by_the_innermost_guard():
+    h = solve(cond("True", ["cache is not None", "idx is None"]), None, "reject")
+    assert h["status"] == "solved" and h["condition_original"] == "True" and h["condition"] == "idx is None"
+    assert h["trigger"]["idx is None"] is True and h["contrast"]["idx is None"] is False
+    assert h["trigger"]["cache is None"] is False and h["contrast"]["cache is None"] is False

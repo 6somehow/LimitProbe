@@ -1,0 +1,473 @@
+[
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "CL-X001",
+    "artifact_id": "qoserve",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not (seq.is_paused())",
+    "condition": {
+      "expr": "not (seq.is_paused())",
+      "params": [
+        "seq"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "reject",
+    "effect_text": "'Sequence should be in PAUSED state'",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "sarathi/core/scheduler/deadline_scheduler.py",
+        "line_start": 251,
+        "line_end": 251,
+        "function": "sarathi/core/scheduler/deadline_scheduler.py::DeadlineScheduler._schedule",
+        "snippet": "assert seq.is_paused(), 'Sequence should be in PAUSED state'"
+      }
+    ],
+    "region_ids": [
+      "X001"
+    ],
+    "provenance": "ast",
+    "notes": null
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "CL-X002",
+    "artifact_id": "qoserve",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not (self.block_manager.can_append_slot())",
+    "condition": {
+      "expr": "not (self.block_manager.can_append_slot())",
+      "params": [
+        "self"
+      ],
+      "path_prefix": [
+        "seq.is_paused()"
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "AssertionError",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "sarathi/core/scheduler/deadline_scheduler.py",
+        "line_start": 253,
+        "line_end": 253,
+        "function": "sarathi/core/scheduler/deadline_scheduler.py::DeadlineScheduler._schedule",
+        "snippet": "assert self.block_manager.can_append_slot()"
+      }
+    ],
+    "region_ids": [
+      "X002"
+    ],
+    "provenance": "ast",
+    "notes": null
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "CL-B001",
+    "artifact_id": "qoserve",
+    "origin": "code",
+    "level": null,
+    "condition_text": "NUM_TIERS > 0",
+    "condition": {
+      "expr": "NUM_TIERS > 0",
+      "params": [
+        "NUM_TIERS"
+      ],
+      "path_prefix": [
+        "Sequence.__init__"
+      ]
+    },
+    "effect_type": "state",
+    "effect_text": "Each Sequence's QoS tier (and hence its deadline) is drawn at random from the global `random` module rather than from any caller-supplied SLA. The tier then drives `self.tier_deadline = TIER_DEADLINES[self.tier]` (line 74) and `_get_TBT_deadline`'s choice of `execution_threshold_batched` when `self.tier > 0` (lines 114-115), so the scheduling decision depends on the process-wide RNG state left by earlier calls (and on any earlier `random.seed`), not on the request.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "sarathi/core/datatypes/sequence.py",
+        "line_start": 73,
+        "line_end": null,
+        "function": "sarathi/core/datatypes/sequence.py::Sequence.__init__",
+        "snippet": "self.tier = random.randint(0, NUM_TIERS - 1)"
+      }
+    ],
+    "region_ids": [
+      "B001"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "CL-B002",
+    "artifact_id": "qoserve",
+    "origin": "code",
+    "level": null,
+    "condition_text": "self.scheduler_type == 'fcfs'",
+    "condition": {
+      "expr": "self.scheduler_type == 'fcfs'",
+      "params": [
+        "self"
+      ],
+      "path_prefix": [
+        "Sequence.__init__"
+      ]
+    },
+    "effect_type": "path_change",
+    "effect_text": "`Sequence.__lt__` dispatches on this per-object attribute: 'fcfs' orders by arrival_time, 'edf' by ttft_deadline+arrival_time, 'srpf' by remaining prompt tokens, and anything else falls through to the hybrid-prioritization deadline. The attribute is hard-coded to 'fcfs' in the constructor, so unless some other code overwrites it after construction, the priority queue used by the deadline scheduler always runs plain FCFS and the hybrid/EDF/SRPF variants are unreachable.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "sarathi/core/datatypes/sequence.py",
+        "line_start": 80,
+        "line_end": null,
+        "function": "sarathi/core/datatypes/sequence.py::Sequence.__init__",
+        "snippet": "self.scheduler_type = 'fcfs'  # default scheduler type"
+      }
+    ],
+    "region_ids": [
+      "B002"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "CL-B003",
+    "artifact_id": "qoserve",
+    "origin": "code",
+    "level": null,
+    "condition_text": "self.tier > 0",
+    "condition": {
+      "expr": "self.tier > 0",
+      "params": [
+        "self"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "path_change",
+    "effect_text": "For any non-zero (randomly assigned) tier, the TBT deadline uses execution_threshold_batched instead of execution_threshold, changing the computed deadline.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "sarathi/core/datatypes/sequence.py",
+        "line_start": 114,
+        "line_end": null,
+        "function": "sarathi/core/datatypes/sequence.py::Sequence._get_TBT_deadline",
+        "snippet": "if self.tier > 0:"
+      }
+    ],
+    "region_ids": [
+      "B003"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "CL-B004",
+    "artifact_id": "qoserve",
+    "origin": "code",
+    "level": null,
+    "condition_text": "batch_num_tokens <= 512",
+    "condition": {
+      "expr": "batch_num_tokens <= 512",
+      "params": [
+        "batch_num_tokens"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "path_change",
+    "effect_text": "The execution-time predictor switches between two hard-coded stratified linear models at a 512-token boundary, so the prefill size chosen by slack depends on which hard-coded coefficient set applies.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "sarathi/core/scheduler/deadline_scheduler.py",
+        "line_start": 92,
+        "line_end": null,
+        "function": "sarathi/core/scheduler/deadline_scheduler.py::DeadlineScheduler._predict_batch_time",
+        "snippet": "model = tokens_0_512 if (batch_num_tokens <= 512) else tokens_513_plus"
+      }
+    ],
+    "region_ids": [
+      "B004"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "CL-B005",
+    "artifact_id": "qoserve",
+    "origin": "code",
+    "level": null,
+    "condition_text": "memory_budget < 1000",
+    "condition": {
+      "expr": "memory_budget < 1000",
+      "params": [
+        "memory_budget"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "path_change",
+    "effect_text": "When free KV-cache blocks (free_blocks * block_size // 32) fall below 1000, the prefill token search space is switched from TOKEN_SEARCH_SPACE (up to 2552) to LOW_MEMORY_TOKEN_SEARCH_SPACE (128-512), capping the prefill size the slack-based search can return.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "sarathi/core/scheduler/deadline_scheduler.py",
+        "line_start": 120,
+        "line_end": null,
+        "function": "sarathi/core/scheduler/deadline_scheduler.py::DeadlineScheduler._get_prefill_size_by_slack",
+        "snippet": "if memory_budget < 1000:"
+      }
+    ],
+    "region_ids": [
+      "B005"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "CL-B006",
+    "artifact_id": "qoserve",
+    "origin": "code",
+    "level": null,
+    "condition_text": "min_slack <= 0",
+    "condition": {
+      "expr": "min_slack <= 0",
+      "params": [
+        "min_slack"
+      ],
+      "path_prefix": []
+    },
+    "effect_type": "path_change",
+    "effect_text": "When the caller-supplied slack is non-positive, the binary search is skipped entirely and the function returns the smallest search-space entry (128) minus decode tokens, i.e. a fixed minimal prefill rather than a slack-derived size.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "sarathi/core/scheduler/deadline_scheduler.py",
+        "line_start": 130,
+        "line_end": null,
+        "function": "sarathi/core/scheduler/deadline_scheduler.py::DeadlineScheduler._get_prefill_size_by_slack",
+        "snippet": "if min_slack <= 0:"
+      }
+    ],
+    "region_ids": [
+      "B006"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "CL-B007",
+    "artifact_id": "qoserve",
+    "origin": "code",
+    "level": null,
+    "condition_text": "not self._check_request_prompt_length(seq)",
+    "condition": {
+      "expr": "not self._check_request_prompt_length(seq)",
+      "params": [
+        "self",
+        "seq"
+      ],
+      "path_prefix": [
+        "self.waiting and self.waiting[0].arrival_time <= now"
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "Requests whose prompt length fails the check are added to ignored_seq_ids and skipped (the RuntimeError is not raised, so the loop continues).",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "sarathi/core/scheduler/deadline_scheduler.py",
+        "line_start": 211,
+        "line_end": null,
+        "function": "sarathi/core/scheduler/deadline_scheduler.py::DeadlineScheduler._schedule",
+        "snippet": "if not self._check_request_prompt_length(seq):"
+      }
+    ],
+    "region_ids": [
+      "B007"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "CL-B008",
+    "artifact_id": "qoserve",
+    "origin": "code",
+    "level": null,
+    "condition_text": "seq.tier >= 1",
+    "condition": {
+      "expr": "seq.tier >= 1",
+      "params": [
+        "seq"
+      ],
+      "path_prefix": [
+        "self.waiting and self.waiting[0].arrival_time <= now"
+      ]
+    },
+    "effect_type": "path_change",
+    "effect_text": "For tier>=1 sequences the ttft_deadline is recomputed by subtracting predicted decode time (output_len_pred or num_decode_tokens times execution_threshold_batched); tier 0 sequences keep their original deadline.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "sarathi/core/scheduler/deadline_scheduler.py",
+        "line_start": 231,
+        "line_end": null,
+        "function": "sarathi/core/scheduler/deadline_scheduler.py::DeadlineScheduler._schedule",
+        "snippet": "if seq.tier >= 1:"
+      }
+    ],
+    "region_ids": [
+      "B008"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "CL-B009",
+    "artifact_id": "qoserve",
+    "origin": "code",
+    "level": null,
+    "condition_text": "seq.num_decode_tokens == -1",
+    "condition": {
+      "expr": "seq.num_decode_tokens == -1",
+      "params": [
+        "seq"
+      ],
+      "path_prefix": [
+        "self.waiting and self.waiting[0].arrival_time <= now",
+        "seq.tier >= 1"
+      ]
+    },
+    "effect_type": "path_change",
+    "effect_text": "Selects whether the decode-time estimate uses the global output_len_pred or the per-sequence num_decode_tokens when computing ttft_deadline.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "sarathi/core/scheduler/deadline_scheduler.py",
+        "line_start": 233,
+        "line_end": null,
+        "function": "sarathi/core/scheduler/deadline_scheduler.py::DeadlineScheduler._schedule",
+        "snippet": "if seq.num_decode_tokens == -1:"
+      }
+    ],
+    "region_ids": [
+      "B009"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "CL-B010",
+    "artifact_id": "qoserve",
+    "origin": "code",
+    "level": null,
+    "condition_text": "self.scheduler_type == 'deadline'",
+    "condition": {
+      "expr": "self.scheduler_type == 'deadline'",
+      "params": [
+        "self"
+      ],
+      "path_prefix": [
+        "self._prefill_queue"
+      ]
+    },
+    "effect_type": "path_change",
+    "effect_text": "Only when scheduler_type is 'deadline' is the dynamic chunk size computed via _get_prefill_size_by_slack; otherwise prefill_token_limit stays at chunk_size - num_batched_tokens.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "sarathi/core/scheduler/deadline_scheduler.py",
+        "line_start": 276,
+        "line_end": null,
+        "function": "sarathi/core/scheduler/deadline_scheduler.py::DeadlineScheduler._schedule",
+        "snippet": "if self.scheduler_type == 'deadline':"
+      }
+    ],
+    "region_ids": [
+      "B010"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "CL-B011",
+    "artifact_id": "qoserve",
+    "origin": "code",
+    "level": null,
+    "condition_text": "self.scheduler_type == 'deadline' or self.scheduler_type == 'deadline_no_dynamic_chunking'",
+    "condition": {
+      "expr": "self.scheduler_type == 'deadline' or self.scheduler_type == 'deadline_no_dynamic_chunking'",
+      "params": [
+        "self"
+      ],
+      "path_prefix": [
+        "self._prefill_queue"
+      ]
+    },
+    "effect_type": "path_change",
+    "effect_text": "The eager-relegation deadline check (service_time_required vs ttft_deadline) only runs for these two scheduler types; other types skip the drop logic.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "sarathi/core/scheduler/deadline_scheduler.py",
+        "line_start": 300,
+        "line_end": null,
+        "function": "sarathi/core/scheduler/deadline_scheduler.py::DeadlineScheduler._schedule",
+        "snippet": "if self.scheduler_type == 'deadline' or self.scheduler_type == 'deadline_no_dynamic_chunking':"
+      }
+    ],
+    "region_ids": [
+      "B011"
+    ],
+    "provenance": "llm",
+    "notes": null
+  },
+  {
+    "schema_version": "0.2.0",
+    "limitation_id": "CL-B012",
+    "artifact_id": "qoserve",
+    "origin": "code",
+    "level": null,
+    "condition_text": "(seq.drop == 0) and (seq.mem_allocated == False) and ((now + service_time_required) > (seq.arrival_time + seq.ttft_deadline))",
+    "condition": {
+      "expr": "(seq.drop == 0) and (seq.mem_allocated == False) and ((now + service_time_required) > (seq.arrival_time + seq.ttft_deadline))",
+      "params": [
+        "now",
+        "seq",
+        "service_time_required"
+      ],
+      "path_prefix": [
+        "self._prefill_queue",
+        "self.scheduler_type == 'deadline' or self.scheduler_type == 'deadline_no_dynamic_chunking'"
+      ]
+    },
+    "effect_type": "reject",
+    "effect_text": "A not-yet-dropped, unallocated sequence whose estimated prefill service time would miss its ttft_deadline is dropped (drop incremented) and re-pushed to the prefill queue, skipping it this iteration.",
+    "paper_evidence": [],
+    "code_evidence": [
+      {
+        "file": "sarathi/core/scheduler/deadline_scheduler.py",
+        "line_start": 305,
+        "line_end": null,
+        "function": "sarathi/core/scheduler/deadline_scheduler.py::DeadlineScheduler._schedule",
+        "snippet": "if (seq.drop == 0) and (seq.mem_allocated == False) and ((now + service_time_required) > (seq.arrival_time + seq.ttft_deadline)):"
+      }
+    ],
+    "region_ids": [
+      "B012"
+    ],
+    "provenance": "llm",
+    "notes": null
+  }
+]

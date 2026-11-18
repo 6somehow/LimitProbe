@@ -1,0 +1,126 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "minference-F054",
+ "artifact_id": "minference",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "论文要求空集初始化；代码以数值 0 与空字符串初始化，且该初值使负分候选永不被选",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "always",
+  "location": "minference/modules/minference_forward.py:99-197",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "pbest←ϕ",
+    "source": "paper",
+    "locator": "PDF p.5"
+   }
+  ],
+  "code": [
+   {
+    "file": "minference/modules/minference_forward.py",
+    "line_start": 99,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "experiments/README.md",
+    "line_start": 13,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/minference/limitations_for_tests.json",
+  "findings_sha256": "6f02cbec16ce4487c1b9166c2dc5f1f16704f168b135426edfe2df59ed9333bc",
+  "generated_at": "2026-11-18T17:25:00+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The paper states pbest is initialized to the empty set, while the cited code initializes best_score to numeric 0 and best_ty to an empty string. This is a direct initialization deviation. The claim that negative-scoring candidates are never selected is plausible if the loop compares scores against best_score with a strict greater-than test, but the shown snippet does not include that comparison.",
+  "hardware_needed": false,
+  "would_confirm": "Inspect the loop body to verify whether candidate scores are compared with a strict greater-than against best_score initialized to 0.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "minference/modules/minference_forward.py",
+     "lines": "99-197",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "experiments/README.md",
+     "lines": "13-30",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "doc"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "best_s,\\s*best_v,\\s*best_score,\\s*best_ty\\s*=\\s*0,\\s*0,\\s*0",
+    "expect": "present",
+    "meaning": "Confirms numeric-zero initialization instead of empty-set initialization.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     175
+    ]
+   },
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "best_score",
+    "expect": "present",
+    "meaning": "Shows the score variable is used; inspect surrounding comparison logic.",
+    "status": "confirmed",
+    "hits": 9,
+    "hit_lines": [
+     175,
+     188,
+     189,
+     196,
+     197
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

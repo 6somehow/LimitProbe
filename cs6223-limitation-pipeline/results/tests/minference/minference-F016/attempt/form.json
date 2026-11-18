@@ -1,0 +1,66 @@
+{
+  "test_id": "A-minference-F016",
+  "finding_id": "minference-F016",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {"name": "k_len", "value": 2, "why": "witness trigger has k.shape=2; fixed equal to q_len on both sides so only the v length crosses the shape-equality boundary"},
+      {"name": "batch", "value": 1, "why": "batch dimension common to q, k and v; not in the witness, smallest positive value"},
+      {"name": "num_heads", "value": 1, "why": "head count common to q, k and v; not in the witness, smallest value that still gives 4-D tensors"},
+      {"name": "head_dim", "value": 16, "why": "smallest head size in streaming_forward's supported list; avoids padding and keeps the CPU run small"},
+      {"name": "dtype", "value": "float32", "why": "CPU-compatible dtype; the witness specifies no dtype"},
+      {"name": "seed", "value": 0, "why": "fixed seed for deterministic tensor contents"},
+      {"name": "n_init", "value": 1, "why": "streaming_kwargs n_init; only read by streaming_forward after the target, kept small"},
+      {"name": "n_local", "value": 4, "why": "streaming_kwargs n_local; only read by streaming_forward after the target, kept small"},
+      {"name": "head_id", "value": 0, "why": "head index argument of the entry; the streaming branch returns before it is used"},
+      {"name": "streaming", "value": true, "why": "witness predicate self.config...get('streaming') is true in the trigger and contrast"},
+      {"name": "dilated1", "value": false, "why": "witness predicate self.config...get('dilated1') is false in trigger and contrast"},
+      {"name": "dilated2", "value": false, "why": "witness predicate self.config...get('dilated2') is false in trigger and contrast"},
+      {"name": "dense", "value": false, "why": "witness predicate self.config...get('dense') is false in trigger and contrast"}
+    ],
+    "positive_input": {
+      "q_len": 2,
+      "v_len": 1
+    },
+    "negative_input": {
+      "q_len": 2,
+      "v_len": 2
+    },
+    "boundary_variable": "v_len",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "exception",
+      "spec": "AssertionError raised at minference/ops/streaming_kernel.py:606",
+      "signal_location": "minference/ops/streaming_kernel.py:606"
+    },
+    "expected": {
+      "positive": "AssertionError at minference/ops/streaming_kernel.py:606",
+      "negative": "no exception at minference/ops/streaming_kernel.py:606"
+    }
+  },
+  "execution": {
+    "entry_called": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [
+      {"name": "import_time_cpu_shim", "purpose": "CPU stand-in for the module-level torch.arange(device='cuda') LAST_Q_MASK constant and stubs for GPU-only sibling imports (flash_attn/pycuda/minference.cuda) that are not on the path to the target; the target module streaming_kernel and the entry function are the real repository code"}
+    ],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": ["false", "true"],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "AssertionError at minference/ops/streaming_kernel.py:606",
+    "negative_observed": "no exception at minference/ops/streaming_kernel.py:606"
+  },
+  "evidence": {}
+}

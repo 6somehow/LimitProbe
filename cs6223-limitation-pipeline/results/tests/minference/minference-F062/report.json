@@ -1,0 +1,113 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "minference-F062",
+ "artifact_id": "minference",
+ "status": "not_run",
+ "not_run": {
+  "code": "outcome_unsupported",
+  "reason": "effect type 'other': the target assigns a value; the claimed effect is what that value changes later, which needs a differential check of outputs (the assignment itself would differ trivially)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "When not (is_flash_attn_2_available()): attn_output = gather_qkv(q, k, v, attention_mask) (minference/modules/minference_forward.py:526)",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "minference/modules/minference_forward.py:526",
+  "function": "minference/modules/minference_forward.py::minference_forward.forward",
+  "condition": "not (is_flash_attn_2_available())"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "minference/modules/minference_forward.py",
+    "line_start": 526,
+    "function": "minference/modules/minference_forward.py::minference_forward.forward",
+    "snippet": "attn_output = gather_qkv(q, k, v, attention_mask)"
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/minference/limitations_for_tests.json",
+  "findings_sha256": "6f02cbec16ce4487c1b9166c2dc5f1f16704f168b135426edfe2df59ed9333bc",
+  "generated_at": "2026-11-18T17:26:42+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A1",
+  "tier_note": "the reading is unclear; probes alone do not decide it",
+  "calibrated": false,
+  "assessment": "unclear",
+  "reasoning": "The only code evidence shown is the gather_qkv call at line 526. The claimed enclosing condition `not is_flash_attn_2_available()` is not visible, and no paper evidence is recorded. A text search could confirm whether that branch actually contains this call, but the displayed evidence alone does not establish it.",
+  "hardware_needed": false,
+  "would_confirm": "A text search showing the `if not is_flash_attn_2_available():` branch encloses the `gather_qkv` call at line 526 would confirm the finding.",
+  "static": {
+   "cited": 1,
+   "grounded": true,
+   "items": [
+    {
+     "file": "minference/modules/minference_forward.py",
+     "lines": "526-526",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": true,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "if\\s+not\\s+is_flash_attn_2_available\\(\\):[\\s\\S]{0,2000}?gather_qkv\\(q,\\s*k,\\s*v,\\s*attention_mask\\)",
+    "expect": "present",
+    "meaning": "Shows the fallback branch directly contains the gather_qkv call.",
+    "status": "refuted",
+    "hits": 0,
+    "hit_lines": []
+   },
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "attn_output\\s*=\\s*gather_qkv\\(q,\\s*k,\\s*v,\\s*attention_mask\\)",
+    "expect": "present",
+    "meaning": "Confirms the exact call at issue exists in the file.",
+    "status": "confirmed",
+    "hits": 2,
+    "hit_lines": [
+     526,
+     712
+    ]
+   },
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "is_flash_attn_2_available",
+    "expect": "present",
+    "meaning": "Confirms the availability check is referenced in this file.",
+    "status": "confirmed",
+    "hits": 2,
+    "hit_lines": [
+     523,
+     709
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

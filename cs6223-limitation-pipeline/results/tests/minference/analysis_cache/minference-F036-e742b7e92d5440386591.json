@@ -1,0 +1,15 @@
+{
+ "assessment": "supports",
+ "reasoning": "The shown line explicitly selects tl.bfloat16 only when q.dtype is torch.bfloat16; every other dtype falls through to tl.float16. That directly matches the claim that non-bfloat16 inputs are silently forced to a float16 Triton compute path.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "minference/ops/block_sparse_flash_attention.py",
+   "regex": "dtype\\s*=\\s*tl\\.bfloat16\\s+if\\s+q\\.dtype\\s*==\\s*torch\\.bfloat16\\s+else\\s+tl\\.float16",
+   "expect": "present",
+   "control": "",
+   "meaning": "Confirms non-bfloat16 inputs are forced to tl.float16."
+  }
+ ],
+ "would_confirm": "A static read of line 130 confirms the ternary; a GPU run with float32 or float16 inputs would show the tl.float16 path."
+}

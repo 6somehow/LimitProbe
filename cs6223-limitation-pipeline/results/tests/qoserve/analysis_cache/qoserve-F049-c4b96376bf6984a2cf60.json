@@ -1,0 +1,29 @@
+{
+ "assessment": "supports",
+ "reasoning": "The shown deadline scheduler loop only pops from the prefill heap, chunks/drops requests, allocates memory, and appends to running. It contains no call to _preempt and no logic that frees or moves an in-flight partially prefilled request. The base scheduler defines _preempt, but the evidence does not show it being triggered. This matches the finding that preemption is not implemented in the scheduling path.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "sarathi/core/scheduler/deadline_scheduler.py",
+   "regex": "self\\._preempt\\s*\\(",
+   "expect": "absent",
+   "control": "def _schedule\\s*\\(",
+   "meaning": "No preemption call in deadline scheduler; control confirms schedule method present."
+  },
+  {
+   "file": "sarathi/core/scheduler/deadline_scheduler.py",
+   "regex": "preempted_seq_ids\\s*\\.append",
+   "expect": "absent",
+   "control": "preempted_seq_ids\\s*:\\s*List",
+   "meaning": "No preempted sequence recorded; control confirms variable declared."
+  },
+  {
+   "file": "sarathi/core/scheduler/base_scheduler.py",
+   "regex": "self\\._preempt\\s*\\(",
+   "expect": "absent",
+   "control": "def _preempt\\s*\\(",
+   "meaning": "Preempt helper defined but not invoked in base scheduler; control confirms definition."
+  }
+ ],
+ "would_confirm": "Search the whole repository for calls to _preempt and run a scheduling trace where a strict-QoS request arrives during partial prefill to see whether the in-flight request is preempted."
+}

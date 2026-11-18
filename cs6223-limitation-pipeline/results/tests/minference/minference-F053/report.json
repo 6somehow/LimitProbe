@@ -1,0 +1,121 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "minference-F053",
+ "artifact_id": "minference",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "论文要求六类输入；代码签名缺 V、patterns、ρ、t、σ",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "always",
+  "location": "minference/modules/minference_forward.py:99-197",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "Input: Q, K, V ∈ RS×dh, patternsp, search spaceρ, target FLOPst, initial- ized search spaceσ",
+    "source": "paper",
+    "locator": "PDF p.5, text lines 10-12"
+   }
+  ],
+  "code": [
+   {
+    "file": "minference/modules/minference_forward.py",
+    "line_start": 99,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "experiments/README.md",
+    "line_start": 13,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/minference/limitations_for_tests.json",
+  "findings_sha256": "6f02cbec16ce4487c1b9166c2dc5f1f16704f168b135426edfe2df59ed9333bc",
+  "generated_at": "2026-11-18T17:25:00+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The cited code defines search_pattern(q, k, head), while the paper's Algorithm 1 input list includes Q, K, V, patterns, search space rho, target FLOPs t, and initialized search space sigma. The signature therefore cannot accept the paper's six required inputs, matching the claimed implementation deviation.",
+  "hardware_needed": false,
+  "would_confirm": "Inspect the function definition and all call sites to verify search_pattern is invoked with only q, k, and head and never with the paper's other inputs.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "minference/modules/minference_forward.py",
+     "lines": "99-197",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "experiments/README.md",
+     "lines": "13-30",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "doc"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "def search_pattern\\(q, k, head\\):",
+    "expect": "present",
+    "meaning": "Confirms the function signature takes only q, k, and head.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     99
+    ]
+   },
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "def search_pattern\\([^)]*\\b(V|patterns|rho|t|sigma)\\b",
+    "expect": "absent",
+    "meaning": "Shows no V, patterns, rho, t, or sigma parameter in the signature.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "def search_pattern\\(q, k, head\\):",
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

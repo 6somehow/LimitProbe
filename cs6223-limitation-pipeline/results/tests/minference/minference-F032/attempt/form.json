@@ -1,0 +1,99 @@
+{
+  "test_id": "A-minference-F032",
+  "finding_id": "minference-F032",
+  "strategy": "S1",
+  "design": {
+    "witness_source": "witness_hint",
+    "scale": null,
+    "free_parameters": [
+      {"name": "bsz", "value": 1, "why": "batch size does not enter the q_len guard; 1 is the smallest value the vLLM path accepts"},
+      {"name": "head_dim", "value": 8, "why": "small power-of-two head width for CPU execution; irrelevant to the branch"},
+      {"name": "head_id", "value": 0, "why": "selects the single best_pattern entry; any valid index is equivalent"},
+      {"name": "dtype", "value": "float32", "why": "CPU environment has no float16 flash-attention support; guard is dtype-independent"},
+      {"name": "seed", "value": 0, "why": "fixed seed for reproducibility; the guard does not depend on values"},
+      {"name": "pattern_type", "value": "block_sparse", "why": "one of the three vLLM fc entries; q_len=1 returns before it is used"}
+    ],
+    "positive_input": {"q_len": 1},
+    "negative_input": {"q_len": 2},
+    "boundary_variable": "q_len",
+    "positive_prelude": [],
+    "negative_prelude": [],
+    "extra_negatives": [],
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at minference/modules/minference_forward.py:756",
+      "signal_location": "minference/modules/minference_forward.py:756"
+    },
+    "expected": {
+      "positive": "branch taken at minference/modules/minference_forward.py:756",
+      "negative": "branch not taken at minference/modules/minference_forward.py:756"
+    }
+  },
+  "execution": {
+    "entry_called": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_vllm",
+    "entry_reason": "The step-4 call chain [gather_last_q_vertical_slash_topk_v4, gather_last_q_vertical_slash_topk_vllm] is not a real path: v4 never calls vllm, and vllm is only reached from minference_vllm_forward, which needs a GPU vLLM install unavailable on this CPU box. The Region's own function is therefore called directly with a minimal best_pattern, at full witness scale for the guard variable q_len.",
+    "call_chain_index": 1,
+    "repo_files_modified": [],
+    "mocks": [
+      {
+        "symbol": "minference.ops.block_sparse_flash_attention",
+        "kind": "fake_module",
+        "reason": "repository module imports pycuda/flash_attn and a Triton CUDA kernel at import time; the vllm fc mapping is not executed for q_len=1 and the negative uses a patched block_sparse_attention",
+        "behavior": "return_none",
+        "sim_class": "stub"
+      },
+      {
+        "symbol": "minference.ops.pit_sparse_flash_attention_v2",
+        "kind": "fake_module",
+        "reason": "imports minference.cuda and Triton GPU kernels at module import time; none of its symbols are used by the Region",
+        "behavior": "return_none",
+        "sim_class": "stub"
+      },
+      {
+        "symbol": "minference.ops.streaming_kernel",
+        "kind": "fake_module",
+        "reason": "imports Triton GPU kernels at module import time; streaming_forward is a different fc mapping not taken by this witness",
+        "behavior": "return_none",
+        "sim_class": "stub"
+      },
+      {
+        "symbol": "torch.arange",
+        "kind": "patch",
+        "reason": "minference_forward.py builds LAST_Q_MASK at import time with device='cuda'; the CPU stand-in computes the same integer sequence and ignores only the device request",
+        "behavior": "sim",
+        "impl": "sim.py::arange",
+        "sim_class": "independent_native",
+        "sim_check": "check.py::check_arange"
+      },
+      {
+        "symbol": "minference.ops.block_sparse_flash_attention.block_sparse_attention",
+        "kind": "patch",
+        "reason": "the negative q_len=2 path reaches the Triton block-sparse kernel, which cannot run on CPU; the stand-in reimplements the repository's block-choice rule and masked attention in plain torch",
+        "behavior": "sim",
+        "impl": "sim.py::block_sparse_attention",
+        "sim_class": "independent_native",
+        "sim_check": "check.py::check_block_sparse"
+      }
+    ],
+    "hooks": [
+      {
+        "name": "synthetic_package_scaffold",
+        "purpose": "the repository package __init__ imports the unavailable vLLM/HF patch layer; empty package containers with the real package __path__ let the Region's source file be imported unchanged (no code is replaced)"
+      }
+    ],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": ["false", "true"],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at minference/modules/minference_forward.py:756",
+    "negative_observed": "branch not taken at minference/modules/minference_forward.py:756"
+  },
+  "evidence": {}
+}

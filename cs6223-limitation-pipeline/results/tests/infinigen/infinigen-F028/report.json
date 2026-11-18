@@ -1,0 +1,106 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "infinigen-F028",
+ "artifact_id": "infinigen",
+ "status": "tested",
+ "not_run": null,
+ "verdict": "inconclusive",
+ "level": "n/a",
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "verdict is inconclusive; no confidence is assigned to it",
+ "verdict_reason": "effect only on the negative input: boundary direction reversed",
+ "observed": {
+  "positive": "branch not taken at speedup/flexgen/infinigen/pytorch_backend.py:326 (later RuntimeError at speedup/infinigen/infinigen/skewing_controller.py:82)",
+  "negative": "branch taken at speedup/flexgen/infinigen/pytorch_backend.py:326"
+ },
+ "defeaters": {
+  "D1": "eliminated",
+  "D2": "eliminated",
+  "D3": "open",
+  "D4": "residual",
+  "D5": "residual",
+  "D6": "eliminated",
+  "D7": "eliminated",
+  "D8": "eliminated",
+  "D9": "eliminated",
+  "D10": "eliminated",
+  "D11": "eliminated",
+  "D12": "eliminated",
+  "D13": "residual",
+  "D14": "eliminated"
+ },
+ "open_doubts": [
+  {
+   "id": "D3",
+   "name": "oracle can see the effect",
+   "status": "open",
+   "evidence": "mutation not run"
+  },
+  {
+   "id": "D4",
+   "name": "oracle is specified, located, pre-registered",
+   "status": "residual",
+   "evidence": "oracle changed 1 time(s) after the first run"
+  },
+  {
+   "id": "D5",
+   "name": "control pair differs in one factor, negative adjacent to the boundary",
+   "status": "residual",
+   "evidence": "one factor differs; adjacency not measurable: boundary variable 'warmup' is not an integer (value False)"
+  },
+  {
+   "id": "D13",
+   "name": "inputs inside the paper's scope",
+   "status": "residual",
+   "evidence": "scope_status=unknown"
+  }
+ ],
+ "next_steps": [
+  "D3 (open): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location",
+  "D4 (residual): state the oracle as exception type + Region.location and register it before the first run",
+  "D5 (residual): change exactly one factor between positive and negative, and make the negative the point next to the boundary"
+ ],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "path_change",
+  "priority": 3,
+  "summary": "When warmup or partial_weight_ratio is None: In TorchDevice.mha, the partial-weight index (which heads/rows of the query projection are used for the InfiniGen speculation) is only computed when warmup is False and partial_weight_ratio is not None. Otherwise partial_weight_index stays None (line 325) and is returned as None (line 379), so mha_gen receives p_w_q=None and the KV speculation is sil...",
+  "review": "wrong",
+  "review_note": "blind review by an LLM subagent (round 1), not human: partial_weight_index being None does not make mha_gen get p_w_q=None; p_w_q comes from partial_weight_read_buf (filled by the next layer) whenever enable_prefetching is set, so speculation is not skipped as claimed.",
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "speedup/flexgen/infinigen/pytorch_backend.py:326",
+  "function": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha",
+  "condition": "warmup or partial_weight_ratio is None"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+    "line_start": 326,
+    "function": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha",
+    "snippet": "if not warmup and partial_weight_ratio is not None:"
+   }
+  ]
+ },
+ "files": {
+  "execution_report": "execution_report.json",
+  "testcase": "testcase.json",
+  "attempt": "attempt"
+ },
+ "provenance": {
+  "findings_file": "results/step4/infinigen/limitations_for_tests.json",
+  "findings_sha256": "51f6ee77be8f16b8743e78f2c11ea0c6b263e1a3c56aed29de35c9cfebb6dcf0",
+  "generated_at": "2026-11-18T14:12:23+08:00",
+  "source": "agent",
+  "attempt_origin": "scratch/agent_runs/e2e-f028-7aebdf",
+  "agent_tokens": 4097006,
+  "agent_wall_s": 574.5,
+  "lock_tampered": false,
+  "profile": "default-v1"
+ },
+ "analysis": null
+}

@@ -127,3 +127,11 @@ def test_tracer_releases_the_tool_slot(Tracer, mod):
         assert sys.monitoring.get_tool(sys.monitoring.PROFILER_ID) is None
     else:
         assert sys.gettrace() is None
+
+
+def test_the_region_condition_is_not_evaluated_beside_a_predicate_when_it_could_change_the_program():
+    from checklimits.tracer import _pure_expression
+    assert _pure_expression("n != 1 and max(a, b) >= LIMIT and q.shape[1] in {1, 2}")
+    assert not _pure_expression("random.uniform(0, 1) < self.forward_prob")      # advances the random generator
+    assert not _pure_expression("right.size() + left.size() >= W")               # a method call can have side effects
+    assert not _pure_expression("not valid ((")

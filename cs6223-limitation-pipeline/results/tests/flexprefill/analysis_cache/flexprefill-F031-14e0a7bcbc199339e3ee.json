@@ -1,0 +1,34 @@
+{
+ "assessment": "unclear",
+ "reasoning": "The paper says normalize by the sum before flattening. The code does not explicitly divide vertical/slash by their sums, but qk is softmaxed first, so vertical already sums to 1. The claimed threshold amplification is not shown. Thus the evidence does not clearly establish the stated deviation.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "regex": "(vertical|slash)\\s*/\\s*(vertical|slash)\\.sum\\(",
+   "expect": "absent",
+   "control": "def score_cover_topk",
+   "meaning": "No explicit sum-normalization of vertical/slash in this file."
+  },
+  {
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "regex": "gamma\\s*[*/]|[*/]\\s*gamma",
+   "expect": "absent",
+   "control": "gamma",
+   "meaning": "No in-file scaling of gamma to compensate for unnormalized scores."
+  },
+  {
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "regex": "softmax\\(qk",
+   "expect": "present",
+   "meaning": "qk is row-normalized before vertical/slash, so vertical sums to 1."
+  },
+  {
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "regex": "score_cover_topk\\((vertical|slash),\\s*gamma\\)",
+   "expect": "present",
+   "meaning": "gamma is used directly as cumulative threshold on vertical/slash."
+  }
+ ],
+ "would_confirm": "Run get_active_blocks on a small input and check whether vertical/slash sum to 1 and whether gamma is scaled before score_cover_topk."
+}

@@ -1,0 +1,94 @@
+{
+  "test_id": "A-infinigen-F010",
+  "finding_id": "infinigen-F010",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "prompt_len",
+        "value": 4,
+        "why": "only bounds the K/V slice length; the target decision does not read it"
+      },
+      {
+        "name": "gen_len",
+        "value": 4,
+        "why": "makes room for one decoding step; the target decision does not read it"
+      },
+      {
+        "name": "decode_step",
+        "value": 1,
+        "why": "any i>0 reaches the path-0 guard; i==0 is the prefill early return"
+      },
+      {
+        "name": "num_heads",
+        "value": 2,
+        "why": "dummy K/V shape only; the target decision does not read it"
+      },
+      {
+        "name": "batch_size",
+        "value": 1,
+        "why": "dummy K/V shape only; the target decision does not read it"
+      },
+      {
+        "name": "head_dim",
+        "value": 2,
+        "why": "dummy K/V shape only; the target decision does not read it"
+      },
+      {
+        "name": "dtype",
+        "value": "float16",
+        "why": "allocation dtype of the dummy K/V caches; the decision does not read it"
+      },
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "fixed RNG state for deterministic repeats; nothing on the path is random"
+      }
+    ],
+    "positive_input": {
+      "path": 0,
+      "sparsity_milli": 1000
+    },
+    "negative_input": {
+      "path": 0,
+      "sparsity_milli": 999
+    },
+    "boundary_variable": "sparsity_milli",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at speedup/flexgen/infinigen/flex_opt.py:389",
+      "signal_location": "speedup/flexgen/infinigen/flex_opt.py:389"
+    },
+    "expected": {
+      "positive": "branch taken at speedup/flexgen/infinigen/flex_opt.py:389",
+      "negative": "branch not taken at speedup/flexgen/infinigen/flex_opt.py:389"
+    }
+  },
+  "execution": {
+    "entry_called": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention.load_cache",
+    "entry_reason": "The registered call_chain[0] TorchDevice.mha never calls SelfAttention.load_cache anywhere in the pinned repository; step-4 static analysis reports chain status not_found. The deepest reachable official function of the chain (index 1) is therefore called directly, with the repository's real SelfAttention, Policy, Task, ValueHolder and TorchDevice code, on CPU devices.",
+    "call_chain_index": 1,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "false",
+      "true"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at speedup/flexgen/infinigen/flex_opt.py:389",
+    "negative_observed": "branch not taken at speedup/flexgen/infinigen/flex_opt.py:389"
+  },
+  "evidence": {}
+}

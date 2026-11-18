@@ -113,6 +113,8 @@ class MockDecl(_R):
     value: Optional[str] = Field(None, description="env_var only")
     impl: Optional[str] = None
     sim_class: SimClass = "stub"
+    sim_check: Optional[str] = Field(None, description="'file::function' in the attempt dir: check(sim_fn) -> {'ok', 'detail', "
+                                     "'kind'}; the harness runs it and corrupted copies of the stand-in (simcheck.py)")
 
 
 class HookDecl(_R):
@@ -198,7 +200,10 @@ class TargetHit(_R):
     outcome: Optional[Literal["true", "false", "error"]] = None
     condition_value: Optional[bool] = None
     condition_error: Optional[str] = None
+    region_condition_value: Optional[bool] = Field(
+        None, description="Region.condition evaluated on the same locals, recorded only when an agent predicate is used")
     locals: dict[str, str] = Field(default_factory=dict)
+    stack: list[str] = Field(default_factory=list, description="call-chain functions running at this hit, outermost first")
 
 
 class CoverageScope(_R):
@@ -215,6 +220,8 @@ class Observation(_R):
     exception: Optional[ExceptionInfo] = None
     target_reached: bool = False
     target_hits: list[TargetHit] = Field(default_factory=list)
+    decision_hits: list[TargetHit] = Field(
+        default_factory=list, description="evaluations of the guard of a bare `raise` target (the target only runs when it holds)")
     effect: Optional[bool] = Field(None, description="Region.outcome effect observed; None = cannot tell")
     effect_note: str = ""
     returned: Optional[str] = Field(None, description="summary of the return value, if the run returned")
@@ -237,6 +244,7 @@ class MockRecord(_R):
     accesses_before_target: int
     accesses_total: int
     reason: str
+    sim_check: Optional[dict[str, Any]] = None
 
 
 class AstDiff(_R):

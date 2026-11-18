@@ -1,0 +1,26 @@
+{
+ "assessment": "supports",
+ "reasoning": "The paper's priority formula adds \u03b1\u00b7(Prefill_rem+Decode_rem). The code instead computes priority using hybrid_prioritization_param only on remaining prompt tokens, while decode is handled by subtracting output_len_pred or num_decode_tokens times execution_threshold_batched from the deadline. Thus \u03b1 does not weight Decode_rem, and decode is linearly deducted with a fixed coefficient, matching the claimed deviation.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "sarathi/core/datatypes/sequence.py",
+   "regex": "hybrid_prioritization_param \\* self_remaining_tokens",
+   "expect": "present",
+   "meaning": "Shows \u03b1 multiplies only remaining prompt tokens, not decode tokens."
+  },
+  {
+   "file": "sarathi/core/scheduler/deadline_scheduler.py",
+   "regex": "execution_threshold_batched",
+   "expect": "present",
+   "meaning": "Shows decode estimate is deducted using a fixed coefficient."
+  },
+  {
+   "file": "sarathi/core/scheduler/deadline_scheduler.py",
+   "regex": "hybrid_prioritization_param",
+   "expect": "absent",
+   "meaning": "Shows \u03b1 is not applied to the decode deduction in this scheduler."
+  }
+ ],
+ "would_confirm": "A unit test comparing the computed priority/deadline against the paper formula for a request with known prefill and decode remaining work would settle it."
+}

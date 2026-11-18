@@ -1,0 +1,148 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "flexprefill-F035",
+ "artifact_id": "flexprefill",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "池化内核无法表达论文二维 sumpool(softmax 矩阵)，实际 â 为列和向量",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "always",
+  "location": "flex_prefill/ops/flex_prefill_attention.py:1705-1716",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "ˆa = sumpool \u0010 softmax \u0010 ˆQK⊤/ √ d \u0011\u0011 , where the kernel size of the pooling operation is equal to block_size, ¯a represents the estimated distribution and ˆa represents the true distribution.",
+    "source": "paper",
+    "locator": "PDF p.4, text lines 60-70"
+   },
+   {
+    "quote": "ˆa← pool \u0010 softmax \u0010 ˆQK⊤/ √ d \u0011\u0011",
+    "source": "paper",
+    "locator": "PDF p.6, text lines 31-38"
+   }
+  ],
+  "code": [
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "line_start": 1705,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "line_start": 1545,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/flexprefill/limitations_for_tests.json",
+  "findings_sha256": "0b8539b75ec0e2d602cd64b1a21959708ae3a6d53be00202f8825d92f313c066",
+  "generated_at": "2026-11-18T12:15:50+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The cited code reduces qk to a column-mean vector via qk.mean(-2) and a diagonal scalar/vector via sum_all_diagonal_matrix, then applies torch_bhn_sumpool. Both sumpool helpers accept only (b,h,n) and sum the last axis, so they cannot implement the paper's 2-D sumpool over the softmax matrix. This matches the claimed deviation.",
+  "hardware_needed": false,
+  "would_confirm": "A unit test comparing the code's pooled vector against a 2-D block sumpool of the softmax matrix would settle it.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "flex_prefill/ops/flex_prefill_attention.py",
+     "lines": "1705-1716",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "flex_prefill/ops/flex_prefill_attention.py",
+     "lines": "1545-1585",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "regex": "vertical\\s*=\\s*qk\\.mean\\(-2\\)",
+    "expect": "present",
+    "meaning": "Shows column-mean reduction before pooling, not 2-D softmax pooling.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     1706
+    ]
+   },
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "regex": "def torch_bhn_sumpool\\(x: torch\\.Tensor, kernel_size: int\\):",
+    "expect": "present",
+    "meaning": "Confirms pooling helper takes a 1-D (b,h,n) tensor.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     1574
+    ]
+   },
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "regex": "x\\.view\\(b, h, -1, kernel_size\\)\\.sum\\(-1\\)",
+    "expect": "present",
+    "meaning": "Confirms sumpool sums only the last axis.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     1584
+    ]
+   },
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "regex": "sumpool\\(\\s*softmax",
+    "expect": "absent",
+    "meaning": "No direct 2-D sumpool over softmax is present.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "torch_bhn_sumpool\\(",
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

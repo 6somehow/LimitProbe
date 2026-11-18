@@ -1,0 +1,34 @@
+{
+ "assessment": "supports",
+ "reasoning": "The paper excerpt specifies block hints for T, W, and likely output, but the code assigns block_size only to w_tesa in wbc_matmul. Input and output TeSAs are passed through without block_size assignment, and kernel initialization reads only w_tesa.block_size. This matches the claimed implementation deviation: only weight-side block hints are complete.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "sparta/transformation/weighted_block_cover.py",
+   "regex": "w_tesa\\.block_size\\s*=",
+   "expect": "present",
+   "meaning": "Weight TeSA receives block size; supports weight-only hint."
+  },
+  {
+   "file": "sparta/transformation/weighted_block_cover.py",
+   "regex": "(in_tesa|out_tesa)\\.block_size",
+   "expect": "absent",
+   "control": "w_tesa\\.block_size",
+   "meaning": "No input/output block-size assignment in same file; supports asymmetry."
+  },
+  {
+   "file": "sparta/specialization/specialize_kernel.py",
+   "regex": "block_size\\s*=\\s*w_tesa\\.block_size",
+   "expect": "present",
+   "meaning": "Kernel init consumes only weight block size."
+  },
+  {
+   "file": "sparta/specialization/specialize_kernel.py",
+   "regex": "(i_tesa|o_tesa)\\.block_size",
+   "expect": "absent",
+   "control": "w_tesa\\.block_size",
+   "meaning": "Input/output block sizes are not consumed in kernel init."
+  }
+ ],
+ "would_confirm": "A code-path test or static trace showing whether in_tesa.block_size and out_tesa.block_size are ever assigned or read would settle it."
+}

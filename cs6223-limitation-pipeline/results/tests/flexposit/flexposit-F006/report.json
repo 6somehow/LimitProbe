@@ -1,0 +1,126 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "flexposit-F006",
+ "artifact_id": "flexposit",
+ "status": "tested",
+ "not_run": null,
+ "verdict": "inconclusive",
+ "level": "invalid",
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "refuted fatal defeaters: D2",
+ "verdict_reason": "effect on positive input, none on negative input",
+ "observed": {
+  "positive": "TypeError at src/flexposit/formats.py:103",
+  "negative": "no exception at src/flexposit/formats.py:103"
+ },
+ "defeaters": {
+  "D1": "eliminated",
+  "D2": "refuted",
+  "D3": "residual",
+  "D4": "residual",
+  "D5": "residual",
+  "D6": "eliminated",
+  "D7": "eliminated",
+  "D8": "eliminated",
+  "D9": "refuted",
+  "D10": "eliminated",
+  "D11": "eliminated",
+  "D12": "eliminated",
+  "D13": "residual",
+  "D14": "residual"
+ },
+ "open_doubts": [
+  {
+   "id": "D2",
+   "name": "condition holds on positive, fails on negative",
+   "status": "refuted",
+   "evidence": "the agent's predicate and Region.condition disagree: Region.condition itself does not fail on the negative run"
+  },
+  {
+   "id": "D3",
+   "name": "oracle can see the effect",
+   "status": "residual",
+   "evidence": "only 1 mutants (< n_min=4); killed 1"
+  },
+  {
+   "id": "D4",
+   "name": "oracle is specified, located, pre-registered",
+   "status": "residual",
+   "evidence": "oracle changed 1 time(s) after the first run"
+  },
+  {
+   "id": "D5",
+   "name": "control pair differs in one factor, negative adjacent to the boundary",
+   "status": "residual",
+   "evidence": "one factor differs; adjacency not measurable: boundary variable 'weight_dtype' is not an integer (value 'float32')"
+  },
+  {
+   "id": "D9",
+   "name": "result reproduces in a clean checkout",
+   "status": "refuted",
+   "evidence": "fresh checkout gave different canonical traces: positive, negative"
+  },
+  {
+   "id": "D13",
+   "name": "inputs inside the paper's scope",
+   "status": "residual",
+   "evidence": "scope_status=unknown"
+  },
+  {
+   "id": "D14",
+   "name": "official entry point was called",
+   "status": "residual",
+   "evidence": "deeper entry (index 2); reason recorded: The official entry api.quantize and core.search_channels call .float() on the weights before posit_quantize, so the non-float32 guard at formats.py:103 is unreachable through them; posit_quantize is a public export of the package (flexposit/__init__.py) and is the first call-chain function that preserves the input dtype."
+  }
+ ],
+ "next_steps": [
+  "D2 (refuted): pick inputs so the Region condition is true on the positive and false on the negative; write a predicate if it cannot be evaluated",
+  "D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location",
+  "D4 (residual): state the oracle as exception type + Region.location and register it before the first run",
+  "D5 (residual): change exactly one factor between positive and negative, and make the negative the point next to the boundary",
+  "D9 (refuted): make the attempt self-contained so a clean checkout reproduces it",
+  "D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)"
+ ],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "reject",
+  "priority": 1,
+  "summary": "When True: raise TypeError(f'posit_quantize expects a float32 tensor, got {x.dtype}') (src/flexposit/formats.py:103)",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "src/flexposit/formats.py:103",
+  "function": "src/flexposit/formats.py::_posit_quantize_torch",
+  "condition": "x.dtype != torch.float32"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "src/flexposit/formats.py",
+    "line_start": 103,
+    "function": "src/flexposit/formats.py::_posit_quantize_torch",
+    "snippet": "raise TypeError(f'posit_quantize expects a float32 tensor, got {x.dtype}')"
+   }
+  ]
+ },
+ "files": {
+  "execution_report": "execution_report.json",
+  "testcase": "testcase.json",
+  "attempt": "attempt"
+ },
+ "provenance": {
+  "findings_file": "results/step4/flexposit/limitations_for_tests.json",
+  "findings_sha256": "90fcaf23c2793dc03b49c54856e041483165536eff1522a25766022460b78f23",
+  "generated_at": "2026-11-17T14:54:13+08:00",
+  "source": "agent",
+  "attempt_origin": "scratch/agent_runs/e2e-f006-74f166",
+  "agent_tokens": 4087765,
+  "agent_wall_s": 538.7,
+  "lock_tampered": false,
+  "profile": "default-v1"
+ }
+}

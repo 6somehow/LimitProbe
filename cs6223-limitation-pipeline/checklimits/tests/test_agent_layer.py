@@ -2,6 +2,7 @@
 import json
 import shutil
 import stat
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -232,3 +233,72 @@ def test_feedback_text_lists_next_steps(tmp_path):
     r = harness.run_attempt(b["attempt"], pipeline_root=b["root"], options=FAST)["report"]
     t = agent_loop.feedback_text(r)
     assert "level=L0" in t and "next_steps:" in t and "D3" in t and "form_integrity=1.0" in t
+
+
+# --- call chain section (step 4 witness_hint.call_chain / call_sites) -------------------------------------------
+def test_chain_section_lists_call_sites_and_name_mapping():
+    hint = {"call_chain_status": "resolved",
+            "call_chain": ["a.py::entry", "a.py::mid", "a.py::target"],
+            "call_sites": [{"caller": "a.py::entry", "callee": "a.py::mid", "line": 10, "resolved_by": "direct",
+                            "args": {"x": "k", "size": "block_size"}},
+                           {"caller": "a.py::mid", "callee": "a.py::target", "line": 20, "resolved_by": "unique_name",
+                            "args": {"d": "x.shape[3]"}}],
+            "uncertain_steps": ["a.py::mid -> a.py::target"],
+            "entry_terms": {"names": {"d": "k.shape[3]"}}}
+    t = "\n".join(agent_cli.chain_section(hint))
+    assert "`entry` calls `mid` at line 10 (direct): x=k, size=block_size" in t
+    assert "`mid` calls `target` at line 20 (unique_name): d=x.shape[3]" in t
+    assert "`d` = `k.shape[3]`" in t and "resolved by a guess" in t and "call `call_chain[0]`" in t
+
+
+def test_chain_section_without_a_chain_allows_a_deeper_entry_with_a_reason():
+    t = "\n".join(agent_cli.chain_section({"call_chain_status": "not_found"}))
+    assert "entry_reason" in t and "no call chain" in t
+    assert agent_cli.chain_section({}) == []                     # pilot data has no chain information
+    assert "directly" in "\n".join(agent_cli.chain_section({"call_chain_status": "entry_is_target"}))
+
+
+@pytest.mark.skipif(not (PIPELINE_ROOT / STEP4).exists() or not PILOT_OK, reason="step 4 hand-off or checkout missing")
+def test_task_text_for_a_real_finding_has_the_chain_section():
+    t = agent_cli.task_text("flexprefill-F007", findings_file=STEP4)
+    assert "## How the entry reaches the target" in t and "triton_block_wise_attention" in t
+
+
+# --- what the agent cannot see ---------------------------------------------------------------------------------
+def test_archived_results_are_hidden_from_the_agent():
+    cmd = " ".join(agent_loop.sandbox_cmd(Path("/tmp/run"), ["x"]))
+    assert f"--tmpfs {agent_loop.PROJECT_ROOT / 'agent_results'}" in cmd
+    assert f"--ro-bind /dev/null {agent_loop.PROJECT_ROOT / 'BATCH_RESULTS.md'}" in cmd
+    # the rule documents and the harness source stay readable unless the run is blind
+    assert "CONFIDENCE_SPEC.md" not in cmd and "blind_pkg" not in cmd
+
+
+def test_blind_mode_has_no_harness_in_the_sandbox_and_a_socket_to_the_service():
+    cmd = " ".join(agent_loop.sandbox_cmd(Path("/tmp/run"), ["x"], blind=True))
+    assert f"--ro-bind /dev/null {agent_loop.PROJECT_ROOT / 'CONFIDENCE_SPEC.md'}" in cmd
+    assert f"--tmpfs {agent_loop.PROJECT_ROOT / 'checklimits'}" in cmd and " /tmp/cl" in cmd
+    assert agent_loop.agent_env(Path("/tmp/run"), blind=True)["CL_SOCKET"] == "/tmp/cl/sock"
+    assert "CL_SOCKET" not in agent_loop.agent_env(Path("/tmp/run"))
+
+
+@pytest.mark.skipif(shutil.which("bwrap") is None or not PILOT_OK, reason="needs bubblewrap and the FlexPrefill checkout")
+def test_blind_sandbox_hides_the_harness_but_cl_works_through_the_service():
+    from checklimits.agent_service import ClService
+    base = agent_loop.PROJECT_ROOT / "scratch" / "pytest_blind"     # a run directory the sandbox can write to
+    shutil.rmtree(base, ignore_errors=True)
+    run = base / "t-blind"
+    (run / "workspace").mkdir(parents=True)
+    (run / "out").mkdir()
+    root = agent_loop.PROJECT_ROOT
+    inner = ["sh", "-c", f"ls {root}/checklimits/*.py 2>&1 | head -1; cat {root}/CONFIDENCE_SPEC.md 2>/dev/null | wc -c; "
+             f"ls {root}/agent_results | wc -l; {root}/agent/cl task F07 | head -1; "
+             f"{root}/agent/cl run --attempt /etc --out /etc 2>&1 | head -1; {root}/agent/cl score 2>&1 | head -1"]
+    try:
+        with ClService(run):
+            out = subprocess.run(agent_loop.sandbox_cmd(run, inner, blind=True), env=agent_loop.agent_env(run, True),
+                                 capture_output=True, text=True).stdout.split("\n")
+    finally:
+        shutil.rmtree(base, ignore_errors=True)
+    assert "No such file" in out[0] and out[1].strip() == "0" and out[2].strip() == "0"
+    assert out[3].startswith("# Task: verify finding F07")          # the real task text, produced outside the sandbox
+    assert "must be inside" in out[4] and "must be one of" in out[5]   # paths and commands are restricted

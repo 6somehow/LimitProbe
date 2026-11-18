@@ -1,0 +1,51 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "minference-F065",
+ "artifact_id": "minference",
+ "status": "not_run",
+ "not_run": {
+  "code": "env_unavailable",
+  "reason": "repository third_party/MInference is not checked out"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "path_change",
+  "priority": 3,
+  "summary": "When head_dim not in [16, 32, 64, 128, 256, 512]: For head dims outside the power-of-two list (e.g. 96, 80, 160) the q/k/v are zero-padded up to the next power of two and the kernel runs on the padded tensors; the result is then sliced back with `out[..., :context_size, :head_dim]`. The padded dims contribute zeros to the dot product, so the softmax scale `head_dim ** -0.5` is still correct, bu...",
+  "review": "wrong",
+  "review_note": "blind review by an LLM subagent (round 3), not human: Zero-padding the head dim adds nothing to q.k dot products and sm_scale uses the original head_dim, so the softmax is unchanged, contrary to the claim.",
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "minference/ops/pit_sparse_flash_attention_v2.py:188",
+  "function": "minference/ops/pit_sparse_flash_attention_v2.py::vertical_slash_sparse_attention",
+  "condition": "head_dim not in [16, 32, 64, 128, 256, 512]"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "minference/ops/pit_sparse_flash_attention_v2.py",
+    "line_start": 188,
+    "function": "minference/ops/pit_sparse_flash_attention_v2.py::vertical_slash_sparse_attention",
+    "snippet": "if head_dim not in [16, 32, 64, 128, 256, 512]:"
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/minference/limitations_for_tests.json",
+  "findings_sha256": "6f02cbec16ce4487c1b9166c2dc5f1f16704f168b135426edfe2df59ed9333bc",
+  "generated_at": "2026-11-16T16:10:00+08:00"
+ }
+}

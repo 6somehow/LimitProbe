@@ -1,0 +1,144 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "infinigen-F020",
+ "artifact_id": "infinigen",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "控制平面组件集合不完整（缺Pool Manager）",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "always",
+  "location": "speedup/flexgen/infinigen/flex_opt.py:282",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "weights. We explain each operation in Section 4.3. The sec- ond component is the Pool Manager. It manages the KV cache pool on CPU memory under CPU memory pressure, which we discuss in Section 4.4.",
+    "source": "paper",
+    "locator": "PDF p.7, text lines 112-115"
+   },
+   {
+    "quote": "GPU Memory CPU Memory",
+    "source": "paper",
+    "locator": "PDF p.7"
+   },
+   {
+    "quote": "Modified QK Weights",
+    "source": "paper",
+    "locator": "PDF p.7"
+   }
+  ],
+  "code": [
+   {
+    "file": "speedup/flexgen/infinigen/flex_opt.py",
+    "line_start": 430,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+    "line_start": 291,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "speedup/flexgen/infinigen/flex_opt.py",
+    "line_start": 282,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/infinigen/limitations_for_tests.json",
+  "findings_sha256": "51f6ee77be8f16b8743e78f2c11ea0c6b263e1a3c56aed29de35c9cfebb6dcf0",
+  "generated_at": "2026-11-18T14:11:18+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The paper names a Pool Manager as the second control-plane component managing the CPU KV cache under memory pressure. The shown code only has prefetch_cache/prefetch_idx and per-GPU K/V cache allocation with pin_memory disabled; no Pool Manager class/module or CPU-pressure management appears. This supports the claim that the control-plane component set is incomplete.",
+  "hardware_needed": false,
+  "would_confirm": "Search the full repository for any Pool Manager implementation and trace whether CPU KV-cache pressure handling exists; absence would confirm the finding.",
+  "static": {
+   "cited": 3,
+   "grounded": true,
+   "items": [
+    {
+     "file": "speedup/flexgen/infinigen/flex_opt.py",
+     "lines": "430-430",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+     "lines": "291-300",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "speedup/flexgen/infinigen/flex_opt.py",
+     "lines": "282-282",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "speedup/flexgen/infinigen/flex_opt.py",
+    "regex": "PoolManager|Pool Manager|pool_manager|class\\s+Pool",
+    "expect": "absent",
+    "meaning": "No Pool Manager in flex_opt.py; control confirms file searched.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "def prefetch_cache",
+    "hit_lines": []
+   },
+   {
+    "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+    "regex": "PoolManager|Pool Manager|pool_manager|class\\s+Pool",
+    "expect": "absent",
+    "meaning": "No Pool Manager in backend; control confirms file searched.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "def init_cache_one_gpu_batch",
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

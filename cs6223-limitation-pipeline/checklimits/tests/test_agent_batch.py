@@ -16,7 +16,7 @@ def test_selection_keeps_only_judgeable_findings_with_a_solved_witness():
         assert fid in chosen                      # the four findings the agent has already been run on
     assert "flexprefill-F052" in chosen
     reasons = " ".join(skipped.values())
-    assert "no code location" in reasons and "infeasible" in reasons and "suspicious" in reasons
+    assert "no code location" in reasons and "infeasible" in reasons and "effect type 'other'" in reasons
     assert not set(chosen) & set(skipped)
 
 

@@ -1,0 +1,74 @@
+[
+  {
+    "repo": "primary",
+    "commit": "a8307f2b8043eb64b413a9b68ba2e6a2646cae8a",
+    "path": "nnsmith/materialize/torch/symbolnet.py",
+    "start_line": 293,
+    "end_line": 293,
+    "lines": "293:         return sat_inputs"
+  },
+  {
+    "repo": "primary",
+    "commit": "a8307f2b8043eb64b413a9b68ba2e6a2646cae8a",
+    "path": "nnsmith/materialize/torch/symbolnet.py",
+    "start_line": 289,
+    "end_line": 290,
+    "lines": "289:         if sat_inputs is None:\n290:             TORCH_LOG.debug(\"[grad] no valid range found!!!\")"
+  },
+  {
+    "repo": "primary",
+    "commit": "a8307f2b8043eb64b413a9b68ba2e6a2646cae8a",
+    "path": "nnsmith/materialize/torch/symbolnet.py",
+    "start_line": 229,
+    "end_line": 293,
+    "lines": "229:     def grad_input_gen(\n230:         self, init_tensors, use_cuda=False, max_time=None, **kwargs\n231:     ) -> Optional[Dict[str, torch.Tensor]]:\n232:         # TODO: trim the param. max_iter is not used; remove getenv\n233:         if max_time is None:\n234:             max_time = float(os.getenv(\"NNSMITH_GRAD_TIME\", 0.5))\n235: \n236:         inputs = {}\n237:         for key, tensor in init_tensors.items():\n238:             if tensor.data.dtype.is_floating_point:\n239:                 inputs[key] = torch.nn.parameter.Parameter(tensor.data.clone())\n240:             else:\n241:                 inputs[key] = tensor.data\n242: \n243:         self.enable_training(extra_trainable=inputs)\n244: \n245:         last_check_intermediate_numeric = self.check_intermediate_numeric\n246:         self.check_intermediate_numeric = True\n247: \n248:         if use_cuda:\n249:             for k in inputs:\n250:                 inputs[k] = inputs[k].cuda()\n251:             self.use_cuda()\n252: \n253:         sat_inputs = None\n254:         st = time.time()\n255:         self.iter_num = 0\n256:         self.cur_loss_name = None\n257:         while time.time() - st < max_time:\n258:             self.training_reset()\n259:             self.iter_num += 1\n260: \n261:             try:\n262:                 _ = self(**inputs)\n263:                 if self.invalid_found_last:  # need_to_train\n264:                     self.backward()\n265:                 else:\n266:                     sat_inputs = {k: v.data for k, v in inputs.items()}\n267:                     break\n268:             except ConstraintError as e:\n269:                 if __INPUT_FOUND_INF_MSG__ in str(e) or __INPUT_FOUND_NAN_MSG__ in str(\n270:                     e\n271:                 ):\n272:                     # flush NaN/Inf in inputs\n273:                     with torch.no_grad():\n274:                         for inp in inputs.values():\n275:                             inp.copy_(\n276:                                 torch.where(\n277:                                     inp.isnan().logical_or(inp.isinf()),\n278:                                     random_tensor(\n279:                                         shape=inp.shape, dtype=inp.dtype.torch()\n280:                                     ).to(inp.device),\n281:                                     inp,\n282:                                 )\n283:                             )\n284:                     continue\n285:                 TORCH_LOG.debug(e)\n286:                 break\n287: \n288:         self.stop_training()\n289:         if sat_inputs is None:\n290:             TORCH_LOG.debug(\"[grad] no valid range found!!!\")\n291: \n292:         self.check_intermediate_numeric = last_check_intermediate_numeric\n293:         return sat_inputs"
+  },
+  {
+    "repo": "primary",
+    "commit": "a8307f2b8043eb64b413a9b68ba2e6a2646cae8a",
+    "path": "nnsmith/materialize/torch/symbolnet.py",
+    "start_line": 253,
+    "end_line": 253,
+    "lines": "253:         sat_inputs = None"
+  },
+  {
+    "repo": "primary",
+    "commit": "a8307f2b8043eb64b413a9b68ba2e6a2646cae8a",
+    "path": "nnsmith/materialize/torch/input_gen.py",
+    "start_line": 79,
+    "end_line": 79,
+    "lines": "79:         timeout_s = None if timeout_ms is None else timeout_ms / 1000"
+  },
+  {
+    "repo": "primary",
+    "commit": "a8307f2b8043eb64b413a9b68ba2e6a2646cae8a",
+    "path": "nnsmith/materialize/torch/input_gen.py",
+    "start_line": 108,
+    "end_line": 108,
+    "lines": "108:             return GradSearch.search_one(self, start_inp, timeout_ms)"
+  },
+  {
+    "repo": "primary",
+    "commit": "a8307f2b8043eb64b413a9b68ba2e6a2646cae8a",
+    "path": "nnsmith/materialize/torch/input_gen.py",
+    "start_line": 80,
+    "end_line": 82,
+    "lines": "80:         return self.net.grad_input_gen(\n81:             init_tensors=start_inp, use_cuda=self.use_cuda, max_time=timeout_s\n82:         )"
+  },
+  {
+    "repo": "primary",
+    "commit": "a8307f2b8043eb64b413a9b68ba2e6a2646cae8a",
+    "path": "experiments/nnsmith_gen_onnx.py",
+    "start_line": 45,
+    "end_line": 47,
+    "lines": "45:     n_try, sat_inputs = searcher.search(\n46:         max_time_ms=gen_time * 0.02 * 1000, max_sample=2, return_list=True\n47:     )"
+  },
+  {
+    "repo": "primary",
+    "commit": "a8307f2b8043eb64b413a9b68ba2e6a2646cae8a",
+    "path": "nnsmith/materialize/torch/input_gen.py",
+    "start_line": 31,
+    "end_line": 62,
+    "lines": "31:     def search(\n32:         self, max_time_ms: int = None, max_sample: int = 1\n33:     ) -> Tuple[int, Dict[str, torch.Tensor]]:\n34:         n_try = 0\n35:         sat_inputs = None\n36:         start_time = time.time()\n37: \n38:         while (\n39:             max_time_ms is None or time.time() - start_time < max_time_ms / 1000\n40:         ) and n_try < max_sample:\n41:             if self.start_weights is not None and n_try < len(self.start_weights):\n42:                 self.apply_weights(self.net, self.start_weights[n_try])\n43:             else:\n44:                 weight_sample = {}\n45:                 for name, param in self.net.named_parameters():\n46:                     weight_sample[name] = random_tensor(\n47:                         param.shape, dtype=param.dtype, use_cuda=self.use_cuda\n48:                     )\n49:                 self.apply_weights(self.net, weight_sample)\n50: \n51:             if self.start_inputs is not None and n_try < len(self.start_inputs):\n52:                 cur_input = self.start_inputs[n_try]\n53:             else:\n54:                 cur_input = self.net.get_random_inps(use_cuda=self.use_cuda)\n55: \n56:             res = self.search_one(cur_input, max_time_ms)\n57:             n_try += 1\n58:             if res is not None:\n59:                 sat_inputs = res\n60:                 break\n61: \n62:         return n_try, sat_inputs"
+  }
+]

@@ -1,0 +1,120 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "flexprefill-F056",
+ "artifact_id": "flexprefill",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "not_implemented",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "论文要求单卡 A100 80GB；脚本未固定设备数量或型号，accelerate 可多进程运行",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "no_condition",
+  "location": "experiments/scripts/flex_prefill/ruler.sh:16-45",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "Our experiments are conducted in a computing environment equipped with a single NVIDIA A100 GPU with 80GB of memory.",
+    "source": "paper",
+    "locator": "PDF p.7"
+   }
+  ],
+  "code": [
+   {
+    "file": "experiments/scripts/flex_prefill/ruler.sh",
+    "line_start": 16,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "experiments/scripts/flex_prefill/infinitebench.sh",
+    "line_start": 20,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/flexprefill/limitations_for_tests.json",
+  "findings_sha256": "0b8539b75ec0e2d602cd64b1a21959708ae3a6d53be00202f8825d92f313c066",
+  "generated_at": "2026-11-18T12:16:44+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The scripts invoke accelerate launch repeatedly without --num_processes, --gpu_ids, CUDA_VISIBLE_DEVICES, or model/device pinning. Thus they do not enforce the paper's single A100 80GB setup; accelerate can be configured for multiple processes/GPUs. The evidence supports the mismatch, though it does not show an actual multi-GPU run.",
+  "hardware_needed": true,
+  "would_confirm": "Inspect the accelerate configuration or run the scripts and record GPU/process count to see whether more than one A100 is used.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "experiments/scripts/flex_prefill/ruler.sh",
+     "lines": "16-45",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "shell"
+    },
+    {
+     "file": "experiments/scripts/flex_prefill/infinitebench.sh",
+     "lines": "20-65",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "shell"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "experiments/scripts/flex_prefill/ruler.sh",
+    "regex": "(?:--num_processes|--gpu_ids|--multi_gpu|CUDA_VISIBLE_DEVICES|--num_machines)",
+    "expect": "absent",
+    "meaning": "No explicit device-count pinning in RULER script.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "accelerate launch",
+    "hit_lines": []
+   },
+   {
+    "file": "experiments/scripts/flex_prefill/infinitebench.sh",
+    "regex": "(?:--num_processes|--gpu_ids|--multi_gpu|CUDA_VISIBLE_DEVICES|--num_machines)",
+    "expect": "absent",
+    "meaning": "No explicit device-count pinning in InfiniteBench script.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "accelerate launch",
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

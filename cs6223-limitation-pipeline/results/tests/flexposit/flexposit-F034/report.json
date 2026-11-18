@@ -1,0 +1,100 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "flexposit-F034",
+ "artifact_id": "flexposit",
+ "status": "not_run",
+ "not_run": {
+  "code": "outcome_unsupported",
+  "reason": "effect type 'other': the branch has no raise in its body: the program rejects later, in code the target does not point to"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "When start >= end: A window whose clamped start is not less than its end returns the weight unchanged, so an out-of-range or empty caller window is silently a no-op. (src/flexposit/mpq/channel_window.py:161)",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "src/flexposit/mpq/channel_window.py:161",
+  "function": "src/flexposit/mpq/channel_window.py::quantize_window_cpu_from_fp32",
+  "condition": "start >= end"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "src/flexposit/mpq/channel_window.py",
+    "line_start": 161,
+    "function": "src/flexposit/mpq/channel_window.py::quantize_window_cpu_from_fp32",
+    "snippet": "if start >= end:"
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/flexposit/limitations_for_tests.json",
+  "findings_sha256": "90fcaf23c2793dc03b49c54856e041483165536eff1522a25766022460b78f23",
+  "generated_at": "2026-11-17T15:15:49+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A1",
+  "tier_note": "the reading is unclear; probes alone do not decide it",
+  "calibrated": false,
+  "assessment": "unclear",
+  "reasoning": "The cited line only shows a guard `if start >= end:`. It does not show the body, so it cannot establish that the function returns the weight unchanged or that this is a silent no-op. No paper evidence is recorded. The condition is consistent with the claim but insufficient to verify it.",
+  "hardware_needed": false,
+  "would_confirm": "Inspect the lines immediately after the guard to see whether it returns the original weight unchanged for start >= end.",
+  "static": {
+   "cited": 1,
+   "grounded": true,
+   "items": [
+    {
+     "file": "src/flexposit/mpq/channel_window.py",
+     "lines": "161-161",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": true,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "src/flexposit/mpq/channel_window.py",
+    "regex": "if start >= end:",
+    "expect": "present",
+    "meaning": "Confirms the cited guard exists in the file.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     161
+    ]
+   },
+   {
+    "file": "src/flexposit/mpq/channel_window.py",
+    "regex": "(?s)if start >= end:\\s*\\n\\s*return\\s+weight",
+    "expect": "present",
+    "meaning": "Shows the guard body returns the weight unchanged.",
+    "status": "refuted",
+    "hits": 0,
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

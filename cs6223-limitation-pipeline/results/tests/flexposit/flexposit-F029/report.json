@@ -1,0 +1,113 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "flexposit-F029",
+ "artifact_id": "flexposit",
+ "status": "not_run",
+ "not_run": {
+  "code": "outcome_unsupported",
+  "reason": "effect type 'other': the target assigns a value; the claimed effect is what that value changes later, which needs a differential check of outputs (the assignment itself would differ trivially)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "docs_only",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "When isinstance(es, int): A scalar es disables the per-channel es search (single candidate), while a sequence enables searching es per channel; the caller's type choice changes which algorithm runs. (src/flexposit/core.py:35)",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "src/flexposit/core.py:35",
+  "function": "src/flexposit/core.py::_es_list",
+  "condition": "isinstance(es, int)"
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "``es`` is an int, or a sequence of candidates to also search es per row.",
+    "source": "docstring",
+    "locator": "src/flexposit/core.py:43 (search_channels)"
+   },
+   {
+    "quote": "``es`` is fixed (the paper uses es=1); passing several ``es`` values also searches es per channel.",
+    "source": "docstring",
+    "locator": "src/flexposit/core.py:1 (<module>)"
+   }
+  ],
+  "code": [
+   {
+    "file": "src/flexposit/core.py",
+    "line_start": 35,
+    "function": "src/flexposit/core.py::_es_list",
+    "snippet": "cands = [es] if isinstance(es, int) else list(es)"
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/flexposit/limitations_for_tests.json",
+  "findings_sha256": "90fcaf23c2793dc03b49c54856e041483165536eff1522a25766022460b78f23",
+  "generated_at": "2026-11-17T15:15:16+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The pinned code directly branches on isinstance(es, int): an int becomes a single candidate, while any non-int sequence is expanded into multiple candidates. The paper text also says a sequence enables searching es per row. Thus the caller's type choice changes whether additional es candidates are searched, matching the Finding.",
+  "hardware_needed": false,
+  "would_confirm": "Run search_channels with es as an int and as a list, then compare whether per-channel es candidates are evaluated.",
+  "static": {
+   "cited": 1,
+   "grounded": true,
+   "items": [
+    {
+     "file": "src/flexposit/core.py",
+     "lines": "35-35",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": true,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "src/flexposit/core.py",
+    "regex": "cands\\s*=\\s*\\[es\\]\\s+if\\s+isinstance\\(es,\\s*int\\)\\s+else\\s+list\\(es\\)",
+    "expect": "present",
+    "meaning": "Shows int versus sequence branch selecting candidate list.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     35
+    ]
+   },
+   {
+    "file": "src/flexposit/core.py",
+    "regex": "sequence of candidates to also search es per row",
+    "expect": "present",
+    "meaning": "Paper documents sequence enables additional es search.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     45
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

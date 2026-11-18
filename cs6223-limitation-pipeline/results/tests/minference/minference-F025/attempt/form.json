@@ -1,0 +1,107 @@
+{
+  "test_id": "A-minference-F025",
+  "finding_id": "minference-F025",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "q_len",
+        "value": 8,
+        "why": "the target guard needs q_len != 1; the dilated2 branch only slices this length"
+      },
+      {
+        "name": "batch_size",
+        "value": 1,
+        "why": "the target decision does not inspect the batch dimension"
+      },
+      {
+        "name": "num_heads",
+        "value": 2,
+        "why": "the target decision does not inspect the head count"
+      },
+      {
+        "name": "head_dim",
+        "value": 16,
+        "why": "the target decision does not inspect the head dimension"
+      },
+      {
+        "name": "head_id",
+        "value": 0,
+        "why": "the target guard is evaluated before the pattern lookup uses head_id"
+      },
+      {
+        "name": "dtype",
+        "value": "torch.float32",
+        "why": "CPU tensors are only used to reach the target guard"
+      },
+      {
+        "name": "streaming",
+        "value": true,
+        "why": "the negative case must leave the dilated branches and reach a defined post-target call; streaming is the branch with a deterministic post-target stand-in"
+      },
+      {
+        "name": "streaming_n_init",
+        "value": 1,
+        "why": "streaming_kwargs is read only after the target guard, so the value is irrelevant to the decision"
+      },
+      {
+        "name": "streaming_n_local",
+        "value": 1,
+        "why": "streaming_kwargs is read only after the target guard, so the value is irrelevant to the decision"
+      },
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "fixed seed and single-threaded CPU keep repeated traces identical"
+      },
+      {
+        "name": "device",
+        "value": "cpu",
+        "why": "the harness runs on CPU only; the CUDA allocation at import is remapped during import"
+      }
+    ],
+    "positive_input": {
+      "dilated2": true
+    },
+    "negative_input": {
+      "dilated2": false
+    },
+    "boundary_variable": "dilated2",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at minference/modules/minference_forward.py:423",
+      "signal_location": "minference/modules/minference_forward.py:423"
+    },
+    "expected": {
+      "positive": "branch taken at minference/modules/minference_forward.py:423",
+      "negative": "branch not taken at minference/modules/minference_forward.py:423"
+    }
+  },
+  "execution": {
+    "entry_called": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "true",
+      "false"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at minference/modules/minference_forward.py:423",
+    "negative_observed": "branch not taken at minference/modules/minference_forward.py:423"
+  },
+  "evidence": {}
+}

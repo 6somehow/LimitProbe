@@ -50,6 +50,7 @@ class Budget:
     tool_calls: int = 250
     tokens: int = 4_000_000
     sessions: int = 2           # outer iterations: first session + feedback sessions
+    blind: bool = False         # hide the harness source and the rule documents (S5b)
 
 
 @dataclass
@@ -68,13 +69,27 @@ class SessionStats:
 # attempts, all earlier results and benchmark runs, the tests, the notes about how the pilot was solved,
 # and the git history (which contains all of those). The first agent run found and copied the hand-written
 # F07 driver, so its result was thrown away (scratch/agent_runs/INVALID-*).
-HIDE_PATHS_DIRS = [PROJECT_ROOT / d for d in ("attempts", "results", "locks", "runs", "tests", "scripts", "scratch")] + \
+# agent_results/ (archived attempts of earlier agent runs, for 4 FlexPrefill Findings of the very same Finding) and the
+# result write-ups were readable until 2026-11-16: an agent could copy an earlier solution. From that date they are hidden.
+HIDE_PATHS_DIRS = [PROJECT_ROOT / d for d in ("attempts", "results", "locks", "runs", "tests", "scripts", "scratch",
+                                              "agent_results")] + \
                   [PIPELINE_ROOT.parent / ".git"]     # PIPELINE_ROOT/results stays visible: it holds the step 4 inputs
-HIDE_PATHS_FILES = [PROJECT_ROOT / f for f in ("PLAN.md", "KICKOFF_PROMPT.md", "ENV.md", "scoring_prototype.py")]
-SCRATCH_KEEP_RO = ["venv311", "venv_nnsmith", "opencode"]   # interpreters for the code under test, and the agent runtime
+HIDE_PATHS_FILES = [PROJECT_ROOT / f for f in ("PLAN.md", "KICKOFF_PROMPT.md", "ENV.md", "scoring_prototype.py",
+                                               "AGENT_RESULTS.md", "BATCH_RESULTS.md", "NNSMITH_RESULTS.md",
+                                               "PREFLIGHT_FLEXPOSIT.md")]
+# blind mode: the agent is not told how each defeater is computed. The harness is not in its sandbox at all (the package
+# directory is an empty tmpfs, the rule documents are hidden); `cl` there talks to a service outside, which runs the real
+# command and returns the output (agent_service.py). The agent keeps the skill (agent/INSTRUCTIONS.md), the task text and
+# whatever `cl lint` / `cl run` print.
+# interpreters for the code under test (scratch/venv*, built by scripts/make_venv_*.sh or `provision`) and the agent runtime
+SCRATCH_KEEP_RO = sorted({d.name for d in (PROJECT_ROOT / "scratch").glob("venv*")} | {"opencode"}) \
+    if (PROJECT_ROOT / "scratch").is_dir() else ["opencode"]
+BLIND_HIDE_FILES = [PROJECT_ROOT / f for f in ("CONFIDENCE_SPEC.md", "SCORECARD.md", "CONTRACT_TEST_REPORT.md",
+                                               "REQUESTS_TO_STEP4.md", "EXPERIMENTS.md", "S4B_OTHER_EFFECTS.md")]
 
 
-def sandbox_cmd(run_dir: Path, inner: list[str]) -> list[str]:
+def sandbox_cmd(run_dir: Path, inner: list[str], blind: bool = False) -> list[str]:
+    """bwrap command line. blind=True: no harness source and no rule documents in the sandbox, `cl` goes through the service."""
     cmd = ["bwrap", "--ro-bind", "/", "/", "--dev", "/dev", "--proc", "/proc", "--tmpfs", "/tmp"]
     for d in HIDE_DIRS + HIDE_PATHS_DIRS:
         if d.is_dir():
@@ -85,13 +100,19 @@ def sandbox_cmd(run_dir: Path, inner: list[str]) -> list[str]:
     for k in SCRATCH_KEEP_RO:          # re-expose what the agent needs inside the emptied scratch/
         if (PROJECT_ROOT / "scratch" / k).exists():
             cmd += ["--ro-bind", str(PROJECT_ROOT / "scratch" / k), str(PROJECT_ROOT / "scratch" / k)]
+    if blind:
+        from .agent_service import service_dir
+        for f in BLIND_HIDE_FILES:
+            if f.is_file():
+                cmd += ["--ro-bind", "/dev/null", str(f)]
+        cmd += ["--tmpfs", str(PROJECT_ROOT / "checklimits"), "--bind", str(service_dir(run_dir)), "/tmp/cl"]
     cmd += ["--bind", str(run_dir), str(run_dir), "--chdir", str(PIPELINE_ROOT), "--unshare-pid", "--die-with-parent"]
     return cmd + inner
 
 
-def agent_env(run_dir: Path) -> dict[str, str]:
+def agent_env(run_dir: Path, blind: bool = False) -> dict[str, str]:
     home = run_dir / "home"
-    return {
+    return {**({"CL_SOCKET": "/tmp/cl/sock"} if blind else {}),
         "PATH": "/usr/bin:/bin:/usr/local/bin", "HOME": str(home), "LANG": "C.UTF-8", "TERM": "dumb",
         "XDG_CONFIG_HOME": str(home / ".config"), "XDG_DATA_HOME": str(home / ".local/share"),
         "XDG_CACHE_HOME": str(home / ".cache"), "XDG_STATE_HOME": str(home / ".local/state"),
@@ -138,7 +159,7 @@ def run_session(run_dir: Path, prompt: str, budget: Budget, session_id: Optional
     st = SessionStats(session_id=session_id)
     t0 = time.monotonic()
     log = (run_dir / log_name).open("w")
-    proc = subprocess.Popen(sandbox_cmd(run_dir, inner), env=agent_env(run_dir), stdout=subprocess.PIPE,
+    proc = subprocess.Popen(sandbox_cmd(run_dir, inner, budget.blind), env=agent_env(run_dir, budget.blind), stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT, text=True, start_new_session=True)
     try:
         assert proc.stdout is not None
@@ -223,8 +244,21 @@ def authoritative_run(run_dir: Path, options: RunOptions) -> dict[str, Any]:
 def run_agent(finding: str, run_id: str, budget: Budget = Budget(), options: Optional[RunOptions] = None,
               target_level: str = "L3", findings_file: Optional[str] = None,
               data_dir: Optional[str] = None) -> dict[str, Any]:
-    options = options or RunOptions()
     run_dir = prepare_run(finding, run_id)
+    svc = None
+    if budget.blind:                       # the harness runs outside the agent's sandbox, for the agent (agent_service.py)
+        from .agent_service import ClService
+        svc = ClService(run_dir).start()
+    try:
+        return _agent_sessions(finding, run_dir, budget, options or RunOptions(), target_level, findings_file, data_dir)
+    finally:
+        if svc is not None:
+            svc.stop()
+
+
+def _agent_sessions(finding: str, run_dir: Path, budget: Budget, options: RunOptions, target_level: str,
+                    findings_file: Optional[str], data_dir: Optional[str]) -> dict[str, Any]:
+    run_id = run_dir.name
     sessions: list[SessionStats] = []
     session_id: Optional[str] = None
     feedback: Optional[str] = None

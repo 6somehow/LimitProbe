@@ -128,3 +128,17 @@ tool calls 1650, LLM steps 1444, tokens 78.7M (counts every re-sent context), ag
 ## 补记二（2026-11-12）：第二个 artifact 之后的规则修正
 
 NNSmith 的批量（`NNSMITH_RESULTS.md`）暴露了三处 harness 缺陷，修复后对本页的 33 个 attempt 再次重新审计，结果与"补记"一致（只有 F053 变化）。对本页有一处解释要改：**F047 没测出来不是 agent 的问题**，它的目标语句（`flex_prefill_attention.py:1221` 的 `if`）不能抛异常，`reject` 标签不适用，现在 harness 直接返回 `not_run`。F047 因此不再属于可判断的 Finding，可判断的 FlexPrefill Finding 是 32 条。
+
+
+## 补记三（2026-11-16）：agent 当时能看到哪些已有的结果
+
+这批运行时，沙箱没有隐藏 `agent_results/`（已归档的 agent 测试包）。事后检查每次运行的事件日志：30 次 FlexPrefill 批量运行里 27 次提到了 `agent_results`，26 次 NNSmith 运行里 24 次提到。也就是说，**agent 大多读过别的 Finding 的已有测试包作为样例**。对 FlexPrefill 这更重要：F013、F014、F052 的目标语句和手写 pilot 的 F01、F04、F07 是同一行（`assert q.shape[1] == k.shape[1]` 等），当时 `agent_results/f01-r1`、`f04-r1`、`f07-r2` 是可读的，这三条的测试包可能直接借用了它们的写法。我没有逐条核对谁借用了。
+
+从 2026-11-16 起，`agent_results/` 和各结果文档在沙箱里不可见（`agent_loop.HIDE_PATHS_DIRS`，有测试）。上面的分布因此应读作"agent 能看到别的 Finding 的样例"的结果；不带样例的运行见 `EXPERIMENTS.md`。
+
+
+## 补记四（2026-11-17）：规则改动之后的分布
+
+11-16 到 11-17 harness 有三处改动（`CONFIDENCE_SPEC.md` §18、§19）：`no` 只在 D3 已消除时报告；目标是裸 `raise` 时在守卫上求 D2；D14 要求目标在入口里执行。用新规则对 `results/e2e/` 里的测试包重新审计，并补上了 11-16 用调用链重跑的 agent 测试包（`EXPERIMENTS.md`），这个文档上面的分布因此不再是现状。现状：
+
+FlexPrefill：29 条已测，判定 {'yes': 29}，档位 {'L1': 16, 'L3': 6, 'L2': 7}；没测的原因 {'no_code_location': 19, 'outcome_unsupported': 6, 'witness_unusable': 11}。逐条见 `results/e2e/report/flexprefill/LIMITATIONS.md`。

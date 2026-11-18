@@ -39,6 +39,41 @@ def _venv_python(artifact_id: str = "flexprefill") -> Optional[str]:
 
 
 # --------------------------------------------------------------------------- task
+def chain_section(hint: dict) -> list[str]:
+    """How the official entry reaches the target, from step 4 (witness_hint.call_chain, call_sites, entry_terms).
+    The trigger/contrast values are written with the names used at the target; this section says how those names
+    map to what you pass to the entry, one call site at a time."""
+    status = hint.get("call_chain_status")
+    if not status:
+        return []
+    L = ["## How the entry reaches the target (step 4, static analysis)", "",
+         f"- chain status: `{status}`"]
+    if status == "resolved":
+        for cs in hint.get("call_sites", []):
+            how = cs.get("resolved_by", "?")
+            args = ", ".join(f"{k}={v}" for k, v in (cs.get("args") or {}).items()) or "(no argument mapping)"
+            L.append(f"- `{cs['caller'].split('::')[-1]}` calls `{cs['callee'].split('::')[-1]}` at line {cs.get('line')} "
+                     f"({how}): {args}")
+        if hint.get("uncertain_steps"):
+            L.append(f"- steps resolved by a guess (check them in the source): {hint['uncertain_steps']}")
+        names = (hint.get("entry_terms") or {}).get("names") or {}
+        if names:
+            L.append("- names at the target written in terms of the entry's inputs: "
+                     + ", ".join(f"`{k}` = `{v}`" for k, v in names.items()))
+        if hint.get("other_chains"):
+            L.append(f"- other chains to the same target: {hint['other_chains']}")
+        L.append("- call `call_chain[0]` and translate the trigger/contrast through this mapping; "
+                 "if that is impossible on CPU, say why in `execution.entry_reason`")
+    elif status == "entry_is_target":
+        L.append("- the entry function is the target function: call it directly")
+    elif status == "module_level":
+        L.append("- the target runs when the module is imported")
+    else:
+        L.append("- static analysis found no call chain from the entry: calling a deeper function is allowed, "
+                 "record the reason in `execution.entry_reason`")
+    return L + [""]
+
+
 def task_text(finding_id: str, data_dir_rel: str = DEFAULT_DATA, context: int = 12,
               findings_file: Optional[str] = None) -> str:
     data_dir = PIPELINE_ROOT / data_dir_rel
@@ -79,6 +114,7 @@ def task_text(finding_id: str, data_dir_rel: str = DEFAULT_DATA, context: int = 
             L += [f"Source around the target ({repo_rel}/{loc.file}, read-only):", "```python"]
             L += [f"{i:5d}{'>' if i == loc.line_start else ' '} {lines[i - 1]}" for i in range(a, b + 1)]
             L += ["```", ""]
+    L += chain_section(f.witness_hint or {})
     py = _venv_python(art["artifact_id"])
     from .harness import _pkg_versions
     from .runner import resolve_python

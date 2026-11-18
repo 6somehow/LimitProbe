@@ -1,0 +1,70 @@
+{
+  "test_id": "A-flexprefill-F012",
+  "finding_id": "flexprefill-F012",
+  "strategy": "S1",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {"name": "num_heads", "value": 1, "why": "witness_hint does not specify head count; one query head keeps the CPU run small while the target decision only reads the module cache"},
+      {"name": "num_kv_heads", "value": 1, "why": "witness_hint does not specify KV head count; one KV head divides one query head (multi-head attention layout)"},
+      {"name": "gamma", "value": 0.9, "why": "witness_hint does not specify the attention coverage ratio; any value in (0,1) reaches the target and 0.9 is the repository example default"},
+      {"name": "tau", "value": 0.0, "why": "witness_hint does not specify the query-aware head threshold; 0.0 is the function default"},
+      {"name": "max_budget", "value": 512, "why": "witness_hint does not specify max_budget; 512 tokens maps to the same 4 blocks as the sequence, so the target decision is unaffected"},
+      {"name": "dtype", "value": "float32", "why": "the pinned CPU torch has no GPU-safe bfloat16 path; float32 is supported by every torch op on the path to the target"},
+      {"name": "seed", "value": 0, "why": "fixed random seed for deterministic q/k/v tensors across repeats"}
+    ],
+    "positive_input": {"batch_size": 1, "block_size": 128, "head_dim": 32, "min_budget": 384, "q_len": 385},
+    "negative_input": {"batch_size": 1, "block_size": 128, "head_dim": 32, "min_budget": 384, "q_len": 385},
+    "boundary_variable": "prelude",
+    "positive_prelude": [],
+    "negative_prelude": [{"batch_size": 1, "block_size": 128, "head_dim": 32, "min_budget": 384, "q_len": 385}],
+    "extra_negatives": [],
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at flex_prefill/ops/flex_prefill_attention.py:1695",
+      "signal_location": "flex_prefill/ops/flex_prefill_attention.py:1695"
+    },
+    "expected": {
+      "positive": "branch taken at flex_prefill/ops/flex_prefill_attention.py:1695",
+      "negative": "branch not taken at flex_prefill/ops/flex_prefill_attention.py:1695"
+    }
+  },
+  "execution": {
+    "entry_called": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [
+      {
+        "symbol": "flex_prefill.ops.flex_prefill_attention.triton_bnhd_pool",
+        "kind": "patch",
+        "behavior": "sim",
+        "impl": "sim.py::bnhd_pool",
+        "sim_class": "independent_native",
+        "reason": "GPU triton kernel launcher called inside get_active_blocks after the causal_mask decision; a plain-torch average pool keeps the post-target path running on CPU"
+      },
+      {
+        "symbol": "flex_prefill.ops.flex_prefill_attention.triton_block_wise_attention",
+        "kind": "patch",
+        "behavior": "sim",
+        "impl": "sim.py::block_wise_attention",
+        "sim_class": "repo_reference",
+        "reason": "GPU triton block-sparse attention launcher called after get_active_blocks; delegates to the repository's own torch_block_wise_attention reference on CPU"
+      }
+    ],
+    "hooks": [],
+    "replay_commands": ["python -m checklimits run --attempt <this directory>"]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": ["true", "false"],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at flex_prefill/ops/flex_prefill_attention.py:1695",
+    "negative_observed": "branch not taken at flex_prefill/ops/flex_prefill_attention.py:1695"
+  },
+  "evidence": {}
+}

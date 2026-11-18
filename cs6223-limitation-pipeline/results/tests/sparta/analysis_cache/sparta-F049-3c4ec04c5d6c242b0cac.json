@@ -1,0 +1,36 @@
+{
+ "assessment": "supports",
+ "reasoning": "The cited transform_matmul has the specialize_matmul loop inside a triple-quoted block, so specialization is not executed and best_kernels remains None. The reachable codegen only selects dense, fine-grained, or block-sparse templates based on dismantle values. No path accepts an external sparsity-aware kernel, supporting the claimed implementation deviation.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "sparta/transformation/transform_policy.py",
+   "regex": "skip, waiting for more official end-to-end",
+   "expect": "present",
+   "control": "",
+   "meaning": "Shows specialization loop is disabled by a comment block."
+  },
+  {
+   "file": "sparta/transformation/transform_policy.py",
+   "regex": "return best_kernels, best_aggr_type",
+   "expect": "present",
+   "control": "",
+   "meaning": "Shows disabled path returns unset kernel selection."
+  },
+  {
+   "file": "sparta/specialization/specialize_kernel.py",
+   "regex": "dense_matmul_template|finegrained_matmul_template|blocksparse_matmul_template",
+   "expect": "present",
+   "control": "",
+   "meaning": "Shows only three fixed kernel templates are enumerated."
+  },
+  {
+   "file": "sparta/specialization/specialize_kernel.py",
+   "regex": "if dismantle == -1:|elif dismantle == 8:|elif dismantle == 2:",
+   "expect": "present",
+   "control": "",
+   "meaning": "Shows template choice is fixed by dismantle value."
+  }
+ ],
+ "would_confirm": "Run transform_matmul on any TeSA and verify whether specialize_matmul is ever invoked and whether any non-template external kernel can be selected."
+}

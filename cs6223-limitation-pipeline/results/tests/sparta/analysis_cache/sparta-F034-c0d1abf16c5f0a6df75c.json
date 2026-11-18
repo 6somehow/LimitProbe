@@ -1,0 +1,21 @@
+{
+ "assessment": "supports",
+ "reasoning": "The shown code only maps dismantle values to pre-existing kernel templates (dense, finegrained, blocksparse). It does not implement loop unrolling, specialization expansion, or DCE; it selects and returns generated kernel code. This matches the finding that the artifact path consumes pre-generated kernels rather than performing dismantle expansion.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "sparta/specialization/specialize_kernel.py",
+   "regex": "(?i)unroll|dead.?code|\\bDCE\\b",
+   "expect": "absent",
+   "control": "def matmul_kernel_codegen",
+   "meaning": "No unrolling/DCE logic appears in this specialization file."
+  },
+  {
+   "file": "sparta/specialization/specialize_kernel.py",
+   "regex": "dense_matmul_template|finegrained_matmul_template|blocksparse_matmul_template",
+   "expect": "present",
+   "meaning": "Kernel is selected from pre-generated templates, not expanded."
+  }
+ ],
+ "would_confirm": "Inspect the full specialization pipeline to verify whether any later stage performs dismantle-driven unrolling/DCE rather than only template selection."
+}

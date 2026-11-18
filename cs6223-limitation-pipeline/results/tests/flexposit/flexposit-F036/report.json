@@ -1,0 +1,107 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "flexposit-F036",
+ "artifact_id": "flexposit",
+ "status": "not_run",
+ "not_run": {
+  "code": "outcome_unsupported",
+  "reason": "effect type 'other': the branch has no raise in its body: the program rejects later, in code the target does not point to"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "When key not in ref_sd: A layer named in the sensitivity windows but absent from the FP32 reference state dict is skipped (with a warning), so the requested window quantization is not applied to that layer. (src/flexposit/mpq/channel_window.py:208)",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "src/flexposit/mpq/channel_window.py:208",
+  "function": "src/flexposit/mpq/channel_window.py::apply_windows_to_model",
+  "condition": "key not in ref_sd"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "src/flexposit/mpq/channel_window.py",
+    "line_start": 208,
+    "function": "src/flexposit/mpq/channel_window.py::apply_windows_to_model",
+    "snippet": "if key not in ref_sd:"
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/flexposit/limitations_for_tests.json",
+  "findings_sha256": "90fcaf23c2793dc03b49c54856e041483165536eff1522a25766022460b78f23",
+  "generated_at": "2026-11-17T15:15:49+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A1",
+  "tier_note": "the reading is unclear; probes alone do not decide it",
+  "calibrated": false,
+  "assessment": "unclear",
+  "reasoning": "The only shown evidence is the condition `if key not in ref_sd:` at line 208. It does not show that a warning is emitted or that the code skips/continues before applying window quantization. The finding may be true, but the displayed snippet is insufficient to confirm the warning-and-skip behavior.",
+  "hardware_needed": false,
+  "would_confirm": "Inspect the full block under line 208 to verify whether it warns and then continues/returns before applying the requested window quantization.",
+  "static": {
+   "cited": 1,
+   "grounded": true,
+   "items": [
+    {
+     "file": "src/flexposit/mpq/channel_window.py",
+     "lines": "208-208",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": true,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "src/flexposit/mpq/channel_window.py",
+    "regex": "if key not in ref_sd:[\\s\\S]{0,200}(?:warn|warning|print)",
+    "expect": "present",
+    "meaning": "Missing-key branch contains a warning or print statement.",
+    "status": "refuted",
+    "hits": 0,
+    "hit_lines": []
+   },
+   {
+    "file": "src/flexposit/mpq/channel_window.py",
+    "regex": "if key not in ref_sd:[\\s\\S]{0,300}\\bcontinue\\b",
+    "expect": "present",
+    "meaning": "Missing-key branch continues, skipping quantization for that layer.",
+    "status": "refuted",
+    "hits": 0,
+    "hit_lines": []
+   },
+   {
+    "file": "src/flexposit/mpq/channel_window.py",
+    "regex": "if key not in ref_sd:[\\s\\S]{0,300}\\breturn\\b",
+    "expect": "present",
+    "meaning": "Missing-key branch returns early, skipping quantization for that layer.",
+    "status": "refuted",
+    "hits": 0,
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

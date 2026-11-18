@@ -1,0 +1,94 @@
+{
+  "test_id": "A-flexposit-F031",
+  "finding_id": "flexposit-F031",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "model_cout",
+        "value": 4,
+        "why": "tiny fully-connected layer; the target decision only depends on the per-column Posit sizes"
+      },
+      {
+        "name": "model_cin",
+        "value": 4,
+        "why": "input width of the toy layer; irrelevant to the channel-window size check"
+      },
+      {
+        "name": "config_bits",
+        "value": 4.5,
+        "why": "midpoint between base_nsize and upgrade_nsize so one channel window is upgraded"
+      },
+      {
+        "name": "base_nsize",
+        "value": 4,
+        "why": "default Posit size used by FlexPositConfig"
+      },
+      {
+        "name": "upgrade_nsize",
+        "value": 5,
+        "why": "size of the upgraded channel window; distinct from base_nsize so a tile can span two sizes"
+      },
+      {
+        "name": "posit_es",
+        "value": 1,
+        "why": "paper default exponent size, also used by the quantizer and export"
+      },
+      {
+        "name": "sensitivity_window",
+        "value": [0, 2],
+        "why": "the one upgraded output-channel window; makes columns 0,1 Posit(5) and columns 2,3 Posit(4)"
+      },
+      {
+        "name": "n_columns",
+        "value": 2,
+        "why": "both inputs export two channels; only the window position differs"
+      },
+      {
+        "name": "activations_fill",
+        "value": 1.0,
+        "why": "constant activation rows; activations are quantized after the target and do not affect the size check"
+      }
+    ],
+    "positive_input": {
+      "selection": "straddle"
+    },
+    "negative_input": {
+      "selection": "inside"
+    },
+    "boundary_variable": "selection",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "exception",
+      "spec": "ValueError raised at src/flexposit/export.py:131",
+      "signal_location": "src/flexposit/export.py:131"
+    },
+    "expected": {
+      "positive": "ValueError at src/flexposit/export.py:132",
+      "negative": "no exception at src/flexposit/export.py:131"
+    }
+  },
+  "execution": {
+    "entry_called": "src/flexposit/api.py::quantize",
+    "entry_reason": "Step 4 reports call_chain_status=not_found: export_tile is a separate export-API function and quantize never calls it. The driver calls the official entry quantize first to build the QuantState that export_tile consumes, then calls export_tile on that state; the target therefore runs just after the entry returns, not inside it.",
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": ["false", "true"],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "ValueError at src/flexposit/export.py:132",
+    "negative_observed": "no exception at src/flexposit/export.py:131"
+  },
+  "evidence": {}
+}

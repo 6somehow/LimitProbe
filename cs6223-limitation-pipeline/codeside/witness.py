@@ -22,6 +22,13 @@ translated gives status `untranslatable` with the text only.
 Aliases (witness-v2): a local name assigned exactly once before the check in the same function
 (`q_len = q.shape[1]`, `b, n, h, d = q.shape`) is tied to its right-hand side with an equality, so
 `q_len` and `q.shape[1]` get the same value and the hint says how to build the name from the inputs.
+
+Call chain (`binder`, codeside/chain_bind.py): when the check sits in a callee, the path prefix holds
+conditions of several functions, each in its own names. With a binder, the condition and every prefix
+entry are also stated in names of the entry function (`not (d in {16, 32})` becomes
+`not (k.shape[3] in {16, 32})`), and names that mean one thing on the whole chain are tied to that term.
+The original text stays in the problem, so the hint still gives values for the names the code uses.
+If that makes the problem unsolvable, the check cannot be reached through this call chain: `infeasible`.
 """
 
 from __future__ import annotations
@@ -322,7 +329,8 @@ def _tie_aliases(aliases: dict[str, str], atoms: dict, t: "_Encoder", c: "_Encod
             pt.append(pair[0])
             pc.append(pair[1])
             used[name] = rhs
-            atoms[name].kind = "local"
+            if atoms[name].kind == "input":
+                atoms[name].kind = "local"
             added = True
         if not added:
             break
@@ -330,13 +338,33 @@ def _tie_aliases(aliases: dict[str, str], atoms: dict, t: "_Encoder", c: "_Encod
 
 
 def solve(cond: Optional[Condition], checker: Optional[ScopeChecker], effect_type: str = "",
-          aliases: Optional[dict[str, str]] = None) -> dict:
+          aliases: Optional[dict[str, str]] = None, binder=None) -> dict:
     """Return a witness-v2 dict for one condition. Never raises on odd input.
 
     The path prefix can hold conditions from several frames of the call chain under the same name
     (`q_len` of the caller and of the callee). Aliases come from the innermost frame only, so they may
     tie a name wrongly; if they turn a solvable problem into an infeasible one, they are dropped.
+
+    With `binder` (a ChainBinder for one call chain) the frames are known, so the opposite holds: a problem
+    that becomes infeasible with the chain's bindings stays infeasible, provided every call on the chain was
+    resolved for certain. Otherwise the bindings are dropped and the hint says so.
     """
+    if binder is not None:
+        hint = _solve(cond, checker, effect_type, None, binder)
+        if hint.get("status") != "infeasible" or not hint.get("entry_terms"):
+            return hint
+        plain = _solve(cond, checker, effect_type, None)
+        if plain.get("status") == "infeasible":
+            return plain
+        if binder.certain:
+            hint["infeasible_because"] = "call_chain"
+            hint["note"] = ("unreachable through this call chain: once callee names are stated in the entry "
+                            "function's names (entry_terms), path prefix and condition cannot hold together")
+            return hint
+        plain["entry_terms_dropped"] = hint["entry_terms"]
+        plain["note"] = ("call-chain bindings dropped: with them the problem has no solution, but a call on the "
+                         "chain was resolved by a guess, so that is no proof")
+        return plain
     hint = _solve(cond, checker, effect_type, aliases)
     if aliases and hint.get("status") == "infeasible" and hint.get("aliases"):
         plain = _solve(cond, checker, effect_type, None)
@@ -348,8 +376,41 @@ def solve(cond: Optional[Condition], checker: Optional[ScopeChecker], effect_typ
     return hint
 
 
+def decision(cond: Condition) -> tuple[Condition, dict]:
+    """The condition that decides the effect, and what was changed to get it (empty if nothing).
+
+    Two shapes from route B have no contrast point although the check has one:
+      * the condition is also the last (innermost) path-prefix entry: it was copied into its own path, so every
+        point that reaches it satisfies it. The copy is dropped. Earlier entries with the same text are kept: they
+        come from other functions of the call chain (e.g. the entry's own guard);
+      * the condition is `True` (an unconditional `raise` inside a branch): the decision is the innermost
+        path-prefix entry, so that entry becomes the condition.
+    """
+    from codeside.dedup import normalise
+    prefix = list(cond.path_prefix)
+    if prefix and normalise(prefix[-1]) == normalise(cond.expr):
+        return cond.model_copy(update={"path_prefix": prefix[:-1]}), {"prefix_dropped": [prefix[-1]],
+                "decision_note": "the last path-prefix entry repeated the condition; dropped"}
+    if prefix and normalise(cond.expr) == "True":
+        return cond.model_copy(update={"expr": prefix[-1], "path_prefix": prefix[:-1]}), {
+            "condition_original": cond.expr,
+            "decision_note": "unconditional statement inside a branch: the innermost path-prefix entry decides it"}
+    return cond, {}
+
+
 def _solve(cond: Optional[Condition], checker: Optional[ScopeChecker], effect_type: str,
-           aliases: Optional[dict[str, str]]) -> dict:
+           aliases: Optional[dict[str, str]], binder=None) -> dict:
+    changed: dict = {}
+    if cond is not None:
+        cond, changed = decision(cond)
+    hint = _solve_one(cond, checker, effect_type, aliases, binder)
+    if changed:
+        hint.update(changed)
+    return hint
+
+
+def _solve_one(cond: Optional[Condition], checker: Optional[ScopeChecker], effect_type: str,
+               aliases: Optional[dict[str, str]], binder=None) -> dict:
     kind = "event_sequence" if effect_type == "state" else "input_value"
     hint: dict[str, Any] = {"format": FORMAT, "kind": kind, "status": "untranslatable",
                             "condition": cond.expr if cond else None,
@@ -396,6 +457,44 @@ def _solve(cond: Optional[Condition], checker: Optional[ScopeChecker], effect_ty
                 live.update(old)
             dropped.append(ast.unparse(p))
     hint["dropped_prefix"] = dropped
+    extra_t, extra_c = [], []  # the condition again, in the entry function's names: trigger holds it, contrast does not
+    if binder is not None:
+        terms: dict[str, Any] = {}
+        todo = [("condition", cond.expr.strip(), binder.last)]
+        todo += [("path_prefix", ast.unparse(p), binder.frame_of(ast.unparse(p))) for p in prefix
+                 if ast.unparse(p) not in dropped]
+        for kind, text, frame in todo:
+            new = binder.rewrite(text, frame)
+            if new is None:
+                continue
+            snapshot = (dict(atoms), dict(t.vars), dict(c.vars))
+            try:
+                node = ast.parse(new, mode="eval")
+                a, b = t.cond(node), c.cond(node)
+            except (Untranslatable, z3.Z3Exception, SyntaxError, RecursionError):
+                for live, old in zip((atoms, t.vars, c.vars), snapshot):
+                    live.clear()
+                    live.update(old)
+                continue
+            if kind == "condition":
+                extra_t.append(a)
+                extra_c.append(z3.Not(b))
+                terms["condition"] = new
+            else:
+                pt.append(a)
+                pc.append(b)
+                terms.setdefault("path_prefix", {})[text] = new
+        names = {k: binder.term(k) for k in list(atoms)}
+        at, ac, used = _tie_aliases({k: v for k, v in names.items() if v}, atoms, t, c)
+        pt += at
+        pc += ac
+        if used:
+            terms["names"] = used
+            hint["aliases"] = dict(used)  # same reading as before: how to build a name; here in entry names
+        if terms:
+            hint["entry_terms"] = terms
+        if binder.ambiguous:
+            hint["ambiguous_names"] = dict(binder.ambiguous)
     if aliases:
         at, ac, used = _tie_aliases(aliases, atoms, t, c)
         pt += at
@@ -424,9 +523,9 @@ def _solve(cond: Optional[Condition], checker: Optional[ScopeChecker], effect_ty
     prefs = _eval_preferences(atoms, by_symbol, checker)
 
     def constraints(with_contrast: bool, contrast_scope: bool) -> list:
-        out = [ct, *pt, *scope_t]
+        out = [ct, *extra_t, *pt, *scope_t]
         if with_contrast:
-            out += [z3.Not(cc), *pc, *(scope_c if contrast_scope else [])]
+            out += [z3.Not(cc), *extra_c, *pc, *(scope_c if contrast_scope else [])]
         return out
 
     def optimise(with_contrast: bool, contrast_scope: bool):

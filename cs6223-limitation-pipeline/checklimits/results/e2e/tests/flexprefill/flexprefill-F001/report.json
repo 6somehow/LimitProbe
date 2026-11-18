@@ -1,0 +1,103 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "flexprefill-F001",
+ "artifact_id": "flexprefill",
+ "status": "tested",
+ "not_run": null,
+ "verdict": "yes",
+ "level": "L1",
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "effect on positive input, none on negative input",
+ "observed": {
+  "positive": "AssertionError at flex_prefill/modules/patch.py:123",
+  "negative": "no exception at flex_prefill/modules/patch.py:123 (later ModuleNotFoundError at flex_prefill/modules/llama/flash_attention.py:28)"
+ },
+ "defeaters": {
+  "D1": "eliminated",
+  "D2": "eliminated",
+  "D3": "residual",
+  "D4": "eliminated",
+  "D5": "residual",
+  "D6": "eliminated",
+  "D7": "eliminated",
+  "D8": "eliminated",
+  "D9": "eliminated",
+  "D10": "eliminated",
+  "D11": "eliminated",
+  "D12": "eliminated",
+  "D13": "residual",
+  "D14": "residual"
+ },
+ "open_doubts": [
+  {
+   "id": "D3",
+   "name": "oracle can see the effect",
+   "status": "residual",
+   "evidence": "only 2 mutants (< n_min=4); killed 2"
+  },
+  {
+   "id": "D5",
+   "name": "control pair differs in one factor, negative adjacent to the boundary",
+   "status": "residual",
+   "evidence": "one factor differs; adjacency not measurable: boundary variable 'isinstance(model, LlamaForCausalLM)' is not an integer (value True)"
+  },
+  {
+   "id": "D13",
+   "name": "inputs inside the paper's scope",
+   "status": "residual",
+   "evidence": "scope_status=unknown"
+  },
+  {
+   "id": "D14",
+   "name": "official entry point was called",
+   "status": "residual",
+   "evidence": "deeper entry (index 1); reason recorded: The step-4 Region chain starts at the artifact entry point flex_prefill_attention, but the hand-off contains no call graph connecting it to patch_llama_attention (patch_llama_attention installs the forward that later calls flex_prefill_attention, not the reverse). The driver therefore calls the target function patch_llama_attention directly."
+  }
+ ],
+ "next_steps": [
+  "D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location",
+  "D5 (residual): change exactly one factor between positive and negative, and make the negative the point next to the boundary",
+  "D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)"
+ ],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "reject",
+  "priority": 1,
+  "summary": "When not isinstance(model, LlamaForCausalLM): Patching a non-LlamaForCausalLM model with a non-default pattern triggers an assertion failure. (flex_prefill/modules/patch.py:123)",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 3), not human: Even among llama-named HF models, only LlamaForCausalLM instances are accepted, so other Llama heads such as LlamaModel or sequence classification fail the assertion; this is a narrower check than m02.",
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "flex_prefill/modules/patch.py:123",
+  "function": "flex_prefill/modules/patch.py::patch_llama_attention",
+  "condition": "not isinstance(model, LlamaForCausalLM)"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "flex_prefill/modules/patch.py",
+    "line_start": 123,
+    "function": "flex_prefill/modules/patch.py::patch_llama_attention",
+    "snippet": "assert isinstance(model, LlamaForCausalLM)"
+   }
+  ]
+ },
+ "files": {
+  "execution_report": "execution_report.json",
+  "testcase": "testcase.json",
+  "attempt": "attempt"
+ },
+ "provenance": {
+  "findings_file": "results/step4/flexprefill/limitations_for_tests.json",
+  "findings_sha256": "0b8539b75ec0e2d602cd64b1a21959708ae3a6d53be00202f8825d92f313c066",
+  "generated_at": "2026-11-17T02:10:48+08:00",
+  "source": "reaudit",
+  "attempt_origin": "results/e2e/tests/flexprefill/flexprefill-F001/attempt",
+  "n_attempts_found": 2,
+  "profile": "default-v1"
+ }
+}

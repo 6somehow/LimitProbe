@@ -1,0 +1,32 @@
+{
+ "assessment": "supports",
+ "reasoning": "The paper explicitly states FLEXPOSIT_BACKEND=qtorch routes both quantizers to qtorch_plus, and the shown code reads that env var at module level. The finding's central claim\u2014backend selection changes the numerical implementation\u2014is therefore supported. The exact line ranges and core.search_channels usage are not shown, but they are consistent with the quoted paper.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "src/flexposit/formats.py",
+   "regex": "_BACKEND\\s*=\\s*os\\.environ\\.get\\(\\s*[\"']FLEXPOSIT_BACKEND[\"']",
+   "expect": "present",
+   "meaning": "Confirms module-level env var read selecting backend."
+  },
+  {
+   "file": "src/flexposit/formats.py",
+   "regex": "qtorch_plus",
+   "expect": "present",
+   "meaning": "Shows qtorch backend implementation is referenced in this file."
+  },
+  {
+   "file": "src/flexposit/formats.py",
+   "regex": "def\\s+(posit_quantize|float_quantize)\\b",
+   "expect": "present",
+   "meaning": "Confirms the two quantizer functions exist here."
+  },
+  {
+   "file": "src/flexposit/formats.py",
+   "regex": "if\\s+_BACKEND\\s*==\\s*[\"']qtorch[\"']",
+   "expect": "present",
+   "meaning": "Shows functions branch to qtorch when env var set."
+  }
+ ],
+ "would_confirm": "Inspect formats.py at the pinned commit to verify posit_quantize and float_quantize branch on _BACKEND and call qtorch_plus."
+}

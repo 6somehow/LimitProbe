@@ -67,7 +67,7 @@
 | 来源 | solved | solved_contrast_outside_scope | trigger_only | always | infeasible | untranslatable | unknown | no_condition | 合计 |
 |---|---|---|---|---|---|---|---|---|---|
 | 代码侧 | 2 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 2 |
-| 论文侧 | 15 | 0 | 2 | 57 | 0 | 0 | 0 | 5 | 79 |
+| 论文侧 | 17 | 0 | 0 | 57 | 0 | 0 | 0 | 5 | 79 |
 | 两侧合并 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
 
 按审阅状态（盲审由 LLM 子代理做，不是人工；只覆盖了部分代码侧条目）：
@@ -112,12 +112,26 @@
 | solved_contrast_outside_scope | contrast 只能取在论文 scope 外 | 同上，注意 contrast 不在论文范围内 |
 | trigger_only | 条件在路径上总是成立，没有对照点 | 只用 trigger |
 | always | 论文侧：每次走到引用代码都会出现 | 任意走到 `code_locations` 的输入 |
-| infeasible | 条件和路径前缀矛盾，从入口很可能走不到 | 已降为 p3；可能是误报 |
+| infeasible | 条件和路径前缀矛盾，从入口走不到。`infeasible_because: call_chain` 表示是把被调函数的名字换成入口函数的名字之后才矛盾的（见下面“调用链”） | 已降为 p3，不用花预算 |
 | no_condition | 论文侧：没有可用条件 | 读 `note` 和 summary，人工判断 |
 | untranslatable / unknown | 条件翻译不了 / 求解超时 | 读 condition 原文 |
 
+调用链（`call_chain_status`）：
+
+| 值 | 意思 |
+|---|---|
+| resolved | `call_chain` 是从入口函数到目标所在函数的真实调用链（入口在前）。`call_sites` 逐层给出调用所在行、解析方式（`resolved_by`）和参数对应 `args`（被调函数的形参 -> 调用者里的表达式） |
+| entry_is_target | 目标就在入口函数里 |
+| module_level | 目标是模块级语句，import 时执行，没有调用链 |
+| not_found | 静态分析找不到从入口到目标的调用链（动态分发、回调，或目标不在入口的路径上）。有 `calls_entry` 时表示这个函数是调用入口的一方（如框架集成），要直接驱动它 |
+
+- `uncertain_steps` 列出靠猜解析的调用（方法名在仓库里唯一、子类覆盖、嵌套函数被传出去）。
+- `other_chains` 是其它调用链（例如同一个函数有两个调用点）。
+- `entry_terms`：条件和路径前缀换成入口函数名字后的写法，以及每个名字对应的入口表达式（如 `d` -> `k.shape[3]`）。有它时 `aliases` 也是用入口函数的名字写的。
+
 已知不足：
-- `path_prefix` 混着调用链上各层函数的条件。同一个名字在调用者和被调用者里可能不是同一个东西（例如两层里的 `q`）。所以别名只在单层时参与求解，其余只列在 `aliases_not_applied` 里。
+- 没有调用链（not_found）时，`path_prefix` 仍混着各层函数的条件，同一个名字在调用者和被调用者里可能不是同一个东西。这时别名只在单层时参与求解，其余只列在 `aliases_not_applied` 里。
+- 多行语句的 `snippet` 是 `ast.unparse` 后的第一行：并成一行、去掉 assert 消息、去掉多余括号，最多 200 字符。请按解析后的条件比较，不要逐字比较。
 - 论文侧条件由 LLM 写出，只核对过“名字都出现在引用的代码里”，**语义不一定对**，要当提示用。
 - 所有值都没有实际执行验证过。
 
@@ -167,6 +181,7 @@
    }
   },
   "note": "local definitions in the checked function, not used by the solver because the path prefix also holds caller conditions",
+  "call_chain_status": "not_found",
   "location": "sparta/transformation/weighted_block_cover.py:123"
  },
  "limitations": [
@@ -357,6 +372,7 @@
    "sparta/artifact_specialization/generate_code.py:58-82"
   ],
   "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+  "call_chain_status": "not_found",
   "location": "sparta/artifact_specialization/generate_code.py:58-82"
  },
  "limitations": [
@@ -473,7 +489,7 @@
 | F011 | 论 | impl_deviates | 2 | other | always |  | `script/figure14/search_finetune_fit_qat.py:301-335` | 论文要求对算子所有张量（输入/权重/输出）逐一评估；代码只对 weight 张量做位宽搜索，input/output 未评估 |
 | F012 | 论 | impl_deviates | 2 | other | no_condition |  | `script/figure14/search_finetune_fit_qat.py:496-538` | 论文要求精度下降小于预定义阈值（1%）才接受；代码用 best_acc<original_acc 即任何下降都拒绝，无 1% 阈值 |
 | F013 | 论 | impl_deviates | 2 | other | always |  | `script/figure14/search_finetune_fit_qat.py:496-538` | 论文要求拓扑序并缓存激活；代码按模块注册顺序遍历且无激活缓存 |
-| F014 | 论 | impl_deviates | 2 | other | trigger_only |  | `script/figure14/search_finetune_fit_qat.py:571-664` | 论文要求同时更新 S 与 Supdated；代码只更新全局位设置，无 Supdated 累积 |
+| F014 | 论 | impl_deviates | 2 | other | solved |  | `script/figure14/search_finetune_fit_qat.py:571-664` | 论文要求同时更新 S 与 Supdated；代码只更新全局位设置，无 Supdated 累积 |
 | F015 | 论 | impl_deviates | 2 | other | always |  | `script/figure14/search_finetune_fit_qat.py:571-664` | 论文以 Tupdated==T 跳过；代码以精度下降 break，语义不同 |
 | F016 | 论 | impl_deviates | 2 | other | always |  | `script/figure16/a100/sparta.cu:118-140` | 论文报告第二 sub-Matmul 的具体残余稀疏度；实验路径无该测量/输出，且底层分派规则与数值趋势不符。 |
 | F017 | 论 | impl_deviates | 2 | other | no_condition |  | `script/figure16/a100/sparta.cu:266-311` | 实验路径的第二部分内核依赖为 Sputnik，而非 SparTA 专用稀疏内核。 |
@@ -526,7 +542,7 @@
 | F064 | 论 | not_implemented | 3 | other | always |  | `script/figure19/run.sh:1-7` | artifact 路径无真实延迟过滤。 |
 | F065 | 论 | not_implemented | 3 | other | always |  | `script/figure19/run.sh:1-7` | artifact 无编译迭代。 |
 | F066 | 论 | not_implemented | 3 | other | always |  | `script/figure19/run.sh:1-7` | artifact 无 FLOPs 过滤基线。 |
-| F067 | 论 | not_implemented | 3 | other | trigger_only |  | `sparta/core/sparta.py:16-24` | 论文要求对每个 (sub)operator 执行量化特化；artifact 链中特化调用被注释、重建为直通，未执行任何循环级特化。 |
+| F067 | 论 | not_implemented | 3 | other | solved |  | `sparta/core/sparta.py:16-24` | 论文要求对每个 (sub)operator 执行量化特化；artifact 链中特化调用被注释、重建为直通，未执行任何循环级特化。 |
 | F068 | 论 | not_implemented | 3 | other | always |  | `sparta/propagation/talgebra.py:4-17` | 论文要求可注册新算子规则；代码无注册机制，新增算子需改源码 |
 | F069 | 论 | not_implemented | 3 | other | always |  | `sparta/specialization/specialize_kernel.py:18-42` | 无 TransformOp 级 S 初始化 |
 | F070 | 论 | not_implemented | 3 | other | always |  | `sparta/specialization/specialize_kernel.py:18-42` | 论文要求组合为图 G；代码无图构造步骤 |

@@ -1,0 +1,148 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "sparta-F017",
+ "artifact_id": "sparta",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "实验路径的第二部分内核依赖为 Sputnik，而非 SparTA 专用稀疏内核。",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "no_condition",
+  "location": "script/figure16/a100/sparta.cu:266-311",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "tains the elements not included in the ﬁrst one. The ﬁrst one uses Sparse Tensor Cores, while the other uses our specialized sparse kernel. To evaluate the transformation, we randomly",
+    "source": "paper",
+    "locator": "PDF p.13, text lines 83-85"
+   }
+  ],
+  "code": [
+   {
+    "file": "script/figure16/a100/sparta.cu",
+    "line_start": 266,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "script/figure16/a100/run.sh",
+    "line_start": 4,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "image/Dockerfile.a100",
+    "line_start": 21,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/sparta/limitations_for_tests.json",
+  "findings_sha256": "af8cad7c4e91af73f84a27b96179739526bde952a669319c71cc4e157ac4b49f",
+  "generated_at": "2026-11-18T12:35:53+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The paper says the second tensor uses a specialized sparse kernel. The code instead calls CudaSpmm in the second path, and run.sh links -lspmm from the Sputnik build while including Sputnik headers. The Dockerfile also installs Sputnik. This supports that the second kernel dependency is Sputnik, not a SparTA-specific sparse kernel.",
+  "hardware_needed": false,
+  "would_confirm": "Inspect the linked CudaSpmm implementation or build link map to verify it resolves to Sputnik's libspmm rather than a SparTA kernel.",
+  "static": {
+   "cited": 3,
+   "grounded": true,
+   "items": [
+    {
+     "file": "script/figure16/a100/sparta.cu",
+     "lines": "266-311",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "cuda"
+    },
+    {
+     "file": "script/figure16/a100/run.sh",
+     "lines": "4-20",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "shell"
+    },
+    {
+     "file": "image/Dockerfile.a100",
+     "lines": "21-29",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "other"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "script/figure16/a100/run.sh",
+    "regex": "-lspmm",
+    "expect": "present",
+    "meaning": "Links the Sputnik spmm library into the experiment binary.",
+    "status": "confirmed",
+    "hits": 2,
+    "hit_lines": [
+     6,
+     7
+    ]
+   },
+   {
+    "file": "script/figure16/a100/sparta.cu",
+    "regex": "CudaSpmm\\(",
+    "expect": "present",
+    "meaning": "Second-path kernel call is CudaSpmm, not a SparTA kernel.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     308
+    ]
+   },
+   {
+    "file": "image/Dockerfile.a100",
+    "regex": "git clone[^\\n]*sputnik",
+    "expect": "present",
+    "meaning": "Environment installs Sputnik as a dependency.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     26
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

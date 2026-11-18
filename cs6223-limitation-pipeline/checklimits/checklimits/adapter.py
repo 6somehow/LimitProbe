@@ -151,6 +151,13 @@ def load_task_step4(finding_id: str, findings_file: Path, artifact_file: Path) -
             notes.append(f"limitation {lim.limitation_id} ({lim.origin}) has no code location: no Region")
         elif r.region_id not in {x.region_id for x in regions}:
             regions.append(r)
+    # step 4 gives the real call chain of the main limitation in the witness hint (entry first, target function
+    # last, every step a call site found in the source). Use it when it ends at this Region's function.
+    chain = (finding.witness_hint or {}).get("call_chain") or []
+    for i, r in enumerate(regions):
+        if chain and r.location.function == chain[-1] and "::" in chain[0]:
+            regions[i] = r.model_copy(update={"call_chain": list(chain), "entry_point": chain[0],
+                                              "notes": "call chain from step 4 (witness_hint.call_chain)"})
     w = parse_witness(finding.witness_hint)
     wtype, inputs = witness_to_inputs(finding.witness_hint)
     if w.status not in ("solved", "solved_contrast_outside_scope", "always", "trigger_only", "given"):

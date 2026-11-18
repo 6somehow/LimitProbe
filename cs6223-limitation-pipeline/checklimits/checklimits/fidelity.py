@@ -230,6 +230,20 @@ def entry_index(chain: list[str], first_started: Optional[str]) -> Optional[int]
         return None
 
 
+def entry_on_stack(chain: list[str], target_function: Optional[str], pos: Observation) -> Optional[bool]:
+    """Was call_chain[0] running when the target line executed in the checked call? True/False, or None when it cannot be
+    told (no hit, a module-level target, or no stack recorded). `entry_index` only says which function started first; a
+    driver that calls the entry once and then calls the target function directly would pass that test."""
+    from .tracer import norm_qual
+    if not chain or not pos.target_hits or (target_function or "").endswith("<module>"):
+        return None
+    last = pos.target_hits[-1]
+    if not last.stack:
+        return None
+    entry = norm_qual(chain[0].partition("::")[2] or chain[0])
+    return entry in last.stack
+
+
 def _module_dotted(file_rel: str) -> str:
     return file_rel[:-3].replace("/", ".") if file_rel.endswith(".py") else file_rel
 

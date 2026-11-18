@@ -1,0 +1,103 @@
+{
+  "test_id": "A-minference-F014",
+  "finding_id": "minference-F014",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "batch",
+        "value": 1,
+        "why": "batch size is irrelevant to a per-shape head-dimension assertion"
+      },
+      {
+        "name": "heads",
+        "value": 1,
+        "why": "number of heads is irrelevant to a per-shape head-dimension assertion"
+      },
+      {
+        "name": "q_len",
+        "value": 2,
+        "why": "keep the query sequence short so only the final append path runs"
+      },
+      {
+        "name": "k_len",
+        "value": 2,
+        "why": "k_len <= n_local makes the first append end=True, so append reaches _forward once"
+      },
+      {
+        "name": "n_init",
+        "value": 2,
+        "why": "initial token count; must not exceed k_len in streaming_forward"
+      },
+      {
+        "name": "n_local",
+        "value": 4,
+        "why": "local window at least k_len so streaming_forward takes the single-append branch"
+      },
+      {
+        "name": "dtype",
+        "value": "float32",
+        "why": "the assertion depends only on the shape, not the element type; float32 runs on CPU"
+      },
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "fixed RNG seed for reproducible tensor contents"
+      }
+    ],
+    "positive_input": {
+      "Lk": 256
+    },
+    "negative_input": {
+      "Lk": 128
+    },
+    "boundary_variable": "Lk",
+    "scale": null,
+    "condition_predicate_file": null,
+    "extra_negatives": [
+      {
+        "Lk": 16
+      },
+      {
+        "Lk": 32
+      },
+      {
+        "Lk": 64
+      }
+    ],
+    "oracle": {
+      "tier": "O4",
+      "type": "exception",
+      "spec": "AssertionError raised at minference/ops/streaming_kernel.py:414",
+      "signal_location": "minference/ops/streaming_kernel.py:414"
+    },
+    "expected": {
+      "positive": "AssertionError at minference/ops/streaming_kernel.py:414",
+      "negative": "no exception at minference/ops/streaming_kernel.py:414"
+    }
+  },
+  "execution": {
+    "entry_called": "minference/ops/streaming_kernel.py::streaming_forward",
+    "entry_reason": "The hand-off entry gather_last_q_vertical_slash_topk_v4 imports minference/modules/minference_forward.py, which requires flash_attn, pycuda and the precompiled minference.cuda extension at module load and builds a torch.arange(..., device='cuda') tensor; all of those import-time dependencies are before the target and on this CPU-only host can only be supplied with stand-ins, which would make D6 simulated. streaming_forward is call_chain[1], the first chain function that constructs the target inputs in real repository code and calls TritonMultiStageDotProductionAttention.append, which then calls _forward. Values 16/32/64/128/256 are all in streaming_forward's no-padding list, so no pre-target transformation changes Lk. The witness trigger Lk=17 is padded to 32 before _forward and therefore does not reach the assertion; the positive Lk=256 is the nearest directly-rejecting head size and Lk=128 is the largest accepted one.",
+    "call_chain_index": 1,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "false",
+      "true"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "AssertionError at minference/ops/streaming_kernel.py:414",
+    "negative_observed": "no exception at minference/ops/streaming_kernel.py:414"
+  },
+  "evidence": {}
+}

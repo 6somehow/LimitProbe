@@ -40,6 +40,7 @@ HOP_BY_HOP = {
 DROP_REQUEST = HOP_BY_HOP | {"host", "authorization", "content-length", "accept-encoding"}
 DROP_RESPONSE = HOP_BY_HOP | {"content-length", "content-encoding"}
 MAX_BODY = 32 * 1024 * 1024
+UPSTREAM_RETRIES = 2
 UPSTREAM_TIMEOUT = 300
 _SAFE_MODEL = re.compile(r"^[A-Za-z0-9._:/-]{1,100}$")
 
@@ -172,13 +173,30 @@ def make_handler(cfg: RelayConfig):
                 headers["Accept-Encoding"] = "identity"
                 if body:
                     headers["Content-Length"] = str(len(body))
-                src = cfg.source_ip or iface_ipv4(cfg.iface)
-                conn = (_BoundHTTPS if cfg.scheme == "https" else _BoundHTTP)(
-                    cfg.host, cfg.port, timeout=UPSTREAM_TIMEOUT)
-                conn.iface, conn.src = cfg.iface, src
+                src = (cfg.source_ip or iface_ipv4(cfg.iface)) if cfg.iface else ""
+                conn = resp = None
+                # Nothing has been sent to the client before the upstream status line arrives, so a connection
+                # failure or a 502/503/504 at that point is retried (an upstream hiccup must not abort a long run).
+                for attempt in range(UPSTREAM_RETRIES + 1):
+                    if cfg.iface:
+                        conn = (_BoundHTTPS if cfg.scheme == "https" else _BoundHTTP)(
+                            cfg.host, cfg.port, timeout=UPSTREAM_TIMEOUT)
+                        conn.iface, conn.src = cfg.iface, src
+                    else:   # no interface configured: ordinary routing
+                        conn = (http.client.HTTPSConnection if cfg.scheme == "https" else http.client.HTTPConnection)(
+                            cfg.host, cfg.port, timeout=UPSTREAM_TIMEOUT)
+                    try:
+                        conn.request(self.command, up_path, body=body or None, headers=headers)
+                        resp = conn.getresponse()
+                        if resp.status in (502, 503, 504) and attempt < UPSTREAM_RETRIES:
+                            resp.read(); conn.close(); time.sleep(2 * (attempt + 1)); continue
+                        break
+                    except Exception:
+                        conn.close()
+                        if attempt == UPSTREAM_RETRIES:
+                            raise
+                        time.sleep(2 * (attempt + 1))
                 try:
-                    conn.request(self.command, up_path, body=body or None, headers=headers)
-                    resp = conn.getresponse()
                     status = resp.status
                     self.send_response(resp.status)
                     for k, v in resp.getheaders():
@@ -224,7 +242,8 @@ def serve(cfg: RelayConfig, host: str = "127.0.0.1", port: int = 8787) -> Thread
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--port", type=int, default=8787)
-    ap.add_argument("--iface", default="eth0")
+    ap.add_argument("--iface", default=os.environ.get("SOCLAAS_IFACE", "eth0"),
+                    help="outbound interface (env SOCLAAS_IFACE, default eth0); empty = ordinary routing")
     ap.add_argument("--log", default=None, help="log file (default: stderr)")
     a = ap.parse_args(argv)
     base, key = os.environ.get("SOCLAAS_BASE_URL"), os.environ.get("SOCLAAS_API_KEY")
@@ -233,7 +252,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     cfg = RelayConfig(base, key, iface=a.iface, log_path=a.log)
     srv = serve(cfg, "127.0.0.1", a.port)
-    print(f"relay listening on 127.0.0.1:{a.port} (outbound via {a.iface})", file=sys.stderr)
+    print(f"relay listening on 127.0.0.1:{a.port} (outbound via {a.iface or 'default route'})", file=sys.stderr)
     try:
         srv.serve_forever()
     except KeyboardInterrupt:

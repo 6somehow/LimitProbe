@@ -1,0 +1,133 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "infinigen-F021",
+ "artifact_id": "infinigen",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "论文要求A=V；代码A为V列按σq·σk排序重排，A≠V（artifact 范围：A为排序重排后的V，非论文所述A=V）",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "speedup/flexgen/infinigen/flex_opt.py:513-524",
+  "function": null,
+  "condition": "warmup"
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "We then set A to orthogonal matrix V",
+    "source": "paper",
+    "locator": "PDF p.9"
+   }
+  ],
+  "code": [
+   {
+    "file": "speedup/flexgen/infinigen/flex_opt.py",
+    "line_start": 513,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "speedup/infinigen/infinigen/skewing_controller.py",
+    "line_start": 48,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/infinigen/limitations_for_tests.json",
+  "findings_sha256": "51f6ee77be8f16b8743e78f2c11ea0c6b263e1a3c56aed29de35c9cfebb6dcf0",
+  "generated_at": "2026-11-18T14:11:18+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The code computes SVDs of query and key, multiplies singular values, sorts that product, and scatters vq columns into A. Thus A is a column permutation of V, not V itself. The paper quote says A is set to V, so the evidence supports the claimed implementation deviation.",
+  "hardware_needed": false,
+  "would_confirm": "Run skew() on a simple non-diagonal V and check whether A equals V or a column-permuted V.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "speedup/flexgen/infinigen/flex_opt.py",
+     "lines": "513-524",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "speedup/infinigen/infinigen/skewing_controller.py",
+     "lines": "48-84",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "speedup/infinigen/infinigen/skewing_controller.py",
+    "regex": "_, sq, vq = torch\\.svd\\(query",
+    "expect": "present",
+    "meaning": "Shows V (vq) comes from query SVD.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     73
+    ]
+   },
+   {
+    "file": "speedup/infinigen/infinigen/skewing_controller.py",
+    "regex": "A = A\\.scatter\\(-1, ind",
+    "expect": "present",
+    "meaning": "Shows A is built by scattering V columns by sorted indices.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     81
+    ]
+   },
+   {
+    "file": "speedup/infinigen/infinigen/skewing_controller.py",
+    "regex": "sq = sq \\* sk",
+    "expect": "present",
+    "meaning": "Shows sorting key is product of query/key singular values.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     78
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

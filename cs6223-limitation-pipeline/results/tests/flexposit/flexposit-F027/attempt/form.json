@@ -1,0 +1,78 @@
+{
+  "test_id": "A-flexposit-F027",
+  "finding_id": "flexposit-F027",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "upgrade_nsize",
+        "value": 5,
+        "why": "default FlexPosit upgrade width; the target guard reads only bits and base_nsize"
+      },
+      {
+        "name": "es",
+        "value": 0,
+        "why": "lowest legal exponent size for the tiny base_nsize; the target guard does not read es"
+      },
+      {
+        "name": "model_width",
+        "value": 4,
+        "why": "one 4x4 Linear layer is enough for quantizable_layers to yield a layer; the guard does not depend on the width"
+      },
+      {
+        "name": "sensitivity",
+        "value": "[['proj', 0, 4, -1.0]]",
+        "why": "one sensitivity row for the single layer so the positive run completes the planning path below the target"
+      },
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "fixed seed and an explicitly written weight tensor keep the CPU run deterministic"
+      }
+    ],
+    "positive_input": {
+      "quantize": true,
+      "bits": 3,
+      "base_nsize": 2
+    },
+    "negative_input": {
+      "quantize": true,
+      "bits": 2,
+      "base_nsize": 2
+    },
+    "boundary_variable": "bits",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at src/flexposit/api.py:181",
+      "signal_location": "src/flexposit/api.py:181"
+    },
+    "expected": {
+      "positive": "branch taken at src/flexposit/api.py:181",
+      "negative": "branch not taken at src/flexposit/api.py:181"
+    }
+  },
+  "execution": {
+    "entry_called": "src/flexposit/api.py::quantize",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": ["true", "false"],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at src/flexposit/api.py:181",
+    "negative_observed": "branch not taken at src/flexposit/api.py:181"
+  },
+  "evidence": {}
+}
