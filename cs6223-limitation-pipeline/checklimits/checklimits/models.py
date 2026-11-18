@@ -113,6 +113,8 @@ class MockDecl(_R):
     value: Optional[str] = Field(None, description="env_var only")
     impl: Optional[str] = None
     sim_class: SimClass = "stub"
+    sim_check: Optional[str] = Field(None, description="'file::function' in the attempt dir: check(sim_fn) -> {'ok', 'detail', "
+                                     "'kind'}; the harness runs it and corrupted copies of the stand-in (simcheck.py)")
 
 
 class HookDecl(_R):
@@ -242,6 +244,7 @@ class MockRecord(_R):
     accesses_before_target: int
     accesses_total: int
     reason: str
+    sim_check: Optional[dict[str, Any]] = None
 
 
 class AstDiff(_R):

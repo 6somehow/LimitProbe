@@ -3,6 +3,14 @@
 给接手的 code agent。先读本文，再读 `CONFIDENCE_SPEC.md`（规则）、`CONTRACT_TEST_REPORT.md`（接口）、`EXPERIMENTS.md`（最近的实验）。
 这个目录是 `cs6223-limitation-pipeline/checklimits/`（下称 C），仓库根是 `/home/somehow6/lesson/CS6223`，分支 `somehow6/check_limits`。
 
+## 0b. 分析通道、纯论文、加速器替身（2026-11-18）
+
+* **分析通道** `checklimits/analysis.py`：没测的 Finding 加 `analysis`（A0–A2，不是 verdict）。`pipeline analyze <id>`，`e2e` 默认带。QoServe 41 条：A2 32、A1 3、A0 6；FlexPosit 29 条：A2 19、A1 3、A0 7。**A2 只说"找到的文本和读法一致"**，没有人工核对。踩过的坑：推理模型会把 `max_tokens` 全用在思考上，答案为空（现在 6000，纯论文 40000，空答案重试一次）；"absent" 探针太容易满足，所以要求 `control`。
+* **纯论文** `checklimits/paper_only.py`：Tessera 10 条候选（丢弃 2 条，引用不在 PDF 里），全部 A1。不走步骤 4 的 schema，`category = paper_only:<kind>`。
+* **加速器替身** `checklimits/simcheck.py`：`MockDecl.sim_check`，harness 跑 agent 写的检查，再对破坏后的替身跑（vacuous 检测）。`disagrees` → D6 refuted。已在 FlexPrefill F07 的真实包上验证；**还没有让 agent 在一条新的 GPU Finding 上自己写 sim_check 跑完**。
+* 规则见 `CONFIDENCE_SPEC.md` §22、§23；契约只加了可选字段 `analysis`。
+* 没做：符号执行引擎（只允许 agent 在 `sim_check` 里用 sympy/z3 自己写）；Tessera 没有代码所以没有测试，也没有算术检查被模型提出（待看）。
+
 ## 0a. 一个入口，运行前检查（2026-11-18）
 
 ```bash

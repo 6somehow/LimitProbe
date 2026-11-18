@@ -27,7 +27,7 @@ Do not edit anything under `checklimits/` except your own attempt directory.
   values built from `inputs`. Import the code under test at module level. Set seeds. CPU only. No asserts of
   your own, and never catch the exception you are looking for.
 * `form.json`: your declarations (below). `manifest.json` is pre-filled.
-* optional `sim.py`: CPU implementations for GPU-only calls that run AFTER the target statement.
+* optional `sim.py` and `check.py`: CPU stand-ins for GPU-only calls, and the checks that show a stand-in computes what the kernel computes (item 7).
 * optional `condition.py`: `def predicate(locals) -> bool`, only if the Region condition cannot be evaluated.
 
 ## What counts as "the effect" depends on the Region's outcome
@@ -77,11 +77,20 @@ the defeaters you let the harness eliminate. Your design decides this:
 6. **No stand-ins before the target (D6).** The verdict rests on what happened up to the target line. Anything
    you replace that is touched BEFORE the target makes the evidence "simulated" and caps the level. Put every
    mock behind the target, and keep the target's own function and its callers real.
-7. **Stand-ins after the target, declared (D6, T5).** If the negative run would otherwise crash below the
-   target for lack of a GPU, declare mocks with `kind: patch`, `behavior: sim`, `impl: "sim.py::func"` and say
-   what the stand-in is: `sim_class: repo_reference` (it calls a reference implementation that ships in the
-   repository, best), `independent_native` (plain torch you wrote), or `stub` (canned value, worst). Prefer
-   running the repository's real code and replacing only the GPU kernel launchers. Never edit the repository.
+7. **Stand-ins for GPU or accelerator code (D6, T5).** Missing hardware is not a reason to give up on a Finding.
+   Replace the kernel launcher, the CUDA extension or the hardware block with a CPU stand-in in `sim.py`
+   (`kind: patch`, `behavior: sim`, `impl: "sim.py::func"`) and say what it is: `sim_class: repo_reference` (it calls a
+   reference implementation that ships in the repository, best), `independent_native` (plain torch or numpy you
+   wrote), or `stub` (canned value, worst). Prefer running the repository's real code and replacing only the GPU
+   part. Never edit the repository. A stand-in touched before the target makes the evidence "simulated" (the level
+   stays capped, see item 6); a stand-in after the target only keeps the negative run from crashing.
+   **Say how the stand-in is checked** with `sim_check: "check.py::fn"`. `fn(sim)` receives your stand-in and returns
+   `{"ok": bool, "detail": str, "kind": "numeric" | "symbolic"}`. Good checks: compare with a CPU reference on small
+   random inputs (`numeric`); test invariants the kernel must keep (softmax rows sum to 1, a mask is respected,
+   output shape); prove the formula with sympy or z3 on symbols (`symbolic`). Keep the scale small and the seed fixed.
+   The harness runs your check, then runs it again on corrupted copies of your stand-in (scaled, negated, zeroed). A
+   check that still passes on a corrupted stand-in is reported `vacuous`; a check that fails on yours is `disagrees`,
+   and that refutes D6. Do not write a check that cannot fail.
 8. **Small scale is allowed, silently wrong is not (D10, T3).** If you shrink a size to keep it fast, declare it
    in `design.scale` with the factor and an invariance argument (why the target decision cannot depend on the
    size). The harness re-runs both inputs at the full witness size up to the target and compares.
