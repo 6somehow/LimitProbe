@@ -494,6 +494,8 @@ def main(argv: Optional[list] = None) -> None:
     e.add_argument("--fast", action="store_true")
     e.add_argument("--strict", action="store_true")
     e.add_argument("--skip-envcheck", action="store_true")
+    e.add_argument("--no-run", action="store_true",
+                   help="skip steps 1 to 4 and test the existing step 4 output (step 4 would otherwise run again)")
     e.add_argument("--no-analyze", action="store_true", help="do not analyse the Findings that were not tested")
     e.add_argument("--python", default=None)
     sub.add_parser("setup-paperside", help="pip install paperside[team,vision] and npm ci for the Pi agent")

@@ -277,7 +277,10 @@ def e2e(a) -> None:
             sys.exit("stopped: the model service did not answer through the relay (nothing was run)")
         point_children_at_relay()
         a.model = a.model or e.get("PIPELINE_MODEL") or "x-test-2"
-        P.run(a.artifact_id, a)
+        if getattr(a, "no_run", False):
+            print("[skip] steps 1 to 4 (--no-run): using the existing step 4 output")
+        else:
+            P.run(a.artifact_id, a)
         a.provision = True
         a.analyze = not getattr(a, "no_analyze", False)
         out = P.test(a.artifact_id, a)

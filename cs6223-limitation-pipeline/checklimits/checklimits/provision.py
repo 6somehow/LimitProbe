@@ -152,6 +152,22 @@ def install_pins(vpy: Path, pins: list[str], pf: Path, log: Path, timeout: int) 
     return False, skipped
 
 
+def setup_py_requires(repo: Path) -> list[str]:
+    """String requirements a setup.py lists in a literal INSTALL_REQUIRES / install_requires list (read, never executed)."""
+    f = repo / "setup.py"
+    if not f.is_file():
+        return []
+    m = re.search(r"(?:INSTALL_REQUIRES|install_requires)\s*=\s*(\[[^\]]*\])", f.read_text(errors="replace"), re.S)
+    if not m:
+        return []
+    try:
+        import ast
+        v = ast.literal_eval(m.group(1))
+    except (ValueError, SyntaxError):
+        return []
+    return [x for x in v if isinstance(x, str)]
+
+
 def provision(name: str, repo: Path, commit: Optional[str] = None, python: str = DEFAULT_PYTHON,
               extras: Optional[list[str]] = None, install: bool = True, run_tests: bool = True,
               package_root: str = "src", pip_timeout: int = 1800, test_timeout: int = 900,
@@ -206,14 +222,40 @@ def provision(name: str, repo: Path, commit: Optional[str] = None, python: str =
                 rec.setdefault("warnings", []).append(
                     "requirements that could not be installed on this machine and were skipped: " + ", ".join(skipped))
         target = ".[" + ",".join(extras) + "]" if extras else "."
-        rc, out = _run([str(vpy), "-m", "pip", "install", "-q", "-e", target], log, pip_timeout, cwd=repo)
-        rec["installed"] = rc == 0
+        if not any((repo / f).is_file() for f in ("setup.py", "pyproject.toml")):
+            # a research repository that is not a Python package (InfiniGen): nothing to install, run it from its directory
+            rec["steps"].append({"step": "pip install -e", "ok": True,
+                                 "note": "the repository has no setup.py or pyproject.toml; the checkout is used in place"})
+            rec["installed"] = False
+            rc, out = 0, ""
+        else:
+            rc, out = _run([str(vpy), "-m", "pip", "install", "-q", "-e", target], log, pip_timeout, cwd=repo)
+            rec["installed"] = rc == 0
+            if rc != 0 and "No module named 'torch'" in out and not ts:
+                # setup.py imports torch while building (MInference): install the CPU wheel, build without isolation
+                rc2, out2 = _run([str(vpy), "-m", "pip", "install", "-q", "torch", "numpy<2", "--index-url", CPU_INDEX,
+                                  "--extra-index-url", "https://pypi.org/simple"], log, pip_timeout)
+                rec["torch_spec"] = "torch"
+                if rc2 == 0:
+                    rc, out = _run([str(vpy), "-m", "pip", "install", "-q", "--no-build-isolation", "-e", target], log,
+                                   pip_timeout, cwd=repo)
+                    rec["installed"] = rc == 0
         if rc != 0 and rec.get("skipped_requirements"):
             # the build needs what could not be installed (a CUDA extension, for example): the checkout is used from
             # its own directory instead; envcheck and the harness decide whether the modules under test import
             rec["steps"].append({"step": f"pip install -e {target}", "ok": True,
                                  "note": "not installed (" + out[-120:].strip().replace("\n", " ") + "); the checkout is used in place"})
             rec.setdefault("warnings", []).append("the package itself was not installed; the checkout is used from its directory")
+        elif rc != 0 and (repo / "setup.py").is_file():
+            # the package cannot be built here (MInference: setup.py needs CUDA_HOME). Install what its setup.py
+            # declares, one by one, and use the checkout in place.
+            reqs = [r for r in setup_py_requires(repo) if not re.match(r"^torch\b", r)]
+            ok, skipped = install_pins(vpy, reqs, out_dir / "setup_requires.txt", log, pip_timeout) if reqs else (True, [])
+            rec["skipped_requirements"] = (rec.get("skipped_requirements") or []) + skipped
+            rec["steps"].append({"step": f"pip install -e {target}", "ok": True,
+                                 "note": "the package cannot be built on this machine; its setup.py requirements were installed"
+                                         + (f" (skipped: {', '.join(skipped)})" if skipped else "") + "; the checkout is used in place"})
+            rec.setdefault("warnings", []).append("the package itself was not built; the checkout is used from its directory")
         elif not step(f"pip install -e {target}", rc, out[-300:]):
             return _finish(rec, out_dir)
         # an editable install writes egg-info or build files into the repository; report if it did

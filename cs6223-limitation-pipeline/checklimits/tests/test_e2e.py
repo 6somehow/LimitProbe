@@ -221,13 +221,13 @@ def test_input_with_wrong_schema_version_is_refused(toy):
 # ---- real step 4 data (tracked in the repository) --------------------------------------------------------------
 @pytest.mark.skipif(not (PIPELINE_ROOT / "results/step4/sparta/limitations_for_tests.json").exists(),
                     reason="step 4 hand-off missing")
-def test_artifact_without_a_checkout_still_reports_every_finding(tmp_path, capsys):
+def test_artifact_without_agent_run_still_reports_every_finding(tmp_path, capsys):
     rc = cli.main(["test", "sparta", "--results-root", str(tmp_path)])
     out = json.loads(capsys.readouterr().out)
     n = len(json.loads((PIPELINE_ROOT / "results/step4/sparta/limitations_for_tests.json").read_text())["findings"])
     assert rc == 0 and out["n_input"] == n == out["counts"]["not_run"] and out["one_to_one"]
     assert set(out["counts"]["not_run_by_code"]) <= {"no_code_location", "env_unavailable", "outcome_unsupported",
-                                                     "witness_unusable"}
+                                                     "witness_unusable", "not_attempted"}   # not_attempted: checked out, no --run-agent
     assert cli.main(["test", "sparta", "--results-root", str(tmp_path), "--strict"]) in (0, e2e.EXIT_STRICT)
 
 
@@ -297,3 +297,8 @@ def test_provision_failure_is_recorded_not_raised(toy, monkeypatch):
     out = _run(toy, python="/nonexistent/python", provision=True)
     env = json.loads((toy["results"] / "tests" / "toy" / "ENV.json").read_text())
     assert env["provisioned"]["status"] == "error" and "pip exploded" in env["provisioned"]["reasons"][0] and out["one_to_one"]
+
+
+def test_describe_other_survives_a_comment_only_snippet():
+    from checklimits.agent_batch import describe_other
+    assert describe_other("", "# just a comment") .startswith("the target statement")
