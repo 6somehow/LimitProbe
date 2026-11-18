@@ -1,0 +1,125 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "minference-F007",
+ "artifact_id": "minference",
+ "status": "not_run",
+ "not_run": {
+  "code": "outcome_unsupported",
+  "reason": "effect type 'other': the branch has no raise in its body: the program rejects later, in code the target does not point to"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "When self.is_search and os.path.exists(self.config_path) and self.layer_idx < len(config_list): With `is_search` enabled, if the output `config_path` already contains an entry for this layer, the forward pass hits a bare `assert False` and aborts — the search cannot be re-run into an existing file. Also, when `is_search` is true the sparse mechanism is never applied (`not self.is_search` in the...",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 1), not human: In search mode the code hits assert False when the config file already has an entry for the layer (true by default, since config_path comes from the shipped MODEL2PATH file), and search mode runs dense attention.",
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "minference/modules/minference_forward.py:504",
+  "function": "minference/modules/minference_forward.py::minference_forward.forward",
+  "condition": "self.is_search and os.path.exists(self.config_path) and self.layer_idx < len(config_list)"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "minference/modules/minference_forward.py",
+    "line_start": 504,
+    "function": "minference/modules/minference_forward.py::minference_forward.forward",
+    "snippet": "if self.is_search:"
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/minference/limitations_for_tests.json",
+  "findings_sha256": "6f02cbec16ce4487c1b9166c2dc5f1f16704f168b135426edfe2df59ed9333bc",
+  "generated_at": "2026-11-18T17:26:42+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A1",
+  "tier_note": "the reading is unclear; probes alone do not decide it",
+  "calibrated": false,
+  "assessment": "unclear",
+  "reasoning": "Only line 504 is shown, confirming an `if self.is_search:` branch exists. It does not show the alleged bare `assert False`, the `os.path.exists(self.config_path)` and `layer_idx < len(config_list)` conditions, or the `not self.is_search` sparse gating. The full Finding therefore cannot be verified from the displayed evidence alone.",
+  "hardware_needed": false,
+  "would_confirm": "Inspect the surrounding code and run search twice into an existing config file to see whether it aborts and whether sparse logic is skipped.",
+  "static": {
+   "cited": 1,
+   "grounded": true,
+   "items": [
+    {
+     "file": "minference/modules/minference_forward.py",
+     "lines": "504-504",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": true,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "assert False",
+    "expect": "present",
+    "meaning": "Hit shows bare assert exists; miss with control shows absent",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     508
+    ]
+   },
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "os\\.path\\.exists\\(self\\.config_path\\)",
+    "expect": "present",
+    "meaning": "Hit shows config_path existence check in file",
+    "status": "confirmed",
+    "hits": 2,
+    "hit_lines": [
+     65,
+     505
+    ]
+   },
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "not self\\.is_search",
+    "expect": "present",
+    "meaning": "Hit shows sparse path gated off during search",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     521
+    ]
+   },
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "self\\.layer_idx < len\\(config_list\\)",
+    "expect": "present",
+    "meaning": "Hit shows layer-bound condition in file",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     507
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

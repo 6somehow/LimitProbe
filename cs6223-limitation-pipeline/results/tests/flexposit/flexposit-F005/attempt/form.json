@@ -1,0 +1,54 @@
+{
+  "test_id": "A-flexposit-F005",
+  "finding_id": "flexposit-F005",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {"name": "es", "value": 0, "why": "FlexPositConfig requires 0 <= es < base_nsize; es=0 is the only value valid for both base_nsize=1 (trigger) and base_nsize=2 (contrast), so es is held fixed and only nsize varies."},
+      {"name": "bits", "value": "float(nsize)", "why": "FlexPositConfig requires base_nsize <= bits <= upgrade_nsize; deriving bits from nsize keeps the config valid without introducing a second free factor (the upgrade/sensitivity path is avoided)."},
+      {"name": "upgrade_nsize", "value": "nsize", "why": "Equal to base_nsize so bits == base_nsize: quantize never enters the sensitivity-planning branch and every channel stays at the tested nsize."},
+      {"name": "model", "value": "nn.Sequential(nn.Linear(8, 4, bias=False)) with linspace weights", "why": "Tiny CPU-only model with one 2-D Linear weight; the target guard depends only on nsize, not on weight values or shapes."},
+      {"name": "progress", "value": false, "why": "Disables the tqdm progress bar (no terminal/IO dependency); unrelated to the guard."}
+    ],
+    "positive_input": {
+      "nsize": 1
+    },
+    "negative_input": {
+      "nsize": 2
+    },
+    "boundary_variable": "nsize",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "exception",
+      "spec": "ValueError raised at src/flexposit/formats.py:39",
+      "signal_location": "src/flexposit/formats.py:39"
+    },
+    "expected": {
+      "positive": "ValueError at src/flexposit/formats.py:39",
+      "negative": "no exception at src/flexposit/formats.py:39"
+    }
+  },
+  "execution": {
+    "entry_called": "src/flexposit/api.py::quantize",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": ["true", "false"],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "ValueError at src/flexposit/formats.py:40",
+    "negative_observed": "no exception at src/flexposit/formats.py:39"
+  },
+  "evidence": {}
+}

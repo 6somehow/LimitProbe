@@ -1,0 +1,72 @@
+{
+  "test_id": "A-minference-F058",
+  "finding_id": "minference-F058",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "hidden_size",
+        "value": 8,
+        "why": "tiny but valid attention width; the target branch does not depend on it"
+      },
+      {
+        "name": "q_len",
+        "value": 2,
+        "why": "shortest sequence that still exercises the post-target attention path on CPU"
+      },
+      {
+        "name": "num_heads",
+        "value": 1,
+        "why": "one query head is enough for the target branch and keeps the CPU run small"
+      },
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "fix the linear-layer initialisation; the target decision does not depend on weights"
+      }
+    ],
+    "positive_input": {},
+    "negative_input": {},
+    "boundary_variable": "prelude",
+    "positive_prelude": [],
+    "negative_prelude": [
+      {}
+    ],
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at minference/modules/minference_forward.py:74",
+      "signal_location": "minference/modules/minference_forward.py:74"
+    },
+    "expected": {
+      "positive": "branch taken at minference/modules/minference_forward.py:74",
+      "negative": "branch not taken at minference/modules/minference_forward.py:74"
+    }
+  },
+  "execution": {
+    "entry_called": "minference/modules/minference_forward.py::minference_forward.forward",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "true",
+      "false"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at minference/modules/minference_forward.py:74",
+    "negative_observed": "branch not taken at minference/modules/minference_forward.py:74"
+  },
+  "evidence": {}
+}

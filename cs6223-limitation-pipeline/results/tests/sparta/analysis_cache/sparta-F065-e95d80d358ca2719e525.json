@@ -1,0 +1,29 @@
+{
+ "assessment": "supports",
+ "reasoning": "The paper says the process may be iterated, but the shown artifact does not implement repeated compilation. figure19/run.sh only runs iterative_SA.py twice (baseline and speed-up) and then draws; it has no loop or re-feed of compiled output. sparta/core/sparta.py calls optimize_and_rebuild once inside SpartaModel.__init__, with no iteration around compilation. Thus the cited code supports the claim that iterative compilation is absent.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "script/figure19/run.sh",
+   "regex": "\\b(for|while)\\b|range\\(",
+   "expect": "absent",
+   "control": "python iterative_SA\\.py",
+   "meaning": "No loop in figure script; it only invokes the pruner twice."
+  },
+  {
+   "file": "sparta/core/sparta.py",
+   "regex": "for\\s+.*optimize|while\\s+.*optimize",
+   "expect": "absent",
+   "control": "optimize_and_rebuild",
+   "meaning": "No loop around optimize_and_rebuild; SpartaModel compiles once."
+  },
+  {
+   "file": "script/figure19/run.sh",
+   "regex": "SpartaModel",
+   "expect": "absent",
+   "control": "iterative_SA\\.py",
+   "meaning": "Figure script never instantiates SpartaModel; no compiled-output re-feed."
+  }
+ ],
+ "would_confirm": "Run figure19 and inspect whether iterative_SA.py repeatedly compiles or re-feeds the optimized model, or grep iterative_SA.py for a loop around pruning/compilation."
+}

@@ -1,0 +1,21 @@
+{
+ "assessment": "supports",
+ "reasoning": "The shown DeadlineScheduler code explicitly comments \u201cNo pre-emption support\u201d at line 252. Its scheduling logic sorts/runs decodes and prefills, and uses eager relegation to drop/re-add prefills, but shows no mechanism to preempt a running long batch to avoid head-of-line blocking. This supports the finding that the paper-described preemption capability is absent.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "sarathi/core/scheduler/deadline_scheduler.py",
+   "regex": "No pre-emption support",
+   "expect": "present",
+   "meaning": "Explicit comment states the scheduler lacks preemption support."
+  },
+  {
+   "file": "sarathi/core/scheduler/deadline_scheduler.py",
+   "regex": "def _preempt|preempted_seq_ids\\.append|_preempt\\(",
+   "expect": "absent",
+   "control": "def _schedule",
+   "meaning": "No preemption routine or append; control confirms file searched."
+  }
+ ],
+ "would_confirm": "A code search for any preemption routine/call in DeadlineScheduler, plus a mixed long/short scheduling trace, would settle whether short requests can preempt long ones."
+}

@@ -1,0 +1,26 @@
+{
+ "assessment": "unclear",
+ "reasoning": "Line 358 confirms the AND with grad_fn, so a None grad_fn clears the flag. But the evidence does not show the reset at line 313 or that PracticalHybridSearch.__init__ reads the flag after one probe. Without those, the claimed permanent disabling is not established; it is only plausible.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "nnsmith/materialize/torch/symbolnet.py",
+   "regex": "self\\.differentiable\\s*=\\s*True",
+   "expect": "present",
+   "meaning": "Shows flag reset to True, supporting the per-forward reset claim."
+  },
+  {
+   "file": "nnsmith/materialize/torch/symbolnet.py",
+   "regex": "self\\.differentiable\\s*&=",
+   "expect": "present",
+   "meaning": "Confirms the AND assignment with grad_fn, matching the cited line."
+  },
+  {
+   "file": "nnsmith/materialize/torch/symbolnet.py",
+   "regex": "(?s)class\\s+PracticalHybridSearch.*?self\\.differentiable",
+   "expect": "present",
+   "meaning": "Shows PracticalHybridSearch references the flag, but not the read timing."
+  }
+ ],
+ "would_confirm": "Inspect the forward reset and PracticalHybridSearch.__init__ to see whether the flag is read once after a probe and never recomputed."
+}

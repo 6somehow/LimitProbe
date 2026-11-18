@@ -1,0 +1,127 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "infinigen-F016",
+ "artifact_id": "infinigen",
+ "status": "tested",
+ "not_run": null,
+ "verdict": "inconclusive",
+ "level": "n/a",
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "verdict is inconclusive; no confidence is assigned to it",
+ "verdict_reason": "positive run: NotImplementedError at workspace/attempt/driver.py:11 before the target was reached",
+ "observed": {
+  "positive": "NotImplementedError at workspace/attempt/driver.py:11 before the target was reached",
+  "negative": "NotImplementedError at workspace/attempt/driver.py:11 before the target was reached"
+ },
+ "defeaters": {
+  "D1": "refuted",
+  "D2": "refuted",
+  "D3": "open",
+  "D4": "eliminated",
+  "D5": "refuted",
+  "D6": "eliminated",
+  "D7": "eliminated",
+  "D8": "eliminated",
+  "D9": "refuted",
+  "D10": "eliminated",
+  "D11": "eliminated",
+  "D12": "eliminated",
+  "D13": "residual",
+  "D14": "refuted"
+ },
+ "open_doubts": [
+  {
+   "id": "D1",
+   "name": "target statement executed",
+   "status": "refuted",
+   "evidence": "positive run never executed the target line"
+  },
+  {
+   "id": "D2",
+   "name": "condition holds on positive, fails on negative",
+   "status": "refuted",
+   "evidence": "condition does not hold on the positive or does not fail on the negative"
+  },
+  {
+   "id": "D3",
+   "name": "oracle can see the effect",
+   "status": "open",
+   "evidence": "mutation not run"
+  },
+  {
+   "id": "D5",
+   "name": "control pair differs in one factor, negative adjacent to the boundary",
+   "status": "refuted",
+   "evidence": "positive and negative differ in [], not in exactly one factor"
+  },
+  {
+   "id": "D9",
+   "name": "result reproduces in a clean checkout",
+   "status": "refuted",
+   "evidence": "fresh checkout gave different canonical traces: positive, negative"
+  },
+  {
+   "id": "D13",
+   "name": "inputs inside the paper's scope",
+   "status": "residual",
+   "evidence": "scope_status=unknown"
+  },
+  {
+   "id": "D14",
+   "name": "official entry point was called",
+   "status": "refuted",
+   "evidence": "entry index None (None = not in the call chain) and no reason recorded"
+  }
+ ],
+ "next_steps": [
+  "D1 (refuted): choose inputs that reach the target line (check Region.condition.path_prefix)",
+  "D2 (refuted): pick inputs so the Region condition is true on the positive and false on the negative; write a predicate if it cannot be evaluated",
+  "D3 (open): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location",
+  "D5 (refuted): change exactly one factor between positive and negative, and make the negative the point next to the boundary",
+  "D9 (refuted): make the attempt self-contained so a clean checkout reproduces it",
+  "D14 (refuted): call the official entry, or record why a deeper function is called (execution.entry_reason)"
+ ],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "path_change",
+  "priority": 2,
+  "summary": "When comp_config.group_dim == 0: Caller-supplied comp_config.group_dim decides whether k_new/v_new are re-sliced to a group-aligned boundary before compression. (speedup/flexgen/infinigen/pytorch_backend.py:479)",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 1), not human: group_dim rounding is an internal detail of FlexGen cache compression whose config is hardcoded in run_flexgen (group_dim=2), not a user-facing variant of InfiniGen.",
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "speedup/flexgen/infinigen/pytorch_backend.py:479",
+  "function": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha_gen",
+  "condition": "comp_config.group_dim == 0"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+    "line_start": 479,
+    "function": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha_gen",
+    "snippet": "if comp_config.group_dim == 0:"
+   }
+  ]
+ },
+ "files": {
+  "execution_report": "execution_report.json",
+  "testcase": "testcase.json",
+  "attempt": "attempt"
+ },
+ "provenance": {
+  "findings_file": "results/step4/infinigen/limitations_for_tests.json",
+  "findings_sha256": "51f6ee77be8f16b8743e78f2c11ea0c6b263e1a3c56aed29de35c9cfebb6dcf0",
+  "generated_at": "2026-11-18T14:01:51+08:00",
+  "source": "agent",
+  "attempt_origin": "scratch/agent_runs/e2e-f016-0300fb",
+  "agent_tokens": 4055261,
+  "agent_wall_s": 631.8,
+  "lock_tampered": false,
+  "profile": "default-v1"
+ },
+ "analysis": null
+}

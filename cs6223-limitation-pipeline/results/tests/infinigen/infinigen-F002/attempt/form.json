@@ -1,0 +1,111 @@
+{
+  "test_id": "A-infinigen-F002",
+  "finding_id": "infinigen-F002",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "Fixed seed so the run is deterministic (T6/D8)."
+      },
+      {
+        "name": "dtype",
+        "value": "float16",
+        "why": "The repository stores KV caches in fp16 (TorchDevice.init_cache_one_gpu_batch uses np.float16)."
+      },
+      {
+        "name": "num_heads",
+        "value": 1,
+        "why": "Smallest head count; the target condition reads only the device type and whether the first segment exists."
+      },
+      {
+        "name": "head_dim",
+        "value": 2,
+        "why": "Smallest positive head dimension; the target decision does not read the last dimension."
+      },
+      {
+        "name": "batch_size",
+        "value": 1,
+        "why": "Smallest batch; the target decision does not read the batch size."
+      },
+      {
+        "name": "seq_len",
+        "value": 2,
+        "why": "Small sequence length; the target decision only reads device type and segment presence, not the sequence length."
+      },
+      {
+        "name": "cache_gpu_percent",
+        "value": 50,
+        "why": "A mixed placement value; the cache tensor is allocated explicitly from gpu_segments, so this only documents the policy."
+      },
+      {
+        "name": "cache_cpu_percent",
+        "value": 50,
+        "why": "The rest of the mixed placement; the cache tensor is allocated explicitly from gpu_segments."
+      }
+    ],
+    "positive_input": {
+      "device_kind": 1,
+      "gpu_segments": 1,
+      "cpu_cache_compute": true,
+      "compress_cache": false,
+      "attn_sparsity": 1.0
+    },
+    "negative_input": {
+      "device_kind": 0,
+      "gpu_segments": 1,
+      "cpu_cache_compute": true,
+      "compress_cache": false,
+      "attn_sparsity": 1.0
+    },
+    "boundary_variable": "device_kind",
+    "scale": null,
+    "positive_prelude": [],
+    "negative_prelude": [],
+    "extra_negatives": [
+      {
+        "device_kind": 1,
+        "gpu_segments": 0,
+        "cpu_cache_compute": true,
+        "compress_cache": false,
+        "attn_sparsity": 1.0
+      }
+    ],
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at speedup/flexgen/infinigen/flex_opt.py:442",
+      "signal_location": "speedup/flexgen/infinigen/flex_opt.py:442"
+    },
+    "expected": {
+      "positive": "branch taken at speedup/flexgen/infinigen/flex_opt.py:442",
+      "negative": "branch not taken at speedup/flexgen/infinigen/flex_opt.py:442"
+    }
+  },
+  "execution": {
+    "entry_called": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention.prefetch_cache",
+    "entry_reason": "Static analysis found no call chain from TorchDevice.mha to SelfAttention.prefetch_cache; TorchDevice.mha never calls prefetch_cache. The finding's own witness says call_chain_status=not_found, so the target function is called directly with the state (cache_home with a mixed-device k_home) the checked call expects.",
+    "call_chain_index": 1,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "false",
+      "true"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at speedup/flexgen/infinigen/flex_opt.py:442",
+    "negative_observed": "branch not taken at speedup/flexgen/infinigen/flex_opt.py:442"
+  },
+  "evidence": {}
+}

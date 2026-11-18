@@ -20,11 +20,14 @@ ROOT = Path(__file__).resolve().parents[1]
 import sys  # noqa: E402
 
 sys.path.insert(0, str(ROOT))
+from codeside.callgraph import RepoCallGraph  # noqa: E402
+from codeside.effect_anchor import check_effects  # noqa: E402
 from codeside.integrate import Context, Rules, integrate  # noqa: E402
 from codeside.scope_check import ScopeChecker  # noqa: E402
 from codeside.verify3b import load_paper_side  # noqa: E402
 from schema.models import SCHEMA_VERSION, Limitation, Verification  # noqa: E402
 
+PACKAGE_ROOTS = {"infinigen": ["speedup/infinigen", "speedup/flexgen"]}  # same as pipeline/run.py
 CATS = ["undisclosed", "contradicts_docs", "stated_differently", "docs_only", "paper_stated", "impl_deviates",
         "not_implemented"]
 
@@ -77,11 +80,19 @@ def main() -> None:
             from codeside.verify3b import ChatLLM
             llm = ChatLLM(a.model, cache_dir=ROOT / a.cache / aid, max_tokens=2000, retries=6)
             judge = Judge(llm, aid, repo if repo.is_dir() else None)
+        cfg = artifact_json(aid).parent / "pipeline.json"  # written by `pipeline init --package-root`
+        roots = (json.loads(cfg.read_text()).get("package_roots") if cfg.is_file() else None) or PACKAGE_ROOTS.get(aid)
+        graph = RepoCallGraph(repo, tuple(roots or (".",))) if repo.is_dir() else None
         ctx = Context(repo=repo if repo.is_dir() else None, judge=judge, paper_groups=groups, conformance=conformance,
+                      callgraph=graph, known_ids=known_ids(ROOT / a.out / aid / "findings.json"),
                       labels=labels.get(aid, {}), entry_points=[e if isinstance(e, str) else e.get("entry", "")
                                                                 for e in art.get("entry_points", [])])
         code_lims, code_vers = load(code / "limitations.json", Limitation), load(code / "3b.json", Verification)
+        # effect labels must fit the statement they point at (the test side judges the effect there)
+        code_lims, effect_checks = check_effects(code_lims, ctx.repo)
+        ctx.effect_moves = {r["limitation_id"]: r for r in effect_checks if r["action"] == "moved"}
         findings, report = integrate(aid, code_lims, code_vers, paper_lims, checker, rules, ctx)
+        report["effect_checks"] = effect_checks
         records = report.pop("llm_records")
         if llm is not None:
             from codeside.step4_llm import PROMPT_VERSION as P4
@@ -105,6 +116,13 @@ def main() -> None:
         print(aid, json.dumps({k: report[k] for k in ("findings", "pairs_judged_same", "by_category",
                                                         "by_priority", "witness_status")}))
     combine(ROOT / a.out, rules, usage)
+
+
+def known_ids(findings_json: Path) -> dict:
+    """Finding ids of the last run, by the limitations each finding is made of (ids stay stable across runs)."""
+    if not findings_json.is_file():
+        return {}
+    return {tuple(sorted(f["limitation_ids"])): f["finding_id"] for f in json.loads(findings_json.read_text())}
 
 
 def envelope(records: list, rules: Rules) -> dict:

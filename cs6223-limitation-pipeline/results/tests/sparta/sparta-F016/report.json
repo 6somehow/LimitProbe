@@ -1,0 +1,162 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "sparta-F016",
+ "artifact_id": "sparta",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "论文报告第二 sub-Matmul 的具体残余稀疏度；实验路径无该测量/输出，且底层分派规则与数值趋势不符。",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "always",
+  "location": "script/figure16/a100/sparta.cu:118-140",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "The other sub-Matmul has 12.5%, 8%, 4.5%, 2.0%, 0.5% sparsity ratio respectively.",
+    "source": "paper",
+    "locator": "PDF p.13"
+   }
+  ],
+  "code": [
+   {
+    "file": "script/figure16/a100/sparta.cu",
+    "line_start": 118,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "script/figure16/a100/run.sh",
+    "line_start": 4,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "script/figure16/a100/draw.py",
+    "line_start": 11,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/sparta/limitations_for_tests.json",
+  "findings_sha256": "af8cad7c4e91af73f84a27b96179739526bde952a669319c71cc4e157ac4b49f",
+  "generated_at": "2026-11-18T12:35:53+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A0",
+  "tier_note": "the reading and the probes disagree",
+  "calibrated": false,
+  "assessment": "contradicts",
+  "reasoning": "The transform puts the first nonzero of each 2-element group in A1 and the rest in A2. For input density d, A2 density is d^2/2, giving 12.5%, 8%, 4.5%, 2%, 0.5% for d=0.5..0.1—exactly the paper's numbers. The run/draw scripts only log runtime, but the residual values are analytically derivable, so the claimed mismatch is not supported.",
+  "hardware_needed": false,
+  "would_confirm": "Compute A2 nonzero density from the transform for input sparsities 0.5–0.9 and compare with 12.5/8/4.5/2/0.5%, while checking whether the paper defines these as density.",
+  "static": {
+   "cited": 3,
+   "grounded": true,
+   "items": [
+    {
+     "file": "script/figure16/a100/sparta.cu",
+     "lines": "118-140",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "cuda"
+    },
+    {
+     "file": "script/figure16/a100/run.sh",
+     "lines": "4-20",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "shell"
+    },
+    {
+     "file": "script/figure16/a100/draw.py",
+     "lines": "11-31",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "script/figure16/a100/sparta.cu",
+    "regex": "A2\\[j\\]\\s*=\\s*A\\[j\\]",
+    "expect": "present",
+    "meaning": "A2 receives extra nonzeros per pair, matching paper's residual-density trend.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     134
+    ]
+   },
+   {
+    "file": "script/figure16/a100/sparta.cu",
+    "regex": "printf|std::cout|residual|sparsity",
+    "expect": "absent",
+    "meaning": "No residual-sparsity print in split code; control confirms file searched.",
+    "status": "refuted",
+    "hits": 19,
+    "control": "transform\\(",
+    "hit_lines": [
+     3,
+     16,
+     26,
+     45,
+     52
+    ]
+   },
+   {
+    "file": "script/figure16/a100/draw.py",
+    "regex": "Time=",
+    "expect": "present",
+    "meaning": "Plot script parses only runtime, not residual sparsity.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     13
+    ]
+   },
+   {
+    "file": "script/figure16/a100/run.sh",
+    "regex": "residual",
+    "expect": "absent",
+    "meaning": "Run script loops input sparsity but never measures residual sparsity.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "sparsity_ratio",
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

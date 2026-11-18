@@ -1,0 +1,91 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "nnsmith-F032",
+ "artifact_id": "nnsmith",
+ "status": "not_run",
+ "not_run": {
+  "code": "outcome_unsupported",
+  "reason": "effect type 'other': the branch has no raise in its body: the program rejects later, in code the target does not point to"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "When os.getenv(\"NNSMITH_LB\", \"off\") == \"off\": The upper-bound constraint on slice start/end parameters is only added when the NNSMITH_LB environment variable is unset or 'off'; setting NNSMITH_LB to any other value silently drops the upper bound, changing the generated slice parameter ranges. (nnsmith/graph_gen.py:834)",
+  "review": "wrong",
+  "review_note": "blind review by an LLM subagent (round 1), not human: range_constrain is only called from GuidedGen, which is never instantiated, so the NNSMITH_LB switch has no effect in practice.",
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "nnsmith/graph_gen.py:834",
+  "function": "nnsmith/graph_gen.py::range_constrain",
+  "condition": "os.getenv(\"NNSMITH_LB\", \"off\") == \"off\""
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "nnsmith/graph_gen.py",
+    "line_start": 834,
+    "function": "nnsmith/graph_gen.py::range_constrain",
+    "snippet": "if ub is not None and os.getenv('NNSMITH_LB', 'off') == 'off':"
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/nnsmith/limitations_for_tests.json",
+  "findings_sha256": "3ec725e87dbddd4c992db2cb5e7881f511e70ce2ab61c81037bbb06a557aa5fb",
+  "generated_at": "2026-11-18T12:18:21+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "Line 834 explicitly gates the `ub is not None` branch on `NNSMITH_LB` being unset or `off`. That matches the claimed condition: any other value skips the branch, so the upper-bound handling is not applied. The shown line does not itself name slice start/end, but the environment-variable gating behavior is directly evidenced.",
+  "hardware_needed": false,
+  "would_confirm": "Inspect the block guarded by line 834 to verify it adds the slice start/end upper bound and that no alternate path adds it when NNSMITH_LB is set.",
+  "static": {
+   "cited": 1,
+   "grounded": true,
+   "items": [
+    {
+     "file": "nnsmith/graph_gen.py",
+     "lines": "834-834",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": false,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "nnsmith/graph_gen.py",
+    "regex": "os\\.getenv\\(\"NNSMITH_LB\", \"off\"\\) == \"off\"",
+    "expect": "present",
+    "meaning": "Shows the upper-bound branch is gated on NNSMITH_LB being off/unset.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     834
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

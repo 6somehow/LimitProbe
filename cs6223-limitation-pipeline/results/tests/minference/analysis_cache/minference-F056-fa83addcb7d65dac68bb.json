@@ -1,0 +1,22 @@
+{
+ "assessment": "supports",
+ "reasoning": "The paper specifies block logits as softmax(QK^T/sqrt(d) + causal mask). The cited _build_block_index computes p_pool = einsum(pooled Q, pooled K), applies a causal -inf mask, then topk. It never applies softmax or 1/sqrt(d) scaling before ranking. The later kernel softmax only affects attention within already-selected blocks, not block selection. Thus the block-index ranking deviates from the paper.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "minference/ops/block_sparse_flash_attention.py",
+   "regex": "p_pool\\s*=\\s*torch\\.einsum\\([^\\n]*query_pool[^\\n]*key_pool",
+   "expect": "present",
+   "control": "def _build_block_index",
+   "meaning": "Block scores are raw pooled dot products, not softmax-scaled logits."
+  },
+  {
+   "file": "minference/ops/block_sparse_flash_attention.py",
+   "regex": "p_pool\\s*=\\s*(?:torch\\.)?softmax|p_pool\\s*=\\s*p_pool\\s*/\\s*(?:math|torch)\\.sqrt",
+   "expect": "absent",
+   "control": "p_pool\\s*=\\s*torch\\.einsum",
+   "meaning": "No softmax or sqrt scaling is applied to block scores."
+  }
+ ],
+ "would_confirm": "Run _build_block_index on a small tensor and compare its selected blocks with top-k of softmax(QK^T/sqrt(d)) under the causal mask; a mismatch confirms the deviation."
+}

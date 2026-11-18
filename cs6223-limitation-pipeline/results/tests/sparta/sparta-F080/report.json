@@ -1,0 +1,128 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "sparta-F080",
+ "artifact_id": "sparta",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "not_implemented",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "artifact 路径无零稀疏延迟测量入口",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "always",
+  "location": "sparta/transformation/weighted_block_cover.py:7-24",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "The overhead of each block size is proﬁled by measuring the latency of the kernel with zero sparsity",
+    "source": "paper",
+    "locator": "PDF p.9"
+   }
+  ],
+  "code": [
+   {
+    "file": "sparta/transformation/weighted_block_cover.py",
+    "line_start": 7,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "sparta/specialization/specialize_kernel.py",
+    "line_start": 210,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/sparta/limitations_for_tests.json",
+  "findings_sha256": "af8cad7c4e91af73f84a27b96179739526bde952a669319c71cc4e157ac4b49f",
+  "generated_at": "2026-11-18T12:35:53+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A0",
+  "tier_note": "the reading and the probes disagree",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The cited code only returns hardcoded profiled block costs and generates kernel templates. Neither file contains a zero-sparsity latency measurement entry, benchmark loop, timing call, or profiling harness. The docstring even says the numbers are pre-profiled costs. This supports the claim that the artifact lacks a measurement path for zero-sparsity latency per block size, though the shown evidence is limited to these files.",
+  "hardware_needed": false,
+  "would_confirm": "Search the full repository for any zero-sparsity latency profiling harness or run such a harness to see whether it exists.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "sparta/transformation/weighted_block_cover.py",
+     "lines": "7-24",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "sparta/specialization/specialize_kernel.py",
+     "lines": "210-258",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "sparta/transformation/weighted_block_cover.py",
+    "regex": "(?i)(zero[_-]?sparsity|latency|measure|profil(e|ing)|benchmark|timeit|cudaEvent)",
+    "expect": "absent",
+    "meaning": "No timing or zero-sparsity measurement entry in cost table file.",
+    "status": "refuted",
+    "hits": 1,
+    "control": "def available_covering_size",
+    "hit_lines": [
+     9
+    ]
+   },
+   {
+    "file": "sparta/specialization/specialize_kernel.py",
+    "regex": "(?i)(zero[_-]?sparsity|latency|measure|profil(e|ing)|benchmark|cudaEvent)",
+    "expect": "absent",
+    "meaning": "Kernel template generator has no latency measurement code.",
+    "status": "refuted",
+    "hits": 17,
+    "control": "def blocksparse_matmul_template",
+    "hit_lines": [
+     20,
+     27,
+     40,
+     42,
+     195
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

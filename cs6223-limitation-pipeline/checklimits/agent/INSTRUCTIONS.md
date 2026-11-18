@@ -27,7 +27,7 @@ Do not edit anything under `checklimits/` except your own attempt directory.
   values built from `inputs`. Import the code under test at module level. Set seeds. CPU only. No asserts of
   your own, and never catch the exception you are looking for.
 * `form.json`: your declarations (below). `manifest.json` is pre-filled.
-* optional `sim.py`: CPU implementations for GPU-only calls that run AFTER the target statement.
+* optional `sim.py` and `check.py`: CPU stand-ins for GPU-only calls, and the checks that show a stand-in computes what the kernel computes (item 7).
 * optional `condition.py`: `def predicate(locals) -> bool`, only if the Region condition cannot be evaluated.
 
 ## What counts as "the effect" depends on the Region's outcome
@@ -77,17 +77,32 @@ the defeaters you let the harness eliminate. Your design decides this:
 6. **No stand-ins before the target (D6).** The verdict rests on what happened up to the target line. Anything
    you replace that is touched BEFORE the target makes the evidence "simulated" and caps the level. Put every
    mock behind the target, and keep the target's own function and its callers real.
-7. **Stand-ins after the target, declared (D6, T5).** If the negative run would otherwise crash below the
-   target for lack of a GPU, declare mocks with `kind: patch`, `behavior: sim`, `impl: "sim.py::func"` and say
-   what the stand-in is: `sim_class: repo_reference` (it calls a reference implementation that ships in the
-   repository, best), `independent_native` (plain torch you wrote), or `stub` (canned value, worst). Prefer
-   running the repository's real code and replacing only the GPU kernel launchers. Never edit the repository.
+7. **Stand-ins for GPU or accelerator code (D6, T5).** Missing hardware is not a reason to give up on a Finding.
+   Replace the kernel launcher, the CUDA extension or the hardware block with a CPU stand-in in `sim.py`
+   (`kind: patch`, `behavior: sim`, `impl: "sim.py::func"`) and say what it is: `sim_class: repo_reference` (it calls a
+   reference implementation that ships in the repository, best), `independent_native` (plain torch or numpy you
+   wrote), or `stub` (canned value, worst). Prefer running the repository's real code and replacing only the GPU
+   part. Never edit the repository. A stand-in touched before the target makes the evidence "simulated" (the level
+   stays capped, see item 6); a stand-in after the target only keeps the negative run from crashing.
+   **Say how the stand-in is checked** with `sim_check: "check.py::fn"`. `fn(sim)` receives your stand-in and returns
+   `{"ok": bool, "detail": str, "kind": "numeric" | "symbolic"}`. Good checks: compare with a CPU reference on small
+   random inputs (`numeric`); test invariants the kernel must keep (softmax rows sum to 1, a mask is respected,
+   output shape); prove the formula with sympy or z3 on symbols (`symbolic`). Keep the scale small and the seed fixed.
+   The harness runs your check, then runs it again on corrupted copies of your stand-in (scaled, negated, zeroed). A
+   check that still passes on a corrupted stand-in is reported `vacuous`; a check that fails on yours is `disagrees`,
+   and that refutes D6. Do not write a check that cannot fail.
 8. **Small scale is allowed, silently wrong is not (D10, T3).** If you shrink a size to keep it fast, declare it
    in `design.scale` with the factor and an invariance argument (why the target decision cannot depend on the
    size). The harness re-runs both inputs at the full witness size up to the target and compares.
 9. **Free parameters (T3).** Every value your driver chooses that is not in the witness_hint (head count, dtype,
    seed, defaults) goes into `design.free_parameters` with a reason. `lint` finds the ones you forgot.
-10. **Official entry (D14, T4).** Call `call_chain[0]`. A deeper function needs `execution.entry_reason`.
+10. **Official entry (D14, T4).** Call `call_chain[0]` and let it reach the target: the harness checks that the entry was
+    still running when the target line executed. Calling the entry and then calling the target function directly does
+    not count as going through the entry. A deeper function needs `execution.entry_reason`.
+    When the task has a section "How the entry reaches the target", it lists every call site with the mapping from
+    the callee's parameter names to the caller's expressions. The trigger and contrast are written in the target's
+    names; use that mapping to get the entry's inputs, then check that the target is reached with the values you
+    intended (the harness checks the same).
 11. **Offline, deterministic, pinned (T6, D8, D9).** No network, fixed seeds, single thread. The harness repeats
     the run in fresh processes and replays it in a fresh checkout of the pinned commit.
 12. **Scope (T9, D13).** If the task says `out_of_scope`, only record it.

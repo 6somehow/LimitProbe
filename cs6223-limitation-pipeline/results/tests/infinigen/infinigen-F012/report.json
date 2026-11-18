@@ -1,0 +1,99 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "infinigen-F012",
+ "artifact_id": "infinigen",
+ "status": "tested",
+ "not_run": null,
+ "verdict": "yes",
+ "level": "L2",
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "effect on positive input, none on negative input",
+ "observed": {
+  "positive": "branch taken at speedup/flexgen/infinigen/flex_opt.py:541",
+  "negative": "branch not taken at speedup/flexgen/infinigen/flex_opt.py:541"
+ },
+ "defeaters": {
+  "D1": "eliminated",
+  "D2": "eliminated",
+  "D3": "eliminated",
+  "D4": "eliminated",
+  "D5": "eliminated",
+  "D6": "residual",
+  "D7": "eliminated",
+  "D8": "eliminated",
+  "D9": "eliminated",
+  "D10": "eliminated",
+  "D11": "eliminated",
+  "D12": "eliminated",
+  "D13": "residual",
+  "D14": "residual"
+ },
+ "open_doubts": [
+  {
+   "id": "D6",
+   "name": "verdict-bearing observations do not depend on stand-ins",
+   "status": "residual",
+   "evidence": "verdict-bearing observations: positive simulated:fake, negative simulated:fake; stand-in checks: flexgen.pytorch_backend.TorchDevice.mha_gen error"
+  },
+  {
+   "id": "D13",
+   "name": "inputs inside the paper's scope",
+   "status": "residual",
+   "evidence": "scope_status=unknown"
+  },
+  {
+   "id": "D14",
+   "name": "official entry point was called",
+   "status": "residual",
+   "evidence": "deeper entry (index 1); reason recorded: The region's call_chain lists TorchDevice.mha as the first frame, but mha is called by SelfAttention.forward and the target line lives in forward itself. forward is the outermost function that both reaches line 541 and can be driven with the region's trigger state (layer_id plus a non-empty partial-cache holder), so the driver calls it directly."
+  }
+ ],
+ "next_steps": [
+  "D6 (residual): move stand-ins after the target line, or replace stubs with a fake or the repository's own reference implementation",
+  "D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)"
+ ],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "path_change",
+  "priority": 2,
+  "summary": "When prev_partial_cache_read_buf is not None and self.layer_id > 1: Partial cache accumulation for the next layer only happens for layer_id > 1; earlier layers skip it. (speedup/flexgen/infinigen/flex_opt.py:541)",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "speedup/flexgen/infinigen/flex_opt.py:541",
+  "function": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention.forward",
+  "condition": "prev_partial_cache_read_buf is not None and self.layer_id > 1"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "speedup/flexgen/infinigen/flex_opt.py",
+    "line_start": 541,
+    "function": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention.forward",
+    "snippet": "if prev_partial_cache_read_buf is not None and self.layer_id > 1:"
+   }
+  ]
+ },
+ "files": {
+  "execution_report": "execution_report.json",
+  "testcase": "testcase.json",
+  "attempt": "attempt"
+ },
+ "provenance": {
+  "findings_file": "results/step4/infinigen/limitations_for_tests.json",
+  "findings_sha256": "51f6ee77be8f16b8743e78f2c11ea0c6b263e1a3c56aed29de35c9cfebb6dcf0",
+  "generated_at": "2026-11-18T13:39:15+08:00",
+  "source": "agent",
+  "attempt_origin": "scratch/agent_runs/e2e-f012-3cc4c4",
+  "agent_tokens": 4048150,
+  "agent_wall_s": 692.3,
+  "lock_tampered": false,
+  "profile": "default-v1"
+ },
+ "analysis": null
+}

@@ -1,0 +1,26 @@
+{
+ "assessment": "supports",
+ "reasoning": "The shown transform_matmul initializes best_kernels/best_aggr_type to None, places the only specialize_matmul loop inside a triple-quoted block, and returns those None values. optimize_and_rebuild then only calls transform_module and rebuilds modules. This directly supports that quantization specialization is not executed in the artifact chain; the paper's loop-level specialization is absent.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "sparta/transformation/transform_policy.py",
+   "regex": "# skip, waiting for more official end-to-end[\\s\\S]*?specialize_matmul",
+   "expect": "present",
+   "meaning": "specialize_matmul follows a skip comment inside the commented block"
+  },
+  {
+   "file": "sparta/transformation/transform_policy.py",
+   "regex": "best_kernels\\s*=\\s*None",
+   "expect": "present",
+   "meaning": "specialization result initialized to None and not actively overwritten"
+  },
+  {
+   "file": "sparta/transformation/transform_policy.py",
+   "regex": "return best_kernels, best_aggr_type",
+   "expect": "present",
+   "meaning": "function returns None kernels/aggr_type after skipped specialization"
+  }
+ ],
+ "would_confirm": "Instrument transform_matmul on a quantized TeSA and check whether specialize_matmul is invoked and returns non-None kernels, or parse the AST to confirm the call is inside a string literal."
+}

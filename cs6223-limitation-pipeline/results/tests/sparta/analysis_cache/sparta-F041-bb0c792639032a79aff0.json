@@ -1,0 +1,21 @@
+{
+ "assessment": "supports",
+ "reasoning": "The cited code derives candidates deterministically from TeSA bits and hardware precisions. bit_align returns a fixed list, and transform_matmul iterates weight_tesas without randomness, seeding, or per-run state. No mechanism creates a new transformation option per run, matching the claimed deviation.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "sparta/transformation/transform_policy.py",
+   "regex": "\\brandom\\b|\\bseed\\b|np\\.random|torch\\.rand",
+   "expect": "absent",
+   "control": "def bit_align",
+   "meaning": "No randomness or seeding in policy; candidates are deterministic."
+  },
+  {
+   "file": "sparta/transformation/transform_policy.py",
+   "regex": "return best_kernels, best_aggr_type",
+   "expect": "present",
+   "meaning": "Returns fixed best variables, not a per-run new option."
+  }
+ ],
+ "would_confirm": "Call transform_matmul twice with identical TeSA inputs and compare the produced candidate options; identical results would confirm the deviation."
+}

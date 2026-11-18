@@ -1,0 +1,106 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "sparta-F025",
+ "artifact_id": "sparta",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "论文要求 4/8 表示 uint4/uint8；artifact 仅实现 int8 路径，无符号量化未体现",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "sparta/artifact_specialization/generate_code.py:58-82",
+  "function": null,
+  "condition": "bit == 4 or bit == 8"
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "Figure 3: An example of TeSA. Sparsity Attribute denotes the sparsity pattern, including quantization (4 meansuint4, 8 means uint8) and pruning (0 means the element is pruned).",
+    "source": "paper",
+    "locator": "PDF p.4, text lines 114-116"
+   }
+  ],
+  "code": [
+   {
+    "file": "sparta/artifact_specialization/generate_code.py",
+    "line_start": 58,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/sparta/limitations_for_tests.json",
+  "findings_sha256": "af8cad7c4e91af73f84a27b96179739526bde952a669319c71cc4e157ac4b49f",
+  "generated_at": "2026-11-18T12:35:53+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The paper states that sparsity attribute 4 means uint4 and 8 means uint8. The shown generator only branches on bit==32 and bit==8, and the 8-bit path calls convert_to_block_csr_int8. There is no 4-bit branch or uint4/uint8 handling in the evidence, so the artifact appears to implement only an int8 path, not unsigned quantization as described.",
+  "hardware_needed": false,
+  "would_confirm": "Inspect the full generator and conversion utilities for any uint4/uint8 or bit==4 path, or run quantization with 4/8 and check emitted types.",
+  "static": {
+   "cited": 1,
+   "grounded": true,
+   "items": [
+    {
+     "file": "sparta/artifact_specialization/generate_code.py",
+     "lines": "58-82",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "sparta/artifact_specialization/generate_code.py",
+    "regex": "uint4|uint8",
+    "expect": "absent",
+    "meaning": "No unsigned quantization types in generator; control confirms file searched.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "def bcsr_generate",
+    "hit_lines": []
+   },
+   {
+    "file": "sparta/artifact_specialization/generate_code.py",
+    "regex": "bit\\s*==\\s*4",
+    "expect": "absent",
+    "meaning": "No 4-bit branch; control shows bit dispatch exists.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "bit\\s*==\\s*8",
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

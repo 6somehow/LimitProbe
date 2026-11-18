@@ -1,0 +1,92 @@
+{
+  "test_id": "A-infinigen-F017",
+  "finding_id": "infinigen-F017",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "n_head",
+        "value": 2,
+        "why": "head count only sizes the allocation and does not enter the cache_disk_percent == 0 decision"
+      },
+      {
+        "name": "input_dim",
+        "value": 8,
+        "why": "model width only sizes the allocation; small value keeps CPU tensors tiny"
+      },
+      {
+        "name": "prompt_len",
+        "value": 2,
+        "why": "prompt length only changes shape[0] and cannot change the branch taken at the target"
+      },
+      {
+        "name": "gen_len",
+        "value": 2,
+        "why": "generation length only changes shape[0] and cannot change the branch taken at the target"
+      },
+      {
+        "name": "gpu_batch_size",
+        "value": 2,
+        "why": "batch size only changes shape[1], whose split percentages are fixed free parameters"
+      },
+      {
+        "name": "cache_gpu_percent",
+        "value": 50.0,
+        "why": "percentage used by both branch bodies; it is not the variable under test and is held fixed"
+      },
+      {
+        "name": "cache_cpu_percent",
+        "value": 25.0,
+        "why": "percentage used only by the else body; held fixed so the pair differs only in cache_disk_percent"
+      },
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "no randomness is used; fixed seed documents determinism"
+      }
+    ],
+    "positive_input": {
+      "policy.cache_disk_percent": 0
+    },
+    "negative_input": {
+      "policy.cache_disk_percent": 1
+    },
+    "boundary_variable": "policy.cache_disk_percent",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at speedup/flexgen/infinigen/pytorch_backend.py:767",
+      "signal_location": "speedup/flexgen/infinigen/pytorch_backend.py:767"
+    },
+    "expected": {
+      "positive": "branch taken at speedup/flexgen/infinigen/pytorch_backend.py:767",
+      "negative": "branch not taken at speedup/flexgen/infinigen/pytorch_backend.py:767"
+    }
+  },
+  "execution": {
+    "entry_called": "speedup/flexgen/infinigen/pytorch_backend.py::TorchMixedDevice.init_cache_one_gpu_batch",
+    "entry_reason": "Step 4 reported call_chain_status=not_found: TorchDevice.mha has no static path to TorchMixedDevice.init_cache_one_gpu_batch (the real caller is flex_opt.py's dynamic device.init_cache_one_gpu_batch dispatch). The deeper target function is called directly with its real config/task/policy parameters; the official entry would never execute the target line.",
+    "call_chain_index": 1,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "true",
+      "false"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at speedup/flexgen/infinigen/pytorch_backend.py:767",
+    "negative_observed": "branch not taken at speedup/flexgen/infinigen/pytorch_backend.py:767"
+  },
+  "evidence": {}
+}

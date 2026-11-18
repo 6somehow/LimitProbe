@@ -1,0 +1,32 @@
+{
+ "assessment": "supports",
+ "reasoning": "The paper says calibration data should come from real dataset inference. The code does call calibration with train_dataloader, but the per-module propagation function train_bit_propagate builds its training and validation inputs with torch.rand(dummy_input_shape), not real activations. Thus the cited propagation path uses random tensors, matching the finding.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "script/figure14/search_finetune_fit_qat.py",
+   "regex": "torch\\.rand\\(dummy_input_shape\\)",
+   "expect": "present",
+   "meaning": "Shows random tensors are generated for per-module propagation."
+  },
+  {
+   "file": "script/figure14/search_finetune_fit_qat.py",
+   "regex": "data_train_list\\.append\\(dummy_per_image\\)",
+   "expect": "present",
+   "meaning": "Confirms random dummy images populate propagation training data."
+  },
+  {
+   "file": "script/figure14/search_finetune_fit_qat.py",
+   "regex": "calibration\\(model, device, train_dataloader\\)",
+   "expect": "present",
+   "meaning": "Shows real loader used only for calibration, not propagation."
+  },
+  {
+   "file": "script/figure14/search_finetune_fit_qat.py",
+   "regex": "def train_bit_propagate",
+   "expect": "present",
+   "meaning": "Locates the propagation function where random data is used."
+  }
+ ],
+ "would_confirm": "Instrument train_bit_propagate to log whether its inputs come from real dataset activations or torch.rand, or replace random tensors with collected real tensors and compare results."
+}

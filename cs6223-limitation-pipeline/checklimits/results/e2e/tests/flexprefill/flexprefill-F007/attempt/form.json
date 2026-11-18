@@ -1,0 +1,109 @@
+{
+  "test_id": "A-flexprefill-F007",
+  "finding_id": "flexprefill-F007",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "num_kv_heads",
+        "value": 2,
+        "why": "k.shape[2] is not fixed by the witness; equal to num_q_heads so the post-target GQA divisibility assert cannot fail"
+      },
+      {
+        "name": "block_idx_ids",
+        "value": [
+          0,
+          1,
+          2
+        ],
+        "why": "valid flattened block ids do not affect the length guard at the target; only the outer/inner list lengths matter"
+      },
+      {
+        "name": "torch_seed",
+        "value": 0,
+        "why": "manifest seed; makes the CPU tensor construction deterministic"
+      },
+      {
+        "name": "last_block_idx_heads",
+        "value": 1,
+        "why": "only used when batch_size>1; the extra negative makes the last batch group shorter than the first so block_idx[0] and block_idx[-1] differ"
+      }
+    ],
+    "positive_input": {
+      "batch_size": 1,
+      "block_size": 128,
+      "head_dim": 64,
+      "k_len": 385,
+      "min_budget": 320,
+      "num_q_heads": 2,
+      "q_len": 385,
+      "block_idx_heads": 1
+    },
+    "negative_input": {
+      "batch_size": 1,
+      "block_size": 128,
+      "head_dim": 64,
+      "k_len": 385,
+      "min_budget": 320,
+      "num_q_heads": 2,
+      "q_len": 385,
+      "block_idx_heads": 2
+    },
+    "boundary_variable": "block_idx_heads",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "exception",
+      "spec": "AssertionError raised at flex_prefill/ops/flex_prefill_attention.py:1245",
+      "signal_location": "flex_prefill/ops/flex_prefill_attention.py:1245"
+    },
+    "expected": {
+      "positive": "AssertionError at flex_prefill/ops/flex_prefill_attention.py:1245",
+      "negative": "no exception at flex_prefill/ops/flex_prefill_attention.py:1245"
+    },
+    "extra_negatives": [
+      {
+        "batch_size": 2,
+        "block_size": 128,
+        "head_dim": 64,
+        "k_len": 385,
+        "min_budget": 320,
+        "num_q_heads": 2,
+        "q_len": 385,
+        "block_idx_heads": 2,
+        "last_block_idx_heads": 1,
+        "block_idx_ids": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
+    ]
+  },
+  "execution": {
+    "entry_called": "flex_prefill/ops/flex_prefill_attention.py::triton_block_wise_attention",
+    "entry_reason": "flex_prefill_attention (call_chain[0]) has no block_idx parameter: it calls get_active_blocks, whose transform_veritcal_slash_idx builds the list as [ [unique(...) for h in range(num_heads)] for b in range(batch_size) ], with num_heads taken from q.shape[2]. Therefore len(block_idx) is always batch_size and len(block_idx[0]) is always num_q_heads, so neither half of the guard at line 1245 can fail through the official entry. The guard constrains a caller-supplied list[list[Tensor]] block_idx, so the driver calls call_chain[1] (triton_block_wise_attention), which forwards block_idx unchanged to the target function.",
+    "call_chain_index": 1,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "false",
+      "true"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "AssertionError at flex_prefill/ops/flex_prefill_attention.py:1245",
+    "negative_observed": "no exception at flex_prefill/ops/flex_prefill_attention.py:1245"
+  },
+  "evidence": {}
+}

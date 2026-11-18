@@ -1,0 +1,122 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "sparta-F030",
+ "artifact_id": "sparta",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "论文允许输入分解；artifact 路径只处理单输入 TeSA",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "sparta/specialization/specialize_kernel.py:18-42",
+  "function": null,
+  "condition": "len(in_tesa) > 1 or len(out_t_tesa) > 1"
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "Ti = P.TransformTeSA(Ii);",
+    "source": "paper",
+    "locator": "PDF p.7"
+   }
+  ],
+  "code": [
+   {
+    "file": "sparta/specialization/specialize_kernel.py",
+    "line_start": 18,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "sparta/transformation/transform_policy.py",
+    "line_start": 158,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/sparta/limitations_for_tests.json",
+  "findings_sha256": "af8cad7c4e91af73f84a27b96179739526bde952a669319c71cc4e157ac4b49f",
+  "generated_at": "2026-11-18T12:35:53+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The artifact explicitly disables input decomposition: transform_matmul calls bit_align(in_tesa, decompose=False) and comments that only weight is decomposed. specialize_matmul also asserts len(in_tesa) == 1. This matches the finding that the artifact path handles only a single input TeSA, while the paper's TransformTeSA(Ii) does not show that restriction.",
+  "hardware_needed": false,
+  "would_confirm": "Run transform_matmul with a decomposed multi-TeSA input and check whether it decomposes or rejects/asserts.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "sparta/specialization/specialize_kernel.py",
+     "lines": "18-42",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "sparta/transformation/transform_policy.py",
+     "lines": "158-191",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "sparta/transformation/transform_policy.py",
+    "regex": "bit_align\\(in_tesa, decompose=False\\)",
+    "expect": "present",
+    "meaning": "Shows input decomposition explicitly disabled in transform path.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     168
+    ]
+   },
+   {
+    "file": "sparta/specialization/specialize_kernel.py",
+    "regex": "len\\(in_tesa\\) == 1",
+    "expect": "present",
+    "meaning": "Shows specialization asserts exactly one input TeSA.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     23
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

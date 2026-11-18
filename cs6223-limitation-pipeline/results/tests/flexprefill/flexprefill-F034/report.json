@@ -1,0 +1,158 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "flexprefill-F034",
+ "artifact_id": "flexprefill",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "论文要求 pool(Q̂)（块池化，保留每块一个向量）与 pool(K) 相乘；代码把 Q̂ 的 block_size 行压成单一均值向量，得到 1×num_blocks 的分布，而非 num_blocks×num_blocks 的块级分布（artifact 范围：ā 的构造为 mean(Q̂)·pool(K) 而非 pool(Q̂)·pool(K)）",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "always",
+  "location": "flex_prefill/ops/flex_prefill_attention.py:1676-1706",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "where the kernel size of the pooling operation is equal to block_size",
+    "source": "paper",
+    "locator": "PDF p.4"
+   }
+  ],
+  "code": [
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "line_start": 1676,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "line_start": 1714,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "line_start": 1855,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/flexprefill/limitations_for_tests.json",
+  "findings_sha256": "0b8539b75ec0e2d602cd64b1a21959708ae3a6d53be00202f8825d92f313c066",
+  "generated_at": "2026-11-18T12:15:50+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The cited code computes avg_qk from last_q.mean(1, keepdim=True), collapsing the block_size query rows to one vector, then multiplies by triton_bnhd_pool(k, block_size). The einsum and squeeze yield a 1×num_blocks distribution. The paper quote says the pooling kernel equals block_size, which would retain per-block Q vectors. Thus the artifact uses mean(Q̂)·pool(K), not pool(Q̂)·pool(K).",
+  "hardware_needed": false,
+  "would_confirm": "Run get_active_blocks on a small input and inspect avg_qk shape; it should be [b,h,num_blocks], not [b,h,num_blocks,num_blocks].",
+  "static": {
+   "cited": 3,
+   "grounded": true,
+   "items": [
+    {
+     "file": "flex_prefill/ops/flex_prefill_attention.py",
+     "lines": "1676-1706",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "flex_prefill/ops/flex_prefill_attention.py",
+     "lines": "1714-1729",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "flex_prefill/ops/flex_prefill_attention.py",
+     "lines": "1855-1885",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "regex": "last_q\\.mean\\(1, keepdim=True\\)",
+    "expect": "present",
+    "meaning": "Q block rows are collapsed to one mean vector",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     1723
+    ]
+   },
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "regex": "avg_qk = torch\\.einsum\\(",
+    "expect": "present",
+    "meaning": "avg_qk is built from mean Q and pooled K",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     1722
+    ]
+   },
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "regex": "triton_bnhd_pool\\(k, block_size\\)",
+    "expect": "present",
+    "meaning": "K is block-pooled, unlike Q in this path",
+    "status": "confirmed",
+    "hits": 2,
+    "hit_lines": [
+     1719,
+     1721
+    ]
+   },
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "regex": "triton_bnhd_pool\\(\\s*(last_q|q)\\b",
+    "expect": "absent",
+    "meaning": "No block pooling of Q appears in this file",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "triton_bnhd_pool\\(k, block_size\\)",
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

@@ -1,0 +1,87 @@
+{
+  "test_id": "A-infinigen-F013",
+  "finding_id": "infinigen-F013",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "num_hidden_layers",
+        "value": 4,
+        "why": "Smallest layer count above 3 so that attn_layer[2:] is non-empty and the condition can be both true and false; OptLM builds attn_layer=[1,3,5,7] for this config."
+      },
+      {
+        "name": "num_gpu_batches",
+        "value": 1,
+        "why": "load_cache's corner case ('if k == self.num_gpu_batches') must not fire; any value > k works and 1 keeps the buffers tiny."
+      },
+      {
+        "name": "i",
+        "value": 1,
+        "why": "i==0 means prefill and returns before the target; any i>0 reaches the cache-load path."
+      },
+      {
+        "name": "k",
+        "value": 0,
+        "why": "gpu-batch index; 0 with num_gpu_batches=1 avoids the k==num_gpu_batches wrap before the target."
+      },
+      {
+        "name": "overlap",
+        "value": true,
+        "why": "the target line is inside the 'if overlap:' branch of load_cache; overlap=True is the default used by the InfiniGen path."
+      },
+      {
+        "name": "execute_gen_len",
+        "value": 2,
+        "why": "only read in the j==num_layers corner case, which is avoided; a value larger than i keeps that guard inactive."
+      },
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "fixed seed for the determinism requirement; the target decision is pure integer membership and does not use randomness."
+      }
+    ],
+    "positive_input": {
+      "j": 3
+    },
+    "negative_input": {
+      "j": 5
+    },
+    "boundary_variable": "j",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at speedup/flexgen/infinigen/flex_opt.py:799",
+      "signal_location": "speedup/flexgen/infinigen/flex_opt.py:799"
+    },
+    "expected": {
+      "positive": "branch taken at speedup/flexgen/infinigen/flex_opt.py:799",
+      "negative": "branch not taken at speedup/flexgen/infinigen/flex_opt.py:799"
+    }
+  },
+  "execution": {
+    "entry_called": "speedup/flexgen/infinigen/flex_opt.py::OptLM.load_cache",
+    "entry_reason": "Step 4 reports call_chain_status=not_found: no static call path exists from the declared entry TorchDevice.mha to OptLM.load_cache (it is reached through the dynamic generation loop, not from the attention kernel). The driver calls the repository's real OptLM.load_cache method on an instance whose attn_layer is built exactly as OptLM.__init__ builds it for sep_layer=True, so the target statement and the Region condition are the unmodified repository code.",
+    "call_chain_index": 1,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "false",
+      "true"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at speedup/flexgen/infinigen/flex_opt.py:799",
+    "negative_observed": "branch not taken at speedup/flexgen/infinigen/flex_opt.py:799"
+  },
+  "evidence": {}
+}

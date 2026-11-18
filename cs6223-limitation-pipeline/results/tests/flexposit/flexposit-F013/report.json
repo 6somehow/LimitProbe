@@ -1,0 +1,138 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "flexposit-F013",
+ "artifact_id": "flexposit",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "同 local_entry：cyc2 用符号位与未右移的 A",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "no_condition",
+  "location": "hardware/rtl/fp8_pe_mac_stream.v:395-423",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "S1 =A+ (b 0 & (A≫1))",
+    "source": "paper",
+    "locator": "PDF p.7"
+   }
+  ],
+  "code": [
+   {
+    "file": "hardware/rtl/fp8_pe_mac_stream.v",
+    "line_start": 395,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "hardware/rtl/fp8_pe_mac_stream.v",
+    "line_start": 452,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "hardware/rtl/systolic_efficient.v",
+    "line_start": 289,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/flexposit/limitations_for_tests.json",
+  "findings_sha256": "90fcaf23c2793dc03b49c54856e041483165536eff1522a25766022460b78f23",
+  "generated_at": "2026-11-17T15:05:22+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A0",
+  "tier_note": "the reading and the probes disagree",
+  "calibrated": false,
+  "assessment": "contradicts",
+  "reasoning": "The code contradicts the finding. In cycle2, add_a is act_temp (the A term), while add_b is selected by data_in[DATA_WIDTH-1] and uses shifted_act. shifted_act is loaded with act_temp in cycle0 and right-shifted in cycle1, so by cycle2 it is A>>1. Thus cycle2 implements A + (b0 & (A>>1)), matching the paper, not using un-right-shifted A for the b0 term.",
+  "hardware_needed": false,
+  "would_confirm": "Simulate or inspect cycle2 signals to verify shifted_act equals act_temp>>1 when add_b is selected.",
+  "static": {
+   "cited": 3,
+   "grounded": true,
+   "items": [
+    {
+     "file": "hardware/rtl/fp8_pe_mac_stream.v",
+     "lines": "395-423",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "rtl"
+    },
+    {
+     "file": "hardware/rtl/fp8_pe_mac_stream.v",
+     "lines": "452-490",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "rtl"
+    },
+    {
+     "file": "hardware/rtl/systolic_efficient.v",
+     "lines": "289-330",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "rtl"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "hardware/rtl/fp8_pe_mac_stream.v",
+    "regex": "shifted_act\\s*<=\\s*shifted_act\\s*>>>\\s*1",
+    "expect": "present",
+    "meaning": "Right shift occurs before cycle2; shifted_act is A>>1.",
+    "status": "confirmed",
+    "hits": 3,
+    "hit_lines": [
+     471,
+     473,
+     481
+    ]
+   },
+   {
+    "file": "hardware/rtl/fp8_pe_mac_stream.v",
+    "regex": "add_b\\s*=\\s*data_in\\[DATA_WIDTH-1\\]\\s*\\?\\s*\\{\\{\\(ADDW-MUL_MAG_W\\)\\{1'b0\\}\\},\\s*shifted_act\\}",
+    "expect": "present",
+    "meaning": "Cycle2 b0 term selects shifted_act, not act_temp.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     415
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

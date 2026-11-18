@@ -228,3 +228,83 @@ D1 到 D14 对三类效果通用，只有"什么算效果"不同（`runner.outco
 1. **`reject` 的适用范围（`runner.outcome_support`）。** 只有目标能抛异常时才判断：`assert`、`raise`，或分支体里有 `raise` 的 `if` / `while`。其他语句返回 `not_run` 并说明原因，不给 `no`。原因：把"程序最终拒绝"标在 `continue`、赋值或循环条件上，"目标位置抛异常"永远不满足，会得到方向错误的 `no`。
 2. **规范化哈希的口径（D8、D9）。** 只包含判定结果、条件取值、异常、返回值摘要、函数启动顺序、执行行集合，以及 **Region 条件里出现的名字**的局部变量值。时钟、随机数、对象地址等无关局部变量不再让确定的行为显得不稳定。有 `condition.py` 谓词时仍哈希全部局部变量（谓词可读任意名字）。
 3. **模块级目标。** `function == "<module>"` 指 import 时执行的语句，AST 比较和覆盖率按此处理；模块字典里的 `__` 开头名字不捕获。
+
+
+## 16. 故障注入基准扩大到 82 个 case（2026-11-16）
+
+`bench.py` 新增第二类 case：对 agent 为 step 4 Finding 写的测试包（NNSmith 的 F004、F017、F025、F010；FlexPrefill 的 F003、F054、F026）注入仓库故障，规则与前 31 个 case 相同：`reject` 类 5 种（原样、删除、取反、换异常类型，各配"过期 Region"或"当前 snippet"），分支类 5 种（原样、条件换成 `False`、取反、换成 `True`，同样两种 Region），再加"位置过期"（插一行注释、插入一条无害语句）。可接受的结果集在跑之前定好，写在 `bench.py` 里。另有 NNSmith F004 的两个测试包故障。原来的 31 个 case 一并重跑。
+
+| | 前 31 个 case（11-11） | 现在 82 个 case |
+|---|---|---|
+| 假阳性（claim 假而判 `yes`） | 0 | **0** |
+| 判定 `yes` | 6 个，全对 | 15 个，全对（L3 7 个、L1 8 个，Wilson 下界 0.65 和 0.68） |
+| 判定 `no` | 9 个，6 对 | 13 个，7 对 |
+| 弃权 | 16 | 54 |
+
+按判定和档位拆开：
+
+| 判定 / 档位 | 决定数 | 正确 | 比例 | Wilson 95% 区间 |
+|---|---|---|---|---|
+| `yes` / L3 | 7 | 7 | 1.00 | 0.65 到 1.00 |
+| `yes` / L1 | 8 | 8 | 1.00 | 0.68 到 1.00 |
+| `no` / L3 | 1 | 1 | 1.00 | 0.21 到 1.00 |
+| **`no` / L1** | **12** | **6** | **0.50** | **0.25 到 0.75** |
+
+读法：
+
+* **`yes` 没有错过。** 15 个 `yes` 全是 claim 为真。这是基准能说的最强的一句，仍然是 15 个决定的结果，故障集也是我们自己编的。
+* **`no` 在 L1 是抛硬币。** 12 个 L1 的 `no`，6 个错，**全部是同一种故障**：claim 为真，仓库把 `AssertionError` 换成了 `ValueError`（`*-otherexc-snip`，现在 6 个，前 31 个里是 3 个），oracle 只认 `AssertionError`，所以看到"没有预期的异常"，判成 `no`。其中 5 个的 D3（变异检查）是 `refuted`，1 个是 `residual`。11-11 的决定是"`no` 在 D3 没有消除时最高 L1，不强制 `inconclusive`"。这批新数据是对那条决定的新证据：L1 的 `no` 在这个故障族上一半是错的。**我没有改规则**（看了基准再改规则有按基准调参的嫌疑），这个决定留给你。
+* **弃权变多，不是错。** F07、F01、F04 的"删除守卫，Region snippet 已更新"三个 case 从 `no`/L1 变成 `inconclusive`/n/a：Region 说效果是 `reject`，目标语句已经是 `pass`，11-12 加的"`reject` 只在目标能抛异常时判断"（本文第 15 节）让它们弃权。这三个的可接受集是 `{no}`，所以在表里是"可接受集之外"，但没有错判。
+* 不同族的结果一致：手写 pilot 31 个 case、NNSmith 30 个、FlexPrefill step 4 测试包 21 个，假阳性都是 0。
+* 全部是确定性的小故障。这仍是冒烟测试，**不是校准**。档位的含义要靠人工标注（`labels` 命令）才能有经验依据。
+
+## 17. agent 的可见范围（2026-11-16，11-17 更新）
+
+* 沙箱里不可读：`attempts/`、`results/`、`locks/`、`runs/`、`tests/`、`scripts/`、`scratch/`、`agent_results/`，git 历史，凭据，`PLAN.md`、`ENV.md`、`KICKOFF_PROMPT.md`、`scoring_prototype.py`，以及 `AGENT_RESULTS.md`、`BATCH_RESULTS.md`、`NNSMITH_RESULTS.md`、`PREFLIGHT_FLEXPOSIT.md`。`agent_results/` 在 11-16 之前是可读的（`BATCH_RESULTS.md` 补记三）。
+* 白盒（默认）：可读 `checklimits/` 的源码、`CONFIDENCE_SPEC.md`、`SCORECARD.md`。
+* `--blind`（干净盲测）：沙箱里没有 harness（包目录是空 tmpfs），规则文档和实验记录读不到。`cl` 是客户端，`task`、`init`、`lint`、`run` 由沙箱外的服务（`agent_service.py`）执行，在同一个 bwrap 沙箱里跑，只返回输出。11-16 的第一版"盲测"只把源码换成 `.pyc`，五次运行都用 `strings`、`marshal`、`dis` 读了字节码，所以那一版只算半盲（`EXPERIMENTS.md`）。
+
+## 19. D14 要求目标在入口里执行（2026-11-17）
+
+原来 D14 只看 `call_chain[0]` 是不是最先开始的函数。现在还要求目标行执行时它仍在运行（追踪器给每次命中记下当时的调用栈，`fidelity.entry_on_stack`）。入口先开始、目标却在入口之外执行（先调一次入口，再直接调目标函数）时：写了 `entry_reason` 是 residual，没写是 refuted。模块级目标和无调用栈记录时不检查。发现的经过和对已有结果的影响见 `EXPERIMENTS.md`："D14 的漏洞"。
+
+对全部已有结果的影响（用新规则重新审计）：FlexPrefill F008 从 L3 到 L2；NNSmith F035 从 L3 到 L2；其余 e2e 结果的档位不变。基准的 82 个 case 没有重跑（它们是故障注入，不涉及入口），16 个决定、假阳性 0 的结论不受影响，但没有再验证一遍。
+
+## 20. D2 与 agent 谓词的交叉检查，以及第一份人工基线（2026-11-17）
+
+agent 可以写 `condition.py` 谓词代替 Region.condition 来求 D2。谓词可能说的是另一件事。人工基线（`labels/sheet_shanghao.csv`）发现 NNSmith F009：Region 的条件是 `max(left, right) >= W`（"到上限时不加进位"），目标语句是 `if carry and max(...) < W:`，agent 的谓词按语句写，于是 trigger 和 contrast 的方向反了，harness 给了 `yes`/L1，D2 只是 residual。现在谓词存在时也同时求值 Region.condition（`TargetHit.region_condition_value`）：能求值且与"正例为真、反例为假"矛盾，D2 为 refuted；一致，D2 为 eliminated；不能求值，仍是 residual。Region.condition 含调用（`random.uniform(...)`、`x.size()`）时不求值，因为求值会改变被测程序（`tracer._pure_expression`）。F009 现在是 `inconclusive`/`invalid`；F019、F022 因条件含调用，仍是 residual。有测试。
+
+基线的第一批数字（20 条抽样里 18 条 harness 判 `yes`，刷新 key 之后）：人工判断"断言对代码成立"的比例 16/18（Wilson 0.67 到 0.97），L1 4/6，L2 6/6，L3 6/6。**q2（测试有效）基本没评：** 基线的 q2 写的是 `Unverified`，因为审阅者没有拿到 driver 源码，只有 F009 一条被判 `Inconsistent`。`labels/context/` 给每条补了 driver 全文。这些数字不是校准，样本 18，档位之间的差别在区间里重叠。
+
+## 21. D5 的邻点探测对超时重试（2026-11-17）
+
+NNSmith 的 `random_model_gen` 用 `max_gen_millisec` 限时，机器负载高时邻点探测（`neg+`、`neg-`）可能在判出目标之前超时，D5 变 `open`，档位掉级（F035 chain-3 在 3 个并行 worker 下从 L3 掉到 L1）。现在 `harness._run_bva` 对没有判出目标的邻点探测最多再单独跑 `BVA_RETRIES = 2` 次。只重跑未判出的探测：已判出的结果不会被覆盖，重试只能把 `open` 变成有测量值的结果，不会把任何档位的判断改成别的方向；仍然判不出的保持 `open`。没有改任何阈值或规则，所以没有重跑基准和 `results/e2e/`。有两个测试（`test_mutate_bva.py`）。这没有"证明"负载问题消失：真实机器上的并行重审还没有重做，重做时仍建议 `--workers 1` 或 2。
+
+## 22. 分析通道：不能测的 Finding 也给分析，但另立档位（2026-11-18）
+
+`not_run` 的 Finding（`no_code_location`、`outcome_unsupported`、纯论文）不再只有一行原因。`checklimits analyze` / `pipeline analyze` / `pipeline e2e`（默认）给每条加一个 `analysis` 块（`report.json` 的可选字段，契约不升版本）。它**不是测试**：永远没有 `yes`/`no`，没有 L 档。
+
+三步，可信度由高到低：
+1. **静态证据核对（确定性）**：Finding 引用的文件在固定 commit 里存在、行号在范围内、引用的片段在那里。
+2. **探针（由 harness 执行）**：语言模型可以提出正则探针（"脚本里没有 `wget`"）。探针只能看 Finding 引用过的文件；`absent` 型探针必须带一个 `control` 正则，且它在同一文件里命中，否则记为 `unanchored`，不算数（"没找到"太容易满足）。
+3. **语言模型的读法**：`supports` / `contradicts` / `unclear`，带理由，答案缓存。
+
+档位（未校准，和 L 档不是一个量表）：
+
+| 档 | 条件 |
+|---|---|
+| A2 | 引用的代码找到了，至少一个探针跑了且与读法一致 |
+| A1 | 只有文字读法：纯论文、没有仓库、或没法写探针 |
+| A0 | 证据没法落地（引用的文件或行不存在），或读法与探针矛盾，或模型没给出可用答案 |
+
+**纯论文**（`checklimits paper-only` / `pipeline paper-only`，例如没有公开代码的 Tessera）：模型读 PDF 全文，列出读者能从文字确定的限制（假设、评测范围、缺失对比、数字不一致）。harness 核对每条引用**逐字出现在 PDF 里**，否则整条丢弃并计数；候选可带一个算术检查，其中每个数字必须出现在引用里，由 harness 求值。档位最高 A1。记录用 `<id>-P001…` 编号，`not_run.code = no_code_location`，`finding.category = paper_only:<kind>`，不走步骤 4 的 schema。
+
+限制：探针是文本搜索，不是语义分析；模型提出的探针可能选错文件或正则；A2 只说"找到的文本与读法一致"。没有人工核对，没有校准。
+
+## 23. 加速器代码的替身要自证（2026-11-18）
+
+没有 GPU 不是放弃一条 Finding 的理由。agent 可以用 CPU 替身（`sim.py`）代替 CUDA/Triton 核或硬件块，并用 `MockDecl.sim_check = "check.py::fn"` 声明怎么证明替身算的是核算的：`fn(sim)` 返回 `{"ok","detail","kind"}`，可以是和 CPU 参考实现在小规模随机输入上的数值比较，不变量检查（softmax 行和为 1、mask 生效、形状），或用 sympy / z3 对公式做符号证明。
+
+agent 写检查，所以 harness 不直接信它：`simcheck.py` 在子进程里先对替身跑一次（必须 ok），再对"被破坏的替身"（输出放大、取负、清零）各跑一次。破坏后仍然通过的检查看不见错误，记为 `vacuous`。状态：`agrees` / `disagrees` / `vacuous` / `error`。**只有 `disagrees` 改变档位**（D6 refuted）；`agrees` 只写进 D6 的证据，替身的证据状态仍由 `sim_class` 决定（`simulated:*`，档位上限不变）。
+
+验证：FlexPrefill F07 的 `bnhd_pool` 替身加上 `sim_check` 后，在真实 harness 里为 `agrees`（`tests/test_simcheck.py` 另有 5 个单测：agrees、disagrees、vacuous、error、未声明）。还没有让 agent 在一条真正需要 GPU 的新 Finding 上自己写 `sim_check` 并跑完。

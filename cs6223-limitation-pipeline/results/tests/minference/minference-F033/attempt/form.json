@@ -1,0 +1,165 @@
+{
+  "test_id": "A-minference-F033",
+  "finding_id": "minference-F033",
+  "strategy": "S1",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "fixed seed for deterministic tensor construction"
+      },
+      {
+        "name": "num_tokens",
+        "value": 4,
+        "why": "small prefill length; the branch only reads block_tables.numel()"
+      },
+      {
+        "name": "num_heads",
+        "value": 2,
+        "why": "small attention head count; the target decision does not read it"
+      },
+      {
+        "name": "num_kv_heads",
+        "value": 2,
+        "why": "small KV head count used only by the cache reshapes"
+      },
+      {
+        "name": "head_size",
+        "value": 8,
+        "why": "small head width used only by the cache reshapes"
+      },
+      {
+        "name": "num_blocks",
+        "value": 4,
+        "why": "small paged-cache block count for the negative input"
+      },
+      {
+        "name": "block_size",
+        "value": 4,
+        "why": "small paged-cache block size for the negative input"
+      },
+      {
+        "name": "layer_idx",
+        "value": 0,
+        "why": "selects the only pattern_config entry; not read by the target condition"
+      }
+    ],
+    "positive_input": {
+      "kv_cache is None": false,
+      "prefill_meta.block_tables.numel()": 0
+    },
+    "negative_input": {
+      "kv_cache is None": false,
+      "prefill_meta.block_tables.numel()": 1
+    },
+    "boundary_variable": "prefill_meta.block_tables.numel()",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at minference/modules/minference_forward.py:864",
+      "signal_location": "minference/modules/minference_forward.py:864"
+    },
+    "expected": {
+      "positive": "branch taken at minference/modules/minference_forward.py:864",
+      "negative": "branch not taken at minference/modules/minference_forward.py:864"
+    }
+  },
+  "execution": {
+    "entry_called": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+    "entry_reason": "Step 4 recorded call_chain_status=not_found: the listed sparse-kernel entry does not statically or dynamically reach the vLLM wrapper minference_vllm_forward.forward, so the driver calls that closure directly and records this deeper-call reason (T4/D14).",
+    "call_chain_index": 1,
+    "repo_files_modified": [],
+    "mocks": [
+      {
+        "symbol": "torch.arange",
+        "kind": "patch",
+        "reason": "The module builds its 64-wide LAST_Q_MASK with device='cuda' at import time; map that one call to CPU. The mask is a constant, data-independent value.",
+        "behavior": "sim",
+        "impl": "sim.py::arange",
+        "sim_class": "independent_native",
+        "sim_check": "check.py::check_arange"
+      },
+      {
+        "symbol": "minference.ops.block_sparse_flash_attention.block_sparse_attention",
+        "kind": "patch",
+        "reason": "GPU-only Triton/CUDA import and kernel; a plain-torch causal attention stand-in satisfies the import. It is never called before the target decision.",
+        "behavior": "sim",
+        "impl": "sim.py::block_sparse_attention",
+        "sim_class": "independent_native",
+        "sim_check": "check.py::check_block_sparse_attention"
+      },
+      {
+        "symbol": "minference.ops.pit_sparse_flash_attention_v2.vertical_slash_sparse_attention",
+        "kind": "patch",
+        "reason": "GPU-only Triton import and kernel; a plain-torch causal attention stand-in satisfies the import. It is only reached after the target branch, via the driver's sparse-output stand-in.",
+        "behavior": "sim",
+        "impl": "sim.py::vertical_slash_sparse_attention",
+        "sim_class": "independent_native",
+        "sim_check": "check.py::check_vertical_slash_sparse_attention"
+      },
+      {
+        "symbol": "minference.ops.streaming_kernel.streaming_forward",
+        "kind": "patch",
+        "reason": "GPU-only Triton import and kernel; a plain-torch causal attention stand-in satisfies the import. It is never called before the target decision.",
+        "behavior": "sim",
+        "impl": "sim.py::streaming_forward",
+        "sim_class": "independent_native",
+        "sim_check": "check.py::check_streaming_forward"
+      },
+      {
+        "symbol": "minference.ops.streaming_kernel.streaming_forward2",
+        "kind": "patch",
+        "reason": "GPU-only Triton import and kernel; a plain-torch causal attention stand-in satisfies the import. It is never called before the target decision.",
+        "behavior": "sim",
+        "impl": "sim.py::streaming_forward2",
+        "sim_class": "independent_native",
+        "sim_check": "check.py::check_streaming_forward"
+      },
+      {
+        "symbol": "minference.modules.minference_forward.PagedAttention.split_kv_cache",
+        "kind": "patch",
+        "reason": "vLLM's cache splitter is unavailable on CPU; the negative input reaches this call before the target. The stand-in reshapes the same cache layout with plain torch.",
+        "behavior": "sim",
+        "impl": "sim.py::split_kv_cache",
+        "sim_class": "independent_native",
+        "sim_check": "check.py::check_split_kv_cache"
+      },
+      {
+        "symbol": "minference.modules.minference_forward.PagedAttention.write_to_paged_cache",
+        "kind": "patch",
+        "reason": "vLLM's cache writer is unavailable on CPU; the negative input reaches this call before the target. The stand-in performs the same slot scatter with plain torch.",
+        "behavior": "sim",
+        "impl": "sim.py::write_to_paged_cache",
+        "sim_class": "independent_native",
+        "sim_check": "check.py::check_write_to_paged_cache"
+      },
+      {
+        "symbol": "minference.modules.minference_forward.PagedAttention.forward_prefix",
+        "kind": "patch",
+        "reason": "The negative branch calls the dense/prefix kernel after the target decision; return its query argument so the run continues with the correct shape.",
+        "behavior": "return_first_arg",
+        "sim_class": "stub"
+      }
+    ],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "true",
+      "false"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at minference/modules/minference_forward.py:864",
+    "negative_observed": "branch not taken at minference/modules/minference_forward.py:864"
+  },
+  "evidence": {}
+}

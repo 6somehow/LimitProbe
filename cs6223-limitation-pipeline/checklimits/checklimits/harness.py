@@ -36,7 +36,7 @@ from typing import Any, Optional
 
 from . import audit as audit_mod
 from . import bva as bva_mod
-from . import confidence, fidelity, mutate, runner, verdict
+from . import confidence, fidelity, mutate, runner, simcheck, verdict
 from .adapter import load_task
 from .models import (PIPELINE_ROOT, PROJECT_ROOT, scratch_root, AgentForm, AttemptManifest, Checks, Cost, Env, ExecutionReport,
                      Fidelity, MutantResult, MutationResult, Observation, OracleRecord, RepeatResult, ReplayResult,
@@ -137,6 +137,7 @@ def canonical_hash(raw: dict, obs: Observation, relevant: Optional[set[str]] = N
         "hits": [[h["outcome"], h["condition_value"],
                   {k: v for k, v in h["locals"].items() if relevant is None or k in relevant}]
                  for h in trace.get("target_hits", [])],
+        "guard": [h["condition_value"] for h in trace.get("decision_hits", [])],
         "starts": [[s["file"], s["fn"]] for s in trace.get("starts", [])],
         "lines": trace.get("lines", {}),
         "effect": obs.effect,
@@ -199,10 +200,22 @@ class _Ctx:
                 for label, inp in cases}
 
 
+BVA_RETRIES = 2
+
+
 def _run_bva(ctx: _Ctx, profile: Profile) -> Optional[bva_mod.BvaResult]:
     cases, bvar, reason = bva_mod.plan(ctx.form, ctx.task.trigger, profile.probe_step)
     obs = ctx.run_many(cases)
     effects = {k: o.effect for k, o in obs.items()}
+    # A neighbour probe that never decided the target (for example a time-limited generator that timed out under
+    # machine load) is run again, at most BVA_RETRIES times, one case at a time. Only undecided probes are retried,
+    # so a decided effect is never overwritten and a retry can only turn 'open' into a measured result.
+    for _ in range(BVA_RETRIES):
+        undecided = [(k, inp) for k, inp in cases if k in ("neg+", "neg-") and effects.get(k) is None]
+        if not undecided:
+            break
+        for k, o in ctx.run_many(undecided).items():
+            effects[k] = o.effect
     inputs = {label: inp for label, inp in cases}
     return bva_mod.evaluate(ctx.form.design.boundary_variable, effects, inputs, bvar is not None, reason)
 
@@ -328,7 +341,11 @@ def run_attempt(attempt_dir: Path, pipeline_root: Path = PIPELINE_ROOT, options:
                                 if h.get("call", 0) == raw.get("final_call", 0)), default=None)
     mock_recs = fidelity.mock_records(
         ctx.mocks, [(raw_p["mock_events"], first_hit(raw_p)), (raw_n["mock_events"], first_hit(raw_n))], chain)
+    sim_res = simcheck.run_sim_checks(ctx.mocks, ctx.attempt_dir, ctx.repo, manifest.python)
+    for mr in mock_recs:
+        mr.sim_check = sim_res.get(mr.symbol)
     entry_idx = fidelity.entry_index(chain, pos.entry_first_started)
+    entry_on_stack = fidelity.entry_on_stack(chain, region.location.function, pos)
     fid = Fidelity(strategy=form.strategy, ast_diff=ad, mocks=mock_recs, entry_index=entry_idx,
                    call_chain_len=len(chain), probe_effect_free=bool(probe_ok), probe_note=probe_note)
     if entry_idx is None or chain[entry_idx] != form.execution.entry_called:
@@ -376,19 +393,22 @@ def run_attempt(attempt_dir: Path, pipeline_root: Path = PIPELINE_ROOT, options:
     m = confidence.Measurements(
         verdict=v.verdict, outcome_supported=supported, target_reached=pos.target_reached,
         cond_true_on_positive=audit_mod.cond_value(pos, True), cond_false_on_negative=audit_mod.cond_value(neg, False),
-        condition_translated=bool(ctx.pred_file), mutation=mut_res,
+        condition_translated=bool(ctx.pred_file),
+        region_cond_true_on_positive=audit_mod.region_cond_value(pos, True) if ctx.pred_file else None,
+        region_cond_false_on_negative=audit_mod.region_cond_value(neg, False) if ctx.pred_file else None, mutation=mut_res,
         declared_tier=form.design.oracle.tier, verified_tier=verified, preregistered=prereg, oracle_revisions=revisions,
         differing_factors=factors, controls_differ=controls_differ, extra_negatives_clean=extras_clean,
-        bva=bva_res, info=info,
+        bva=bva_res, info=info, sim_checks={mr.symbol: mr.sim_check for mr in mock_recs if mr.sim_check},
         probe_effect_free=probe_ok, repeat=repeat, replay=replay_res, scale_declared=sc is not None,
         main_positive_effect=pos.effect, main_negative_effect=neg.effect,
         target_intact=ad.target_statement_intact, stmts_changed=ad.statements_changed, stmts_total=ad.statements_total,
         snippet_matches=ad.snippet_matches_region, scope_status=str(task.finding.scope_status),
-        entry_index=entry_idx, entry_reason=form.execution.entry_reason)
+        entry_index=entry_idx, entry_on_stack=entry_on_stack, entry_reason=form.execution.entry_reason)
     conf, final_verdict = confidence.build(m, profile)
     exec_result = v.exec_result
     if final_verdict == "inconclusive" and v.verdict != "inconclusive":
-        exec_result = "test_error"
+        if conf.level == "invalid":
+            exec_result = "test_error"
         notes.append("verdict forced to inconclusive: " + conf.level_note)
     skipped = [n for n, on in (("probe effect", options.probe_effect), ("boundary probes", options.bva),
                                ("mutation", options.mutation), ("replay", options.replay)) if not on]

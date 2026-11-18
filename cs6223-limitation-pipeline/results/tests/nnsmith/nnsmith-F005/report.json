@@ -1,0 +1,100 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "nnsmith-F005",
+ "artifact_id": "nnsmith",
+ "status": "not_run",
+ "not_run": {
+  "code": "outcome_unsupported",
+  "reason": "effect type 'other': the branch has no raise in its body: the program rejects later, in code the target does not point to"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "When isinstance(op, Expand) and oshape.ndims < op.expand_last_dim: Placeholder shapes with fewer dims than the Expand op's expand_last_dim are skipped as backward-insertion candidates, excluding them from consideration. (nnsmith/graph_gen.py:524)",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 2), not human: Skipping placeholders whose rank is too low for Expand is an operator-specific shape-validity invariant, not a user-facing limitation.",
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "nnsmith/graph_gen.py:524",
+  "function": "nnsmith/graph_gen.py::SimpleGenerator.try_backward_insert",
+  "condition": "isinstance(op, Expand) and oshape.ndims < op.expand_last_dim"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "nnsmith/graph_gen.py",
+    "line_start": 524,
+    "function": "nnsmith/graph_gen.py::SimpleGenerator.try_backward_insert",
+    "snippet": "if isinstance(op, Expand) and oshape.ndims < op.expand_last_dim:"
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/nnsmith/limitations_for_tests.json",
+  "findings_sha256": "3ec725e87dbddd4c992db2cb5e7881f511e70ce2ab61c81037bbb06a557aa5fb",
+  "generated_at": "2026-11-18T12:18:21+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A1",
+  "tier_note": "the reading is unclear; probes alone do not decide it",
+  "calibrated": false,
+  "assessment": "unclear",
+  "reasoning": "Line 524 shows the exact guard condition, but the shown evidence does not include the loop context or the body that would prove candidates are skipped. A following `continue` would support the finding; without it, the effect is not established.",
+  "hardware_needed": false,
+  "would_confirm": "A text search showing a `continue` immediately under the line 524 guard would confirm the skip.",
+  "static": {
+   "cited": 1,
+   "grounded": true,
+   "items": [
+    {
+     "file": "nnsmith/graph_gen.py",
+     "lines": "524-524",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": true,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "nnsmith/graph_gen.py",
+    "regex": "if isinstance\\(op, Expand\\) and oshape\\.ndims < op\\.expand_last_dim:",
+    "expect": "present",
+    "meaning": "Confirms the cited guard exists in the file.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     524
+    ]
+   },
+   {
+    "file": "nnsmith/graph_gen.py",
+    "regex": "(?s)if isinstance\\(op, Expand\\) and oshape\\.ndims < op\\.expand_last_dim:\\s*\\n\\s*continue",
+    "expect": "present",
+    "meaning": "Shows the guard immediately skips the candidate via continue.",
+    "status": "refuted",
+    "hits": 0,
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

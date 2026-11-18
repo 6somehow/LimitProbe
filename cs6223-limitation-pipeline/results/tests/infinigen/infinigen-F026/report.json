@@ -1,0 +1,142 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "infinigen-F026",
+ "artifact_id": "infinigen",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "单次topk未容纳K离群列",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "always",
+  "location": "speedup/infinigen/infinigen/partial_weight_generation_controller.py:5-39",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "perform top-k operation only once while accommodating the outlier columns of both query and key matrices",
+    "source": "paper",
+    "locator": "PDF p.9"
+   }
+  ],
+  "code": [
+   {
+    "file": "speedup/infinigen/infinigen/partial_weight_generation_controller.py",
+    "line_start": 5,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "accuracy/src/modeling_opt_ours_setup.py",
+    "line_start": 218,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "speedup/scripts/figure17b/run.sh",
+    "line_start": 1,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/infinigen/limitations_for_tests.json",
+  "findings_sha256": "51f6ee77be8f16b8743e78f2c11ea0c6b263e1a3c56aed29de35c9cfebb6dcf0",
+  "generated_at": "2026-11-18T14:11:18+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A0",
+  "tier_note": "the reading and the probes disagree",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The speedup path computes top-k only from the query matrix, so key-only outlier columns cannot be included in the single top-k. The accuracy path instead performs two separate top-k calls, one for query and one for key, not one combined top-k over both. This matches the claimed deviation from the paper's single top-k accommodating both query and key outliers.",
+  "hardware_needed": false,
+  "would_confirm": "Run the prefill selection with a key matrix whose outlier columns differ from the query's and verify whether selected indices include key-only outliers.",
+  "static": {
+   "cited": 3,
+   "grounded": true,
+   "items": [
+    {
+     "file": "speedup/infinigen/infinigen/partial_weight_generation_controller.py",
+     "lines": "5-39",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "accuracy/src/modeling_opt_ours_setup.py",
+     "lines": "218-230",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "speedup/scripts/figure17b/run.sh",
+     "lines": "1-12",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "shell"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "speedup/infinigen/infinigen/partial_weight_generation_controller.py",
+    "regex": "torch\\.topk\\(\\s*torch\\.sum\\(torch\\.abs\\(query",
+    "expect": "present",
+    "meaning": "Top-k source is the query matrix only.",
+    "status": "refuted",
+    "hits": 0,
+    "hit_lines": []
+   },
+   {
+    "file": "speedup/infinigen/infinigen/partial_weight_generation_controller.py",
+    "regex": "torch\\.topk\\([^)]*key",
+    "expect": "absent",
+    "meaning": "No top-k over key matrix in speedup path.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "torch\\.topk",
+    "hit_lines": []
+   },
+   {
+    "file": "accuracy/src/modeling_opt_ours_setup.py",
+    "regex": "(?s)torch\\.topk\\(torch\\.sum\\(torch\\.abs\\(query_states.*?torch\\.topk\\(torch\\.sum\\(torch\\.abs\\(key",
+    "expect": "present",
+    "meaning": "Accuracy path uses two separate top-k calls, not one combined.",
+    "status": "refuted",
+    "hits": 0,
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

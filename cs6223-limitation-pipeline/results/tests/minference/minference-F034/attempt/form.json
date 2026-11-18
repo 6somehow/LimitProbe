@@ -1,0 +1,84 @@
+{
+  "test_id": "A-minference-F034",
+  "finding_id": "minference-F034",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "Fixed seed makes the random key/query/value tensors deterministic across fresh processes and replay."
+      },
+      {
+        "name": "window_size",
+        "value": 1,
+        "why": "Must satisfy max_capacity_prompt - window_size > 0 for the constructor; 1 is below the fixed max_capacity_prompt 2 and is not part of the branch condition."
+      },
+      {
+        "name": "kernel_size",
+        "value": 1,
+        "why": "Only used by the compression branch after the target decision; 1 keeps the downstream pooling simple on CPU."
+      },
+      {
+        "name": "head_dim",
+        "value": 8,
+        "why": "Tensor shape parameter downstream of the decision; the guard reads only q_len and max_capacity_prompt."
+      },
+      {
+        "name": "num_heads",
+        "value": 1,
+        "why": "Tensor shape parameter downstream of the decision; one head is enough to execute the branch."
+      },
+      {
+        "name": "batch_size",
+        "value": 1,
+        "why": "Tensor shape parameter downstream of the decision; the guard is independent of the batch dimension."
+      }
+    ],
+    "positive_input": {
+      "q_len": 1,
+      "max_capacity_prompt": 2
+    },
+    "negative_input": {
+      "q_len": 2,
+      "max_capacity_prompt": 2
+    },
+    "boundary_variable": "q_len",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at minference/modules/snap_kv.py:321",
+      "signal_location": "minference/modules/snap_kv.py:321"
+    },
+    "expected": {
+      "positive": "branch taken at minference/modules/snap_kv.py:321",
+      "negative": "branch not taken at minference/modules/snap_kv.py:321"
+    }
+  },
+  "execution": {
+    "entry_called": "minference/modules/snap_kv.py::SnapKVCluster.update_kv",
+    "entry_reason": "Step 4 reports call_chain_status=not_found: gather_last_q_vertical_slash_topk_v4 builds attention masks and does not call SnapKVCluster.update_kv. In the source, update_kv is called from llama_flash_attn2_forward (snap_kv.py), not from the declared entry, so the branch is exercised by calling the deeper function update_kv with real CPU tensors.",
+    "call_chain_index": 1,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "false",
+      "true"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at minference/modules/snap_kv.py:321",
+    "negative_observed": "branch not taken at minference/modules/snap_kv.py:321"
+  },
+  "evidence": {}
+}

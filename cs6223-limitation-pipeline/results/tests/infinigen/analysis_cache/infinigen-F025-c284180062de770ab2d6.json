@@ -1,0 +1,22 @@
+{
+ "assessment": "supports",
+ "reasoning": "The cited speedup function computes top-k indices using only torch.abs(query) summed over columns; it never accepts or sums key magnitudes. The accuracy implementation separately sums both query_states and key, indicating the intended selection includes K_abs. Thus the speedup path omits the K_abs term on every call.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "speedup/infinigen/infinigen/partial_weight_generation_controller.py",
+   "regex": "torch\\.abs\\(\\s*key",
+   "expect": "absent",
+   "control": "torch\\.abs\\(\\s*query",
+   "meaning": "No key-absolute sum in top-k selection; query-only sum is present."
+  },
+  {
+   "file": "accuracy/src/modeling_opt_ours_setup.py",
+   "regex": "torch\\.abs\\(key",
+   "expect": "present",
+   "control": "torch\\.abs\\(query_states",
+   "meaning": "Accuracy path includes key magnitudes, contrasting the speedup omission."
+  }
+ ],
+ "would_confirm": "Run or inspect partial_weight_index_generation with a key input where key-based top-k differs from query-only top-k and verify whether selected indices change."
+}

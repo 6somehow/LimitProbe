@@ -23,6 +23,9 @@ python -m pipeline status mypaper
 
 # 3. 跑（会调模型、花钱；论文侧最贵，要显式加 --run-paper-side）
 python -m pipeline run mypaper --pdf /path/to/paper.pdf --run-paper-side
+
+# 4. 测试侧（Shanghao 的 checklimits）：每条 Finding 一份 report.json，汇总成 LIMITATIONS.md
+python -m pipeline test mypaper [--run-agent] [--strict]
 ```
 
 结果：
@@ -32,8 +35,44 @@ python -m pipeline run mypaper --pdf /path/to/paper.pdf --run-paper-side
 | `results/step4/<id>/limitations_for_tests.json` | 这篇论文两侧的全部 limitation（去重、分类、priority、witness_hint 之后） |
 | `results/step4/<id>/HANDOFF.md` | 给测试侧的说明 |
 | `results/step4/limitations_for_tests.json`、`HANDOFF.md` | 所有论文合在一起（每次自动刷新） |
+| `results/tests/<id>/<finding_id>/report.json` | `pipeline test`：每条 Finding 的测试记录（测了的有判定和档位，没测的有原因代码） |
+| `results/tests/<id>/index.json`、`ENV.json`、`pipeline_test.log` | 汇总和 1:1 检查、环境预检、测试侧的完整输出 |
+| `results/report/<id>/LIMITATIONS.md` | 汇总报告，档位标明未校准 |
 
 也可以在 Python 里调：`from pipeline.run import run`。
+
+## 一个入口：`doctor` 和 `e2e`（2026-11-17）
+
+配置只来自环境变量（或根目录的 `.env`，环境变量优先；模板见 `.env.example`）：
+
+| 变量 | 含义 |
+|---|---|
+| `SOCLAAS_API_KEY` | 真 key。只有中继进程拿到；其余进程只拿到占位值 |
+| `SOCLAAS_BASE_URL` | 模型服务的上游地址，如 `https://host/v1` |
+| `SOCLAAS_IFACE` | 中继出站绑定的网卡，默认 `eth0`；设为空则走普通路由 |
+| `PIPELINE_MODEL` | 记录和缓存用的模型名，默认 `x-test-2`（研究用的模型；改了就不会命中缓存）。**不读 `SOCLAAS_MODEL`** |
+
+```bash
+# 0. 一次性：python -m pipeline setup-paperside；pip install -e ".[llm,verify,dev]"
+# 1. 登记论文：python -m pipeline init --id X ...
+# 2. 运行前检查（不调模型；--live 会通过中继调一次 GET /models，验证 key、地址、网卡）
+python -m pipeline doctor X --paper-side --agent --live --pdf paper.pdf
+# 3. 一条命令：检查 -> 起中继 -> 步骤 1 到 4 -> 测试（带 --provision）-> 关中继
+python -m pipeline e2e X --pdf paper.pdf --run-paper-side --run-agent
+```
+
+`e2e` 先做 `doctor` 的全部静态检查和一次真实调用，任何一项 FAIL 就在花钱和克隆之前停下（退出码 1，消息 `stopped: ...`）。
+中继固定在 `127.0.0.1:8787`（代码 agent 的沙箱配置写死了这个端口）；已有中继在监听时直接复用，不会再起、也不会关。
+所有阶段有输出就跳过，所以中途失败后重跑同一条命令即可续上；`--run-paper-side` 的论文侧不会续跑一个不完整的请求，
+见 `checklimits/HANDOFF.md` §0。`pipeline test` 也有了 `--provision`。
+
+## 不能测的 Finding 和没有代码的论文（2026-11-18）
+
+* `python -m pipeline e2e <id> ...` 末尾默认给每条**没测的** Finding 加一个分析（档位 A0–A2，**不是测试结论**，没有 yes/no）。不要分析加 `--no-analyze`。
+* 只补分析、不重跑测试：`python -m pipeline analyze <id> [--force]`（自动启动和关闭中继）。
+* 没有公开代码的论文（例如 Tessera）：`python -m pipeline paper-only <id> --pdf P --title T --venue V`。模型读 PDF 列出限制，每条引用必须逐字出现在 PDF 里，否则丢弃；档位最高 A1。输出在 `results/tests/<id>/` 和 `results/report/<id>/LIMITATIONS.md`。
+* 档位含义、探针规则、限制见 `checklimits/CONFIDENCE_SPEC.md` §22。
+* 需要 GPU 的代码：agent 用 CPU 替身，并用 `sim_check` 自证替身与参考一致（数值或符号），见 §23。
 
 ## 每一步做什么
 
@@ -45,6 +84,18 @@ python -m pipeline run mypaper --pdf /path/to/paper.pdf --run-paper-side
 | verify3b | 步骤 3b：代码侧每条在论文 / README / docstring 里有没有写 | Wanting | `out/pipeline_ps/<id>/3b.json` | 是 |
 | step4 | 去重、分类、priority、witness_hint | Wanting | `results/step4/<id>/` | 是（有缓存） |
 | doc | 生成说明 | Wanting | `HANDOFF.md` | 否 |
+
+**test**（`python -m pipeline test <id>`，2026-11-15）：在 `checklimits/` 目录下调用
+`python -m checklimits test <id> --results-root <pipeline 根>/results`，接口见 `checklimits/CONTRACT_TEST_REPORT.md`。
+它不是 `run` 的一步：开 `--run-agent` 时每条 Finding 要跑一个 code agent（5 到 15 分钟）。
+
+- 不开 `--run-agent` 时只重新审计 `checklimits/agent_results/` 和 `results/tests/<id>/` 里已有的测试包，
+  能判断但没有测试包的记为 `not_run(not_attempted)`。
+- 退出码按契约第 6 节：0 报告完整（有 `not_run` 也算）；2 输入错误、3 条目对不上、1 测试侧异常时停下并说明原因；
+  4（只在 `--strict` 下）报告已写出，但有环境、agent 或 harness 原因的 `not_run`，也按失败退出。
+- `status` 里 test 一行：`done` 报告完整且由当前的步骤 4 文件生成；`stale` 步骤 4 重跑过，要重测；`todo` 还没有报告。
+- 被测仓库的环境由测试侧预检（`ENV.json`），不安装任何东西。缺依赖时能判断的 Finding 都记为 `not_run(env_unavailable)`，
+  原因写在报告里。
 
 顺序是 code → paper → verify3b：Zhaopeng 的 `finalize_handoff.py` 会读代码侧的 limitation
 （`results/pipeline/<id>/limitations.json`，pipeline 自动放好），3b 又要用论文侧的 `paper_side.json`。

@@ -1,0 +1,97 @@
+{
+  "test_id": "A-minference-F028",
+  "finding_id": "minference-F028",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "q_len",
+        "value": 64,
+        "why": "query length 64 equals the function's last_q window and is above the dense q_len==1 path"
+      },
+      {
+        "name": "bsz",
+        "value": 1,
+        "why": "the guard depends only on the config dict; one batch element is enough"
+      },
+      {
+        "name": "num_heads",
+        "value": 1,
+        "why": "the guard depends only on the config dict; one head is enough"
+      },
+      {
+        "name": "head_dim",
+        "value": 8,
+        "why": "head width is not part of the guard; a small width keeps the CPU run fast"
+      },
+      {
+        "name": "dtype",
+        "value": "float32",
+        "why": "float32 is the default inference dtype and it runs on CPU"
+      },
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "fixed seed makes the random tensors deterministic across runs"
+      },
+      {
+        "name": "head_id",
+        "value": 0,
+        "why": "the guard is evaluated before best_pattern is used; the first head is enough"
+      },
+      {
+        "name": "best_pattern",
+        "value": {},
+        "why": "an empty pattern map selects the function's own default sizes, as in a fresh model"
+      },
+      {
+        "name": "kv_cache_compressed_v4",
+        "value": false,
+        "why": "compressed-cache state is not part of the static_pattern guard; disabled"
+      }
+    ],
+    "positive_input": {
+      "static_pattern": 1
+    },
+    "negative_input": {
+      "static_pattern": 0
+    },
+    "boundary_variable": "static_pattern",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at minference/modules/minference_forward.py:432",
+      "signal_location": "minference/modules/minference_forward.py:432"
+    },
+    "expected": {
+      "positive": "branch taken at minference/modules/minference_forward.py:432",
+      "negative": "branch not taken at minference/modules/minference_forward.py:432"
+    }
+  },
+  "execution": {
+    "entry_called": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "false",
+      "true"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at minference/modules/minference_forward.py:432",
+    "negative_observed": "branch not taken at minference/modules/minference_forward.py:432"
+  },
+  "evidence": {}
+}

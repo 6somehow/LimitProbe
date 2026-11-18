@@ -1,0 +1,193 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "qoserve-F003",
+ "artifact_id": "qoserve",
+ "status": "not_run",
+ "not_run": {
+  "code": "outcome_unsupported",
+  "reason": "effect type 'other': the target assigns a value; the claimed effect is what that value changes later, which needs a differential check of outputs (the assignment itself would differ trivially)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "docs_only",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "When NUM_TIERS > 0: Each Sequence's QoS tier (and hence its deadline) is drawn at random from the global `random` module rather than from any caller-supplied SLA. The tier then drives `self.tier_deadline = TIER_DEADLINES[self.tier]` (line 74) and `_get_TBT_deadline`'s choice of `execution_threshold_batched` when `self.tier > 0` (lines 114-115), so the scheduling decision depends on the process-...",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "sarathi/core/datatypes/sequence.py:73",
+  "function": "sarathi/core/datatypes/sequence.py::Sequence.__init__",
+  "condition": "NUM_TIERS > 0"
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "3.2 QoS Classes and Deadlines QoServe defines two QoS classes: interactive and non in- teractive. Interactive requests use two SLOs — TTFT (time to first token) and TBT (token-by-token latency), which en- sure immediate responsiveness and consistent pacing. Non- interactive requests have a single TTLT (total latency) target, focused on overall completion. Although, we define two QoS classes, the application owner is free to specify their custom SLO targets within the class, allowing for flexibi…",
+    "source": "paper",
+    "locator": "PDF p.5, text lines 20-30"
+   },
+   {
+    "quote": "the application owner is free to specify their custom SLO targets within the class",
+    "source": "paper",
+    "locator": "PDF p.5"
+   },
+   {
+    "quote": "In multi-tenant deployments, we also use application hints such as free vs paid tier to preferentially relegate low-priority requests to ensure stability of service to the high priority ones.",
+    "source": "paper",
+    "locator": "PDF p.6"
+   }
+  ],
+  "code": [
+   {
+    "file": "sarathi/core/datatypes/sequence.py",
+    "line_start": 73,
+    "function": "sarathi/core/datatypes/sequence.py::Sequence.__init__",
+    "snippet": "self.tier = random.randint(0, NUM_TIERS - 1)"
+   },
+   {
+    "file": "sarathi/core/datatypes/sequence.py",
+    "line_start": 11,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "sarathi/core/datatypes/sequence.py",
+    "line_start": 70,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/qoserve/limitations_for_tests.json",
+  "findings_sha256": "79eb69f6ac7117b77ebe00293d1d328dff8bfffcd7cabc7556eaae435c1699e2",
+  "generated_at": "2026-11-18T00:25:45+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The paper says application owners can specify custom SLO targets and mentions free/paid hints, while the shown code assigns each Sequence a random tier and derives its deadline from TIER_DEADLINES. The finding's core claim that QoS tier/deadline is randomized rather than caller-supplied is directly supported by the code evidence.",
+  "hardware_needed": false,
+  "would_confirm": "Run a small unit test constructing Sequences with NUM_TIERS>0 and verify tier/deadline vary randomly and ignore any caller SLA input.",
+  "static": {
+   "cited": 6,
+   "grounded": true,
+   "items": [
+    {
+     "file": "sarathi/core/datatypes/sequence.py",
+     "lines": "73-73",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": true,
+     "kind": "python"
+    },
+    {
+     "file": "sarathi/core/datatypes/sequence.py",
+     "lines": "11-11",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "sarathi/core/datatypes/sequence.py",
+     "lines": "70-80",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "README.md",
+     "lines": "110-119",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "doc"
+    },
+    {
+     "file": "sarathi/core/datatypes/sequence.py",
+     "lines": "61-80",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "README.md",
+     "lines": "103-120",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "doc"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "sarathi/core/datatypes/sequence.py",
+    "regex": "self\\.tier\\s*=\\s*random\\.randint\\(0,\\s*NUM_TIERS\\s*-\\s*1\\)",
+    "expect": "present",
+    "meaning": "Confirms tier is randomly assigned, not supplied by caller.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     73
+    ]
+   },
+   {
+    "file": "sarathi/core/datatypes/sequence.py",
+    "regex": "self\\.tier_deadline\\s*=\\s*TIER_DEADLINES\\[self\\.tier\\]",
+    "expect": "present",
+    "meaning": "Confirms deadline is derived from the random tier.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     74
+    ]
+   },
+   {
+    "file": "sarathi/core/datatypes/sequence.py",
+    "regex": "execution_threshold_batched",
+    "expect": "present",
+    "meaning": "Shows TBT deadline logic references tier-dependent execution threshold.",
+    "status": "confirmed",
+    "hits": 2,
+    "hit_lines": [
+     111,
+     115
+    ]
+   },
+   {
+    "file": "sarathi/core/datatypes/sequence.py",
+    "regex": "if\\s+self\\.tier\\s*>\\s*0",
+    "expect": "present",
+    "meaning": "Shows scheduling threshold selection depends on tier value.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     114
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

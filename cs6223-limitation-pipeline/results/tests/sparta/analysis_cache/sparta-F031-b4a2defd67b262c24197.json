@@ -1,0 +1,27 @@
+{
+ "assessment": "supports",
+ "reasoning": "The shown code asserts len(out_t_tesa) == 1, so the output TESA is constrained to a single element rather than decomposed. It also returns only latency, kernels, and aggr_type, with no TransformTeSA call. Although marked mocked, the visible implementation supports the claimed deviation.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "sparta/specialization/specialize_kernel.py",
+   "regex": "len\\(out_t_tesa\\)\\s*==\\s*1",
+   "expect": "present",
+   "meaning": "Shows output TESA is constrained to one element, not decomposed."
+  },
+  {
+   "file": "sparta/specialization/specialize_kernel.py",
+   "regex": "TransformTeSA",
+   "expect": "absent",
+   "control": "def specialize_matmul",
+   "meaning": "Shows no output transform call appears in this file."
+  },
+  {
+   "file": "sparta/specialization/specialize_kernel.py",
+   "regex": "return latency, kernels, aggr_type",
+   "expect": "present",
+   "meaning": "Shows function returns no transformed output tensor."
+  }
+ ],
+ "would_confirm": "Inspect the full specialization pipeline to verify whether TransformTeSA is applied to O and whether out_t_tesa can ever have length greater than one."
+}

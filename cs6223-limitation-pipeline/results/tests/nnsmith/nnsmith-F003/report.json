@@ -1,0 +1,117 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "nnsmith-F003",
+ "artifact_id": "nnsmith",
+ "status": "tested",
+ "not_run": null,
+ "verdict": "inconclusive",
+ "level": "invalid",
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "refuted fatal defeaters: D2",
+ "verdict_reason": "no effect on either input",
+ "observed": {
+  "positive": "no exception at nnsmith/cli/fuzz.py:180 (later InternalError at nnsmith/error.py:73)",
+  "negative": "no exception at nnsmith/cli/fuzz.py:180"
+ },
+ "defeaters": {
+  "D1": "eliminated",
+  "D2": "refuted",
+  "D3": "residual",
+  "D4": "eliminated",
+  "D5": "eliminated",
+  "D6": "refuted",
+  "D7": "eliminated",
+  "D8": "eliminated",
+  "D9": "eliminated",
+  "D10": "eliminated",
+  "D11": "eliminated",
+  "D12": "eliminated",
+  "D13": "residual",
+  "D14": "residual"
+ },
+ "open_doubts": [
+  {
+   "id": "D2",
+   "name": "condition holds on positive, fails on negative",
+   "status": "refuted",
+   "evidence": "condition does not hold on the positive or does not fail on the negative"
+  },
+  {
+   "id": "D3",
+   "name": "oracle can see the effect",
+   "status": "residual",
+   "evidence": "only 1 mutants (< n_min=4); killed 0"
+  },
+  {
+   "id": "D6",
+   "name": "verdict-bearing observations do not depend on stand-ins",
+   "status": "refuted",
+   "evidence": "verdict-bearing observations: positive simulated:stub, negative simulated:stub"
+  },
+  {
+   "id": "D13",
+   "name": "inputs inside the paper's scope",
+   "status": "residual",
+   "evidence": "scope_status=unknown"
+  },
+  {
+   "id": "D14",
+   "name": "official entry point was called",
+   "status": "residual",
+   "evidence": "deeper entry (index 1); reason recorded: The advertised call_chain[0] PracticalHybridSearch.search_one has no static path to FuzzingLoop.run (step 4 reports call_chain_status=not_found); FuzzingLoop.run is the target's own function and is driven directly, with the rest of the run loop left untouched."
+  }
+ ],
+ "next_steps": [
+  "D2 (refuted): pick inputs so the Region condition is true on the positive and false on the negative; write a predicate if it cannot be evaluated",
+  "D3 (residual): 1 mutant(s) survived because no input separates them from the original: delete_statement (`pass  # propagate internal errors`). Add inputs that distinguish them (for a set-membership guard, one input per member), or strengthen the oracle if it cannot see the effect",
+  "D6 (refuted): move stand-ins after the target line, or replace stubs with a fake or the repository's own reference implementation",
+  "D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)"
+ ],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "reject",
+  "priority": 1,
+  "summary": "When isinstance(e, InternalError): InternalError from make_testcase is propagated, aborting the fuzzing loop, while other exceptions are swallowed and the loop continues. (nnsmith/cli/fuzz.py:180)",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "nnsmith/cli/fuzz.py:180",
+  "function": "nnsmith/cli/fuzz.py::FuzzingLoop.run",
+  "condition": "isinstance(e, InternalError)"
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "propagate internal errors",
+    "source": "code_comment",
+    "locator": "nnsmith/cli/fuzz.py:180"
+   }
+  ],
+  "code": [
+   {
+    "file": "nnsmith/cli/fuzz.py",
+    "line_start": 180,
+    "function": "nnsmith/cli/fuzz.py::FuzzingLoop.run",
+    "snippet": "raise e"
+   }
+  ]
+ },
+ "files": {
+  "execution_report": "execution_report.json",
+  "testcase": "testcase.json",
+  "attempt": "attempt"
+ },
+ "provenance": {
+  "findings_file": "results/step4/nnsmith/limitations_for_tests.json",
+  "findings_sha256": "3ec725e87dbddd4c992db2cb5e7881f511e70ce2ab61c81037bbb06a557aa5fb",
+  "generated_at": "2026-11-18T12:17:24+08:00",
+  "source": "reaudit",
+  "attempt_origin": "<project-root>/results/tests/nnsmith/nnsmith-F003/attempt",
+  "n_attempts_found": 2,
+  "profile": "default-v1"
+ },
+ "analysis": null
+}

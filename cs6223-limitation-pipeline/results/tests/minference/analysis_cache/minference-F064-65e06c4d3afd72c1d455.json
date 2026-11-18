@@ -1,0 +1,28 @@
+{
+ "assessment": "supports",
+ "reasoning": "Line 150 directly selects tl.float16 for every q.dtype except torch.bfloat16, so float32/float64/float16 queries all enter the Triton kernel as fp16. The shown evidence does not include any explicit non-bf16 check or input cast, and no paper evidence is recorded. This supports the finding, though the absence of checks elsewhere is only inferred from the cited line.",
+ "hardware_needed": true,
+ "probes": [
+  {
+   "file": "minference/ops/pit_sparse_flash_attention.py",
+   "regex": "dtype\\s*=\\s*tl\\.bfloat16\\s+if\\s+q\\.dtype\\s*==\\s*torch\\.bfloat16\\s+else\\s+tl\\.float16",
+   "expect": "present",
+   "meaning": "Confirms the exact non-bf16-to-fp16 dtype fallback."
+  },
+  {
+   "file": "minference/ops/pit_sparse_flash_attention.py",
+   "regex": "q\\.dtype\\s*==\\s*torch\\.(float32|float64|float16)",
+   "expect": "absent",
+   "control": "q\\.dtype\\s*==\\s*torch\\.bfloat16",
+   "meaning": "No explicit branch for other query dtypes; control confirms dtype comparison exists."
+  },
+  {
+   "file": "minference/ops/pit_sparse_flash_attention.py",
+   "regex": "q\\s*=\\s*q\\.(to|half|float)\\(",
+   "expect": "absent",
+   "control": "dtype\\s*=\\s*tl\\.bfloat16",
+   "meaning": "No visible cast of q before kernel; control confirms searched location."
+  }
+ ],
+ "would_confirm": "Run the sparse kernel with float32 q and compare its output/precision against explicit fp16 and fp32 reference kernels on GPU."
+}

@@ -1,0 +1,57 @@
+{
+  "test_id": "A-infinigen-F007",
+  "finding_id": "infinigen-F007",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {"name": "seed", "value": 0, "why": "fixed seed keeps tensor initialisation reproducible"},
+      {"name": "batch_size", "value": 1, "why": "smallest batch; the assertion only reads src.device.device_type"},
+      {"name": "target_seq_len", "value": 1, "why": "one decoding token per step, matching mha_gen usage"},
+      {"name": "n_head", "value": 1, "why": "single attention head; head count does not affect the assert"},
+      {"name": "head_dim", "value": 2, "why": "smallest usable head width for the real linear/bmm code"},
+      {"name": "seq_len", "value": 5, "why": "cache/mask length giving src_s=5 and topk=int(0.588*4)=2, so the sparse path is entered"}
+    ],
+    "positive_input": {
+      "attn_sparsity": 0.588,
+      "src_mixed": 1
+    },
+    "negative_input": {
+      "attn_sparsity": 0.588,
+      "src_mixed": 0
+    },
+    "boundary_variable": "src_mixed",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "exception",
+      "spec": "AssertionError raised at speedup/flexgen/infinigen/pytorch_backend.py:823",
+      "signal_location": "speedup/flexgen/infinigen/pytorch_backend.py:823"
+    },
+    "expected": {
+      "positive": "AssertionError at speedup/flexgen/infinigen/pytorch_backend.py:823",
+      "negative": "no exception at speedup/flexgen/infinigen/pytorch_backend.py:823"
+    }
+  },
+  "execution": {
+    "entry_called": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha_gen",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": ["false", "true"],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "AssertionError at speedup/flexgen/infinigen/pytorch_backend.py:823",
+    "negative_observed": "no exception at speedup/flexgen/infinigen/pytorch_backend.py:823"
+  },
+  "evidence": {}
+}

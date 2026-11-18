@@ -1,0 +1,137 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "sparta-F072",
+ "artifact_id": "sparta",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "not_implemented",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "论文要求特化 tiling 对齐指令形状；artifact 入口链无 tiling 生成步骤。",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "sparta/transformation/optimize_model.py:29-54",
+  "function": null,
+  "condition": "backend == 'pytorch'"
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "for 8bit, wmma for 4bit. The specialized tiling of the innermost loop(s) is then aligned to the computation shape of the in- struction. For example, one supported computation shape of",
+    "source": "paper",
+    "locator": "PDF p.8, text lines 129-131"
+   },
+   {
+    "quote": "one supported computation shape of wmma is the Matmul [16,16]x[16,16]. To specialize for this instruction, the tiling should rearrange the innermost loop body to align with the shape",
+    "source": "paper",
+    "locator": "PDF p.8"
+   }
+  ],
+  "code": [
+   {
+    "file": "sparta/transformation/optimize_model.py",
+    "line_start": 29,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "sparta/transformation/transform_policy.py",
+    "line_start": 158,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/sparta/limitations_for_tests.json",
+  "findings_sha256": "af8cad7c4e91af73f84a27b96179739526bde952a669319c71cc4e157ac4b49f",
+  "generated_at": "2026-11-18T12:35:53+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A0",
+  "tier_note": "the reading and the probes disagree",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The shown entry chain calls transform_module, and transform_matmul's specialization loop is commented out, so no specialize_matmul/tiling generation is active. The paper requires tiling aligned to instruction shape, but the artifact path shown returns without generating such tiling. This supports the finding, though the snippets are not exhaustive.",
+  "hardware_needed": false,
+  "would_confirm": "Run optimize_and_rebuild on a sparse matmul and inspect generated kernels or IR for instruction-shaped tiling.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "sparta/transformation/optimize_model.py",
+     "lines": "29-54",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "sparta/transformation/transform_policy.py",
+     "lines": "158-191",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "sparta/transformation/transform_policy.py",
+    "regex": "^\\s*latency, kernels, aggr_type = specialize_matmul\\(",
+    "expect": "absent",
+    "meaning": "Active specialization call absent; only commented block remains.",
+    "status": "refuted",
+    "hits": 1,
+    "control": "def transform_matmul",
+    "hit_lines": [
+     185
+    ]
+   },
+   {
+    "file": "sparta/transformation/transform_policy.py",
+    "regex": "tiling",
+    "expect": "absent",
+    "meaning": "No tiling generation in transform policy file.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "bit_align",
+    "hit_lines": []
+   },
+   {
+    "file": "sparta/transformation/optimize_model.py",
+    "regex": "tiling|specialize_matmul",
+    "expect": "absent",
+    "meaning": "Entry chain lacks tiling or specialization call.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "transform_module",
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

@@ -1,0 +1,137 @@
+{
+  "test_id": "A-minference-F013",
+  "finding_id": "minference-F013",
+  "strategy": "S1",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "q_len",
+        "value": 2,
+        "why": "any value above one skips the dense early return; two keeps padding and index conversion small"
+      },
+      {
+        "name": "batch_size",
+        "value": 1,
+        "why": "the assertion is per-call and does not depend on the batch dimension"
+      },
+      {
+        "name": "num_heads",
+        "value": 1,
+        "why": "one head is enough to reach the head-dimension assertion once"
+      },
+      {
+        "name": "dtype",
+        "value": "float32",
+        "why": "the assertion only reads tensor shapes and the CPU kernel stand-in accepts float32"
+      },
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "fixed seed makes tensor construction deterministic across repeated runs"
+      },
+      {
+        "name": "head_id",
+        "value": 0,
+        "why": "the dilated config path ignores head_id, but the entry requires an integer argument"
+      }
+    ],
+    "positive_input": {
+      "Lk": 129,
+      "Lq": 33,
+      "Lv": 33
+    },
+    "negative_input": {
+      "Lk": 128,
+      "Lq": 33,
+      "Lv": 33
+    },
+    "positive_prelude": [],
+    "negative_prelude": [],
+    "extra_negatives": [
+      {
+        "Lk": 16,
+        "Lq": 33,
+        "Lv": 33
+      },
+      {
+        "Lk": 32,
+        "Lq": 33,
+        "Lv": 33
+      },
+      {
+        "Lk": 64,
+        "Lq": 33,
+        "Lv": 33
+      }
+    ],
+    "boundary_variable": "Lk",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "exception",
+      "spec": "AssertionError raised at minference/ops/pit_sparse_flash_attention_v2.py:150",
+      "signal_location": "minference/ops/pit_sparse_flash_attention_v2.py:150"
+    },
+    "expected": {
+      "positive": "AssertionError at minference/ops/pit_sparse_flash_attention_v2.py:150",
+      "negative": "no exception at minference/ops/pit_sparse_flash_attention_v2.py:150"
+    }
+  },
+  "execution": {
+    "entry_called": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [
+      {
+        "symbol": "minference.cuda",
+        "kind": "fake_module",
+        "reason": "the compiled CUDA binding module is absent from this checkout; its only used symbol is patched to a CPU port of csrc/vertical_slash_index.cu",
+        "behavior": "record_only",
+        "sim_class": "repo_reference"
+      },
+      {
+        "symbol": "minference.ops.block_sparse_flash_attention",
+        "kind": "fake_module",
+        "reason": "GPU-only flash-attn module imported by minference_forward but never called on the dilated path; the driver installs an unused CPU placeholder",
+        "behavior": "record_only",
+        "sim_class": "stub"
+      },
+      {
+        "symbol": "torch.arange",
+        "kind": "patch",
+        "reason": "module-level LAST_Q_MASK and dialted ask for cuda at import; run the same range on CPU",
+        "behavior": "sim",
+        "impl": "sim.py::cpu_arange",
+        "sim_class": "independent_native",
+        "sim_check": "check.py::check_cpu_arange"
+      },
+      {
+        "symbol": "minference.cuda.convert_vertical_slash_indexes",
+        "kind": "patch",
+        "reason": "replaces the missing CUDA extension with a literal CPU port of csrc/vertical_slash_index.cu",
+        "behavior": "sim",
+        "impl": "sim.py::convert_vertical_slash_indexes",
+        "sim_class": "repo_reference"
+      }
+    ],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "true",
+      "false"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": false,
+    "positive_observed": "AssertionError at minference/ops/pit_sparse_flash_attention_v2.py:150",
+    "negative_observed": "no exception at minference/ops/pit_sparse_flash_attention_v2.py:150"
+  },
+  "evidence": {}
+}

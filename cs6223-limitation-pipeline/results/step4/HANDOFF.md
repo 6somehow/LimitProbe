@@ -1,10 +1,10 @@
-# 步骤 4 交接：两侧 limitation 一览（给 Shanghao；flexprefill、infinigen、minference、nnsmith、sparta）
+# 步骤 4 交接：两侧 limitation 一览（给 Shanghao；7 篇）
 
 > 自动生成（`scripts/make_handoff_doc.py`），数据来自 `results/step4/limitations_for_tests.json`。schema 0.2.0，witness 格式 witness-v2。方法细节见 `docs/09_step4_findings.md`。
 
 ## 一句话
 
-5 篇论文共 **329 条 limitation**（代码侧 + 论文侧），去重后是 **289 条 Finding**。每条 Finding 就是一个要测试的对象：它说明在什么条件下代码会出现什么行为，给出触发点和对照点（witness_hint），还附带它背后的全部原始记录。你要用的文件只有一个：`results/step4/limitations_for_tests.json`。
+7 篇论文共 **439 条 limitation**（代码侧 + 论文侧），去重后是 **380 条 Finding**。每条 Finding 就是一个要测试的对象：它说明在什么条件下代码会出现什么行为，给出触发点和对照点（witness_hint），还附带它背后的全部原始记录。你要用的文件只有一个：`results/step4/limitations_for_tests.json`。
 
 ## 1. 两侧的 limitation 有什么不同
 
@@ -26,19 +26,21 @@
 
 | 论文 | 代码侧 | 论文侧 | 两侧合并 | 合计 |
 |---|---|---|---|---|
+| flexposit | 21 | 19 | 1 | 41 |
 | flexprefill | 46 | 19 | 0 | 65 |
 | infinigen | 20 | 11 | 0 | 31 |
 | minference | 50 | 23 | 0 | 73 |
 | nnsmith | 33 | 3 | 2 | 38 |
+| qoserve | 12 | 36 | 2 | 50 |
 | sparta | 2 | 79 | 1 | 82 |
 
 按类别：
 
 | 来源 | undisclosed | contradicts_docs | stated_differently | docs_only | paper_stated | impl_deviates | not_implemented | 合计 |
 |---|---|---|---|---|---|---|---|---|
-| 代码侧 | 135 | 1 | 8 | 6 | 1 | 0 | 0 | 151 |
-| 论文侧 | 0 | 0 | 0 | 0 | 0 | 83 | 52 | 135 |
-| 两侧合并 | 2 | 0 | 0 | 1 | 0 | 0 | 0 | 3 |
+| 代码侧 | 163 | 1 | 8 | 11 | 1 | 0 | 0 | 184 |
+| 论文侧 | 0 | 0 | 0 | 0 | 0 | 112 | 78 | 190 |
+| 两侧合并 | 4 | 0 | 0 | 2 | 0 | 0 | 0 | 6 |
 
 | 类别 | 意思 |
 |---|---|
@@ -54,33 +56,33 @@
 
 | 来源 | p1 | p2 | p3 | 合计 |
 |---|---|---|---|---|
-| 代码侧 | 50 | 63 | 38 | 151 |
-| 论文侧 | 0 | 83 | 52 | 135 |
-| 两侧合并 | 1 | 2 | 0 | 3 |
+| 代码侧 | 45 | 65 | 74 | 184 |
+| 论文侧 | 0 | 111 | 79 | 190 |
+| 两侧合并 | 1 | 5 | 0 | 6 |
 
 按 effect_type：
 
 | 来源 | reject | path_change | state | accuracy | resource | performance | other | 合计 |
 |---|---|---|---|---|---|---|---|---|
-| 代码侧 | 61 | 70 | 7 | 0 | 0 | 0 | 13 | 151 |
-| 论文侧 | 0 | 0 | 0 | 0 | 0 | 0 | 135 | 135 |
-| 两侧合并 | 2 | 0 | 0 | 0 | 0 | 0 | 1 | 3 |
+| 代码侧 | 62 | 71 | 6 | 0 | 0 | 0 | 45 | 184 |
+| 论文侧 | 0 | 0 | 0 | 0 | 0 | 0 | 190 | 190 |
+| 两侧合并 | 2 | 1 | 0 | 0 | 0 | 0 | 3 | 6 |
 
 按 witness 状态：
 
 | 来源 | solved | solved_contrast_outside_scope | trigger_only | always | infeasible | untranslatable | unknown | no_condition | 合计 |
 |---|---|---|---|---|---|---|---|---|---|
-| 代码侧 | 140 | 0 | 3 | 0 | 8 | 0 | 0 | 0 | 151 |
-| 论文侧 | 33 | 0 | 4 | 89 | 0 | 0 | 0 | 9 | 135 |
-| 两侧合并 | 3 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 3 |
+| 代码侧 | 172 | 0 | 0 | 0 | 12 | 0 | 0 | 0 | 184 |
+| 论文侧 | 51 | 0 | 1 | 116 | 1 | 0 | 0 | 21 | 190 |
+| 两侧合并 | 6 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 6 |
 
 按审阅状态（盲审由 LLM 子代理做，不是人工；只覆盖了部分代码侧条目）：
 
 | 来源 | worth_testing | real_but_minor | wrong | unreviewed | 合计 |
 |---|---|---|---|---|---|
-| 代码侧 | 27 | 41 | 13 | 70 | 151 |
-| 论文侧 | 0 | 0 | 0 | 135 | 135 |
-| 两侧合并 | 2 | 0 | 0 | 1 | 3 |
+| 代码侧 | 27 | 40 | 13 | 104 | 184 |
+| 论文侧 | 0 | 0 | 0 | 190 | 190 |
+| 两侧合并 | 2 | 0 | 0 | 4 | 6 |
 
 ## 3. 一条记录里有什么
 
@@ -116,12 +118,26 @@
 | solved_contrast_outside_scope | contrast 只能取在论文 scope 外 | 同上，注意 contrast 不在论文范围内 |
 | trigger_only | 条件在路径上总是成立，没有对照点 | 只用 trigger |
 | always | 论文侧：每次走到引用代码都会出现 | 任意走到 `code_locations` 的输入 |
-| infeasible | 条件和路径前缀矛盾，从入口很可能走不到 | 已降为 p3；可能是误报 |
+| infeasible | 条件和路径前缀矛盾，从入口走不到。`infeasible_because: call_chain` 表示是把被调函数的名字换成入口函数的名字之后才矛盾的（见下面“调用链”） | 已降为 p3，不用花预算 |
 | no_condition | 论文侧：没有可用条件 | 读 `note` 和 summary，人工判断 |
 | untranslatable / unknown | 条件翻译不了 / 求解超时 | 读 condition 原文 |
 
+调用链（`call_chain_status`）：
+
+| 值 | 意思 |
+|---|---|
+| resolved | `call_chain` 是从入口函数到目标所在函数的真实调用链（入口在前）。`call_sites` 逐层给出调用所在行、解析方式（`resolved_by`）和参数对应 `args`（被调函数的形参 -> 调用者里的表达式） |
+| entry_is_target | 目标就在入口函数里 |
+| module_level | 目标是模块级语句，import 时执行，没有调用链 |
+| not_found | 静态分析找不到从入口到目标的调用链（动态分发、回调，或目标不在入口的路径上）。有 `calls_entry` 时表示这个函数是调用入口的一方（如框架集成），要直接驱动它 |
+
+- `uncertain_steps` 列出靠猜解析的调用（方法名在仓库里唯一、子类覆盖、嵌套函数被传出去）。
+- `other_chains` 是其它调用链（例如同一个函数有两个调用点）。
+- `entry_terms`：条件和路径前缀换成入口函数名字后的写法，以及每个名字对应的入口表达式（如 `d` -> `k.shape[3]`）。有它时 `aliases` 也是用入口函数的名字写的。
+
 已知不足：
-- `path_prefix` 混着调用链上各层函数的条件。同一个名字在调用者和被调用者里可能不是同一个东西（例如两层里的 `q`）。所以别名只在单层时参与求解，其余只列在 `aliases_not_applied` 里。
+- 没有调用链（not_found）时，`path_prefix` 仍混着各层函数的条件，同一个名字在调用者和被调用者里可能不是同一个东西。这时别名只在单层时参与求解，其余只列在 `aliases_not_applied` 里。
+- 多行语句的 `snippet` 是 `ast.unparse` 后的第一行：并成一行、去掉 assert 消息、去掉多余括号，最多 200 字符。请按解析后的条件比较，不要逐字比较。
 - 论文侧条件由 LLM 写出，只核对过“名字都出现在引用的代码里”，**语义不一定对**，要当提示用。
 - 所有值都没有实际执行验证过。
 
@@ -140,66 +156,67 @@
 
 每个例子是一条 Finding 的精简版，长字段已截断；完整内容在 json 里。例子是按规则自动挑的第一条，不是挑好看的。“论文侧 · LLM 写出条件”那条正好说明了它的局限：条件在形式上能解，但不一定抓住了论文差异的本质，所以论文侧条件只当提示用。
 
-### 代码侧 · undisclosed · p1 · 有别名：`flexprefill-F003`
+### 代码侧 · undisclosed · p1 · 有别名：`flexprefill-F015`
 
 ```json
 {
- "finding_id": "flexprefill-F003",
+ "finding_id": "flexprefill-F015",
  "category": "undisclosed",
  "priority": 1,
  "effect_type": "reject",
  "scope_status": "unknown",
  "review": "real_but_minor",
- "summary": "When num_q_heads % num_kv_heads != 0: GQA requires the number of query heads to be a multiple of KV heads; otherwise execution stops. (flex_prefill/ops/flex_prefill_attention.py:247)",
+ "summary": "When q_len != k_len: Rejects inputs where query and key sequence lengths differ, so no cross-length (e.g. decode-style) attention is supported. (flex_prefill/ops/vertical_slash_attention.py:265)",
  "witness_hint": {
   "kind": "input_value",
   "status": "solved",
-  "condition": "num_q_heads % num_kv_heads != 0",
+  "condition": "q_len != k_len",
   "path_prefix": [],
   "aliases": {
-   "num_q_heads": "q.shape[2]",
-   "num_kv_heads": "k.shape[2]"
+   "q_len": "q.shape[1]",
+   "k_len": "k.shape[1]"
   },
   "trigger": {
-   "num_q_heads": 5,
-   "num_kv_heads": 4,
-   "q.shape[2]": 5,
-   "k.shape[2]": 4
+   "q_len": 1,
+   "k_len": 2,
+   "q.shape[1]": 1,
+   "k.shape[1]": 2
   },
   "contrast": {
-   "num_q_heads": 5,
-   "num_kv_heads": 5,
-   "q.shape[2]": 5,
-   "k.shape[2]": 5
+   "q_len": 2,
+   "k_len": 2,
+   "q.shape[1]": 2,
+   "k.shape[1]": 2
   },
   "atoms": {
-   "k.shape[2]": {
+   "k.shape[1]": {
     "kind": "derived",
     "sort": "int"
    },
-   "num_kv_heads": {
+   "k_len": {
     "kind": "local",
     "sort": "int"
    },
-   "num_q_heads": {
-    "kind": "local",
-    "sort": "int"
-   },
-   "q.shape[2]": {
+   "q.shape[1]": {
     "kind": "derived",
+    "sort": "int"
+   },
+   "q_len": {
+    "kind": "local",
     "sort": "int"
    }
   },
-  "location": "flex_prefill/ops/flex_prefill_attention.py:247"
+  "call_chain_status": "not_found",
+  "location": "flex_prefill/ops/vertical_slash_attention.py:265"
  },
  "limitations": [
   {
-   "limitation_id": "CL-B009",
+   "limitation_id": "CL-B013",
    "origin": "code",
-   "condition_text": "num_q_heads % num_kv_heads != 0",
-   "effect_text": "GQA requires the number of query heads to be a multiple of KV heads; otherwise execution stops.",
+   "condition_text": "q_len != k_len",
+   "effect_text": "Rejects inputs where query and key sequence lengths differ, so no cross-length (e.g. decode-style) attention is supported.",
    "code_evidence": [
-    "flex_prefill/ops/flex_prefill_attention.py:247-247"
+    "flex_prefill/ops/vertical_slash_attention.py:265-265"
    ],
    "paper_quote": null
   }
@@ -215,221 +232,49 @@
 }
 ```
 
-### 代码侧 · stated_differently（文档说得比代码弱）：`flexprefill-F019`
+### 代码侧 · stated_differently（文档说得比代码弱）：`flexprefill-F027`
 
 ```json
 {
- "finding_id": "flexprefill-F019",
+ "finding_id": "flexprefill-F027",
  "category": "stated_differently",
  "priority": 2,
  "effect_type": "reject",
  "scope_status": "unknown",
- "review": "worth_testing",
- "summary": "When not (\"llama\" in model_name.lower() or \"glm\" in model_name.lower() or \"qwen2\" in model_name.lower()): Any HF model whose class name lacks llama/glm/qwen2 is rejected outright. (flex_prefill/modules/patch.py:320)",
- "witness_hint": {
-  "kind": "input_value",
-  "status": "solved",
-  "condition": "not (\"llama\" in model_name.lower() or \"glm\" in model_name.lower() or \"qwen2\" in model_name.lower())",
-  "path_prefix": [],
-  "trigger": {
-   "'llama' in model_name.lower()": false,
-   "'glm' in model_name.lower()": false,
-   "'qwen2' in model_name.lower()": false
-  },
-  "contrast": {
-   "'llama' in model_name.lower()": true,
-   "'glm' in model_name.lower()": false,
-   "'qwen2' in model_name.lower()": false
-  },
-  "atoms": {
-   "'glm' in model_name.lower()": {
-    "kind": "predicate",
-    "sort": "bool"
-   },
-   "'llama' in model_name.lower()": {
-    "kind": "predicate",
-    "sort": "bool"
-   },
-   "'qwen2' in model_name.lower()": {
-    "kind": "predicate",
-    "sort": "bool"
-   }
-  },
-  "location": "flex_prefill/modules/patch.py:320"
- },
- "limitations": [
-  {
-   "limitation_id": "CL-B006",
-   "origin": "code",
-   "condition_text": "not (\"llama\" in model_name.lower() or \"glm\" in model_name.lower() or \"qwen2\" in model_name.lower())",
-   "effect_text": "Any HF model whose class name lacks llama/glm/qwen2 is rejected outright.",
-   "code_evidence": [
-    "flex_prefill/modules/patch.py:320-320"
-   ],
-   "paper_quote": null
-  }
- ],
- "verifications": [
-  {
-   "result": "weaker",
-   "documented_in": [
-    "readme"
-   ],
-   "quote": "Currently, `flex_prefill.patch_model` only supports the following models: - LLaMA: [meta-llama/Meta-Llama-3.1-8B-Instru…"
-  }
- ],
- "rationale": "3b: weaker in readme; 3b weaker; priority 2: stated_differently"
-}
-```
-
-### 代码侧 · docs_only（README / docstring 写了，论文没写）：`flexprefill-F039`
-
-```json
-{
- "finding_id": "flexprefill-F039",
- "category": "docs_only",
- "priority": 3,
- "effect_type": "path_change",
- "scope_status": "unknown",
  "review": "real_but_minor",
- "summary": "When pattern == \"default\": For the default pattern, patch_llama_attention returns without patching, leaving the original dense attention implementation in place. (flex_prefill/modules/patch.py:114)",
+ "summary": "When q.dtype != torch.bfloat16: Rejects any query tensor not in bfloat16, so callers using fp16/fp32 cannot run this kernel. (flex_prefill/ops/vertical_slash_attention.py:264)",
  "witness_hint": {
   "kind": "input_value",
   "status": "solved",
-  "condition": "pattern == \"default\"",
+  "condition": "q.dtype != torch.bfloat16",
   "path_prefix": [],
   "trigger": {
-   "pattern": "default"
-  },
-  "contrast": {
-   "pattern": {
+   "q.dtype": {
     "not_in": [
-     "default"
+     "torch.bfloat16"
     ]
    }
   },
+  "contrast": {
+   "q.dtype": "torch.bfloat16"
+  },
   "atoms": {
-   "pattern": {
+   "q.dtype": {
     "kind": "category",
     "sort": "str"
    }
   },
-  "location": "flex_prefill/modules/patch.py:114"
+  "call_chain_status": "not_found",
+  "location": "flex_prefill/ops/vertical_slash_attention.py:264"
  },
  "limitations": [
   {
-   "limitation_id": "CL-B002",
+   "limitation_id": "CL-B012",
    "origin": "code",
-   "condition_text": "pattern == \"default\"",
-   "effect_text": "For the default pattern, patch_llama_attention returns without patching, leaving the original dense attention implementation in place.",
+   "condition_text": "q.dtype != torch.bfloat16",
+   "effect_text": "Rejects any query tensor not in bfloat16, so callers using fp16/fp32 cannot run this kernel.",
    "code_evidence": [
-    "flex_prefill/modules/patch.py:114-114"
-   ],
-   "paper_quote": null
-  }
- ],
- "verifications": [
-  {
-   "result": "found",
-   "documented_in": [
-    "docstring"
-   ],
-   "quote": "- 'default': Default attention mechanism with no additional configuration."
-  }
- ],
- "rationale": "3b: found in docstring; priority 3: docs_only, path_change effect"
-}
-```
-
-### 代码侧 · state（事件序列）：`minference-F002`
-
-```json
-{
- "finding_id": "minference-F002",
- "category": "undisclosed",
- "priority": 1,
- "effect_type": "state",
- "scope_status": "unknown",
- "review": "real_but_minor",
- "summary": "When ROPE_TYPE is not None: `ROPE_TYPE` is a module-level global computed once from the *first* attention module's `rotary_emb.forward` signature and then reused for every model/layer in the process (`if ROPE_TYPE is not None: return`). Loading a second model with a different RoPE signature in the same process keeps the first model's convention, and `get_cos_sin` then calls `self.rotary_emb` wi...",
- "witness_hint": {
-  "kind": "event_sequence",
-  "status": "solved",
-  "condition": "ROPE_TYPE is not None",
-  "path_prefix": [],
-  "trigger": {
-   "ROPE_TYPE is None": false
-  },
-  "contrast": {
-   "ROPE_TYPE is None": true
-  },
-  "atoms": {
-   "ROPE_TYPE is None": {
-    "kind": "predicate",
-    "sort": "bool"
-   }
-  },
-  "location": "minference/modules/minference_forward.py:30"
- },
- "limitations": [
-  {
-   "limitation_id": "CL-B003",
-   "origin": "code",
-   "condition_text": "ROPE_TYPE is not None",
-   "effect_text": "`ROPE_TYPE` is a module-level global computed once from the *first* attention module's `rotary_emb.forward` signature and then reused for every model/layer in …",
-   "code_evidence": [
-    "minference/modules/minference_forward.py:30-30"
-   ],
-   "paper_quote": null
-  }
- ],
- "verifications": [
-  {
-   "result": "not_found",
-   "documented_in": [],
-   "quote": null
-  }
- ],
- "rationale": "3b: not_found; priority 1: undisclosed, state effect, witness reaches it"
-}
-```
-
-### 代码侧 · infeasible（多半走不到，p3）：`flexprefill-F041`
-
-```json
-{
- "finding_id": "flexprefill-F041",
- "category": "stated_differently",
- "priority": 3,
- "effect_type": "reject",
- "scope_status": "unknown",
- "review": "unreviewed",
- "summary": "When not (q.dtype == torch.bfloat16): AssertionError (flex_prefill/ops/flex_prefill_attention.py:868)",
- "witness_hint": {
-  "kind": "input_value",
-  "status": "infeasible",
-  "condition": "not (q.dtype == torch.bfloat16)",
-  "path_prefix": [
-   "batch_size == 1",
-   "not (q_len == 1)",
-   "q.shape[1] == k.shape[1]",
-   "head_dim in {16, 32, 64, 128}",
-   "block_size in {16, 32, 64, 128}",
-   "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))",
-   "not (q.shape[1] > 1)",
-   "q_len == 1"
-  ],
-  "note": "no values satisfy path prefix, condition and scope together",
-  "location": "flex_prefill/ops/flex_prefill_attention.py:868"
- },
- "limitations": [
-  {
-   "limitation_id": "CL-X025",
-   "origin": "code",
-   "condition_text": "not (q.dtype == torch.bfloat16)",
-   "effect_text": "AssertionError",
-   "code_evidence": [
-    "flex_prefill/ops/flex_prefill_attention.py:868-868"
+    "flex_prefill/ops/vertical_slash_attention.py:264-264"
    ],
    "paper_quote": null
   }
@@ -443,90 +288,161 @@
    "quote": "Note: The current version only supports inference with a batch size of 1 and has only been tested with bfloat16 precisi…"
   }
  ],
- "rationale": "3b: weaker in readme; 3b weaker; priority 3: unreachable: condition contradicts its path prefix"
+ "rationale": "3b: weaker in readme; 3b weaker; priority 2: stated_differently"
 }
 ```
 
-### 两侧合并：`nnsmith-F006`
+### 代码侧 · docs_only（README / docstring 写了，论文没写）：`flexposit-F027`
 
 ```json
 {
- "finding_id": "nnsmith-F006",
- "category": "undisclosed",
- "priority": 1,
- "effect_type": "reject",
+ "finding_id": "flexposit-F027",
+ "category": "docs_only",
+ "priority": 3,
+ "effect_type": "path_change",
  "scope_status": "unknown",
- "review": "worth_testing",
- "summary": "When p.grad is not None and torch.any(p.grad != 0): If all parameter gradients are zero, ConstraintCheck.true(nonzero, ...) raises, aborting the backward step ('Gradients are all zero. Cannot make progress.'). (nnsmith/materialize/torch/symbolnet.py:188)",
+ "review": "unreviewed",
+ "summary": "When config.bits > config.base_nsize: When bits exceeds base_nsize the code requires a sensitivity ranking and runs the window-upgrade planning path; otherwise no windows are upgraded and all channels stay at base_nsize. (src/flexposit/api.py:181)",
  "witness_hint": {
   "kind": "input_value",
   "status": "solved",
-  "condition": "p.grad is not None and torch.any(p.grad != 0)",
-  "path_prefix": [],
+  "condition": "config.bits > config.base_nsize",
+  "path_prefix": [
+   "quantize"
+  ],
   "trigger": {
-   "p.grad is None": false,
-   "torch.any(p.grad != 0)": true
+   "config.bits": 2,
+   "config.base_nsize": 1,
+   "quantize": true
   },
   "contrast": {
-   "p.grad is None": false,
-   "torch.any(p.grad != 0)": false
+   "config.bits": 1,
+   "config.base_nsize": 1,
+   "quantize": true
   },
   "atoms": {
-   "p.grad is None": {
-    "kind": "predicate",
-    "sort": "bool"
+   "config.base_nsize": {
+    "kind": "derived",
+    "sort": "int"
    },
-   "torch.any(p.grad != 0)": {
-    "kind": "predicate",
+   "config.bits": {
+    "kind": "derived",
+    "sort": "int"
+   },
+   "quantize": {
+    "kind": "input",
     "sort": "bool"
    }
   },
-  "location": "nnsmith/materialize/torch/symbolnet.py:188"
+  "call_chain_status": "entry_is_target",
+  "call_chain": [
+   "src/flexposit/api.py::quantize"
+  ],
+  "location": "src/flexposit/api.py:181"
  },
  "limitations": [
   {
-   "limitation_id": "CL-B028",
+   "limitation_id": "CL-B003",
    "origin": "code",
-   "condition_text": "p.grad is not None and torch.any(p.grad != 0)",
-   "effect_text": "If all parameter gradients are zero, ConstraintCheck.true(nonzero, ...) raises, aborting the backward step ('Gradients are all zero. Cannot make progress.').",
+   "condition_text": "config.bits > config.base_nsize",
+   "effect_text": "When bits exceeds base_nsize the code requires a sensitivity ranking and runs the window-upgrade planning path; otherwise no windows are upgraded and all chann…",
    "code_evidence": [
-    "nnsmith/materialize/torch/symbolnet.py:188-188"
+    "src/flexposit/api.py:181-181"
    ],
    "paper_quote": null
-  },
+  }
+ ],
+ "verifications": [
   {
-   "limitation_id": "CL-B029",
+   "result": "found",
+   "documented_in": [
+    "docstring"
+   ],
+   "quote": "It is required when ``config.bits`` is above ``config.base_nsize``"
+  }
+ ],
+ "rationale": "3b: found in docstring; priority 3: docs_only, path_change effect"
+}
+```
+
+### 代码侧 · state（事件序列）：`flexprefill-F012`
+
+```json
+{
+ "finding_id": "flexprefill-F012",
+ "category": "undisclosed",
+ "priority": 1,
+ "effect_type": "state",
+ "scope_status": "unknown",
+ "review": "unreviewed",
+ "summary": "When causal_mask is None  # first call only: module-level cache initialised on first call and reused (flex_prefill/ops/flex_prefill_attention.py:1695)",
+ "witness_hint": {
+  "kind": "event_sequence",
+  "status": "solved",
+  "condition": "causal_mask is None  # first call only",
+  "path_prefix": [
+   "batch_size == 1",
+   "not (q_len == 1)",
+   "q.shape[1] == k.shape[1]",
+   "head_dim in {16, 32, 64, 128}",
+   "block_size in {16, 32, 64, 128}",
+   "not (q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size))"
+  ],
+  "aliases": {
+   "q_len": "q.shape[1]"
+  },
+  "entry_terms": {
+   "path_prefix": {
+    "batch_size == 1": "k.shape[0] == 1",
+    "not q_len == 1": "not q.shape[1] == 1",
+    "head_dim in {16, 32, 64, 128}": "k.shape[3] in {16, 32, 64, 128}"
+   },
+   "names": {
+    "q_len": "q.shape[1]"
+   }
+  },
+  "trigger": {
+   "causal_mask is None": true,
+   "batch_size": 1,
+   "q_len": 385,
+   "q.shape[1]": 385,
+   "k.shape[1]": 385,
+   "head_dim": 16,
+   "block_size": 128,
+   "min_budget": 318,
+   "k.shape[0]": 1,
+   "k.shape[3]": 64
+  },
+  "contrast": {
+   "causal_mask is None": false,
+   "batch_size": 1,
+   "q_len": 385,
+   "q.shape[1]": 385,
+   "k.shape[1]": 385,
+   "head_dim": 16,
+   "block_size": 128,
+   "min_budget": 318,
+   "k.shape[0]": 1,
+   "k.shape[3]": 64
+  },
+  "atoms": "... 10 atoms, see json",
+  "call_chain_status": "resolved",
+  "call_chain": [
+   "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention",
+   "flex_prefill/ops/flex_prefill_attention.py::get_active_blocks"
+  ],
+  "location": "flex_prefill/ops/flex_prefill_attention.py:1695-1698"
+ },
+ "limitations": [
+  {
+   "limitation_id": "CL-X008",
    "origin": "code",
-   "condition_text": "nonzero is False",
-   "effect_text": "If the loss has zero gradient w.r.t. all trainable tensors (e.g. the NaN/Inf came from a non-differentiable path), `backward` raises ConstraintError; `grad_inp…",
+   "condition_text": "causal_mask is None # first call only",
+   "effect_text": "module-level cache initialised on first call and reused",
    "code_evidence": [
-    "nnsmith/materialize/torch/symbolnet.py:191-191"
+    "flex_prefill/ops/flex_prefill_attention.py:1695-1698"
    ],
    "paper_quote": null
-  },
-  {
-   "limitation_id": "nnsmith-gap-M08-B06",
-   "origin": "paper",
-   "condition_text": "Pinned inspected artifact path: experiments/nnsmith_gen_onnx.py::nnsmith_gen_once 与 nnsmith/materialize/torch/__init__.py::TorchModel.refine_weights 经Practical…",
-   "effect_text": "零梯度触发搜索终止+外层重试，而非 Line 11 随机重启",
-   "code_evidence": [
-    "nnsmith/materialize/torch/symbolnet.py:229-293",
-    "nnsmith/materialize/torch/symbolnet.py:151-217",
-    "nnsmith/materialize/torch/__init__.py:31-41"
-   ],
-   "paper_quote": "if⟨𝑋,𝑊⟩ not changed then // Zero gradients"
-  },
-  {
-   "limitation_id": "nnsmith-gap-M08-B08",
-   "origin": "paper",
-   "condition_text": "Pinned inspected artifact path: experiments/nnsmith_gen_onnx.py::nnsmith_gen_once 与 nnsmith/materialize/torch/__init__.py::TorchModel.refine_weights 经Practical…",
-   "effect_text": "零梯度未 continue OUTER，仅外层 max_sample 重试",
-   "code_evidence": [
-    "nnsmith/materialize/torch/symbolnet.py:229-293",
-    "nnsmith/materialize/torch/__init__.py:31-41",
-    "experiments/nnsmith_gen_onnx.py:42-48"
-   ],
-   "paper_quote": "continue OUTER // Go to Line 3"
   }
  ],
  "verifications": [
@@ -534,221 +450,417 @@
    "result": "not_found",
    "documented_in": [],
    "quote": null
+  }
+ ],
+ "rationale": "3b: not_found; priority 1: undisclosed, state effect, witness reaches it; related (candidate pair, judged different): flexprefill-F031, flexprefill-F032, flexprefill-F033, flexprefill-F034"
+}
+```
+
+### 代码侧 · infeasible（多半走不到，p3）：`qoserve-F038`
+
+```json
+{
+ "finding_id": "qoserve-F038",
+ "category": "impl_deviates",
+ "priority": 3,
+ "effect_type": "other",
+ "scope_status": "unknown",
+ "review": "unreviewed",
+ "summary": "论文称固定 QPS 采用 8 ms/token；artifact 固定 QPS 运行脚本使用 16 ms/token，与论文所选值不符。",
+ "witness_hint": {
+  "kind": "input_value",
+  "status": "infeasible",
+  "condition": "hybrid_prioritization_param == 0.016",
+  "path_prefix": [],
+  "note": "no values satisfy path prefix, condition and scope together",
+  "code_locations": [
+   "fig8.sh:37-69",
+   "sarathi/config/config.py:305-308"
+  ],
+  "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
+  "call_chain_status": "not_found",
+  "location": "fig8.sh:37-69"
+ },
+ "limitations": [
+  {
+   "limitation_id": "qoserve-gap-M10-B02",
+   "origin": "paper",
+   "condition_text": "Pinned inspected artifact path: primary 仓库实验/构建路径：fig8.sh（生成 fig8_wrapper.sh 并调用 sarathi.benchmark.main，含 --deadline_scheduler_hybrid_prioritization_param 0.01…",
+   "effect_text": "论文称固定 QPS 采用 8 ms/token；artifact 固定 QPS 运行脚本使用 16 ms/token，与论文所选值不符。",
+   "code_evidence": [
+    "fig8.sh:37-69",
+    "sarathi/config/config.py:305-308"
+   ],
+   "paper_quote": "decode length.𝛼 is a configurable hyperparameter. For fixed- QPS runs, we perform an offline sweep of𝛼 values from 0 to 10 and select the v…"
+  }
+ ],
+ "verifications": [],
+ "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 3: unreachable: condition contradicts its path prefix"
+}
+```
+
+### 两侧合并：`flexposit-F004`
+
+```json
+{
+ "finding_id": "flexposit-F004",
+ "category": "undisclosed",
+ "priority": 1,
+ "effect_type": "reject",
+ "scope_status": "unknown",
+ "review": "unreviewed",
+ "summary": "When scale.min() < -16 or scale.max() > 15: export_tile raises ValueError when the per-column scale (-log2_scale) does not fit the RTL's signed 5-bit field, rejecting configurations whose log2_scale falls outside [-15, 16]. (src/flexposit/export.py:135)",
+ "witness_hint": {
+  "kind": "input_value",
+  "status": "solved",
+  "condition": "scale.min() < -16 or scale.max() > 15",
+  "path_prefix": [],
+  "trigger": {
+   "scale.min()": 1,
+   "scale.max()": 16
   },
+  "contrast": {
+   "scale.min()": 1,
+   "scale.max()": 15
+  },
+  "atoms": {
+   "scale.max()": {
+    "kind": "derived",
+    "sort": "int"
+   },
+   "scale.min()": {
+    "kind": "derived",
+    "sort": "int"
+   }
+  },
+  "call_chain_status": "not_found",
+  "location": "src/flexposit/export.py:135"
+ },
+ "limitations": [
+  {
+   "limitation_id": "CL-B009",
+   "origin": "code",
+   "condition_text": "scale.min() < -16 or scale.max() > 15",
+   "effect_text": "export_tile raises ValueError when the per-column scale (-log2_scale) does not fit the RTL's signed 5-bit field, rejecting configurations whose log2_scale fall…",
+   "code_evidence": [
+    "src/flexposit/export.py:135-135"
+   ],
+   "paper_quote": null
+  },
+  {
+   "limitation_id": "flexposit-gap-M01-B08",
+   "origin": "paper",
+   "condition_text": "Pinned inspected artifact path: 同一 Python 量化路径 + 其声明的导出/硬件路径：src/flexposit/export.py（layer_codes/export_tile、scale.mem 5-bit 有符号指数）与 hardware/rtl/bfp_pow2_resc…",
+   "effect_text": "论文 4-bit 索引 vs 硬件 5-bit 有符号 scale 字段。",
+   "code_evidence": [
+    "src/flexposit/export.py:105-141",
+    "hardware/rtl/bfp_pow2_rescale.v:10-54"
+   ],
+   "paper_quote": "a compact 4 b index stores the selected per-channel scale with low metadata overhead"
+  }
+ ],
+ "verifications": [
   {
    "result": "not_found",
    "documented_in": [],
    "quote": null
   }
  ],
- "rationale": "3b: not_found; merged (LLM: same issue): CL-B029, nnsmith-gap-M08-B06, nnsmith-gap-M08-B08; paper side also reports: impl_deviates; priority 1: undisclosed, reject effect, witness reaches it; related (candidate pair, judged different): nnsmith-F024, nnsmith-F025"
+ "rationale": "3b: not_found; merged (LLM: same issue): flexposit-gap-M01-B08; paper side also reports: impl_deviates; priority 1: undisclosed, reject effect, witness reaches it; related (candidate pair, judged different): flexposit-F023, flexposit-F031"
 }
 ```
 
-### 论文侧 · impl_deviates · always：`flexprefill-F057`
+### 论文侧 · impl_deviates · always：`flexposit-F010`
 
 ```json
 {
- "finding_id": "flexprefill-F057",
- "category": "not_implemented",
- "priority": 3,
+ "finding_id": "flexposit-F010",
+ "category": "impl_deviates",
+ "priority": 2,
  "effect_type": "other",
  "scope_status": "unknown",
  "review": "unreviewed",
- "summary": "论文要求的上界推导在实验路径无对应实现或检验",
+ "summary": "论文要求 4 PE 共享 1 个 FP16 累加器；RTL 为每 PE 独立块浮点累加器（ACC_MANW=12, GRS=3，非 FP16 格式），无时分复用。",
  "witness_hint": {
   "kind": "input_value",
   "status": "always",
   "condition": null,
   "path_prefix": [],
   "code_locations": [
-   "experiments/scripts/flex_prefill/ruler.sh:21-29"
+   "hardware/README.md:3-9",
+   "hardware/rtl/fp8_pe_mac_stream.v:497-621",
+   "hardware/rtl/fp8_pe_mac_stream.v:31-80"
   ],
-  "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The paper's upper-bound derivation (single query position, a_k ≤ a_S / a_k ≤ 1−a_S) has no corresponding implem…",
-  "location": "experiments/scripts/flex_prefill/ruler.sh:21-29"
+  "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The RTL instantiates one block-floating-point accumulator per PE (ACC_MANW=12, GRS=3) rather than a single shar…",
+  "call_chain_status": "not_found",
+  "location": "hardware/README.md:3-9"
  },
  "limitations": [
   {
-   "limitation_id": "flexprefill-gap-M11-B01",
+   "limitation_id": "flexposit-gap-M09-B01",
    "origin": "paper",
-   "condition_text": "Pinned inspected artifact path: 同一 pinned commit 的 flex_prefill 包 + experiments/scripts/flex_prefill/ruler.sh（flex_prefill_gamma=0.95 配置）构成的实验路径；无独立推导/证明构建产物. …",
-   "effect_text": "论文要求的上界推导在实验路径无对应实现或检验",
+   "condition_text": "Pinned inspected artifact path: hardware/ 测试芯片 RTL 路径：hardware/rtl/systolic_efficient.v（N×N PE 阵列、cycle_gen 精度窗口、行延迟）、hardware/rtl/fp8_pe_mac_stream.v（PE 计算 + …",
+   "effect_text": "论文要求每簇 4 个 PE；RTL 为 N×N 阵列，PE 间仅逐行/逐列传递权重、激活与 valid，不存在 4-PE 簇边界。",
    "code_evidence": [
-    "experiments/scripts/flex_prefill/ruler.sh:21-29"
+    "hardware/rtl/systolic_efficient.v:242-330",
+    "hardware/rtl/fp8_pe_mac_stream.v:497-621"
    ],
-   "paper_quote": "= (1−aS) LX j=1 \\|vj\\|"
+   "paper_quote": "FlexPosit groups four PEs into a 4-way MAC cluster"
   },
   {
-   "limitation_id": "flexprefill-gap-M11-A04",
+   "limitation_id": "flexposit-gap-M09-B04-R01",
    "origin": "paper",
-   "condition_text": "Pinned inspected artifact path: 同一 pinned commit 的 flex_prefill 包 + experiments/scripts/flex_prefill/ruler.sh（flex_prefill_gamma=0.95 配置）构成的实验路径；无独立推导/证明构建产物. …",
-   "effect_text": "同上",
+   "condition_text": "Pinned inspected artifact path: hardware/ 测试芯片 RTL 路径：hardware/rtl/systolic_efficient.v（N×N PE 阵列、cycle_gen 精度窗口、行延迟）、hardware/rtl/fp8_pe_mac_stream.v（PE 计算 + …",
+   "effect_text": "论文要求 4 PE 共享 1 个 FP16 累加器；RTL 为每 PE 独立块浮点累加器（ACC_MANW=12, GRS=3，非 FP16 格式），无时分复用。",
    "code_evidence": [
-    "experiments/scripts/flex_prefill/ruler.sh:21-29"
+    "hardware/README.md:3-9",
+    "hardware/rtl/fp8_pe_mac_stream.v:497-621",
+    "hardware/rtl/fp8_pe_mac_stream.v:31-80"
    ],
-   "paper_quote": "LetaS =P j∈Saj. Then, ak≤ aS fork∈ S, and ak≤ 1−aS fork̸∈ S."
+   "paper_quote": "the four PEs within a cluster share a single FP16 accumulator time-multiplexed across lanes"
+  },
+  {
+   "limitation_id": "flexposit-gap-M09-B05-R02",
+   "origin": "paper",
+   "condition_text": "Pinned inspected artifact path: hardware/ 测试芯片 RTL 路径：hardware/rtl/systolic_efficient.v（N×N PE 阵列、cycle_gen 精度窗口、行延迟）、hardware/rtl/fp8_pe_mac_stream.v（PE 计算 + …",
+   "effect_text": "论文要求 4 PE 交错驱动单一累加器；RTL 无交错与共享累加器。",
+   "code_evidence": [
+    "hardware/rtl/systolic_efficient.v:242-330",
+    "hardware/rtl/systolic_efficient.v:198-240",
+    "hardware/rtl/fp8_pe_mac_stream.v:497-621"
+   ],
+   "paper_quote": "By interleaving four PEs in a round-robin manner, the cluster sustains one product per cycle in steady state, keeping the shared accumulato…"
+  },
+  {
+   "limitation_id": "flexposit-gap-M09-A03",
+   "origin": "paper",
+   "condition_text": "Pinned inspected artifact path: hardware/ 测试芯片 RTL 路径：hardware/rtl/systolic_efficient.v（N×N PE 阵列、cycle_gen 精度窗口、行延迟）、hardware/rtl/fp8_pe_mac_stream.v（PE 计算 + …",
+   "effect_text": "论文要求共享以去除冗余累加逻辑；RTL 明确复制累加器，与前提相反。",
+   "code_evidence": [
+    "hardware/README.md:3-9",
+    "hardware/rtl/fp8_pe_mac_stream.v:497-621",
+    "hardware/rtl/fp8_pe_mac_stream.v:31-80"
+   ],
+   "paper_quote": "This sharing removes redundant accumulation logic, reducing per-PE hardware cost and improving overall energy efficiency."
+  },
+  {
+   "limitation_id": "flexposit-gap-M09-A04",
+   "origin": "paper",
+   "condition_text": "Pinned inspected artifact path: hardware/ 测试芯片 RTL 路径：hardware/rtl/systolic_efficient.v（N×N PE 阵列、cycle_gen 精度窗口、行延迟）、hardware/rtl/fp8_pe_mac_stream.v（PE 计算 + …",
+   "effect_text": "论文要求 4 PE 共享 1 累加器；RTL 为 1 PE : 1 累加器且簇大小非固定 4。",
+   "code_evidence": [
+    "hardware/rtl/systolic_efficient.v:242-330",
+    "hardware/rtl/fp8_pe_mac_stream.v:497-621"
+   ],
+   "paper_quote": "Each MAC cluster contains four PEs sharing one accumulator, matching the minimum supported precision of 4 b."
   }
  ],
  "verifications": [],
- "rationale": "paper side (3a static): absent; not a confirmed runtime effect; merged (LLM: same issue): flexprefill-gap-M11-A04; priority 3: not_implemented, other effect; related (candidate pair, judged different): flexprefill-F058, flexprefill-F059, flexprefill-F060, flexprefill-F061, flexprefill-F062, flexpre…"
+ "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; merged (LLM: same issue): flexposit-gap-M09-B01, flexposit-gap-M09-B05-R02, flexposit-gap-M09-A03, flexposit-gap-M09-A04; priority 2: impl_deviates; related (candidate pair, judged different): flexposit-F011, flexposit-F019, flexposi…"
 }
 ```
 
-### 论文侧 · LLM 写出条件并求解：`flexprefill-F032`
+### 论文侧 · LLM 写出条件并求解：`flexposit-F018`
 
 ```json
 {
- "finding_id": "flexprefill-F032",
+ "finding_id": "flexposit-F018",
  "category": "impl_deviates",
  "priority": 2,
  "effect_type": "other",
  "scope_status": "unknown",
  "review": "unreviewed",
- "summary": "论文取累计和 ≥γ 的最小前缀长度 K；代码保留累计和 ≤γ*num_blocks 的项，边界条件与阈值尺度均不同，且未显式求 K",
+ "summary": "同 local_entry：RTL 分槽写入而非一起推入。",
  "witness_hint": {
   "kind": "input_value",
   "status": "solved",
-  "condition": "gamma != gamma * num_blocks",
-  "path_prefix": [],
+  "condition": "cycle0 and re",
+  "path_prefix": [
+   "not stall"
+  ],
   "trigger": {
-   "gamma": 2,
-   "num_blocks": 2
+   "cycle0": true,
+   "re": true,
+   "stall": false
   },
   "contrast": {
-   "gamma": 2,
-   "num_blocks": 1
+   "cycle0": false,
+   "re": true,
+   "stall": false
   },
   "atoms": {
-   "gamma": {
+   "cycle0": {
     "kind": "input",
-    "sort": "int"
+    "sort": "bool"
    },
-   "num_blocks": {
+   "re": {
     "kind": "input",
-    "sort": "int"
+    "sort": "bool"
+   },
+   "stall": {
+    "kind": "input",
+    "sort": "bool"
    }
   },
   "code_locations": [
-   "flex_prefill/ops/flex_prefill_attention.py:1661-1779",
-   "flex_prefill/ops/flex_prefill_attention.py:1588-1598"
+   "hardware/rtl/posit_decode_and_queue.v:339-384",
+   "hardware/model/flexposit_rtl_exact.py:118-161"
   ],
   "condition_source": "LLM (x-test-2) from the paper-side text; names checked against the cited code",
-  "location": "flex_prefill/ops/flex_prefill_attention.py:1661-1779"
+  "call_chain_status": "not_found",
+  "location": "hardware/rtl/posit_decode_and_queue.v:339-384"
  },
  "limitations": [
   {
-   "limitation_id": "flexprefill-gap-M07-B05",
+   "limitation_id": "flexposit-gap-M08-B08",
    "origin": "paper",
-   "condition_text": "Pinned inspected artifact path: 同一 Triton/PyTorch 路径：triton_bnhd_pool、torch_bhn_sumpool、score_cover_idx、transform_veritcal_slash_idx 及 flex_prefill_attention 内…",
-   "effect_text": "同上",
+   "condition_text": "Pinned inspected artifact path: 同一 RTL 路径 + hardware/model/flexposit_rtl_exact.py::decode_native_posit 参考模型 + hardware/tb 与 scripts/run_array_test.py 的 iverilo…",
+   "effect_text": "同 local_entry：RTL 分槽写入而非一起推入。",
    "code_evidence": [
-    "flex_prefill/ops/flex_prefill_attention.py:1661-1779",
-    "flex_prefill/ops/flex_prefill_attention.py:1588-1598"
+    "hardware/rtl/posit_decode_and_queue.v:339-384",
+    "hardware/model/flexposit_rtl_exact.py:118-161"
    ],
-   "paper_quote": "Ia← argsort( ¯A) # Obtain the minimum computational budget making the sum of the scores exceedsγ K← min{k :P i∈Ia[1:k] ¯A[i]≥γ}"
+   "paper_quote": "At completion, the decoder pushes the exponent, mantissa, and zero flag into the per-column FIFO together, forming one decoded weight."
   }
  ],
  "verifications": [],
- "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; priority 2: impl_deviates; related (candidate pair, judged different): flexprefill-F012, flexprefill-F025, flexprefill-F031, flexprefill-F050"
+ "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates"
 }
 ```
 
-### 论文侧 · not_implemented：`flexprefill-F056`
+### 论文侧 · not_implemented：`flexposit-F038`
 
 ```json
 {
- "finding_id": "flexprefill-F056",
+ "finding_id": "flexposit-F038",
  "category": "not_implemented",
  "priority": 3,
  "effect_type": "other",
  "scope_status": "unknown",
  "review": "unreviewed",
- "summary": "论文要求单卡 A100 80GB；脚本未固定设备数量或型号，accelerate 可多进程运行",
+ "summary": "论文要求 4 并行 MAC/权重项；RTL 为单 PE 串行位乘。",
  "witness_hint": {
   "kind": "input_value",
-  "status": "no_condition",
+  "status": "always",
   "condition": null,
   "path_prefix": [],
   "code_locations": [
-   "experiments/scripts/flex_prefill/ruler.sh:16-45",
-   "experiments/scripts/flex_prefill/infinitebench.sh:20-65"
+   "hardware/rtl/fp8_pe_mac_stream.v:497-621"
   ],
-  "note": "not decided by input values: The gap concerns hardware/device configuration (single A100 80GB vs. accelerate multi-process/multi-GPU), which is not determined by any input value in the shown code.",
-  "location": "experiments/scripts/flex_prefill/ruler.sh:16-45"
+  "note": "the gap shows on every call through the cited code; any input reaching it is a witness. The RTL module implements a single-PE bit-serial MAC unconditionally, so the paper's four-parallel-MAC-per-weig…",
+  "call_chain_status": "not_found",
+  "location": "hardware/rtl/fp8_pe_mac_stream.v:497-621"
  },
  "limitations": [
   {
-   "limitation_id": "flexprefill-gap-M12-A05",
+   "limitation_id": "flexposit-gap-M09-A01",
    "origin": "paper",
-   "condition_text": "Pinned inspected artifact path: experiments/scripts/flex_prefill/{ruler.sh,infinitebench.sh} + experiments/benchmark/{run_ruler.py,run_infinitebench.py} 实验路径，含…",
-   "effect_text": "论文要求单卡 A100 80GB；脚本未固定设备数量或型号，accelerate 可多进程运行",
+   "condition_text": "Pinned inspected artifact path: hardware/ 测试芯片 RTL 路径：hardware/rtl/systolic_efficient.v（N×N PE 阵列、cycle_gen 精度窗口、行延迟）、hardware/rtl/fp8_pe_mac_stream.v（PE 计算 + …",
+   "effect_text": "论文要求 4 并行 MAC/权重项；RTL 为单 PE 串行位乘。",
    "code_evidence": [
-    "experiments/scripts/flex_prefill/ruler.sh:16-45",
-    "experiments/scripts/flex_prefill/infinitebench.sh:20-65"
+    "hardware/rtl/fp8_pe_mac_stream.v:497-621"
    ],
-   "paper_quote": "Our experiments are conducted in a computing environment equipped with a single NVIDIA A100 GPU with 80GB of memory."
+   "paper_quote": "effectively performing four parallel MACs per weight and recovering the throughput loss to bit-serial execution"
   }
  ],
  "verifications": [],
- "rationale": "paper side (3a static): absent; not a confirmed runtime effect; priority 3: not_implemented, other effect"
+ "rationale": "paper side (3a static): absent; not a confirmed runtime effect; priority 3: not_implemented, other effect; related (candidate pair, judged different): flexposit-F010, flexposit-F011, flexposit-F020, flexposit-F039"
 }
 ```
 
-### 论文侧 · no_condition：`minference-F051`
+### 论文侧 · no_condition：`flexposit-F011`
 
 ```json
 {
- "finding_id": "minference-F051",
+ "finding_id": "flexposit-F011",
  "category": "impl_deviates",
  "priority": 2,
  "effect_type": "other",
  "scope_status": "unknown",
  "review": "unreviewed",
- "summary": "论文要求 dense 注意力输出 y（含 V）；代码只算注意力权重矩阵，未形成输出",
+ "summary": "论文要求簇内 4 个 PE 各取一个不同 FP16 激活；RTL 中不同激活分布在不同行（每行一个），且激活为 FP8 而非 FP16。",
  "witness_hint": {
   "kind": "input_value",
   "status": "no_condition",
   "condition": null,
   "path_prefix": [],
   "code_locations": [
-   "minference/modules/minference_forward.py:99-197",
-   "minference/modules/minference_forward.py:199-246"
+   "hardware/README.md:3-9",
+   "hardware/rtl/systolic_efficient.v:242-330",
+   "hardware/rtl/fp8_pe_mac_stream.v:497-621"
   ],
-  "note": "LLM gave no usable condition: names not in the cited code: is_search",
-  "location": "minference/modules/minference_forward.py:99-197"
+  "note": "not decided by input values: The mismatch (FP8 vs FP16 activations, one activation per row vs four distinct per cluster) is a fixed RTL/design difference, not determined by any input value in the sho…",
+  "call_chain_status": "not_found",
+  "location": "hardware/README.md:3-9"
  },
  "limitations": [
   {
-   "limitation_id": "minference-gap-M02-B04",
+   "limitation_id": "flexposit-gap-M09-B02-R02",
    "origin": "paper",
-   "condition_text": "Pinned inspected artifact path: 同一离线搜索路径：experiments/README.md 的 Offline Kernel-Aware Sparse Pattern Search 命令（run_infinitebench.py --is_search --max_seq_lengt…",
-   "effect_text": "同上",
+   "condition_text": "Pinned inspected artifact path: hardware/ 测试芯片 RTL 路径：hardware/rtl/systolic_efficient.v（N×N PE 阵列、cycle_gen 精度窗口、行延迟）、hardware/rtl/fp8_pe_mac_stream.v（PE 计算 + …",
+   "effect_text": "论文要求簇内 4 个 PE 各取一个不同 FP16 激活；RTL 中不同激活分布在不同行（每行一个），且激活为 FP8 而非 FP16。",
    "code_evidence": [
-    "minference/modules/minference_forward.py:99-197",
-    "minference/modules/minference_forward.py:199-246"
+    "hardware/README.md:3-9",
+    "hardware/rtl/systolic_efficient.v:242-330",
+    "hardware/rtl/fp8_pe_mac_stream.v:497-621"
    ],
-   "paper_quote": "y← Softmax(QK⊤/ √ d)"
-  },
-  {
-   "limitation_id": "minference-gap-M02-B05-R01",
-   "origin": "paper",
-   "condition_text": "Pinned inspected artifact path: 同一离线搜索路径：experiments/README.md 的 Offline Kernel-Aware Sparse Pattern Search 命令（run_infinitebench.py --is_search --max_seq_lengt…",
-   "effect_text": "同上",
-   "code_evidence": [
-    "minference/modules/minference_forward.py:99-197",
-    "experiments/README.md:13-30"
-   ],
-   "paper_quote": "fori← 1 to\\|ρ\\| do yi← SparseAttention(QK⊤/ √ d,ρ i)"
+   "paper_quote": "while processing four distinct FP16 activations"
   }
  ],
  "verifications": [],
- "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; effect_text '同上' expanded from conformance.json local_entry; merged (LLM: same issue): minference-gap-M02-B05-R01; priority 2: impl_deviates; related (candidate pair, judged different): minference-F003, minference-F022, minference-F0…"
+ "rationale": "paper side (3a static): deviates; not a confirmed runtime effect; priority 2: impl_deviates; related (candidate pair, judged different): flexposit-F010, flexposit-F012, flexposit-F020, flexposit-F038, flexposit-F039"
 }
 ```
 
 ## 7. 全部 Finding 索引
 
 每篇按 priority 排序。列的含义：侧 = 代/论/合（代码侧 / 论文侧 / 两侧合并）；审 = 审阅状态（✓ worth_testing，~ real_but_minor，✗ wrong，空 = 未审）。
+
+### flexposit（41 条）
+
+| ID | 侧 | 类别 | P | effect | witness | 审 | 位置 | 内容 |
+|---|---|---|---|---|---|---|---|---|
+| F001 | 代 | undisclosed | 1 | reject | solved |  | `src/flexposit/api.py:120-121` | When True: raise FileNotFoundError(f'No sensitivity CSV {str(name_or_path)!r}: not a file, and not … |
+| F002 | 代 | undisclosed | 1 | reject | solved |  | `src/flexposit/api.py:189` | When state.total_windows == 0: Quantize aborts if no sensitivity rows match the model's layer names… |
+| F003 | 代 | undisclosed | 1 | reject | solved |  | `src/flexposit/export.py:40` | When not torch.equal(table[pos], mag): posit_encode raises ValueError if the scaled weights are not… |
+| F004 | 合 | undisclosed | 1 | reject | solved |  | `src/flexposit/export.py:135` | When scale.min() < -16 or scale.max() > 15: export_tile raises ValueError when the per-column scale… |
+| F005 | 代 | undisclosed | 1 | reject | solved |  | `src/flexposit/formats.py:39` | When not 2 <= nsize <= 16: posit_quantize (via _check_posit) rejects nsize outside [2,16], so the t… |
+| F006 | 代 | undisclosed | 1 | reject | solved |  | `src/flexposit/formats.py:103` | When True: raise TypeError(f'posit_quantize expects a float32 tensor, got {x.dtype}') |
+| F007 | 代 | undisclosed | 1 | reject | solved |  | `src/flexposit/formats.py:156` | When True: raise ValueError(f'invalid rounding mode {rounding!r}') |
+| F008 | 代 | undisclosed | 2 | path_change | solved |  | `src/flexposit/mpq/channel_window.py:283` | When strategy == "random": Random strategy shuffles candidates with the caller-seeded RNG, selectin… |
+| F009 | 代 | undisclosed | 2 | path_change | solved |  | `src/flexposit/mpq/channel_window.py:571` | When args.downgrade: Caller flag downgrade switches Budget Mode to demote the least-sensitive windo… |
+| F010 | 论 | impl_deviates | 2 | other | always |  | `hardware/README.md:3-9` | 论文要求 4 PE 共享 1 个 FP16 累加器；RTL 为每 PE 独立块浮点累加器（ACC_MANW=12, GRS=3，非 FP16 格式），无时分复用。 |
+| F011 | 论 | impl_deviates | 2 | other | no_condition |  | `hardware/README.md:3-9` | 论文要求簇内 4 个 PE 各取一个不同 FP16 激活；RTL 中不同激活分布在不同行（每行一个），且激活为 FP8 而非 FP16。 |
+| F012 | 论 | impl_deviates | 2 | other | always |  | `hardware/README.md:3-9` | 论文要求 FP16 激活与全浮点域 MAC；RTL 激活为 FP8 且累加为块浮点整数尾数，非逐项浮点累加。 |
+| F013 | 论 | impl_deviates | 2 | other | no_condition |  | `hardware/rtl/fp8_pe_mac_stream.v:395-423` | 同 local_entry：cyc2 用符号位与未右移的 A |
+| F014 | 论 | impl_deviates | 2 | other | solved |  | `hardware/rtl/fp8_pe_mac_stream.v:452-490` | 同 local_entry |
+| F015 | 论 | impl_deviates | 2 | other | no_condition |  | `hardware/rtl/posit_decode_and_queue.v:136-183` | 同 local_entry：符号 FIFO 写入在 cyc1 而非 cyc0。 |
+| F016 | 论 | impl_deviates | 2 | other | no_condition |  | `hardware/rtl/posit_decode_and_queue.v:218-281` | 论文要求 cyc0 推入符号项；代码在 cyc1 写符号、cyc0 写零标志与 exp/man |
+| F017 | 论 | impl_deviates | 2 | other | solved |  | `hardware/rtl/posit_decode_and_queue.v:218-279` | 同 local_entry：以固定位宽上限而非 cycP 终止尾数收集。 |
+| F018 | 论 | impl_deviates | 2 | other | solved |  | `hardware/rtl/posit_decode_and_queue.v:339-384` | 同 local_entry：RTL 分槽写入而非一起推入。 |
+| F019 | 论 | impl_deviates | 2 | other | no_condition |  | `hardware/rtl/systolic_efficient.v:198-240` | 论文的“轮流完成、无停顿”依赖共享累加器时分复用；RTL 无共享，且存在全局 stall 背压路径。 |
+| F020 | 论 | impl_deviates | 2 | other | no_condition |  | `hardware/rtl/systolic_efficient.v:242-330` | 论文要求簇内 4 个 PE 同周期共享同一解码权重项；RTL 中同列相邻 PE 收到同一权重项但相差 1 周期，且不存在“簇内 4 PE 同周期”结构。 |
+| F021 | 论 | impl_deviates | 2 | other | no_condition |  | `hardware/rtl/systolic_efficient.v:411-512` | 同 local_entry：写出受 out_ready 背压与一拍填充延迟约束，非无停顿。 |
+| F022 | 论 | impl_deviates | 2 | other | always |  | `scripts/regen_sensitivity_ppl.sh:8-33` | 同 local_entry：符号与 Algorithm 2 第6行相反。 |
+| F023 | 论 | impl_deviates | 2 | other | always |  | `src/flexposit/export.py:105-141` | 论文要求激活保持 FP16；硬件导出/仿真路径把激活转成 FP8 E4M3。 |
+| F024 | 论 | impl_deviates | 2 | other | solved |  | `src/flexposit/sensitivity/ppl_probe.py:72-75` | 论文要求窗口为阵列列数整数倍；脚本默认256（16列整数倍）但模块默认64，且无对齐校验（E4,E5,E6） |
+| F025 | 代 | undisclosed | 3 | other | solved |  | `src/flexposit/api.py:149` | When r[0] not in valid_layers: Sensitivity rows for layers not present in the model are silently dr… |
+| F026 | 代 | undisclosed | 3 | other | solved |  | `src/flexposit/api.py:153` | When span == 0: If upgrade_nsize equals base_nsize (span zero), the upgrade fraction silently becom… |
+| F027 | 代 | docs_only | 3 | path_change | solved |  | `src/flexposit/api.py:181` | When config.bits > config.base_nsize: When bits exceeds base_nsize the code requires a sensitivity … |
+| F028 | 代 | docs_only | 3 | reject | solved |  | `src/flexposit/api.py:183-186` | When True: raise ValueError(f"bits={config.bits} needs a sensitivity ranking to decide which channe… |
+| F029 | 代 | docs_only | 3 | other | solved |  | `src/flexposit/core.py:35` | When isinstance(es, int): A scalar es disables the per-channel es search (single candidate), while … |
+| F030 | 代 | undisclosed | 3 | other | solved |  | `src/flexposit/core.py:37` | When all(int(e) > max_es for e in cands): If every caller-supplied es candidate exceeds nsize-1, th… |
+| F031 | 代 | docs_only | 3 | reject | solved |  | `src/flexposit/export.py:131` | When len(sizes) != 1: export_tile raises ValueError when the selected output channels span more tha… |
+| F032 | 代 | docs_only | 3 | other | solved |  | `src/flexposit/formats.py:29` | When _BACKEND == "qtorch": Module-level env var read at import time selects the posit/float quantiz… |
+| F033 | 代 | undisclosed | 3 | other | solved |  | `src/flexposit/mpq/channel_window.py:136` | When all(e > max_es for e in es_cands): If every caller-supplied es candidate exceeds nsize-1, the … |
+| F034 | 代 | undisclosed | 3 | other | solved |  | `src/flexposit/mpq/channel_window.py:161` | When start >= end: A window whose clamped start is not less than its end returns the weight unchang… |
+| F035 | 代 | undisclosed | 3 | other | solved |  | `src/flexposit/mpq/channel_window.py:205` | When not (is_quant_linear(mod) and hasattr(mod, "weight") and mod.weight is not None and mod.weight… |
+| F036 | 代 | undisclosed | 3 | other | solved |  | `src/flexposit/mpq/channel_window.py:208` | When key not in ref_sd: A layer named in the sensitivity windows but absent from the FP32 reference… |
+| F037 | 代 | undisclosed | 3 | other | solved |  | `src/flexposit/mpq/channel_window.py:256` | When dp >= 0.0 and not allow_positive: When allow_positive is False, windows with non-negative delt… |
+| F038 | 论 | not_implemented | 3 | other | always |  | `hardware/rtl/fp8_pe_mac_stream.v:497-621` | 论文要求 4 并行 MAC/权重项；RTL 为单 PE 串行位乘。 |
+| F039 | 论 | not_implemented | 3 | other | solved |  | `hardware/rtl/systolic_efficient.v:198-240` | 论文的 4/P 依赖 4-PE 簇并行；RTL 每 PE 为 1/P，簇级 4/P 未被实现。 |
+| F040 | 论 | not_implemented | 3 | other | always |  | `scripts/regen_sensitivity_ppl.sh:8-33` | 剖析实验路径未产出论文要求的降序排序敏感度图。 |
+| F041 | 论 | not_implemented | 3 | other | always |  | `src/flexposit/sensitivity/ppl_probe.py:72-75` | 论文要求 Qwen 1024；脚本与模块均无 Qwen→1024 规则（E4,E5,E6） |
 
 ### flexprefill（65 条）
 
@@ -757,14 +869,10 @@
 | F001 | 代 | undisclosed | 1 | reject | solved | ✓ | `flex_prefill/modules/patch.py:123` | When not isinstance(model, LlamaForCausalLM): Patching a non-LlamaForCausalLM model with a non-defa… |
 | F002 | 代 | undisclosed | 1 | reject | solved |  | `flex_prefill/modules/patch.py:241` | When not isinstance(model, Qwen2ForCausalLM): Patching a non-Qwen2ForCausalLM model with a non-defa… |
 | F003 | 代 | undisclosed | 1 | reject | solved | ~ | `flex_prefill/ops/flex_prefill_attention.py:247` | When num_q_heads % num_kv_heads != 0: GQA requires the number of query heads to be a multiple of KV… |
-| F004 | 代 | undisclosed | 1 | reject | trigger_only |  | `flex_prefill/ops/flex_prefill_attention.py:865` | When not (q_len == 1): AssertionError |
-| F005 | 代 | undisclosed | 1 | reject | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1219` | When not (q_len == k_len): AssertionError |
 | F006 | 代 | undisclosed | 1 | reject | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1240-1244` | When not (isinstance(block_idx, list) and isinstance(block_idx[0], list) and isinstance(block_idx[0… |
 | F007 | 代 | undisclosed | 1 | reject | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1245` | When not (len(block_idx) == batch_size and len(block_idx[0]) == num_q_heads): AssertionError |
 | F008 | 代 | undisclosed | 1 | reject | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1256` | When not (num_block <= total_q_blocks * (total_q_blocks + 1) // 2): AssertionError |
 | F009 | 代 | undisclosed | 1 | reject | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1258` | When not (num_q_heads % num_kv_heads == 0): AssertionError |
-| F010 | 代 | undisclosed | 1 | reject | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1450` | When not (d in {16, 32, 64, 128}): AssertionError |
-| F011 | 代 | undisclosed | 1 | reject | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1451` | When not (kernel_size in {16, 32, 64, 128, 256, 512}): AssertionError |
 | F012 | 代 | undisclosed | 1 | state | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1695-1698` | When causal_mask is None # first call only: module-level cache initialised on first call and reused |
 | F013 | 代 | undisclosed | 1 | reject | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1836` | When not (q.shape[1] == k.shape[1]): AssertionError |
 | F014 | 代 | undisclosed | 1 | reject | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1837` | When not (head_dim in {16, 32, 64, 128}): AssertionError |
@@ -778,7 +886,6 @@
 | F022 | 代 | stated_differently | 2 | reject | solved | ✓ | `flex_prefill/ops/flex_prefill_attention.py:672` | When q.dtype != torch.bfloat16: triton_flash_attention rejects non-bfloat16 queries before dispatch… |
 | F023 | 代 | stated_differently | 2 | reject | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1218` | When not (q.dtype == torch.bfloat16): AssertionError |
 | F024 | 代 | stated_differently | 2 | reject | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1222-1226` | When not (block_size in {32, 64, 128}): 'only support block size in {32, 64, 128} if head_dim <= 12… |
-| F025 | 代 | undisclosed | 2 | path_change | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1727` | When kl_div < tau: per-element branch stored in block_sparse_mask |
 | F026 | 代 | undisclosed | 2 | path_change | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1842-1854` | When q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size): returns via fla… |
 | F027 | 代 | stated_differently | 2 | reject | solved | ~ | `flex_prefill/ops/vertical_slash_attention.py:264` | When q.dtype != torch.bfloat16: Rejects any query tensor not in bfloat16, so callers using fp16/fp3… |
 | F028 | 代 | undisclosed | 2 | path_change | solved | ~ | `flex_prefill/ops/vertical_slash_attention.py:557` | When seq_len <= min(vertical_size, slash_size) * block_size: For short sequences the sparse vertica… |
@@ -794,16 +901,21 @@
 | F038 | 论 | impl_deviates | 2 | other | always |  | `flex_prefill/ops/flex_prefill_attention.py:1718-1729` | 论文 Algorithm 2 以 JSD<τ 返回 pattern(query_specific/vertical_slash)；代码不返回模式，而用同一阈值改写预算并继续 vertical/sla… |
 | F039 | 代 | docs_only | 3 | path_change | solved | ~ | `flex_prefill/modules/patch.py:114` | When pattern == "default": For the default pattern, patch_llama_attention returns without patching,… |
 | F040 | 代 | undisclosed | 3 | other | solved |  | `flex_prefill/ops/flex_prefill_attention.py:88-96` | When not ('h100' in gpu_name) and not ('a100' in gpu_name) and not ('4090' in gpu_name): if head_la… |
+| F004 | 代 | undisclosed | 3 | reject | infeasible |  | `flex_prefill/ops/flex_prefill_attention.py:865` | When not (q_len == 1): AssertionError |
 | F041 | 代 | stated_differently | 3 | reject | infeasible |  | `flex_prefill/ops/flex_prefill_attention.py:868` | When not (q.dtype == torch.bfloat16): AssertionError |
 | F042 | 代 | undisclosed | 3 | reject | infeasible |  | `flex_prefill/ops/flex_prefill_attention.py:869` | When not (head_dim in {16, 32, 64, 128}): 'only support head_dim in {16, 32, 64, 128}' |
 | F043 | 代 | docs_only | 3 | reject | infeasible |  | `flex_prefill/ops/flex_prefill_attention.py:870-875` | When not (block_size in {16, 32, 64, 128}): 'only support block size in {16, 32, 64, 128}' |
 | F044 | 代 | undisclosed | 3 | reject | infeasible |  | `flex_prefill/ops/flex_prefill_attention.py:876` | When not (num_blocks <= triton.cdiv(k_len, block_size)): AssertionError |
 | F045 | 代 | undisclosed | 3 | reject | infeasible |  | `flex_prefill/ops/flex_prefill_attention.py:878` | When not (num_q_heads % num_kv_heads == 0): AssertionError |
+| F005 | 代 | undisclosed | 3 | reject | infeasible |  | `flex_prefill/ops/flex_prefill_attention.py:1219` | When not (q_len == k_len): AssertionError |
 | F046 | 代 | undisclosed | 3 | reject | infeasible |  | `flex_prefill/ops/flex_prefill_attention.py:1220` | When not (head_dim <= 256): 'only support head_dim <= 256' |
-| F047 | 代 | undisclosed | 3 | reject | solved | ✗ | `flex_prefill/ops/flex_prefill_attention.py:1221` | When head_dim <= 128: For head_dim <= 128 only block_size in {32,64,128} is allowed; otherwise (128… |
+| F047 | 代 | undisclosed | 3 | other | solved | ✗ | `flex_prefill/ops/flex_prefill_attention.py:1221` | When head_dim <= 128: For head_dim <= 128 only block_size in {32,64,128} is allowed; otherwise (128… |
 | F048 | 代 | undisclosed | 3 | reject | infeasible |  | `flex_prefill/ops/flex_prefill_attention.py:1228-1231` | When not (block_size in {32, 64}): 'only support block size in {32, 64} if 128 < head_dim <= 256' |
 | F049 | 代 | undisclosed | 3 | other | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1270-1272` | When not (int(triton.__version__.split('.')[0]) >= 3): warnings.warn('triton version greater than 3… |
+| F010 | 代 | undisclosed | 3 | reject | infeasible |  | `flex_prefill/ops/flex_prefill_attention.py:1450` | When not (d in {16, 32, 64, 128}): AssertionError |
+| F011 | 代 | undisclosed | 3 | reject | infeasible |  | `flex_prefill/ops/flex_prefill_attention.py:1451` | When not (kernel_size in {16, 32, 64, 128, 256, 512}): AssertionError |
 | F050 | 代 | undisclosed | 3 | other | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1708` | When block_size != 128: hard-coded 128 in `score_cover_topk(vertical, gamma) // 128` while paramete… |
+| F025 | 代 | undisclosed | 3 | other | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1727` | When kl_div < tau: per-element branch stored in block_sparse_mask |
 | F051 | 代 | undisclosed | 3 | other | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1787` | When not (is_flash_attn_2_available()): flash_attn_func = triton_flash_attention |
 | F052 | 代 | docs_only | 3 | reject | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1824` | When not (batch_size == 1): 'only support batch size 1 for now' |
 | F053 | 代 | docs_only | 3 | path_change | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1825-1835` | When q_len == 1: returns via flash_attn_func, triton_flash_attention |
@@ -845,7 +957,7 @@
 | F019 | 论 | impl_deviates | 2 | other | solved |  | `accuracy/perplexity/table2.sh:27-45` | 论文要求淘汰后更新 GPU 部分 key cache；代码无该步骤（artifact 范围：缺更新步骤） |
 | F020 | 论 | impl_deviates | 2 | other | always |  | `speedup/flexgen/infinigen/flex_opt.py:282` | 控制平面组件集合不完整（缺Pool Manager） |
 | F021 | 论 | impl_deviates | 2 | other | solved |  | `speedup/flexgen/infinigen/flex_opt.py:513-524` | 论文要求A=V；代码A为V列按σq·σk排序重排，A≠V（artifact 范围：A为排序重排后的V，非论文所述A=V） |
-| F022 | 论 | impl_deviates | 2 | other | trigger_only |  | `speedup/infinigen/infinigen/kv_selection_controller.py:28-63` | 预取集合由 top-k(均值) 决定，而非严格 >max−alpha 的令牌集合 |
+| F022 | 论 | impl_deviates | 2 | other | solved |  | `speedup/infinigen/infinigen/kv_selection_controller.py:28-63` | 预取集合由 top-k(均值) 决定，而非严格 >max−alpha 的令牌集合 |
 | F023 | 论 | impl_deviates | 2 | other | solved |  | `speedup/infinigen/infinigen/kv_selection_controller.py:28-63` | 实验路径以绝对令牌数封顶，未实现 20% 比例上限 |
 | F024 | 论 | impl_deviates | 2 | other | solved |  | `speedup/infinigen/infinigen/partial_weight_generation_contr…` | 实验路径缺少K的逐元素绝对值 |
 | F025 | 论 | impl_deviates | 2 | other | always |  | `speedup/infinigen/infinigen/partial_weight_generation_contr…` | 求和对象缺少K_abs项 |
@@ -861,14 +973,10 @@
 | ID | 侧 | 类别 | P | effect | witness | 审 | 位置 | 内容 |
 |---|---|---|---|---|---|---|---|---|
 | F001 | 代 | undisclosed | 1 | reject | solved |  | `minference/minference_configuration.py:56` | When config_path is None and model_name not in MODEL2PATH: If no `config_path` is given, the model … |
-| F002 | 代 | undisclosed | 1 | state | solved | ~ | `minference/modules/minference_forward.py:30` | When ROPE_TYPE is not None: `ROPE_TYPE` is a module-level global computed once from the *first* att… |
 | F003 | 代 | undisclosed | 1 | state | solved |  | `minference/modules/minference_forward.py:165-172` | When SEARCH_MASK is None # first call only: module-level cache initialised on first call and reused |
 | F004 | 代 | undisclosed | 1 | state | solved |  | `minference/modules/minference_forward.py:390` | When "vs" in self.__dict__: Static pattern reuses vertical_topk/slash cached in self.vs from an ear… |
-| F005 | 代 | undisclosed | 1 | reject | solved |  | `minference/modules/minference_forward.py:441` | When ty not in {"stream_llm", "vertical_and_slash", "block_sparse"}: The implementation is chosen b… |
-| F006 | 代 | undisclosed | 1 | reject | trigger_only |  | `minference/modules/minference_forward.py:484-488` | When True: raise ValueError(f'The cache structure has changed since version v4.36. If you are using… |
-| F007 | 代 | undisclosed | 1 | reject | solved | ✓ | `minference/modules/minference_forward.py:504` | When self.is_search and os.path.exists(self.config_path) and self.layer_idx < len(config_list): Wit… |
+| F006 | 代 | undisclosed | 1 | reject | solved |  | `minference/modules/minference_forward.py:484-488` | When True: raise ValueError(f'The cache structure has changed since version v4.36. If you are using… |
 | F008 | 代 | undisclosed | 1 | state | solved |  | `minference/modules/minference_forward.py:681` | When key_states.shape[-2] != kv_seq_len: Whether SnapKV compression runs depends on `self.kv_seq_le… |
-| F009 | 代 | undisclosed | 1 | reject | solved |  | `minference/modules/minference_forward.py:754` | When head_id not in self.best_pattern: The vLLM variant indexes `self.best_pattern[head_id]` direct… |
 | F010 | 代 | undisclosed | 1 | reject | solved |  | `minference/ops/block_sparse_flash_attention.py:126` | When not (Lq == Lk and Lk == Lv): AssertionError |
 | F011 | 代 | undisclosed | 1 | reject | solved |  | `minference/ops/block_sparse_flash_attention.py:127` | When not (Lk in {16, 32, 64, 128}): AssertionError |
 | F012 | 代 | undisclosed | 1 | reject | solved |  | `minference/ops/pit_sparse_flash_attention_v2.py:149` | When not (Lq == Lk and Lk == Lv): AssertionError |
@@ -877,7 +985,6 @@
 | F015 | 代 | undisclosed | 1 | reject | solved |  | `minference/ops/streaming_kernel.py:605` | When not (q.dim() == 4): AssertionError |
 | F016 | 代 | undisclosed | 1 | reject | solved |  | `minference/ops/streaming_kernel.py:606` | When not (q.shape == k.shape == v.shape): AssertionError |
 | F017 | 代 | undisclosed | 1 | reject | solved |  | `minference/patch.py:207` | When output_attentions: If the caller requests attention outputs, execution is aborted by the asser… |
-| F018 | 代 | undisclosed | 1 | reject | solved |  | `minference/patch.py:1252` | When not isinstance(model, |
 | F019 | 代 | undisclosed | 1 | reject | solved | ~ | `minference/patch.py:1253` | When not |
 | F020 | 代 | undisclosed | 2 | path_change | solved | ✓ | `minference/minference_configuration.py:52` | When self.attn_type in self.STASTIC_ATTENTION_TYPES: For any `attn_type` in `STASTIC_ATTENTION_TYPE… |
 | F021 | 代 | undisclosed | 2 | path_change | solved | ✓ | `minference/modules/minference_forward.py:63` | When not (self.config_path is not None and os.path.exists(self.config_path) and self.layer_idx < le… |
@@ -895,7 +1002,6 @@
 | F033 | 代 | undisclosed | 2 | path_change | solved | ✓ | `minference/modules/minference_forward.py:864` | When kv_cache is None or prefill_meta.block_tables.numel() == 0: Only when there is no KV cache or … |
 | F034 | 代 | undisclosed | 2 | path_change | solved | ~ | `minference/modules/snap_kv.py:321` | When q_len < self.max_capacity_prompt: When the prompt length is below max_capacity_prompt, update_… |
 | F035 | 代 | undisclosed | 2 | path_change | solved |  | `minference/modules/snap_kv.py:347` | When self.pooling == "avgpool": The pooling attribute (set from config.pooling in init_snapkv) sele… |
-| F036 | 代 | undisclosed | 2 | path_change | solved | ~ | `minference/ops/block_sparse_flash_attention.py:130` | When q.dtype != torch.bfloat16: The Triton kernel's compute dtype is chosen from the input dtype: b… |
 | F037 | 代 | undisclosed | 2 | path_change | solved | ~ | `minference/ops/streaming_kernel.py:609` | When head_dim not in [16, 32, 64, 128, 256, 512]: For head dimensions not in the hard-coded list, q… |
 | F038 | 代 | undisclosed | 2 | path_change | solved | ~ | `minference/ops/streaming_kernel.py:620` | When k_len > n_local: The streaming (StreamingLLM) variant only keeps the `n_init` sink tokens when… |
 | F039 | 代 | undisclosed | 2 | path_change | solved | ~ | `minference/ops/streaming_kernel.py:701` | When len_k <= n_local + n_init: The KV cache kept for subsequent decoding is either the full h_k/h_… |
@@ -916,19 +1022,25 @@
 | F054 | 论 | impl_deviates | 2 | other | always |  | `minference/modules/minference_forward.py:99-197` | 论文要求空集初始化；代码以数值 0 与空字符串初始化，且该初值使负分候选永不被选 |
 | F055 | 论 | impl_deviates | 2 | other | always |  | `minference/modules/minference_forward.py:199-246` | 论文要求最小化 t_sparse(M)+t_overhead(M)；artifact 执行路径未实现该时间目标。 |
 | F056 | 论 | impl_deviates | 2 | other | always |  | `minference/ops/block_sparse_flash_attention.py:150-165` | 论文要求块级 logits 先 softmax（并除 √d）得 Â；代码省略 softmax 与缩放，仅用因果掩码后的原始点积排序（artifact 范围：无 softmax/√d 的块级注意力矩阵） |
+| F002 | 代 | undisclosed | 3 | other | solved | ~ | `minference/modules/minference_forward.py:30` | When ROPE_TYPE is not None: `ROPE_TYPE` is a module-level global computed once from the *first* att… |
 | F057 | 代 | undisclosed | 3 | other | solved | ~ | `minference/modules/minference_forward.py:34` | When "seq_len" in inspect.signature(self.rotary_emb.forward).parameters: ROPE_TYPE is chosen by int… |
 | F058 | 代 | undisclosed | 3 | state | solved | ✗ | `minference/modules/minference_forward.py:74` | When "apply_rotary_pos_emb" not in self.__dict__: `apply_rotary_pos_emb` is rebound as a module-lev… |
 | F059 | 代 | undisclosed | 3 | other | solved | ✓ | `minference/modules/minference_forward.py:194` | When best_ty == "block_sparse": If block_sparse wins, it is replaced by hard-coded vertical_and_sla… |
 | F060 | 代 | undisclosed | 3 | other | solved | ✓ | `minference/modules/minference_forward.py:430` | When head_id not in self.best_pattern: When the per-layer pattern file |
+| F005 | 代 | undisclosed | 3 | other | solved |  | `minference/modules/minference_forward.py:441` | When ty not in {"stream_llm", "vertical_and_slash", "block_sparse"}: The implementation is chosen b… |
+| F007 | 代 | undisclosed | 3 | other | solved | ✓ | `minference/modules/minference_forward.py:504` | When self.is_search and os.path.exists(self.config_path) and self.layer_idx < len(config_list): Wit… |
 | F061 | 代 | undisclosed | 3 | other | solved |  | `minference/modules/minference_forward.py:523` | When is_flash_attn_2_available(): When the sparse path is not taken, availability of flash-attn 2 d… |
 | F062 | 代 | undisclosed | 3 | other | solved |  | `minference/modules/minference_forward.py:526` | When not (is_flash_attn_2_available()): attn_output = gather_qkv(q, k, v, attention_mask) |
+| F009 | 代 | undisclosed | 3 | other | solved |  | `minference/modules/minference_forward.py:754` | When head_id not in self.best_pattern: The vLLM variant indexes `self.best_pattern[head_id]` direct… |
+| F036 | 代 | undisclosed | 3 | other | solved | ~ | `minference/ops/block_sparse_flash_attention.py:130` | When q.dtype != torch.bfloat16: The Triton kernel's compute dtype is chosen from the input dtype: b… |
 | F063 | 代 | undisclosed | 3 | other | solved | ~ | `minference/ops/block_sparse_flash_attention.py:164` | When top_k > context_size // block_size_N: The requested `top_k` (derived from the searched `slash_… |
 | F064 | 代 | undisclosed | 3 | other | solved |  | `minference/ops/pit_sparse_flash_attention.py:150` | When q.dtype != torch.bfloat16: Any query dtype other than bfloat16 (float32, float64, float16 is f… |
 | F065 | 代 | undisclosed | 3 | path_change | solved | ✗ | `minference/ops/pit_sparse_flash_attention_v2.py:188` | When head_dim not in [16, 32, 64, 128, 256, 512]: For head dims outside the power-of-two list |
+| F018 | 代 | undisclosed | 3 | other | solved |  | `minference/patch.py:1252` | When not isinstance(model, |
 | F066 | 论 | not_implemented | 3 | other | solved |  | `experiments/README.md:13-30` | 实验入口未暴露或设定步长50 |
 | F067 | 论 | not_implemented | 3 | other | always |  | `experiments/infinite_bench/args.py:63-78` | 无变体配置，无法复现Table7的only vertical行。 |
 | F068 | 论 | not_implemented | 3 | other | solved |  | `experiments/infinite_bench/args.py:63-78` | 无换算配置入口。 |
-| F069 | 论 | not_implemented | 3 | other | trigger_only |  | `minference/modules/minference_forward.py:99-197` | 论文要求每候选计算真实 kernel FLOPs；代码不计算任何 FLOPs |
+| F069 | 论 | not_implemented | 3 | other | solved |  | `minference/modules/minference_forward.py:99-197` | 论文要求每候选计算真实 kernel FLOPs；代码不计算任何 FLOPs |
 | F070 | 论 | not_implemented | 3 | other | always |  | `minference/modules/minference_forward.py:99-197` | 论文要求以目标 FLOPs 为停止条件的迭代调整；代码无该循环与调整算子 |
 | F071 | 论 | not_implemented | 3 | other | always |  | `minference/modules/minference_forward.py:99-197` | 论文要求累积 FLOPs 对齐后的候选到 ρ；代码无该累积步骤 |
 | F072 | 论 | not_implemented | 3 | other | no_condition |  | `minference/modules/minference_forward.py:99-197` | 论文要求 FlashAttention 与 V 信息参与选择；代码为稠密权重计算且完全不含 V |
@@ -938,44 +1050,99 @@
 
 | ID | 侧 | 类别 | P | effect | witness | 审 | 位置 | 内容 |
 |---|---|---|---|---|---|---|---|---|
-| F001 | 代 | undisclosed | 1 | reject | trigger_only | ~ | `nnsmith/abstract/op.py:1563` | When gres_config not in ("3", "4", "5"): An unrecognized NNSMITH_GRES environment value causes a Va… |
-| F002 | 代 | undisclosed | 1 | reject | solved |  | `nnsmith/abstract/op.py:2083` | When not check_sat(): If the requested output rank cannot be satisfied by the rank-increment loop (… |
-| F003 | 代 | undisclosed | 1 | reject | solved | ~ | `nnsmith/cli/fuzz.py:179` | When isinstance(e, InternalError): InternalError from make_testcase is propagated, aborting the fuz… |
+| F001 | 代 | undisclosed | 1 | reject | solved | ~ | `nnsmith/abstract/op.py:1563` | When gres_config not in ("3", "4", "5"): An unrecognized NNSMITH_GRES environment value causes a Va… |
+| F003 | 代 | undisclosed | 1 | reject | solved |  | `nnsmith/cli/fuzz.py:180` | When isinstance(e, InternalError): InternalError from make_testcase is propagated, aborting the fuz… |
 | F004 | 代 | contradicts_docs | 1 | reject | solved |  | `nnsmith/graph_gen.py:260` | When self.check_sat() != z3.sat: After adding the memory-limit constraint, an unsatisfiable (or unk… |
-| F005 | 代 | undisclosed | 1 | reject | solved | ~ | `nnsmith/graph_gen.py:524` | When isinstance(op, Expand) and oshape.ndims < op.expand_last_dim: Placeholder shapes with fewer di… |
-| F006 | 合 | undisclosed | 1 | reject | solved | ✓ | `nnsmith/materialize/torch/symbolnet.py:188` | When p.grad is not None and torch.any(p.grad != 0): If all parameter gradients are zero, Constraint… |
-| F007 | 代 | undisclosed | 1 | reject | solved | ✓ | `nnsmith/materialize/torch/symbolnet.py:385` | When loss_fn.dispatch(type(op)) is not None: If an op produces NaN/Inf but has no registered loss f… |
-| F008 | 代 | undisclosed | 1 | reject | solved |  | `nnsmith/materialize/torch/symbolnet.py:421` | When self.loss is not None: If two vulnerable ops both produce NaN/Inf in the same forward pass, th… |
 | F009 | 代 | undisclosed | 2 | path_change | solved | ~ | `nnsmith/abstract/arith.py:74` | When carry and max(left_size, right_size) >= ARITH_MAX_WIDTH: For addition, the extra carry bit is … |
 | F010 | 代 | undisclosed | 2 | path_change | solved | ~ | `nnsmith/abstract/arith.py:79` | When mult and (right.size() + left.size()) >= ARITH_MAX_WIDTH: For multiplication, when the combine… |
 | F011 | 代 | undisclosed | 2 | path_change | solved |  | `nnsmith/abstract/op.py:25` | When FLOPS_LIM == "off": Setting NNSMITH_FLOPS_LIM=off sets FLOPS_LIM to None, disabling the FLOPs … |
 | F012 | 代 | undisclosed | 2 | path_change | solved | ✓ | `nnsmith/abstract/op.py:910` | When Z3_CONS_FLOPS: A module-level flag decides whether the FLOPS upper-bound constraint is added t… |
-| F013 | 代 | undisclosed | 2 | path_change | solved |  | `nnsmith/abstract/op.py:1552` | When gres_config != "4": The environment variable NNSMITH_GRES selects the reshape grouping strateg… |
 | F014 | 代 | undisclosed | 2 | path_change | solved | ✓ | `nnsmith/abstract/op.py:1587` | When os.getenv("NNSMITH_CONS_RESHAPE", "off") != "off": The environment variable NNSMITH_CONS_RESHA… |
 | F015 | 代 | undisclosed | 2 | path_change | solved |  | `nnsmith/cli/fuzz.py:60` | When not self.crash_safe and self.test_timeout is not None: Setting fuzz.test_timeout without crash… |
 | F016 | 代 | undisclosed | 2 | path_change | solved |  | `nnsmith/cli/model_gen.py:31` | When cfg["backend"]["type"] is not None: A caller-supplied backend type decides whether a BackendFa… |
 | F017 | 代 | undisclosed | 2 | path_change | solved | ✓ | `nnsmith/graph_gen.py:256` | When NNSMITH_LIMNF_V == "0": Branches the memory-limit constraint: v0 adds nnsmith_le(self.n_floats… |
-| F018 | 代 | undisclosed | 2 | path_change | solved |  | `nnsmith/graph_gen.py:259` | When NNSMITH_LIMNF_V == "1": With NNSMITH_LIMNF_V=1 the per-op float-count constraints accumulated … |
+| F018 | 代 | undisclosed | 2 | path_change | solved |  | `nnsmith/graph_gen.py:258` | When NNSMITH_LIMNF_V == "1": With NNSMITH_LIMNF_V=1 the per-op float-count constraints accumulated … |
 | F019 | 代 | stated_differently | 2 | path_change | solved | ~ | `nnsmith/graph_gen.py:556` | When random.uniform(0, 1) < self.forward_prob: A caller-configured forward_prob attribute decides w… |
 | F020 | 代 | undisclosed | 2 | path_change | solved |  | `nnsmith/graph_gen.py:944` | When idx in disable: For each reshape group, one randomly chosen destination dimension is disabled … |
 | F021 | 代 | undisclosed | 2 | path_change | solved | ✓ | `nnsmith/materialize/torch/__init__.py:47` | When self.sat_inputs is None: When no satisfying inputs were found (sat_inputs is None), make_oracl… |
 | F022 | 代 | undisclosed | 2 | path_change | solved |  | `nnsmith/materialize/torch/input_gen.py:93` | When all([DType.is_float(v.dtype) for _, v in self.net.input_like.items()]): Whether all model inpu… |
-| F023 | 代 | undisclosed | 2 | path_change | solved |  | `nnsmith/materialize/torch/input_gen.py:98` | When self.differentiable is False: The variant is decided by a single probe forward pass on random … |
+| F006 | 合 | undisclosed | 2 | other | solved | ✓ | `nnsmith/materialize/torch/symbolnet.py:188` | When p.grad is not None and torch.any(p.grad != 0): If all parameter gradients are zero, Constraint… |
 | F024 | 合 | undisclosed | 2 | other | solved |  | `nnsmith/materialize/torch/symbolnet.py:234` | When max_time is None: The gradient-based input search budget is taken from the environment (NNSMIT… |
 | F025 | 代 | undisclosed | 2 | path_change | solved | ✓ | `nnsmith/materialize/torch/symbolnet.py:238` | When tensor.data.dtype.is_floating_point: Only floating-point input tensors are wrapped as trainabl… |
-| F026 | 代 | undisclosed | 2 | path_change | solved |  | `nnsmith/materialize/torch/symbolnet.py:358` | When output_tensors[i].grad_fn is None: `differentiable` is reset to True at the start of every for… |
-| F027 | 代 | undisclosed | 2 | path_change | solved |  | `nnsmith/materialize/torch/symbolnet.py:403` | When vul_op_loss is None: When an op produces NaN/Inf but has no registered loss function (`loss_fn… |
 | F028 | 论 | impl_deviates | 2 | other | solved |  | `nnsmith/abstract/op.py:1053-1080` | artifact 路径不存在 pad 的 0 箱/负箱特化 |
 | F029 | 论 | impl_deviates | 2 | other | always |  | `nnsmith/abstract/op.py:1332-1360` | artifact 路径不存在 Conv2d padding 的 0 箱特化 |
 | F030 | 论 | impl_deviates | 2 | other | solved |  | `nnsmith/graph_gen.py:1029-1058` | 论文要求每轮随机选一半；代码仅首轮随机，后续轮固定丢弃后半段 |
-| F031 | 代 | undisclosed | 3 | path_change | solved | ✗ | `nnsmith/graph_gen.py:190` | When int(os.getenv("NNSMITH_BITS", 30)) != 30: The number of bits used to split the integer-domain … |
+| F013 | 代 | undisclosed | 3 | other | solved |  | `nnsmith/abstract/op.py:1552` | When gres_config != "4": The environment variable NNSMITH_GRES selects the reshape grouping strateg… |
+| F002 | 代 | undisclosed | 3 | other | solved |  | `nnsmith/abstract/op.py:2083` | When not check_sat(): If the requested output rank cannot be satisfied by the rank-increment loop (… |
+| F031 | 代 | undisclosed | 3 | other | solved | ✗ | `nnsmith/graph_gen.py:190` | When int(os.getenv("NNSMITH_BITS", 30)) != 30: The number of bits used to split the integer-domain … |
+| F005 | 代 | undisclosed | 3 | other | solved | ~ | `nnsmith/graph_gen.py:524` | When isinstance(op, Expand) and oshape.ndims < op.expand_last_dim: Placeholder shapes with fewer di… |
 | F032 | 代 | undisclosed | 3 | other | solved | ✗ | `nnsmith/graph_gen.py:834` | When os.getenv("NNSMITH_LB", "off") == "off": The upper-bound constraint on slice start/end paramet… |
-| F033 | 代 | undisclosed | 3 | path_change | solved | ✗ | `nnsmith/graph_gen.py:984` | When os.getenv("NNSMITH_G_CONFIG", "1") != "1": The environment variable NNSMITH_G_CONFIG selects w… |
+| F033 | 代 | undisclosed | 3 | other | solved | ✗ | `nnsmith/graph_gen.py:984` | When os.getenv("NNSMITH_G_CONFIG", "1") != "1": The environment variable NNSMITH_G_CONFIG selects w… |
 | F034 | 代 | undisclosed | 3 | path_change | solved | ✗ | `nnsmith/graph_gen.py:1016` | When config is None: If the op class has no entry in param_config, extra_constraints returns an emp… |
 | F035 | 代 | undisclosed | 3 | path_change | solved | ✗ | `nnsmith/graph_gen.py:1044` | When len(cons) == 0 or random.uniform(0, 1) > self.constrain_prob: Guidance constraints for a node … |
 | F036 | 代 | paper_stated | 3 | path_change | solved | ✗ | `nnsmith/graph_gen.py:1052` | When self.check_sat(*cur_cons) != z3.sat: If the collected guidance constraints are unsatisfiable, … |
 | F037 | 代 | undisclosed | 3 | path_change | solved | ✗ | `nnsmith/graph_gen.py:1054` | When len(cur_cons) == 0: When all guidance constraints are dropped due to unsat, the loop breaks an… |
+| F023 | 代 | undisclosed | 3 | other | solved |  | `nnsmith/materialize/torch/input_gen.py:98` | When self.differentiable is False: The variant is decided by a single probe forward pass on random … |
+| F026 | 代 | undisclosed | 3 | other | solved |  | `nnsmith/materialize/torch/symbolnet.py:358` | When output_tensors[i].grad_fn is None: `differentiable` is reset to True at the start of every for… |
 | F038 | 代 | undisclosed | 3 | path_change | solved | ✗ | `nnsmith/materialize/torch/symbolnet.py:382` | When self.check_intermediate_numeric or (self.use_gradient and not self.stop_updating_loss): Constr… |
+| F007 | 代 | undisclosed | 3 | other | solved | ✓ | `nnsmith/materialize/torch/symbolnet.py:385` | When loss_fn.dispatch(type(op)) is not None: If an op produces NaN/Inf but has no registered loss f… |
+| F027 | 代 | undisclosed | 3 | other | solved |  | `nnsmith/materialize/torch/symbolnet.py:403` | When vul_op_loss is None: When an op produces NaN/Inf but has no registered loss function (`loss_fn… |
+| F008 | 代 | undisclosed | 3 | other | solved |  | `nnsmith/materialize/torch/symbolnet.py:421` | When self.loss is not None: If two vulnerable ops both produce NaN/Inf in the same forward pass, th… |
+
+### qoserve（50 条）
+
+| ID | 侧 | 类别 | P | effect | witness | 审 | 位置 | 内容 |
+|---|---|---|---|---|---|---|---|---|
+| F001 | 代 | undisclosed | 1 | reject | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:251` | When not (seq.is_paused()): 'Sequence should be in PAUSED state' |
+| F002 | 代 | undisclosed | 1 | reject | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:253` | When not (self.block_manager.can_append_slot()): AssertionError |
+| F003 | 合 | docs_only | 2 | other | solved |  | `sarathi/core/datatypes/sequence.py:73` | When NUM_TIERS > 0: Each Sequence's QoS tier (and hence its deadline) is drawn at random from the g… |
+| F004 | 合 | undisclosed | 2 | path_change | solved |  | `sarathi/core/datatypes/sequence.py:114` | When self.tier > 0: For any non-zero (randomly assigned) tier, the TBT deadline uses execution_thre… |
+| F005 | 代 | undisclosed | 2 | path_change | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:120` | When memory_budget < 1000: When free KV-cache blocks (free_blocks * block_size // 32) fall below 10… |
+| F006 | 代 | undisclosed | 2 | path_change | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:130` | When min_slack <= 0: When the caller-supplied slack is non-positive, the binary search is skipped e… |
+| F007 | 代 | undisclosed | 2 | path_change | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:231` | When seq.tier >= 1: For tier>=1 sequences the ttft_deadline is recomputed by subtracting predicted … |
+| F008 | 代 | undisclosed | 2 | path_change | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:233` | When seq.num_decode_tokens == -1: Selects whether the decode-time estimate uses the global output_l… |
+| F009 | 代 | undisclosed | 2 | path_change | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:276` | When self.scheduler_type == 'deadline': Only when scheduler_type is 'deadline' is the dynamic chunk… |
+| F010 | 代 | undisclosed | 2 | path_change | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:300` | When self.scheduler_type == 'deadline' or self.scheduler_type == 'deadline_no_dynamic_chunking': Th… |
+| F011 | 论 | impl_deviates | 2 | other | no_condition |  | `README.md:1-129` | 实验脚本不自动下载数据集，需先手动 wget |
+| F012 | 论 | impl_deviates | 2 | other | always |  | `chunk_size_predictor/predictor.py:1-41` | 论文要求训练随机森林；脚本导入并训练 LinearRegression，无 RandomForest/ensemble |
+| F013 | 论 | impl_deviates | 2 | other | always |  | `fig7.sh:76-106` | 缺 §4.3/§4.4 执行路径 |
+| F014 | 论 | impl_deviates | 2 | other | trigger_only |  | `fig7.sh:76-106` | 缺 Qwen/70B 与 4 小时控制 |
+| F015 | 论 | impl_deviates | 2 | other | solved |  | `paper_plot_scripts/fig7_cap.py:13-47` | Q1 的 TBT 违规未被度量 |
+| F016 | 论 | impl_deviates | 2 | other | always |  | `paper_plot_scripts/fig_10_11.py:1-20` | 图输出目录与论文声明的 paper_plots/ 不一致 |
+| F017 | 论 | impl_deviates | 2 | other | always |  | `paper_plot_scripts/fig_10_11.py:19-37` | 固定阈值替代数据 p90 |
+| F018 | 论 | impl_deviates | 2 | other | always |  | `sarathi/config/config.py:284-311` | 脚本层同样无按请求提交 QoS 字段的配置。 |
+| F019 | 论 | impl_deviates | 2 | other | always |  | `sarathi/config/config.py:284-311` | 脚本层无每请求优先级配置。 |
+| F020 | 论 | impl_deviates | 2 | other | solved |  | `sarathi/core/datatypes/sequence.py:70-80` | 实验路径同样没有独立的 D_total 完成截止。 |
+| F021 | 论 | impl_deviates | 2 | other | solved |  | `sarathi/core/datatypes/sequence.py:88-109` | 论文要求 α 同时乘 (Prefill_rem+Decode_rem)；代码把 decode 估计以固定系数 execution_threshold_batched 从期限中扣除，而非以 α 加权加… |
+| F022 | 论 | impl_deviates | 2 | other | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:296-333` | 论文要求检查“已违反 或 将违反”TTFT/TTLT；代码仅做 TTFT 前瞻（now+service_time>deadline），且仅对 drop==0 且未分配内存的请求生效，无 TTLT 维… |
+| F023 | 论 | impl_deviates | 2 | other | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:296-333` | 论文要求移入独立 relegated 队列；代码仅设 drop 标志并放回原 prefill 队列，无 relegated 队列结构，且 drop 请求仍可被再次选中调度。（artifact 范围：… |
+| F024 | 代 | undisclosed | 3 | other | solved |  | `sarathi/core/datatypes/sequence.py:80` | When self.scheduler_type == 'fcfs': `Sequence.__lt__` dispatches on this per-object attribute: 'fcf… |
+| F025 | 代 | undisclosed | 3 | other | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:92` | When batch_num_tokens <= 512: The execution-time predictor switches between two hard-coded stratifi… |
+| F026 | 代 | undisclosed | 3 | other | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:211` | When not self._check_request_prompt_length(seq): Requests whose prompt length fails the check are a… |
+| F027 | 代 | undisclosed | 3 | other | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:305` | When (seq.drop == 0) and (seq.mem_allocated == False) and ((now + service_time_required) > (seq.arr… |
+| F028 | 论 | not_implemented | 3 | other | always |  | `chunk_size_predictor/predictor.py:1-41` | 论文要求用 Vidur 暴露的 harness 采集剖面；pinned 仓库中不存在该采集实现 |
+| F029 | 论 | not_implemented | 3 | other | always |  | `fig10_11.sh:103-129` | 偏斜工作负载未实现 |
+| F030 | 论 | not_implemented | 3 | other | always |  | `fig7.sh:76-106` | 未实现按 QoS 桶独立集群的 silo 部署 |
+| F031 | 论 | not_implemented | 3 | other | always |  | `fig7.sh:76-106` | silo 基线整体缺失，无按桶 chunk 配置 |
+| F032 | 论 | not_implemented | 3 | other | no_condition |  | `fig7.sh:76-106` | 集群规模实验缺失 |
+| F033 | 论 | not_implemented | 3 | other | always |  | `fig7.sh:76-106` | 瞬态过载工作负载未实现 |
+| F034 | 论 | not_implemented | 3 | other | always |  | `fig7.sh:76-106` | 无峰谷比构造 |
+| F035 | 论 | not_implemented | 3 | other | no_condition |  | `fig7.sh:76-106` | 集群规模实验缺失 |
+| F036 | 论 | not_implemented | 3 | other | no_condition |  | `fig7.sh:76-106` | 替代分配实验缺失 |
+| F037 | 论 | not_implemented | 3 | other | always |  | `fig8.sh:37-69` | 论文要求固定 QPS 下离线扫描 α 0–10；artifact 脚本对 α 只给单一常量 0.016，未遍历 0–10 的 α 网格。 |
+| F038 | 论 | impl_deviates | 3 | other | infeasible |  | `fig8.sh:37-69` | 论文称固定 QPS 采用 8 ms/token；artifact 固定 QPS 运行脚本使用 16 ms/token，与论文所选值不符。 |
+| F039 | 论 | not_implemented | 3 | other | always |  | `fig8.sh:37-69` | 论文要求低负载 α=1 ms/token；artifact 无该取值或负载分段。 |
+| F040 | 论 | not_implemented | 3 | other | always |  | `fig8.sh:37-69` | 组件消融未实现 |
+| F041 | 论 | not_implemented | 3 | other | always |  | `fig8.sh:37-69` | 消融表汇总未实现 |
+| F042 | 论 | not_implemented | 3 | other | always |  | `fig8.sh:37-69` | alpha 敏感性实验未实现 |
+| F043 | 论 | not_implemented | 3 | other | always |  | `paper_plot_scripts/fig_10_11.py:19-37` | 优先级标注未实现 |
+| F044 | 论 | not_implemented | 3 | other | always |  | `run_exp.sh:1-27` | 未实现多副本 round-robin 分发 |
+| F045 | 论 | not_implemented | 3 | other | always |  | `sarathi/config/config.py:284-311` | 脚本层同样无按应用解码历史。 |
+| F046 | 论 | not_implemented | 3 | other | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:184-354` | 论文要求优先级驱动的抢占；对齐 artifact 调度路径不执行抢占。 |
+| F047 | 论 | not_implemented | 3 | other | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:184-354` | 缺少 prefill 队列抢占资格判定。 |
+| F048 | 论 | not_implemented | 3 | other | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:184-354` | 论文所述避免队头阻塞的抢占手段在 DeadlineScheduler 中不存在。（artifact 范围：。） |
+| F049 | 论 | not_implemented | 3 | other | no_condition |  | `sarathi/core/scheduler/deadline_scheduler.py:296-333` | 论文要求按优先级抢占已部分 prefill 的在途请求；代码无任何抢占触发或调用，仅通过堆排序选择未开始的请求 |
+| F050 | 论 | not_implemented | 3 | other | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:296-333` | 论文要求按优先级分层、低优先级耗尽后才降级高优先级；代码对所有请求一视同仁按截止时间降级，无分层门控。（artifact 范围：。） |
 
 ### sparta（82 条）
 
@@ -994,7 +1161,7 @@
 | F011 | 论 | impl_deviates | 2 | other | always |  | `script/figure14/search_finetune_fit_qat.py:301-335` | 论文要求对算子所有张量（输入/权重/输出）逐一评估；代码只对 weight 张量做位宽搜索，input/output 未评估 |
 | F012 | 论 | impl_deviates | 2 | other | no_condition |  | `script/figure14/search_finetune_fit_qat.py:496-538` | 论文要求精度下降小于预定义阈值（1%）才接受；代码用 best_acc<original_acc 即任何下降都拒绝，无 1% 阈值 |
 | F013 | 论 | impl_deviates | 2 | other | always |  | `script/figure14/search_finetune_fit_qat.py:496-538` | 论文要求拓扑序并缓存激活；代码按模块注册顺序遍历且无激活缓存 |
-| F014 | 论 | impl_deviates | 2 | other | trigger_only |  | `script/figure14/search_finetune_fit_qat.py:571-664` | 论文要求同时更新 S 与 Supdated；代码只更新全局位设置，无 Supdated 累积 |
+| F014 | 论 | impl_deviates | 2 | other | solved |  | `script/figure14/search_finetune_fit_qat.py:571-664` | 论文要求同时更新 S 与 Supdated；代码只更新全局位设置，无 Supdated 累积 |
 | F015 | 论 | impl_deviates | 2 | other | always |  | `script/figure14/search_finetune_fit_qat.py:571-664` | 论文以 Tupdated==T 跳过；代码以精度下降 break，语义不同 |
 | F016 | 论 | impl_deviates | 2 | other | always |  | `script/figure16/a100/sparta.cu:118-140` | 论文报告第二 sub-Matmul 的具体残余稀疏度；实验路径无该测量/输出，且底层分派规则与数值趋势不符。 |
 | F017 | 论 | impl_deviates | 2 | other | no_condition |  | `script/figure16/a100/sparta.cu:266-311` | 实验路径的第二部分内核依赖为 Sputnik，而非 SparTA 专用稀疏内核。 |
@@ -1047,7 +1214,7 @@
 | F064 | 论 | not_implemented | 3 | other | always |  | `script/figure19/run.sh:1-7` | artifact 路径无真实延迟过滤。 |
 | F065 | 论 | not_implemented | 3 | other | always |  | `script/figure19/run.sh:1-7` | artifact 无编译迭代。 |
 | F066 | 论 | not_implemented | 3 | other | always |  | `script/figure19/run.sh:1-7` | artifact 无 FLOPs 过滤基线。 |
-| F067 | 论 | not_implemented | 3 | other | trigger_only |  | `sparta/core/sparta.py:16-24` | 论文要求对每个 (sub)operator 执行量化特化；artifact 链中特化调用被注释、重建为直通，未执行任何循环级特化。 |
+| F067 | 论 | not_implemented | 3 | other | solved |  | `sparta/core/sparta.py:16-24` | 论文要求对每个 (sub)operator 执行量化特化；artifact 链中特化调用被注释、重建为直通，未执行任何循环级特化。 |
 | F068 | 论 | not_implemented | 3 | other | always |  | `sparta/propagation/talgebra.py:4-17` | 论文要求可注册新算子规则；代码无注册机制，新增算子需改源码 |
 | F069 | 论 | not_implemented | 3 | other | always |  | `sparta/specialization/specialize_kernel.py:18-42` | 无 TransformOp 级 S 初始化 |
 | F070 | 论 | not_implemented | 3 | other | always |  | `sparta/specialization/specialize_kernel.py:18-42` | 论文要求组合为图 G；代码无图构造步骤 |

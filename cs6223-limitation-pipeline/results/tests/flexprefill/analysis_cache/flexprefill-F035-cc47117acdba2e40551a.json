@@ -1,0 +1,33 @@
+{
+ "assessment": "supports",
+ "reasoning": "The cited code reduces qk to a column-mean vector via qk.mean(-2) and a diagonal scalar/vector via sum_all_diagonal_matrix, then applies torch_bhn_sumpool. Both sumpool helpers accept only (b,h,n) and sum the last axis, so they cannot implement the paper's 2-D sumpool over the softmax matrix. This matches the claimed deviation.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "regex": "vertical\\s*=\\s*qk\\.mean\\(-2\\)",
+   "expect": "present",
+   "meaning": "Shows column-mean reduction before pooling, not 2-D softmax pooling."
+  },
+  {
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "regex": "def torch_bhn_sumpool\\(x: torch\\.Tensor, kernel_size: int\\):",
+   "expect": "present",
+   "meaning": "Confirms pooling helper takes a 1-D (b,h,n) tensor."
+  },
+  {
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "regex": "x\\.view\\(b, h, -1, kernel_size\\)\\.sum\\(-1\\)",
+   "expect": "present",
+   "meaning": "Confirms sumpool sums only the last axis."
+  },
+  {
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "regex": "sumpool\\(\\s*softmax",
+   "expect": "absent",
+   "control": "torch_bhn_sumpool\\(",
+   "meaning": "No direct 2-D sumpool over softmax is present."
+  }
+ ],
+ "would_confirm": "A unit test comparing the code's pooled vector against a 2-D block sumpool of the softmax matrix would settle it."
+}

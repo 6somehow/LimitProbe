@@ -1,0 +1,91 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "nnsmith-F008",
+ "artifact_id": "nnsmith",
+ "status": "not_run",
+ "not_run": {
+  "code": "outcome_unsupported",
+  "reason": "effect type 'other': the target is a call whose effect is not an exception at that line (for example a check that returns False)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "When self.loss is not None: If two vulnerable ops both produce NaN/Inf in the same forward pass, the second one trips this check and raises ConstraintError, which aborts the gradient search (caught in grad_input_gen, line 268 -> break) instead of optimising for either loss. (nnsmith/materialize/torch/symbolnet.py:421)",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "nnsmith/materialize/torch/symbolnet.py:421",
+  "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.forward",
+  "condition": "self.loss is not None"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "nnsmith/materialize/torch/symbolnet.py",
+    "line_start": 421,
+    "function": "nnsmith/materialize/torch/symbolnet.py::SymbolNet.forward",
+    "snippet": "ConstraintCheck.true(self.loss is None, 'Multiple loss detected!')"
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/nnsmith/limitations_for_tests.json",
+  "findings_sha256": "3ec725e87dbddd4c992db2cb5e7881f511e70ce2ab61c81037bbb06a557aa5fb",
+  "generated_at": "2026-11-18T12:18:34+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A1",
+  "tier_note": "the reading is unclear; probes alone do not decide it",
+  "calibrated": false,
+  "assessment": "unclear",
+  "reasoning": "Line 421 confirms a guard that raises when self.loss is already set, but the shown evidence does not establish that NaN/Inf sets self.loss, that two vulnerable ops trigger it, or that grad_input_gen catches ConstraintError and breaks. The full causal claim is therefore not verifiable from the single line.",
+  "hardware_needed": false,
+  "would_confirm": "Inject NaN/Inf into two vulnerable ops and trace whether self.loss is set twice and whether grad_input_gen catches ConstraintError and breaks.",
+  "static": {
+   "cited": 1,
+   "grounded": true,
+   "items": [
+    {
+     "file": "nnsmith/materialize/torch/symbolnet.py",
+     "lines": "421-421",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": false,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "nnsmith/materialize/torch/symbolnet.py",
+    "regex": "ConstraintCheck\\.true\\(self\\.loss is None, \"Multiple loss detected!\"\\)",
+    "expect": "present",
+    "meaning": "Confirms the multiple-loss guard exists at line 421.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     421
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

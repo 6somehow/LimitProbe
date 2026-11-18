@@ -1,0 +1,82 @@
+{
+  "test_id": "A-minference-F004",
+  "finding_id": "minference-F004",
+  "strategy": "S1",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {"name": "action", "value": "call", "why": "the driver uses this to run the state-building prelude call or the checked call"},
+      {"name": "seed", "value": 0, "why": "fixes q/k/v so both the state-building call and the checked call see the same tensors"},
+      {"name": "batch", "value": 1, "why": "single batch is enough for the target decision"},
+      {"name": "heads", "value": 1, "why": "single head is enough for the target decision and matches the strided diagonal helper"},
+      {"name": "head_dim", "value": 8, "why": "small head width keeps the CPU run cheap; the branch does not depend on it"},
+      {"name": "seq_len", "value": 64, "why": "the module's LAST_Q_MASK is 64x64 and the static pattern slices the last 64 queries"}
+    ],
+    "positive_input": {},
+    "negative_input": {},
+    "boundary_variable": "prelude",
+    "positive_prelude": [
+      {"action": "setup"}
+    ],
+    "negative_prelude": [
+      {"action": "reset"}
+    ],
+    "extra_negatives": [],
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at minference/modules/minference_forward.py:390",
+      "signal_location": "minference/modules/minference_forward.py:390"
+    },
+    "expected": {
+      "positive": "branch taken at minference/modules/minference_forward.py:390",
+      "negative": "branch not taken at minference/modules/minference_forward.py:390"
+    }
+  },
+  "execution": {
+    "entry_called": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [
+      {
+        "symbol": "torch.arange",
+        "kind": "patch",
+        "reason": "the module builds LAST_Q_MASK with torch.arange(..., device='cuda') at import time; the stand-in keeps the real arange and maps the device to CPU",
+        "behavior": "sim",
+        "impl": "sim.py::arange_cpu",
+        "sim_class": "independent_native"
+      },
+      {
+        "symbol": "minference.ops.pit_sparse_flash_attention_v2",
+        "kind": "fake_module",
+        "reason": "Triton/pycuda GPU module is absent on CPU; the namespace is replaced so the repository module can be imported",
+        "behavior": "return_first_arg",
+        "sim_class": "stub"
+      },
+      {
+        "symbol": "minference.ops.pit_sparse_flash_attention_v2.vertical_slash_sparse_attention",
+        "kind": "patch",
+        "reason": "Triton kernel launcher is unavailable on CPU; the stand-in computes plain-torch dense causal attention so the checked call completes",
+        "behavior": "sim",
+        "impl": "sim.py::vertical_slash_sparse_attention",
+        "sim_class": "independent_native"
+      }
+    ],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": ["false", "true"],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at minference/modules/minference_forward.py:390",
+    "negative_observed": "branch not taken at minference/modules/minference_forward.py:390"
+  },
+  "evidence": {}
+}

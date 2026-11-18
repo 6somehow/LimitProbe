@@ -1,0 +1,102 @@
+{
+  "test_id": "A-qoserve-F005",
+  "finding_id": "qoserve-F005",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "block_size",
+        "value": 16,
+        "why": "cache block size from the scheduler Config; it enters the target only as the multiplier in (free_blocks * block_size) // 32"
+      },
+      {
+        "name": "num_gpu_blocks_per_budget",
+        "value": 2,
+        "why": "num_gpu_blocks = 2 * memory_budget makes (num_gpu_blocks * 16) // 32 exactly equal to the requested memory_budget"
+      },
+      {
+        "name": "prompt_tokens",
+        "value": 64,
+        "why": "one small prompt keeps the waiting queue non-empty so the entry reaches the slack search; its length does not affect the memory_budget guard"
+      },
+      {
+        "name": "chunk_size",
+        "value": 512,
+        "why": "DeadlineSchedulerConfig chunk size; it only shapes the post-target prefill loop, not the memory_budget decision"
+      },
+      {
+        "name": "max_tokens",
+        "value": 8,
+        "why": "sampling parameter required to construct a Sequence; it is not read before or at the target line"
+      },
+      {
+        "name": "model_max_model_len",
+        "value": 8192,
+        "why": "max_model_len used by the block manager prompt-length check; the 64-token prompt is far below it"
+      },
+      {
+        "name": "seq_tier",
+        "value": 0,
+        "why": "fixes the randomly assigned request tier so the post-target deadline arithmetic is deterministic"
+      },
+      {
+        "name": "seq_ttft_deadline",
+        "value": 1e+18,
+        "why": "keeps the post-target eager-relegation branch off the wall-clock boundary; the target decision reads only memory_budget"
+      },
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "fixed random seed so Sequence tier assignment and the whole run are reproducible"
+      },
+      {
+        "name": "metrics_write",
+        "value": false,
+        "why": "MetricsStore is initialised in disabled mode, matching the CPU-only scheduler-only setup"
+      }
+    ],
+    "positive_input": {
+      "memory_budget": 999
+    },
+    "negative_input": {
+      "memory_budget": 1000
+    },
+    "boundary_variable": "memory_budget",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at sarathi/core/scheduler/deadline_scheduler.py:120",
+      "signal_location": "sarathi/core/scheduler/deadline_scheduler.py:120"
+    },
+    "expected": {
+      "positive": "branch taken at sarathi/core/scheduler/deadline_scheduler.py:120",
+      "negative": "branch not taken at sarathi/core/scheduler/deadline_scheduler.py:120"
+    }
+  },
+  "execution": {
+    "entry_called": "sarathi/core/scheduler/deadline_scheduler.py::DeadlineScheduler._schedule",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "false",
+      "true"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at sarathi/core/scheduler/deadline_scheduler.py:120",
+    "negative_observed": "branch not taken at sarathi/core/scheduler/deadline_scheduler.py:120"
+  },
+  "evidence": {}
+}

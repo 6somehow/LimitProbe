@@ -1,0 +1,27 @@
+{
+ "assessment": "supports",
+ "reasoning": "Line 153 directly implements a silent fallback: when span is zero, frac becomes 0.0 rather than raising. That matches the finding's core claim. The excerpt does not show that span is defined as upgrade_nsize minus base_nsize, nor that frac controls window upgrades, but the zero-span behavior itself is supported.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "src/flexposit/api.py",
+   "regex": "span\\s*=\\s*[^\\n]*upgrade_nsize[^\\n]*base_nsize|span\\s*=\\s*[^\\n]*base_nsize[^\\n]*upgrade_nsize",
+   "expect": "present",
+   "meaning": "Confirms span is computed from upgrade_nsize and base_nsize."
+  },
+  {
+   "file": "src/flexposit/api.py",
+   "regex": "frac\\s*=\\s*\\(config\\.bits\\s*-\\s*config\\.base_nsize\\)\\s*/\\s*span\\s+if\\s+span\\s+else\\s+0\\.0",
+   "expect": "present",
+   "meaning": "Confirms zero span silently yields 0.0 fraction."
+  },
+  {
+   "file": "src/flexposit/api.py",
+   "regex": "if\\s+span\\s*==\\s*0\\s*:\\s*\\n\\s*raise",
+   "expect": "absent",
+   "control": "frac\\s*=",
+   "meaning": "No explicit zero-span raise; control confirms file searched."
+  }
+ ],
+ "would_confirm": "A unit test invoking the upgrade path with upgrade_nsize == base_nsize and checking whether an error is raised or any window upgrades occur would settle it."
+}

@@ -1,0 +1,145 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "qoserve-F050",
+ "artifact_id": "qoserve",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "not_implemented",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "论文要求按优先级分层、低优先级耗尽后才降级高优先级；代码对所有请求一视同仁按截止时间降级，无分层门控。（artifact 范围：。）",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "sarathi/core/scheduler/deadline_scheduler.py:296-333",
+  "function": null,
+  "condition": "self.scheduler_type == 'deadline' or self.scheduler_type == 'deadline_no_dynamic_chunking'"
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "Only when there are no more low-priority requests, QoServe proactively relegates high-priority requests that have violated their deadlines to prevent cascading deadline violations.",
+    "source": "paper",
+    "locator": "PDF p.6"
+   }
+  ],
+  "code": [
+   {
+    "file": "sarathi/core/scheduler/deadline_scheduler.py",
+    "line_start": 296,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "sarathi/core/datatypes/sequence.py",
+    "line_start": 61,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/qoserve/limitations_for_tests.json",
+  "findings_sha256": "79eb69f6ac7117b77ebe00293d1d328dff8bfffcd7cabc7556eaae435c1699e2",
+  "generated_at": "2026-11-18T00:46:02+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A0",
+  "tier_note": "the reading and the probes disagree",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The shown scheduler loop applies eager relegation based solely on deadline slack and drop count; it never checks seq.priority or seq.tier before relegating. Sequence initializes priority to a constant 1 and assigns tiers randomly, but the scheduler snippet has no low-priority-exhaustion gate. Thus the evidence supports the claim that this path treats requests uniformly by deadline.",
+  "hardware_needed": false,
+  "would_confirm": "A unit test with mixed tiers and an exhausted low-priority queue would show whether high-priority requests are relegated only after low-priority exhaustion.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "sarathi/core/scheduler/deadline_scheduler.py",
+     "lines": "296-333",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "sarathi/core/datatypes/sequence.py",
+     "lines": "61-80",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "sarathi/core/scheduler/deadline_scheduler.py",
+    "regex": "seq\\.priority",
+    "expect": "absent",
+    "meaning": "Scheduler never reads request priority; control shows drop logic present.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "seq\\.drop",
+    "hit_lines": []
+   },
+   {
+    "file": "sarathi/core/scheduler/deadline_scheduler.py",
+    "regex": "seq\\.tier",
+    "expect": "absent",
+    "meaning": "Scheduler never consults tier; control shows deadline field used.",
+    "status": "refuted",
+    "hits": 3,
+    "control": "seq\\.ttft_deadline",
+    "hit_lines": [
+     231,
+     234,
+     236
+    ]
+   },
+   {
+    "file": "sarathi/core/scheduler/deadline_scheduler.py",
+    "regex": "TIER_DEADLINES",
+    "expect": "absent",
+    "meaning": "No tier-deadline gating in scheduler; control shows throughput logic present.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "expected_prefill_throughput",
+    "hit_lines": []
+   },
+   {
+    "file": "sarathi/core/datatypes/sequence.py",
+    "regex": "self\\.priority\\s*=\\s*1",
+    "expect": "present",
+    "meaning": "Priority is initialized to a constant, not differentiated per request.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     67
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

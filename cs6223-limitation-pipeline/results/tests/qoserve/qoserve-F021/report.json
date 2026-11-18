@@ -1,0 +1,155 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "qoserve-F021",
+ "artifact_id": "qoserve",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "论文要求 α 同时乘 (Prefill_rem+Decode_rem)；代码把 decode 估计以固定系数 execution_threshold_batched 从期限中扣除，而非以 α 加权加入剩余工作项，且 α 不作用于 decode 项（artifact 范围：α·Decode_rem 项缺失，decode 以 execution_threshold_batched 线性扣减期限）",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "sarathi/core/datatypes/sequence.py:88-109",
+  "function": null,
+  "condition": "self.scheduler_type != 'fcfs' and self.scheduler_type != 'edf' and self.scheduler_type != 'srpf' and self.drop == other.drop and seq.tier >= 1"
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "𝑃𝑖 =𝑡𝑖𝑎𝑟𝑟𝑖𝑣𝑎𝑙+𝑆𝐿𝑂𝑖𝑇𝑇𝐿𝑇+𝛼∗(𝑃𝑟𝑒𝑓𝑖𝑙𝑙 𝑖𝑟𝑒𝑚+𝐷𝑒𝑐𝑜𝑑𝑒𝑖𝑟𝑒𝑚)",
+    "source": "paper",
+    "locator": "PDF p.5"
+   },
+   {
+    "quote": "where𝐷𝑒𝑐𝑜𝑑𝑒𝑟𝑒𝑚 indicates the time to compute all the de- code tokens. Since decode length is unknown in LLM in-",
+    "source": "paper",
+    "locator": "PDF p.6, text lines 14-15"
+   }
+  ],
+  "code": [
+   {
+    "file": "sarathi/core/datatypes/sequence.py",
+    "line_start": 88,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "sarathi/core/scheduler/deadline_scheduler.py",
+    "line_start": 226,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "sarathi/core/scheduler/deadline_scheduler.py",
+    "line_start": 230,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/qoserve/limitations_for_tests.json",
+  "findings_sha256": "79eb69f6ac7117b77ebe00293d1d328dff8bfffcd7cabc7556eaae435c1699e2",
+  "generated_at": "2026-11-18T00:46:02+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The paper formula adds α·(Prefill_rem+Decode_rem) to arrival+TTLT. The comparator applies hybrid_prioritization_param only to remaining prompt tokens, with no decode term. The scheduler instead subtracts a decode estimate from tier_deadline using fixed execution_threshold_batched, not α. Thus the artifact lacks the α·Decode_rem term and uses a linear fixed-coefficient deadline deduction.",
+  "hardware_needed": false,
+  "would_confirm": "Inspect or run the scheduler with known prefill/decode remaining tokens and α to verify whether priority uses α·Decode_rem or only a fixed execution_threshold_batched deduction.",
+  "static": {
+   "cited": 3,
+   "grounded": true,
+   "items": [
+    {
+     "file": "sarathi/core/datatypes/sequence.py",
+     "lines": "88-109",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "sarathi/core/scheduler/deadline_scheduler.py",
+     "lines": "226-237",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "sarathi/core/scheduler/deadline_scheduler.py",
+     "lines": "230-236",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "sarathi/core/datatypes/sequence.py",
+    "regex": "hybrid_prioritization_param \\* self_remaining_tokens",
+    "expect": "present",
+    "meaning": "Shows α is applied only to remaining prompt tokens.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     106
+    ]
+   },
+   {
+    "file": "sarathi/core/scheduler/deadline_scheduler.py",
+    "regex": "execution_threshold_batched",
+    "expect": "present",
+    "meaning": "Shows decode estimate is deducted using a fixed coefficient.",
+    "status": "confirmed",
+    "hits": 5,
+    "hit_lines": [
+     41,
+     178,
+     234,
+     236,
+     259
+    ]
+   },
+   {
+    "file": "sarathi/core/datatypes/sequence.py",
+    "regex": "(?i)decode.*hybrid_prioritization_param|hybrid_prioritization_param.*decode",
+    "expect": "absent",
+    "meaning": "No α-weighted decode term appears in the comparator.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "hybrid_prioritization_param",
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

@@ -1,0 +1,52 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "sparta-F099",
+ "artifact_id": "sparta",
+ "status": "not_run",
+ "not_run": {
+  "code": "outcome_unsupported",
+  "reason": "effect type 'other': the target is a call whose effect is not an exception at that line (for example a check that returns False)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "When n_bits != 8: In the dense path, `n_bits` comes from `w_tesa.n_bits`. The assert at the top of the function allows 8 or 32, but the else branch only *constructs* a `NotImplementedError` without raising it and then `pass`es. Execution continues to `return kernel, kernel_test, tuning_param` where `kernel`, `kernel_test` and `tuning_param` were never assigned in this branch -> `UnboundLocalErr...",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 3), not human: For a dense (block_size None) weight with n_bits 32, the NotImplementedError is built but never raised, so kernel and tuning_param are unbound and specialize_matmul crashes; fp32 dense weights are unsupported.",
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "sparta/specialization/specialize_kernel.py:164",
+  "function": "sparta/specialization/specialize_kernel.py::dense_matmul_template",
+  "condition": "n_bits != 8"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "sparta/specialization/specialize_kernel.py",
+    "line_start": 164,
+    "function": "sparta/specialization/specialize_kernel.py::dense_matmul_template",
+    "snippet": "NotImplementedError(\"Shouldn't get through the fp32 dense specialization pass.\")"
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/sparta/limitations_for_tests.json",
+  "findings_sha256": "db6f43c7ebf4bff1694798c7932063ca35df9ac46297fd6812fb6bba7ea5e7b9",
+  "generated_at": "2026-11-18T12:35:26+08:00"
+ },
+ "analysis": null
+}

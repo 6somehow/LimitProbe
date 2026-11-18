@@ -1,0 +1,132 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "sparta-F039",
+ "artifact_id": "sparta",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "论文要求按采样位选项产生 k 个结果；代码无采样且限制最多 2 种位宽",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "sparta/transformation/transform_policy.py:137-156",
+  "function": null,
+  "condition": "len(aligned_bits) > 2"
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "T1, . . . ,Tk = self.BitRounding(T , self.SampleBitOption());",
+    "source": "paper",
+    "locator": "PDF p.7"
+   }
+  ],
+  "code": [
+   {
+    "file": "sparta/transformation/transform_policy.py",
+    "line_start": 137,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "sparta/specialization/specialize_kernel.py",
+    "line_start": 18,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/sparta/limitations_for_tests.json",
+  "findings_sha256": "af8cad7c4e91af73f84a27b96179739526bde952a669319c71cc4e157ac4b49f",
+  "generated_at": "2026-11-18T12:35:53+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The paper describes producing T1...Tk via SampleBitOption, implying k sampled bit-width candidates. The shown bit_align ignores n_candidates, returns a single result when only one aligned bit exists, and otherwise asserts exactly two aligned bits. No sampling call appears in the file. This supports the claimed implementation deviation.",
+  "hardware_needed": false,
+  "would_confirm": "Run bit_align with more than two aligned bit widths or inspect all call sites to verify n_candidates is never used and no sampling occurs.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "sparta/transformation/transform_policy.py",
+     "lines": "137-156",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "sparta/specialization/specialize_kernel.py",
+     "lines": "18-42",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "sparta/transformation/transform_policy.py",
+    "regex": "SampleBitOption|sample_bit|random\\.sample|np\\.random",
+    "expect": "absent",
+    "meaning": "No sampling call in this file; control confirms correct file.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "def bit_align",
+    "hit_lines": []
+   },
+   {
+    "file": "sparta/transformation/transform_policy.py",
+    "regex": "only handle at most 2 different bits",
+    "expect": "present",
+    "meaning": "Comment explicitly limits handling to at most two bit widths.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     154
+    ]
+   },
+   {
+    "file": "sparta/transformation/transform_policy.py",
+    "regex": "assert len\\(aligned_bits\\) == 2",
+    "expect": "present",
+    "meaning": "Code enforces exactly two aligned bit widths in decompose path.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     155
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

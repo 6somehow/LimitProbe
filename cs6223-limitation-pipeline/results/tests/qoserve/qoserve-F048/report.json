@@ -1,0 +1,143 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "qoserve-F048",
+ "artifact_id": "qoserve",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "not_implemented",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "论文所述避免队头阻塞的抢占手段在 DeadlineScheduler 中不存在。（artifact 范围：。）",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "sarathi/core/scheduler/deadline_scheduler.py:184-354",
+  "function": null,
+  "condition": "len(self.running) > 0 and len(self._prefill_queue) > 0"
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "is a desirable capability as it avoids head-of-line blocking of small interactive requests behind long batch requests",
+    "source": "paper",
+    "locator": "PDF p.6"
+   }
+  ],
+  "code": [
+   {
+    "file": "sarathi/core/scheduler/deadline_scheduler.py",
+    "line_start": 184,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "sarathi/core/scheduler/deadline_scheduler.py",
+    "line_start": 296,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "sarathi/core/datatypes/sequence.py",
+    "line_start": 88,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/qoserve/limitations_for_tests.json",
+  "findings_sha256": "79eb69f6ac7117b77ebe00293d1d328dff8bfffcd7cabc7556eaae435c1699e2",
+  "generated_at": "2026-11-18T00:46:02+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The shown DeadlineScheduler code explicitly comments “No pre-emption support” at line 252. Its scheduling logic sorts/runs decodes and prefills, and uses eager relegation to drop/re-add prefills, but shows no mechanism to preempt a running long batch to avoid head-of-line blocking. This supports the finding that the paper-described preemption capability is absent.",
+  "hardware_needed": false,
+  "would_confirm": "A code search for any preemption routine/call in DeadlineScheduler, plus a mixed long/short scheduling trace, would settle whether short requests can preempt long ones.",
+  "static": {
+   "cited": 4,
+   "grounded": true,
+   "items": [
+    {
+     "file": "sarathi/core/scheduler/deadline_scheduler.py",
+     "lines": "184-354",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "sarathi/core/scheduler/deadline_scheduler.py",
+     "lines": "296-333",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "sarathi/core/datatypes/sequence.py",
+     "lines": "88-109",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "sarathi/core/scheduler/scheduler_registry.py",
+     "lines": "20-25",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "sarathi/core/scheduler/deadline_scheduler.py",
+    "regex": "No pre-emption support",
+    "expect": "present",
+    "meaning": "Explicit comment states the scheduler lacks preemption support.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     252
+    ]
+   },
+   {
+    "file": "sarathi/core/scheduler/deadline_scheduler.py",
+    "regex": "def _preempt|preempted_seq_ids\\.append|_preempt\\(",
+    "expect": "absent",
+    "meaning": "No preemption routine or append; control confirms file searched.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "def _schedule",
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

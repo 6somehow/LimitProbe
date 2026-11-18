@@ -1,0 +1,33 @@
+{
+ "assessment": "contradicts",
+ "reasoning": "The cited v2 code sets best_score to infinity, computes delta as the count of elements where |dense - candidate| exceeds 5e-3, and updates when score < best_score. That minimizes deviation from dense output, matching the paper's argmin formulation, not maximizing a weight-retention score.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "minference/modules/minference_forward.py",
+   "regex": "if score > best_score",
+   "expect": "absent",
+   "control": "if score < best_score",
+   "meaning": "No maximization branch; control shows minimization branch exists."
+  },
+  {
+   "file": "minference/modules/minference_forward.py",
+   "regex": "ref = dense\\(q, k, v\\)",
+   "expect": "present",
+   "meaning": "Reference object is dense output, not weight retention."
+  },
+  {
+   "file": "minference/modules/minference_forward.py",
+   "regex": "delta = \\(\\(ref - score\\)\\.abs\\(\\) > 5e-3\\)\\.sum\\(\\)",
+   "expect": "present",
+   "meaning": "Score measures deviation from dense output."
+  },
+  {
+   "file": "minference/modules/minference_forward.py",
+   "regex": "float\\(\"inf\"\\)",
+   "expect": "present",
+   "meaning": "Best score initialized for minimization, not maximization."
+  }
+ ],
+ "would_confirm": "Inspect which search function is invoked and run both selection loops on a sample to see whether best_score is minimized against dense or maximized retention."
+}

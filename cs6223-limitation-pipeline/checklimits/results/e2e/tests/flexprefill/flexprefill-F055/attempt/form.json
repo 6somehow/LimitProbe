@@ -1,0 +1,133 @@
+{
+  "test_id": "A-flexprefill-F055",
+  "finding_id": "flexprefill-F055",
+  "strategy": "S1",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "batch_size",
+        "value": 1,
+        "why": "the witness only fixes block_size; one batch keeps the CPU run minimal and the target guard does not read the batch size"
+      },
+      {
+        "name": "seq_len",
+        "value": 16,
+        "why": "small sequence keeps the CPU run fast; the block_size assertion at line 553 is the first decision after the head_dim guard and does not depend on the sequence length"
+      },
+      {
+        "name": "num_heads",
+        "value": 1,
+        "why": "head count is not in the witness; one query head keeps the run minimal and the target guard does not read it"
+      },
+      {
+        "name": "num_kv_heads",
+        "value": 1,
+        "why": "kv head count is not in the witness; matching the single query head avoids any GQA expansion on the post-target path"
+      },
+      {
+        "name": "head_dim",
+        "value": 64,
+        "why": "the witness does not fix head_dim; 64 is a member of the head_dim guard at line 552 so execution reaches the block_size assertion at line 553"
+      },
+      {
+        "name": "vertical_size",
+        "value": 1,
+        "why": "not in the witness; with seq_len 16 a value of 1 makes the post-target early-return branch fire instead of the GPU top-k path"
+      },
+      {
+        "name": "slash_size",
+        "value": 1,
+        "why": "not in the witness; with seq_len 16 a value of 1 makes the post-target early-return branch fire instead of the GPU top-k path"
+      },
+      {
+        "name": "dtype",
+        "value": "float32",
+        "why": "CPU has no bf16 Triton kernels; the block_size guard does not depend on the tensor dtype"
+      },
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "fixed seed makes the random q/k/v construction deterministic across repeats and replay"
+      }
+    ],
+    "positive_input": {
+      "block_size": 129
+    },
+    "negative_input": {
+      "block_size": 128
+    },
+    "boundary_variable": "block_size",
+    "extra_negatives": [
+      {
+        "block_size": 16
+      },
+      {
+        "block_size": 32
+      },
+      {
+        "block_size": 64
+      }
+    ],
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "exception",
+      "spec": "AssertionError raised at flex_prefill/ops/vertical_slash_attention.py:553",
+      "signal_location": "flex_prefill/ops/vertical_slash_attention.py:553"
+    },
+    "expected": {
+      "positive": "AssertionError at flex_prefill/ops/vertical_slash_attention.py:553",
+      "negative": "no exception at flex_prefill/ops/vertical_slash_attention.py:553"
+    }
+  },
+  "execution": {
+    "entry_called": "flex_prefill/ops/vertical_slash_attention.py::vertical_slash_attention",
+    "entry_reason": "the hand-off entry flex_prefill_attention does not call vertical_slash_attention at the pinned commit (the step-4 review note says the vertical-slash baseline is not on FlexPrefill's own path) and has its own identical block_size assert at flex_prefill_attention.py:1838, which would abort before this Region; calling the deeper function is the only way to execute the target line",
+    "call_chain_index": 1,
+    "repo_files_modified": [],
+    "mocks": [
+      {
+        "symbol": "flash_attn",
+        "kind": "fake_module",
+        "behavior": "sim",
+        "impl": "sim.py::flash_attn_func",
+        "sim_class": "independent_native",
+        "reason": "flash_attn is not installed on the CPU host but vertical_slash_attention.py imports it at module import time; this shim supplies the name and its flash_attn_func attribute is the declared independent native CPU implementation reached only after the target"
+      },
+      {
+        "symbol": "flash_attn.flash_attn_func",
+        "kind": "patch",
+        "behavior": "sim",
+        "impl": "sim.py::flash_attn_func",
+        "sim_class": "independent_native",
+        "reason": "GPU flash-attention launcher called by the early-return branch after the target when block_size is a valid member; replaced by plain-torch causal attention on CPU"
+      },
+      {
+        "symbol": "transformers.utils.is_flash_attn_2_available",
+        "kind": "patch",
+        "behavior": "sim",
+        "impl": "sim.py::is_flash_attn_2_available",
+        "sim_class": "independent_native",
+        "reason": "the repository package imports flex_prefill_attention, which probes this availability check at import time; with only a synthetic flash_attn shim the real probe calls importlib.util.find_spec and raises, so this faithful CPU availability check returns False exactly as it would when flash-attn is not usable, allowing the fallback path to import"
+      }
+    ],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "false",
+      "true"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "AssertionError at flex_prefill/ops/vertical_slash_attention.py:553",
+    "negative_observed": "no exception at flex_prefill/ops/vertical_slash_attention.py:553"
+  },
+  "evidence": {}
+}

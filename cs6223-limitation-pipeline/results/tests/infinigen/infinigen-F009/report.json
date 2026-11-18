@@ -1,0 +1,98 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "infinigen-F009",
+ "artifact_id": "infinigen",
+ "status": "tested",
+ "not_run": null,
+ "verdict": "yes",
+ "level": "L2",
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "effect on positive input, none on negative input",
+ "observed": {
+  "positive": "branch taken at speedup/flexgen/infinigen/flex_opt.py:287",
+  "negative": "branch not taken at speedup/flexgen/infinigen/flex_opt.py:287"
+ },
+ "defeaters": {
+  "D1": "eliminated",
+  "D2": "eliminated",
+  "D3": "eliminated",
+  "D4": "eliminated",
+  "D5": "eliminated",
+  "D6": "eliminated",
+  "D7": "eliminated",
+  "D8": "eliminated",
+  "D9": "eliminated",
+  "D10": "eliminated",
+  "D11": "eliminated",
+  "D12": "eliminated",
+  "D13": "residual",
+  "D14": "residual"
+ },
+ "open_doubts": [
+  {
+   "id": "D13",
+   "name": "inputs inside the paper's scope",
+   "status": "residual",
+   "evidence": "scope_status=unknown"
+  },
+  {
+   "id": "D14",
+   "name": "official entry point was called",
+   "status": "residual",
+   "evidence": "deeper entry (index 1); reason recorded: step 4 reports call_chain_status=not_found for TorchDevice.mha -> SelfAttention.__init__; TorchDevice.mha never constructs a SelfAttention (it is constructed by OptLM/TransformerLayer.__init__), so the recorded entry cannot reach the target. The driver calls the target function itself so that self.layer_id is controlled directly by the witness."
+  }
+ ],
+ "next_steps": [
+  "D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)"
+ ],
+ "finding": {
+  "category": "stated_differently",
+  "step4_level": "L2",
+  "effect_type": "path_change",
+  "priority": 2,
+  "summary": "When self.layer_id > 1: partial_weight_ratio is only set for layers with layer_id > 1; layer 0 and 1 get None, so the partial-weight speculation path is disabled for the first two layers. (speedup/flexgen/infinigen/flex_opt.py:287)",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 1), not human: Layers 0 and 1 always get partial_weight_ratio=None (and are excluded from prefetched cache loading), so InfiniGen speculation/selection never applies to the first two layers, which always use the full KV cache.",
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "speedup/flexgen/infinigen/flex_opt.py:287",
+  "function": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention.__init__",
+  "condition": "self.layer_id > 1"
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "InfiniGen initiates speculation and prefetching from Layer 1 because the outliers, which are essential for exploiting input similarity, emerge during the computation in Layer 0.",
+    "source": "paper",
+    "locator": "4.3 Efficiently Prefetching KV Cache, p.10"
+   }
+  ],
+  "code": [
+   {
+    "file": "speedup/flexgen/infinigen/flex_opt.py",
+    "line_start": 287,
+    "function": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention.__init__",
+    "snippet": "if self.layer_id > 1:"
+   }
+  ]
+ },
+ "files": {
+  "execution_report": "execution_report.json",
+  "testcase": "testcase.json",
+  "attempt": "attempt"
+ },
+ "provenance": {
+  "findings_file": "results/step4/infinigen/limitations_for_tests.json",
+  "findings_sha256": "51f6ee77be8f16b8743e78f2c11ea0c6b263e1a3c56aed29de35c9cfebb6dcf0",
+  "generated_at": "2026-11-18T13:27:05+08:00",
+  "source": "agent",
+  "attempt_origin": "scratch/agent_runs/e2e-f009-1a7308",
+  "agent_tokens": 2855187,
+  "agent_wall_s": 458.1,
+  "lock_tampered": false,
+  "profile": "default-v1"
+ },
+ "analysis": null
+}

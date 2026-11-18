@@ -1,0 +1,22 @@
+{
+ "assessment": "supports",
+ "reasoning": "The shown index-generation function takes only `query` and computes `torch.abs(query)`; no key argument or key absolute value is used. The backend calls it with `q` only. This matches the finding that the experimental path lacks element-wise absolute values of K, though the paper says both skewed query and key matrices are used.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "speedup/infinigen/infinigen/partial_weight_generation_controller.py",
+   "regex": "torch\\.abs\\([^\\n]*key",
+   "expect": "absent",
+   "control": "torch\\.abs\\(query",
+   "meaning": "No key absolute value in index generation; control shows query absolute value exists."
+  },
+  {
+   "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+   "regex": "partial_weight_index_generation\\(q,",
+   "expect": "present",
+   "control": "",
+   "meaning": "Index generation is called with q only, not k."
+  }
+ ],
+ "would_confirm": "Inspect or run the index-generation path to verify whether any key absolute value is ever computed before top-k selection."
+}

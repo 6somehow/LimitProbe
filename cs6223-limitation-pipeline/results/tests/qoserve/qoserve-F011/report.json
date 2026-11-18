@@ -1,0 +1,122 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "qoserve-F011",
+ "artifact_id": "qoserve",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "实验脚本不自动下载数据集，需先手动 wget",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "no_condition",
+  "location": "README.md:1-129",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "A.3.4 Data sets. ShareGPT [19] and Azure production traces (Code, Conversation) [15]. Scripts automatically down- load datasets from public Azure blob storage.",
+    "source": "paper",
+    "locator": "PDF p.16, text lines 2-4"
+   }
+  ],
+  "code": [
+   {
+    "file": "README.md",
+    "line_start": 1,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "fig7.sh",
+    "line_start": 1,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/qoserve/limitations_for_tests.json",
+  "findings_sha256": "79eb69f6ac7117b77ebe00293d1d328dff8bfffcd7cabc7556eaae435c1699e2",
+  "generated_at": "2026-11-18T00:46:02+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The paper says scripts automatically download Azure datasets, but the repository README explicitly instructs users to create data/processed_traces and manually wget the Code and Conversation traces before benchmarking. The shown benchmark script invokes the benchmark runner without any visible download step. This supports the claim that dataset preparation is manual rather than automatic.",
+  "hardware_needed": false,
+  "would_confirm": "Run the benchmark from a clean checkout and check whether data/processed_traces is populated without manual wget.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "README.md",
+     "lines": "1-129",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "doc"
+    },
+    {
+     "file": "fig7.sh",
+     "lines": "1-182",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "shell"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "README.md",
+    "regex": "wget -O data/processed_traces/AzureLLMInferenceTrace_(code|conv)_1week.csv",
+    "expect": "present",
+    "meaning": "README requires manual wget for Azure trace datasets.",
+    "status": "confirmed",
+    "hits": 2,
+    "hit_lines": [
+     39,
+     42
+    ]
+   },
+   {
+    "file": "fig7.sh",
+    "regex": "wget|curl|download",
+    "expect": "absent",
+    "meaning": "Benchmark script lacks auto-download command; manual prep needed.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "python -m sarathi.benchmark.main",
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

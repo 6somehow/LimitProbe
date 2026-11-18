@@ -1,0 +1,32 @@
+{
+ "assessment": "contradicts",
+ "reasoning": "The cited search_pattern helper does compute only attention weights, but the same file contains search_pattern_v2(q,k,v,head), which calls dense flash_attn_func and sparse attention kernels that return V-weighted outputs. Thus the code does form attention outputs; the finding overgeneralizes from the pattern-search helper.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "minference/modules/minference_forward.py",
+   "regex": "def search_pattern_v2\\(q, k, v, head\\)",
+   "expect": "present",
+   "meaning": "Shows a variant receives V and can form outputs"
+  },
+  {
+   "file": "minference/modules/minference_forward.py",
+   "regex": "flash_attn_func\\(",
+   "expect": "present",
+   "meaning": "Shows dense attention output path using V"
+  },
+  {
+   "file": "minference/modules/minference_forward.py",
+   "regex": "vertical_slash_sparse_attention\\(",
+   "expect": "present",
+   "meaning": "Shows sparse attention output path using V"
+  },
+  {
+   "file": "minference/modules/minference_forward.py",
+   "regex": "block_sparse_attention\\(",
+   "expect": "present",
+   "meaning": "Shows block-sparse attention output path using V"
+  }
+ ],
+ "would_confirm": "Inspect or run search_pattern_v2 to verify its dense and sparse branches return V-weighted attention outputs, not just weight matrices."
+}
