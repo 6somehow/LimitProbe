@@ -1,0 +1,145 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "flexprefill-F038",
+ "artifact_id": "flexprefill",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "论文 Algorithm 2 以 JSD<τ 返回 pattern(query_specific/vertical_slash)；代码不返回模式，而用同一阈值改写预算并继续 vertical/slash 索引，阈值判定与索引选择在本机制内耦合",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "always",
+  "location": "flex_prefill/ops/flex_prefill_attention.py:1718-1729",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "3. Distribution Comparison: We quantify the discrepancy between these distributions using the square root of the Jensen-Shannon divergence",
+    "source": "paper",
+    "locator": "PDF p.4"
+   }
+  ],
+  "code": [
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "line_start": 1718,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "line_start": 1856,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/flexprefill/limitations_for_tests.json",
+  "findings_sha256": "0b8539b75ec0e2d602cd64b1a21959708ae3a6d53be00202f8825d92f313c066",
+  "generated_at": "2026-11-18T12:15:50+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A1",
+  "tier_note": "the reading is unclear; probes alone do not decide it",
+  "calibrated": false,
+  "assessment": "unclear",
+  "reasoning": "The code evidence clearly shows JSD<tau setting vertical/slash budgets and then calling get_active_blocks, not returning a pattern in the cited lines. However, the shown paper text only mentions sqrt-JSD and does not include Algorithm 2's return behavior, so the alleged paper/code deviation is not fully established.",
+  "hardware_needed": false,
+  "would_confirm": "A trace of get_active_blocks plus the paper's Algorithm 2 text would show whether JSD<tau returns a pattern or only adjusts budgets.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "flex_prefill/ops/flex_prefill_attention.py",
+     "lines": "1718-1729",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "flex_prefill/ops/flex_prefill_attention.py",
+     "lines": "1856-1866",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "regex": "block_sparse_mask\\s*=\\s*kl_div\\s*<\\s*tau",
+    "expect": "present",
+    "meaning": "Threshold comparison creates mask used for budget rewrite.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     1727
+    ]
+   },
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "regex": "num_vertical_blocks\\[block_sparse_mask\\]\\s*=\\s*min_budget",
+    "expect": "present",
+    "meaning": "Mask rewrites vertical budget instead of returning pattern.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     1728
+    ]
+   },
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "regex": "num_slash_blocks\\[block_sparse_mask\\]\\s*=\\s*min_budget",
+    "expect": "present",
+    "meaning": "Mask rewrites slash budget instead of returning pattern.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     1729
+    ]
+   },
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "regex": "get_active_blocks\\(",
+    "expect": "present",
+    "meaning": "Index selection continues after threshold-based budget rewrite.",
+    "status": "confirmed",
+    "hits": 2,
+    "hit_lines": [
+     1661,
+     1856
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

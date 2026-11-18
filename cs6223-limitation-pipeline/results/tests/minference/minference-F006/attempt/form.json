@@ -1,0 +1,101 @@
+{
+  "test_id": "A-minference-F006",
+  "finding_id": "minference-F006",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "bsz",
+        "value": 1,
+        "why": "batch size 1 is the minimal batch that runs the target forward"
+      },
+      {
+        "name": "q_len",
+        "value": 2,
+        "why": "two query positions give a non-degenerate attention mask and KV length"
+      },
+      {
+        "name": "hidden_size",
+        "value": 16,
+        "why": "small CPU-only hidden width exercising all four projections"
+      },
+      {
+        "name": "num_heads",
+        "value": 2,
+        "why": "two query heads exercise the KV-group expansion in the forward"
+      },
+      {
+        "name": "head_dim",
+        "value": 8,
+        "why": "small head width keeping the CPU fallback cheap"
+      },
+      {
+        "name": "num_key_value_heads",
+        "value": 2,
+        "why": "GQA group count of one, matching the toy attention shape"
+      },
+      {
+        "name": "starting_layer",
+        "value": 10,
+        "why": "layer 0 is below this, so the negative run takes the CPU fallback rather than a GPU kernel"
+      },
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "deterministic projection weights and hidden states"
+      },
+      {
+        "name": "dtype",
+        "value": "float32",
+        "why": "default CPU floating dtype supported by the linear layers"
+      },
+      {
+        "name": "unset_sentinel",
+        "value": -1,
+        "why": "input encoding for an unset layer index; the driver maps it to None, making the None boundary probeable with integer neighbours"
+      }
+    ],
+    "positive_input": {
+      "layer_idx": -1,
+      "past_key_value": true
+    },
+    "negative_input": {
+      "layer_idx": 0,
+      "past_key_value": true
+    },
+    "boundary_variable": "layer_idx",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "exception",
+      "spec": "ValueError raised at minference/modules/minference_forward.py:484",
+      "signal_location": "minference/modules/minference_forward.py:484"
+    },
+    "expected": {
+      "positive": "ValueError at minference/modules/minference_forward.py:484",
+      "negative": "no exception at minference/modules/minference_forward.py:484"
+    }
+  },
+  "execution": {
+    "entry_called": "minference/modules/minference_forward.py::minference_forward.forward",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": false,
+    "positive_observed": "ValueError at minference/modules/minference_forward.py:484",
+    "negative_observed": "no exception at minference/modules/minference_forward.py:484"
+  },
+  "evidence": {}
+}

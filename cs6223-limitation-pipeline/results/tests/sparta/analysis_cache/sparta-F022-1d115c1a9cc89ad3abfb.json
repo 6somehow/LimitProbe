@@ -1,0 +1,27 @@
+{
+ "assessment": "supports",
+ "reasoning": "The script invokes bert/mobilenet propagate Python scripts before ONNX export, matching offline propagation rather than a Rammer compilation pass. It does not show the compiler pass list, so the 'no pass registered' detail remains unverified, but the observed experimental path supports the deviation.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "script/init_checkpoints.sh",
+   "regex": "python .*propagate",
+   "expect": "present",
+   "meaning": "Offline propagation scripts are explicitly run before ONNX export."
+  },
+  {
+   "file": "script/init_checkpoints.sh",
+   "regex": "onnx",
+   "expect": "present",
+   "meaning": "ONNX export steps follow the propagation scripts in the same workflow."
+  },
+  {
+   "file": "script/init_checkpoints.sh",
+   "regex": "rammer|compiler|pass",
+   "expect": "absent",
+   "control": "python",
+   "meaning": "This script invokes no compiler pass; only Python scripts."
+  }
+ ],
+ "would_confirm": "Inspect Rammer's compiler pass registration/list at the pinned commit and trace whether propagation occurs during compilation or only in the Python scripts."
+}

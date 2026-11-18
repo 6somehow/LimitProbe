@@ -1,0 +1,139 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "flexprefill-F037",
+ "artifact_id": "flexprefill",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "ā 角色正确；â 角色由 vertical 承担，但 vertical 非论文 sumpool(softmax(Q̂Kᵀ/√d)) 块和，真实分布操作数被替换（artifact 范围：â 操作数非论文块和）",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "always",
+  "location": "flex_prefill/ops/flex_prefill_attention.py:1718-1729",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "¯a represents the estimated distribution and ˆa represents the true distribution",
+    "source": "paper",
+    "locator": "PDF p.4"
+   }
+  ],
+  "code": [
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "line_start": 1718,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "line_start": 1654,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/flexprefill/limitations_for_tests.json",
+  "findings_sha256": "0b8539b75ec0e2d602cd64b1a21959708ae3a6d53be00202f8825d92f313c066",
+  "generated_at": "2026-11-18T12:15:50+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A1",
+  "tier_note": "the reading is unclear; probes alone do not decide it",
+  "calibrated": false,
+  "assessment": "unclear",
+  "reasoning": "The cited lines show `vertical` is the second argument to `square_root_js_divergence`, so it plays the true-distribution role, while `avg_qk` is the estimated distribution. However, the shown code does not define `vertical`; without its computation, the claim that it is not the paper's sumpool(softmax(QK^T/√d)) block sum is not established.",
+  "hardware_needed": false,
+  "would_confirm": "Trace the definition or caller of `vertical` and compare its computation to the paper's sumpool(softmax(QK^T/√d)) block sum.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "flex_prefill/ops/flex_prefill_attention.py",
+     "lines": "1718-1729",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "flex_prefill/ops/flex_prefill_attention.py",
+     "lines": "1654-1658",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "regex": "vertical\\s*=",
+    "expect": "present",
+    "meaning": "Locates local assignment or default for `vertical`.",
+    "status": "confirmed",
+    "hits": 6,
+    "hit_lines": [
+     1648,
+     1649,
+     1650,
+     1706,
+     1715
+    ]
+   },
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "regex": "vertical\\s*=\\s*[^\\n]*sumpool",
+    "expect": "absent",
+    "meaning": "No local assignment ties `vertical` to sumpool.",
+    "status": "refuted",
+    "hits": 2,
+    "control": "vertical\\s*=",
+    "hit_lines": [
+     1649,
+     1715
+    ]
+   },
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "regex": "square_root_js_divergence\\(avg_qk,\\s*vertical\\)",
+    "expect": "present",
+    "meaning": "Confirms `vertical` is the true-distribution operand.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     1726
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

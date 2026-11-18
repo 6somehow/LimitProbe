@@ -1,0 +1,77 @@
+{
+  "test_id": "A-nnsmith-F018",
+  "finding_id": "nnsmith-F018",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "opset",
+        "value": "Abs",
+        "why": "a non-empty opset is required by the constructor; with max_nodes=0 no operator is actually inserted"
+      },
+      {
+        "name": "init_rank",
+        "value": 2,
+        "why": "rank of the single initial placeholder; the target finalization branch does not depend on rank"
+      },
+      {
+        "name": "max_nodes",
+        "value": 0,
+        "why": "zero generated ops: the target finalization branch runs after the generation loop, and this avoids the earlier per-op code that only handles values 0 and 1"
+      },
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "fixed seed makes graph generation and z3 parameter selection reproducible"
+      },
+      {
+        "name": "timeout_ms",
+        "value": 1000,
+        "why": "generation budget bound; with max_nodes=0 the loop exits immediately, so this only guards against hangs"
+      }
+    ],
+    "positive_input": {
+      "NNSMITH_LIMNF_V": "1"
+    },
+    "negative_input": {
+      "NNSMITH_LIMNF_V": "2"
+    },
+    "boundary_variable": "NNSMITH_LIMNF_V",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at nnsmith/graph_gen.py:258",
+      "signal_location": "nnsmith/graph_gen.py:258"
+    },
+    "expected": {
+      "positive": "branch taken at nnsmith/graph_gen.py:258",
+      "negative": "branch not taken at nnsmith/graph_gen.py:258"
+    }
+  },
+  "execution": {
+    "entry_called": "nnsmith/graph_gen.py::random_model_gen",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "true",
+      "false"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at nnsmith/graph_gen.py:258",
+    "negative_observed": "branch not taken at nnsmith/graph_gen.py:258"
+  },
+  "evidence": {}
+}

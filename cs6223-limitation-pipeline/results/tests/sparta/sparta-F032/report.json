@@ -1,0 +1,149 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "sparta-F032",
+ "artifact_id": "sparta",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "论文要求 m+1 维笛卡尔积；代码仅权重维枚举，实际 1 维",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "sparta/specialization/specialize_kernel.py:18-42",
+  "function": null,
+  "condition": "len(in_tesa) == 1 and len(out_t_tesa) == 1 and len(weight_tesa) >= 1"
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "foreach⟨t1, . . . ,tm,to⟩∈ T1×···× Tm× To do",
+    "source": "paper",
+    "locator": "PDF p.7"
+   },
+   {
+    "quote": "transformed to one or multiple TeSAs using TransformTeSA. Correspondingly, the operator is transformed to|To| ∏m i=1|Ti| sub-operators, which are the Cartesian product of those de- composed TeSAs. The sub-operator usually has the same",
+    "source": "paper",
+    "locator": "PDF p.7, text lines 25-29"
+   }
+  ],
+  "code": [
+   {
+    "file": "sparta/specialization/specialize_kernel.py",
+    "line_start": 18,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "sparta/transformation/weighted_block_cover.py",
+    "line_start": 104,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/sparta/limitations_for_tests.json",
+  "findings_sha256": "af8cad7c4e91af73f84a27b96179739526bde952a669319c71cc4e157ac4b49f",
+  "generated_at": "2026-11-18T12:35:53+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The paper specifies a Cartesian product over m input TeSA dimensions plus output, yielding |To|∏|Ti| sub-operators. The code asserts exactly one input and one output TeSA and loops only over weight_tesa; wbc_matmuls likewise takes in_tesas[0] and out_tesas[0]. Thus the implementation enumerates only the weight dimension, matching the claimed 1-D deviation.",
+  "hardware_needed": false,
+  "would_confirm": "A unit test constructing multiple input TeSA options and checking whether all Cartesian-product combinations are specialized would settle it.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "sparta/specialization/specialize_kernel.py",
+     "lines": "18-42",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "sparta/transformation/weighted_block_cover.py",
+     "lines": "104-144",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "sparta/specialization/specialize_kernel.py",
+    "regex": "assert\\(len\\(in_tesa\\) == 1 and len\\(out_t_tesa\\) == 1 and len\\(weight_tesa\\) >= 1\\)",
+    "expect": "present",
+    "meaning": "Confirms specialization requires exactly one input and output TeSA.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     23
+    ]
+   },
+   {
+    "file": "sparta/specialization/specialize_kernel.py",
+    "regex": "for idx, w_tesa in enumerate\\(weight_tesa\\):",
+    "expect": "present",
+    "meaning": "Shows only the weight TeSA list is enumerated for sub-operators.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     31
+    ]
+   },
+   {
+    "file": "sparta/transformation/weighted_block_cover.py",
+    "regex": "in_tesa = in_tesas\\[0\\]",
+    "expect": "present",
+    "meaning": "Confirms transformation selects only the first input TeSA option.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     139
+    ]
+   },
+   {
+    "file": "sparta/transformation/weighted_block_cover.py",
+    "regex": "for w_tesa in w_tesas:",
+    "expect": "present",
+    "meaning": "Shows enumeration is over weight TeSAs, not input Cartesian product.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     141
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

@@ -1,0 +1,22 @@
+{
+ "assessment": "supports",
+ "reasoning": "The paper specifies Block-Sparse {100}, but the documented search command uses --topk 1, and block_sparse consumes topk_ratio. No shown config or invocation sets 100 for Block-Sparse, so the config/experiment layer does not represent the paper's {100} setting.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "experiments/README.md",
+   "regex": "--topk\\s+100\\b",
+   "expect": "absent",
+   "control": "--topk\\s+1\\b",
+   "meaning": "No 100 top-k setting in documented command; control confirms command present."
+  },
+  {
+   "file": "minference/modules/minference_forward.py",
+   "regex": "block_sparse\\s*\\(\\s*100\\b|topk_ratio\\s*=\\s*100\\b|--topk\\s+100\\b",
+   "expect": "absent",
+   "control": "def\\s+block_sparse\\s*\\(",
+   "meaning": "No hard-coded 100 for block-sparse; control confirms function exists."
+  }
+ ],
+ "would_confirm": "Search the full config/experiment layer for any Block-Sparse top-k value of 100 and verify whether the search command's --topk is the same parameter."
+}

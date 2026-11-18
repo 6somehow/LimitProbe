@@ -1,0 +1,106 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "infinigen-F003",
+ "artifact_id": "infinigen",
+ "status": "tested",
+ "not_run": null,
+ "verdict": "yes",
+ "level": "L1",
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "effect on positive input, none on negative input",
+ "observed": {
+  "positive": "ValueError at speedup/flexgen/infinigen/flex_opt.py:467",
+  "negative": "no exception at speedup/flexgen/infinigen/flex_opt.py:466"
+ },
+ "defeaters": {
+  "D1": "eliminated",
+  "D2": "eliminated",
+  "D3": "eliminated",
+  "D4": "residual",
+  "D5": "refuted",
+  "D6": "eliminated",
+  "D7": "eliminated",
+  "D8": "eliminated",
+  "D9": "eliminated",
+  "D10": "eliminated",
+  "D11": "eliminated",
+  "D12": "eliminated",
+  "D13": "residual",
+  "D14": "residual"
+ },
+ "open_doubts": [
+  {
+   "id": "D4",
+   "name": "oracle is specified, located, pre-registered",
+   "status": "residual",
+   "evidence": "oracle changed 2 time(s) after the first run"
+  },
+  {
+   "id": "D5",
+   "name": "control pair differs in one factor, negative adjacent to the boundary",
+   "status": "refuted",
+   "evidence": "no effect on either side: the negative input is NOT adjacent to the effect region"
+  },
+  {
+   "id": "D13",
+   "name": "inputs inside the paper's scope",
+   "status": "residual",
+   "evidence": "scope_status=unknown"
+  },
+  {
+   "id": "D14",
+   "name": "official entry point was called",
+   "status": "residual",
+   "evidence": "deeper entry (index 1); reason recorded: The declared entry TorchDevice.mha never calls SelfAttention.prefetch_cache (step 4 reports call_chain_status not_found). The witness also calls path an input, but the repository computes it as a local assigned only 0, 1, or 2; the natural path-0 arm returns before line 466. The driver calls the real target directly and supplies the witness path at the real target frame so the line-466 dispatch itself is exercised. No repository file is modified."
+  }
+ ],
+ "next_steps": [
+  "D4 (residual): state the oracle as exception type + Region.location and register it before the first run",
+  "D5 (refuted): change exactly one factor between positive and negative, and make the negative the point next to the boundary",
+  "D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)"
+ ],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "reject",
+  "priority": 1,
+  "summary": "When path == 1 or path == 2: Prefetching is not implemented for CPU-compute paths 1 and 2; raises ValueError. (speedup/flexgen/infinigen/flex_opt.py:466)",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 2), not human: prefetch_cache is called in the generation loop regardless of --cpu-cache-compute, and raises ValueError for CPU-compute paths 1/2, so InfiniGen prefetching cannot be combined with CPU attention compute.",
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "speedup/flexgen/infinigen/flex_opt.py:466",
+  "function": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention.prefetch_cache",
+  "condition": "path == 1 or path == 2"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "speedup/flexgen/infinigen/flex_opt.py",
+    "line_start": 466,
+    "function": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention.prefetch_cache",
+    "snippet": "if path == 1 or path == 2:"
+   }
+  ]
+ },
+ "files": {
+  "execution_report": "execution_report.json",
+  "testcase": "testcase.json",
+  "attempt": "attempt"
+ },
+ "provenance": {
+  "findings_file": "results/step4/infinigen/limitations_for_tests.json",
+  "findings_sha256": "51f6ee77be8f16b8743e78f2c11ea0c6b263e1a3c56aed29de35c9cfebb6dcf0",
+  "generated_at": "2026-11-18T12:53:46+08:00",
+  "source": "agent",
+  "attempt_origin": "scratch/agent_runs/e2e-f003-eafc37",
+  "agent_tokens": 6938406,
+  "agent_wall_s": 1448.7,
+  "lock_tampered": false,
+  "profile": "default-v1"
+ },
+ "analysis": null
+}

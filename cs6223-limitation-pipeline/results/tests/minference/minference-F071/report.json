@@ -1,0 +1,143 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "minference-F071",
+ "artifact_id": "minference",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "not_implemented",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "论文要求累积 FLOPs 对齐后的候选到 ρ；代码无该累积步骤",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "always",
+  "location": "minference/modules/minference_forward.py:99-197",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "ρ←ρ∪σi",
+    "source": "paper",
+    "locator": "PDF p.5, text lines 20-20"
+   }
+  ],
+  "code": [
+   {
+    "file": "minference/modules/minference_forward.py",
+    "line_start": 99,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "experiments/README.md",
+    "line_start": 13,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/minference/limitations_for_tests.json",
+  "findings_sha256": "6f02cbec16ce4487c1b9166c2dc5f1f16704f168b135426edfe2df59ed9333bc",
+  "generated_at": "2026-11-18T17:32:48+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A0",
+  "tier_note": "the reading and the probes disagree",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The paper's update ρ←ρ∪σi requires accumulating candidates. The shown search_pattern builds per-strategy scores and all_info but contains no rho/union/append accumulation; probes target that absence. The snippet is partial, but the cited Step 4 note says the gap occurs on every call. Thus evidence supports not_implemented.",
+  "hardware_needed": false,
+  "would_confirm": "Run search_pattern and inspect whether any candidate set is unioned into rho after evaluating strategies, or grep the full function for rho/all_info append.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "minference/modules/minference_forward.py",
+     "lines": "99-197",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "experiments/README.md",
+     "lines": "13-30",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "doc"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "\\brho\\b|ρ",
+    "expect": "absent",
+    "meaning": "No rho variable or union target in search code.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "def search_pattern",
+    "hit_lines": []
+   },
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "all_info\\.(append|extend)",
+    "expect": "absent",
+    "meaning": "No candidate accumulation into all_info list.",
+    "status": "refuted",
+    "hits": 2,
+    "control": "all_info = \\[\\]",
+    "hit_lines": [
+     187,
+     240
+    ]
+   },
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "\\bFLOPs?\\b|\\bflops?\\b",
+    "expect": "absent",
+    "meaning": "No FLOPs-aligned accumulation logic in search function.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "def search_pattern",
+    "hit_lines": []
+   },
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "\\bunion\\b|\\|=",
+    "expect": "absent",
+    "meaning": "No set-union or in-place accumulation operator.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "def search_pattern",
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

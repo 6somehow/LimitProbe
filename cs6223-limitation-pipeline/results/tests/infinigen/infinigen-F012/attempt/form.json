@@ -1,0 +1,61 @@
+{
+  "test_id": "A-infinigen-F012",
+  "finding_id": "infinigen-F012",
+  "strategy": "S1",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [],
+    "positive_input": {
+      "layer_id": 2
+    },
+    "negative_input": {
+      "layer_id": 1
+    },
+    "boundary_variable": "layer_id",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at speedup/flexgen/infinigen/flex_opt.py:541",
+      "signal_location": "speedup/flexgen/infinigen/flex_opt.py:541"
+    },
+    "expected": {
+      "positive": "branch taken at speedup/flexgen/infinigen/flex_opt.py:541",
+      "negative": "branch not taken at speedup/flexgen/infinigen/flex_opt.py:541"
+    }
+  },
+  "execution": {
+    "entry_called": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention.forward",
+    "entry_reason": "The region's call_chain lists TorchDevice.mha as the first frame, but mha is called by SelfAttention.forward and the target line lives in forward itself. forward is the outermost function that both reaches line 541 and can be driven with the region's trigger state (layer_id plus a non-empty partial-cache holder), so the driver calls it directly.",
+    "call_chain_index": 1,
+    "repo_files_modified": [],
+    "mocks": [
+      {
+        "symbol": "flexgen.pytorch_backend.TorchDevice.mha_gen",
+        "kind": "patch",
+        "reason": "The decoding attention launcher unconditionally calls .cuda() on its CPU branch, so it cannot run on this CPU-only host. SelfAttention.forward imports TorchDevice from flexgen.pytorch_backend, so that is the class object whose method must be replaced; the call happens before line 541.",
+        "behavior": "sim",
+        "impl": "sim.py::mha_gen",
+        "sim_class": "independent_native",
+        "sim_check": "check.py::check_mha_gen"
+      }
+    ],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "true",
+      "false"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at speedup/flexgen/infinigen/flex_opt.py:541",
+    "negative_observed": "branch not taken at speedup/flexgen/infinigen/flex_opt.py:541"
+  },
+  "evidence": {}
+}

@@ -1,0 +1,87 @@
+{
+  "test_id": "A-minference-F065",
+  "finding_id": "minference-F065",
+  "strategy": "S1",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {"name": "context_size", "value": 8, "why": "Sequence length > 1 so the entry's q_len == 1 dense shortcut is skipped; the target guard reads only head_dim."},
+      {"name": "batch_size", "value": 1, "why": "Batch size does not enter the target guard; one batch keeps the run small."},
+      {"name": "num_heads", "value": 1, "why": "Head count does not enter the target guard; one head keeps the run small."},
+      {"name": "head_id", "value": 0, "why": "The dilated1 config branch returns before best_pattern is indexed, so any head id selects the same path."},
+      {"name": "seed", "value": 0, "why": "Fixed seed makes the random q/k/v inputs deterministic; values do not affect the head_dim guard."},
+      {"name": "dtype", "value": "float32", "why": "The guard reads only the integer head_dim; float32 is the repository's default attention dtype."}
+    ],
+    "positive_input": {"head_dim": 511},
+    "negative_input": {"head_dim": 512},
+    "boundary_variable": "head_dim",
+    "extra_negatives": [
+      {"head_dim": 16},
+      {"head_dim": 32},
+      {"head_dim": 64},
+      {"head_dim": 128},
+      {"head_dim": 256}
+    ],
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at minference/ops/pit_sparse_flash_attention_v2.py:188",
+      "signal_location": "minference/ops/pit_sparse_flash_attention_v2.py:188"
+    },
+    "expected": {
+      "positive": "branch taken at minference/ops/pit_sparse_flash_attention_v2.py:188",
+      "negative": "branch not taken at minference/ops/pit_sparse_flash_attention_v2.py:188"
+    }
+  },
+  "execution": {
+    "entry_called": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [
+      {
+        "symbol": "torch.arange",
+        "kind": "patch",
+        "reason": "minference_forward runs torch.arange(64, device='cuda') at import on a CPU-only torch; the stand-in only redirects a CUDA device to CPU and returns identical values.",
+        "behavior": "sim",
+        "impl": "sim.py::arange",
+        "sim_class": "independent_native",
+        "sim_check": "check.py::check_arange"
+      },
+      {
+        "symbol": "minference.cuda",
+        "kind": "fake_module",
+        "reason": "The repository's compiled CUDA extension is not built in this environment; an empty module lets the pure-Python ops import.",
+        "behavior": "record_only",
+        "sim_class": "stub"
+      },
+      {
+        "symbol": "minference.cuda.convert_vertical_slash_indexes",
+        "kind": "patch",
+        "reason": "Plain-Python port of csrc/vertical_slash_index.cu so the negative run can continue past the target; it is called only after the target decision.",
+        "behavior": "sim",
+        "impl": "sim.py::convert_vertical_slash_indexes",
+        "sim_class": "independent_native"
+      }
+    ],
+    "hooks": [
+      {"name": "flash_attn placeholder", "purpose": "Import-only empty module (created after real transformers is imported) because the flash-attention package is absent and the target never calls it."},
+      {"name": "pycuda placeholders", "purpose": "Import-only empty modules for pycuda, pycuda.autoprimaryctx and pycuda.compiler because pycuda is absent and the target never calls it."},
+      {"name": "minference package shims", "purpose": "Synthetic minference, minference.ops and minference.modules packages with __path__ into the repository, so the repo __init__ (GPU-only imports) is skipped while the real submodules are used."}
+    ],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": ["true", "false"],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at minference/ops/pit_sparse_flash_attention_v2.py:188 (later NameError at minference/ops/pit_sparse_flash_attention_v2.py:189)",
+    "negative_observed": "branch not taken at minference/ops/pit_sparse_flash_attention_v2.py:188 (later AssertionError at minference/ops/pit_sparse_flash_attention_v2.py:150)"
+  },
+  "evidence": {}
+}

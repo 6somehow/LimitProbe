@@ -1,0 +1,87 @@
+{
+  "test_id": "A-nnsmith-F037",
+  "finding_id": "nnsmith-F037",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "opset",
+        "value": "{Input}",
+        "why": "GuidedGen needs a non-empty opset; no operator is executed, only the placeholder guidance path is used"
+      },
+      {
+        "name": "init_rank",
+        "value": 1,
+        "why": "the initialized placeholder is irrelevant to the branch, so a rank-1 placeholder keeps setup minimal"
+      },
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "fixes the random shuffle and bin choice so every run makes the same back-off decisions"
+      },
+      {
+        "name": "constrain_prob",
+        "value": 1.0,
+        "why": "disables the random skip of guidance so all constructed constraints reach the back-off loop"
+      },
+      {
+        "name": "dtype",
+        "value": "float32",
+        "why": "dtype of the constructed placeholder is not read by the target decision"
+      },
+      {
+        "name": "guidance_bin",
+        "value": "Bin(1, None, scale=linear)",
+        "why": "each generated guidance is x >= 1; combined with the solver setup it creates the unsat/sat pattern"
+      },
+      {
+        "name": "solver_setup",
+        "value": "n_cons=1: p_0==0; n_cons>=2: each n_i>=0 and sum(n_i)<=n_cons-1",
+        "why": "controls whether the whole guidance set is unsat and whether a single surviving constraint is sat"
+      }
+    ],
+    "positive_input": {
+      "n_cons": 1
+    },
+    "negative_input": {
+      "n_cons": 2
+    },
+    "boundary_variable": "n_cons",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at nnsmith/graph_gen.py:1054",
+      "signal_location": "nnsmith/graph_gen.py:1054"
+    },
+    "expected": {
+      "positive": "branch taken at nnsmith/graph_gen.py:1054",
+      "negative": "branch not taken at nnsmith/graph_gen.py:1054"
+    }
+  },
+  "execution": {
+    "entry_called": "nnsmith/graph_gen.py::GuidedGen.post_process",
+    "entry_reason": "The step-4 call chain is synthetic: it pairs the same-file artifact entry random_model_gen with the target function. In the pinned commit random_model_gen constructs PureSymbolGen, whose post_process is a no-op, so GuidedGen.post_process is unreachable from the official entry. To exercise the Region branch itself, the driver constructs a real GuidedGen and calls its real post_process; the solver/graph attributes are scenario inputs.",
+    "call_chain_index": 1,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "false",
+      "true"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at nnsmith/graph_gen.py:1054",
+    "negative_observed": "branch not taken at nnsmith/graph_gen.py:1054"
+  },
+  "evidence": {}
+}

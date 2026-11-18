@@ -1,0 +1,127 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "infinigen-F014",
+ "artifact_id": "infinigen",
+ "status": "tested",
+ "not_run": null,
+ "verdict": "inconclusive",
+ "level": "n/a",
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "verdict is inconclusive; no confidence is assigned to it",
+ "verdict_reason": "positive run: KeyError at workspace/attempt/driver.py:48 before the target was reached",
+ "observed": {
+  "positive": "KeyError at workspace/attempt/driver.py:48 before the target was reached",
+  "negative": "KeyError at workspace/attempt/driver.py:48 before the target was reached"
+ },
+ "defeaters": {
+  "D1": "refuted",
+  "D2": "refuted",
+  "D3": "open",
+  "D4": "eliminated",
+  "D5": "refuted",
+  "D6": "eliminated",
+  "D7": "eliminated",
+  "D8": "eliminated",
+  "D9": "refuted",
+  "D10": "eliminated",
+  "D11": "eliminated",
+  "D12": "eliminated",
+  "D13": "residual",
+  "D14": "refuted"
+ },
+ "open_doubts": [
+  {
+   "id": "D1",
+   "name": "target statement executed",
+   "status": "refuted",
+   "evidence": "positive run never executed the target line"
+  },
+  {
+   "id": "D2",
+   "name": "condition holds on positive, fails on negative",
+   "status": "refuted",
+   "evidence": "condition does not hold on the positive or does not fail on the negative"
+  },
+  {
+   "id": "D3",
+   "name": "oracle can see the effect",
+   "status": "open",
+   "evidence": "mutation not run"
+  },
+  {
+   "id": "D5",
+   "name": "control pair differs in one factor, negative adjacent to the boundary",
+   "status": "refuted",
+   "evidence": "positive and negative differ in [], not in exactly one factor"
+  },
+  {
+   "id": "D9",
+   "name": "result reproduces in a clean checkout",
+   "status": "refuted",
+   "evidence": "fresh checkout gave different canonical traces: positive, negative"
+  },
+  {
+   "id": "D13",
+   "name": "inputs inside the paper's scope",
+   "status": "residual",
+   "evidence": "scope_status=unknown"
+  },
+  {
+   "id": "D14",
+   "name": "official entry point was called",
+   "status": "refuted",
+   "evidence": "entry index None (None = not in the call chain) and no reason recorded"
+  }
+ ],
+ "next_steps": [
+  "D1 (refuted): choose inputs that reach the target line (check Region.condition.path_prefix)",
+  "D2 (refuted): pick inputs so the Region condition is true on the positive and false on the negative; write a predicate if it cannot be evaluated",
+  "D3 (open): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location",
+  "D5 (refuted): change exactly one factor between positive and negative, and make the negative the point next to the boundary",
+  "D9 (refuted): make the attempt self-contained so a clean checkout reproduces it",
+  "D14 (refuted): call the official entry, or record why a deeper function is called (execution.entry_reason)"
+ ],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "path_change",
+  "priority": 2,
+  "summary": "When p_w_q is None: In TorchDevice.mha_gen, the InfiniGen KV speculation (speculate_attention) only runs when the caller passes a partial-weight query tensor p_w_q. When p_w_q is None, prefetch_idx stays None (line 400) and the whole dynamic KV selection / prefetch mechanism is skipped, so the run degrades to plain dense attention over the full KV cache. (speedup/flexgen/infinigen/pytorch_backe...",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 1), not human: p_w_q is None only for layers built with enable_prefetching=False, so this is the same 'early layers get no speculation/full KV' limitation already covered by infinigen-10.",
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "speedup/flexgen/infinigen/pytorch_backend.py:401",
+  "function": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha_gen",
+  "condition": "p_w_q is None"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "speedup/flexgen/infinigen/pytorch_backend.py",
+    "line_start": 401,
+    "function": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha_gen",
+    "snippet": "if p_w_q is not None:"
+   }
+  ]
+ },
+ "files": {
+  "execution_report": "execution_report.json",
+  "testcase": "testcase.json",
+  "attempt": "attempt"
+ },
+ "provenance": {
+  "findings_file": "results/step4/infinigen/limitations_for_tests.json",
+  "findings_sha256": "51f6ee77be8f16b8743e78f2c11ea0c6b263e1a3c56aed29de35c9cfebb6dcf0",
+  "generated_at": "2026-11-18T13:50:48+08:00",
+  "source": "agent",
+  "attempt_origin": "scratch/agent_runs/e2e-f014-1b798c",
+  "agent_tokens": 4085787,
+  "agent_wall_s": 663.5,
+  "lock_tampered": false,
+  "profile": "default-v1"
+ },
+ "analysis": null
+}

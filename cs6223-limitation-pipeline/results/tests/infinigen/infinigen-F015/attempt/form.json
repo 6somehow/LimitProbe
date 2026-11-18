@@ -1,0 +1,102 @@
+{
+  "test_id": "A-infinigen-F015",
+  "finding_id": "infinigen-F015",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "batch_size",
+        "value": 1,
+        "why": "MHAGen batch dimension is irrelevant to the scalar attn_sparsity branch; witness only names attn_sparsity"
+      },
+      {
+        "name": "target_seq_len",
+        "value": 1,
+        "why": "decoding step length is fixed at 1 in the generation path and does not affect the branch guard"
+      },
+      {
+        "name": "n_head",
+        "value": 1,
+        "why": "head count only shapes tensors; the branch compares attn_sparsity to 1.0"
+      },
+      {
+        "name": "head_dim",
+        "value": 4,
+        "why": "small even head dimension keeps the CPU tensors cheap; not read by the branch guard"
+      },
+      {
+        "name": "cache_len",
+        "value": 3,
+        "why": "k/v cache length shapes the tensors before the branch; the guard only reads attn_sparsity"
+      },
+      {
+        "name": "dtype",
+        "value": "float32",
+        "why": "CPU run uses float32 weights/activations; dtype does not enter the attn_sparsity comparison"
+      },
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "fixed seed for the random tensor contents, which do not affect the branch guard"
+      },
+      {
+        "name": "compress_cache",
+        "value": false,
+        "why": "witness branch is the dense non-compressed path; compression only affects work below the target"
+      },
+      {
+        "name": "p_w_q",
+        "value": null,
+        "why": "disable the CUDA speculation stream so the prefix stays CPU-only; the guard does not read it"
+      }
+    ],
+    "positive_input": {
+      "attn_sparsity": 1
+    },
+    "negative_input": {
+      "attn_sparsity": 0
+    },
+    "boundary_variable": "attn_sparsity",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at speedup/flexgen/infinigen/pytorch_backend.py:422",
+      "signal_location": "speedup/flexgen/infinigen/pytorch_backend.py:422"
+    },
+    "expected": {
+      "positive": "branch taken at speedup/flexgen/infinigen/pytorch_backend.py:422",
+      "negative": "branch not taken at speedup/flexgen/infinigen/pytorch_backend.py:422"
+    },
+    "extra_negatives": [
+      {
+        "attn_sparsity": 0.999
+      }
+    ]
+  },
+  "execution": {
+    "entry_called": "speedup/flexgen/infinigen/pytorch_backend.py::TorchDevice.mha_gen",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "true",
+      "false"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at speedup/flexgen/infinigen/pytorch_backend.py:422 (later AssertionError at torch/cuda/__init__.py:239)",
+    "negative_observed": "branch not taken at speedup/flexgen/infinigen/pytorch_backend.py:422 (later TypeError at speedup/flexgen/infinigen/pytorch_backend.py:528)"
+  },
+  "evidence": {}
+}

@@ -1,0 +1,92 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "infinigen-F002",
+ "artifact_id": "infinigen",
+ "status": "tested",
+ "not_run": null,
+ "verdict": "yes",
+ "level": "L2",
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "effect on positive input, none on negative input",
+ "observed": {
+  "positive": "branch taken at speedup/flexgen/infinigen/flex_opt.py:442 (later ValueError at speedup/flexgen/infinigen/flex_opt.py:467)",
+  "negative": "branch not taken at speedup/flexgen/infinigen/flex_opt.py:442 (later ValueError at speedup/flexgen/infinigen/flex_opt.py:467)"
+ },
+ "defeaters": {
+  "D1": "eliminated",
+  "D2": "eliminated",
+  "D3": "eliminated",
+  "D4": "eliminated",
+  "D5": "eliminated",
+  "D6": "eliminated",
+  "D7": "eliminated",
+  "D8": "eliminated",
+  "D9": "eliminated",
+  "D10": "eliminated",
+  "D11": "eliminated",
+  "D12": "eliminated",
+  "D13": "residual",
+  "D14": "residual"
+ },
+ "open_doubts": [
+  {
+   "id": "D13",
+   "name": "inputs inside the paper's scope",
+   "status": "residual",
+   "evidence": "scope_status=unknown"
+  },
+  {
+   "id": "D14",
+   "name": "official entry point was called",
+   "status": "residual",
+   "evidence": "deeper entry (index 1); reason recorded: Static analysis found no call chain from TorchDevice.mha to SelfAttention.prefetch_cache; TorchDevice.mha never calls prefetch_cache. The finding's own witness says call_chain_status=not_found, so the target function is called directly with the state (cache_home with a mixed-device k_home) the checked call expects."
+  }
+ ],
+ "next_steps": [
+  "D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)"
+ ],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "state",
+  "priority": 1,
+  "summary": "When k_home.device.device_type == DeviceType.MIXED and k_home.data[0][0] is not None: Prefetch path 2 requires MIXED device with populated GPU portion; otherwise path 1. (speedup/flexgen/infinigen/flex_opt.py:442)",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "speedup/flexgen/infinigen/flex_opt.py:442",
+  "function": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention.prefetch_cache",
+  "condition": "k_home.device.device_type == DeviceType.MIXED and k_home.data[0][0] is not None"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "speedup/flexgen/infinigen/flex_opt.py",
+    "line_start": 442,
+    "function": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention.prefetch_cache",
+    "snippet": "if k_home.device.device_type == DeviceType.MIXED and k_home.data[0][0] is not None:"
+   }
+  ]
+ },
+ "files": {
+  "execution_report": "execution_report.json",
+  "testcase": "testcase.json",
+  "attempt": "attempt"
+ },
+ "provenance": {
+  "findings_file": "results/step4/infinigen/limitations_for_tests.json",
+  "findings_sha256": "51f6ee77be8f16b8743e78f2c11ea0c6b263e1a3c56aed29de35c9cfebb6dcf0",
+  "generated_at": "2026-11-18T12:53:46+08:00",
+  "source": "agent",
+  "attempt_origin": "scratch/agent_runs/e2e-f002-10e03f",
+  "agent_tokens": 3514179,
+  "agent_wall_s": 600.5,
+  "lock_tampered": false,
+  "profile": "default-v1"
+ },
+ "analysis": null
+}

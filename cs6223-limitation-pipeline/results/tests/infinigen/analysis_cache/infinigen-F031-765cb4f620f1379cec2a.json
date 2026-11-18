@@ -1,0 +1,22 @@
+{
+ "assessment": "supports",
+ "reasoning": "The cited code computes top-k indices from the query matrix alone and, in the modeling path, builds a mask by scattering query-derived and key-derived indices separately. It never adds the two matrices together as the paper specifies, so the missing addition step is visible on every call through this path.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "speedup/infinigen/infinigen/partial_weight_generation_controller.py",
+   "regex": "query\\s*\\+\\s*key|key\\s*\\+\\s*query|torch\\.add",
+   "expect": "absent",
+   "control": "torch\\.topk",
+   "meaning": "No query-key matrix addition in index generation; top-k is present."
+  },
+  {
+   "file": "accuracy/src/modeling_opt_ours_setup.py",
+   "regex": "weight_mask\\s*\\+=",
+   "expect": "absent",
+   "control": "weight_mask = weight_mask\\.scatter",
+   "meaning": "Mask is overwritten by scatter, not accumulated by addition."
+  }
+ ],
+ "would_confirm": "A direct code inspection or unit test checking whether the query and key partial-weight matrices are summed before use would settle it."
+}
