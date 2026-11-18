@@ -1,0 +1,125 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "sparta-F022",
+ "artifact_id": "sparta",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "论文要求传播为 Rammer 内专用编译 pass；实验路径在编译前以 Python 脚本离线传播，编译器 pass 列表无传播 pass。",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "always",
+  "location": "script/init_checkpoints.sh:1-34",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "We implemented sparsity attribute propagation as a dedicated compilation pass over Rammer.",
+    "source": "paper",
+    "locator": "PDF p.9"
+   }
+  ],
+  "code": [
+   {
+    "file": "script/init_checkpoints.sh",
+    "line_start": 1,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/sparta/limitations_for_tests.json",
+  "findings_sha256": "af8cad7c4e91af73f84a27b96179739526bde952a669319c71cc4e157ac4b49f",
+  "generated_at": "2026-11-18T12:35:53+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The script invokes bert/mobilenet propagate Python scripts before ONNX export, matching offline propagation rather than a Rammer compilation pass. It does not show the compiler pass list, so the 'no pass registered' detail remains unverified, but the observed experimental path supports the deviation.",
+  "hardware_needed": false,
+  "would_confirm": "Inspect Rammer's compiler pass registration/list at the pinned commit and trace whether propagation occurs during compilation or only in the Python scripts.",
+  "static": {
+   "cited": 1,
+   "grounded": true,
+   "items": [
+    {
+     "file": "script/init_checkpoints.sh",
+     "lines": "1-34",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "shell"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "script/init_checkpoints.sh",
+    "regex": "python .*propagate",
+    "expect": "present",
+    "meaning": "Offline propagation scripts are explicitly run before ONNX export.",
+    "status": "confirmed",
+    "hits": 4,
+    "hit_lines": [
+     7,
+     8,
+     19,
+     20
+    ]
+   },
+   {
+    "file": "script/init_checkpoints.sh",
+    "regex": "onnx",
+    "expect": "present",
+    "meaning": "ONNX export steps follow the propagation scripts in the same workflow.",
+    "status": "confirmed",
+    "hits": 8,
+    "hit_lines": [
+     9,
+     10,
+     11,
+     12,
+     21
+    ]
+   },
+   {
+    "file": "script/init_checkpoints.sh",
+    "regex": "rammer|compiler|pass",
+    "expect": "absent",
+    "meaning": "This script invokes no compiler pass; only Python scripts.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "python",
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

@@ -1,0 +1,110 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "flexprefill-F063",
+ "artifact_id": "flexprefill",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "not_implemented",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "论文要求二值变量重写；代码无",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "always",
+  "location": "experiments/scripts/flex_prefill/ruler.sh:21-29",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "Step 1: Binary Variables Ifzj = 1 ifj∈S andzj = 0 otherwise, the primal objective is: max zj∈{0,1} LX j=1 zj exp(xj)PL j′=1 exp(xj′) , subject to LX j=1 zj≤γS",
+    "source": "paper",
+    "locator": "PDF p.20"
+   }
+  ],
+  "code": [
+   {
+    "file": "experiments/scripts/flex_prefill/ruler.sh",
+    "line_start": 21,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/flexprefill/limitations_for_tests.json",
+  "findings_sha256": "0b8539b75ec0e2d602cd64b1a21959708ae3a6d53be00202f8825d92f313c066",
+  "generated_at": "2026-11-18T12:16:44+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A1",
+  "tier_note": "the reading is unclear; probes alone do not decide it",
+  "calibrated": false,
+  "assessment": "unclear",
+  "reasoning": "The paper excerpt does define a binary-variable objective, but the shown code is only a launcher script passing gamma/tau settings. It does not expose the flex_prefill implementation, so it cannot establish that the binary-variable reformulation is absent from the code. The evidence is consistent with a gamma/tau heuristic but insufficient to prove the claimed gap.",
+  "hardware_needed": false,
+  "would_confirm": "Inspect the flex_prefill implementation for Eq.7 binary variables/objective; if only gamma/tau budget logic exists, the finding is confirmed.",
+  "static": {
+   "cited": 1,
+   "grounded": true,
+   "items": [
+    {
+     "file": "experiments/scripts/flex_prefill/ruler.sh",
+     "lines": "21-29",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "shell"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "experiments/scripts/flex_prefill/ruler.sh",
+    "regex": "flex_prefill_gamma",
+    "expect": "present",
+    "meaning": "Launcher configures gamma heuristic, matching cited code path.",
+    "status": "confirmed",
+    "hits": 4,
+    "hit_lines": [
+     21,
+     29,
+     36,
+     44
+    ]
+   },
+   {
+    "file": "experiments/scripts/flex_prefill/ruler.sh",
+    "regex": "\\b(zj|binary|objective)\\b",
+    "expect": "absent",
+    "meaning": "No binary-variable logic in launcher; absence alone cannot prove no implementation.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "flex_prefill_gamma",
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

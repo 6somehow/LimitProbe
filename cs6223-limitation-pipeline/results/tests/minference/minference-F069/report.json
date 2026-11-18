@@ -1,0 +1,120 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "minference-F069",
+ "artifact_id": "minference",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "not_implemented",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "论文要求每候选计算真实 kernel FLOPs；代码不计算任何 FLOPs",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "minference/modules/minference_forward.py:99-197",
+  "function": null,
+  "condition": "is_search"
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "ti← FLOPs_in_kernel(σi)",
+    "source": "paper",
+    "locator": "PDF p.5"
+   },
+   {
+    "quote": "have similar computational cost. Kernel-aware here in- dicates the computational cost reflects the real FLOPs in GPU kernels, instead of conceptual estimations, which is crucial to achieve the optimal acceleration.",
+    "source": "paper",
+    "locator": "PDF p.5, text lines 45-48"
+   },
+   {
+    "quote": "we first create the search space based on a target FLOPs for each pattern, ensuring all potential candidates (i.e., different patterns with different settings) have similar computational cost",
+    "source": "paper",
+    "locator": "PDF p.5"
+   }
+  ],
+  "code": [
+   {
+    "file": "minference/modules/minference_forward.py",
+    "line_start": 99,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "experiments/README.md",
+    "line_start": 13,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/minference/limitations_for_tests.json",
+  "findings_sha256": "6f02cbec16ce4487c1b9166c2dc5f1f16704f168b135426edfe2df59ed9333bc",
+  "generated_at": "2026-11-18T17:32:48+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The shown search_pattern code scores candidates by attention-weight sums and pattern masks, with no FLOPs_in_kernel call or FLOPs calculation. The paper explicitly requires real kernel FLOPs per candidate, so the evidence supports that this requirement is not implemented in the shown code.",
+  "hardware_needed": false,
+  "would_confirm": "Search the full pinned commit for any FLOPs computation in the candidate scoring path; absence confirms the finding.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "minference/modules/minference_forward.py",
+     "lines": "99-197",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "experiments/README.md",
+     "lines": "13-30",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "doc"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "(?i)flops?",
+    "expect": "absent",
+    "meaning": "No FLOPs calculation in pattern search; control confirms file location.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "def search_pattern",
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

@@ -1,0 +1,117 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "flexprefill-F040",
+ "artifact_id": "flexprefill",
+ "status": "not_run",
+ "not_run": {
+  "code": "outcome_unsupported",
+  "reason": "effect type 'other': the branch has no raise in its body: the program rejects later, in code the target does not point to"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "When not ('h100' in gpu_name) and not ('a100' in gpu_name) and not ('4090' in gpu_name): if head_large and block_large: (flex_prefill/ops/flex_prefill_attention.py:88)",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "flex_prefill/ops/flex_prefill_attention.py:88-96",
+  "function": "flex_prefill/ops/flex_prefill_attention.py::get_num_warps_stages",
+  "condition": "not ('h100' in gpu_name) and not ('a100' in gpu_name) and not ('4090' in gpu_name)"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "line_start": 88,
+    "function": "flex_prefill/ops/flex_prefill_attention.py::get_num_warps_stages",
+    "snippet": "if head_large and block_large:"
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/flexprefill/limitations_for_tests.json",
+  "findings_sha256": "0b8539b75ec0e2d602cd64b1a21959708ae3a6d53be00202f8825d92f313c066",
+  "generated_at": "2026-11-18T12:16:08+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A1",
+  "tier_note": "the reading is unclear; probes alone do not decide it",
+  "calibrated": false,
+  "assessment": "unclear",
+  "reasoning": "The shown lines only implement head_large/block_large warp/stage selection; the claimed gpu_name exclusion is not visible. It could be on an omitted preceding line, so the snippet neither confirms nor contradicts. No paper evidence is recorded.",
+  "hardware_needed": false,
+  "would_confirm": "Inspect lines around 88 or search the file for the gpu_name/h100/a100/4090 exclusion; presence confirms, absence refutes.",
+  "static": {
+   "cited": 1,
+   "grounded": true,
+   "items": [
+    {
+     "file": "flex_prefill/ops/flex_prefill_attention.py",
+     "lines": "88-96",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": true,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "regex": "gpu_name",
+    "expect": "present",
+    "meaning": "Hit shows GPU-name gating exists; miss shows no such condition.",
+    "status": "confirmed",
+    "hits": 6,
+    "hit_lines": [
+     37,
+     44,
+     49,
+     54,
+     65
+    ]
+   },
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "regex": "h100|a100|4090",
+    "expect": "present",
+    "meaning": "Hit shows specific GPU exclusions; miss shows none.",
+    "status": "confirmed",
+    "hits": 3,
+    "hit_lines": [
+     54,
+     65,
+     76
+    ]
+   },
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "regex": "not\\s*\\(\\s*['\"]h100['\"]\\s+in\\s+gpu_name\\s*\\)",
+    "expect": "present",
+    "meaning": "Hit confirms exact exclusion condition; miss refutes it.",
+    "status": "refuted",
+    "hits": 0,
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

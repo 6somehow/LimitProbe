@@ -1,0 +1,145 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "minference-F052",
+ "artifact_id": "minference",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "论文要求最小化与 dense 输出的偏差；代码最大化权重保留分数，方向与参照对象均不同",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "no_condition",
+  "location": "minference/modules/minference_forward.py:99-197",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "pbest← argmin(yi−y,p best)",
+    "source": "paper",
+    "locator": "PDF p.5"
+   }
+  ],
+  "code": [
+   {
+    "file": "minference/modules/minference_forward.py",
+    "line_start": 99,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "minference/modules/minference_forward.py",
+    "line_start": 199,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/minference/limitations_for_tests.json",
+  "findings_sha256": "6f02cbec16ce4487c1b9166c2dc5f1f16704f168b135426edfe2df59ed9333bc",
+  "generated_at": "2026-11-18T17:25:00+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A0",
+  "tier_note": "the reading and the probes disagree",
+  "calibrated": false,
+  "assessment": "contradicts",
+  "reasoning": "The cited v2 code sets best_score to infinity, computes delta as the count of elements where |dense - candidate| exceeds 5e-3, and updates when score < best_score. That minimizes deviation from dense output, matching the paper's argmin formulation, not maximizing a weight-retention score.",
+  "hardware_needed": false,
+  "would_confirm": "Inspect which search function is invoked and run both selection loops on a sample to see whether best_score is minimized against dense or maximized retention.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "minference/modules/minference_forward.py",
+     "lines": "99-197",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "minference/modules/minference_forward.py",
+     "lines": "199-246",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "if score > best_score",
+    "expect": "absent",
+    "meaning": "No maximization branch; control shows minimization branch exists.",
+    "status": "refuted",
+    "hits": 1,
+    "control": "if score < best_score",
+    "hit_lines": [
+     188
+    ]
+   },
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "ref = dense\\(q, k, v\\)",
+    "expect": "present",
+    "meaning": "Reference object is dense output, not weight retention.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     227
+    ]
+   },
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "delta = \\(\\(ref - score\\)\\.abs\\(\\) > 5e-3\\)\\.sum\\(\\)",
+    "expect": "present",
+    "meaning": "Score measures deviation from dense output.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     238
+    ]
+   },
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "float\\(\"inf\"\\)",
+    "expect": "present",
+    "meaning": "Best score initialized for minimization, not maximization.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     224
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

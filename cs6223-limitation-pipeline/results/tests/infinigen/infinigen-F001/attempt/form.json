@@ -1,0 +1,174 @@
+{
+  "test_id": "A-infinigen-F001",
+  "finding_id": "infinigen-F001",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "n_head",
+        "value": 2,
+        "why": "Two heads give the mixed cache four rows so both the first and second segments are non-empty."
+      },
+      {
+        "name": "head_dim",
+        "value": 4,
+        "why": "Smallest convenient head width; line 426 does not depend on the head dimension."
+      },
+      {
+        "name": "input_dim",
+        "value": 8,
+        "why": "n_head * head_dim; only used to size the cache and the CPU attention workspace."
+      },
+      {
+        "name": "gpu_batch_size",
+        "value": 2,
+        "why": "Makes gpu_batch_size * n_head = 4, allowing a 50/50 mixed split with both shards non-empty."
+      },
+      {
+        "name": "num_gpu_batches",
+        "value": 1,
+        "why": "load_cache does not read it; one batch keeps the setup minimal."
+      },
+      {
+        "name": "w_gpu_percent",
+        "value": 0.0,
+        "why": "No weight allocation happens; the target only reads the KV cache policy fields."
+      },
+      {
+        "name": "w_cpu_percent",
+        "value": 100.0,
+        "why": "Keeps the weight percentages valid without placing weights on a GPU."
+      },
+      {
+        "name": "act_gpu_percent",
+        "value": 0.0,
+        "why": "Activation placement is irrelevant to load_cache."
+      },
+      {
+        "name": "act_cpu_percent",
+        "value": 100.0,
+        "why": "Activation placement is irrelevant to load_cache."
+      },
+      {
+        "name": "cache_gpu_percent",
+        "value": 50.0,
+        "why": "With four cache rows this makes the first mixed shard non-empty, which selects path 2."
+      },
+      {
+        "name": "cache_cpu_percent",
+        "value": 50.0,
+        "why": "Makes the CPU shard non-empty, matching the mixed-cache path 2 scenario."
+      },
+      {
+        "name": "overlap",
+        "value": false,
+        "why": "load_cache does not read it; disabling overlap keeps setup deterministic."
+      },
+      {
+        "name": "sep_layer",
+        "value": true,
+        "why": "One CPU attention workspace is enough; sep_layer matches the benchmark's default layout."
+      },
+      {
+        "name": "pin_weight",
+        "value": false,
+        "why": "No weights are allocated; keeps the CPU-only setup fast."
+      },
+      {
+        "name": "compress_weight",
+        "value": false,
+        "why": "Compression is unrelated to the target assert."
+      },
+      {
+        "name": "compress_cache",
+        "value": false,
+        "why": "Must be false so load_cache chooses path 2 instead of the compressed path 0."
+      },
+      {
+        "name": "do_sample",
+        "value": false,
+        "why": "Sampling is irrelevant to cache loading."
+      },
+      {
+        "name": "temperature",
+        "value": 1.0,
+        "why": "Default generation temperature; unused by load_cache."
+      },
+      {
+        "name": "prompt_len",
+        "value": 4,
+        "why": "Small prompt so the real CPU copies before line 426 are cheap; the assert does not depend on it."
+      },
+      {
+        "name": "gen_len",
+        "value": 2,
+        "why": "Only sizes the attention workspace; the assert does not depend on it."
+      },
+      {
+        "name": "i",
+        "value": 1,
+        "why": "Any i != 0 decodes a cached token; 1 is the first decode step."
+      },
+      {
+        "name": "layer_id",
+        "value": 0,
+        "why": "load_cache does not read layer_id; 0 avoids prefetch-only branches."
+      },
+      {
+        "name": "enable_prefetching",
+        "value": false,
+        "why": "Prefetching is not part of load_cache and is disabled to keep the call direct."
+      },
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "Fixes torch/numpy/random seeds for deterministic CPU allocation and copies."
+      }
+    ],
+    "positive_input": {
+      "path": 2,
+      "attn_sparsity": 1
+    },
+    "negative_input": {
+      "path": 2,
+      "attn_sparsity": 0.999
+    },
+    "boundary_variable": "attn_sparsity",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "exception",
+      "spec": "AssertionError raised at speedup/flexgen/infinigen/flex_opt.py:426",
+      "signal_location": "speedup/flexgen/infinigen/flex_opt.py:426"
+    },
+    "expected": {
+      "positive": "no exception at speedup/flexgen/infinigen/flex_opt.py:426",
+      "negative": "AssertionError at speedup/flexgen/infinigen/flex_opt.py:426"
+    }
+  },
+  "execution": {
+    "entry_called": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention.load_cache",
+    "entry_reason": "Region.call_chain status is not_found: TorchDevice.mha computes attention and never calls SelfAttention.load_cache. The driver therefore calls the deepest chain function directly; it is the repository's real load_cache and every callee before line 426 is the real CPU implementation.",
+    "call_chain_index": 1,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "false",
+      "true"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "no exception at speedup/flexgen/infinigen/flex_opt.py:426",
+    "negative_observed": "AssertionError at speedup/flexgen/infinigen/flex_opt.py:426"
+  },
+  "evidence": {}
+}

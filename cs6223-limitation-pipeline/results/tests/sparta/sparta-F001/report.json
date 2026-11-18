@@ -1,0 +1,92 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "sparta-F001",
+ "artifact_id": "sparta",
+ "status": "tested",
+ "not_run": null,
+ "verdict": "yes",
+ "level": "L2",
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "effect on positive input, none on negative input",
+ "observed": {
+  "positive": "branch taken at sparta/transformation/weighted_block_cover.py:77",
+  "negative": "branch not taken at sparta/transformation/weighted_block_cover.py:77"
+ },
+ "defeaters": {
+  "D1": "eliminated",
+  "D2": "eliminated",
+  "D3": "eliminated",
+  "D4": "eliminated",
+  "D5": "eliminated",
+  "D6": "eliminated",
+  "D7": "eliminated",
+  "D8": "eliminated",
+  "D9": "eliminated",
+  "D10": "eliminated",
+  "D11": "eliminated",
+  "D12": "eliminated",
+  "D13": "residual",
+  "D14": "residual"
+ },
+ "open_doubts": [
+  {
+   "id": "D13",
+   "name": "inputs inside the paper's scope",
+   "status": "residual",
+   "evidence": "scope_status=unknown"
+  },
+  {
+   "id": "D14",
+   "name": "official entry point was called",
+   "status": "residual",
+   "evidence": "deeper entry (index 1); reason recorded: The step-4 call chain is not_found: propagate_sparsity is a '# mocked' stub in this pinned branch and has no path to weighted_block_cover, so the official entry cannot reach the target. The driver therefore calls the real repository function weighted_block_cover directly with the witness cover_sizes (1 for (1,1), 1000 for (32,32)); weighted_block_cover is the first call-chain function that starts, at call-chain index 1."
+  }
+ ],
+ "next_steps": [
+  "D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)"
+ ],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "path_change",
+  "priority": 2,
+  "summary": "When cover_sizes[(1, 1)] < ordered_pricing[0][0]: The choice of covering algorithm is driven by the caller's sparsity pattern: if the cheapest block price exceeds the (1,1) element price, the whole weighted-set-cover is skipped and the function returns `None, {(1,1)}` — i.e. the tensor is treated as fully element-wise (no block covering), which then flows into wbc_matmul setting w_tesa.block_si...",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 1), not human: When even the cheapest block price is worse than the element-wise price, the block cover is skipped and the whole weight becomes fine-grained (1,1), a variant switch driven by the sparsity pattern; ordered_pricing[0] on an empty list also raises IndexError for an all-pruned TeSA.",
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "sparta/transformation/weighted_block_cover.py:77",
+  "function": "sparta/transformation/weighted_block_cover.py::weighted_block_cover",
+  "condition": "cover_sizes[(1, 1)] < ordered_pricing[0][0]"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "sparta/transformation/weighted_block_cover.py",
+    "line_start": 77,
+    "function": "sparta/transformation/weighted_block_cover.py::weighted_block_cover",
+    "snippet": "if cover_sizes[1, 1] < ordered_pricing[0][0]:"
+   }
+  ]
+ },
+ "files": {
+  "execution_report": "execution_report.json",
+  "testcase": "testcase.json",
+  "attempt": "attempt"
+ },
+ "provenance": {
+  "findings_file": "results/step4/sparta/limitations_for_tests.json",
+  "findings_sha256": "af8cad7c4e91af73f84a27b96179739526bde952a669319c71cc4e157ac4b49f",
+  "generated_at": "2026-11-18T12:35:53+08:00",
+  "source": "agent",
+  "attempt_origin": "scratch/agent_runs/e2e-f001-cc699a",
+  "agent_tokens": 3649827,
+  "agent_wall_s": 631.3,
+  "lock_tampered": false,
+  "profile": "default-v1"
+ },
+ "analysis": null
+}

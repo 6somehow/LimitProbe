@@ -1,0 +1,29 @@
+{
+ "assessment": "supports",
+ "reasoning": "The paper requires returning the best transformation, but the cited code comments out the loop that calls specialize_matmul and updates best_kernels/best_aggr_type. Those variables remain None, so transform_matmul always returns (None, None). The specialization function is also marked mocked. This directly supports the finding.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "sparta/transformation/transform_policy.py",
+   "regex": "return best_kernels, best_aggr_type",
+   "expect": "present",
+   "control": "def transform_matmul",
+   "meaning": "Function returns best variables that are never assigned in active code."
+  },
+  {
+   "file": "sparta/transformation/transform_policy.py",
+   "regex": "# skip, waiting for more official end-to-end",
+   "expect": "present",
+   "control": "for w_tesas in weight_tesas",
+   "meaning": "The selection loop is explicitly commented out, leaving no selection logic."
+  },
+  {
+   "file": "sparta/specialization/specialize_kernel.py",
+   "regex": "# mocked for now",
+   "expect": "present",
+   "control": "def specialize_matmul",
+   "meaning": "Specialization is mocked, consistent with no real best-transformation selection."
+  }
+ ],
+ "would_confirm": "Run transform_matmul on any valid TeSA input and observe that it returns (None, None) because the selection loop is commented out."
+}

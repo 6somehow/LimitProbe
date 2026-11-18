@@ -1,0 +1,154 @@
+{
+  "test_id": "A-minference-F029",
+  "finding_id": "minference-F029",
+  "strategy": "S1",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "vs_only_above",
+        "value": 0,
+        "why": "integer threshold mapping the input to the boolean config value: vs_only > 0 enables the flag, so the boundary probes at 1 and -1 land on true and false"
+      },
+      {
+        "name": "pattern_type",
+        "value": "block_sparse",
+        "why": "per-head pattern type ty chosen different from vertical_and_slash so the taken branch demonstrably overrides ty; the branch condition does not read ty"
+      },
+      {
+        "name": "head_id",
+        "value": 0,
+        "why": "the only head id looked up in best_pattern; the branch condition does not read it"
+      },
+      {
+        "name": "batch_size",
+        "value": 1,
+        "why": "the target condition depends only on self.config, not on the batch dimension"
+      },
+      {
+        "name": "num_heads",
+        "value": 1,
+        "why": "the branch decision is per-call, independent of the number of attention heads"
+      },
+      {
+        "name": "q_len",
+        "value": 8,
+        "why": "must be >1 so the q_len==1 dense early return does not bypass the target; the branch condition does not read it"
+      },
+      {
+        "name": "head_dim",
+        "value": 8,
+        "why": "small valid attention width; the target condition does not read head_dim"
+      },
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "fixed seed for the deterministic random q/k/v tensors"
+      },
+      {
+        "name": "dtype",
+        "value": "float32",
+        "why": "CPU float dtype supported by torch; the branch condition does not depend on dtype"
+      }
+    ],
+    "positive_input": {
+      "vs_only": 1
+    },
+    "negative_input": {
+      "vs_only": 0
+    },
+    "boundary_variable": "vs_only",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at minference/modules/minference_forward.py:434",
+      "signal_location": "minference/modules/minference_forward.py:434"
+    },
+    "expected": {
+      "positive": "branch taken at minference/modules/minference_forward.py:434",
+      "negative": "branch not taken at minference/modules/minference_forward.py:434"
+    }
+  },
+  "execution": {
+    "entry_called": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [
+      {
+        "symbol": "flash_attn",
+        "kind": "fake_module",
+        "reason": "flash-attn is a GPU package absent from this CPU-only environment; only imported, never called before the target",
+        "behavior": "record_only",
+        "sim_class": "stub"
+      },
+      {
+        "symbol": "pycuda",
+        "kind": "fake_module",
+        "reason": "pycuda is a GPU package absent from this CPU-only environment; only imported, never called before the target",
+        "behavior": "record_only",
+        "sim_class": "stub"
+      },
+      {
+        "symbol": "pycuda.autoprimaryctx",
+        "kind": "fake_module",
+        "reason": "submodule of the absent pycuda package; imported by the real block-sparse module before the target",
+        "behavior": "record_only",
+        "sim_class": "stub"
+      },
+      {
+        "symbol": "pycuda.compiler",
+        "kind": "fake_module",
+        "reason": "submodule of the absent pycuda package; only SourceModule is imported, never called before the target",
+        "behavior": "record_only",
+        "sim_class": "stub"
+      },
+      {
+        "symbol": "minference.cuda",
+        "kind": "fake_module",
+        "reason": "the pinned tree references minference.cuda but that extension module is not present; imported only",
+        "behavior": "record_only",
+        "sim_class": "stub"
+      },
+      {
+        "symbol": "transformers.modeling_flash_attention_utils.flash_attn_supports_top_left_mask",
+        "kind": "patch",
+        "reason": "transformers probes the fake flash_attn module at import time; return None so it does not run find_spec on the placeholder",
+        "behavior": "return_none",
+        "sim_class": "stub"
+      },
+      {
+        "symbol": "torch.arange",
+        "kind": "patch",
+        "reason": "the module builds LAST_Q_MASK with device='cuda' at import; the stand-in forwards to torch.arange on CPU",
+        "behavior": "sim",
+        "impl": "sim.py::cpu_arange",
+        "sim_class": "independent_native",
+        "sim_check": "check.py::check_arange"
+      }
+    ],
+    "hooks": [
+      {
+        "name": "minference_package_placeholder_used_by_driver",
+        "purpose": "load the real minference.modules.minference_forward without executing the unrelated package __init__ (models_patch/patch are incompatible with the pinned transformers)"
+      }
+    ],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "true",
+      "false"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at minference/modules/minference_forward.py:434",
+    "negative_observed": "branch not taken at minference/modules/minference_forward.py:434"
+  },
+  "evidence": {}
+}

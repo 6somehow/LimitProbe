@@ -1,0 +1,27 @@
+{
+ "assessment": "supports",
+ "reasoning": "The speedup path computes top-k only from the query matrix, so key-only outlier columns cannot be included in the single top-k. The accuracy path instead performs two separate top-k calls, one for query and one for key, not one combined top-k over both. This matches the claimed deviation from the paper's single top-k accommodating both query and key outliers.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "speedup/infinigen/infinigen/partial_weight_generation_controller.py",
+   "regex": "torch\\.topk\\(\\s*torch\\.sum\\(torch\\.abs\\(query",
+   "expect": "present",
+   "meaning": "Top-k source is the query matrix only."
+  },
+  {
+   "file": "speedup/infinigen/infinigen/partial_weight_generation_controller.py",
+   "regex": "torch\\.topk\\([^)]*key",
+   "expect": "absent",
+   "control": "torch\\.topk",
+   "meaning": "No top-k over key matrix in speedup path."
+  },
+  {
+   "file": "accuracy/src/modeling_opt_ours_setup.py",
+   "regex": "(?s)torch\\.topk\\(torch\\.sum\\(torch\\.abs\\(query_states.*?torch\\.topk\\(torch\\.sum\\(torch\\.abs\\(key",
+   "expect": "present",
+   "meaning": "Accuracy path uses two separate top-k calls, not one combined."
+  }
+ ],
+ "would_confirm": "Run the prefill selection with a key matrix whose outlier columns differ from the query's and verify whether selected indices include key-only outliers."
+}

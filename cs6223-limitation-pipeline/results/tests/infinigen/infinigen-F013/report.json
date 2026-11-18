@@ -1,0 +1,99 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "infinigen-F013",
+ "artifact_id": "infinigen",
+ "status": "tested",
+ "not_run": null,
+ "verdict": "yes",
+ "level": "L1",
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "effect on positive input, none on negative input",
+ "observed": {
+  "positive": "branch taken at speedup/flexgen/infinigen/flex_opt.py:799",
+  "negative": "branch not taken at speedup/flexgen/infinigen/flex_opt.py:799"
+ },
+ "defeaters": {
+  "D1": "eliminated",
+  "D2": "eliminated",
+  "D3": "residual",
+  "D4": "eliminated",
+  "D5": "eliminated",
+  "D6": "eliminated",
+  "D7": "eliminated",
+  "D8": "eliminated",
+  "D9": "eliminated",
+  "D10": "eliminated",
+  "D11": "eliminated",
+  "D12": "eliminated",
+  "D13": "residual",
+  "D14": "residual"
+ },
+ "open_doubts": [
+  {
+   "id": "D3",
+   "name": "oracle can see the effect",
+   "status": "residual",
+   "evidence": "only 3 mutants (< n_min=4); killed 3"
+  },
+  {
+   "id": "D13",
+   "name": "inputs inside the paper's scope",
+   "status": "residual",
+   "evidence": "scope_status=unknown"
+  },
+  {
+   "id": "D14",
+   "name": "official entry point was called",
+   "status": "residual",
+   "evidence": "deeper entry (index 1); reason recorded: Step 4 reports call_chain_status=not_found: no static call path exists from the declared entry TorchDevice.mha to OptLM.load_cache (it is reached through the dynamic generation loop, not from the attention kernel). The driver calls the repository's real OptLM.load_cache method on an instance whose attn_layer is built exactly as OptLM.__init__ builds it for sep_layer=True, so the target statement and the Region condition are the unmodified repository code."
+  }
+ ],
+ "next_steps": [
+  "D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location",
+  "D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)"
+ ],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "path_change",
+  "priority": 2,
+  "summary": "When j not in self.attn_layer[2:]: Cache loading is skipped for all attention layers except the first two (attn_layer[0], attn_layer[1]); those layers' KV caches are not loaded from cache_home, so the InfiniGen cache-load path only runs for the first two attention layers. (speedup/flexgen/infinigen/flex_opt.py:799)",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 2), not human: Skipping load_cache for attention layers after the first two is a fixed internal schedule (those layers get KV via prefetch), not a condition a user can trigger.",
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "speedup/flexgen/infinigen/flex_opt.py:799",
+  "function": "speedup/flexgen/infinigen/flex_opt.py::OptLM.load_cache",
+  "condition": "j not in self.attn_layer[2:]"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "speedup/flexgen/infinigen/flex_opt.py",
+    "line_start": 799,
+    "function": "speedup/flexgen/infinigen/flex_opt.py::OptLM.load_cache",
+    "snippet": "if j not in self.attn_layer[2:]:"
+   }
+  ]
+ },
+ "files": {
+  "execution_report": "execution_report.json",
+  "testcase": "testcase.json",
+  "attempt": "attempt"
+ },
+ "provenance": {
+  "findings_file": "results/step4/infinigen/limitations_for_tests.json",
+  "findings_sha256": "51f6ee77be8f16b8743e78f2c11ea0c6b263e1a3c56aed29de35c9cfebb6dcf0",
+  "generated_at": "2026-11-18T13:45:19+08:00",
+  "source": "agent",
+  "attempt_origin": "scratch/agent_runs/e2e-f013-32f002",
+  "agent_tokens": 3433211,
+  "agent_wall_s": 688.4,
+  "lock_tampered": false,
+  "profile": "default-v1"
+ },
+ "analysis": null
+}

@@ -1,0 +1,27 @@
+{
+ "assessment": "supports",
+ "reasoning": "The shown line literally divides by 128 rather than block_size. Text search can confirm the expression and that block_size is not used in it; a signature search can confirm block_size exists in the file. This supports the hard-coded-constant claim, though exact scope at line 1708 needs enclosing-function inspection.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "regex": "score_cover_topk\\(vertical, gamma\\) // 128",
+   "expect": "present",
+   "meaning": "Hard-coded 128 appears in the block-count expression."
+  },
+  {
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "regex": "score_cover_topk\\(vertical, gamma\\) // block_size",
+   "expect": "absent",
+   "control": "score_cover_topk\\(vertical, gamma\\) // 128",
+   "meaning": "Expression does not use block_size; control confirms line exists."
+  },
+  {
+   "file": "flex_prefill/ops/flex_prefill_attention.py",
+   "regex": "def [A-Za-z_][A-Za-z0-9_]*\\([^)]*block_size",
+   "expect": "present",
+   "meaning": "A function signature in the file accepts block_size."
+  }
+ ],
+ "would_confirm": "Inspect the enclosing function signature at line 1708 and run with block_size=64 to see whether the divisor remains 128."
+}

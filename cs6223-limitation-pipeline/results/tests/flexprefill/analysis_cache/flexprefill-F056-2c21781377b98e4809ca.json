@@ -1,0 +1,22 @@
+{
+ "assessment": "supports",
+ "reasoning": "The scripts invoke accelerate launch repeatedly without --num_processes, --gpu_ids, CUDA_VISIBLE_DEVICES, or model/device pinning. Thus they do not enforce the paper's single A100 80GB setup; accelerate can be configured for multiple processes/GPUs. The evidence supports the mismatch, though it does not show an actual multi-GPU run.",
+ "hardware_needed": true,
+ "probes": [
+  {
+   "file": "experiments/scripts/flex_prefill/ruler.sh",
+   "regex": "(?:--num_processes|--gpu_ids|--multi_gpu|CUDA_VISIBLE_DEVICES|--num_machines)",
+   "expect": "absent",
+   "control": "accelerate launch",
+   "meaning": "No explicit device-count pinning in RULER script."
+  },
+  {
+   "file": "experiments/scripts/flex_prefill/infinitebench.sh",
+   "regex": "(?:--num_processes|--gpu_ids|--multi_gpu|CUDA_VISIBLE_DEVICES|--num_machines)",
+   "expect": "absent",
+   "control": "accelerate launch",
+   "meaning": "No explicit device-count pinning in InfiniteBench script."
+  }
+ ],
+ "would_confirm": "Inspect the accelerate configuration or run the scripts and record GPU/process count to see whether more than one A100 is used."
+}

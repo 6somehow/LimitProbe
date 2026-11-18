@@ -1,0 +1,138 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "sparta-F036",
+ "artifact_id": "sparta",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "论文要求每次调用产生新选项并初始化空列表；代码桩未实现且原地修改输入",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "always",
+  "location": "sparta/transformation/transform_policy.py:56-81",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "/* return a new transformation option per run */",
+    "source": "paper",
+    "locator": "PDF p.7"
+   },
+   {
+    "quote": "Ttrans f ormed = [];",
+    "source": "paper",
+    "locator": "PDF p.7"
+   }
+  ],
+  "code": [
+   {
+    "file": "sparta/transformation/transform_policy.py",
+    "line_start": 56,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "sparta/transformation/transform_policy.py",
+    "line_start": 137,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/sparta/limitations_for_tests.json",
+  "findings_sha256": "af8cad7c4e91af73f84a27b96179739526bde952a669319c71cc4e157ac4b49f",
+  "generated_at": "2026-11-18T12:35:53+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The cited code shows transform_tesas returning only [(tesa,)] without generating n_candidates new options or initializing an empty transformed list. bit_align mutates the input via _convert_tesa_bit and returns the same tesa. This matches the finding that the stub is unimplemented and modifies input in place, deviating from the paper's per-run new-option requirement.",
+  "hardware_needed": false,
+  "would_confirm": "Run transform_tesas and bit_align on a TeSA and check object identity and returned candidates to confirm no new options and in-place mutation.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "sparta/transformation/transform_policy.py",
+     "lines": "56-81",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "sparta/transformation/transform_policy.py",
+     "lines": "137-156",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "sparta/transformation/transform_policy.py",
+    "regex": "return \\[\\(tesa,\\)\\]",
+    "expect": "present",
+    "meaning": "Shows transform_tesas returns the input unchanged as a single candidate.",
+    "status": "confirmed",
+    "hits": 2,
+    "hit_lines": [
+     81,
+     152
+    ]
+   },
+   {
+    "file": "sparta/transformation/transform_policy.py",
+    "regex": "_convert_tesa_bit\\(tesa",
+    "expect": "present",
+    "meaning": "Shows bit_align mutates the input TeSA in place.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     150
+    ]
+   },
+   {
+    "file": "sparta/transformation/transform_policy.py",
+    "regex": "Ttransformed\\s*=\\s*\\[\\]",
+    "expect": "absent",
+    "meaning": "Shows no empty transformed-list initialization in the cited file.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "def transform_tesas",
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

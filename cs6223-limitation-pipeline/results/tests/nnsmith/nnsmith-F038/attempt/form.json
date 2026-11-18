@@ -1,0 +1,81 @@
+{
+  "test_id": "A-nnsmith-F038",
+  "finding_id": "nnsmith-F038",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "The driver fixes torch/numpy/random seeds so repeated runs are identical; the target branch depends only on config attributes, not on the sampled values."
+      },
+      {
+        "name": "timeout_ms",
+        "value": 0,
+        "why": "search_one is called with a zero search budget so GradSearch.search_one does not run a forward that would overwrite check_intermediate_numeric; the target decision comes from the real differentiability probe in PracticalHybridSearch.__init__."
+      },
+      {
+        "name": "tensor_shape",
+        "value": [2, 4],
+        "why": "A minimal concrete input shape for the Schedule; the target condition is a boolean config guard, so its truth value is independent of tensor shape."
+      },
+      {
+        "name": "dtype",
+        "value": "float32",
+        "why": "float32 is the repository default torch dtype and makes PReLU differentiable, so PracticalHybridSearch takes the real differentiability-probe path; the guard does not inspect dtype."
+      },
+      {
+        "name": "schedule",
+        "value": "Input->PReLU",
+        "why": "A minimal real SymbolNet schedule with one trainable op (PReLU) so that forward reaches the target statement and SymbolNet's training setup has a parameter; the guard is independent of the graph."
+      }
+    ],
+    "positive_input": {
+      "check_intermediate_numeric": 0,
+      "use_gradient": 1,
+      "stop_updating_loss": 0
+    },
+    "negative_input": {
+      "check_intermediate_numeric": 0,
+      "use_gradient": 0,
+      "stop_updating_loss": 0
+    },
+    "boundary_variable": "use_gradient",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at nnsmith/materialize/torch/symbolnet.py:382",
+      "signal_location": "nnsmith/materialize/torch/symbolnet.py:382"
+    },
+    "expected": {
+      "positive": "branch taken at nnsmith/materialize/torch/symbolnet.py:382",
+      "negative": "branch not taken at nnsmith/materialize/torch/symbolnet.py:382"
+    }
+  },
+  "execution": {
+    "entry_called": "nnsmith/materialize/torch/input_gen.py::PracticalHybridSearch.search_one",
+    "entry_reason": "PracticalHybridSearch.__init__ calls the real SymbolNet.forward to test differentiability before search_one starts; that forward evaluates the target guard with the constructed attributes. search_one is still called as the official entry with a zero search budget so it does not replace the attributes or run another forward.",
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "true",
+      "false"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at nnsmith/materialize/torch/symbolnet.py:382",
+    "negative_observed": "branch not taken at nnsmith/materialize/torch/symbolnet.py:382"
+  },
+  "evidence": {}
+}

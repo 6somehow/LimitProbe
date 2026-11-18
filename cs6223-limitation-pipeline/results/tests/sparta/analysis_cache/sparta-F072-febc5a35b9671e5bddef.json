@@ -1,0 +1,29 @@
+{
+ "assessment": "supports",
+ "reasoning": "The shown entry chain calls transform_module, and transform_matmul's specialization loop is commented out, so no specialize_matmul/tiling generation is active. The paper requires tiling aligned to instruction shape, but the artifact path shown returns without generating such tiling. This supports the finding, though the snippets are not exhaustive.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "sparta/transformation/transform_policy.py",
+   "regex": "^\\s*latency, kernels, aggr_type = specialize_matmul\\(",
+   "expect": "absent",
+   "control": "def transform_matmul",
+   "meaning": "Active specialization call absent; only commented block remains."
+  },
+  {
+   "file": "sparta/transformation/transform_policy.py",
+   "regex": "tiling",
+   "expect": "absent",
+   "control": "bit_align",
+   "meaning": "No tiling generation in transform policy file."
+  },
+  {
+   "file": "sparta/transformation/optimize_model.py",
+   "regex": "tiling|specialize_matmul",
+   "expect": "absent",
+   "control": "transform_module",
+   "meaning": "Entry chain lacks tiling or specialization call."
+  }
+ ],
+ "would_confirm": "Run optimize_and_rebuild on a sparse matmul and inspect generated kernels or IR for instruction-shaped tiling."
+}

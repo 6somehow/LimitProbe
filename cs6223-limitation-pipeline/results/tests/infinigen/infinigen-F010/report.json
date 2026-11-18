@@ -1,0 +1,99 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "infinigen-F010",
+ "artifact_id": "infinigen",
+ "status": "tested",
+ "not_run": null,
+ "verdict": "yes",
+ "level": "L1",
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "effect on positive input, none on negative input",
+ "observed": {
+  "positive": "branch taken at speedup/flexgen/infinigen/flex_opt.py:389",
+  "negative": "branch not taken at speedup/flexgen/infinigen/flex_opt.py:389"
+ },
+ "defeaters": {
+  "D1": "eliminated",
+  "D2": "eliminated",
+  "D3": "residual",
+  "D4": "eliminated",
+  "D5": "eliminated",
+  "D6": "eliminated",
+  "D7": "eliminated",
+  "D8": "eliminated",
+  "D9": "eliminated",
+  "D10": "eliminated",
+  "D11": "eliminated",
+  "D12": "eliminated",
+  "D13": "residual",
+  "D14": "residual"
+ },
+ "open_doubts": [
+  {
+   "id": "D3",
+   "name": "oracle can see the effect",
+   "status": "residual",
+   "evidence": "only 2 mutants (< n_min=4); killed 2"
+  },
+  {
+   "id": "D13",
+   "name": "inputs inside the paper's scope",
+   "status": "residual",
+   "evidence": "scope_status=unknown"
+  },
+  {
+   "id": "D14",
+   "name": "official entry point was called",
+   "status": "residual",
+   "evidence": "deeper entry (index 1); reason recorded: The registered call_chain[0] TorchDevice.mha never calls SelfAttention.load_cache anywhere in the pinned repository; step-4 static analysis reports chain status not_found. The deepest reachable official function of the chain (index 1) is therefore called directly, with the repository's real SelfAttention, Policy, Task, ValueHolder and TorchDevice code, on CPU devices."
+  }
+ ],
+ "next_steps": [
+  "D3 (residual): run mutation; if kill rate is low, strengthen the oracle so it names the exception type and the target location",
+  "D14 (residual): call the official entry, or record why a deeper function is called (execution.entry_reason)"
+ ],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "path_change",
+  "priority": 2,
+  "summary": "When self.policy.attn_sparsity >= 1.0: When sparsity >= 1.0 the full V cache is copied; otherwise V is deferred (v_home, False) for later selection, changing the data movement path. (speedup/flexgen/infinigen/flex_opt.py:389)",
+  "review": "real_but_minor",
+  "review_note": "blind review by an LLM subagent (round 2), not human: attn_sparsity<1 picks FlexGen's top-k sparse attention baseline rather than InfiniGen's KV selection; same branch logic as infinigen-f04.",
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "speedup/flexgen/infinigen/flex_opt.py:389",
+  "function": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention.load_cache",
+  "condition": "self.policy.attn_sparsity >= 1.0"
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "speedup/flexgen/infinigen/flex_opt.py",
+    "line_start": 389,
+    "function": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention.load_cache",
+    "snippet": "if self.policy.attn_sparsity >= 1.0:"
+   }
+  ]
+ },
+ "files": {
+  "execution_report": "execution_report.json",
+  "testcase": "testcase.json",
+  "attempt": "attempt"
+ },
+ "provenance": {
+  "findings_file": "results/step4/infinigen/limitations_for_tests.json",
+  "findings_sha256": "51f6ee77be8f16b8743e78f2c11ea0c6b263e1a3c56aed29de35c9cfebb6dcf0",
+  "generated_at": "2026-11-18T13:31:44+08:00",
+  "source": "agent",
+  "attempt_origin": "scratch/agent_runs/e2e-f010-27a64c",
+  "agent_tokens": 3119819,
+  "agent_wall_s": 451.0,
+  "lock_tampered": false,
+  "profile": "default-v1"
+ },
+ "analysis": null
+}

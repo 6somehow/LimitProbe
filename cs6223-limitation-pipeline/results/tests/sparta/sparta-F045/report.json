@@ -1,0 +1,161 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "sparta-F045",
+ "artifact_id": "sparta",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "论文要求先 SampleBitOption 采样再传 BitRounding；代码以固定硬件位宽集合枚举替代采样（artifact 范围：无 SampleBitOption 采样触发）",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "sparta/transformation/transform_policy.py:158-191",
+  "function": null,
+  "condition": "isinstance(module_sparsity.module_obj, nn.Linear)"
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "T1, . . . ,Tk = self.BitRounding(T , self.SampleBitOption());",
+    "source": "paper",
+    "locator": "PDF p.7"
+   }
+  ],
+  "code": [
+   {
+    "file": "sparta/transformation/transform_policy.py",
+    "line_start": 158,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "sparta/transformation/transform_policy.py",
+    "line_start": 26,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "sparta/specialization/specialize_kernel.py",
+    "line_start": 44,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/sparta/limitations_for_tests.json",
+  "findings_sha256": "af8cad7c4e91af73f84a27b96179739526bde952a669319c71cc4e157ac4b49f",
+  "generated_at": "2026-11-18T12:35:53+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The shown code defines a fixed hardware bitwidth list [4,8,16,32] and routes matmul transformation through bit_align, with no visible SampleBitOption call. This matches the claim that sampling is replaced by fixed bitwidth enumeration, though the snippet alone cannot prove absence across the whole file.",
+  "hardware_needed": false,
+  "would_confirm": "Search the full transform_policy.py for SampleBitOption and inspect all bit_align/hardware_bit_precisions call sites to verify no sampling is invoked.",
+  "static": {
+   "cited": 3,
+   "grounded": true,
+   "items": [
+    {
+     "file": "sparta/transformation/transform_policy.py",
+     "lines": "158-191",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "sparta/transformation/transform_policy.py",
+     "lines": "26-156",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "sparta/specialization/specialize_kernel.py",
+     "lines": "44-77",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "sparta/transformation/transform_policy.py",
+    "regex": "SampleBitOption",
+    "expect": "absent",
+    "meaning": "No sampling method in policy file; fixed precision list present.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "hardware_bit_precisions",
+    "hit_lines": []
+   },
+   {
+    "file": "sparta/transformation/transform_policy.py",
+    "regex": "hardware_bit_precisions",
+    "expect": "present",
+    "meaning": "Fixed hardware bitwidth enumeration exists in policy.",
+    "status": "confirmed",
+    "hits": 2,
+    "hit_lines": [
+     26,
+     138
+    ]
+   },
+   {
+    "file": "sparta/transformation/transform_policy.py",
+    "regex": "bit_align\\(",
+    "expect": "present",
+    "meaning": "Bit alignment path is used in transformation.",
+    "status": "confirmed",
+    "hits": 4,
+    "hit_lines": [
+     137,
+     166,
+     168,
+     170
+    ]
+   },
+   {
+    "file": "sparta/transformation/transform_policy.py",
+    "regex": "return \\[4, 8, 16, 32\\]",
+    "expect": "present",
+    "meaning": "Hardcoded bitwidth set confirms fixed enumeration.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     30
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

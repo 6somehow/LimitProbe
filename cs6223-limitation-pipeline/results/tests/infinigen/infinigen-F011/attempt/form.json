@@ -1,0 +1,117 @@
+{
+  "test_id": "A-infinigen-F011",
+  "finding_id": "infinigen-F011",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "rng_seed",
+        "value": 0,
+        "why": "fixed seed so repeated and replayed runs build identical tensors"
+      },
+      {
+        "name": "n_head",
+        "value": 2,
+        "why": "attention head count; the target branch does not read it, only the surrounding real code"
+      },
+      {
+        "name": "input_dim",
+        "value": 8,
+        "why": "hidden size of the tiny model; n_head must divide it, target branch ignores it"
+      },
+      {
+        "name": "dtype",
+        "value": "float16",
+        "why": "cache dtype used by the real InfiniGen paths; target branch ignores it"
+      },
+      {
+        "name": "layer_id",
+        "value": 1,
+        "why": "layer index; only selects partial_weight_ratio in __init__, target branch ignores it"
+      },
+      {
+        "name": "alpha",
+        "value": 4,
+        "why": "speculation parameter stored on self, only passed below the target"
+      },
+      {
+        "name": "max_num_kv",
+        "value": 4,
+        "why": "speculation parameter stored on self, only passed below the target"
+      },
+      {
+        "name": "partial_weight_ratio",
+        "value": 0.2,
+        "why": "default of the constructor, only used in the prefill branch"
+      },
+      {
+        "name": "num_gpu_batches",
+        "value": 1,
+        "why": "one GPU batch selects the weight_read_buf.pop() path; target branch ignores it"
+      },
+      {
+        "name": "gpu_batch_size",
+        "value": 1,
+        "why": "batch size one keeps tensors small; target branch ignores it"
+      },
+      {
+        "name": "kv_seq_len",
+        "value": 6,
+        "why": "number of cached prompt tokens for the decoding step; target branch ignores it"
+      },
+      {
+        "name": "decode_step",
+        "value": 1,
+        "why": "i>0 selects the decoding branch that contains the target; the target condition itself ignores i"
+      },
+      {
+        "name": "attn_sparsity",
+        "value": 1.0,
+        "why": "dense attention policy value, read only by mha_gen below the target"
+      }
+    ],
+    "positive_input": {
+      "enable_prefetching": 1
+    },
+    "negative_input": {
+      "enable_prefetching": 0
+    },
+    "boundary_variable": "enable_prefetching",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at speedup/flexgen/infinigen/flex_opt.py:528",
+      "signal_location": "speedup/flexgen/infinigen/flex_opt.py:528"
+    },
+    "expected": {
+      "positive": "branch taken at speedup/flexgen/infinigen/flex_opt.py:528",
+      "negative": "branch not taken at speedup/flexgen/infinigen/flex_opt.py:528"
+    }
+  },
+  "execution": {
+    "entry_called": "speedup/flexgen/infinigen/flex_opt.py::SelfAttention.forward",
+    "entry_reason": "The declared call_chain[0] TorchDevice.mha is the prefill compute helper that SelfAttention.forward itself calls through self.compute.mha; the call dependency is the reverse of the chain, so it can never reach the target (step-4 analysis: call_chain_status=not_found). The driver therefore calls the Region's own function SelfAttention.forward (call_chain index 1) with the real ValueHolder/TorchTensor arguments a decoding step receives, and the target line runs inside that real function body.",
+    "call_chain_index": 1,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "false",
+      "true"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at speedup/flexgen/infinigen/flex_opt.py:528",
+    "negative_observed": "branch not taken at speedup/flexgen/infinigen/flex_opt.py:528"
+  },
+  "evidence": {}
+}

@@ -1,0 +1,126 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "minference-F056",
+ "artifact_id": "minference",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "论文要求块级 logits 先 softmax（并除 √d）得 Â；代码省略 softmax 与缩放，仅用因果掩码后的原始点积排序（artifact 范围：无 softmax/√d 的块级注意力矩阵）",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "always",
+  "location": "minference/ops/block_sparse_flash_attention.py:150-165",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "bA← softmax \u0010 bQcK⊤/ √ d +mcasual \u0011",
+    "source": "paper",
+    "locator": "PDF p.5"
+   },
+   {
+    "quote": "Since the mean pooling and matrix multiplication operations are commutative, the resulting attention weights are approximately equivalent to the actual attention weights after mean pooling.",
+    "source": "paper",
+    "locator": "PDF p.6"
+   }
+  ],
+  "code": [
+   {
+    "file": "minference/ops/block_sparse_flash_attention.py",
+    "line_start": 150,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "minference/ops/block_sparse_flash_attention.py",
+    "line_start": 78,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/minference/limitations_for_tests.json",
+  "findings_sha256": "6f02cbec16ce4487c1b9166c2dc5f1f16704f168b135426edfe2df59ed9333bc",
+  "generated_at": "2026-11-18T17:25:00+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The paper specifies block logits as softmax(QK^T/sqrt(d) + causal mask). The cited _build_block_index computes p_pool = einsum(pooled Q, pooled K), applies a causal -inf mask, then topk. It never applies softmax or 1/sqrt(d) scaling before ranking. The later kernel softmax only affects attention within already-selected blocks, not block selection. Thus the block-index ranking deviates from the paper.",
+  "hardware_needed": false,
+  "would_confirm": "Run _build_block_index on a small tensor and compare its selected blocks with top-k of softmax(QK^T/sqrt(d)) under the causal mask; a mismatch confirms the deviation.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "minference/ops/block_sparse_flash_attention.py",
+     "lines": "150-165",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "minference/ops/block_sparse_flash_attention.py",
+     "lines": "78-111",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "minference/ops/block_sparse_flash_attention.py",
+    "regex": "p_pool\\s*=\\s*torch\\.einsum\\([^\\n]*query_pool[^\\n]*key_pool",
+    "expect": "present",
+    "meaning": "Block scores are raw pooled dot products, not softmax-scaled logits.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     162
+    ]
+   },
+   {
+    "file": "minference/ops/block_sparse_flash_attention.py",
+    "regex": "p_pool\\s*=\\s*(?:torch\\.)?softmax|p_pool\\s*=\\s*p_pool\\s*/\\s*(?:math|torch)\\.sqrt",
+    "expect": "absent",
+    "meaning": "No softmax or sqrt scaling is applied to block scores.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "p_pool\\s*=\\s*torch\\.einsum",
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

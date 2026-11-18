@@ -1,0 +1,136 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "sparta-F021",
+ "artifact_id": "sparta",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "artifact 无目标稀疏度终止条件。",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "always",
+  "location": "script/figure19/run.sh:1-7",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "sity pattern iteratively [58, 86]. In each iteration, the algo- rithm “sparsiﬁes” a proportion of the model (e.g., 30%) and ﬁne-tunes it. It repeats the iteration until achieving the tar- geted sparsity (e.g., 90%). In this process, model ﬁne-tuning",
+    "source": "paper",
+    "locator": "PDF p.14, text lines 71-74"
+   }
+  ],
+  "code": [
+   {
+    "file": "script/figure19/run.sh",
+    "line_start": 1,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "script/figure19/iterative_SA.py",
+    "line_start": 319,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/sparta/limitations_for_tests.json",
+  "findings_sha256": "af8cad7c4e91af73f84a27b96179739526bde952a669319c71cc4e157ac4b49f",
+  "generated_at": "2026-11-18T12:35:53+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The paper describes iterative pruning that repeats until a targeted sparsity is reached. The cited artifact code exposes a fixed --n_iter defaulting to 3 and run.sh does not override it; the shown arguments include no target-sparsity stopping criterion. This supports the claim that the artifact uses fixed iterations rather than target-sparsity termination.",
+  "hardware_needed": false,
+  "would_confirm": "Inspect the iterative_SA.py pruning loop to verify it only iterates range(args.n_iter) and never breaks on a target sparsity.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "script/figure19/run.sh",
+     "lines": "1-7",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "shell"
+    },
+    {
+     "file": "script/figure19/iterative_SA.py",
+     "lines": "319-344",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "script/figure19/iterative_SA.py",
+    "regex": "range\\(args\\.n_iter\\)",
+    "expect": "present",
+    "meaning": "Shows the pruning loop is driven by fixed n_iter, not target sparsity.",
+    "status": "confirmed",
+    "hits": 2,
+    "hit_lines": [
+     242,
+     246
+    ]
+   },
+   {
+    "file": "script/figure19/iterative_SA.py",
+    "regex": "while.*sparsity|sparsity.*while|break.*sparsity|sparsity.*break",
+    "expect": "absent",
+    "meaning": "Miss plus control hit indicates no target-sparsity termination condition.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "n_iter",
+    "hit_lines": []
+   },
+   {
+    "file": "script/figure19/iterative_SA.py",
+    "regex": "sparsity_per_iter",
+    "expect": "present",
+    "meaning": "Confirms a sparsity argument exists, but not necessarily as a stopping condition.",
+    "status": "confirmed",
+    "hits": 4,
+    "hit_lines": [
+     237,
+     244,
+     251,
+     323
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

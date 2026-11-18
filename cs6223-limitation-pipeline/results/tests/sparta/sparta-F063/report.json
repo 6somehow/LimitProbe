@@ -1,0 +1,135 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "sparta-F063",
+ "artifact_id": "sparta",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "not_implemented",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "artifact 路径无编译后延迟/内存测量步骤。",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "always",
+  "location": "script/figure19/run.sh:1-7",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "Finally, with the ﬁnal compiled code, model designers can proﬁle the DNN model to obtain authentic performance met- rics, including memory consumption and inference latency.",
+    "source": "paper",
+    "locator": "PDF p.4, text lines 67-69"
+   }
+  ],
+  "code": [
+   {
+    "file": "script/figure19/run.sh",
+    "line_start": 1,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "script/figure19/draw.py",
+    "line_start": 10,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/sparta/limitations_for_tests.json",
+  "findings_sha256": "af8cad7c4e91af73f84a27b96179739526bde952a669319c71cc4e157ac4b49f",
+  "generated_at": "2026-11-18T12:35:53+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The cited figure19 path only runs iterative_SA.py with speed-up off/on and draw.py. draw.py parses training-time and total-time log entries and plots training time; it does not invoke a compiled-model profiling path or measure inference latency/memory. This matches the finding that the artifact path lacks compiled latency/memory measurement.",
+  "hardware_needed": false,
+  "would_confirm": "Inspect all scripts in the artifact path for any call that profiles a compiled model and records inference latency or memory; none should exist if the finding holds.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "script/figure19/run.sh",
+     "lines": "1-7",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "shell"
+    },
+    {
+     "file": "script/figure19/draw.py",
+     "lines": "10-35",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "script/figure19/run.sh",
+    "regex": "(?i)latency|memory|profil|compile",
+    "expect": "absent",
+    "meaning": "No profiling/latency/memory command in the figure19 runner.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "iterative_SA\\.py|draw\\.py",
+    "hit_lines": []
+   },
+   {
+    "file": "script/figure19/draw.py",
+    "regex": "(?i)latency|memory|profil|compile",
+    "expect": "absent",
+    "meaning": "Plotting script has no latency/memory/profiling references.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "Training Time Cost|Total Time|plt\\.plot",
+    "hit_lines": []
+   },
+   {
+    "file": "script/figure19/draw.py",
+    "regex": "(?i)training_time|total_time",
+    "expect": "present",
+    "meaning": "Only training and total time are parsed, not latency/memory.",
+    "status": "confirmed",
+    "hits": 6,
+    "hit_lines": [
+     11,
+     12,
+     19,
+     22,
+     23
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

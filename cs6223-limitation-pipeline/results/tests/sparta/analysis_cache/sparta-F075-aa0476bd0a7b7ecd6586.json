@@ -1,0 +1,27 @@
+{
+ "assessment": "supports",
+ "reasoning": "The cited transform_matmul computes bit-aligned TeSA options but the only specialize_matmul call is inside a triple-quoted skipped block. It then returns best_kernels and best_aggr_type, which remain None. The hardware_bit_precisions helper exists but is not called in this file. Thus the bit-width-based instruction selection step is absent from the artifact chain.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "sparta/transformation/transform_policy.py",
+   "regex": "# skip, waiting for more official end-to-end",
+   "expect": "present",
+   "meaning": "Specialization block is explicitly marked skipped."
+  },
+  {
+   "file": "sparta/transformation/transform_policy.py",
+   "regex": "return best_kernels, best_aggr_type",
+   "expect": "present",
+   "meaning": "Function returns unset best values after loop."
+  },
+  {
+   "file": "sparta/transformation/transform_policy.py",
+   "regex": "self\\.hardware_bit_precisions\\(",
+   "expect": "absent",
+   "control": "def hardware_bit_precisions",
+   "meaning": "Bit-precision helper is defined but not called here."
+  }
+ ],
+ "would_confirm": "Run transform_matmul on any TeSA and check whether specialize_matmul is invoked and returns non-None kernels/aggr_type."
+}

@@ -1,0 +1,52 @@
+{
+  "test_id": "A-minference-F024",
+  "finding_id": "minference-F024",
+  "strategy": "S0",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {"name": "q_len", "value": 8, "why": "the target only needs q_len != 1 so that the q_len==1 early return is skipped; the flag decision is independent of sequence length"},
+      {"name": "batch", "value": 1, "why": "batch size does not enter the target condition; one batch keeps the CPU run small"},
+      {"name": "heads", "value": 1, "why": "head count does not enter the target condition; head_id is selected explicitly"},
+      {"name": "head_dim", "value": 16, "why": "hidden width is irrelevant to the branch decision; 16 is a valid attention head width"},
+      {"name": "head_id", "value": 0, "why": "needed to look up best_pattern below the target; zero is the natural first head"},
+      {"name": "seed", "value": 0, "why": "fixed seed makes the random q/k/v tensors identical across repeats and replays"},
+      {"name": "dtype", "value": "float32", "why": "CPU-friendly floating dtype; the branch decision does not inspect tensor values"}
+    ],
+    "positive_input": {"dilated1": 1},
+    "negative_input": {"dilated1": 0},
+    "boundary_variable": "dilated1",
+    "scale": null,
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "path_hook",
+      "spec": "branch taken at minference/modules/minference_forward.py:421",
+      "signal_location": "minference/modules/minference_forward.py:421"
+    },
+    "expected": {
+      "positive": "branch taken at minference/modules/minference_forward.py:421",
+      "negative": "branch not taken at minference/modules/minference_forward.py:421"
+    }
+  },
+  "execution": {
+    "entry_called": "minference/modules/minference_forward.py::gather_last_q_vertical_slash_topk_v4",
+    "entry_reason": null,
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [],
+    "hooks": [],
+    "replay_commands": [
+      "python -m checklimits run --attempt <this directory>"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": ["false", "true"],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "branch taken at minference/modules/minference_forward.py:421",
+    "negative_observed": "branch not taken at minference/modules/minference_forward.py:421"
+  },
+  "evidence": {}
+}

@@ -1,0 +1,125 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "nnsmith-F013",
+ "artifact_id": "nnsmith",
+ "status": "not_run",
+ "not_run": {
+  "code": "outcome_unsupported",
+  "reason": "effect type 'other': the target assigns a value; the claimed effect is what that value changes later, which needs a differential check of outputs (the assignment itself would differ trivially)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "When gres_config != \"4\": The environment variable NNSMITH_GRES selects the reshape grouping strategy: \"5\" = one group (flatten), \"3\" = min(src_len, dst_len) groups, \"4\" (default) = random number of groups weighted by 2**i. Any other value raises ValueError, rejecting the model. The chosen grouping changes the generated reshape constraints and hence the accepted graphs. (nnsmith/abstract/op.py:1...",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "nnsmith/abstract/op.py:1552",
+  "function": "nnsmith/abstract/op.py::Reshape.requires",
+  "condition": "gres_config != \"4\""
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "nnsmith/abstract/op.py",
+    "line_start": 1552,
+    "function": "nnsmith/abstract/op.py::Reshape.requires",
+    "snippet": "gres_config = os.getenv('NNSMITH_GRES', '4')"
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/nnsmith/limitations_for_tests.json",
+  "findings_sha256": "3ec725e87dbddd4c992db2cb5e7881f511e70ce2ab61c81037bbb06a557aa5fb",
+  "generated_at": "2026-11-18T12:18:21+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A1",
+  "tier_note": "the reading is unclear; probes alone do not decide it",
+  "calibrated": false,
+  "assessment": "unclear",
+  "reasoning": "The shown line only confirms that NNSMITH_GRES is read with default \"4\". It does not show the claimed mappings for \"5\" and \"3\", the weighted random grouping for \"4\", the ValueError for other values, or that grouping changes accepted graphs. With no paper evidence, the full finding is not established by the single line.",
+  "hardware_needed": false,
+  "would_confirm": "Inspect the full function around line 1552 and trace the branches for NNSMITH_GRES values \"5\", \"3\", \"4\", and invalid values.",
+  "static": {
+   "cited": 1,
+   "grounded": true,
+   "items": [
+    {
+     "file": "nnsmith/abstract/op.py",
+     "lines": "1552-1552",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": false,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "nnsmith/abstract/op.py",
+    "regex": "NNSMITH_GRES",
+    "expect": "present",
+    "meaning": "Confirms the environment variable is read in this file.",
+    "status": "confirmed",
+    "hits": 2,
+    "hit_lines": [
+     1552,
+     1563
+    ]
+   },
+   {
+    "file": "nnsmith/abstract/op.py",
+    "regex": "gres_config\\s*==\\s*[\"']5[\"']",
+    "expect": "present",
+    "meaning": "Would show a branch for the claimed flatten grouping value.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     1553
+    ]
+   },
+   {
+    "file": "nnsmith/abstract/op.py",
+    "regex": "gres_config\\s*==\\s*[\"']3[\"']",
+    "expect": "present",
+    "meaning": "Would show a branch for the claimed min-length grouping value.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     1555
+    ]
+   },
+   {
+    "file": "nnsmith/abstract/op.py",
+    "regex": "2\\s*\\*\\*\\s*i",
+    "expect": "present",
+    "meaning": "Would support the claimed 2**i weighted random grouping.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     1560
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

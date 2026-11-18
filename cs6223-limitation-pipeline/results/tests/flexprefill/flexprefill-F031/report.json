@@ -1,0 +1,145 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "flexprefill-F031",
+ "artifact_id": "flexprefill",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "论文要求先除以 Σ¯A 再展平；代码未归一化，改以放大阈值补偿",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "always",
+  "location": "flex_prefill/ops/flex_prefill_attention.py:1661-1779",
+  "function": null,
+  "condition": null
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "# Flatten and normalize attention map ¯A← flatten( ¯A/P i, j ¯A[i,j ])",
+    "source": "paper",
+    "locator": "PDF p.6, text lines 93-96"
+   }
+  ],
+  "code": [
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "line_start": 1661,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "line_start": 1588,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/flexprefill/limitations_for_tests.json",
+  "findings_sha256": "0b8539b75ec0e2d602cd64b1a21959708ae3a6d53be00202f8825d92f313c066",
+  "generated_at": "2026-11-18T12:15:50+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A1",
+  "tier_note": "the reading is unclear; probes alone do not decide it",
+  "calibrated": false,
+  "assessment": "unclear",
+  "reasoning": "The paper says normalize by the sum before flattening. The code does not explicitly divide vertical/slash by their sums, but qk is softmaxed first, so vertical already sums to 1. The claimed threshold amplification is not shown. Thus the evidence does not clearly establish the stated deviation.",
+  "hardware_needed": false,
+  "would_confirm": "Run get_active_blocks on a small input and check whether vertical/slash sum to 1 and whether gamma is scaled before score_cover_topk.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "flex_prefill/ops/flex_prefill_attention.py",
+     "lines": "1661-1779",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "flex_prefill/ops/flex_prefill_attention.py",
+     "lines": "1588-1598",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "regex": "(vertical|slash)\\s*/\\s*(vertical|slash)\\.sum\\(",
+    "expect": "absent",
+    "meaning": "No explicit sum-normalization of vertical/slash in this file.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "def score_cover_topk",
+    "hit_lines": []
+   },
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "regex": "gamma\\s*[*/]|[*/]\\s*gamma",
+    "expect": "absent",
+    "meaning": "No in-file scaling of gamma to compensate for unnormalized scores.",
+    "status": "refuted",
+    "hits": 1,
+    "control": "gamma",
+    "hit_lines": [
+     1777
+    ]
+   },
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "regex": "softmax\\(qk",
+    "expect": "present",
+    "meaning": "qk is row-normalized before vertical/slash, so vertical sums to 1.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     1703
+    ]
+   },
+   {
+    "file": "flex_prefill/ops/flex_prefill_attention.py",
+    "regex": "score_cover_topk\\((vertical|slash),\\s*gamma\\)",
+    "expect": "present",
+    "meaning": "gamma is used directly as cumulative threshold on vertical/slash.",
+    "status": "confirmed",
+    "hits": 2,
+    "hit_lines": [
+     1708,
+     1709
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

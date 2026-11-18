@@ -1,0 +1,118 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "minference-F059",
+ "artifact_id": "minference",
+ "status": "not_run",
+ "not_run": {
+  "code": "outcome_unsupported",
+  "reason": "effect type 'other': the branch has no raise in its body: the program rejects later, in code the target does not point to"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "undisclosed",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 3,
+  "summary": "When best_ty == \"block_sparse\": If block_sparse wins, it is replaced by hard-coded vertical_and_slash with best_v=1000, best_s=6096, ignoring the searched parameters. (minference/modules/minference_forward.py:194)",
+  "review": "worth_testing",
+  "review_note": "blind review by an LLM subagent (round 1), not human: The offline pattern search replaces a winning block_sparse (and stream_llm) result with vertical_and_slash 1000/6096, so searched configs can never contain those patterns.",
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "minference/modules/minference_forward.py:194",
+  "function": "minference/modules/minference_forward.py::search_pattern",
+  "condition": "best_ty == \"block_sparse\""
+ },
+ "evidence": {
+  "paper": [],
+  "code": [
+   {
+    "file": "minference/modules/minference_forward.py",
+    "line_start": 194,
+    "function": "minference/modules/minference_forward.py::search_pattern",
+    "snippet": "if best_ty == 'block_sparse':"
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/minference/limitations_for_tests.json",
+  "findings_sha256": "6f02cbec16ce4487c1b9166c2dc5f1f16704f168b135426edfe2df59ed9333bc",
+  "generated_at": "2026-11-18T17:26:42+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A1",
+  "tier_note": "the reading is unclear; probes alone do not decide it",
+  "calibrated": false,
+  "assessment": "unclear",
+  "reasoning": "The only shown code is the condition at line 194; it does not show the branch body, any assignment to vertical_and_slash, or hard-coded best_v/best_s values. No paper evidence is recorded. Static text searches could confirm whether the claimed replacement and constants exist in the same file.",
+  "hardware_needed": false,
+  "would_confirm": "A text search of minference_forward.py for the block_sparse branch assigning vertical_and_slash and setting best_v=1000/best_s=6096 would settle it.",
+  "static": {
+   "cited": 1,
+   "grounded": true,
+   "items": [
+    {
+     "file": "minference/modules/minference_forward.py",
+     "lines": "194-194",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": false,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "if best_ty == \"block_sparse\":[\\s\\S]{0,300}vertical_and_slash",
+    "expect": "present",
+    "meaning": "Hit shows block_sparse branch assigns vertical_and_slash.",
+    "status": "refuted",
+    "hits": 0,
+    "hit_lines": []
+   },
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "best_v\\s*=\\s*1000",
+    "expect": "present",
+    "meaning": "Hit shows hard-coded best_v=1000 exists.",
+    "status": "refuted",
+    "hits": 0,
+    "hit_lines": []
+   },
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "best_s\\s*=\\s*6096",
+    "expect": "present",
+    "meaning": "Hit shows hard-coded best_s=6096 exists.",
+    "status": "refuted",
+    "hits": 0,
+    "hit_lines": []
+   },
+   {
+    "file": "minference/modules/minference_forward.py",
+    "regex": "best_ty\\s*=\\s*\"vertical_and_slash\"",
+    "expect": "present",
+    "meaning": "Hit shows best_ty is assigned vertical_and_slash.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     193
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}

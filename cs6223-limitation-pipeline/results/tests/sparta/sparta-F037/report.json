@@ -1,0 +1,131 @@
+{
+ "schema_version": "checklimits-test-report/1",
+ "finding_id": "sparta-F037",
+ "artifact_id": "sparta",
+ "status": "not_run",
+ "not_run": {
+  "code": "no_code_location",
+  "reason": "no code location: a static discrepancy between the paper and the code (no executable claim): judging it needs a reference implementation of the paper's formula to compare against (differential oracle)"
+ },
+ "verdict": null,
+ "level": null,
+ "calibrated": false,
+ "confidence_label": "uncalibrated",
+ "level_note": "",
+ "verdict_reason": "",
+ "observed": {},
+ "defeaters": {},
+ "open_doubts": [],
+ "next_steps": [],
+ "finding": {
+  "category": "impl_deviates",
+  "step4_level": "L2",
+  "effect_type": "other",
+  "priority": 2,
+  "summary": "论文要求返回累积分解列表；代码无该累积返回",
+  "review": "unreviewed",
+  "review_note": null,
+  "scope_status": "unknown",
+  "witness_status": "solved",
+  "location": "sparta/transformation/transform_policy.py:56-81",
+  "function": null,
+  "condition": "len(unique_block_sizes) > 1"
+ },
+ "evidence": {
+  "paper": [
+   {
+    "quote": "return Ttrans f ormed;",
+    "source": "paper",
+    "locator": "PDF p.7"
+   }
+  ],
+  "code": [
+   {
+    "file": "sparta/transformation/transform_policy.py",
+    "line_start": 56,
+    "function": null,
+    "snippet": ""
+   },
+   {
+    "file": "sparta/transformation/weighted_block_cover.py",
+    "line_start": 104,
+    "function": null,
+    "snippet": ""
+   }
+  ]
+ },
+ "files": {},
+ "provenance": {
+  "findings_file": "results/step4/sparta/limitations_for_tests.json",
+  "findings_sha256": "af8cad7c4e91af73f84a27b96179739526bde952a669319c71cc4e157ac4b49f",
+  "generated_at": "2026-11-18T12:35:53+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A0",
+  "tier_note": "the reading and the probes disagree",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The shown code returns [(tesa,)] from transform_tesas and wbc_matmuls only accumulates wbc_matmul outputs. In the multi-block branch, wbc_matmul calls decompose_blocked_tesas but discards its result and raises. Thus no cumulative decomposition list is returned, matching the finding. The paper snippet alone is terse, but the code behavior is clear.",
+  "hardware_needed": false,
+  "would_confirm": "Run transform_tesas/wbc_matmuls on a multi-block TeSA and check whether the returned list contains all decomposed sub-tensors rather than a single tuple or an exception.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "sparta/transformation/transform_policy.py",
+     "lines": "56-81",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "sparta/transformation/weighted_block_cover.py",
+     "lines": "104-144",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "sparta/transformation/transform_policy.py",
+    "regex": "return \\[\\(tesa,\\)\\]",
+    "expect": "present",
+    "meaning": "transform_tesas returns only the original tesa, not a decomposition list.",
+    "status": "confirmed",
+    "hits": 2,
+    "hit_lines": [
+     81,
+     152
+    ]
+   },
+   {
+    "file": "sparta/transformation/weighted_block_cover.py",
+    "regex": "return decompose_blocked_tesas",
+    "expect": "absent",
+    "meaning": "The multi-block decomposition result is never returned.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "def wbc_matmuls",
+    "hit_lines": []
+   },
+   {
+    "file": "sparta/transformation/weighted_block_cover.py",
+    "regex": "decompose_blocked_tesas\\(w_tesa, chosen_blocks, unique_block_sizes\\)\\s*\\n\\s*raise",
+    "expect": "present",
+    "meaning": "Multi-block path raises instead of returning decomposed candidates.",
+    "status": "refuted",
+    "hits": 0,
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
+ }
+}
