@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -71,6 +72,18 @@ print(json.dumps(out))
 """
 
 
+GPU_ONLY = ("flash_attn", "flashinfer", "pycuda", "xformers", "apex", "vllm", "deepspeed", "bitsandbytes", "triton",
+            "cupy", "pynvml", "nvidia")
+
+
+def _gpu_only_missing(error: str) -> Optional[str]:
+    """The GPU-only package a ModuleNotFoundError names, else None."""
+    m = re.match(r"ModuleNotFoundError: No module named '([\w.]+)'", error or "")
+    if m and m.group(1).split(".")[0] in GPU_ONLY:
+        return m.group(1).split(".")[0]
+    return None
+
+
 def _module_names(art: dict[str, Any]) -> tuple[list[str], list[str]]:
     roots = [r for r in (art.get("package_roots") or [art.get("package_root")]) if r]
     mods: list[str] = []
@@ -98,6 +111,7 @@ def envcheck(artifact_id: str, data_dir: str, repo_rel: str, python: Optional[st
 
     art = json.loads((root / data_dir / "artifact.json").read_text())
     reasons: list[str] = []
+    warnings: list[str] = []
     repo = root / repo_rel
     r: dict[str, Any] = {"path": repo_rel, "exists": repo.is_dir(), "head": None, "expected": art.get("commit"),
                          "matches": False, "clean": None}
@@ -127,6 +141,13 @@ def envcheck(artifact_id: str, data_dir: str, repo_rel: str, python: Optional[st
         except (OSError, subprocess.TimeoutExpired):
             reasons.append(f"interpreter {py} does not run")
     mods, roots = _module_names(art)
+    pj = root / data_dir / "pipeline.json"          # import roots the pipeline run was configured with
+    if not roots and pj.is_file():
+        try:
+            roots = [x for x in json.loads(pj.read_text()).get("package_roots", []) if x]
+            mods = _module_names({**art, "package_roots": roots})[0]
+        except ValueError:
+            pass
     if r["exists"] and p["exists"] and not any("does not run" in x for x in reasons):
         try:
             res = subprocess.run([py, "-c", _IMPORT_PROBE, str(repo), json.dumps(roots), json.dumps(mods)],
@@ -134,10 +155,19 @@ def envcheck(artifact_id: str, data_dir: str, repo_rel: str, python: Optional[st
             imports = json.loads(res.stdout.strip().splitlines()[-1])
         except (subprocess.TimeoutExpired, ValueError, IndexError, OSError) as e:
             imports = [{"module": m, "ok": False, "error": f"import probe failed: {type(e).__name__}"} for m in mods]
+        mockable = "cpu_mock" in (art.get("execution_env") or [])
         for i in imports:
             if not i["ok"]:
-                reasons.append(f"cannot import {i['module']}: {i['error']}")
+                gpu = _gpu_only_missing(i["error"])
+                if mockable and gpu:
+                    # the artifact is declared testable with stand-ins: a missing GPU-only package is for the agent to
+                    # replace with a declared fake module (INSTRUCTIONS.md item 7), not a reason to skip the artifact
+                    i["mockable"] = gpu
+                    warnings.append(f"{i['module']} needs {gpu}, which has no CPU build: tests must stand it in")
+                else:
+                    reasons.append(f"cannot import {i['module']}: {i['error']}")
     return {"artifact_id": artifact_id, "status": "ok" if not reasons else "not_ok", "reasons": reasons,
+            "warnings": warnings,
             "repo": r, "python": p, "imports": imports, "execution_env": art.get("execution_env", [])}
 
 
