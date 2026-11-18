@@ -47,5 +47,67 @@
   "findings_file": "results/step4/qoserve/limitations_for_tests.json",
   "findings_sha256": "79eb69f6ac7117b77ebe00293d1d328dff8bfffcd7cabc7556eaae435c1699e2",
   "generated_at": "2026-11-18T00:46:02+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A1",
+  "tier_note": "the reading is unclear; probes alone do not decide it",
+  "calibrated": false,
+  "assessment": "unclear",
+  "reasoning": "The shown evidence is only the condition at line 211. It does not show the branch body, so it cannot establish that failing requests are appended to ignored_seq_ids, skipped, or that no RuntimeError is raised. Paper evidence is also absent.",
+  "hardware_needed": false,
+  "would_confirm": "Inspect the lines immediately after 211 to see whether the branch appends to ignored_seq_ids and continues without raising RuntimeError.",
+  "static": {
+   "cited": 1,
+   "grounded": true,
+   "items": [
+    {
+     "file": "sarathi/core/scheduler/deadline_scheduler.py",
+     "lines": "211-211",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": true,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "sarathi/core/scheduler/deadline_scheduler.py",
+    "regex": "ignored_seq_ids",
+    "expect": "present",
+    "meaning": "Confirms the variable exists in this file, not branch behavior.",
+    "status": "confirmed",
+    "hits": 3,
+    "hit_lines": [
+     190,
+     212,
+     350
+    ]
+   },
+   {
+    "file": "sarathi/core/scheduler/deadline_scheduler.py",
+    "regex": "if not self\\._check_request_prompt_length\\(seq\\):\\s*\\n\\s*[^\\n]*ignored_seq_ids",
+    "expect": "present",
+    "meaning": "Shows the failing-length branch immediately references ignored_seq_ids.",
+    "status": "refuted",
+    "hits": 0,
+    "hit_lines": []
+   },
+   {
+    "file": "sarathi/core/scheduler/deadline_scheduler.py",
+    "regex": "ignored_seq_ids\\.(append|add)",
+    "expect": "present",
+    "meaning": "Shows requests are added to ignored_seq_ids somewhere in the file.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     212
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
  }
 }

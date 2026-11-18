@@ -64,5 +64,73 @@
   "findings_file": "results/step4/flexposit/limitations_for_tests.json",
   "findings_sha256": "90fcaf23c2793dc03b49c54856e041483165536eff1522a25766022460b78f23",
   "generated_at": "2026-11-17T15:15:49+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A1",
+  "tier_note": "the reading is unclear; probes alone do not decide it",
+  "calibrated": false,
+  "assessment": "unclear",
+  "reasoning": "The shown RTL contains a single-PE MAC module and a cycle generator, but no cluster-level instantiation or aggregation logic. That is consistent with the finding, yet the snippets do not prove that a 4-PE cluster or 4/P throughput path is absent. The paper claim and RTL implementation cannot be reconciled from these excerpts alone.",
+  "hardware_needed": false,
+  "would_confirm": "Inspect the top-level array/cluster RTL for four parallel PE instances or a 4/P aggregate MAC rate; simulation of cluster throughput would settle it.",
+  "static": {
+   "cited": 2,
+   "grounded": true,
+   "items": [
+    {
+     "file": "hardware/rtl/systolic_efficient.v",
+     "lines": "198-240",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "rtl"
+    },
+    {
+     "file": "hardware/rtl/fp8_pe_mac_stream.v",
+     "lines": "497-621",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "rtl"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "hardware/rtl/systolic_efficient.v",
+    "regex": "\\bcluster\\b",
+    "expect": "absent",
+    "meaning": "No cluster-level construct in this file; control confirms file searched.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "cycle_gen",
+    "hit_lines": []
+   },
+   {
+    "file": "hardware/rtl/systolic_efficient.v",
+    "regex": "4\\s*/\\s*P|4/P|four[ _-]?PE|PE[ _-]?4",
+    "expect": "absent",
+    "meaning": "No explicit 4/P or four-PE cluster throughput expression.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "cycle_gen",
+    "hit_lines": []
+   },
+   {
+    "file": "hardware/rtl/fp8_pe_mac_stream.v",
+    "regex": "module\\s+fp8_pe_mac_stream",
+    "expect": "present",
+    "meaning": "Confirms shown module is a single PE MAC, not a cluster.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     497
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
  }
 }

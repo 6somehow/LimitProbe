@@ -1,0 +1,32 @@
+{
+ "assessment": "supports",
+ "reasoning": "The paper excerpt explicitly requires FP16 activations and multiply-accumulate entirely in the floating-point domain. The RTL instead instantiates an FP8 PE MAC stream with FP8 activation parameters and a pe_bfp_acc block-floating-point accumulator using an integer mantissa. The README also states the test chip moves to FP8 activations. This directly supports the claimed implementation deviation.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "hardware/README.md",
+   "regex": "FP8 activations",
+   "expect": "present",
+   "meaning": "README states test chip uses FP8 activations, unlike paper RTL."
+  },
+  {
+   "file": "hardware/rtl/fp8_pe_mac_stream.v",
+   "regex": "module\\s+fp8_pe_mac_stream",
+   "expect": "present",
+   "meaning": "RTL module is explicitly an FP8 PE MAC stream."
+  },
+  {
+   "file": "hardware/rtl/fp8_pe_mac_stream.v",
+   "regex": "module\\s+pe_bfp_acc",
+   "expect": "present",
+   "meaning": "Accumulator module is block-floating-point, not per-item float."
+  },
+  {
+   "file": "hardware/rtl/fp8_pe_mac_stream.v",
+   "regex": "ACC_MANW\\s*=\\s*12",
+   "expect": "present",
+   "meaning": "Accumulator mantissa is an integer-width parameter."
+  }
+ ],
+ "would_confirm": "Inspect the RTL datapath and accumulator implementation to verify FP8 activations and block-floating-point integer accumulation are unconditional."
+}

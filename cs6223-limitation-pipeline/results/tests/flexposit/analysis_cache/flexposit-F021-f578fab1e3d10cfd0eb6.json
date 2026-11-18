@@ -1,0 +1,26 @@
+{
+ "assessment": "supports",
+ "reasoning": "The RTL explicitly gates ship-out advancement on drain_stage_ready, which depends on out_ready, so deasserted out_ready backpressures writeout. The comment also states the stage register adds one cycle of drain fill latency. Thus the implementation is not literally stall-free at the output interface, supporting the finding.",
+ "hardware_needed": true,
+ "probes": [
+  {
+   "file": "hardware/rtl/systolic_efficient.v",
+   "regex": "drain_stage_ready\\s*=\\s*!drain_stage_valid\\s*\\|\\|\\s*out_ready",
+   "expect": "present",
+   "meaning": "Shows output handshake depends on out_ready, allowing backpressure."
+  },
+  {
+   "file": "hardware/rtl/systolic_efficient.v",
+   "regex": "Adds one cycle of drain fill latency",
+   "expect": "present",
+   "meaning": "Confirms an extra fill cycle before drain completion."
+  },
+  {
+   "file": "hardware/rtl/systolic_efficient.v",
+   "regex": "if \\(drain_stage_ready\\)",
+   "expect": "present",
+   "meaning": "FSM advances only when stage ready, indicating possible stalls."
+  }
+ ],
+ "would_confirm": "Simulate or formally check the ship-out FSM with out_ready deasserted to see whether writeout stalls and incurs fill latency."
+}

@@ -65,5 +65,96 @@
   "findings_file": "results/step4/flexposit/limitations_for_tests.json",
   "findings_sha256": "90fcaf23c2793dc03b49c54856e041483165536eff1522a25766022460b78f23",
   "generated_at": "2026-11-17T15:05:22+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A0",
+  "tier_note": "the reading and the probes disagree",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The paper says the zero flag is latched at cyc3 and held for the rest of the precision window. The RTL instead updates out_zero only inside the cycleLast branch, and the decoder comment calls it the final beat. For P>=6, cycleLast is later than cyc3, so the implementation deviates from the paper.",
+  "hardware_needed": false,
+  "would_confirm": "Simulate P>=6 and check whether out_zero changes at cyc3 or only at cycleLast.",
+  "static": {
+   "cited": 3,
+   "grounded": true,
+   "items": [
+    {
+     "file": "hardware/rtl/fp8_pe_mac_stream.v",
+     "lines": "452-490",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "rtl"
+    },
+    {
+     "file": "hardware/rtl/posit_decode_and_queue.v",
+     "lines": "136-183",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "rtl"
+    },
+    {
+     "file": "hardware/rtl/posit_decode_and_queue.v",
+     "lines": "339-359",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "rtl"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "hardware/rtl/fp8_pe_mac_stream.v",
+    "regex": "if \\(cycleLast\\) begin[\\s\\S]*?out_zero <=",
+    "expect": "present",
+    "meaning": "Zero flag is latched only on cycleLast, not fixed cyc3.",
+    "status": "refuted",
+    "hits": 0,
+    "hit_lines": []
+   },
+   {
+    "file": "hardware/rtl/fp8_pe_mac_stream.v",
+    "regex": "out_zero\\s*<=\\s*data_in\\[0\\]\\s*\\|\\s*act_is_zero",
+    "expect": "present",
+    "meaning": "Confirms zero flag source is final beat data_in.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     485
+    ]
+   },
+   {
+    "file": "hardware/rtl/posit_decode_and_queue.v",
+    "regex": "final beat explicit zero flag",
+    "expect": "present",
+    "meaning": "Decoder comment states zero flag is final beat.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     352
+    ]
+   },
+   {
+    "file": "hardware/rtl/posit_decode_and_queue.v",
+    "regex": "cycleLast",
+    "expect": "present",
+    "meaning": "Decoder uses cycleLast boundary for final beat.",
+    "status": "confirmed",
+    "hits": 7,
+    "hit_lines": [
+     27,
+     123,
+     146,
+     156,
+     175
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
  }
 }

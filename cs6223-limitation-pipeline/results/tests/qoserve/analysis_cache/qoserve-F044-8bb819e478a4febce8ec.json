@@ -1,0 +1,26 @@
+{
+ "assessment": "supports",
+ "reasoning": "The shown launch script configures pipeline and tensor parallelism as 1 and leaves replica_resource_mapping commented out. It contains no round-robin or load-balancing logic. This is consistent with the finding that multi-replica round-robin dispatch is not implemented in the cited benchmark path, though the evidence is limited to this script.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "run_exp.sh",
+   "regex": "^\\s*#.*replica_resource_mapping",
+   "expect": "present",
+   "meaning": "Replica mapping is commented out, so multi-replica launch is disabled."
+  },
+  {
+   "file": "run_exp.sh",
+   "regex": "parallel_config_(pipeline|tensor)_parallel_size\\s+1",
+   "expect": "present",
+   "meaning": "Both parallel sizes are 1, indicating a single-replica run."
+  },
+  {
+   "file": "run_exp.sh",
+   "regex": "(?i)round.?robin|load.?balanc",
+   "expect": "absent",
+   "meaning": "No round-robin or load-balancing logic appears in the launch script."
+  }
+ ],
+ "would_confirm": "Run a multi-replica benchmark and inspect dispatch logs to see whether requests are distributed round-robin across replicas."
+}

@@ -53,5 +53,84 @@
   "findings_file": "results/step4/flexposit/limitations_for_tests.json",
   "findings_sha256": "90fcaf23c2793dc03b49c54856e041483165536eff1522a25766022460b78f23",
   "generated_at": "2026-11-17T15:15:49+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The paper explicitly states FLEXPOSIT_BACKEND=qtorch routes both quantizers to qtorch_plus, and the shown code reads that env var at module level. The finding's central claim—backend selection changes the numerical implementation—is therefore supported. The exact line ranges and core.search_channels usage are not shown, but they are consistent with the quoted paper.",
+  "hardware_needed": false,
+  "would_confirm": "Inspect formats.py at the pinned commit to verify posit_quantize and float_quantize branch on _BACKEND and call qtorch_plus.",
+  "static": {
+   "cited": 1,
+   "grounded": true,
+   "items": [
+    {
+     "file": "src/flexposit/formats.py",
+     "lines": "29-29",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": false,
+     "kind": "python"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "src/flexposit/formats.py",
+    "regex": "_BACKEND\\s*=\\s*os\\.environ\\.get\\(\\s*[\"']FLEXPOSIT_BACKEND[\"']",
+    "expect": "present",
+    "meaning": "Confirms module-level env var read selecting backend.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     29
+    ]
+   },
+   {
+    "file": "src/flexposit/formats.py",
+    "regex": "qtorch_plus",
+    "expect": "present",
+    "meaning": "Shows qtorch backend implementation is referenced in this file.",
+    "status": "confirmed",
+    "hits": 8,
+    "hit_lines": [
+     3,
+     6,
+     16,
+     152,
+     153
+    ]
+   },
+   {
+    "file": "src/flexposit/formats.py",
+    "regex": "def\\s+(posit_quantize|float_quantize)\\b",
+    "expect": "present",
+    "meaning": "Confirms the two quantizer functions exist here.",
+    "status": "confirmed",
+    "hits": 2,
+    "hit_lines": [
+     148,
+     163
+    ]
+   },
+   {
+    "file": "src/flexposit/formats.py",
+    "regex": "if\\s+_BACKEND\\s*==\\s*[\"']qtorch[\"']",
+    "expect": "present",
+    "meaning": "Shows functions branch to qtorch when env var set.",
+    "status": "confirmed",
+    "hits": 2,
+    "hit_lines": [
+     157,
+     170
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
  }
 }

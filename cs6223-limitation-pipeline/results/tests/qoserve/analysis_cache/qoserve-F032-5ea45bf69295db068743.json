@@ -1,0 +1,22 @@
+{
+ "assessment": "supports",
+ "reasoning": "The shown scripts implement single-GPU runs (fig7.sh uses tensor/pipeline parallel size 1) and a four-GPU sweep over schedulers (fig10_11.sh uses GPU IDs 0-3). Neither contains a 13-GPU cluster-scale Az-Code 35 QPS experiment matching the paper's silo baseline. Thus the evidence supports the claim that the cluster-scale experiment is missing from the artifact.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "fig10_11.sh",
+   "regex": "run_gpu_sweep\\s+(?:[4-9]|1[0-2])\\b",
+   "expect": "absent",
+   "control": "run_gpu_sweep\\s+[0-3]\\b",
+   "meaning": "No sweep on GPUs 4-12; only four GPUs are used."
+  },
+  {
+   "file": "fig7.sh",
+   "regex": "parallel_config_(?:tensor|pipeline)_parallel_size\\s+[2-9]",
+   "expect": "absent",
+   "control": "parallel_config_tensor_parallel_size\\s+1",
+   "meaning": "fig7 uses single-GPU parallelism, not a multi-GPU cluster configuration."
+  }
+ ],
+ "would_confirm": "Search the full repository for any 13-GPU/Az-Code cluster launch script or config; finding none would confirm the missing experiment."
+}

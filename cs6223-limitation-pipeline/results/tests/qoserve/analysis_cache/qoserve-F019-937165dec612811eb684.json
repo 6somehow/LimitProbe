@@ -1,0 +1,22 @@
+{
+ "assessment": "supports",
+ "reasoning": "The cited config exposes only global scheduler parameters (execution_threshold, output_len_pred, hybrid_prioritization_param) and no per-request priority or QoS fields. That matches the finding that the script/config layer lacks per-request priority configuration, despite the paper claiming a request-level priority API. The evidence is limited to config.py, but the shown dataclass is the cited layer.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "sarathi/config/config.py",
+   "regex": "\\bpriority\\s*:\\s*(int|str|float|Optional\\[)",
+   "expect": "absent",
+   "control": "hybrid_prioritization_param\\s*:\\s*float",
+   "meaning": "No per-request priority field; control confirms file searched."
+  },
+  {
+   "file": "sarathi/config/config.py",
+   "regex": "\\b(ttft|tbt|ttlt)\\s*:\\s*(float|int|Optional\\[)",
+   "expect": "absent",
+   "control": "execution_threshold\\s*:\\s*float",
+   "meaning": "No per-request QoS fields; control confirms dataclass fields present."
+  }
+ ],
+ "would_confirm": "Inspect the request submission/API schema and scheduler call path for any per-request priority or QoS field."
+}

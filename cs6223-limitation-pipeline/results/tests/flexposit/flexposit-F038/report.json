@@ -53,5 +53,56 @@
   "findings_file": "results/step4/flexposit/limitations_for_tests.json",
   "findings_sha256": "90fcaf23c2793dc03b49c54856e041483165536eff1522a25766022460b78f23",
   "generated_at": "2026-11-17T15:15:49+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The cited RTL module fp8_pe_mac_stream contains one pe_fp8_compute instance and takes a bit-serial decoded beat via data_in. The paper quote explicitly requires four parallel MACs per weight. Nothing in the shown code implements four parallel MAC/weight terms, so the claimed gap is supported by the evidence.",
+  "hardware_needed": false,
+  "would_confirm": "Inspect or simulate the full RTL to count how many independent MAC products per weight are produced per cycle; four parallel products would contradict the finding.",
+  "static": {
+   "cited": 1,
+   "grounded": true,
+   "items": [
+    {
+     "file": "hardware/rtl/fp8_pe_mac_stream.v",
+     "lines": "497-621",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "rtl"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "hardware/rtl/fp8_pe_mac_stream.v",
+    "regex": "pe_fp8_compute\\s+#\\s*\\(",
+    "expect": "present",
+    "meaning": "Shows the module instantiates a single compute/MAC block.",
+    "status": "confirmed",
+    "hits": 2,
+    "hit_lines": [
+     314,
+     570
+    ]
+   },
+   {
+    "file": "hardware/rtl/fp8_pe_mac_stream.v",
+    "regex": "genvar|generate|for\\s*\\([^)]*4",
+    "expect": "absent",
+    "meaning": "No generate/loop structure for four parallel MAC instances.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "module\\s+fp8_pe_mac_stream",
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
  }
 }

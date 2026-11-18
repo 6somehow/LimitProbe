@@ -1,0 +1,32 @@
+{
+ "assessment": "supports",
+ "reasoning": "The paper says application owners can specify custom SLO targets and mentions free/paid hints, while the shown code assigns each Sequence a random tier and derives its deadline from TIER_DEADLINES. The finding's core claim that QoS tier/deadline is randomized rather than caller-supplied is directly supported by the code evidence.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "sarathi/core/datatypes/sequence.py",
+   "regex": "self\\.tier\\s*=\\s*random\\.randint\\(0,\\s*NUM_TIERS\\s*-\\s*1\\)",
+   "expect": "present",
+   "meaning": "Confirms tier is randomly assigned, not supplied by caller."
+  },
+  {
+   "file": "sarathi/core/datatypes/sequence.py",
+   "regex": "self\\.tier_deadline\\s*=\\s*TIER_DEADLINES\\[self\\.tier\\]",
+   "expect": "present",
+   "meaning": "Confirms deadline is derived from the random tier."
+  },
+  {
+   "file": "sarathi/core/datatypes/sequence.py",
+   "regex": "execution_threshold_batched",
+   "expect": "present",
+   "meaning": "Shows TBT deadline logic references tier-dependent execution threshold."
+  },
+  {
+   "file": "sarathi/core/datatypes/sequence.py",
+   "regex": "if\\s+self\\.tier\\s*>\\s*0",
+   "expect": "present",
+   "meaning": "Shows scheduling threshold selection depends on tier value."
+  }
+ ],
+ "would_confirm": "Run a small unit test constructing Sequences with NUM_TIERS>0 and verify tier/deadline vary randomly and ignore any caller SLA input."
+}

@@ -1,0 +1,32 @@
+{
+ "assessment": "supports",
+ "reasoning": "The paper says the sign term is pushed into the FIFO at cycle0. The code instead selects sign_pack for FIFO input on cycle1 and zero_pack on cycle0, and the write logic stores data_in0 on cycle1 while cycle0 stores exponent/fraction data. This directly matches the claimed deviation: sign is written at cycle1, not cycle0.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "hardware/rtl/posit_decode_and_queue.v",
+   "regex": "cycle1\\s*\\?\\s*sign_pack",
+   "expect": "present",
+   "meaning": "Shows FIFO input selects sign on cycle1, not cycle0."
+  },
+  {
+   "file": "hardware/rtl/posit_decode_and_queue.v",
+   "regex": "cycle0\\s*\\?\\s*zero_pack",
+   "expect": "present",
+   "meaning": "Shows cycle0 FIFO input is zero flag, not sign."
+  },
+  {
+   "file": "hardware/rtl/posit_decode_and_queue.v",
+   "regex": "if\\s*\\(cycle1\\s*&\\s*valid\\)",
+   "expect": "present",
+   "meaning": "Confirms sign data_in0 is written during cycle1."
+  },
+  {
+   "file": "hardware/rtl/posit_decode_and_queue.v",
+   "regex": "else if\\s*\\(cycle0\\s*&\\s*re\\)",
+   "expect": "present",
+   "meaning": "Confirms cycle0 writes exponent/fraction, not sign."
+  }
+ ],
+ "would_confirm": "Inspect or simulate the FIFO write-enable/data mapping to verify sign_pack is enqueued on cycle1 and zero_pack on cycle0."
+}

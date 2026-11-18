@@ -1,0 +1,32 @@
+{
+ "assessment": "supports",
+ "reasoning": "The shown code assigns `self.tier` via `random.randint` and derives `tier_deadline` from `TIER_DEADLINES`, matching the finding. The paper says application owners may specify custom SLO targets, so random tier assignment is a documented mismatch. The cited `_get_TBT_deadline` dependency is plausible but only partially shown; probes can confirm the tier-gated threshold.",
+ "hardware_needed": false,
+ "probes": [
+  {
+   "file": "sarathi/core/datatypes/sequence.py",
+   "regex": "random\\.randint\\(0,\\s*NUM_TIERS\\s*-\\s*1\\)",
+   "expect": "present",
+   "meaning": "Hit shows tier is randomly assigned, not caller SLA."
+  },
+  {
+   "file": "sarathi/core/datatypes/sequence.py",
+   "regex": "TIER_DEADLINES\\[self\\.tier\\]",
+   "expect": "present",
+   "meaning": "Hit shows deadline derived from random tier."
+  },
+  {
+   "file": "sarathi/core/datatypes/sequence.py",
+   "regex": "execution_threshold_batched",
+   "expect": "present",
+   "meaning": "Hit shows TBT threshold variable exists in file."
+  },
+  {
+   "file": "sarathi/core/datatypes/sequence.py",
+   "regex": "self\\.tier\\s*>\\s*0",
+   "expect": "present",
+   "meaning": "Hit shows tier condition gates scheduling-related logic."
+  }
+ ],
+ "would_confirm": "Construct a Sequence with a caller-supplied SLA and inspect whether its tier/deadline is random or caller-controlled."
+}

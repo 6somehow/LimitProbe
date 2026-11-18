@@ -53,5 +53,66 @@
   "findings_file": "results/step4/qoserve/limitations_for_tests.json",
   "findings_sha256": "79eb69f6ac7117b77ebe00293d1d328dff8bfffcd7cabc7556eaae435c1699e2",
   "generated_at": "2026-11-18T00:46:02+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The cited benchmark invocation uses a POISSON interval generator with a fixed QPS value and no time-varying rate schedule. The TRACE option only supplies request lengths. Thus the code does not construct the paper's 2.5x peak-to-trough request-rate pattern; the finding is supported.",
+  "hardware_needed": false,
+  "would_confirm": "Inspect the interval generator implementation or run the benchmark with logging to verify no 2.5x time-varying rate modulation occurs.",
+  "static": {
+   "cited": 1,
+   "grounded": true,
+   "items": [
+    {
+     "file": "fig7.sh",
+     "lines": "76-106",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "shell"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "fig7.sh",
+    "regex": "peak.?to.?trough|2\\.5\\s*[x×]",
+    "expect": "absent",
+    "meaning": "No peak-to-trough ratio construction appears in the script.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "POISSON",
+    "hit_lines": []
+   },
+   {
+    "file": "fig7.sh",
+    "regex": "interval_generator_config_type\\s+'POISSON'",
+    "expect": "present",
+    "meaning": "The request interval generator is constant-rate Poisson.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     79
+    ]
+   },
+   {
+    "file": "fig7.sh",
+    "regex": "poisson_request_interval_generator_config_qps\\s+\\$QPS",
+    "expect": "present",
+    "meaning": "Poisson rate is a single fixed QPS parameter.",
+    "status": "confirmed",
+    "hits": 1,
+    "hit_lines": [
+     80
+    ]
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
  }
 }

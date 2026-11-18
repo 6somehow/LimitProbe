@@ -65,5 +65,80 @@
   "findings_file": "results/step4/flexposit/limitations_for_tests.json",
   "findings_sha256": "90fcaf23c2793dc03b49c54856e041483165536eff1522a25766022460b78f23",
   "generated_at": "2026-11-17T15:15:49+08:00"
+ },
+ "analysis": {
+  "version": "analysis-v1",
+  "kind": "analysis_only",
+  "tier": "A2",
+  "tier_note": "the probes confirm what the Finding says",
+  "calibrated": false,
+  "assessment": "supports",
+  "reasoning": "The cited code exposes only generic channel_window/override_nsize parameters: ppl_probe defaults to 64, the regen script defaults to 256, and fisher windows use the supplied channel_window. No cited code contains a model-name check mapping Qwen to 1024. Thus the paper's Qwen-specific 1024-channel rule is absent from the shown scripts/modules.",
+  "hardware_needed": false,
+  "would_confirm": "Inspect or run the cited code with a Qwen model and verify whether channel_window becomes 1024 automatically.",
+  "static": {
+   "cited": 3,
+   "grounded": true,
+   "items": [
+    {
+     "file": "src/flexposit/sensitivity/ppl_probe.py",
+     "lines": "72-75",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "src/flexposit/sensitivity/fisher.py",
+     "lines": "60-91",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "python"
+    },
+    {
+     "file": "scripts/regen_sensitivity_ppl.sh",
+     "lines": "8-33",
+     "exists": true,
+     "in_range": true,
+     "snippet_found": null,
+     "kind": "shell"
+    }
+   ]
+  },
+  "probes": [
+   {
+    "file": "src/flexposit/sensitivity/ppl_probe.py",
+    "regex": "(?i)qwen",
+    "expect": "absent",
+    "meaning": "Miss shows no Qwen-specific handling; control confirms file searched.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "channel_window",
+    "hit_lines": []
+   },
+   {
+    "file": "scripts/regen_sensitivity_ppl.sh",
+    "regex": "(?i)qwen",
+    "expect": "absent",
+    "meaning": "Miss shows script lacks Qwen→1024 rule; control confirms search location.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "CHANNEL_WINDOW",
+    "hit_lines": []
+   },
+   {
+    "file": "src/flexposit/sensitivity/fisher.py",
+    "regex": "(?i)qwen",
+    "expect": "absent",
+    "meaning": "Miss shows fisher windows lack Qwen-specific 1024 rule; control confirms file searched.",
+    "status": "confirmed",
+    "hits": 0,
+    "control": "channel_window",
+    "hit_lines": []
+   }
+  ],
+  "model": "x-test-2",
+  "error": null
  }
 }
