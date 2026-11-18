@@ -8,6 +8,9 @@
 * **分析通道** `checklimits/analysis.py`：没测的 Finding 加 `analysis`（A0–A2，不是 verdict）。`pipeline analyze <id>`，`e2e` 默认带。QoServe 41 条：A2 32、A1 3、A0 6；FlexPosit 29 条：A2 19、A1 3、A0 7。**A2 只说"找到的文本和读法一致"**，没有人工核对。踩过的坑：推理模型会把 `max_tokens` 全用在思考上，答案为空（现在 6000，纯论文 40000，空答案重试一次）；"absent" 探针太容易满足，所以要求 `control`。
 * **纯论文** `checklimits/paper_only.py`：Tessera 10 条候选（丢弃 2 条，引用不在 PDF 里），全部 A1。不走步骤 4 的 schema，`category = paper_only:<kind>`。
 * **加速器替身** `checklimits/simcheck.py`：`MockDecl.sim_check`，harness 跑 agent 写的检查，再对破坏后的替身跑（vacuous 检测）。`disagrees` → D6 refuted。已在 FlexPrefill F07 的真实包上验证；**还没有让 agent 在一条新的 GPU Finding 上自己写 sim_check 跑完**。
+* **七篇的同一套入口结果（2026-11-18，`pipeline test`/`e2e --no-run`，agent 测试 + 分析；均未校准、未人工核对）：** FlexPrefill 65 条测 29（yes 29）；NNSmith 38 条测 22（yes 20、inconclusive 2）；InfiniGen 31 条测 19（yes 15、inconclusive 4）；MInference 73 条测 37（yes 27、inconclusive 10；L3 4）；SparTA 82 条测 2（yes 2，其余 79 条没有代码位置）；FlexPosit 41 条测 12；QoServe 50 条测 9。Tessera 是纯论文，10 条候选全 A1。
+* **这一轮修的缺口：** `provision` 对没有 `setup.py` 的仓库（InfiniGen）不装；`setup.py` 编译需要 CUDA（MInference）时装它声明的依赖并就地使用；`envcheck` 读 `data/<id>/pipeline.json` 的 package_roots，缺 GPU-only 包（如 flash_attn）且 artifact 声明 cpu_mock 时记警告而不是 `env_unavailable`；`describe_other` 遇到只有注释的片段不再崩。
+* **重跑步骤 4 不可复现：** 对已提交结果的 SparTA 重跑步骤 4 得到 100 条（已提交的是 82 条），FlexPosit 上次也变过。原因没查。所以测试已有结果用 `pipeline e2e <id> --no-run`（只测，不重跑 1–4）。
 * 规则见 `CONFIDENCE_SPEC.md` §22、§23；契约只加了可选字段 `analysis`。
 * 没做：符号执行引擎（只允许 agent 在 `sim_check` 里用 sympy/z3 自己写）；Tessera 没有代码所以没有测试，也没有算术检查被模型提出（待看）。
 
@@ -82,7 +85,7 @@ CS6223 课程项目的测试侧（Shanghao）。对研究代码的"limitation Fi
 | `PLAN.md` §11 | 决策日志（第 1 到 14 条） |
 
 文档：`CONFIDENCE_SPEC.md`（§1 到 §20，规则和每次修订）、`EXPERIMENTS.md`、`BATCH_RESULTS.md`、`NNSMITH_RESULTS.md`、`AGENT_RESULTS.md`、
-`S4B_OTHER_EFFECTS.md`、`PREFLIGHT_FLEXPOSIT.md`、`REQUESTS_TO_STEP4.md`（给 Wanting 的请求，**第 6 节还没转给她**）、`CONTRACT_TEST_REPORT.md`。
+`S4B_OTHER_EFFECTS.md`、`PREFLIGHT_FLEXPOSIT.md`、`REQUESTS_TO_STEP4.md`（已作废，不转给 Wanting，她的部分由我们自己做）、`CONTRACT_TEST_REPORT.md`。
 
 ## 4. 怎么跑
 
@@ -137,7 +140,7 @@ cd C; rm -f runs/relay.log; (set -a; . <key-dir> set +a; nohup $PY -m checklimit
 ## 7. 已知问题和注意
 
 * **D5 对机器负载敏感。** NNSmith 的 `random_model_gen` 用 `max_gen_millisec` 做时间限制，并行审计时邻点探测可能超时，D5 变 `open`，档位掉级（F035 chain-3 在 3 个并行 worker 下 L3 掉到 L1，单独跑是 L3）。只会降档，不会升档。重审时用 `--workers 1` 或 2，别和 agent 运行同时做。
-* **D14 的覆盖范围：** 入口在运行，不等于这条路径是产品真实会走的路径；调用链是静态分析的，有错的（NNSmith F034、F036 的 `override` 步骤指向从未被实例化的 `GuidedGen`；FlexPrefill F007 的守卫从入口不可能为假）。这些已写进 `REQUESTS_TO_STEP4.md` §6，**还没有转给 Wanting**。
+* **D14 的覆盖范围：** 入口在运行，不等于这条路径是产品真实会走的路径；调用链是静态分析的，有错的（NNSmith F034、F036 的 `override` 步骤指向从未被实例化的 `GuidedGen`；FlexPrefill F007 的守卫从入口不可能为假）。这些写在 `REQUESTS_TO_STEP4.md` §6；该请求已作废（Wanting 的部分由我们自己做），问题本身仍在。
 * **早期批量运行（FlexPrefill 的 b1/b2，NNSmith 的 n0/n1）当时 agent 能读 `agent_results/`**（约 24 到 27 次运行提到它）。`results/e2e/` 里的测试包是后来用隐藏之后的流程重跑过的一部分，不是全部。
 * `labels/` 基线的 q2（测试是否有效）基本是空的：审阅者没拿到 driver 源码，写了 `Unverified`（19/20）。`labels/context/Lxx.md` 已经补了 driver 全文，等人补 q2。q1（断言成立）已有：18 条 `yes` 里 16 条成立（Wilson 0.67 到 0.97）。LLM 与基线的 q1 一致率 17/18（唯一不同：flexprefill-F013，`q_len==1` 的前置条件）。
 * 档位没有校准，基准是我们自己编的故障，n 很小。别把档位写成准确率。
@@ -163,7 +166,7 @@ git push origin somehow6/check_limits
 1. ~~新论文 P = FlexPosit 的真正冷启动~~ 已完成（见 §0）。**原来的描述：**：等 Wanting 和 Zhaopeng 产出 `data/flexposit/` 和 `results/step4/flexposit/`（W4、Z4）。到手后：
    `python -m pipeline test flexposit --run-agent`。环境部分已备好：`PREFLIGHT_FLEXPOSIT.md`（pinned commit `e42a2191a72c…`，60 个仓库测试通过，无人工步骤），`test --provision` 能自动建 venv。
    注意 `pipeline test` 还没有透传 `--provision`，需要 Wanting 加（`CONTRACT_TEST_REPORT.md` 已写）。冷启动之前，"新论文端到端"只有各段分别验证过，没有整体验证过。
-2. **把 `REQUESTS_TO_STEP4.md` 转给 Wanting**（尤其 §6：`override` 指向未实例化的类、列表长度类守卫求解器看不出不可行、裸 `raise` 的约定）。
+2. ~~把 `REQUESTS_TO_STEP4.md` 转给 Wanting~~ 已作废，不再转（原要点：§6：`override` 指向未实例化的类、列表长度类守卫求解器看不出不可行、裸 `raise` 的约定）。
 3. **标注：** 补基线的 q2（用 `labels/context/`），然后 `labels evaluate`。想要更有意义的数字就扩大样本（`labels sample --n 40 --out labels40`，是一批新的抽样，不保证包含现在这 20 条；规则改了之后对旧的 key 用 `labels refresh-key`）。LLM 第一遍用 `labels llm`（见 §4，需要 `--key-file`）。
 4. D5 的负载敏感：可以考虑给探测加重试，或在 `reaudit`/`test` 里默认降低并行度。
 5. S4a（论文侧 Finding 按分支或异常测）依赖 Zhaopeng 的 Z3（可测性提示）；S4b 已决定不做（`S4B_OTHER_EFFECTS.md`）。
