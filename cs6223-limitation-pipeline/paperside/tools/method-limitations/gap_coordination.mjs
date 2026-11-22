@@ -6,7 +6,26 @@ function parse(text) {
   try { return JSON.parse(clean); } catch { return null; }
 }
 
+async function reviewFrozenDraft(config, emit, {id, task, resumePhase, startWorker}) {
+  const packet = JSON.stringify(config.draft);
+  const review = task + '\n\nPHASE: frozen draft evidence check\n' + config.verification + '\n\n' + packet;
+  if (id !== 'root') {
+    return resumePhase(review, config.verificationTurns);
+  }
+  const reviewer = config.mode === 'delegate' ? 'root.1' : 'root';
+  const answer = reviewer === 'root'
+    ? await resumePhase(review, config.verificationTurns)
+    : await startWorker(reviewer);
+  await emit('frozen_draft_review_received', {agent:id, reviewer, draft_sha256:config.draftSha256, answer});
+  const final = 'PHASE: frozen draft final synthesis\n' + config.final + '\n\n' +
+    JSON.stringify({draft:config.draft, review:answer, draft_sha256:config.draftSha256});
+  return resumePhase((reviewer === 'root' ? '' : task+'\n\n') + final, config.finalTurns);
+}
+
 export function gapWorkflow(config, emit) {
+  if (config.draft) {
+    return context => reviewFrozenDraft(config, emit, context);
+  }
   const slots = config.routes.map((route, index) => {
     let report, assign;
     const reported = new Promise(resolve => { report = resolve; });

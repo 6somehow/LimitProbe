@@ -49,3 +49,16 @@ Grade each complete report as core, partial, or miss against one retained record
 Additional indicators include source and paper citation traceability, test-design readiness, complete-report rate, and actual calls and tokens. Proposed tests are assessed for a controlled comparison and an oracle. The study never treats hypothetical tests as executed coverage.
 
 For D, each completed cell in `mapping.json` records how many candidate items a worker returned, how many passed parsing, how many appeared in the archived final request, and how many retained IDs were referenced in the final report. A missing raw count means the worker response could not be counted as a structured list. The verification receipt is checked against the actual final request. These fields measure evidence delivery and attribution. Semantic matching is graded separately.
+
+## Compare self-review with delegated evidence checks
+
+The Dev-only targeted review pilot runs one lead session per paper. The lead follows method rules into their consumers and identifies one unanswered evidence question. Its exact report is shared by both arms. In self-review, the root investigates and writes the final. In delegated review, a separate Pi session investigates and sends its memo to the root. The original inputs, model, evidence question and maximum review and final reply counts match. Self-review retains its own tool history. The delegated root gets the exact memo and can reopen original evidence.
+
+```sh
+.venv/bin/python tools/method-limitations/targeted_review.py prepare runs/targeted-dev --swarm-source /path/to/AgentSwarm-Serve
+.venv/bin/python tools/method-limitations/targeted_review.py run runs/targeted-dev
+.venv/bin/python tools/method-limitations/swarm_evaluation.py packet runs/targeted-dev /path/to/review-packet /path/to/reference.json --split dev
+.venv/bin/python tools/method-limitations/swarm_evaluation.py summarize /path/to/review-packet /path/to/grades /path/to/targeted-dev-metrics.json
+```
+
+Compare the frozen drafts with the two finals to measure the effect of checking original evidence. Compare the two finals directly to measure the effect of delegation. `pair-audit.json` verifies that each final request received the exact frozen draft and review memo. Semantic scores, source citations and test-ready comparisons are evaluated separately. This pilot can inform a new D configuration for the A/B/C/D comparison.
