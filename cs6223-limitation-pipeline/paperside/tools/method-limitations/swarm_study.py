@@ -63,6 +63,43 @@ brief disposition decisions for routed items. Use independent candidates and the
 result as leads. Retain distinct evidence-backed diagnoses across different procedures when available; a checked candidate does not automatically displace a distinct one. Keep the rule, trigger, mitigation and downstream outcome together in one record. An unanswered link must remain conditional."""
 
 
+MECHANISM_ROUTES = (
+    """Start from the two mechanisms critical to the claimed benefit. For each, map what the
+mechanism preserves or measures, and what it discards or takes as invariant. Independently
+vary the structure, distribution, or representation of an input at the same admissibility and
+resource budget. Determine the first step where otherwise comparable cases diverge.
+Prefer a failure of the implemented method idea over an absent optional feature.""",
+    """Start from the two algorithm decisions that most directly control results. Audit a
+return, a fixed-size selection, or a shared state decision in its source call path where
+applicable. For each rule construct two hypothetical valid cases under the same configuration
+and resource budget and trace what the caller would process. For deployment assumptions,
+check what changes across valid configurations and whether project code or evidence covers it.
+Treat an unresolved implementation discrepancy as a separate diagnosis.""",
+)
+MECHANISM_DISCOVERY = """Return a compact JSON object {procedures, candidates}. Identify precise
+selection/acceptance/representation rules. For each procedure record rule, stop, guarantee,
+open, and provenance. Before emitting a candidate, propose two comparable cases, with fields
+case_a, case_b, fixed, study_metric. If you cannot justify the claimed difference, mark it
+conditional and identify a possible refutation. Explain what an existing mitigation does on
+both cases. Output up to four diverse method hypotheses for the central algorithm. All candidates
+must have rule, trigger, mitigation, consequence. Use paper_evidence and code_evidence for
+actual references. Do not use a missing test or unsupported configuration by itself to infer
+a diagnosis. Keep the report under 4300 characters."""
+MECHANISM_ROUTING = """Compare the independent procedure maps and candidate pairs. Prioritize a
+method assumption on the direct path from an algorithm rule to the paper objective. Ask for
+one specific adjudication of which of two controlled cases would behave differently and why.
+A frozen procedure can be chosen even if its implication was missed by both workers.
+Return only {candidate_id, link, question}, choosing a supplied ID and link from
+rule|trigger|mitigation|consequence. Return {} when a check cannot change the answer."""
+MECHANISM_FINAL = """Finalize one valid JSON report. Prioritize testable causal limitations on the
+method's principal result. For each retained hypothesis integrate the rule, paired cases,
+applicable trigger, actual mitigation, downstream consequence, and refutation in one record.
+Do not convert missing implementation or weak evidence into a general method limitation.
+Preserve a separately evidenced unreviewed item if it addresses a distinct mechanism.
+Keep exact original evidence and origin_ids. Use up to three candidates and three boundaries.
+"""
+
+
 def freeze_runtime(output, swarm_source=None):
     if swarm_source:
         prepare_runtime(swarm_source,output,PIN)
@@ -135,7 +172,7 @@ def freeze_runtime(output, swarm_source=None):
     path.write_text(code)
 
 
-def freeze_study(output, previous_runs, swarm_source=None):
+def freeze_study(output, previous_runs, swarm_source=None, policy="original"):
     output.mkdir(parents=True, exist_ok=False)
     dev = previous_runs/'method-boundary-fixed-draft-v2-teams'
     test = previous_runs/'method-boundary-fixed-draft-v2-grounded'
@@ -166,7 +203,8 @@ def freeze_study(output, previous_runs, swarm_source=None):
                           'worker':'Produce a short evidence report for the parent. Do not write the final report.'}.items():
         (common/f'{name}.txt').write_text(content)
     dump(output/'protocol.json', {
-        'version':'cs6223-evidence-gap/6', 'split':{'dev':DEV, 'test':TEST}, 'conditions':CONDITIONS,
+        'version':'cs6223-evidence-gap/7' if policy=='mechanism' else 'cs6223-evidence-gap/6',
+        'discovery_policy':policy, 'split':{'dev':DEV, 'test':TEST}, 'conditions':CONDITIONS,
         'reasoning_effort':'max', 'thinking':{'type':'enabled'}, 'model_alias':'x-test-2', 'expected_backend':BACKEND,
         'max_http_requests_per_cell':10, 'max_output_tokens':32768,
         'max_actual_returned_tokens_per_cell':750000, 'closing_reserve_tokens':0,
@@ -227,6 +265,10 @@ class StudyCell(StreamingCell):
             config['gapReview'] = dict(routes=ROUTES, discovery=DISCOVERY, routing=ROUTING,
                                        verification=VERIFY, final=FINAL, verificationTurns=2,
                                        coordinatorTask=TASK+'\nPaper ID: '+self.aid)
+            if self.protocol.get('discovery_policy')=='mechanism':
+                config['gapReview'].update(routes=MECHANISM_ROUTES, discovery=MECHANISM_DISCOVERY,
+                                           routing=MECHANISM_ROUTING, final=MECHANISM_FINAL,
+                                           candidateLimit=4)
         return config
 
     def http(self, payload, n):
@@ -288,13 +330,14 @@ if __name__ == '__main__':
     parser.add_argument('root',type=Path)
     parser.add_argument('--previous-runs',type=Path)
     parser.add_argument('--swarm-source',type=Path)
+    parser.add_argument('--policy',choices=('original','mechanism'),default='original')
     parser.add_argument('--split',choices=('dev','test'),default='dev')
     parser.add_argument('--papers',nargs='+')
     parser.add_argument('--conditions',nargs='+',choices=CONDITIONS)
     args=parser.parse_args()
     root=args.root.resolve()
     if args.action=='prepare':
-        freeze_study(root,args.previous_runs.resolve(),args.swarm_source)
+        freeze_study(root,args.previous_runs.resolve(),args.swarm_source,args.policy)
     else:
         with (root/'.runner.lock').open('a') as lock:
             fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
