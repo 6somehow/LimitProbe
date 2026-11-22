@@ -23,10 +23,16 @@ class GapProtocol(unittest.TestCase):
                                         if m['role']=='user' and isinstance(m['content'],str))
                     last_phase = content.rpartition('PHASE: ')[2]
                     if last_phase.startswith('frozen draft final synthesis'):
+                        if 'Rank candidates by how directly' not in last_phase:
+                            raise AssertionError('Final writer missed the frozen method-path prompt')
                         answer = paper | {'review_disposition':'narrowed'}
                     elif last_phase.startswith('frozen draft evidence check'):
+                        if 'first_divergence' not in last_phase:
+                            raise AssertionError('Reviewer missed the frozen method-path prompt')
                         answer = dict(verdict='fixture memo')
                     else:
+                        if 'ordinary successful run' not in last_phase:
+                            raise AssertionError('Lead missed the frozen method-path prompt')
                         answer = paper | {'review_target':dict(anchor='Fixture paper page 4',
                                                                question='Which function consumes this output?')}
                     response = dict(model=BACKEND,choices=[dict(finish_reason='stop',
