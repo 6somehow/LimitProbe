@@ -8,7 +8,7 @@ import unittest
 from unittest.mock import patch
 
 import pilot
-from swarm_evaluation import select_dev_method, source_evidence, summarize
+from swarm_evaluation import final_response, select_dev_method, source_evidence, summarize
 from swarm_study import BACKEND, CONDITIONS, DEV, StudyCell, freeze_study, run
 
 
@@ -110,6 +110,18 @@ class GapProtocol(unittest.TestCase):
 
 
 class Scoring(unittest.TestCase):
+    def test_summary_after_final_does_not_replace_final_provenance(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            answer = root/'final.txt'
+            answer.write_text('final report')
+            pilot.dump(root/'request-map.json',[{'request':1,'agent':'root'},
+                                                {'request':2,'agent':'root'}])
+            for number,text in enumerate(('final report','compaction summary'),1):
+                pilot.dump(root/f'response-{number:02}.json',{'model':BACKEND,
+                    'choices':[{'finish_reason':'stop','message':{'content':text}}]})
+            self.assertEqual(final_response(root,{'requests':2,'returncode':0},answer),1)
+
     def test_failed_reports_are_not_false_diagnoses(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

@@ -40,18 +40,23 @@ def import_reference(source, output):
 
 
 def final_response(cell, summary, raw):
-    if not raw.is_file():
-        return False
-    if summary.get('status') not in (None,'final_received') or summary.get('returncode',0) != 0:
-        return False
-    requests = summary['requests']
-    provider = cell/f'response-{requests:02}.json'
-    if not provider.is_file():
-        return False
-    response = load(provider)
-    final = response['choices'][0]
-    return (response.get('model') == BACKEND and final['finish_reason'] == 'stop'
-            and final['message'].get('content','').encode() == raw.read_bytes())
+    if not raw.is_file() or summary.get('status') not in (None,'final_received'):
+        return None
+    if summary.get('returncode',0) != 0:
+        return None
+    request_map = cell/'request-map.json'
+    ids = [row['request'] for row in load(request_map) if row['agent']=='root'] if request_map.exists() else [1]
+    final = raw.read_bytes()
+    for number in reversed(ids):
+        provider = cell/f'response-{number:02}.json'
+        if not provider.is_file():
+            continue
+        response = load(provider)
+        choice = response['choices'][0]
+        if (response.get('model')==BACKEND and choice['finish_reason']=='stop'
+            and choice['message'].get('content','').encode()==final):
+            return number
+    return None
 
 
 def source_evidence(folder, cell):
@@ -91,7 +96,7 @@ def source_evidence(folder, cell):
     return span_by_path
 
 
-def gap_trace(cell, records):
+def gap_trace(cell, records, final_request):
     events = [json.loads(line) for line in (cell/'event.jsonl').read_text().splitlines()]
     discoveries = [e for e in events if e['kind']=='gap_discovery_frozen']
     routes = [e for e in events if e['kind']=='gap_route_selected']
@@ -126,8 +131,7 @@ def gap_trace(cell, records):
         if not any(e['agent']==author and any(row.get('id')==candidate for row in e['candidates'] + e.get('procedures',[]))
                    for e in discoveries):
             raise ValueError('Cross-check candidate was not produced during independent discovery')
-        summary = load(cell/'summary.json')
-        messages = load(cell/f"request-{summary['requests']:02}.json")['messages']
+        messages = load(cell/f'request-{final_request:02}.json')['messages']
         result['cross_check_in_final_request'] = any(
             m.get('role')=='user' and isinstance(m.get('content'),str)
             and 'PHASE: final synthesis' in m['content'] and json.dumps(
@@ -160,7 +164,8 @@ def packet(root, split, output, reference):
             raw = cell/'final.txt'
             status.update(state='failed',requests=report['requests'],
                           tokens=report.get('actual_returned_total_tokens',report.get('usage',{}).get('total_tokens')))
-            if not final_response(cell, report, raw):
+            final_request = final_response(cell, report, raw)
+            if final_request is None:
                 continue
             try:
                 answer,_ = unpack(raw.read_text())
@@ -192,9 +197,9 @@ def packet(root, split, output, reference):
                 }
             digest = sha(raw.read_bytes())
             ident = sha(f'{root.name}:{paper}:{condition}:{digest}'.encode())[:14]
-            status.update(state='complete',report_id=ident,final_sha256=digest)
+            status.update(state='complete',report_id=ident,final_sha256=digest,final_request=final_request)
             if condition == 'evidence_gap_swarm':
-                status['coordination'] = gap_trace(cell, records)
+                status['coordination'] = gap_trace(cell, records, final_request)
             cleaned = [{k:v for k,v in record.items() if k not in ('origin_ids','disposition')} for record in records]
             dump(output/f'{ident}.json',{'report_id':ident,'final_sha256':digest,'reference':refs[paper],
                                          'records':cleaned,'mechanical_evidence':audit,

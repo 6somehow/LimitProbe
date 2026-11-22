@@ -21,14 +21,16 @@ python3 -m venv .venv
 npm ci --prefix tools/method-limitations --ignore-scripts
 .venv/bin/python tools/method-limitations/prepare_study_inputs.py runs/study-originals
 .venv/bin/python tools/method-limitations/swarm_study.py prepare runs/study-dev \
-  --previous-runs runs/study-originals --swarm-source /path/to/sglang-swarm
+  --previous-runs runs/study-originals --swarm-source /path/to/sglang-swarm --policy mechanism
 .venv/bin/python tools/method-limitations/swarm_study.py run runs/study-dev \
   --split dev --conditions evidence_gap_swarm plain_swarm api_once single_agent
 ```
 
-The input builder checks publisher PDF hashes, author commits, and exact excerpt hashes. If a download is interrupted, use `--resume` to reuse the inputs already verified. The runtime is rebuilt from AgentSwarm-Serve commit `6e46093badbbc109c5be7296c24fe2f09efb00ae`. The runner reads `SOCLAAS_API_KEY` and optional `SOCLAAS_BASE_URL` from `~/.config/soclaas/soclaas.env`. Each run directory archives the exact inputs, model requests, responses, source reads and usage. Store these outputs outside version control.
+The input builder checks publisher PDF hashes, author commits, and exact excerpt hashes. If a download is interrupted, use `--resume` to reuse the inputs already verified. The runtime is rebuilt from AgentSwarm-Serve commit `6e46093badbbc109c5be7296c24fe2f09efb00ae`. The renderer and extractor can differ across library versions, so use the frozen paper text and page images to replay an existing run exactly. The runner reads `SOCLAAS_API_KEY` and optional `SOCLAAS_BASE_URL` from `~/.config/soclaas/soclaas.env`. Each run directory archives the exact inputs, model requests, responses, source reads and usage. Store these outputs outside version control.
 
 When a Pi session grows, Pi automatically checks its context between turns and can continue with a summary and recent messages. B, C and D share this policy and have up to eight task replies plus two native summary requests per condition. The experiment uses a local 131,072-token window, a 40,960-token reserve, and a 32,768-token task output cap. The separate summary cap is at most 12,288. These values are frozen alongside each run.
+
+The `mechanism` policy gives D a controlled-pair discovery task. Each worker proposes comparable valid cases, fixes the relevant configuration or budget, and traces where their behavior diverges. B and C keep their original workflow. Dev changes never add individual reference answers to any generation prompt.
 
 ## Evaluate and select a method
 

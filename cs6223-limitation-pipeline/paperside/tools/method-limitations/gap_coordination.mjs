@@ -27,12 +27,13 @@ export function gapWorkflow(config, emit) {
               item && typeof item==='object' && !Array.isArray(item)
                 ? [{...item,id:id+'#P'+(index+1)}] : []) : [];
         if (Array.isArray(records)) {
-          candidates = records.slice(0, 3).flatMap((item, index) =>
+          candidates = records.slice(0, config.candidateLimit ?? 3).flatMap((item, index) =>
             item && ['rule','trigger','mitigation','consequence'].every(key => typeof item[key] === 'string')
               ? [{id:id+'#'+(index+1),
                   ...Object.fromEntries([
                     'title', 'rule', 'trigger', 'mitigation', 'consequence', 'evidence',
                     'paper_evidence', 'code_evidence', 'counterevidence', 'minimal_comparison',
+                    'case_a', 'case_b', 'fixed', 'study_metric',
                   ].filter(key => item[key] != null).map(key => [key,item[key]])),
                 }] : []);
         }
