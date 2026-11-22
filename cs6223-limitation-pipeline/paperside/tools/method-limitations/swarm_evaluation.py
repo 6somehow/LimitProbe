@@ -191,16 +191,21 @@ def packet(root, split, output, reference):
     output.mkdir(parents=True,exist_ok=True)
     refs = {row['slug']:row for row in load(reference)['cases']}
     protocol = load(root/'protocol.json')
+    targeted = protocol.get('version')=='cs6223-targeted-review/1'
+    conditions = tuple(protocol['conditions']) if targeted else CONDITIONS
+    pair_audit = load(root/'pair-audit.json') if targeted and (root/'pair-audit.json').is_file() else {}
     statuses = []
     for case,paper in protocol['split'][split].items():
         folder = root/paper
         pages = {p['page']:norm(p['text']) for p in load(folder/'paper.json')}
-        for condition in CONDITIONS:
+        for condition in conditions:
             cell = folder/condition
             summary = cell/'summary.json'
             status = dict(case=case,paper=paper,condition=condition,state='pending')
             statuses.append(status)
             if not summary.is_file():
+                if pair_audit.get(paper,{}).get('state')=='blocked_by_draft':
+                    status.update(state='failed', reason='blocked_by_draft')
                 continue
             report = load(summary)
             raw = cell/'final.txt'
@@ -249,7 +254,10 @@ def packet(root, split, output, reference):
                                                           'reason':'why the single record matches or misses',
                                                           'test_ready_ids':'list of IDs with an actionable controlled comparison and oracle',
                                                           'supported_ids':'list of IDs whose evidence supports the scoped claim, as a hypothesis if applicable'}})
-    dump(output/'mapping.json', {'run':str(root),'split':split,'cells':statuses})
+    mapping = {'run':str(root),'split':split,'cells':statuses}
+    if targeted:
+        mapping['targeted_review_conditions'] = list(conditions)
+    dump(output/'mapping.json',mapping)
     return statuses
 
 
@@ -273,7 +281,8 @@ def summarize(review_dir, grades_dir):
         outcomes[ident] = (g,row)
 
     metrics = {}
-    for condition in CONDITIONS:
+    targeted = results.get('targeted_review_conditions')
+    for condition in targeted or CONDITIONS:
         cells = [c for c in results['cells'] if c['condition']==condition]
         scored = [outcomes[c['report_id']] for c in cells if c.get('report_id') in outcomes]
         core = sum(g['match']=='core' for g,_ in scored)
@@ -297,19 +306,24 @@ def summarize(review_dir, grades_dir):
     paired = {}
     scored_by = {(c['case'],c['condition']):MATCHES[outcomes[c['report_id']][0]['match']]
                  for c in results['cells'] if c.get('report_id') in outcomes}
-    for mode in CONDITIONS[:-1]:
-        rows = [(case,scored_by[case,mode],scored_by[case,CONDITIONS[-1]])
+    challenger = 'delegated_review' if targeted else CONDITIONS[-1]
+    comparisons = ('frozen_draft','self_review') if targeted else CONDITIONS[:-1]
+    wins_key, losses_key = ('delegated_wins','delegated_losses') if targeted else ('D_wins','D_losses')
+    for mode in comparisons:
+        rows = [(case,scored_by[case,mode],scored_by[case,challenger])
                 for case in sorted({c['case'] for c in results['cells']})
-                if (case,mode) in scored_by and (case,CONDITIONS[-1]) in scored_by]
-        paired[mode] = {'n':len(rows),'D_wins':sum(b>a for _,a,b in rows),
-                        'ties':sum(a==b for _,a,b in rows),'D_losses':sum(b<a for _,a,b in rows),'rows':rows}
+                if (case,mode) in scored_by and (case,challenger) in scored_by]
+        paired[mode] = {'n':len(rows),wins_key:sum(b>a for _,a,b in rows),
+                        'ties':sum(a==b for _,a,b in rows),losses_key:sum(b<a for _,a,b in rows),'rows':rows}
+    if targeted:
+        return {'split':results['split'],'conditions':metrics,'delegated_paired_against':paired}
     return {'split':results['split'],'conditions':metrics,'D_paired_against':paired}
 
 
 def select_dev_method(review_dir, grades_dir):
     metrics = summarize(review_dir, grades_dir)
     mapping = load(review_dir/'mapping.json')
-    if mapping['split'] != 'dev':
+    if mapping['split'] != 'dev' or mapping.get('targeted_review_conditions'):
         raise ValueError('Method selection uses Dev only')
     scores = {}
     for row in mapping['cells']:

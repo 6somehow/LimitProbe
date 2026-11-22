@@ -10,9 +10,53 @@ from unittest.mock import patch
 import pilot
 from swarm_evaluation import final_response, gap_trace, select_dev_method, source_evidence, summarize
 from swarm_study import BACKEND, CONDITIONS, DEV, StudyCell, freeze_study, run
+from targeted_review import MODES, TargetedCell, audit_receipt, frozen_draft, prepare as prepare_review
 
 
 class GapProtocol(unittest.TestCase):
+    def test_targeted_review_preserves_exact_draft_and_memo_in_both_arms(self):
+        async def exercise(root):
+            class Fake(TargetedCell):
+                def http(self, wire, number):
+                    paper = dict(paper_id='nnsmith',target_execution='not_run',candidates=[],known_boundaries=[])
+                    content = '\n'.join(m['content'] for m in wire['messages']
+                                        if m['role']=='user' and isinstance(m['content'],str))
+                    last_phase = content.rpartition('PHASE: ')[2]
+                    if last_phase.startswith('frozen draft final synthesis'):
+                        answer = paper | {'review_disposition':'narrowed'}
+                    elif last_phase.startswith('frozen draft evidence check'):
+                        answer = dict(verdict='fixture memo')
+                    else:
+                        answer = paper | {'review_target':dict(anchor='Fixture paper page 4',
+                                                               question='Which function consumes this output?')}
+                    response = dict(model=BACKEND,choices=[dict(finish_reason='stop',
+                                    message=dict(role='assistant',content=json.dumps(answer)))])
+                    pilot.dump(self.out/f'request-{number:02}.json',wire)
+                    pilot.dump(self.out/f'response-{number:02}.json',response)
+                    return response
+
+            sem = asyncio.Semaphore(2)
+            with patch.object(pilot,'secret_env',return_value={'SOCLAAS_API_KEY':'fixture'}):
+                lead = Fake(root,'nnsmith','frozen_draft',sem)
+                await lead.run()
+                draft = frozen_draft(lead.out)
+                self.assertIsNotNone(draft)
+                for mode, reviewer in zip(MODES,('root','root.1')):
+                    stage = Fake(root,'nnsmith',mode,sem,draft)
+                    await stage.run()
+                    receipt = audit_receipt(stage.out,draft)
+                    self.assertEqual(receipt['reviewer'],reviewer)
+                    self.assertEqual(receipt['state'],'complete')
+                    self.assertEqual(receipt['draft_sha256'],draft[1])
+                    self.assertEqual(receipt['requests'],2)
+
+        with tempfile.TemporaryDirectory() as work:
+            root = Path(work)/'review'
+            inputs = Path(os.environ.get('CS6223_STUDY_INPUTS',pilot.MODULE/'runs'))
+            source = os.environ.get('CS6223_SWARM_SOURCE')
+            prepare_review(root,inputs,Path(source) if source else None)
+            asyncio.run(exercise(root))
+
     def test_standalone_agent_has_final_writer_role(self):
         async def execute(root):
             class Fake(StudyCell):
@@ -143,6 +187,26 @@ class GapProtocol(unittest.TestCase):
 
 
 class Scoring(unittest.TestCase):
+    def test_targeted_comparison_keeps_draft_separate_from_self_review(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            grades = root/'grades'
+            grades.mkdir()
+            conditions = ('frozen_draft',*MODES)
+            cells = []
+            for i, (condition, match) in enumerate(zip(conditions,('miss','partial','core'))):
+                ident = f'report-{i}'
+                cells.append(dict(case='01',condition=condition,state='complete',report_id=ident,final_sha256=ident))
+                pilot.dump(root/f'{ident}.json',dict(records=[{'id':'H1'}],mechanical_evidence={}))
+                pilot.dump(grades/f'{ident}.json',dict(final_sha256=ident,match=match,
+                                                       record_id='H1',reason='fixture grade'))
+            pilot.dump(root/'mapping.json',dict(split='dev',cells=cells,targeted_review_conditions=conditions))
+            result = summarize(root,grades)['delegated_paired_against']
+            self.assertEqual(result['frozen_draft']['rows'],[('01',0,2)])
+            self.assertEqual(result['self_review']['rows'],[('01',1,2)])
+            with self.assertRaises(ValueError):
+                select_dev_method(root,grades)
+
     def test_summary_after_final_does_not_replace_final_provenance(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
