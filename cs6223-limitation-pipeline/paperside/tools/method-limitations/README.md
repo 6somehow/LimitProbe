@@ -30,7 +30,7 @@ The input builder checks publisher PDF hashes, author commits, and exact excerpt
 
 When a Pi session grows, Pi automatically checks its context between turns and can continue with a summary and recent messages. B, C and D share this policy and have up to eight task replies plus two native summary requests per condition. The experiment uses a local 131,072-token window, a 40,960-token reserve, and a 32,768-token task output cap. The separate summary cap is at most 12,288. These values are frozen alongside each run.
 
-The `mechanism` policy gives D a controlled-pair discovery task. Each worker proposes comparable valid cases, fixes the relevant configuration or budget, and traces where their behavior diverges. B and C keep their original workflow. Dev changes never add individual reference answers to any generation prompt.
+The `mechanism` policy gives D a controlled-pair discovery task. Each worker proposes comparable valid cases, fixes the relevant configuration or budget, and traces where their behavior diverges. B and C keep their original workflow. The optional `stress` policy assigns explicit acceptance/coverage, structure, representation, and sharing lenses to the two workers. It uses a separate worker system prompt and archives the invariant and contrasted cases. Both policies are experimental. Dev changes never add individual reference answers to any generation prompt.
 
 ## Evaluate and select a method
 
