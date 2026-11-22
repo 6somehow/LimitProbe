@@ -2,7 +2,6 @@
 import argparse
 from pathlib import Path
 import subprocess
-import urllib.request
 
 from corpus_ledger import load
 from pilot import HERE, dump, sha
@@ -11,12 +10,12 @@ from swarm_study import DEV, TEST
 PAPER_ONLY = ('onesidedmw','cxlfork','juneberry','twilight-tlite')
 
 
-def prepare(output):
+def prepare(output, resume=False):
     import pymupdf
     from pypdf import PdfReader
 
     assets = load(HERE/'study-corpus.json')
-    output.mkdir(parents=True,exist_ok=False)
+    output.mkdir(parents=True,exist_ok=resume)
     for branch, ids in (
         ('method-boundary-fixed-draft-v2-teams', [*DEV.values(), *PAPER_ONLY]),
         ('method-boundary-fixed-draft-v2-grounded', list(TEST.values())),
@@ -25,16 +24,21 @@ def prepare(output):
         frozen = []
         for paper in ids:
             folder = root/paper
-            folder.mkdir(parents=True)
+            folder.mkdir(parents=True,exist_ok=resume)
             meta = assets[paper]
-            with urllib.request.urlopen(meta['pdf_url'],timeout=120) as response:
-                blob = response.read()
-            if sha(blob)!=meta['pdf_sha256']:
-                raise ValueError(f'Publisher PDF hash differs for {paper}')
             pdf = folder/'original.pdf'
-            pdf.write_bytes(blob)
+            if not pdf.exists():
+                temporary = pdf.with_suffix('.download')
+                subprocess.run(['curl','--fail','--location','--silent','--show-error',
+                                '--max-time','120','--retry','2','--output',str(temporary),
+                                meta['pdf_url']],check=True,timeout=380)
+                if sha(temporary.read_bytes())!=meta['pdf_sha256']:
+                    raise ValueError(f'Publisher PDF hash differs for {paper}')
+                temporary.replace(pdf)
+            if sha(pdf.read_bytes())!=meta['pdf_sha256']:
+                raise ValueError(f'Publisher PDF hash differs for {paper}')
             images = folder/'images'
-            images.mkdir()
+            images.mkdir(exist_ok=resume)
             pages = []
             with pymupdf.open(pdf) as document:
                 for i,page in enumerate(PdfReader(pdf).pages,1):
@@ -47,9 +51,12 @@ def prepare(output):
             repo = None
             if commit:
                 repo = folder/'repo.git'
-                subprocess.run(['git','init','--bare','-q',str(repo)],check=True,timeout=30)
+                if not repo.exists():
+                    subprocess.run(['git','init','--bare','-q',str(repo)],check=True,timeout=30)
                 git = ['git','-C',str(repo)]
-                subprocess.run([*git,'fetch','--depth=1','--no-tags',meta['repo_url'],commit],check=True,timeout=250)
+                if subprocess.run([*git,'cat-file','-e',f'{commit}^{{commit}}'],timeout=30,
+                                  stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode:
+                    subprocess.run([*git,'fetch','--depth=1','--no-tags',meta['repo_url'],commit],check=True,timeout=250)
                 sections = []
                 for ref in meta['literature_study_source_spans']:
                     path,end = ref['path'],ref['end']
@@ -73,5 +80,6 @@ def prepare(output):
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('output',type=Path)
+    parser.add_argument('--resume',action='store_true')
     args=parser.parse_args()
-    prepare(args.output.resolve())
+    prepare(args.output.resolve(),args.resume)
