@@ -14,6 +14,50 @@ from targeted_review import MODES, TargetedCell, audit_receipt, frozen_draft, pr
 
 
 class GapProtocol(unittest.TestCase):
+    def test_contrast_routes_preserve_unparsed_worker_lead(self):
+        async def exercise(root):
+            class Fake(StudyCell):
+                def http(self, wire, number):
+                    who = self.wire_ids[number-1]['agent']
+                    if who == 'root':
+                        prompt = next(m['content'] for m in reversed(wire['messages'])
+                                      if 'PHASE: final synthesis' in m.get('content',''))
+                        packet = json.loads(prompt.rsplit('\n\n',1)[1])
+                        self.assert_leads(packet,wire)
+                        answer = json.dumps(dict(paper_id='nnsmith',target_execution='not_run',
+                                                 candidates=[],known_boundaries=[]))
+                    elif who == 'root.1':
+                        answer = 'Unparsed worker lead with a source trace.'
+                    else:
+                        answer = json.dumps(dict(candidates=[],procedures=[{'rule':'source-backed observation'}]))
+                    response = dict(model=BACKEND,choices=[dict(finish_reason='stop',
+                                    message=dict(role='assistant',content=answer))])
+                    pilot.dump(self.out/f'request-{number:02}.json',wire)
+                    pilot.dump(self.out/f'response-{number:02}.json',response)
+                    return response
+
+                @staticmethod
+                def assert_leads(packet,wire):
+                    assert len(packet['discovery_reports'])==2
+                    assert packet['discovery_reports'][0]['report']=='Unparsed worker lead with a source trace.'
+                    assert wire.get('tools'), 'Synthesis should be able to check original evidence'
+
+            with patch.object(pilot,'secret_env',return_value={'SOCLAAS_API_KEY':'fixture'}):
+                cell = Fake(root,'nnsmith','evidence_gap_swarm',asyncio.Semaphore(3))
+                outcome = await cell.run()
+            self.assertEqual(outcome['returncode'],0,outcome)
+            number = final_response(cell.out,outcome,cell.out/'final.txt')
+            trace = gap_trace(cell.out,[],number)
+            self.assertEqual(trace['raw_discoveries_in_final_request'],2)
+            self.assertFalse(trace['cross_check_requested'])
+
+        with tempfile.TemporaryDirectory() as work:
+            root = Path(work)/'contrast'
+            inputs = Path(os.environ.get('CS6223_STUDY_INPUTS',pilot.MODULE/'runs'))
+            source = os.environ.get('CS6223_SWARM_SOURCE')
+            freeze_study(root,inputs,Path(source) if source else None,policy='contrast')
+            asyncio.run(exercise(root))
+
     def test_targeted_review_preserves_exact_draft_and_memo_in_both_arms(self):
         async def exercise(root):
             class Fake(TargetedCell):

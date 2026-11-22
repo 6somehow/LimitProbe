@@ -41,6 +41,7 @@ export function gapWorkflow(config, emit) {
           + slot.route + '\n' + config.discovery);
         const decoded = parse(answer);
         const records = Array.isArray(decoded) ? decoded : decoded?.candidates;
+        if (config.retainRawDiscovery) slot.rawDiscovery = answer.slice(0, 12000);
         const procedures = Array.isArray(decoded?.procedures)
           ? decoded.procedures.slice(0,5).flatMap((item,index) =>
               item && typeof item==='object' && !Array.isArray(item)
@@ -79,6 +80,12 @@ export function gapWorkflow(config, emit) {
     try {
       const candidates = (await Promise.all(slots.map(slot => slot.reported))).flat();
       const procedures = slots.flatMap(slot => slot.procedures ?? []);
+      if (config.directSynthesis) {
+        const discovery_reports = slots.flatMap(slot => slot.rawDiscovery
+          ? [{agent:slot.id, report:slot.rawDiscovery}] : []);
+        return await resumePhase(task + '\n\nPHASE: final synthesis\n' + config.final
+          + '\n\n' + JSON.stringify({candidates, procedures, verification, discovery_reports}), config.finalTurns);
+      }
       if (candidates.length || procedures.length) {
         let selection;
         try {
