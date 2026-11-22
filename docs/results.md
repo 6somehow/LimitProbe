@@ -28,6 +28,34 @@ hits against each of A and B.
 The core reproduces in 2 of 3 samples; the miss is kept in the record rather than
 filtered out.
 
+## Role-contract prompts (s2, dev-v10)
+
+Prompt version `s2/2026-11-23` adds a role contract for both roles: the lead must count
+`candidates_considered / candidates_kept / replay_count` per artifact, complete one
+chain with producer and consumer spans, rank the record that reaches the reported
+metric first, and keep at least one candidate from the input/witness stage when one
+exists; the worker must return a verdict (`supports`/`narrows`/`refutes`), the four
+counts from source, and one or two fully chained candidates, with an empty list allowed
+only with a verdict and a missing-evidence statement. Delegation now requires an
+`expected_signal`; the worker gets three replies.
+
+| paper | S s2 (dev-v10) | blind check |
+|---|---|---|
+| NNSmith | **core** (H1) | core, all three nnsmith_check items yes |
+| MInference | partial (H1) | partial, still missing the RoPE step |
+| InfiniGen | miss | — |
+| SparTA | miss | — |
+
+A second s2 sample on NNSmith (dev-v11) also produced a core (H1: the search keeps the
+first feasible witness and `make_oracle` uses only that one), blind-confirmed. So the
+s2 prompts reached the core in 2 of 2 samples, 4 of 5 NNSmith samples overall.
+
+Worker delivery changed from 6/13 handoffs returning candidates (v3-v6, no verdict
+asked) to **5/5 handoffs returning candidates with a verdict** (v10-v11: 2 supports,
+3 narrows). On NNSmith the worker itself returned
+`nnsmith-single-witness-consumption` with counts `considered=2, kept=1, replay=1,
+consumer=1`, and the lead verified 2 of its spans.
+
 ## In-harness baseline reruns
 
 The archived v9 B stopped after one reply. To test whether S also beats a *stronger*

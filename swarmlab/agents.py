@@ -169,7 +169,8 @@ def run_lead(cell, evidence, client, task_message: str, compactor: Compactor | N
                     continue
                 if name == "delegate_gap":
                     require(delegate is not None, "delegation is not available in this condition")
-                    result = delegate(args.get("question", ""), args.get("chain_summary", ""), turns)
+                    result = delegate(args.get("question", ""), args.get("chain_summary", ""), turns,
+                                      args.get("expected_signal", ""))
                 else:
                     try:
                         result = execute_tool(evidence, "root", name, args)
@@ -192,11 +193,12 @@ def run_lead(cell, evidence, client, task_message: str, compactor: Compactor | N
 
 
 def run_worker(cell, evidence, client, worker_id: str, question: str, chain_summary: str,
-               paper_text: str, max_requests: int = 2) -> dict:
+               paper_text: str, expected_signal: str = "", max_requests: int = 3) -> dict:
     system = prompts.WORKER_SYSTEM
     user = (
         f"Paper ID: {evidence.meta['paper_id']}\nPinned repository commit: {evidence.commit}\n\n"
         f"LEAD QUESTION\n{question}\n\nLEAD CHAIN SUMMARY\n{chain_summary}\n\n"
+        f"EXPECTED SIGNAL\n{expected_signal or 'State what would support the link and what would refute it.'}\n\n"
         f"ORIGINAL PAPER BEGIN\n{paper_text}\nORIGINAL PAPER END\n\n"
         "Answer the assigned question. Read the pinned source with the tools before citing it."
     )

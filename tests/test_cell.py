@@ -34,7 +34,7 @@ class MockClient:
              {"messages": messages, "tools": tools or []})
         self.tokens += 1000
         system = messages[0]["content"]
-        if system.startswith("You are one worker"):
+        if system.startswith("You are the worker"):
             payload = {
                 "paper_id": "demo", "target_execution": "not_run", "question_answered": True,
                 "findings": [{
@@ -62,7 +62,8 @@ class MockClient:
                     "id": "c2", "type": "function",
                     "function": {"name": "delegate_gap", "arguments": json.dumps({
                         "question": "Does the differential test consume only the first saved input?",
-                        "chain_summary": "search saves one input; verification replays it"})}}]},
+                        "chain_summary": "search saves one input; verification replays it",
+                        "expected_signal": "supports if only one input is replayed"})}}]},
                     "tool_calls")
             payload = {
                 "paper_id": "demo", "target_execution": "not_run",
@@ -138,7 +139,7 @@ def test_parse_failure_keeps_raw_text_delivered(tmp_path):
 
     def chat(messages, tools=None, tool_choice=None, max_tokens=None, thinking=True):
         reply = original(messages, tools, tool_choice, max_tokens, thinking)
-        if messages[0]["content"].startswith("You are one worker"):
+        if messages[0]["content"].startswith("You are the worker"):
             reply["message"]["content"] = "The source is ambiguous; no structured answer."
         return reply
 

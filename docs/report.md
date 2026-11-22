@@ -31,11 +31,26 @@ archived v9 B, which stopped after one reply.
 S totals 1 core + 1 partial. It has more paired wins than losses against both A and B
 and strictly more core hits, which is the study's dev-selection rule.
 
-A second S sample on NNSmith (dev-v9, same prompt plus a stored-witness probe) also
-produced a core record (W2: the search returns the first feasible ⟨X,W⟩ and only that
-witness is replayed per graph), so the core is reproducible in 2 of 3 NNSmith samples.
-A third sample (dev-v8) missed the core, which is reported as variance rather than
-hidden.
+Four S samples produced the NNSmith core: dev-v6 (H3), dev-v9 (W2, stored-witness
+probe), dev-v10 (H1, role-contract prompts, with the worker returning
+`nnsmith-single-witness-consumption`) and dev-v11 (H1, second s2 sample, worker returned
+`nnsmith-single-witness-first-feasible`). Each was independently blind-graded core. One
+sample (dev-v8) missed the core; it is reported as variance rather than hidden.
+
+## Role-contract prompts (s2)
+
+The latest prompt version gives both roles an explicit contract. The lead must count
+candidates considered/kept and replay count for every artifact, complete one chain with
+producer and consumer spans, rank the record closest to the reported metric first, and
+keep at least one candidate from the input/witness stage when one exists. The worker
+must return a verdict, the four counts from source, and one or two fully chained
+candidates; an empty list requires a verdict and a precise missing-evidence statement.
+
+Effect on delivery: worker handoffs returning candidates rose from 6/13 (v3-v6) to
+5/5 (v10-v11), and every s2 worker returned a support/narrow verdict with the four
+counts requested. The lead's NNSmith record also gained the concrete
+`refine_weights / make_oracle` code path, and the s2 prompts reached the core in 2 of 2
+NNSmith samples.
 
 ## The core record (NNSmith, S)
 

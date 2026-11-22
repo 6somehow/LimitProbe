@@ -44,6 +44,8 @@ same reference rubric used only for scoring.
 | dev-v6 | + keep-one-of-many, unit mismatch, sharing; no paper-first | **1** | 1 | **NNSmith core H3**; MInference partial H1 |
 | dev-v8 | same prompts (reproduction sample) | 0 | 0 | NNSmith miss: one-sided feasibility without the stored-witness step |
 | dev-v9 | + stored-witness/replay probe; final turn without thinking | **1** | 0 | **NNSmith core W2** (verified by blind agent); code spans in `input_gen.py` and `cli/fuzz.py` |
+| dev-v10 | s2 role contracts: lead counts/witness chain + worker verdict/counts, 3 worker replies | **1** | 1 | **NNSmith core H1** (blind-confirmed; `refine_weights`/`make_oracle` path); MInference partial H1; worker 4/4 handoffs returned candidates with verdicts |
+| dev-v11 | s2 prompts, second NNSmith sample | **1** | 0 | **NNSmith core H1** (blind-confirmed); worker returned `nnsmith-single-witness-first-feasible`; s2 core rate 2/2 |
 
 ### The first S core (dev-v6, NNSmith)
 

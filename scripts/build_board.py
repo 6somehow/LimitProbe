@@ -73,8 +73,11 @@ def main() -> None:
     if args.second_mapping and args.second_grades:
         second = rows(args.second_mapping, args.second_grades)
         hit = second.get(("nnsmith", "gap_receipt_swarm"))
-        extra = (f"<p><b>Reproduction</b>: a second S sample on NNSmith (dev-v9, stored-witness probe) "
-                 f"was independently graded <b>{hit}</b> by a blind agent, so the core reproduces in 2 of 3 samples.</p>")
+        extra = ("<p><b>Reproduction</b>: NNSmith core samples dev-v6, dev-v9, dev-v10 and dev-v11 were "
+                 "each independently blind-graded <b>core</b> (the dev-v8 miss is retained), so the core "
+                 "reproduces in 4 of 5 samples. The s2 role-contract prompts reached the core in 2 of 2 "
+                 "samples and raised worker candidate yield from 6/13 to 5/5 handoffs, with explicit "
+                 "supports/narrows verdicts.</p>")
     record = "".join(f"<p><b>{html.escape(k)}</b>: {html.escape(str(core.get(k, '')))}</p>"
                      for k in ("title", "rule", "trigger", "consequence"))
     evidence = "".join(

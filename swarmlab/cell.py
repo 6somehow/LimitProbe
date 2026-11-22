@@ -52,7 +52,8 @@ class Cell:
         self.delegate_prompts = 0
 
     # ------------------------------------------------------------- delegation ---
-    def delegate(self, question: str, chain_summary: str, lead_turn: int) -> str:
+    def delegate(self, question: str, chain_summary: str, lead_turn: int,
+                 expected_signal: str = "") -> str:
         require(8 <= len(question) <= 1200, "delegate_gap needs one precise question")
         remaining = self.budget.remaining(self.client)
         wanted = int(self.protocol.get("worker_count", 1))
@@ -69,7 +70,9 @@ class Cell:
                 break
             worker_id = f"worker{index + 1}"
             result = run_worker(self, self.evidence, self.client, worker_id,
-                                question, chain_summary, paper_text)
+                                question, chain_summary, paper_text,
+                                expected_signal=expected_signal,
+                                max_requests=int(self.protocol.get("worker_replies", 3)))
             report = {"worker": worker_id, "raw_text": result["final_text"],
                       "turns": result["turns"]}
             repairs: list = []
@@ -92,6 +95,7 @@ class Cell:
                 "parsed": report["parsed"], "raw_candidates": report.get("raw_candidate_count"),
             })
         handoff = {"question": question, "chain_summary": chain_summary,
+                   "expected_signal": expected_signal,
                    "lead_turn": lead_turn, "workers": results, "delivered_text": ""}
         payload = {
             "question": question,
@@ -172,6 +176,7 @@ class Cell:
         ledger = self.build_ledger(report)
         result = {
             "paper": self.paper, "condition": self.condition,
+            "prompt_version": prompts.PROMPT_VERSION,
             "requests": self.client.requests, "tokens": self.client.tokens,
             "elapsed_seconds": round(time.time() - started, 1),
             "model": sorted({row.get("model") for row in self.client.usage if row.get("model")}),

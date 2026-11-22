@@ -1,120 +1,158 @@
-# AgentSwarm: gap-directed agent swarm for method-limitation testing
+# AgentSwarm — gap-receipt swarm for paper method-limitation testing
 
 An independent development track for the CS6223 project "paper-guided testing of
-research-method limitations". It lives beside the existing pipeline and reuses the
-same frozen evidence, the same model route, and the same human reference rubric
-(evaluation only). The goal of this track is a swarm method that **beats the two
-simple baselines** on the development papers:
+research-method limitations", built beside the existing pipeline. It asks one question:
+**can a two-role agent swarm deliver the human reference diagnosis (the method's rule,
+its trigger and its downstream consequence) where a single API call and a single agent
+do not?**
 
-| Condition | Workflow | Requests / cell (cap) |
-|---|---|---|
-| **A** `api_once` | one DeepSeek API call with the frozen paper + source packet | 1 |
-| **B** `single_agent` | one Pi-style agent loop with read-only paper/repository tools and the same packet | up to 8 |
-| **S** `gap_receipt_swarm` | lead self-traces the method chain, delegates exactly one unresolved link to a worker, reopens the cited spans, then finalises with origin IDs | up to 8 lead + 2 worker = 10 |
+Short answer on the Dev split: **yes, on NNSmith**, and the core reproduces in four of
+five samples (each core independently blind-graded). On the held-out Test split the
+frozen pre-s2 prompt also reached a core on SpinQuant. The latest role-contract prompts (`s2`) raise
+worker candidate yield from 6/13 handoffs to 5/5 with explicit verdicts, and keep the
+NNSmith core in both s2 samples.
 
-A and B reproduce the study's baselines under this harness. S is the new method.
+## Current evidence
 
-## Why this design
+Dev papers: NNSmith, MInference, InfiniGen, SparTA. Scores are `core / partial / miss`
+against the archived Shanghao reference, used for scoring only. A/B/C/D are the frozen
+v9 study conditions with their official grades; S is this track.
 
-The previous round (v9) produced **no core hit** for any swarm variant while the
-single-call and single-agent baselines produced one partial hit each on MInference.
-Two concrete failures were audited:
+| paper | A api_once | B single_agent (v9) | C plain_swarm | D evidence_gap_swarm | S s2 (dev-v10) |
+|---|---|---|---|---|---|
+| NNSmith | miss | miss | miss | miss | **core** |
+| MInference | miss | partial | miss | miss | partial |
+| InfiniGen | miss | miss | miss | miss | miss |
+| SparTA | miss | miss | miss | miss | miss |
+| core/partial | 0/0 | 0/1 | 0/0 | 0/0 | **1/1** |
 
-1. **Discovery was split across short sessions.** In the earlier successful NNSmith
-   run, one tool-using session spent ten model replies walking
-   `generate → materialise → save one input → replay that input` and asked whether
-   *other legal inputs ever get tested*. The v9 swarm made each worker do a
-   compressed discovery pass, so nobody owned that chain.
-2. **Handoff losses were invisible.** A worker returned structured candidates with
-   different field names; the parser dropped both. Nothing recorded where in the
-   pipeline the finding disappeared.
+* A and a **stronger 8-reply single agent** (same packet, tools, historical direct
+  prompt) were re-run inside this harness: 0 cores and 0 partials on all four papers.
+* NNSmith samples: dev-v6 core, dev-v8 miss, dev-v9 core (stored-witness probe),
+  dev-v10 core and dev-v11 core (role contracts). All four cores were blind-confirmed;
+  the miss is retained, not filtered.
+* Held-out Test split with the frozen method (no tuning): SpinQuant **core**, Prompt
+  Cache partial, KVQuant partial, DX100 miss. A blind independent grader agreed on the
+  SpinQuant core and the DX100 miss.
+* Every core listed above was also blind-graded by a separate agent that saw only the
+  frozen final and the rubric.
 
-S is built around those two findings:
+Details: [docs/results.md](docs/results.md) · [docs/report.md](docs/report.md) ·
+[out/board.html](out/board.html).
 
-* **The lead owns the evidence chain** and keeps its own tool history (the r14
-  pattern from AgentSwarm-Serve): it maps every stopping/selection decision to the
-  artifact it returns and to the downstream consumer of that artifact.
-* **Delegation carries one named gap, not the whole investigation.** The lead must
-  call `delegate_gap(question, chain_summary)` exactly once; the worker receives the
-  paper, the lead's chain summary and the same read-only tools.
-* **Verification is a receipt, not a claim.** The lead must reopen the source spans
-  it relies on; the harness records whether it did.
-* **Every handoff stage is measured**: `worker_found → parse_retained →
-  delivered_to_lead → verified_span → cited_in_final`. The parser accepts field
-  aliases (`findings`, `candidate_id`, `paper_quotes`, `source_spans`, `file`/`line`,
-  bare lists, truncated JSON) and records every repair instead of dropping a list.
+## The method (S): two roles, one chain, measured handoffs
 
-The stage-ledger prompt asks, for each artifact, *how many otherwise-valid inputs
-share it and what the downstream comparison then exercises*. That is the generic
-form of the questions that produced the earlier NNSmith hit, and it applies to
-MInference (fixed sparse index vs. changed RoPE mapping), InfiniGen (one shared key
-representation for several query heads) and SparTA (zero arrangement vs. real
-reduction dependencies).
+```
+paper + pinned repository (read-only tools)
+        |
+        v
+  LEAD: stage ledger  ->  complete one chain (produce -> save -> consume -> metric)
+        |                                  |
+        |  delegate_gap(question,           |  reopen the worker's cited spans
+        |    chain_summary, expected_signal) |  (receipts recorded)
+        v                                  v
+  WORKER: verdict + counts + candidate(s)  ->  LEAD final JSON with origin_ids
+```
 
-## Layout
+**Lead role contract** (`swarmlab/prompts.py`, `PROMPT_VERSION = "s2/2026-11-23"`):
+
+1. keep a stage ledger for every acceptance, selection, stopping, allocation or
+   shared-state decision: artifact, rule/budget, consumer;
+2. count `candidates_considered`, `candidates_kept`, `replay_count` for each artifact;
+3. complete one chain end to end with source spans for producer and consumer;
+4. delegate exactly once with a causal question and an expected support/refute signal,
+   then reopen and adjudicate the returned evidence;
+5. final report is graded on its single best record, so one complete chain outranks
+   several partial ones; incomplete records go to `known_boundaries`/`rejected`;
+6. if a stage produces a test input, cached state, stored witness or propagation
+   artifact, at least one retained candidate must follow that stage to its consumer.
+
+**Worker role contract**: restate the gap and artifact/consumer pair; read and quote
+pinned source; report `candidates_considered / candidates_kept / replay_count /
+consumer_count`; return a verdict (`supports`/`narrows`/`refutes`); if supports or
+narrows, return one or two testable candidates with the full chain and comparison; an
+empty list is allowed only with a verdict and what evidence would settle the question.
+
+**Handoff ledger** for every worker: `worker_found → parse_retained →
+delivered_to_lead → verified_span → cited_in_final` (`ledger.json`). The parser accepts
+field aliases, bare lists and truncated JSON and records every repair, so a structured
+candidate list is never dropped silently. Across v3–v6: 13 delegated gaps, 6 candidate
+sets returned, 6 parsed and delivered, 2 cited in a final report. With the s2 role
+contracts (v10-v11): 5/5 handoffs returned candidates with a verdict (2 supports, 3
+narrows); on NNSmith the worker itself returned `nnsmith-single-witness-consumption`
+and then `nnsmith-single-witness-first-feasible`, with counts considered=2, kept=1,
+replay=1, consumer=1.
+
+## Repository layout
 
 ```
 swarmlab/
   evidence.py   frozen paper pages + pinned Git blobs, read receipts, no execution
-  contract.py   tolerant finding-list extraction, canonicalisation, validation
-  llm.py        SoCLaaS chat client, archives every request/response
-  prompts.py    frozen prompt texts for A, B, S and the grader
-  agents.py     lead/worker loops, budgets, compaction receipts, forced delegation
-  cell.py       one experimental cell, delegation tool, handoff ledger
-  runner.py     prepare a run, run cells with concurrency 2
-  grade.py      blinded packets, semantic grading, paired metrics
-inputs/         frozen dev papers + source packets (sha256-indexed)
-reference/      human rubric, evaluation only (never in generation inputs)
-runs/           archived run cells (inputs, requests, responses, tools, ledger)
-out/            grading packets and grades
+  contract.py   tolerant finding-list parsing, canonicalisation, validation
+  llm.py        streaming SoCLaaS client with total deadline; archives every request
+  prompts.py    role contracts and prompt texts (A, B, S, grader)
+  agents.py     lead/worker loops, budgets, compaction, forced delegation
+  cell.py       one cell: delegation tool, handoff ledger, archive
+  runner.py     prepare/run cells (concurrency 2)
+  grade.py      blinded packets, holistic grading, paired metrics
+  rubric.py     structured four-question grading (secondary opinion)
+inputs/         frozen dev + test papers and source packets (sha256-indexed)
+reference/      human rubric — evaluation only, never in generation inputs
+runs/           archived cells: requests, SSE, responses, tools, reads, ledger
+out/            packets, grades, handoff audit, board.html
 tests/          offline tests (mock provider, parser, ledger, budget)
+docs/           method, results, report, status, port notes
 ```
 
 ## Reproduce
 
 ```sh
 python3 -m venv .venv && .venv/bin/pip install pytest
-.venv/bin/python scripts/prepare_inputs.py      # copy + hash-check frozen dev inputs
+.venv/bin/python scripts/prepare_inputs.py
 .venv/bin/python -m swarmlab.runner prepare runs/dev-v1 --inputs inputs
 .venv/bin/python -m swarmlab.runner run runs/dev-v1 --split dev \
-    --conditions gap_receipt_swarm
+    --conditions gap_receipt_swarm            # S; add api_once single_agent for baselines
 .venv/bin/python -m swarmlab.grade packet runs/dev-v1 --out out/packets-dev \
     --reference reference/reference-rubric-20261121.md
+.venv/bin/python -m swarmlab.grade grade out/packets-dev --out out/grades-dev
+.venv/bin/python scripts/build_board.py --help
+.venv/bin/python -m pytest -q
 ```
 
-The runner needs `SOCLAAS_API_KEY` / `SOCLAAS_BASE_URL` in
-`~/.config/soclaas/soclaas.env`. Every cell archives the exact wire requests,
-responses, tool calls, reads and usage. Cells never overwrite an existing archive.
+The runner reads `SOCLAAS_API_KEY` / `SOCLAAS_BASE_URL` from
+`~/.config/soclaas/soclaas.env`. Every cell archives the exact wire requests, raw SSE,
+responses, tool calls, read spans and usage; a cell never overwrites an existing
+archive. `runs/` and `out/` are git-ignored; code, prompts, inputs and docs are tracked.
 
 ## Protocol
 
-`protocol.json` is frozen per run: model `x-test-2` (backend
-`deepseek-v4.1-flash-1017`), thinking enabled with `reasoning_effort=max`, 32,768
-output tokens, 10 HTTP requests and 750,000 actual tokens per cell, 420 s per
-request, concurrency 2. Compaction is deterministic: older tool payloads are
-trimmed (last four kept) with a before/after token estimate in `events.jsonl`, so a
-long session can continue without losing its own decisions.
+Model `x-test-2` (backend `deepseek-v4.1-flash-1017`), thinking enabled with
+`reasoning_effort=max` during exploration, 32,768 output tokens, 10 HTTP requests and
+750,000 actual tokens per cell, 600 s per request, concurrency 2. The finalisation turn
+runs without thinking so a long final JSON is not truncated by reasoning tokens.
+Compaction is deterministic: older tool payloads are trimmed (last four kept) with a
+before/after estimate in `events.jsonl`.
 
-For S the lead gets eight replies; a delegation is forced by the workflow (a user
-note from turn 3; from turn 4 `delegate_gap` is the only exposed tool) and must
-happen before the final report. Workers get two replies each: one tool round and
-one answer.
+S budget split (s2 prompts): 7 lead replies + one worker with up to 3 replies, inside
+the same 10-request cell cap.
 
-## Evaluation
+## Grading provenance and caveats
 
-* Dev cases: NNSmith, MInference, InfiniGen, SparTA. The reference rubric
-  (`reference/reference-rubric-20261121.md`) is never exposed to any generation
-  cell; it is used only to build blinded grading packets.
-* A report is graded on its single best record: **core** (same mechanism,
-  trigger and consequence as the reference), **partial** (one segment, or a clue
-  the reference itself calls partial), **miss** (different mechanism).
-* Paired rule (from the study): a challenger beats a baseline only if it has more
-  paired wins than losses **and** at least as many core hits against each of A and
-  B on all four dev cases.
-* Archived baseline finals are imported into the same packet format
-  (`grade.py import-archived`) so they can be re-graded by one grader as a
-  cross-check; the official frozen grades remain the primary baseline scores.
+* Grading is semantic against the archived reference rubric. Three graders are
+  archived: holistic (`grade.py`), structured four-question (`rubric.py`, more lenient;
+  not used for the claim), and independent blind agents.
+* The reference is a human hypothesis set, not executed ground truth.
+* Probe categories (length/extension, position scaling, grouping, arrangement, input
+  values) overlap the reference rubric's categories by construction; the probes never
+  name a paper's diagnosis, but this is a design-coupling risk to review.
+* The Test split has S only; A/B/C/D were not re-run there.
+* Delegation currently verifies better than it discovers: the NNSmith core came from
+  the lead's own chain, with the worker returning an empty list on that cell.
 
-## Status
+## Related docs
 
-See `runs/` for the archived cells and `docs/status.md` for the current scoreboard.
+* [docs/method.md](docs/method.md) — the S workflow and why it differs from C/D
+* [docs/results.md](docs/results.md) — per-paper grades, variance, in-harness baselines
+* [docs/report.md](docs/report.md) — full report with threats to validity
+* [docs/port-notes.md](docs/port-notes.md) — what to port into the main pipeline
+* [docs/status.md](docs/status.md) — run log
