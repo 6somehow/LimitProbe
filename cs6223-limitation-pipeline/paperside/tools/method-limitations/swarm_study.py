@@ -242,7 +242,7 @@ def freeze_study(output, previous_runs, swarm_source=None, policy="original"):
                           'worker':'Produce a short evidence report for the parent. Do not write the final report.'}.items():
         (common/f'{name}.txt').write_text(content)
     dump(output/'protocol.json', {
-        'version':{'stress':'cs6223-evidence-gap/8','mechanism':'cs6223-evidence-gap/7'}.get(policy,'cs6223-evidence-gap/6'),
+        'version':{'stress':'cs6223-evidence-gap/9','mechanism':'cs6223-evidence-gap/7'}.get(policy,'cs6223-evidence-gap/6'),
         'discovery_policy':policy, 'split':{'dev':DEV, 'test':TEST}, 'conditions':CONDITIONS,
         'reasoning_effort':'max', 'thinking':{'type':'enabled'}, 'model_alias':'x-test-2', 'expected_backend':BACKEND,
         'max_http_requests_per_cell':10, 'max_output_tokens':32768,
@@ -294,6 +294,9 @@ class StudyCell(StreamingCell):
         config['remainingPrompt'] = 'You have {n} replies left in this phase.'
         if self.condition == 'single_agent':
             config['limits']['maxTurns'] = 8
+            # At depth zero the upstream dispatcher uses the worker slot.
+            # A standalone session must still see the lead's final-report task.
+            config['workerPrompt'] = config['leadPrompt']
         elif self.condition == 'plain_swarm':
             config['leadPrompt'] += (' Delegate original-evidence work to one or two independent workers '
                                      'and incorporate the evidence into the final answer.')
