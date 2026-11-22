@@ -5,9 +5,9 @@ The method was developed on the four Dev papers. Prompt versions are recorded in
 
 | version | runs | change | lead result (dev) | worker delivery |
 |---|---|---|---|---|
-| s1 | dev-v3..v6, test-v1 | stage ledger, keep-one-of-many, premise/transformation, unit mismatch/sharing, stored witness (v9 only), forced delegation | NNSmith core in 2/3 samples; MInference partial; InfiniGen/SparTA miss | 6/13 handoffs returned candidate sets; no verdict asked |
-| s2 | dev-v10, dev-v11, test-v2 | role contracts: lead counts candidates/replay, one chain with producer+consumer spans, metric-first ranking, witness-stage diversity; worker verdict + four counts + full candidates, 3 replies; delegation requires `expected_signal` | NNSmith core in 2/2 samples (better code path: `refine_weights`/`make_oracle`); MInference partial | **5/5 handoffs returned candidates with a verdict** (2 supports, 3 narrows) |
-| s3 | dev-v12, test-v3 (post-hoc) | disclosed boundaries may stay candidates when the reported metric cannot expose them; diversity balanced between witness-stage coverage and shared-artifact conflict | NNSmith core; **InfiniGen first-ever candidate naming GQA shared key representation** (blind-graded core, holistic partial); MInference/SparTA miss | **4/4 handoffs returned candidates with a verdict** (2 supports, 2 narrows) |
+| s1 | dev-v3..v6, test-v1 | stage ledger, keep-one-of-many, premise/transformation, unit mismatch/sharing, stored witness (v9 only), forced delegation | NNSmith core in 2/3 samples; MInference partial; InfiniGen/SparTA miss | 5 of 13 handoffs returned candidates (6 records); no verdict asked |
+| s2 | dev-v10, dev-v11, test-v2 | role contracts: lead counts candidates/replay, one chain with producer+consumer spans, metric-first ranking, witness-stage diversity; worker verdict + four counts + full candidates, 3 replies; delegation requires `expected_signal` | NNSmith core in 2/2 samples (better code path: `refine_weights`/`make_oracle`); MInference partial | **5/5 handoffs returned candidates with a verdict** (2 supports, 3 narrows), 7 records |
+| s3 | dev-v12, test-v3 (post-hoc) | disclosed boundaries may stay candidates when the reported metric cannot expose them; diversity balanced between witness-stage coverage and shared-artifact conflict | NNSmith core; **InfiniGen first-ever candidate naming GQA shared key representation** (blind-graded core, holistic partial); MInference/SparTA miss | **4/4 handoffs returned candidates with a verdict** (2 supports, 2 narrows), 6 records |
 | s4 | dev-v13 | require `origin_ids` on every candidate; state why a worker candidate is rejected | **NNSmith miss**: the lead adopted the worker's backend-finite candidates and dropped its own first-valid-witness chain (H1 became a backend-NaN record). Reverted to s3 | 2/2 worker candidates cited in the final (attribution worked, correctness did not) |
 
 ## What the s2 contract changed
@@ -15,7 +15,7 @@ The method was developed on the four Dev papers. Prompt versions are recorded in
 * The worker is no longer allowed to answer with a generic weakness list. It must
   return `supports|narrows|refutes`, the four quantities from source
   (`candidates_considered`, `candidates_kept`, `replay_count`, `consumer_count`), and
-  one or two fully chained candidates. Candidate yield went from 6/13 to 5/5.
+  one or two fully chained candidates. Candidate yield went from 5 of 13 handoffs (6 records) to 9 of 9 handoffs (13 records) across s2+s3.
 * On NNSmith the worker returned `nnsmith-single-witness-consumption` (v10) and then
   `nnsmith-single-witness-first-feasible` (v11) with counts
   `considered=2, kept=1, replay=1, consumer=1`; the lead verified its spans and kept

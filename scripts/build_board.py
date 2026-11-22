@@ -76,7 +76,7 @@ def main() -> None:
         extra = ("<p><b>Reproduction</b>: NNSmith core samples dev-v6, dev-v9, dev-v10, dev-v11 and "
                  "dev-v12 were each independently blind-graded <b>core</b> (the dev-v8 miss is retained), "
                  "so the core reproduces in 5 of 6 samples. The s2/s3 role contracts raised worker "
-                 "candidate yield from 6/13 to 8/8 handoffs with explicit supports/narrows verdicts, and "
+                 "candidate yield from 5/13 to 9/9 handoffs with explicit supports/narrows verdicts, and "
                  "s3 produced the first InfiniGen candidate naming the GQA shared-key / per-head conflict.</p>")
     record = "".join(f"<p><b>{html.escape(k)}</b>: {html.escape(str(core.get(k, '')))}</p>"
                      for k in ("title", "rule", "trigger", "consequence"))

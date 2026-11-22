@@ -77,9 +77,9 @@ shipped prompt is s3. Strict worker-candidate citation under s2/s3 is 0/13 (the 
 verifies spans but rarely writes origin_ids), which is why the ledger also records a
 character-bigram `overlaps_worker_candidate` measure.
 
-Worker delivery changed from 6/13 handoffs returning candidates (v3-v6, no verdict
-asked) to **5/5 handoffs returning candidates with a verdict** (v10-v11: 2 supports,
-3 narrows). On NNSmith the worker itself returned
+Worker delivery changed from 5 of 13 handoffs returning candidates (v3-v6, 6 records,
+no verdict asked) to **5/5 handoffs returning candidates with a verdict** (v10-v11:
+2 supports, 3 narrows, 7 records). On NNSmith the worker itself returned
 `nnsmith-single-witness-consumption` with counts `considered=2, kept=1, replay=1,
 consumer=1`, and the lead verified 2 of its spans.
 

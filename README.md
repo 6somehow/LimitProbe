@@ -8,8 +8,8 @@ do not?**
 
 Short answer on the Dev split: **yes, on NNSmith** (core reproduces across samples,
 each core blind-graded) and, with the latest s3 role contracts, also on **InfiniGen**
-(a first for this study). Worker candidate yield rose from 6/13 handoffs to 8/8 with
-explicit verdicts across s2+s3. The pre-s2 (s1) prompt also reached a core on the
+(a first for this study). Worker candidate yield rose from 5 of 13 handoffs (s1) to
+9 of 9 handoffs with explicit verdicts (s2+s3). The pre-s2 (s1) prompt also reached a core on the
 held-out SpinQuant. Prompt iterations and their measured effects are in
 [docs/prompt-iterations.md](docs/prompt-iterations.md).
 
@@ -85,8 +85,10 @@ field aliases, bare candidate lists, truncated JSON and a root object that close
 before `"candidates"`; it records every repair, so a structured candidate list is never
 dropped silently. Across v3–v6: 13 delegated gaps, 6 candidate
 sets returned, 6 parsed and delivered, 2 cited in a final report. With the s2/s3 role
-contracts (v10-v12): 8/8 handoffs returned candidates with a verdict (4 supports,
-4 narrows); on NNSmith the worker returned `nnsmith-single-witness-consumption` and
+contracts (v10-v12): 9 of 9 handoffs returned candidates with a verdict (4 supports,
+5 narrows), 13 candidate records, all delivered, 16 spans re-read by the lead, but
+strict `origin_ids` citation is 0/13 (see the s4 negative result below). On NNSmith the
+worker returned `nnsmith-single-witness-consumption` and
 `nnsmith-single-witness-first-feasible` with counts considered=2, kept=1, replay=1,
 consumer=1.
 

@@ -46,8 +46,8 @@ keep at least one candidate from the input/witness stage when one exists. The wo
 must return a verdict, the four counts from source, and one or two fully chained
 candidates; an empty list requires a verdict and a precise missing-evidence statement.
 
-Effect on delivery: worker handoffs returning candidates rose from 6/13 (v3-v6) to
-5/5 (v10-v11), and every s2 worker returned a support/narrow verdict with the four
+Effect on delivery: worker handoffs returning candidates rose from 5/13 (v3-v6, 6
+records) to 9/9 (v10-v12, 13 records), and every s2 worker returned a support/narrow verdict with the four
 counts requested. The lead's NNSmith record also gained the concrete
 `refine_weights / make_oracle` code path, and the s2 prompts reached the core in 2 of 2
 NNSmith samples.
