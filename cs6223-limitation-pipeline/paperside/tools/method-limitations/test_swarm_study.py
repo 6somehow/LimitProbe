@@ -13,6 +13,27 @@ from swarm_study import BACKEND, CONDITIONS, DEV, StudyCell, freeze_study, run
 
 
 class GapProtocol(unittest.TestCase):
+    def test_standalone_agent_has_final_writer_role(self):
+        async def execute(root):
+            class Fake(StudyCell):
+                def http(self,payload,number):
+                    user = '\n'.join(m['content'] for m in payload['messages']
+                                     if m['role']=='user' and isinstance(m['content'],str))
+                    if 'write the final report' not in user or 'short evidence report for the parent' in user:
+                        raise AssertionError('Standalone agent received worker prompt')
+                    body = dict(paper_id='nnsmith',candidates=[],known_boundaries=[],target_execution='not_run')
+                    return {'model':BACKEND,'choices':[{'finish_reason':'stop',
+                        'message':{'role':'assistant','content':json.dumps(body)}}], 'usage':{'total_tokens':3}}
+            with patch.object(pilot,'secret_env',return_value={'SOCLAAS_API_KEY':'fixture'}):
+                outcome = await Fake(root,'nnsmith','single_agent',asyncio.Semaphore(1)).run()
+            self.assertEqual(outcome['returncode'],0,outcome)
+        with tempfile.TemporaryDirectory() as work:
+            root = Path(work)/'study'
+            inputs = Path(os.environ.get('CS6223_STUDY_INPUTS',pilot.MODULE/'runs'))
+            source = os.environ.get('CS6223_SWARM_SOURCE')
+            freeze_study(root,inputs,Path(source) if source else None)
+            asyncio.run(execute(root))
+
     def test_summary_budget_does_not_change_task_budget(self):
         cell = StudyCell.__new__(StudyCell)
         cell.protocol = {'compaction':{'summaryMaxTokens':12288}}
