@@ -27,6 +27,8 @@ def main() -> None:
     parser.add_argument("--core-id", default="H3")
     parser.add_argument("--second-mapping", type=Path)
     parser.add_argument("--second-grades", type=Path)
+    parser.add_argument("--test-mapping", type=Path)
+    parser.add_argument("--test-grades", type=Path)
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
 
@@ -56,6 +58,18 @@ def main() -> None:
     final = json.loads(Path(args.final).read_text())
     core = next(c for c in final["candidates"] if c.get("id") == args.core_id)
     extra = ""
+    test_html = ""
+    if args.test_mapping and args.test_grades:
+        tests = rows(args.test_mapping, args.test_grades)
+        labels = {"prompt-cache": "Prompt Cache", "spinquant": "SpinQuant",
+                  "kvquant": "KVQuant", "dx100": "DX100"}
+        test_rows = "".join(
+            f"<tr><th>{label}</th>{match_cell(tests.get((slug, 'gap_receipt_swarm'), '—'))}</tr>"
+            for slug, label in labels.items())
+        test_html = ("<h2>Held-out test split (S, frozen method)</h2>"
+                     "<table><tr><th>paper</th><th>S</th></tr>" + test_rows + "</table>"
+                     "<p>No tuning on these papers. SpinQuant core; Prompt Cache and KVQuant partial; "
+                     "DX100 miss by the conservative adjudication.</p>")
     if args.second_mapping and args.second_grades:
         second = rows(args.second_mapping, args.second_grades)
         hit = second.get(("nnsmith", "gap_receipt_swarm"))
@@ -89,6 +103,7 @@ against both A and B and strictly more core hits.</p>
 <h2>The S core record (NNSmith, dev-v6)</h2>
 <div class="box">{record}<p><b>minimal comparison</b></p>{comp}</div>
 <h2>Paper evidence</h2><ul>{evidence}</ul>
+{test_html}
 <h2>Handoff audit</h2>
 <p>Across the four development samples the S workflow delegated 13 named gaps; workers returned
 6 candidate sets, all parsed (no field-name losses), all delivered to the lead, and 2 were cited

@@ -72,3 +72,24 @@ Three independent graders are archived:
 
 Disagreements are documented per cell (holistic vs structured vs blind), rather than
 resolved silently.
+
+
+## Held-out test split (S only, frozen method)
+
+The S method (dev-v9 prompt: stage ledger, keep-one-of-many, premise/transformation,
+unit mismatch, sharing, stored-witness) was run once on the four test-with-source
+papers. No tuning was done on these papers; the reference rows 05/07/09/14 were used
+only for scoring.
+
+| paper | S | best record | note |
+|---|---|---|---|
+| Prompt Cache | partial | H2 | parameter placeholder freezes the suffix KV (same family as the reference's missing conditioning, but intra-module) |
+| SpinQuant | **core** | H1 | shared global R1 forces a per-layer compromise; the paper's own Fig. 7c shows one layer's SNR worsens; per-layer R2 absorption is discussed; per-layer R1 comparison proposed |
+| KVQuant | partial | H2 | outlier budget allocated by magnitude rather than sensitivity; the first-token position proxy is not addressed |
+| DX100 | miss | H1 | tile-capacity truncation, not cross-iteration dependence blocking offload |
+
+A blind independent grader agreed on the SpinQuant core, graded Prompt Cache core (a
+more lenient reading of the same conditioning family), KVQuant partial and DX100 miss.
+The conservative adjudication above keeps Prompt Cache at partial because the
+reference's locus is cross-module conditioning. Test outcome under the conservative
+reading: **1 core, 2 partial, 1 miss** with the method frozen before the run.

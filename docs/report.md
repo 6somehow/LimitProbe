@@ -94,10 +94,25 @@ and better evidenced (code spans in `input_gen.py` and `cli/fuzz.py`).
   are documented in `out/grades-*`.
 * The test split has not been run with S yet.
 
+## Held-out test run
+
+The frozen S method was run once on the four test-with-source papers without tuning:
+
+| paper | S | best record |
+|---|---|---|
+| Prompt Cache | partial | H2 (placeholder-frozen suffix KV; intra-module locus) |
+| SpinQuant | **core** | H1 (one global R1 forces a per-layer compromise; Fig. 7c evidence; per-layer R1 comparison) |
+| KVQuant | partial | H2 (outlier budget by magnitude, not sensitivity) |
+| DX100 | miss | H1 (tile-capacity truncation) |
+
+A blind independent grader agreed on SpinQuant core and DX100 miss, graded Prompt
+Cache core (a more lenient reading) and KVQuant partial. The table keeps the
+conservative reading.
+
 ## Next steps
 
-1. Test split (`Prompt Cache`, `SpinQuant`, `KVQuant`, `DX100`) with the frozen S
-   prompt, graded against reference rows 05/07/09/14.
-2. Make the worker discover rather than only verify: give it the lead's top-two gaps
+1. Make the worker discover rather than only verify: give it the lead's top-two gaps
    and three replies, and measure cited-in-final per worker.
-3. Pre-register two samples per condition before the test run.
+2. Pre-register two samples per condition for the next evaluation round.
+3. Try the paper-only test stratum (OneSidedMW, CXLfork, Juneberry, Twilight) with
+   paper-only tools.
