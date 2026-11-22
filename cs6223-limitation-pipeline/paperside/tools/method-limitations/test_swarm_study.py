@@ -38,7 +38,8 @@ class GapProtocol(unittest.TestCase):
                     content = '\n'.join(message['content'] for message in payload['messages']
                                         if message['role']=='user' and isinstance(message['content'],str))
                     candidates = [{'rule':'a rule', 'trigger':'a trigger', 'mitigation':'unknown',
-                                   'consequence':'a consequence','evidence':'needs an original check'}]
+                                   'consequence':'a consequence','evidence':'needs an original check',
+                                   'lens':'coverage','invariant':'same control','case_b':'fixture case B'}]
                     summary_only = any(isinstance(m.get('content'),str) and m['content'].startswith('CS6223_PI_AUTO_SUMMARY:') for m in payload['messages'])
                     if summary_only:
                         response = {'summary':'fixture native Pi summary'}
@@ -96,6 +97,7 @@ class GapProtocol(unittest.TestCase):
             receipt, = [item for item in events if item['kind']=='gap_verification_received']
             self.assertEqual(receipt['agent'],'root.2')
             self.assertEqual(receipt['assignment']['candidate']['id'],'root.1#1')
+            self.assertEqual(receipt['assignment']['candidate']['invariant'],'same control')
             spans = source_evidence(root/'nnsmith',cell.out)
             self.assertTrue(spans['README.md'])
             with self.assertRaisesRegex(ValueError,'Test release'):
@@ -105,7 +107,7 @@ class GapProtocol(unittest.TestCase):
             root = Path(temporary)/'study'
             inputs = Path(os.environ.get('CS6223_STUDY_INPUTS',pilot.MODULE/'runs'))
             source = os.environ.get('CS6223_SWARM_SOURCE')
-            freeze_study(root,inputs,Path(source) if source else None)
+            freeze_study(root,inputs,Path(source) if source else None,os.environ.get('CS6223_STUDY_POLICY','original'))
             asyncio.run(smoke(root))
 
 

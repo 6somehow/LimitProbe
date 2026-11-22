@@ -33,7 +33,7 @@ export function gapWorkflow(config, emit) {
                   ...Object.fromEntries([
                     'title', 'rule', 'trigger', 'mitigation', 'consequence', 'evidence',
                     'paper_evidence', 'code_evidence', 'counterevidence', 'minimal_comparison',
-                    'case_a', 'case_b', 'fixed', 'study_metric',
+                    'case_a', 'case_b', 'fixed', 'study_metric', 'lens', 'invariant',
                   ].filter(key => item[key] != null).map(key => [key,item[key]])),
                 }] : []);
         }
