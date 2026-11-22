@@ -96,6 +96,43 @@ def source_evidence(folder, cell):
     return span_by_path
 
 
+def candidate_count(answer):
+    text = answer.strip()
+    match = re.fullmatch(r'```(?:json)?\s*([\s\S]+?)\s*```',text)
+    try:
+        content = json.loads(match[1] if match else text)
+    except ValueError:
+        return None
+    rows = content.get('candidates') if isinstance(content,dict) else content
+    return len(rows) if isinstance(rows,list) else None
+
+
+def final_handoff(cell, final_request):
+    wire = load(cell/f'request-{final_request:02}.json')
+    for message in reversed(wire['messages']):
+        body = message.get('content')
+        if message.get('role')!='user' or not isinstance(body,str) or 'PHASE: final synthesis' not in body:
+            continue
+        _, sep, tail = body.rpartition('\n\n')
+        if sep:
+            payload = json.loads(tail)
+            if isinstance(payload,dict):
+                return payload
+    raise ValueError('No structured handoff in the archived final request')
+
+
+def candidate_origins(records):
+    origins = set()
+    for record in records:
+        sources = record.get('origin_ids',[])
+        if isinstance(sources,list):
+            origins.update(x for x in sources if isinstance(x,str))
+        for source in (record.get('id'),record.get('origin_id')):
+            if isinstance(source,str):
+                origins.add(source)
+    return origins
+
+
 def gap_trace(cell, records, final_request):
     events = [json.loads(line) for line in (cell/'event.jsonl').read_text().splitlines()]
     discoveries = [e for e in events if e['kind']=='gap_discovery_frozen']
@@ -106,7 +143,19 @@ def gap_trace(cell, records, final_request):
     if routes and any(events.index(event)>events.index(routes[0]) for event in discoveries):
         raise ValueError('Discovery completed after routing')
     compacted = [e for e in events if e['kind']=='native_gap_compaction']
+    root_payload = final_handoff(cell,final_request)
+    delivered = {c['id']:c for c in root_payload['candidates']}
+    origins = candidate_origins(records)
+    counts = []
+    for e in discoveries:
+        raw_count = candidate_count(e['answer'])
+        retained = [c['id'] for c in e['candidates']]
+        counts.append({'worker':e['agent'],'raw_candidate_count':raw_count,
+                       'frozen_candidate_count':len(retained),
+                       'delivered_candidate_count':sum(delivered.get(c['id'])==c for c in e['candidates']),
+                       'final_candidates_linked':sum(c in origins for c in retained)})
     result = {
+        'candidate_handoff_by_worker':counts,
         'native_compaction':[
             {'agent':e['agent'],'trigger':e.get('trigger','manual'),'estimated_before':e['before'],
              'estimated_after':e['estimated_after']}
@@ -131,16 +180,9 @@ def gap_trace(cell, records, final_request):
         if not any(e['agent']==author and any(row.get('id')==candidate for row in e['candidates'] + e.get('procedures',[]))
                    for e in discoveries):
             raise ValueError('Cross-check candidate was not produced during independent discovery')
-        messages = load(cell/f'request-{final_request:02}.json')['messages']
-        result['cross_check_in_final_request'] = any(
-            m.get('role')=='user' and isinstance(m.get('content'),str)
-            and 'PHASE: final synthesis' in m['content'] and json.dumps(
-                checked['answer'], ensure_ascii=False)[1:-1] in m['content']
-            for m in messages
-        )
+        result['cross_check_in_final_request'] = root_payload.get('verification') == checked['answer']
         result['final_records_linked_to_checked_candidate'] = sum(
-            isinstance(record.get('origin_ids'),list) and candidate in record['origin_ids']
-            for record in records
+            candidate in candidate_origins([record]) for record in records
         )
     return result
 
