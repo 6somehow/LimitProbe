@@ -42,19 +42,76 @@ adopted, narrowed, refuted, or unresolved, and include one sentence in review_re
 MODES = ('self_review', 'delegated_review')
 PHASES = ('frozen_draft', *MODES)
 PROMPTS = {'draft':DRAFT, 'review':REVIEW, 'final':FINAL}
+METHOD_PROMPTS = {
+    'draft': """You are the lead investigator. Start from the method's main claimed outcome and
+one actual paper evaluation or deployment path. Read the method, the evaluated configuration,
+and at least one relevant algorithm, figure or table. Trace the path from the outer entry to
+the rule that selects, transforms or stops, then to the first downstream use. Establish
+which admissible inputs reach that path and what the rule guarantees there.
+
+Before selecting candidates, contrast two cases within that same path and scope. Hold the
+resource allowance and relevant configuration fixed. Vary one property that the method
+does not preserve, measure or distinguish. Identify the first operation where the cases
+diverge, what an existing safeguard can recover, and the measured or testable effect on
+the paper's outcome. Examine an ordinary successful run before exploring error paths.
+An implementation mismatch or an untested setting may be worth recording as a boundary.
+It takes a separate causal argument to show that the method itself has a limitation.
+
+Return the required report and one top-level review_target object with anchor and question.
+The anchor must give a paper or Git reference and identify the relevant ordinary path.
+The question must locate one unresolved link that would change the strongest candidate
+about the paper's main outcome. Ask which behavior occurs, under which condition, and
+what would count against the diagnosis. Only route a failure or fallback branch if you
+can show that the paper's evaluated path reaches it under the specified conditions.
+If you do not have a defensible candidate, audit the guarantee of the most important rule.""",
+    'review': """You are the evidence investigator. Treat the frozen draft as a hypothesis.
+Answer the assigned review_target question with original paper and Git evidence. First
+verify whether the anchor is on the normal evaluated call path and whether the proposed
+contrast stays within the paper's scope. Read the decision and the first consumer. Trace
+both cases under the same budget and configuration. Check existing recovery, approximation
+or an alternative explanation before judging the downstream effect. If the assigned branch
+is off-path, say so and check the corresponding normal path of the same mechanism.
+
+Return a compact memo with anchor, applicability, first_divergence, mitigation, consequence,
+verdict, evidence and falsifier. Each item of evidence gives an original page or Git path
+and line range and the fact it establishes. Distinguish an observed effect from a prediction
+that needs a test. A verdict can support, narrow, refute or leave the proposed link open.
+Concentrate on this link and its consumer. Leave unknown facts explicit and avoid adding
+unrelated candidates.""",
+    'final': """You are responsible for the final diagnosis. Use the frozen draft and the evidence
+memo as leads. Rank candidates by how directly the method rule affects the paper's claimed
+outcome through the verified execution path. For each retained method limitation, join
+the rule, both admissible cases, the first divergence, the mitigation and the downstream
+effect in one record. State what stays fixed, provide a measurable comparison, and name
+the result that would refute the diagnosis. Cite only evidence that supports the stated
+link. If a consequence has not been measured, state it as a conditional hypothesis.
+
+Put artifact-only differences, off-path fallbacks and evaluation scope gaps in
+known_boundaries unless the main-path causal link is established. Preserve a separate
+well-supported method candidate from the draft if it addresses another mechanism.
+Set review_disposition to adopted, narrowed, refuted or unresolved, and explain exactly
+which link the memo changed in review_reason. Return the required report JSON."""
+}
+POLICIES = {'original':PROMPTS, 'method-path':METHOD_PROMPTS}
 
 
-def prepare(root, previous_runs, swarm_source=None):
+def prepare(root, previous_runs, swarm_source=None, policy='original'):
     freeze_study(root, previous_runs, swarm_source)
     protocol = load(root/'protocol.json')
-    protocol.update(version='cs6223-targeted-review/1', split={'dev':DEV}, conditions=list(PHASES),
+    prompts = POLICIES[policy]
+    protocol.update(version='cs6223-targeted-review/1', prompt_policy=policy,
+                    split={'dev':DEV}, conditions=list(PHASES),
                     max_http_requests_per_cell=7, max_actual_returned_tokens_per_cell=460000,
                     global_model_concurrency=4, per_cell_wall_seconds=1350,
                     staged_review={'draft':4,'review':3,'final':2},
-                    prompt_sha256={name:sha(prompt.encode()) for name,prompt in PROMPTS.items()},
+                    prompt_sha256={name:sha(prompt.encode()) for name,prompt in prompts.items()},
                     runner_sha256=sha(Path(__file__).read_bytes()))
+    for name, prompt in prompts.items():
+        (root/'prompts-joint'/f'targeted-{name}.txt').write_bytes(prompt.encode())
     dump(root/'protocol.json',protocol)
     index = load(root/'input-index.json')
+    for name, digest in protocol['prompt_sha256'].items():
+        index[f'prompts-joint/targeted-{name}.txt'] = digest
     index['protocol.json'] = sha((root/'protocol.json').read_bytes())
     dump(root/'input-index.json',index)
 
@@ -87,9 +144,11 @@ class TargetedCell(StudyCell):
     def cfg(self):
         config = super().cfg()
         turns = self.protocol['staged_review']
+        prompts = {name:(self.root/'prompts-joint'/f'targeted-{name}.txt').read_text()
+                   for name in self.protocol['prompt_sha256']}
         config['leadPrompt'] = config['workerPrompt'] = 'Use the original evidence and complete the requested phase.'
         if self.draft is None:
-            config['task'] += '\n\nPHASE: shared lead draft\n' + DRAFT
+            config['task'] += '\n\nPHASE: shared lead draft\n' + prompts['draft']
             config['limits']['maxTurns'] = turns['draft']
             return config
         report, digest = self.draft
@@ -97,7 +156,7 @@ class TargetedCell(StudyCell):
         config['limits'].update(maxActive=2 if delegated else 1, maxTotal=2 if delegated else 1,
                                 maxTurns=turns['review'])
         config['gapReview'] = dict(mode='delegate' if delegated else 'self', draft=report, draftSha256=digest,
-                                   verification=REVIEW, final=FINAL, verificationTurns=turns['review'],
+                                   verification=prompts['review'], final=prompts['final'], verificationTurns=turns['review'],
                                    finalTurns=turns['final'])
         return config
 
@@ -137,7 +196,7 @@ def audit_receipt(folder, draft):
                 requests=summary['requests'], tokens=summary['actual_returned_total_tokens'])
 
 
-async def run(root):
+async def run(root, draft_only=False):
     verify_inputs(root)
     protocol = load(root/'protocol.json')
     if protocol.get('runner_sha256')!=sha(Path(__file__).read_bytes()) or protocol['split']!={'dev':DEV}:
@@ -159,6 +218,8 @@ async def run(root):
         folders = await asyncio.gather(*(cell(paper,mode,draft) for mode in MODES))
         return paper, {folder.name:audit_receipt(folder,draft) for folder in folders}
 
+    if draft_only:
+        return await asyncio.gather(*(cell(paper,'frozen_draft') for paper in DEV.values()))
     results = dict(await asyncio.gather(*(pair(paper) for paper in DEV.values())))
     dump(root/'pair-audit.json',results)
     return results
@@ -170,11 +231,13 @@ if __name__=='__main__':
     parser.add_argument('root',type=Path)
     parser.add_argument('--previous-runs',type=Path,default=HERE.parents[1]/'runs')
     parser.add_argument('--swarm-source',type=Path)
+    parser.add_argument('--prompt-policy',choices=POLICIES,default='method-path')
+    parser.add_argument('--draft-only',action='store_true')
     args = parser.parse_args()
     root = args.root.resolve()
     if args.action=='prepare':
-        prepare(root,args.previous_runs,args.swarm_source)
+        prepare(root,args.previous_runs,args.swarm_source,args.prompt_policy)
     else:
         with (root/'.runner.lock').open('a') as lock:
             fcntl.flock(lock,fcntl.LOCK_EX | fcntl.LOCK_NB)
-            asyncio.run(run(root))
+            asyncio.run(run(root,args.draft_only))

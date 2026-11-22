@@ -54,7 +54,13 @@ class GapProtocol(unittest.TestCase):
             root = Path(work)/'review'
             inputs = Path(os.environ.get('CS6223_STUDY_INPUTS',pilot.MODULE/'runs'))
             source = os.environ.get('CS6223_SWARM_SOURCE')
-            prepare_review(root,inputs,Path(source) if source else None)
+            prepare_review(root,inputs,Path(source) if source else None,policy='method-path')
+            self.assertIn('ordinary successful run',
+                          (root/'prompts-joint/targeted-draft.txt').read_text())
+            self.assertIn('first_divergence',
+                          (root/'prompts-joint/targeted-review.txt').read_text())
+            self.assertIn('known_boundaries',
+                          (root/'prompts-joint/targeted-final.txt').read_text())
             asyncio.run(exercise(root))
 
     def test_standalone_agent_has_final_writer_role(self):
