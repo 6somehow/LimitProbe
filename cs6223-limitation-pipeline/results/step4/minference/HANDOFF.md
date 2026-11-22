@@ -96,6 +96,7 @@
 | `limitation_ids` / `limitations` | 背后的完整 Limitation 记录（两侧都可能有） | 看原始条件、论文原文和代码位置 |
 | `verification_ids` / `verifications` | 代码侧的 3b 结果：在哪里找到了说明、原文 | 判断“文档到底怎么写的” |
 | `confidence` | 目前全部是 llm_assisted | — |
+| `process_confidence` | 代码侧的静态证据：8 项检查的状态、重复测量、预测的测试档位上限、重要性数字（没有自己的档位），见第 6 节；纯论文侧的 Finding 为 null | 作为你定档的输入；不是测试结论 |
 
 注意：论文侧原始记录的 `effect_text` 有一部分写的是“同上……”，指的是 3a 同一条记录的 local_entry 描述。Finding 的 `summary` 已经展开，`limitations` 里保留原样。
 
@@ -146,7 +147,58 @@
 | resource / performance | 内存 / 时间 | resource：测量，对比 contrast |
 | other（论文侧几乎全是） | 实现和论文描述不同，没有确定的运行时后果 | witness 为 always 时：走到引用代码的任一输入，和论文公式 / 描述做 differential 或 metamorphic 对比；3a 只做了静态判断，后果未证实 |
 
-## 6. 典型例子
+## 6. 代码侧的静态证据（未校准，没有自己的档位）
+
+每条有代码侧记录的 Finding 带一个 `process_confidence` 块（格式 `process-confidence-v2`，规则见 `docs/11_process_confidence.md`）。它是对你的档位的补充：**代码侧不定档，档位只由你的测试证据决定**。不执行代码、不调模型，同样的输入得到同样的结果。块里有四部分。
+
+**1. `checks`：核对表。** 词汇和你的 defeater 表一样：`eliminated`（工具核对过）、`residual`（只有论证或模型判断）、`open`（没评估）、`refuted`（核对失败）。
+
+| 检查 | 对应的测试概念 | 对应你的 | `eliminated` 的条件 |
+|---|---|---|---|
+| C1 location | 输入有效性 | D12 | 固定 commit 下该行的语句就是记录的 snippet |
+| C2 condition | 语句的判定（decision） | D2 | 条件就是该语句的判定表达式或它的取反 |
+| C3 reachability | 可达性（RIPR 的 R） | D1、D14 | 从官方入口到目标有静态调用链，且没有靠猜的步骤 |
+| C4 feasibility | 不可行路径 | witness | z3 在完整路径前缀下找到触发点和对照点 |
+| C5 extraction | 分析的可重复性 | D8 | 静态路线找到，或 LLM 路线在全部抽取运行里都找到（同一文件同一行） |
+| C6 effect_label | oracle 与语句相符 | D4、效果类型 | 标注的效果能在该语句上判定（reject 要能抛异常，path_change 要是 if / while） |
+| C7 documentation | 缺失性断言，只作说明 | — | 3b 找到了原文；not_found 无法证明，为 residual；3 次重复不一致也为 residual |
+| C8 review | 审查（inspection） | — | 人工审过；LLM 盲审为 residual，没审为 open |
+
+**2. `repeats`：重复测量。** `extraction_runs`：这个位置在几次抽取运行里出现（`found_in` / `of`）；`documentation_check`：3b 重复几次、结果的一致率；`routes`：哪条路线找到的（`ast` 静态、`llm`）。
+
+**3. `testability`：预测你这边能测到哪一档。** 按你的规则推出来的上限，不是预报，实际可以更低。
+
+| 字段 | 含义 |
+|---|---|
+| `testable: false` + `expect_not_run` | C4 为 refuted 预计 `witness_unusable`；效果是 `other` 预计 `outcome_unsupported` |
+| `mutants` / `mutants_needed` | 用你的 `mutate.generate` 在目标行能造出几个变异体；少于 `n_min`（4）时 D3 消不掉 |
+| `ceiling` | `L1`：变异体不够；`L2`：没有调用链，D14 最多 residual；`L3`：静态上没有限制 |
+| `limited_by` | 卡在哪个 defeater，原因是什么 |
+| `condition_has_calls`、`integer_boundary` | 条件里有没有函数调用（影响 D2 能否直接求值）；边界变量是否都是整数（影响 D5 的邻点） |
+
+和已有测试报告对照（7 篇里测过的 130 条）：**没有一条的实际档位超过预测上限**，98 条正好等于上限；预计 `outcome_unsupported` 的 48 条、`witness_unusable` 的 12 条全部对上。这是在同一批数据上看的，不是独立验证。
+
+**4. `importance`：重要性，和把握分开。**
+
+- `path.decision_on`：`main` 每次调用都会求值这个判定；`side` 判定在某个 `if` / `except` / `case` 里面（自己函数里的见 `enclosing_conditions`，调用链上的见 `conditional_call_sites`）；`unknown` 没有调用链，看不到调用者。
+- `impact`：判定管住多少语句（分支体，或 assert / raise 之后函数里剩下的语句）、函数共多少语句、从入口来的调用链条数、仓库里解析到这个函数的调用点数。
+- `coverage`：目标函数里有多少个判定（if / while / assert）、代码侧列出了几个、入口能否静态到达这个函数。这是**分析的覆盖**，不是执行覆盖；执行覆盖在你的 `execution_report.json` 里。
+
+**建议的用法**：测之前按 `ceiling` 分配预算（`测不了` 的不测，`L1` 的少花时间）；测之后把 `limited_by` 放在档位旁边，说明是这句本身测不到更高还是测得不够；没测的 Finding 把 `checks` 和 `repeats` 作为确定性的证据并排列出；`importance` 只用于排序，不进档位。
+
+预测的测试档位上限：
+
+| 论文 | 测不了 | L1 | L2 | L3 | 没测量 | 合计 |
+|---|---|---|---|---|---|---|
+| minference | 13 | 26 | 1 | 10 | 0 | 50 |
+
+判定在主路径还是侧路径：
+
+| 论文 | main | side | unknown | 合计 |
+|---|---|---|---|---|
+| minference | 16 | 21 | 10 | 50 |
+
+## 7. 典型例子
 
 每个例子是一条 Finding 的精简版，长字段已截断；完整内容在 json 里。例子是按规则自动挑的第一条，不是挑好看的。“论文侧 · LLM 写出条件”那条正好说明了它的局限：条件在形式上能解，但不一定抓住了论文差异的本质，所以论文侧条件只当提示用。
 
@@ -230,7 +282,27 @@
    "quote": null
   }
  ],
- "rationale": "3b: not_found; priority 1: undisclosed, state effect, witness reaches it; related (candidate pair, judged different): minference-F043, minference-F044, minference-F045, minference-F050, minference-F051, minference-F052, minference-F053, minference-F054, minference-F069, minference-F070, minference-…"
+ "rationale": "3b: not_found; priority 1: undisclosed, state effect, witness reaches it; related (candidate pair, judged different): minference-F043, minference-F044, minference-F045, minference-F050, minference-F051, minference-F052, minference-F053, minference-F054, minference-F069, minference-F070, minference-…",
+ "process_confidence": {
+  "checks": {
+   "C1": "eliminated",
+   "C2": "eliminated",
+   "C3": "eliminated",
+   "C4": "eliminated",
+   "C5": "eliminated",
+   "C6": "eliminated",
+   "C7": "residual",
+   "C8": "open"
+  },
+  "found_in_runs": 3,
+  "ceiling": "L1",
+  "limited_by": [
+   "D3: 1 mutant(s) of the target line, fewer than n_min=4; it cannot be eliminated"
+  ],
+  "decision_on": "side",
+  "guarded_statements": 5,
+  "note": "... evidence per check and the full numbers are in the json"
+ }
 }
 ```
 
@@ -483,84 +555,84 @@
 }
 ```
 
-## 7. 全部 Finding 索引
+## 8. 全部 Finding 索引
 
-每篇按 priority 排序。列的含义：侧 = 代/论/合（代码侧 / 论文侧 / 两侧合并）；审 = 审阅状态（✓ worth_testing，~ real_but_minor，✗ wrong，空 = 未审）。
+每篇按 priority 排序。列的含义：侧 = 代/论/合（代码侧 / 论文侧 / 两侧合并）；审 = 审阅状态（✓ worth_testing，~ real_but_minor，✗ wrong，空 = 未审）；过程 = 过程置信度档位和判定所在路径（第 6 节；论文侧为空）。
 
 ### minference（73 条）
 
-| ID | 侧 | 类别 | P | effect | witness | 审 | 位置 | 内容 |
-|---|---|---|---|---|---|---|---|---|
-| F001 | 代 | undisclosed | 1 | reject | solved |  | `minference/minference_configuration.py:56` | When config_path is None and model_name not in MODEL2PATH: If no `config_path` is given, the model … |
-| F003 | 代 | undisclosed | 1 | state | solved |  | `minference/modules/minference_forward.py:165-172` | When SEARCH_MASK is None # first call only: module-level cache initialised on first call and reused |
-| F004 | 代 | undisclosed | 1 | state | solved |  | `minference/modules/minference_forward.py:390` | When "vs" in self.__dict__: Static pattern reuses vertical_topk/slash cached in self.vs from an ear… |
-| F006 | 代 | undisclosed | 1 | reject | solved |  | `minference/modules/minference_forward.py:484-488` | When True: raise ValueError(f'The cache structure has changed since version v4.36. If you are using… |
-| F008 | 代 | undisclosed | 1 | state | solved |  | `minference/modules/minference_forward.py:681` | When key_states.shape[-2] != kv_seq_len: Whether SnapKV compression runs depends on `self.kv_seq_le… |
-| F010 | 代 | undisclosed | 1 | reject | solved |  | `minference/ops/block_sparse_flash_attention.py:126` | When not (Lq == Lk and Lk == Lv): AssertionError |
-| F011 | 代 | undisclosed | 1 | reject | solved |  | `minference/ops/block_sparse_flash_attention.py:127` | When not (Lk in {16, 32, 64, 128}): AssertionError |
-| F012 | 代 | undisclosed | 1 | reject | solved |  | `minference/ops/pit_sparse_flash_attention_v2.py:149` | When not (Lq == Lk and Lk == Lv): AssertionError |
-| F013 | 代 | undisclosed | 1 | reject | solved |  | `minference/ops/pit_sparse_flash_attention_v2.py:150` | When not (Lk in {16, 32, 64, 128}): AssertionError |
-| F014 | 代 | undisclosed | 1 | reject | solved | ✓ | `minference/ops/streaming_kernel.py:414` | When Lk not in {16, 32, 64, 128}: Head dimension (q/k/v last dim) must be one of 16/32/64/128; othe… |
-| F015 | 代 | undisclosed | 1 | reject | solved |  | `minference/ops/streaming_kernel.py:605` | When not (q.dim() == 4): AssertionError |
-| F016 | 代 | undisclosed | 1 | reject | solved |  | `minference/ops/streaming_kernel.py:606` | When not (q.shape == k.shape == v.shape): AssertionError |
-| F017 | 代 | undisclosed | 1 | reject | solved |  | `minference/patch.py:207` | When output_attentions: If the caller requests attention outputs, execution is aborted by the asser… |
-| F019 | 代 | undisclosed | 1 | reject | solved | ~ | `minference/patch.py:1253` | When not |
-| F020 | 代 | undisclosed | 2 | path_change | solved | ✓ | `minference/minference_configuration.py:52` | When self.attn_type in self.STASTIC_ATTENTION_TYPES: For any `attn_type` in `STASTIC_ATTENTION_TYPE… |
-| F021 | 代 | undisclosed | 2 | path_change | solved | ✓ | `minference/modules/minference_forward.py:63` | When not (self.config_path is not None and os.path.exists(self.config_path) and self.layer_idx < le… |
-| F022 | 代 | undisclosed | 2 | path_change | solved | ✓ | `minference/modules/minference_forward.py:192` | When best_ty == "stream_llm": If streaming wins the search, it is overridden to vertical_and_slash,… |
-| F023 | 代 | undisclosed | 2 | path_change | solved |  | `minference/modules/minference_forward.py:418-419` | When q_len == 1: returns via dense |
-| F024 | 代 | undisclosed | 2 | path_change | solved | ~ | `minference/modules/minference_forward.py:421` | When self.config.to_dict().get("dilated1", False): Config flag switches to the fixed 'dilated1' spa… |
-| F025 | 代 | undisclosed | 2 | path_change | solved | ~ | `minference/modules/minference_forward.py:423` | When self.config.to_dict().get("dilated2", False): Config flag switches to the fixed 'dilated2' spa… |
-| F026 | 代 | undisclosed | 2 | path_change | solved |  | `minference/modules/minference_forward.py:425-426` | When self.config.to_dict().get('dense', False): returns via dense |
-| F027 | 代 | undisclosed | 2 | path_change | solved | ~ | `minference/modules/minference_forward.py:427` | When self.config.to_dict().get("streaming", False): Config flag switches to streaming_forward with … |
-| F028 | 代 | undisclosed | 2 | path_change | solved | ✓ | `minference/modules/minference_forward.py:432` | When self.config.to_dict().get("static_pattern", False): Config flag switches to vertical_and_slash… |
-| F029 | 代 | undisclosed | 2 | path_change | solved | ~ | `minference/modules/minference_forward.py:434` | When self.config.to_dict().get("vs_only", False): Config flag forces the vertical_and_slash_kernel … |
-| F030 | 代 | undisclosed | 2 | path_change | solved | ✓ | `minference/modules/minference_forward.py:521` | When self.layer_idx >= self.starting_layer and not self.is_search: Layers below starting_layer (or … |
-| F031 | 代 | undisclosed | 2 | path_change | solved | ✓ | `minference/modules/minference_forward.py:613` | When self.layer_idx >= self.starting_layer: Layers below starting_layer use dense flash_attn_func; … |
-| F032 | 代 | undisclosed | 2 | path_change | solved | ✓ | `minference/modules/minference_forward.py:756` | When q_len == 1: In gather_last_q_vertical_slash_topk_vllm, a single query token bypasses the spars… |
-| F033 | 代 | undisclosed | 2 | path_change | solved | ✓ | `minference/modules/minference_forward.py:864` | When kv_cache is None or prefill_meta.block_tables.numel() == 0: Only when there is no KV cache or … |
-| F034 | 代 | undisclosed | 2 | path_change | solved | ~ | `minference/modules/snap_kv.py:321` | When q_len < self.max_capacity_prompt: When the prompt length is below max_capacity_prompt, update_… |
-| F035 | 代 | undisclosed | 2 | path_change | solved |  | `minference/modules/snap_kv.py:347` | When self.pooling == "avgpool": The pooling attribute (set from config.pooling in init_snapkv) sele… |
-| F037 | 代 | undisclosed | 2 | path_change | solved | ~ | `minference/ops/streaming_kernel.py:609` | When head_dim not in [16, 32, 64, 128, 256, 512]: For head dimensions not in the hard-coded list, q… |
-| F038 | 代 | undisclosed | 2 | path_change | solved | ~ | `minference/ops/streaming_kernel.py:620` | When k_len > n_local: The streaming (StreamingLLM) variant only keeps the `n_init` sink tokens when… |
-| F039 | 代 | undisclosed | 2 | path_change | solved | ~ | `minference/ops/streaming_kernel.py:701` | When len_k <= n_local + n_init: The KV cache kept for subsequent decoding is either the full h_k/h_… |
-| F040 | 代 | undisclosed | 2 | path_change | solved | ~ | `minference/patch.py:835` | When config.kv_cache_cpu: Caller-supplied config flag switches to the KV-cache-on-CPU variant (minf… |
-| F041 | 代 | undisclosed | 2 | path_change | solved | ✓ | `minference/patch.py:840` | When config.use_snapkv: Caller-supplied config flag switches to the SnapKV variant (minference_patc… |
-| F042 | 论 | impl_deviates | 2 | other | solved |  | `csrc/vertical_slash_index.cu:27-99` | 论文要求循环守卫 s_v≤k_s；代码用 while(1)+break，s 仅在 else 分支递增，终止由 s>=NNZ_S 决定 |
-| F043 | 论 | impl_deviates | 2 | other | always |  | `experiments/README.md:13-30` | 实验配置未体现{(1024,4096)}，实际候选为(100,800) |
-| F044 | 论 | impl_deviates | 2 | other | always |  | `experiments/README.md:13-30` | 实验配置未体现论文候选集 |
-| F045 | 论 | impl_deviates | 2 | other | always |  | `experiments/README.md:13-30` | 配置层未体现{100} |
-| F046 | 论 | impl_deviates | 2 | other | solved |  | `experiments/infinite_bench/args.py:63-78` | 论文Table4/Fig5报告static变体结果；评估入口未暴露static选项，且底层static实现本身只覆盖VS。 |
-| F047 | 论 | impl_deviates | 2 | other | solved |  | `experiments/infinite_bench/args.py:63-78` | 评估入口无'only A-shape'变体选择，无法复现Table4的该变体。 |
-| F048 | 论 | impl_deviates | 2 | other | solved |  | `experiments/infinite_bench/args.py:63-78` | 无变体入口，无法复现Table4的only block-sparse行。 |
-| F049 | 论 | impl_deviates | 2 | other | solved |  | `minference/models_patch.py:66-73` | 论文 1k 全局/4k 局部；代码 128 全局/3968 局部，两参数均不符。 |
-| F050 | 论 | impl_deviates | 2 | other | always |  | `minference/modules/minference_forward.py:99-197` | 论文要求遍历调用方给定的初始化搜索空间 σ；代码遍历写死的候选表，σ 输入不存在（artifact 范围：无 σ 输入，候选表硬编码） |
-| F051 | 论 | impl_deviates | 2 | other | no_condition |  | `minference/modules/minference_forward.py:99-197` | 论文要求 dense 注意力输出 y（含 V）；代码只算注意力权重矩阵，未形成输出 |
-| F052 | 论 | impl_deviates | 2 | other | no_condition |  | `minference/modules/minference_forward.py:99-197` | 论文要求最小化与 dense 输出的偏差；代码最大化权重保留分数，方向与参照对象均不同 |
-| F053 | 论 | impl_deviates | 2 | other | always |  | `minference/modules/minference_forward.py:99-197` | 论文要求六类输入；代码签名缺 V、patterns、ρ、t、σ |
-| F054 | 论 | impl_deviates | 2 | other | always |  | `minference/modules/minference_forward.py:99-197` | 论文要求空集初始化；代码以数值 0 与空字符串初始化，且该初值使负分候选永不被选 |
-| F055 | 论 | impl_deviates | 2 | other | always |  | `minference/modules/minference_forward.py:199-246` | 论文要求最小化 t_sparse(M)+t_overhead(M)；artifact 执行路径未实现该时间目标。 |
-| F056 | 论 | impl_deviates | 2 | other | always |  | `minference/ops/block_sparse_flash_attention.py:150-165` | 论文要求块级 logits 先 softmax（并除 √d）得 Â；代码省略 softmax 与缩放，仅用因果掩码后的原始点积排序（artifact 范围：无 softmax/√d 的块级注意力矩阵） |
-| F002 | 代 | undisclosed | 3 | other | solved | ~ | `minference/modules/minference_forward.py:30` | When ROPE_TYPE is not None: `ROPE_TYPE` is a module-level global computed once from the *first* att… |
-| F057 | 代 | undisclosed | 3 | other | solved | ~ | `minference/modules/minference_forward.py:34` | When "seq_len" in inspect.signature(self.rotary_emb.forward).parameters: ROPE_TYPE is chosen by int… |
-| F058 | 代 | undisclosed | 3 | state | solved | ✗ | `minference/modules/minference_forward.py:74` | When "apply_rotary_pos_emb" not in self.__dict__: `apply_rotary_pos_emb` is rebound as a module-lev… |
-| F059 | 代 | undisclosed | 3 | other | solved | ✓ | `minference/modules/minference_forward.py:194` | When best_ty == "block_sparse": If block_sparse wins, it is replaced by hard-coded vertical_and_sla… |
-| F060 | 代 | undisclosed | 3 | other | solved | ✓ | `minference/modules/minference_forward.py:430` | When head_id not in self.best_pattern: When the per-layer pattern file |
-| F005 | 代 | undisclosed | 3 | other | solved |  | `minference/modules/minference_forward.py:441` | When ty not in {"stream_llm", "vertical_and_slash", "block_sparse"}: The implementation is chosen b… |
-| F007 | 代 | undisclosed | 3 | other | solved | ✓ | `minference/modules/minference_forward.py:504` | When self.is_search and os.path.exists(self.config_path) and self.layer_idx < len(config_list): Wit… |
-| F061 | 代 | undisclosed | 3 | other | solved |  | `minference/modules/minference_forward.py:523` | When is_flash_attn_2_available(): When the sparse path is not taken, availability of flash-attn 2 d… |
-| F062 | 代 | undisclosed | 3 | other | solved |  | `minference/modules/minference_forward.py:526` | When not (is_flash_attn_2_available()): attn_output = gather_qkv(q, k, v, attention_mask) |
-| F009 | 代 | undisclosed | 3 | other | solved |  | `minference/modules/minference_forward.py:754` | When head_id not in self.best_pattern: The vLLM variant indexes `self.best_pattern[head_id]` direct… |
-| F036 | 代 | undisclosed | 3 | other | solved | ~ | `minference/ops/block_sparse_flash_attention.py:130` | When q.dtype != torch.bfloat16: The Triton kernel's compute dtype is chosen from the input dtype: b… |
-| F063 | 代 | undisclosed | 3 | other | solved | ~ | `minference/ops/block_sparse_flash_attention.py:164` | When top_k > context_size // block_size_N: The requested `top_k` (derived from the searched `slash_… |
-| F064 | 代 | undisclosed | 3 | other | solved |  | `minference/ops/pit_sparse_flash_attention.py:150` | When q.dtype != torch.bfloat16: Any query dtype other than bfloat16 (float32, float64, float16 is f… |
-| F065 | 代 | undisclosed | 3 | path_change | solved | ✗ | `minference/ops/pit_sparse_flash_attention_v2.py:188` | When head_dim not in [16, 32, 64, 128, 256, 512]: For head dims outside the power-of-two list |
-| F018 | 代 | undisclosed | 3 | other | solved |  | `minference/patch.py:1252` | When not isinstance(model, |
-| F066 | 论 | not_implemented | 3 | other | solved |  | `experiments/README.md:13-30` | 实验入口未暴露或设定步长50 |
-| F067 | 论 | not_implemented | 3 | other | always |  | `experiments/infinite_bench/args.py:63-78` | 无变体配置，无法复现Table7的only vertical行。 |
-| F068 | 论 | not_implemented | 3 | other | solved |  | `experiments/infinite_bench/args.py:63-78` | 无换算配置入口。 |
-| F069 | 论 | not_implemented | 3 | other | solved |  | `minference/modules/minference_forward.py:99-197` | 论文要求每候选计算真实 kernel FLOPs；代码不计算任何 FLOPs |
-| F070 | 论 | not_implemented | 3 | other | always |  | `minference/modules/minference_forward.py:99-197` | 论文要求以目标 FLOPs 为停止条件的迭代调整；代码无该循环与调整算子 |
-| F071 | 论 | not_implemented | 3 | other | always |  | `minference/modules/minference_forward.py:99-197` | 论文要求累积 FLOPs 对齐后的候选到 ρ；代码无该累积步骤 |
-| F072 | 论 | not_implemented | 3 | other | no_condition |  | `minference/modules/minference_forward.py:99-197` | 论文要求 FlashAttention 与 V 信息参与选择；代码为稠密权重计算且完全不含 V |
-| F073 | 论 | not_implemented | 3 | other | always |  | `minference/modules/minference_forward.py:199-246` | 论文要求分别定义 t_sparse 与 t_overhead；artifact 路径无对应实现。 |
+| ID | 侧 | 类别 | P | effect | witness | 审 | 上限 路径 | 位置 | 内容 |
+|---|---|---|---|---|---|---|---|---|---|
+| F001 | 代 | undisclosed | 1 | reject | solved |  | L1 unknown | `minference/minference_configuration.py:56` | When config_path is None and model_name not in MODEL2PATH: If no `config_path` is given, the model … |
+| F003 | 代 | undisclosed | 1 | state | solved |  | L1 side | `minference/modules/minference_forward.py:165-172` | When SEARCH_MASK is None # first call only: module-level cache initialised on first call and reused |
+| F004 | 代 | undisclosed | 1 | state | solved |  | L1 side | `minference/modules/minference_forward.py:390` | When "vs" in self.__dict__: Static pattern reuses vertical_topk/slash cached in self.vs from an ear… |
+| F006 | 代 | undisclosed | 1 | reject | solved |  | L1 side | `minference/modules/minference_forward.py:484-488` | When True: raise ValueError(f'The cache structure has changed since version v4.36. If you are using… |
+| F008 | 代 | undisclosed | 1 | state | solved |  | L1 side | `minference/modules/minference_forward.py:681` | When key_states.shape[-2] != kv_seq_len: Whether SnapKV compression runs depends on `self.kv_seq_le… |
+| F010 | 代 | undisclosed | 1 | reject | solved |  | L3 main | `minference/ops/block_sparse_flash_attention.py:126` | When not (Lq == Lk and Lk == Lv): AssertionError |
+| F011 | 代 | undisclosed | 1 | reject | solved |  | L3 main | `minference/ops/block_sparse_flash_attention.py:127` | When not (Lk in {16, 32, 64, 128}): AssertionError |
+| F012 | 代 | undisclosed | 1 | reject | solved |  | L3 side | `minference/ops/pit_sparse_flash_attention_v2.py:149` | When not (Lq == Lk and Lk == Lv): AssertionError |
+| F013 | 代 | undisclosed | 1 | reject | solved |  | L3 side | `minference/ops/pit_sparse_flash_attention_v2.py:150` | When not (Lk in {16, 32, 64, 128}): AssertionError |
+| F014 | 代 | undisclosed | 1 | reject | solved | ✓ | L3 side | `minference/ops/streaming_kernel.py:414` | When Lk not in {16, 32, 64, 128}: Head dimension (q/k/v last dim) must be one of 16/32/64/128; othe… |
+| F015 | 代 | undisclosed | 1 | reject | solved |  | L3 side | `minference/ops/streaming_kernel.py:605` | When not (q.dim() == 4): AssertionError |
+| F016 | 代 | undisclosed | 1 | reject | solved |  | L3 side | `minference/ops/streaming_kernel.py:606` | When not (q.shape == k.shape == v.shape): AssertionError |
+| F017 | 代 | undisclosed | 1 | reject | solved |  | L1 unknown | `minference/patch.py:207` | When output_attentions: If the caller requests attention outputs, execution is aborted by the asser… |
+| F019 | 代 | undisclosed | 1 | reject | solved | ~ | L1 side | `minference/patch.py:1253` | When not |
+| F020 | 代 | undisclosed | 2 | path_change | solved | ✓ | L1 unknown | `minference/minference_configuration.py:52` | When self.attn_type in self.STASTIC_ATTENTION_TYPES: For any `attn_type` in `STASTIC_ATTENTION_TYPE… |
+| F021 | 代 | undisclosed | 2 | path_change | solved | ✓ | L3 main | `minference/modules/minference_forward.py:63` | When not (self.config_path is not None and os.path.exists(self.config_path) and self.layer_idx < le… |
+| F022 | 代 | undisclosed | 2 | path_change | solved | ✓ | L1 side | `minference/modules/minference_forward.py:192` | When best_ty == "stream_llm": If streaming wins the search, it is overridden to vertical_and_slash,… |
+| F023 | 代 | undisclosed | 2 | path_change | solved |  | L1 main | `minference/modules/minference_forward.py:418-419` | When q_len == 1: returns via dense |
+| F024 | 代 | undisclosed | 2 | path_change | solved | ~ | L1 main | `minference/modules/minference_forward.py:421` | When self.config.to_dict().get("dilated1", False): Config flag switches to the fixed 'dilated1' spa… |
+| F025 | 代 | undisclosed | 2 | path_change | solved | ~ | L1 main | `minference/modules/minference_forward.py:423` | When self.config.to_dict().get("dilated2", False): Config flag switches to the fixed 'dilated2' spa… |
+| F026 | 代 | undisclosed | 2 | path_change | solved |  | L1 main | `minference/modules/minference_forward.py:425-426` | When self.config.to_dict().get('dense', False): returns via dense |
+| F027 | 代 | undisclosed | 2 | path_change | solved | ~ | L1 main | `minference/modules/minference_forward.py:427` | When self.config.to_dict().get("streaming", False): Config flag switches to streaming_forward with … |
+| F028 | 代 | undisclosed | 2 | path_change | solved | ✓ | L1 main | `minference/modules/minference_forward.py:432` | When self.config.to_dict().get("static_pattern", False): Config flag switches to vertical_and_slash… |
+| F029 | 代 | undisclosed | 2 | path_change | solved | ~ | L1 main | `minference/modules/minference_forward.py:434` | When self.config.to_dict().get("vs_only", False): Config flag forces the vertical_and_slash_kernel … |
+| F030 | 代 | undisclosed | 2 | path_change | solved | ✓ | L1 side | `minference/modules/minference_forward.py:521` | When self.layer_idx >= self.starting_layer and not self.is_search: Layers below starting_layer (or … |
+| F031 | 代 | undisclosed | 2 | path_change | solved | ✓ | L1 unknown | `minference/modules/minference_forward.py:613` | When self.layer_idx >= self.starting_layer: Layers below starting_layer use dense flash_attn_func; … |
+| F032 | 代 | undisclosed | 2 | path_change | solved | ✓ | L1 unknown | `minference/modules/minference_forward.py:756` | When q_len == 1: In gather_last_q_vertical_slash_topk_vllm, a single query token bypasses the spars… |
+| F033 | 代 | undisclosed | 2 | path_change | solved | ✓ | L2 side | `minference/modules/minference_forward.py:864` | When kv_cache is None or prefill_meta.block_tables.numel() == 0: Only when there is no KV cache or … |
+| F034 | 代 | undisclosed | 2 | path_change | solved | ~ | L1 unknown | `minference/modules/snap_kv.py:321` | When q_len < self.max_capacity_prompt: When the prompt length is below max_capacity_prompt, update_… |
+| F035 | 代 | undisclosed | 2 | path_change | solved |  | L1 side | `minference/modules/snap_kv.py:347` | When self.pooling == "avgpool": The pooling attribute (set from config.pooling in init_snapkv) sele… |
+| F037 | 代 | undisclosed | 2 | path_change | solved | ~ | L3 side | `minference/ops/streaming_kernel.py:609` | When head_dim not in [16, 32, 64, 128, 256, 512]: For head dimensions not in the hard-coded list, q… |
+| F038 | 代 | undisclosed | 2 | path_change | solved | ~ | L1 side | `minference/ops/streaming_kernel.py:620` | When k_len > n_local: The streaming (StreamingLLM) variant only keeps the `n_init` sink tokens when… |
+| F039 | 代 | undisclosed | 2 | path_change | solved | ~ | L1 side | `minference/ops/streaming_kernel.py:701` | When len_k <= n_local + n_init: The KV cache kept for subsequent decoding is either the full h_k/h_… |
+| F040 | 代 | undisclosed | 2 | path_change | solved | ~ | L1 unknown | `minference/patch.py:835` | When config.kv_cache_cpu: Caller-supplied config flag switches to the KV-cache-on-CPU variant (minf… |
+| F041 | 代 | undisclosed | 2 | path_change | solved | ✓ | L1 unknown | `minference/patch.py:840` | When config.use_snapkv: Caller-supplied config flag switches to the SnapKV variant (minference_patc… |
+| F042 | 论 | impl_deviates | 2 | other | solved |  |  | `csrc/vertical_slash_index.cu:27-99` | 论文要求循环守卫 s_v≤k_s；代码用 while(1)+break，s 仅在 else 分支递增，终止由 s>=NNZ_S 决定 |
+| F043 | 论 | impl_deviates | 2 | other | always |  |  | `experiments/README.md:13-30` | 实验配置未体现{(1024,4096)}，实际候选为(100,800) |
+| F044 | 论 | impl_deviates | 2 | other | always |  |  | `experiments/README.md:13-30` | 实验配置未体现论文候选集 |
+| F045 | 论 | impl_deviates | 2 | other | always |  |  | `experiments/README.md:13-30` | 配置层未体现{100} |
+| F046 | 论 | impl_deviates | 2 | other | solved |  |  | `experiments/infinite_bench/args.py:63-78` | 论文Table4/Fig5报告static变体结果；评估入口未暴露static选项，且底层static实现本身只覆盖VS。 |
+| F047 | 论 | impl_deviates | 2 | other | solved |  |  | `experiments/infinite_bench/args.py:63-78` | 评估入口无'only A-shape'变体选择，无法复现Table4的该变体。 |
+| F048 | 论 | impl_deviates | 2 | other | solved |  |  | `experiments/infinite_bench/args.py:63-78` | 无变体入口，无法复现Table4的only block-sparse行。 |
+| F049 | 论 | impl_deviates | 2 | other | solved |  |  | `minference/models_patch.py:66-73` | 论文 1k 全局/4k 局部；代码 128 全局/3968 局部，两参数均不符。 |
+| F050 | 论 | impl_deviates | 2 | other | always |  |  | `minference/modules/minference_forward.py:99-197` | 论文要求遍历调用方给定的初始化搜索空间 σ；代码遍历写死的候选表，σ 输入不存在（artifact 范围：无 σ 输入，候选表硬编码） |
+| F051 | 论 | impl_deviates | 2 | other | no_condition |  |  | `minference/modules/minference_forward.py:99-197` | 论文要求 dense 注意力输出 y（含 V）；代码只算注意力权重矩阵，未形成输出 |
+| F052 | 论 | impl_deviates | 2 | other | no_condition |  |  | `minference/modules/minference_forward.py:99-197` | 论文要求最小化与 dense 输出的偏差；代码最大化权重保留分数，方向与参照对象均不同 |
+| F053 | 论 | impl_deviates | 2 | other | always |  |  | `minference/modules/minference_forward.py:99-197` | 论文要求六类输入；代码签名缺 V、patterns、ρ、t、σ |
+| F054 | 论 | impl_deviates | 2 | other | always |  |  | `minference/modules/minference_forward.py:99-197` | 论文要求空集初始化；代码以数值 0 与空字符串初始化，且该初值使负分候选永不被选 |
+| F055 | 论 | impl_deviates | 2 | other | always |  |  | `minference/modules/minference_forward.py:199-246` | 论文要求最小化 t_sparse(M)+t_overhead(M)；artifact 执行路径未实现该时间目标。 |
+| F056 | 论 | impl_deviates | 2 | other | always |  |  | `minference/ops/block_sparse_flash_attention.py:150-165` | 论文要求块级 logits 先 softmax（并除 √d）得 Â；代码省略 softmax 与缩放，仅用因果掩码后的原始点积排序（artifact 范围：无 softmax/√d 的块级注意力矩阵） |
+| F002 | 代 | undisclosed | 3 | other | solved | ~ | 测不了 | `minference/modules/minference_forward.py:30` | When ROPE_TYPE is not None: `ROPE_TYPE` is a module-level global computed once from the *first* att… |
+| F057 | 代 | undisclosed | 3 | other | solved | ~ | 测不了 main | `minference/modules/minference_forward.py:34` | When "seq_len" in inspect.signature(self.rotary_emb.forward).parameters: ROPE_TYPE is chosen by int… |
+| F058 | 代 | undisclosed | 3 | state | solved | ✗ | L1 main | `minference/modules/minference_forward.py:74` | When "apply_rotary_pos_emb" not in self.__dict__: `apply_rotary_pos_emb` is rebound as a module-lev… |
+| F059 | 代 | undisclosed | 3 | other | solved | ✓ | 测不了 side | `minference/modules/minference_forward.py:194` | When best_ty == "block_sparse": If block_sparse wins, it is replaced by hard-coded vertical_and_sla… |
+| F060 | 代 | undisclosed | 3 | other | solved | ✓ | 测不了 main | `minference/modules/minference_forward.py:430` | When head_id not in self.best_pattern: When the per-layer pattern file |
+| F005 | 代 | undisclosed | 3 | other | solved |  | 测不了 | `minference/modules/minference_forward.py:441` | When ty not in {"stream_llm", "vertical_and_slash", "block_sparse"}: The implementation is chosen b… |
+| F007 | 代 | undisclosed | 3 | other | solved | ✓ | 测不了 main | `minference/modules/minference_forward.py:504` | When self.is_search and os.path.exists(self.config_path) and self.layer_idx < len(config_list): Wit… |
+| F061 | 代 | undisclosed | 3 | other | solved |  | 测不了 side | `minference/modules/minference_forward.py:523` | When is_flash_attn_2_available(): When the sparse path is not taken, availability of flash-attn 2 d… |
+| F062 | 代 | undisclosed | 3 | other | solved |  | 测不了 side | `minference/modules/minference_forward.py:526` | When not (is_flash_attn_2_available()): attn_output = gather_qkv(q, k, v, attention_mask) |
+| F009 | 代 | undisclosed | 3 | other | solved |  | 测不了 unknown | `minference/modules/minference_forward.py:754` | When head_id not in self.best_pattern: The vLLM variant indexes `self.best_pattern[head_id]` direct… |
+| F036 | 代 | undisclosed | 3 | other | solved | ~ | 测不了 main | `minference/ops/block_sparse_flash_attention.py:130` | When q.dtype != torch.bfloat16: The Triton kernel's compute dtype is chosen from the input dtype: b… |
+| F063 | 代 | undisclosed | 3 | other | solved | ~ | 测不了 main | `minference/ops/block_sparse_flash_attention.py:164` | When top_k > context_size // block_size_N: The requested `top_k` (derived from the searched `slash_… |
+| F064 | 代 | undisclosed | 3 | other | solved |  | 测不了 unknown | `minference/ops/pit_sparse_flash_attention.py:150` | When q.dtype != torch.bfloat16: Any query dtype other than bfloat16 (float32, float64, float16 is f… |
+| F065 | 代 | undisclosed | 3 | path_change | solved | ✗ | L3 side | `minference/ops/pit_sparse_flash_attention_v2.py:188` | When head_dim not in [16, 32, 64, 128, 256, 512]: For head dims outside the power-of-two list |
+| F018 | 代 | undisclosed | 3 | other | solved |  | 测不了 | `minference/patch.py:1252` | When not isinstance(model, |
+| F066 | 论 | not_implemented | 3 | other | solved |  |  | `experiments/README.md:13-30` | 实验入口未暴露或设定步长50 |
+| F067 | 论 | not_implemented | 3 | other | always |  |  | `experiments/infinite_bench/args.py:63-78` | 无变体配置，无法复现Table7的only vertical行。 |
+| F068 | 论 | not_implemented | 3 | other | solved |  |  | `experiments/infinite_bench/args.py:63-78` | 无换算配置入口。 |
+| F069 | 论 | not_implemented | 3 | other | solved |  |  | `minference/modules/minference_forward.py:99-197` | 论文要求每候选计算真实 kernel FLOPs；代码不计算任何 FLOPs |
+| F070 | 论 | not_implemented | 3 | other | always |  |  | `minference/modules/minference_forward.py:99-197` | 论文要求以目标 FLOPs 为停止条件的迭代调整；代码无该循环与调整算子 |
+| F071 | 论 | not_implemented | 3 | other | always |  |  | `minference/modules/minference_forward.py:99-197` | 论文要求累积 FLOPs 对齐后的候选到 ρ；代码无该累积步骤 |
+| F072 | 论 | not_implemented | 3 | other | no_condition |  |  | `minference/modules/minference_forward.py:99-197` | 论文要求 FlashAttention 与 V 信息参与选择；代码为稠密权重计算且完全不含 V |
+| F073 | 论 | not_implemented | 3 | other | always |  |  | `minference/modules/minference_forward.py:199-246` | 论文要求分别定义 t_sparse 与 t_overhead；artifact 路径无对应实现。 |
