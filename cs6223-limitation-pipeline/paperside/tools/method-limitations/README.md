@@ -68,7 +68,9 @@ The Dev-only targeted review pilot runs one lead session per paper. The lead fol
 
 Compare the frozen drafts with the two finals to measure the effect of checking original evidence. Compare the two finals directly to measure the effect of delegation. `pair-audit.json` verifies that each final request received the exact frozen draft and review memo. Semantic scores, source citations and test-ready comparisons are evaluated separately. This pilot can inform a new D configuration for the A/B/C/D comparison.
 
-The default `method-path` prompt policy gives each role a concrete deliverable.
+With the original prompts, draft, self-review, and delegation each scored one partial match (SparTA) and three misses on Dev. All eight final requests received their respective review memo. The revised lead prompt is now being evaluated on the same four papers.
+
+The default [`method-path` prompt policy](targeted_review.py) gives each role a concrete deliverable.
 
 | Role | Deliverable |
 |---|---|
