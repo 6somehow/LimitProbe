@@ -70,6 +70,13 @@ called it partial; the report keeps both readings (core under blind adjudication
 partial under the conservative holistic grader). Worker delivery: 4/4 handoffs returned
 candidates with a verdict.
 
+A fourth prompt variant (s4, dev-v13) forced `origin_ids` on every candidate. The lead
+then adopted the worker's backend-finite candidates and dropped its own coverage chain:
+NNSmith scored miss although both worker candidates were cited. s4 was reverted; the
+shipped prompt is s3. Strict worker-candidate citation under s2/s3 is 0/13 (the lead
+verifies spans but rarely writes origin_ids), which is why the ledger also records a
+character-bigram `overlaps_worker_candidate` measure.
+
 Worker delivery changed from 6/13 handoffs returning candidates (v3-v6, no verdict
 asked) to **5/5 handoffs returning candidates with a verdict** (v10-v11: 2 supports,
 3 narrows). On NNSmith the worker itself returned

@@ -217,6 +217,8 @@ class Cell:
                 verified = [span for r in worker.get("records", []) for span in r.get("code_evidence", [])
                             if self.evidence.span_read_by("root", span.get("path"), span.get("start") or 0,
                                                           span.get("end") or 0)]
+                overlaps = [r["id"] for r in worker.get("records", [])
+                            if self.record_overlap(r, final_records)]
                 rows.append({
                     "worker": worker["worker"],
                     "worker_found": found,
@@ -224,6 +226,7 @@ class Cell:
                     "delivered_to_lead": delivered,
                     "verified_spans_after_handoff": len(verified),
                     "cited_in_final": cited,
+                    "overlaps_worker_candidate": overlaps,
                 })
         return {
             "workers": rows,
@@ -231,6 +234,26 @@ class Cell:
             "final_records": sorted(final_ids),
             "stages": ["worker_found", "parse_retained", "delivered_to_lead", "verified_span", "cited_in_final"],
         }
+
+    @staticmethod
+    def record_overlap(worker_record: dict, final_records: list) -> bool:
+        """Character-bigram overlap between a worker candidate and a final record."""
+        def grams(record):
+            text = " ".join(str(record.get(key) or "") for key in ("title", "rule", "consequence"))
+            chars = [c for c in text if not c.isspace()]
+            return {a + b for a, b in zip(chars, chars[1:])}
+
+        worker = grams(worker_record)
+        if len(worker) < 8:
+            return False
+        for record in final_records:
+            final = grams(record)
+            if not final:
+                continue
+            overlap = len(worker & final) / len(worker | final)
+            if overlap >= 0.18:
+                return True
+        return False
 
     def was_delivered(self, text: str) -> bool:
         if not text:
