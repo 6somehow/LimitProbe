@@ -96,6 +96,7 @@
 | `limitation_ids` / `limitations` | 背后的完整 Limitation 记录（两侧都可能有） | 看原始条件、论文原文和代码位置 |
 | `verification_ids` / `verifications` | 代码侧的 3b 结果：在哪里找到了说明、原文 | 判断“文档到底怎么写的” |
 | `confidence` | 目前全部是 llm_assisted | — |
+| `process_confidence` | 代码侧的静态证据：8 项检查的状态、重复测量、预测的测试档位上限、重要性数字（没有自己的档位），见第 6 节；纯论文侧的 Finding 为 null | 作为你定档的输入；不是测试结论 |
 
 注意：论文侧原始记录的 `effect_text` 有一部分写的是“同上……”，指的是 3a 同一条记录的 local_entry 描述。Finding 的 `summary` 已经展开，`limitations` 里保留原样。
 
@@ -146,7 +147,58 @@
 | resource / performance | 内存 / 时间 | resource：测量，对比 contrast |
 | other（论文侧几乎全是） | 实现和论文描述不同，没有确定的运行时后果 | witness 为 always 时：走到引用代码的任一输入，和论文公式 / 描述做 differential 或 metamorphic 对比；3a 只做了静态判断，后果未证实 |
 
-## 6. 典型例子
+## 6. 代码侧的静态证据（未校准，没有自己的档位）
+
+每条有代码侧记录的 Finding 带一个 `process_confidence` 块（格式 `process-confidence-v2`，规则见 `docs/11_process_confidence.md`）。它是对你的档位的补充：**代码侧不定档，档位只由你的测试证据决定**。不执行代码、不调模型，同样的输入得到同样的结果。块里有四部分。
+
+**1. `checks`：核对表。** 词汇和你的 defeater 表一样：`eliminated`（工具核对过）、`residual`（只有论证或模型判断）、`open`（没评估）、`refuted`（核对失败）。
+
+| 检查 | 对应的测试概念 | 对应你的 | `eliminated` 的条件 |
+|---|---|---|---|
+| C1 location | 输入有效性 | D12 | 固定 commit 下该行的语句就是记录的 snippet |
+| C2 condition | 语句的判定（decision） | D2 | 条件就是该语句的判定表达式或它的取反 |
+| C3 reachability | 可达性（RIPR 的 R） | D1、D14 | 从官方入口到目标有静态调用链，且没有靠猜的步骤 |
+| C4 feasibility | 不可行路径 | witness | z3 在完整路径前缀下找到触发点和对照点 |
+| C5 extraction | 分析的可重复性 | D8 | 静态路线找到，或 LLM 路线在全部抽取运行里都找到（同一文件同一行） |
+| C6 effect_label | oracle 与语句相符 | D4、效果类型 | 标注的效果能在该语句上判定（reject 要能抛异常，path_change 要是 if / while） |
+| C7 documentation | 缺失性断言，只作说明 | — | 3b 找到了原文；not_found 无法证明，为 residual；3 次重复不一致也为 residual |
+| C8 review | 审查（inspection） | — | 人工审过；LLM 盲审为 residual，没审为 open |
+
+**2. `repeats`：重复测量。** `extraction_runs`：这个位置在几次抽取运行里出现（`found_in` / `of`）；`documentation_check`：3b 重复几次、结果的一致率；`routes`：哪条路线找到的（`ast` 静态、`llm`）。
+
+**3. `testability`：预测你这边能测到哪一档。** 按你的规则推出来的上限，不是预报，实际可以更低。
+
+| 字段 | 含义 |
+|---|---|
+| `testable: false` + `expect_not_run` | C4 为 refuted 预计 `witness_unusable`；效果是 `other` 预计 `outcome_unsupported` |
+| `mutants` / `mutants_needed` | 用你的 `mutate.generate` 在目标行能造出几个变异体；少于 `n_min`（4）时 D3 消不掉 |
+| `ceiling` | `L1`：变异体不够；`L2`：没有调用链，D14 最多 residual；`L3`：静态上没有限制 |
+| `limited_by` | 卡在哪个 defeater，原因是什么 |
+| `condition_has_calls`、`integer_boundary` | 条件里有没有函数调用（影响 D2 能否直接求值）；边界变量是否都是整数（影响 D5 的邻点） |
+
+和已有测试报告对照（7 篇里测过的 130 条）：**没有一条的实际档位超过预测上限**，98 条正好等于上限；预计 `outcome_unsupported` 的 48 条、`witness_unusable` 的 12 条全部对上。这是在同一批数据上看的，不是独立验证。
+
+**4. `importance`：重要性，和把握分开。**
+
+- `path.decision_on`：`main` 每次调用都会求值这个判定；`side` 判定在某个 `if` / `except` / `case` 里面（自己函数里的见 `enclosing_conditions`，调用链上的见 `conditional_call_sites`）；`unknown` 没有调用链，看不到调用者。
+- `impact`：判定管住多少语句（分支体，或 assert / raise 之后函数里剩下的语句）、函数共多少语句、从入口来的调用链条数、仓库里解析到这个函数的调用点数。
+- `coverage`：目标函数里有多少个判定（if / while / assert）、代码侧列出了几个、入口能否静态到达这个函数。这是**分析的覆盖**，不是执行覆盖；执行覆盖在你的 `execution_report.json` 里。
+
+**建议的用法**：测之前按 `ceiling` 分配预算（`测不了` 的不测，`L1` 的少花时间）；测之后把 `limited_by` 放在档位旁边，说明是这句本身测不到更高还是测得不够；没测的 Finding 把 `checks` 和 `repeats` 作为确定性的证据并排列出；`importance` 只用于排序，不进档位。
+
+预测的测试档位上限：
+
+| 论文 | 测不了 | L1 | L2 | L3 | 没测量 | 合计 |
+|---|---|---|---|---|---|---|
+| infinigen | 1 | 13 | 6 | 0 | 0 | 20 |
+
+判定在主路径还是侧路径：
+
+| 论文 | main | side | unknown | 合计 |
+|---|---|---|---|---|
+| infinigen | 2 | 15 | 3 | 20 |
+
+## 7. 典型例子
 
 每个例子是一条 Finding 的精简版，长字段已截断；完整内容在 json 里。例子是按规则自动挑的第一条，不是挑好看的。“论文侧 · LLM 写出条件”那条正好说明了它的局限：条件在形式上能解，但不一定抓住了论文差异的本质，所以论文侧条件只当提示用。
 
@@ -202,7 +254,27 @@
    "quote": "InfiniGen initiates speculation and prefetching from Layer 1 because the outliers, which are essential for exploiting i…"
   }
  ],
- "rationale": "3b: boundary_mismatch in paper; 3b boundary_mismatch; priority 2: stated_differently"
+ "rationale": "3b: boundary_mismatch in paper; 3b boundary_mismatch; priority 2: stated_differently",
+ "process_confidence": {
+  "checks": {
+   "C1": "eliminated",
+   "C2": "eliminated",
+   "C3": "open",
+   "C4": "eliminated",
+   "C5": "eliminated",
+   "C6": "eliminated",
+   "C7": "eliminated",
+   "C8": "residual"
+  },
+  "found_in_runs": 3,
+  "ceiling": "L2",
+  "limited_by": [
+   "D14: no call chain from an official entry; a test has to call a deeper function, at most residual"
+  ],
+  "decision_on": "unknown",
+  "guarded_statements": 1,
+  "note": "... evidence per check and the full numbers are in the json"
+ }
 }
 ```
 
@@ -274,7 +346,27 @@
    "quote": null
   }
  ],
- "rationale": "3b: not_found; priority 1: undisclosed, state effect, witness reaches it; related (candidate pair, judged different): infinigen-F022"
+ "rationale": "3b: not_found; priority 1: undisclosed, state effect, witness reaches it; related (candidate pair, judged different): infinigen-F022",
+ "process_confidence": {
+  "checks": {
+   "C1": "eliminated",
+   "C2": "eliminated",
+   "C3": "open",
+   "C4": "residual",
+   "C5": "residual",
+   "C6": "eliminated",
+   "C7": "residual",
+   "C8": "open"
+  },
+  "found_in_runs": 1,
+  "ceiling": "L2",
+  "limited_by": [
+   "D14: no call chain from an official entry; a test has to call a deeper function, at most residual"
+  ],
+  "decision_on": "side",
+  "guarded_statements": 1,
+  "note": "... evidence per check and the full numbers are in the json"
+ }
 }
 ```
 
@@ -328,7 +420,25 @@
    "quote": null
   }
  ],
- "rationale": "3b: not_found; priority 3: unreachable: condition contradicts its path prefix"
+ "rationale": "3b: not_found; priority 3: unreachable: condition contradicts its path prefix",
+ "process_confidence": {
+  "checks": {
+   "C1": "eliminated",
+   "C2": "eliminated",
+   "C3": "eliminated",
+   "C4": "refuted",
+   "C5": "eliminated",
+   "C6": "eliminated",
+   "C7": "residual",
+   "C8": "open"
+  },
+  "found_in_runs": 3,
+  "ceiling": "witness_unusable",
+  "limited_by": null,
+  "decision_on": "side",
+  "guarded_statements": 25,
+  "note": "... evidence per check and the full numbers are in the json"
+ }
 }
 ```
 
@@ -497,42 +607,42 @@
 }
 ```
 
-## 7. 全部 Finding 索引
+## 8. 全部 Finding 索引
 
-每篇按 priority 排序。列的含义：侧 = 代/论/合（代码侧 / 论文侧 / 两侧合并）；审 = 审阅状态（✓ worth_testing，~ real_but_minor，✗ wrong，空 = 未审）。
+每篇按 priority 排序。列的含义：侧 = 代/论/合（代码侧 / 论文侧 / 两侧合并）；审 = 审阅状态（✓ worth_testing，~ real_but_minor，✗ wrong，空 = 未审）；过程 = 过程置信度档位和判定所在路径（第 6 节；论文侧为空）。
 
 ### infinigen（31 条）
 
-| ID | 侧 | 类别 | P | effect | witness | 审 | 位置 | 内容 |
-|---|---|---|---|---|---|---|---|---|
-| F001 | 代 | undisclosed | 1 | reject | solved | ~ | `speedup/flexgen/infinigen/flex_opt.py:426` | When self.policy.attn_sparsity >= 1.0: Path 2 (split GPU/CPU attention) asserts that sparsity >= 1.… |
-| F002 | 代 | undisclosed | 1 | state | solved |  | `speedup/flexgen/infinigen/flex_opt.py:442` | When k_home.device.device_type == DeviceType.MIXED and k_home.data[0][0] is not None: Prefetch path… |
-| F003 | 代 | undisclosed | 1 | reject | solved | ✓ | `speedup/flexgen/infinigen/flex_opt.py:466` | When path == 1 or path == 2: Prefetching is not implemented for CPU-compute paths 1 and 2; raises V… |
-| F004 | 代 | undisclosed | 1 | reject | solved | ~ | `speedup/flexgen/infinigen/flex_opt.py:710` | When not (self.policy.act_gpu_percent == 100 or self.policy.act_cpu_percent == 100 or self.policy.a… |
-| F005 | 代 | undisclosed | 1 | reject | solved | ~ | `speedup/flexgen/infinigen/flex_opt.py:1359` | When args.compress_cache and args.attn_sparsity < 1.0: Combining cache compression with attention s… |
-| F006 | 代 | undisclosed | 1 | reject | solved |  | `speedup/flexgen/infinigen/pytorch_backend.py:464` | When not (attn_sparsity >= 1.0): AssertionError |
-| F007 | 代 | undisclosed | 1 | reject | solved |  | `speedup/flexgen/infinigen/pytorch_backend.py:823` | When not (src.device.device_type != DeviceType.MIXED): AssertionError |
-| F008 | 代 | undisclosed | 1 | reject | solved |  | `speedup/flexgen/infinigen/pytorch_backend.py:881` | When not (all((x.step is None for x in indices))): AssertionError |
-| F009 | 代 | stated_differently | 2 | path_change | solved | ✓ | `speedup/flexgen/infinigen/flex_opt.py:287` | When self.layer_id > 1: partial_weight_ratio is only set for layers with layer_id > 1; layer 0 and … |
-| F010 | 代 | undisclosed | 2 | path_change | solved | ~ | `speedup/flexgen/infinigen/flex_opt.py:389` | When self.policy.attn_sparsity >= 1.0: When sparsity >= 1.0 the full V cache is copied; otherwise V… |
-| F011 | 代 | undisclosed | 2 | path_change | solved | ~ | `speedup/flexgen/infinigen/flex_opt.py:528` | When self.enable_prefetching: When prefetching is enabled, mha_gen is called with p_w_q, partial_k_… |
-| F012 | 代 | undisclosed | 2 | path_change | solved |  | `speedup/flexgen/infinigen/flex_opt.py:541` | When prev_partial_cache_read_buf is not None and self.layer_id > 1: Partial cache accumulation for … |
-| F013 | 代 | undisclosed | 2 | path_change | solved | ~ | `speedup/flexgen/infinigen/flex_opt.py:799` | When j not in self.attn_layer[2:]: Cache loading is skipped for all attention layers except the fir… |
-| F014 | 代 | undisclosed | 2 | path_change | solved | ~ | `speedup/flexgen/infinigen/pytorch_backend.py:401` | When p_w_q is None: In TorchDevice.mha_gen, the InfiniGen KV speculation (speculate_attention) only… |
-| F015 | 代 | undisclosed | 2 | path_change | solved | ~ | `speedup/flexgen/infinigen/pytorch_backend.py:422` | When attn_sparsity >= 1.0: Caller-supplied attn_sparsity selects dense attention (decompress full k… |
-| F016 | 代 | undisclosed | 2 | path_change | solved | ~ | `speedup/flexgen/infinigen/pytorch_backend.py:479` | When comp_config.group_dim == 0: Caller-supplied comp_config.group_dim decides whether k_new/v_new … |
-| F017 | 代 | undisclosed | 2 | path_change | solved | ~ | `speedup/flexgen/infinigen/pytorch_backend.py:767` | When policy.cache_disk_percent == 0: When the configured disk cache percent is zero, the KV cache i… |
-| F018 | 论 | impl_deviates | 2 | other | solved |  | `accuracy/perplexity/table2.sh:27-45` | 论文要求覆盖受害者槽位；代码保留全部 K/V 只做注意力屏蔽（artifact 范围：无覆盖写步骤） |
-| F019 | 论 | impl_deviates | 2 | other | solved |  | `accuracy/perplexity/table2.sh:27-45` | 论文要求淘汰后更新 GPU 部分 key cache；代码无该步骤（artifact 范围：缺更新步骤） |
-| F020 | 论 | impl_deviates | 2 | other | always |  | `speedup/flexgen/infinigen/flex_opt.py:282` | 控制平面组件集合不完整（缺Pool Manager） |
-| F021 | 论 | impl_deviates | 2 | other | solved |  | `speedup/flexgen/infinigen/flex_opt.py:513-524` | 论文要求A=V；代码A为V列按σq·σk排序重排，A≠V（artifact 范围：A为排序重排后的V，非论文所述A=V） |
-| F022 | 论 | impl_deviates | 2 | other | solved |  | `speedup/infinigen/infinigen/kv_selection_controller.py:28-63` | 预取集合由 top-k(均值) 决定，而非严格 >max−alpha 的令牌集合 |
-| F023 | 论 | impl_deviates | 2 | other | solved |  | `speedup/infinigen/infinigen/kv_selection_controller.py:28-63` | 实验路径以绝对令牌数封顶，未实现 20% 比例上限 |
-| F024 | 论 | impl_deviates | 2 | other | solved |  | `speedup/infinigen/infinigen/partial_weight_generation_contr…` | 实验路径缺少K的逐元素绝对值 |
-| F025 | 论 | impl_deviates | 2 | other | always |  | `speedup/infinigen/infinigen/partial_weight_generation_contr…` | 求和对象缺少K_abs项 |
-| F026 | 论 | impl_deviates | 2 | other | always |  | `speedup/infinigen/infinigen/partial_weight_generation_contr…` | 单次topk未容纳K离群列 |
-| F027 | 代 | undisclosed | 3 | path_change | solved | ✗ | `speedup/flexgen/infinigen/flex_opt.py:690` | When (i == 0) or (i == (self.config.num_hidden_layers - 1)): When sep_layer is set, the first and l… |
-| F028 | 代 | undisclosed | 3 | path_change | solved | ✗ | `speedup/flexgen/infinigen/pytorch_backend.py:326` | When warmup or partial_weight_ratio is None: In TorchDevice.mha, the partial-weight index (which he… |
-| F029 | 代 | undisclosed | 3 | reject | infeasible |  | `speedup/flexgen/infinigen/pytorch_backend.py:837` | When not (dst.device.device_type != DeviceType.MIXED): AssertionError |
-| F030 | 论 | not_implemented | 3 | other | solved |  | `accuracy/perplexity/table2.sh:27-45` | 论文要求饱和时全体减半；代码无该步骤（artifact 范围：无饱和减半） |
-| F031 | 论 | not_implemented | 3 | other | always |  | `speedup/infinigen/infinigen/partial_weight_generation_contr…` | 实验路径缺少论文指定的相加步骤 |
+| ID | 侧 | 类别 | P | effect | witness | 审 | 上限 路径 | 位置 | 内容 |
+|---|---|---|---|---|---|---|---|---|---|
+| F001 | 代 | undisclosed | 1 | reject | solved | ~ | L1 side | `speedup/flexgen/infinigen/flex_opt.py:426` | When self.policy.attn_sparsity >= 1.0: Path 2 (split GPU/CPU attention) asserts that sparsity >= 1.… |
+| F002 | 代 | undisclosed | 1 | state | solved |  | L2 side | `speedup/flexgen/infinigen/flex_opt.py:442` | When k_home.device.device_type == DeviceType.MIXED and k_home.data[0][0] is not None: Prefetch path… |
+| F003 | 代 | undisclosed | 1 | reject | solved | ✓ | L2 side | `speedup/flexgen/infinigen/flex_opt.py:466` | When path == 1 or path == 2: Prefetching is not implemented for CPU-compute paths 1 and 2; raises V… |
+| F004 | 代 | undisclosed | 1 | reject | solved | ~ | L1 side | `speedup/flexgen/infinigen/flex_opt.py:710` | When not (self.policy.act_gpu_percent == 100 or self.policy.act_cpu_percent == 100 or self.policy.a… |
+| F005 | 代 | undisclosed | 1 | reject | solved | ~ | L2 unknown | `speedup/flexgen/infinigen/flex_opt.py:1359` | When args.compress_cache and args.attn_sparsity < 1.0: Combining cache compression with attention s… |
+| F006 | 代 | undisclosed | 1 | reject | solved |  | L1 side | `speedup/flexgen/infinigen/pytorch_backend.py:464` | When not (attn_sparsity >= 1.0): AssertionError |
+| F007 | 代 | undisclosed | 1 | reject | solved |  | L1 side | `speedup/flexgen/infinigen/pytorch_backend.py:823` | When not (src.device.device_type != DeviceType.MIXED): AssertionError |
+| F008 | 代 | undisclosed | 1 | reject | solved |  | L1 side | `speedup/flexgen/infinigen/pytorch_backend.py:881` | When not (all((x.step is None for x in indices))): AssertionError |
+| F009 | 代 | stated_differently | 2 | path_change | solved | ✓ | L2 unknown | `speedup/flexgen/infinigen/flex_opt.py:287` | When self.layer_id > 1: partial_weight_ratio is only set for layers with layer_id > 1; layer 0 and … |
+| F010 | 代 | undisclosed | 2 | path_change | solved | ~ | L1 side | `speedup/flexgen/infinigen/flex_opt.py:389` | When self.policy.attn_sparsity >= 1.0: When sparsity >= 1.0 the full V cache is copied; otherwise V… |
+| F011 | 代 | undisclosed | 2 | path_change | solved | ~ | L1 side | `speedup/flexgen/infinigen/flex_opt.py:528` | When self.enable_prefetching: When prefetching is enabled, mha_gen is called with p_w_q, partial_k_… |
+| F012 | 代 | undisclosed | 2 | path_change | solved |  | L2 side | `speedup/flexgen/infinigen/flex_opt.py:541` | When prev_partial_cache_read_buf is not None and self.layer_id > 1: Partial cache accumulation for … |
+| F013 | 代 | undisclosed | 2 | path_change | solved | ~ | L1 side | `speedup/flexgen/infinigen/flex_opt.py:799` | When j not in self.attn_layer[2:]: Cache loading is skipped for all attention layers except the fir… |
+| F014 | 代 | undisclosed | 2 | path_change | solved | ~ | L1 main | `speedup/flexgen/infinigen/pytorch_backend.py:401` | When p_w_q is None: In TorchDevice.mha_gen, the InfiniGen KV speculation (speculate_attention) only… |
+| F015 | 代 | undisclosed | 2 | path_change | solved | ~ | L1 side | `speedup/flexgen/infinigen/pytorch_backend.py:422` | When attn_sparsity >= 1.0: Caller-supplied attn_sparsity selects dense attention (decompress full k… |
+| F016 | 代 | undisclosed | 2 | path_change | solved | ~ | L1 side | `speedup/flexgen/infinigen/pytorch_backend.py:479` | When comp_config.group_dim == 0: Caller-supplied comp_config.group_dim decides whether k_new/v_new … |
+| F017 | 代 | undisclosed | 2 | path_change | solved | ~ | L1 unknown | `speedup/flexgen/infinigen/pytorch_backend.py:767` | When policy.cache_disk_percent == 0: When the configured disk cache percent is zero, the KV cache i… |
+| F018 | 论 | impl_deviates | 2 | other | solved |  |  | `accuracy/perplexity/table2.sh:27-45` | 论文要求覆盖受害者槽位；代码保留全部 K/V 只做注意力屏蔽（artifact 范围：无覆盖写步骤） |
+| F019 | 论 | impl_deviates | 2 | other | solved |  |  | `accuracy/perplexity/table2.sh:27-45` | 论文要求淘汰后更新 GPU 部分 key cache；代码无该步骤（artifact 范围：缺更新步骤） |
+| F020 | 论 | impl_deviates | 2 | other | always |  |  | `speedup/flexgen/infinigen/flex_opt.py:282` | 控制平面组件集合不完整（缺Pool Manager） |
+| F021 | 论 | impl_deviates | 2 | other | solved |  |  | `speedup/flexgen/infinigen/flex_opt.py:513-524` | 论文要求A=V；代码A为V列按σq·σk排序重排，A≠V（artifact 范围：A为排序重排后的V，非论文所述A=V） |
+| F022 | 论 | impl_deviates | 2 | other | solved |  |  | `speedup/infinigen/infinigen/kv_selection_controller.py:28-63` | 预取集合由 top-k(均值) 决定，而非严格 >max−alpha 的令牌集合 |
+| F023 | 论 | impl_deviates | 2 | other | solved |  |  | `speedup/infinigen/infinigen/kv_selection_controller.py:28-63` | 实验路径以绝对令牌数封顶，未实现 20% 比例上限 |
+| F024 | 论 | impl_deviates | 2 | other | solved |  |  | `speedup/infinigen/infinigen/partial_weight_generation_contr…` | 实验路径缺少K的逐元素绝对值 |
+| F025 | 论 | impl_deviates | 2 | other | always |  |  | `speedup/infinigen/infinigen/partial_weight_generation_contr…` | 求和对象缺少K_abs项 |
+| F026 | 论 | impl_deviates | 2 | other | always |  |  | `speedup/infinigen/infinigen/partial_weight_generation_contr…` | 单次topk未容纳K离群列 |
+| F027 | 代 | undisclosed | 3 | path_change | solved | ✗ | L2 side | `speedup/flexgen/infinigen/flex_opt.py:690` | When (i == 0) or (i == (self.config.num_hidden_layers - 1)): When sep_layer is set, the first and l… |
+| F028 | 代 | undisclosed | 3 | path_change | solved | ✗ | L1 main | `speedup/flexgen/infinigen/pytorch_backend.py:326` | When warmup or partial_weight_ratio is None: In TorchDevice.mha, the partial-weight index (which he… |
+| F029 | 代 | undisclosed | 3 | reject | infeasible |  | 测不了 side | `speedup/flexgen/infinigen/pytorch_backend.py:837` | When not (dst.device.device_type != DeviceType.MIXED): AssertionError |
+| F030 | 论 | not_implemented | 3 | other | solved |  |  | `accuracy/perplexity/table2.sh:27-45` | 论文要求饱和时全体减半；代码无该步骤（artifact 范围：无饱和减半） |
+| F031 | 论 | not_implemented | 3 | other | always |  |  | `speedup/infinigen/infinigen/partial_weight_generation_contr…` | 实验路径缺少论文指定的相加步骤 |
