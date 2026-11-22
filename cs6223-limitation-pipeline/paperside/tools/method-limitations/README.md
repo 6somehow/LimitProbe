@@ -13,7 +13,7 @@ The four Dev papers are NNSmith, MInference, InfiniGen, and SparTA. The paired T
 
 ## Setup and run
 
-Run these commands from `cs6223-limitation-pipeline/paperside/`. The study needs Git, Python with `pypdf` and `pymupdf`, Node.js 20 or later, and approved access to the original AgentSwarm-Serve repository and the SoCLaaS model route.
+Run these commands from `cs6223-limitation-pipeline/paperside/`. The study needs Git, curl, Python with `pypdf` and `pymupdf`, Node.js 20 or later, and approved access to the original AgentSwarm-Serve repository and the SoCLaaS model route.
 
 ```sh
 python3 -m venv .venv
@@ -26,7 +26,7 @@ npm ci --prefix tools/method-limitations --ignore-scripts
   --split dev --conditions evidence_gap_swarm plain_swarm api_once single_agent
 ```
 
-The input builder checks publisher PDF hashes, author commits, and exact excerpt hashes. The runtime is rebuilt from AgentSwarm-Serve commit `6e46093badbbc109c5be7296c24fe2f09efb00ae`. The runner reads `SOCLAAS_API_KEY` and optional `SOCLAAS_BASE_URL` from `~/.config/soclaas/soclaas.env`. Each run directory archives the exact inputs, model requests, responses, source reads and usage. Store these outputs outside version control.
+The input builder checks publisher PDF hashes, author commits, and exact excerpt hashes. If a download is interrupted, use `--resume` to reuse the inputs already verified. The runtime is rebuilt from AgentSwarm-Serve commit `6e46093badbbc109c5be7296c24fe2f09efb00ae`. The runner reads `SOCLAAS_API_KEY` and optional `SOCLAAS_BASE_URL` from `~/.config/soclaas/soclaas.env`. Each run directory archives the exact inputs, model requests, responses, source reads and usage. Store these outputs outside version control.
 
 When a Pi session grows, Pi automatically checks its context between turns and can continue with a summary and recent messages. B, C and D share this policy and have up to eight task replies plus two native summary requests per condition. The experiment uses a local 131,072-token window, a 40,960-token reserve, and a 32,768-token task output cap. The separate summary cap is at most 12,288. These values are frozen alongside each run.
 
