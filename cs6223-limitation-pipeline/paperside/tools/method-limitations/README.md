@@ -36,6 +36,10 @@ When a Pi session grows, Pi automatically checks its context between turns and c
 
 The `mechanism` policy gives D a controlled-pair discovery task. Each worker proposes comparable valid cases, fixes the relevant configuration or budget, and traces where their behavior diverges. B and C keep their original workflow. The optional `stress` policy assigns explicit acceptance/coverage, structure, representation, and sharing lenses to the two workers. It uses a separate worker system prompt and archives the invariant and contrasted cases. Both policies are experimental. Dev changes never add individual reference answers to any generation prompt.
 
+The `contrast` policy assigns one worker to trace the normal algorithm path and another to work backward from the paper's evaluation. It reserves three task replies per worker and two for the root, staying within the eight-reply task limit. The root receives both candidate lists and up to 12,000 JavaScript string units from each discovery report, and can reopen original evidence before writing the final report. The evaluator checks the delivered excerpts against the full worker responses kept in the archive.
+
+In Dev run v10, all four `contrast` reports finished and all eight worker excerpts reached the final requests. D scored zero core matches and one partial match on SparTA. It won one paired comparison against A, and won one and lost one against B. The SparTA report retained the observed difference in propagation gain but omitted how zero placement affects reduction dependencies at fixed sparsity. No method qualified for Test. The v10 comparison reused the A–C archives and their grades after checking the evidence and report hashes. D used a model concurrency limit of four, versus two in the v9 configuration. The run is a quality comparison on Dev. It does not establish a latency improvement.
+
 ## Evaluate and select a method
 
 Use the team reference transcription authorized for evaluation only. Packet generation attaches the reference and mechanically checks citations. Semantic grades remain a separate review. Keep `mapping.json` away from the grader when conducting a blinded comparison.
@@ -68,7 +72,7 @@ The Dev-only targeted review pilot runs one lead session per paper. The lead fol
 
 Compare the frozen drafts with the two finals to measure the effect of checking original evidence. Compare the two finals directly to measure the effect of delegation. `pair-audit.json` verifies that each final request received the exact frozen draft and review memo. Semantic scores, source citations and test-ready comparisons are evaluated separately. This pilot can inform a new D configuration for the A/B/C/D comparison.
 
-With the original prompts, draft, self-review, and delegation each scored one partial match (SparTA) and three misses on Dev. All eight final requests received their respective review memo. The revised lead prompt is now being evaluated on the same four papers.
+With the original prompts, draft, self-review, and delegation each scored one partial match (SparTA) and three misses on Dev. All eight final requests received their respective review memo. The revised lead prompt also scored one partial match (SparTA) and three misses across four frozen drafts. These development results prompted the independent discovery paths in `contrast`.
 
 The default [`method-path` prompt policy](targeted_review.py) gives each role a concrete deliverable.
 

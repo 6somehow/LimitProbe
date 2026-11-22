@@ -135,6 +135,40 @@ directly supports or challenges it. Use canonical citations, origin IDs, and the
 to narrow claims. Retain separate defensible hypotheses even if a different one was selected for
 verification. Prefer the actual procedure and its downstream consequence to incidental defects."""
 
+CONTRAST_ROUTES = (
+    """Work from the principal algorithm. For each decision, trace its input, what the
+successful path chooses or retains, what actually consumes it, and a degree of freedom
+that its guarantee leaves open. Construct a pair that holds the advertised resource or
+configuration and admission criterion fixed while varying that degree of freedom.
+Prioritize a trace that makes different test behavior plausible in the ordinary path.
+Inspect the deciding and consuming source spans. Record how any safeguard affects both cases.""",
+    """Work backward from original results and claimed deployment scope. Find one concrete
+reported comparison, negative result or qualitative figure trend. Read the original page
+image if the claim depends on chart encoding. State its exact setting and distinguish the
+measured endpoint from the proposed explanation. Find the responsible algorithm step and
+follow how the implementation uses its result. Consider a competing explanation and a
+control that distinguishes it. When no direct author result isolates the effect, tie a
+conditional hypothesis to defended scope and a real component interface.""",
+)
+CONTRAST_DISCOVERY = """Return JSON object with procedures and candidates. Report even a
+negative result in procedures with verified path, evidence, tested contrast and open link.
+Keep up to three candidates. Each candidate uses the string fields rule, trigger, mitigation,
+consequence and invariant, and includes case_a, case_b, paper_evidence, code_evidence
+and minimal_comparison. Keep the cases admissible on the same principal route. Show what
+changes at the first operation and how the final outcome can be measured or falsified.
+Do not replace a method hypothesis with a missing feature or a discrepancy in one artifact.
+Keep the report concise and cite original references."""
+CONTRAST_FINAL = """Independently reconcile the algorithm and evaluation reports using the
+original paper and Git source. Worker reports are leads. Use the available tools to read the
+deciding operation and its first consumer, or the original evaluated comparison that would
+support the diagnosis. Rank method limitations by a concrete controlled contrast on the
+principal route with a downstream effect. Check that the cases differ in one relevant
+property while their configuration and resources match. Separate reported evidence from a
+predicted effect, preserve valid author boundaries, and move implementation-only issues to
+known_boundaries. Compare plausible explanations before committing to one. Use exact source
+and paper references and a refutation condition. Cite candidate sources by origin_ids.
+If a promising lead arrived in a raw report, require the same evidence before retaining it."""
+
 
 def freeze_runtime(output, swarm_source=None):
     if swarm_source:
@@ -242,14 +276,17 @@ def freeze_study(output, previous_runs, swarm_source=None, policy="original"):
                           'worker':'Produce a short evidence report for the parent. Do not write the final report.'}.items():
         (common/f'{name}.txt').write_text(content)
     dump(output/'protocol.json', {
-        'version':{'stress':'cs6223-evidence-gap/9','mechanism':'cs6223-evidence-gap/7'}.get(policy,'cs6223-evidence-gap/6'),
+        'version':{'stress':'cs6223-evidence-gap/9','mechanism':'cs6223-evidence-gap/7',
+                   'contrast':'cs6223-evidence-gap/10'}.get(policy,'cs6223-evidence-gap/6'),
         'discovery_policy':policy, 'split':{'dev':DEV, 'test':TEST}, 'conditions':CONDITIONS,
         'reasoning_effort':'max', 'thinking':{'type':'enabled'}, 'model_alias':'x-test-2', 'expected_backend':BACKEND,
         'max_http_requests_per_cell':10, 'max_output_tokens':32768,
         'max_actual_returned_tokens_per_cell':750000, 'closing_reserve_tokens':0,
         'max_report_candidates':3, 'global_model_concurrency':4,
         'per_request_timeout_seconds':360, 'per_cell_wall_seconds':1600,
-        'staged_review':{'discovery_per_worker':2,'routing':1,'cross_check':2,'final':1},
+        'staged_review':({'discovery_per_worker':3,'routing':0,'cross_check':0,'final':2}
+                         if policy=='contrast'
+                         else {'discovery_per_worker':2,'routing':1,'cross_check':2,'final':1}),
         'compaction':{'enabled':True,'reserveTokens':40960,'keepRecentTokens':8000,
                       'maxSummaryRequests':2,'summaryMaxTokens':12288},
         'target_execution':'not_run', 'reference_allowed_in_generation':False,
@@ -316,6 +353,13 @@ class StudyCell(StreamingCell):
                 config['gapReview'].update(routes=STRESS_ROUTES, discovery=STRESS_DISCOVERY,
                                            routing=MECHANISM_ROUTING, final=STRESS_FINAL,
                                            candidateLimit=4)
+            if self.protocol.get('discovery_policy')=='contrast':
+                config['limits']['maxTurns'] = self.protocol['staged_review']['discovery_per_worker']
+                config['gapWorkerSystem'] = STRESS_WORKER_SYSTEM
+                config['gapReview'].update(routes=CONTRAST_ROUTES, discovery=CONTRAST_DISCOVERY,
+                                           final=CONTRAST_FINAL, coordinatorTask=config['task'],
+                                           directSynthesis=True, retainRawDiscovery=True,
+                                           finalTurns=self.protocol['staged_review']['final'])
         return config
 
     def http(self, payload, n):
@@ -377,7 +421,7 @@ if __name__ == '__main__':
     parser.add_argument('root',type=Path)
     parser.add_argument('--previous-runs',type=Path)
     parser.add_argument('--swarm-source',type=Path)
-    parser.add_argument('--policy',choices=('original','mechanism','stress'),default='original')
+    parser.add_argument('--policy',choices=('original','mechanism','stress','contrast'),default='original')
     parser.add_argument('--split',choices=('dev','test'),default='dev')
     parser.add_argument('--papers',nargs='+')
     parser.add_argument('--conditions',nargs='+',choices=CONDITIONS)

@@ -171,6 +171,12 @@ def gap_trace(cell, records, final_request):
         'cross_check_in_final_request':False,
         'final_records_linked_to_checked_candidate':0,
     }
+    if 'discovery_reports' in root_payload:
+        raw_reports = {item['agent']:item['report'] for item in root_payload['discovery_reports']}
+        result['raw_discoveries_in_final_request'] = sum(
+            raw_reports.get(event['agent']) == event['answer'].encode('utf-16-le')[:24000].decode(
+                'utf-16-le',errors='surrogatepass') for event in discoveries
+        )
     if checks:
         checked = checks[0]
         candidate = checked['assignment']['candidate']['id']
