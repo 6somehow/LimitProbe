@@ -12,7 +12,7 @@ where the two simple baselines do not?
 |---|---|---|
 | A | one DeepSeek call with the frozen paper + source packet | 1 request |
 | B | one agent session with read-only paper/repository tools and the same packet | up to 8 replies |
-| S | lead keeps its own evidence chain, must delegate exactly one unresolved artifact-consumer link to a worker, reopens the returned spans, then finalises with origin ids | up to 8 lead + 2 worker replies |
+| S | lead keeps its own evidence chain, must delegate exactly one unresolved artifact-consumer link to a worker, reopens the returned spans, then finalises with origin ids | 7 lead replies + one worker with up to 3 replies (s2) |
 
 Same model route (`x-test-2`, backend `deepseek-v4.1-flash-1017`), same frozen inputs,
 same human reference rubric (evaluation only), same output contract. B in this harness
