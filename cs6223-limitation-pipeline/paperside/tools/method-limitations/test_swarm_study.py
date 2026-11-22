@@ -8,7 +8,7 @@ import unittest
 from unittest.mock import patch
 
 import pilot
-from swarm_evaluation import final_response, select_dev_method, source_evidence, summarize
+from swarm_evaluation import final_response, gap_trace, select_dev_method, source_evidence, summarize
 from swarm_study import BACKEND, CONDITIONS, DEV, StudyCell, freeze_study, run
 
 
@@ -66,7 +66,7 @@ class GapProtocol(unittest.TestCase):
                         response = {'summary':'fixture native Pi summary'}
                     elif 'PHASE: final synthesis' in content:
                         self.assert_final(content)
-                        response = {'paper_id':'nnsmith','candidates':[], 'known_boundaries':[],
+                        response = {'paper_id':'nnsmith','candidates':[{'id':'H1','origin_id':'root.1#1'}], 'known_boundaries':[],
                                     'target_execution':'not_run'}
                     elif 'PHASE: cross-worker verification' in content:
                         response = {'check':'fixture verification receipt'}
@@ -76,7 +76,7 @@ class GapProtocol(unittest.TestCase):
                     else:
                         if 'root.1#1' in content or 'fixture verification receipt' in content:
                             raise AssertionError('Independent discovery received other phase output')
-                        response = candidates
+                        response = candidates + [{'unexpected_rule_field':'candidate the parser must reject'}]
                     message = dict(role='assistant',content=json.dumps(response))
                     who = self.wire_ids[request_number-1]['agent']
                     if (who=='root.2' and 'PHASE: independent discovery' in content
@@ -119,6 +119,16 @@ class GapProtocol(unittest.TestCase):
             self.assertEqual(receipt['agent'],'root.2')
             self.assertEqual(receipt['assignment']['candidate']['id'],'root.1#1')
             self.assertEqual(receipt['assignment']['candidate']['invariant'],'same control')
+            final = cell.out/'final.txt'
+            request = final_response(cell.out,outcome,final)
+            trace = gap_trace(cell.out,json.loads(final.read_text())['candidates'],request)
+            self.assertTrue(trace['cross_check_in_final_request'])
+            self.assertEqual(trace['final_records_linked_to_checked_candidate'],1)
+            for worker in trace['candidate_handoff_by_worker']:
+                self.assertEqual(worker['raw_candidate_count'],2)
+                self.assertEqual(worker['frozen_candidate_count'],1)
+                self.assertEqual(worker['delivered_candidate_count'],1)
+                self.assertEqual(worker['final_candidates_linked'],int(worker['worker']=='root.1'))
             spans = source_evidence(root/'nnsmith',cell.out)
             self.assertTrue(spans['README.md'])
             with self.assertRaisesRegex(ValueError,'Test release'):
