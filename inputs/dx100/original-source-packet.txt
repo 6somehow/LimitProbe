@@ -1,0 +1,2051 @@
+FILE README.md | original lines 1–100
+1: # Artifcat of the DX100 Paper, ISCA 2025
+2: 
+3: This repository provides the gem5 simulator, benchmarks, and automation scripts required for the artifact evaluation of the "DX100: A Programmable Data Access Accelerator for Indirection" paper published in ISCA 2025.
+4: 
+5: ## Directory Structure
+6: 
+7: The repo structure is as follows:
+8:   - [src/mem/MAA](/src/mem/MAA/): gem5 source code of DX100.
+9:   - [configs/common](/configs/common/): gem5 Python scripts for DX100 configuration.
+10:   - [benchmarks](/benchmarks/): DX100 memory-mapped and functional simulator APIs, as well as the evaluated kernels from NAS, GAP, Hash-Join, UME, and Spatter benchmark suites.
+11:   - [scripts](/scripts/): Automation scripts required for running the simulations, parsing the results, and plotting the charts.
+12:   - [results](/results/): After running the automation scripts, raw results and charts are stored in this directory.
+13: 
+14: ## Requirements
+15: 
+16: This artifact has several dependencies. To simplify the evaluation process, we provide a Docker image with all required dependencies pre-installed. We recommend using the Docker container to minimize setup time and ensure a consistent environment.
+17: 
+18: ```bash
+19: docker pull arkhadem95/dx100:latest
+20: docker run -it --name dx100_container -v /path/to/data/dir:/data -w /home/ubuntu arkhadem95/dx100 bash
+21: ```
+22: 
+23: *Note:* `/path/to/data/dir` should point to your data directory, which must have at least 20GB of available disk space.
+24: 
+25: If you choose to run the artifact locally instead of using Docker, please ensure the following dependencies are installed:
+26: 
+27: ### Ramulator2
+28: 
+29: Ramulator2 is tested with `g++-12` and `clang++-15` compilers.
+30: 
+31: ### gem5
+32: 
+33: gem5 requires the following dependencies (from [gem5 documentations](https://www.gem5.org/documentation/general_docs/building)):
+34: 
+35: - SCons: gem5 uses SCons as its build environment. SCons 3.0 or greater must be used.
+36: - Python 3.6+: gem5 relies on Python development libraries. gem5 can be compiled and run in environments using Python 3.6+.
+37: - protobuf 2.1+ (Optional): The protobuf library is used for trace generation and playback.
+38: - Boost (Optional): The Boost library is a set of general purpose C++ libraries. It is a necessary dependency if you wish to use the SystemC implementation.
+39: 
+40: **Setup gem5 on Ubuntu 24.04 (gem5 >= v24.0)**
+41: 
+42: If compiling gem5 on Ubuntu 24.04, or related Linux distributions, you may install all these dependencies using APT:
+43: 
+44: ```bash
+45: sudo apt install build-essential scons python3-dev git pre-commit zlib1g zlib1g-dev \
+46:     libprotobuf-dev protobuf-compiler libprotoc-dev libgoogle-perftools-dev \
+47:     libboost-all-dev  libhdf5-serial-dev python3-pydot python3-venv python3-tk mypy \
+48:     m4 libcapstone-dev libpng-dev libelf-dev pkg-config wget cmake doxygen
+49: ```
+50: 
+51: **Setup gem5 on Ubuntu 22.04 (gem5 >= v21.1)**
+52: 
+53: If compiling gem5 on Ubuntu 22.04, or related Linux distributions, you may install all these dependencies using APT:
+54: 
+55: ```bash
+56: sudo apt install build-essential git m4 scons zlib1g zlib1g-dev \
+57:     libprotobuf-dev protobuf-compiler libprotoc-dev libgoogle-perftools-dev \
+58:     python3-dev libboost-all-dev pkg-config python3-tk
+59: ```
+60: 
+61: **Setup gem5 on Ubuntu 20.04 (gem5 >= v21.0)**
+62: 
+63: If compiling gem5 on Ubuntu 20.04, or related Linux distributions, you may install all these dependencies using APT:
+64: 
+65: ```bash
+66: sudo apt install build-essential git m4 scons zlib1g zlib1g-dev \
+67:     libprotobuf-dev protobuf-compiler libprotoc-dev libgoogle-perftools-dev \
+68:     python3-dev python-is-python3 libboost-all-dev pkg-config gcc-10 g++-10 \
+69:     python3-tk
+70: ```
+71: 
+72: ### Automation Scripts
+73: 
+74: These scripts require Python 3.6+ and `matplotlib` package.
+75: 
+76: ### Benchmarks
+77: 
+78: CMake 3.25+ is required for the Spatter benchmark.
+79: 
+80: ## Build
+81: 
+82: Building the artifact requires approximately 6GB of disk space and takes around 35 minutes to complete.
+83: 
+84: ### 1- Clone Repository
+85: 
+86: ```bash
+87: git clone https://github.com/arkhadem/DX100.git
+88: cd DX100
+89: export GEM5_HOME=$(pwd)
+90: ```
+91: 
+92: ### 2- Build Ramulator2
+93: 
+94: ```bash
+95: cd $GEM5_HOME/ext/ramulator2/ramulator2/
+96: mkdir build; cd build;
+97: cmake .. -DCMAKE_C_COMPILER=gcc-12 -DCMAKE_CXX_COMPILER=g++-12
+98: make -j
+99: ```
+100: 
+
+FILE benchmarks/API/MAA.hpp | original lines 1–63
+1: #pragma once
+2: #include <cassert>
+3: #include <chrono>
+4: #include <csignal>
+5: #include <cstdint>
+6: #include <cstdio>
+7: #include <cstdlib>
+8: #include <iostream>
+9: #include <random>
+10: #include <set>
+11: 
+12: #define DELTA 0.001
+13: 
+14: #ifndef TILE_SIZE
+15: #define TILE_SIZE 16384
+16: #endif
+17: #ifndef NUM_CORES
+18: #define NUM_CORES 4
+19: #endif
+20: #define NUM_TILES_PER_CORE 8
+21: #define NUM_REGS_PER_CORE 8
+22: #define NUM_TILES (NUM_CORES * NUM_TILES_PER_CORE)
+23: #define NUM_SCALAR_REGS (NUM_CORES * NUM_REGS_PER_CORE)
+24: #define NUM_REGIONS 256
+25: 
+26: int REG_count;
+27: int SPD_count;
+28: 
+29: enum class Operation_t {
+30:     ADD_OP = 0,
+31:     SUB_OP = 1,
+32:     MUL_OP = 2,
+33:     DIV_OP = 3,
+34:     MIN_OP = 4,
+35:     MAX_OP = 5,
+36:     AND_OP = 6,
+37:     OR_OP = 7,
+38:     XOR_OP = 8,
+39:     SHL_OP = 9,
+40:     SHR_OP = 10,
+41:     GT_OP = 11,
+42:     GTE_OP = 12,
+43:     LT_OP = 13,
+44:     LTE_OP = 14,
+45:     EQ_OP = 15,
+46:     NE_OP = 16,
+47:     MAX
+48: };
+49: 
+50: void *SPD_data_cacheable;
+51: volatile void *SPD_data_noncacheable;
+52: volatile uint16_t *SPD_size_noncacheable;
+53: volatile uint16_t *SPD_ready_noncacheable;
+54: volatile void *REG_noncacheable;
+55: 
+56: template <class T1>
+57: inline T1 *get_cacheable_tile_pointer(int SPD_id) {
+58:     return (T1 *)(&(((uint32_t *)SPD_data_cacheable)[SPD_id * TILE_SIZE]));
+59: }
+60: template <class T1>
+61: inline volatile T1 *get_noncacheable_tile_pointer(int SPD_id) {
+62:     return (T1 *)(&(((uint32_t *)SPD_data_noncacheable)[SPD_id * TILE_SIZE]));
+63: }
+
+FILE benchmarks/API/MAA_atomics.hpp | original lines 1–45
+1: #ifndef MAA_ATOMICS_HPP_
+2: #define MAA_ATOMICS_HPP_
+3: 
+4: #if defined _OPENMP
+5: 
+6: #if defined __GNUC__
+7: 
+8: // gcc/clang/icc instrinsics
+9: template <typename T, typename U>
+10: T fetch_and_add(T *x, U inc) {
+11:     return __atomic_fetch_add(x, inc);
+12: }
+13: 
+14: template <typename T, typename U>
+15: T fetch_and_sub(T *x, U inc) {
+16:     return atomic_fetch_sub(x, inc);
+17: }
+18: 
+19: #else // defined __GNUC__ __SUNPRO_CC
+20: 
+21: #error No atomics available for this compiler but using OpenMP
+22: 
+23: #endif // else defined __GNUC__ __SUNPRO_CC
+24: 
+25: #else // defined _OPENMP
+26: 
+27: // serial fallbacks
+28: 
+29: template <typename T, typename U>
+30: T fetch_and_add(T x, U inc) {
+31:     T orig_val = (*x);
+32:     (*x) += inc;
+33:     return orig_val;
+34: }
+35: 
+36: template <typename T, typename U>
+37: T fetch_and_sub(T x, U inc) {
+38:     T orig_val = (*x);
+39:     (*x) -= inc;
+40:     return orig_val;
+41: }
+42: 
+43: #endif // else defined _OPENMP
+44: 
+45: #endif // MAA_ATOMICS_HPP_
+
+FILE benchmarks/API/MAA_compiler_api.cpp | original lines 1–100
+1: #if !defined(FUNC) && !defined(GEM5) && !defined(GEM5_MAGIC)
+2: #define FUNC
+3: #endif
+4: #include <iostream>
+5: #if defined(FUNC)
+6: #include "MAA_functional.hpp"
+7: #elif defined(GEM5)
+8: #include "MAA_gem5.hpp"
+9: #include <gem5/m5ops.h>
+10: #elif defined(GEM5_MAGIC)
+11: #include "MAA_gem5_magic.hpp"
+12: #endif
+13: 
+14: extern "C" {
+15: void maa_init() {
+16:     init_MAA();
+17:     std::cerr << "MAA initialized" << std::endl;
+18: }
+19: 
+20: int maa_getnewtile_i32() {
+21:     int result = get_new_tile<int32_t>();
+22:     std::cerr << "Getting new tile: " << result << std::endl;
+23:     return result;
+24: }
+25: 
+26: int maa_getnewtile_f32() {
+27:     int result = get_new_tile<float>();
+28:     std::cerr << "Getting new tile: " << result << std::endl;
+29:     return result;
+30: }
+31: 
+32: int maa_getnewtile_i64() {
+33:     int result = get_new_tile<int64_t>();
+34:     std::cerr << "Getting new tile: " << result << std::endl;
+35:     return result;
+36: }
+37: 
+38: int maa_getnewtile_f64() {
+39:     int result = get_new_tile<double>();
+40:     std::cerr << "Getting new tile: " << result << std::endl;
+41:     return result;
+42: }
+43: 
+44: int maa_getnewreg(int data) {
+45:     int result = get_new_reg(data);
+46:     std::cerr << "Getting new reg " << result << std::endl;
+47:     return result;
+48: }
+49: 
+50: int *maa_getptr_i32(int SPD_id) {
+51:     std::cerr << "Getting pointer" << std::endl;
+52:     return get_cacheable_tile_pointer<int>(SPD_id);
+53: }
+54: 
+55: void maa_constint_i64_i32(long data, int dst_reg) {
+56:     std::cerr << "Setting constant " << data << " to reg:" << dst_reg << std::endl;
+57:     maa_const<int>(data, dst_reg);
+58: }
+59: 
+60: void maa_constint_i32_i32(int data, int dst_reg) {
+61:     std::cerr << "Setting constant " << data << " to reg:" << dst_reg << std::endl;
+62:     maa_const<int>(data, dst_reg);
+63: }
+64: 
+65: void maa_constfp_f32_i32(float data, int dst_reg) {
+66:     std::cerr << "Setting constant " << data << " to reg:" << dst_reg << std::endl;
+67:     maa_const<float>(data, dst_reg);
+68: }
+69: 
+70: void maa_aluscalar_i32_i32_i32(int src1_tile, int src2_reg, int dst_tile, int op_kind) {
+71:     std::cerr << "ALU scalar: Operation is " << op_kind << std::endl;
+72:     maa_alu_scalar<float>(src1_tile, src2_reg, dst_tile, (Operation_t)op_kind);
+73: }
+74: 
+75: void maa_streamloadcond_p0_i32_i32_i32_i32_i32(int *data, int lower, int upper, int step, int dst_tile, int cond_tile) {
+76:     std::cerr << "Stream load with condition: " << lower << " " << upper << " " << step << " dest tile is " << dst_tile << " cond tile is " << cond_tile << std::endl;
+77:     maa_stream_load<float>((float *)data, lower, upper, step, dst_tile, cond_tile);
+78: }
+79: 
+80: void maa_streamload_p0_i32_i32_i32_i32(int *data, int lower, int upper, int step, int dst_tile) {
+81:     std::cerr << "Stream load: " << lower << " " << upper << " " << step << " dest tile is " << dst_tile << std::endl;
+82:     maa_stream_load<float>((float *)data, lower, upper, step, dst_tile);
+83: }
+84: 
+85: void maa_indirectload_p0_i32_i32(int *data, int idx_tile, int dst_tile) {
+86:     std::cerr << "Indirect load: " << idx_tile << " dest tile is " << dst_tile << std::endl;
+87:     maa_indirect_load<float>((float *)data, idx_tile, dst_tile);
+88: }
+89: 
+90: void maa_indirectloadcond_p0_i32_i32_i32(int *data, int idx_tile, int dst_tile, int cond_tile) {
+91:     std::cerr << "Indirect load with condition: " << idx_tile << " dest tile is " << dst_tile << " cond tile is " << cond_tile << std::endl;
+92:     maa_indirect_load<float>((float *)data, idx_tile, dst_tile, cond_tile);
+93: }
+94: 
+95: void maa_indirectstore_i32_p0_i32(int val_tile, int *data, int idx_tile) {
+96:     std::cerr << "Indirect store" << std::endl;
+97:     maa_indirect_store_vector<float>((float *)data, idx_tile, val_tile);
+98: }
+99: 
+100: void maa_wait_i32(int dest_id) {
+
+FILE benchmarks/API/MAA_functional.hpp | original lines 1–100
+1: #pragma once
+2: #include <cassert>
+3: #include <csignal>
+4: #include <cstdint>
+5: #include <cstdio>
+6: #include <cstdlib>
+7: #include <iostream>
+8: #include "MAA.hpp"
+9: // #include "MAA_atomics.hpp"
+10: #include <pthread.h>
+11: 
+12: /*******************************************************************************/
+13: /*******************************************************************************/
+14: /*                            FUNCTIONAL SIMULATION                            */
+15: /*******************************************************************************/
+16: /*******************************************************************************/
+17: 
+18: struct memRegion {
+19:     void *start;
+20:     void *end;
+21:     bool valid;
+22: };
+23: 
+24: memRegion *mem_regions;
+25: pthread_t thread_id;
+26: 
+27: void alloc_MAA() {
+28:     SPD_data_cacheable = malloc(TILE_SIZE * NUM_TILES * sizeof(int));
+29:     SPD_data_noncacheable = (volatile void *)(SPD_data_cacheable);
+30:     SPD_size_noncacheable = (volatile uint16_t *)malloc(NUM_TILES * sizeof(uint16_t));
+31:     SPD_ready_noncacheable = (volatile uint16_t *)malloc(NUM_TILES * sizeof(uint16_t));
+32:     REG_noncacheable = (volatile void *)malloc(NUM_SCALAR_REGS * sizeof(int));
+33:     for (int i = 0; i < NUM_TILES; i++) {
+34:         SPD_size_noncacheable[i] = 0;
+35:         SPD_ready_noncacheable[i] = 1;
+36:     }
+37:     mem_regions = (memRegion *)malloc(NUM_REGIONS * sizeof(memRegion));
+38:     thread_id = 0;
+39:     for (int i = 0; i < NUM_REGIONS; i++) {
+40:         mem_regions[i].valid = false;
+41:         mem_regions[i].start = NULL;
+42:         mem_regions[i].end = NULL;
+43:     }
+44: }
+45: void m5_add_mem_region(void *start, void *end, int id) {
+46:     assert(id < NUM_REGIONS);
+47:     assert(start != NULL);
+48:     assert(end != NULL);
+49:     mem_regions[id].start = start;
+50:     mem_regions[id].end = end;
+51:     mem_regions[id].valid = true;
+52:     if (thread_id != 0) {
+53:         if (thread_id != pthread_self()) {
+54:             std::cout << "Thread ID: " << thread_id << " pthread_self: " << pthread_self() << std::endl;
+55:             assert(false);
+56:         }
+57:     } else {
+58:         thread_id = pthread_self();
+59:     }
+60: }
+61: void clear_mem_region() {
+62:     for (int i = 0; i < NUM_REGIONS; i++) {
+63:         mem_regions[i].valid = false;
+64:         mem_regions[i].start = NULL;
+65:         mem_regions[i].end = NULL;
+66:     }
+67:     thread_id = 0;
+68: }
+69: inline void init_MAA() {
+70:     std::cout << "Initializing MAA" << std::endl;
+71:     SPD_count = 0;
+72:     REG_count = 0;
+73: }
+74: inline void set_tile_size(int SPD_id, uint16_t size) {
+75:     SPD_size_noncacheable[SPD_id] = size;
+76: }
+77: inline void set_tile_ready(int SPD_id, uint16_t ready) {
+78:     SPD_ready_noncacheable[SPD_id] = ready;
+79: }
+80: inline volatile uint16_t get_tile_ready(int SPD_id) {
+81:     return SPD_ready_noncacheable[SPD_id];
+82: }
+83: inline void wait_ready(int SPD_id) {
+84:     while (get_tile_ready(SPD_id) == 0)
+85:         ;
+86: }
+87: inline uint16_t get_tile_size(int SPD_id) {
+88:     return SPD_size_noncacheable[SPD_id];
+89: }
+90: template <class T1>
+91: inline volatile T1 get_reg(int reg_id) {
+92:     return *((T1 *)(&(((volatile uint32_t *)REG_noncacheable)[reg_id])));
+93: }
+94: template <class T1>
+95: inline void set_reg(int reg_id, T1 data) {
+96:     *((T1 *)(&(((volatile uint32_t *)REG_noncacheable)[reg_id]))) = data;
+97: }
+98: template <class T1>
+99: inline int get_new_reg(T1 data) {
+100:     int num_regs_needed = sizeof(T1) / sizeof(uint32_t);
+
+FILE benchmarks/API/MAA_gem5.hpp | original lines 1–100
+1: #pragma once
+2: #include "MAA.hpp"
+3: #include <gem5/m5ops.h>
+4: #include <atomic>
+5: 
+6: /*******************************************************************************/
+7: /*******************************************************************************/
+8: /*                            FUNCTIONAL SIMULATION                            */
+9: /*******************************************************************************/
+10: /*******************************************************************************/
+11: 
+12: #define BASE_ADDR 0x000000000
+13: #if NUM_CORES == 4
+14: #define MEM_SIZE 0x400000000 // 16GB
+15: #elif NUM_CORES == 8
+16: #define MEM_SIZE 0x800000000 // 32GB
+17: #elif NUM_CORES == 16
+18: #define MEM_SIZE 0x1000000000 // 64GB
+19: #else
+20: #error "NUM_CORES not supported"
+21: #endif
+22: #define SPD_DATA_SIZE (NUM_TILES * TILE_SIZE * sizeof(uint32_t)) // 128KB = 32 tiles x 1K elements x 4B each element (uint32_t, int32_t, float)
+23: #define SPD_SIZE_SIZE (NUM_TILES * sizeof(uint16_t))             // 64B = 32 tiles x 2B each tile (uint16_t)
+24: #define SPD_READY_SIZE (NUM_TILES * sizeof(uint16_t))            // 64B = 32 tiles x 2B each tile (uint16_t)
+25: #define REG_SIZE (NUM_SCALAR_REGS * sizeof(uint32_t))            // 128B = 32 registers x 4B each register (uint32_t, int32_t, float)
+26: 
+27: enum OpcodeType : uint8_t {
+28:     STREAM_LD = 0,
+29:     STREAM_ST = 1,
+30:     INDIR_LD = 2,
+31:     INDIR_ST_SCALAR = 3,
+32:     INDIR_ST_VECTOR = 4,
+33:     INDIR_RMW_SCALAR = 5,
+34:     INDIR_RMW_VECTOR = 6,
+35:     RANGE_LOOP = 7,
+36:     ALU_SCALAR = 8,
+37:     ALU_VECTOR = 9,
+38:     ALU_REDUCE = 10
+39: };
+40: enum class DataType : uint8_t {
+41:     UINT32_TYPE = 0,
+42:     INT32_TYPE = 1,
+43:     FLOAT32_TYPE = 2,
+44:     UINT64_TYPE = 3,
+45:     INT64_TYPE = 4,
+46:     FLOAT64_TYPE = 5,
+47:     MAX
+48: };
+49: 
+50: volatile uint64_t *INSTR_opcode_datatype_optype_tdst1_tdst2;
+51: volatile uint64_t *INSTR_tsrc1_tsrc2_rdst1_rdst2_rsrc1_rsrc2_rsrc3_csrc;
+52: volatile uint64_t *INSTR_baseaddr;
+53: uint64_t MAA_end_addr;
+54: int8_t region_count;
+55: 
+56: void add_mem_region(void *start, void *end) {
+57:     m5_add_mem_region(start, end, region_count++);
+58: }
+59: 
+60: void clear_mem_region() {
+61:     m5_clear_mem_region();
+62:     m5_add_mem_region((void *)SPD_data_cacheable, (void *)SPD_data_noncacheable, 0);
+63:     m5_add_mem_region((void *)SPD_data_noncacheable, (void *)SPD_size_noncacheable, 1);
+64:     m5_add_mem_region((void *)SPD_size_noncacheable, (void *)SPD_ready_noncacheable, 2);
+65:     m5_add_mem_region((void *)SPD_ready_noncacheable, (void *)REG_noncacheable, 3);
+66:     m5_add_mem_region((void *)REG_noncacheable, (void *)INSTR_opcode_datatype_optype_tdst1_tdst2, 4);
+67:     m5_add_mem_region((void *)INSTR_opcode_datatype_optype_tdst1_tdst2, (void *)MAA_end_addr, 5);
+68:     region_count = 6;
+69: }
+70: 
+71: void alloc_MAA() {
+72:     uint64_t current_addr = BASE_ADDR + MEM_SIZE;
+73:     SPD_data_cacheable = (void *)(current_addr);
+74:     current_addr += SPD_DATA_SIZE;
+75:     SPD_data_noncacheable = (volatile void *)(current_addr);
+76:     current_addr += SPD_DATA_SIZE;
+77:     SPD_size_noncacheable = (volatile uint16_t *)(current_addr);
+78:     current_addr += SPD_SIZE_SIZE;
+79:     SPD_ready_noncacheable = (volatile uint16_t *)(current_addr);
+80:     current_addr += SPD_READY_SIZE;
+81:     REG_noncacheable = (volatile void *)(current_addr);
+82:     current_addr += REG_SIZE;
+83:     INSTR_opcode_datatype_optype_tdst1_tdst2 = (volatile uint64_t *)(current_addr);
+84:     current_addr += 8;
+85:     INSTR_tsrc1_tsrc2_rdst1_rdst2_rsrc1_rsrc2_rsrc3_csrc = (volatile uint64_t *)(current_addr);
+86:     current_addr += 8;
+87:     INSTR_baseaddr = (volatile uint64_t *)(current_addr);
+88:     current_addr += 8;
+89:     MAA_end_addr = current_addr;
+90:     clear_mem_region();
+91: }
+92: 
+93: inline void init_MAA() {
+94:     REG_count = 0;
+95:     SPD_count = 0;
+96:     region_count = 6;
+97: }
+98: void wait_ready(int SPD_id) {
+99:     volatile uint16_t ready __attribute__((unused)) = SPD_ready_noncacheable[SPD_id];
+100:     __asm__ __volatile__("mfence;");
+
+FILE benchmarks/API/MAA_gem5_magic.hpp | original lines 1–64
+1: #include "MAA.hpp"
+2: 
+3: /*******************************************************************************/
+4: /*******************************************************************************/
+5: /*                            FUNCTIONAL SIMULATION                            */
+6: /*******************************************************************************/
+7: /*******************************************************************************/
+8: 
+9: #define BASE_ADDR 0x000000000
+10: #define MEM_SIZE 0x400000000       // 16GB
+11: #define SPD_DATA_SIZE 0x000080000  // 512KB = 32 tiles x 4K elements x 4B each element (uint32_t, int32_t, float)
+12: #define SPD_SIZE_SIZE 0x000000040  // 64B = 32 tiles x 2B each tile (uint16_t)
+13: #define SPD_READY_SIZE 0x000000020 // 32B = 32 tiles x 1B each tile (uint8_t)
+14: #define REG_SIZE 0x000000400       // 1KB = 32 registers x 4B each register (uint32_t, int32_t, float)
+15: 
+16: enum class MAA_data_t {
+17:     INT32,
+18:     FLOAT32,
+19:     MAX_OP
+20: };
+21: 
+22: void init_MAA() {
+23:     REG_count = 0;
+24:     SPD_count = 0;
+25:     SPD_data_cacheable = (void *)(BASE_ADDR + MEM_SIZE);
+26:     SPD_data_noncacheable = (volatile void *)(BASE_ADDR + MEM_SIZE);
+27:     SPD_size_noncacheable = (volatile uint16_t *)(BASE_ADDR + MEM_SIZE + SPD_DATA_SIZE);
+28:     SPD_ready_noncacheable = (volatile uint8_t *)(BASE_ADDR + MEM_SIZE + SPD_DATA_SIZE + SPD_SIZE_SIZE);
+29:     REG_noncacheable = (volatile void *)(BASE_ADDR + MEM_SIZE + SPD_DATA_SIZE + SPD_SIZE_SIZE + SPD_READY_SIZE);
+30: }
+31: 
+32: #ifndef GEM5_MAGIC
+33: void m5_maa_magic_stream_load(void *data, MAA_data_t data_type, int min_reg, int max_reg, int stride_reg, int dst_tile);
+34: void m5_maa_magic_stream_load_cond(void *data, MAA_data_t data_type, int min_reg, int max_reg, int stride_reg, int dst_tile, int cond_tile, MAA_cond_t cond_op, int cond_reg, MAA_data_t cond_type);
+35: void m5_maa_magic_indirect_load(void *data, MAA_data_t data_type, int idx_tile, int dst_tile);
+36: void m5_maa_magic_indirect_load_cond(void *data, MAA_data_t data_type, int idx_tile, int dst_tile, int cond_tile, MAA_cond_t cond_op, int cond_reg, MAA_data_t cond_type);
+37: void m5_maa_magic_indirect_store(void *data, MAA_data_t data_type, int idx_tile, int dst_tile, int cond_tile);
+38: void m5_maa_magic_indirect_store_cond(void *data, MAA_data_t data_type, int idx_tile, int dst_tile, int cond_tile, MAA_cond_t cond_op, int cond_reg, MAA_data_t cond_type);
+39: void m5_maa_magic_indirect_rmw(void *data, MAA_data_t data_type, int idx_tile, int dst_tile, RMW_operation_t o_type, int cond_tile);
+40: void m5_maa_magic_indirect_rmw_cond(void *data, MAA_data_t data_type, int idx_tile, int dst_tile, RMW_operation_t o_type, int cond_tile, MAA_cond_t cond_op, int cond_reg, MAA_data_t cond_type);
+41: void m5_maa_magic_range_loop(int last_i_reg, int last_j_reg, int min_tile, int max_tile, int stride_reg, int dst_i_tile, int dst_j_tile);
+42: void m5_maa_magic_range_loop_cond(int last_i_reg, int last_j_reg, int min_tile, int max_tile, int stride_reg, int dst_i_tile, int dst_j_tile, int cond_tile, MAA_cond_t cond_op, int cond_reg, MAA_data_t cond_type);
+43: #endif
+44: 
+45: template <class T1, class T2>
+46: void maa_stream_load(T1 *data, int min_reg, int max_reg, int stride_reg, int dst_tile, int cond_tile = -1, MAA_cond_t cond_op = MAA_cond_t::MAX_OP, int cond_reg = -1) {
+47:     if (std::is_same<T1, int>::value) {
+48:         if (cond_tile == -1) {
+49:             m5_maa_magic_stream_load(data, MAA_data_t::INT32, min_reg, max_reg, stride_reg, dst_tile);
+50:         } else if (std::is_same<T2, int>::value) {
+51:             m5_maa_magic_stream_load_cond(data, MAA_data_t::INT32, min_reg, max_reg, stride_reg, dst_tile, cond_tile, cond_op, cond_reg, MAA_data_t::INT32);
+52:         } else if (std::is_same<T2, float>::value) {
+53:             m5_maa_magic_stream_load_cond(data, MAA_data_t::INT32, min_reg, max_reg, stride_reg, dst_tile, cond_tile, cond_op, cond_reg, MAA_data_t::FLOAT32);
+54:         } else {
+55:             assert(false);
+56:         }
+57:     } else if (std::is_same<T1, float>::value) {
+58:         if (cond_tile == -1) {
+59:             m5_maa_magic_stream_load(data, MAA_data_t::FLOAT32, min_reg, max_reg, stride_reg, dst_tile);
+60:         } else if (std::is_same<T2, int>::value) {
+61:             m5_maa_magic_stream_load_cond(data, MAA_data_t::FLOAT32, min_reg, max_reg, stride_reg, dst_tile, cond_tile, cond_op, cond_reg, MAA_data_t::INT32);
+62:         } else if (std::is_same<T2, float>::value) {
+63:             m5_maa_magic_stream_load_cond(data, MAA_data_t::FLOAT32, min_reg, max_reg, stride_reg, dst_tile, cond_tile, cond_op, cond_reg, MAA_data_t::FLOAT32);
+64:         } else {
+
+FILE benchmarks/API/MAA_utility.hpp | original lines 1–29
+1: #pragma once
+2: 
+3: #if !defined(FUNC) && !defined(GEM5) && !defined(GEM5_MAGIC)
+4: #define FUNC
+5: #endif
+6: 
+7: #if defined(FUNC)
+8: #include <MAA_functional.hpp>
+9: #elif defined(GEM5)
+10: #include <MAA_gem5.hpp>
+11: #include <gem5/m5ops.h>
+12: #elif defined(GEM5_MAGIC)
+13: #include "MAA_gem5_magic.hpp"
+14: #endif
+15: 
+16: #include <pthread.h>
+17: #define MAA_CRITICAL_INIT pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+18: #define MAA_CRITICAL_START pthread_mutex_lock(&mutex);
+19: #define MAA_CRITICAL_END pthread_mutex_unlock(&mutex);
+20: // template <int NUM>
+21: // inline int get_const_tile(){
+22: //     int SPD_id = get_new_tile<int>();
+23: //     int *tile = get_cacheable_tile_pointer<int>(SPD_id);
+24: //     for (int i = 0; i < TILE_SIZE; i++) {
+25: //         tile[i] = NUM;
+26: //     }
+27: //     set_tile_size(SPD_id, TILE_SIZE);
+28: //     return SPD_id;
+29: // }
+
+FILE benchmarks/API/README.md | original lines 1–100
+1: # MAA Mirobenchmarks and Functional Simulator
+2: 
+3: This repo contains the functional simulator and tests for the MAA programming model.
+4: 
+5: ## Content
+6: 
+7: - `test.cpp`: the CPU and MAA version of various tests, heavily commented.
+8: - `MAA.hpp`: the utility APIs for manipulating scratchpad (SPD) and scalar registers of MAA.
+9: - `MAA_functional.hpp`: the functional simulator.
+10: - `MAA_gem5.hpp` and `MAA_gem5_magic.hpp`: call the pseudo M5 instructions for GEM5 simulation.
+11: 
+12: ## Setup
+13: 
+14: Compile the test using:
+15: 
+16: ```bash
+17: bash make.sh [FUNC | GEM5 | GEM5_MAGIC]
+18: ```
+19: 
+20: - `FUNC` will use the functional (`MAA_functional.hpp`).
+21: - `GEM5` and `GEM5_MAGIC` implements the APIs using the M5 pseudo instructions that will be added in phase 1 and 3 of the project (`MAA_gem5.hpp` and `MAA_gem5_magic.hpp`)
+22: 
+23: **IMPORTANT:** If you are compiling with `GEM5` or `GEM5_MAGIC` flags, make sure you have already set up the GEM5, compiled it, and set the `GEM5_HOME` in `make.sh` to the GEM5 path correctly.
+24: 
+25: ## How to rewrite a kernel using MAA APIs?
+26: 
+27: ### Single loop
+28: 
+29: If the loop does not start from `0` with the stride of `1`, *e.g.*:
+30: 
+31: ```C++
+32: for (int i = min; i < max; i += stride) {
+33: }
+34: ```
+35: 
+36: Convert it to:
+37: 
+38: ```C++
+39: int i_max = (max - min - 1) / stride + 1;
+40: for (int i = 0; i < i_max; i++) {
+41:     int real_i = i * stride + min;
+42: }
+43: ```
+44: 
+45: Where new `i` iterates from `0` to `i_max` with `stride = 1`.
+46: If needed, you can calculate the value of previous `i` iterator (`real_i`) which iterates from `min` to `max` with `stride`.
+47: 
+48: For tiling, convert the previous loop into 2 nested loops.
+49: The outer loop iterates on tiles, and the inner loop iterates on the individual iterations of the tile.
+50: 
+51: ```C++
+52: int i_max = (max - min - 1) / stride + 1;
+53: for (int i_base = 0; i_base < i_max; i += TILE_SIZE) {
+54:     for (int i_offset = 0; i_offset < curr_tile_size; i_offset++) {
+55:         int curr_tile_size = min(i_max - i_base, TILE_SIZE);
+56:         for (int i_offset = 0; i_offset < curr_tile_size; i_offset++) {
+57:             int i = i_base + i_offset;
+58:             int real_i = i * stride + min;
+59:         }
+60:     }
+61: }
+62: ```
+63: 
+64: ### Single loop + direct range loop
+65: 
+66: For example:
+67: 
+68: ```C++
+69: for (int i = min; i < max; i += stride) {
+70:     for (int j = boundaries[i]; j < boundaries[i + 1]; j++) {
+71:     }
+72: }
+73: ```
+74: 
+75: First, convert the outer loop to a new outer loop iterating from `0` to `i_max` with `stride = 1`:
+76: 
+77: ```C++
+78: int i_max = ceil((max - min) / stride);
+79: for (int i = 0; i < i_max; i++) {
+80:     int real_i = i * stride + min;
+81:     for (int j = boundaries[real_i]; j < boundaries[real_i + 1]; j++) {
+82:     }
+83: }
+84: ```
+85: 
+86: Second, tile the outer loop:
+87: 
+88: ```C++
+89: int i_max = ceil((max - min) / stride);
+90: for (int i_base = 0; i_base < i_max; i += TILE_SIZE) {
+91:     int curr_tile_size = min(i_max - i_base, TILE_SIZE);
+92:     for (int i_offset = 0; i_offset < curr_tile_size; i_offset++) {
+93:         int i = i_base + i_offset;
+94:         int real_i = i * stride + min;
+95:         for (int j = boundaries[real_i]; j < boundaries[real_i + 1]; j++) {
+96:         }
+97:     }
+98: }
+99: ```
+100: 
+
+FILE benchmarks/API/gen_chkpt.sh | original lines 1–3
+1: OUTDIR=./chkpt
+2: GEM5_HOME=~/gem5-hpc
+3: OMP_PROC_BIND=false OMP_NUM_THREADS=4 ${GEM5_HOME}/build/X86/gem5.fast --outdir=$OUTDIR ${GEM5_HOME}/configs/deprecated/example/se.py --cpu-type AtomicSimpleCPU -n 4 --mem-size "16GB" --cmd ./test_T16K.o  --options "16384 1 MAA gather" 2>&1 | awk '{ print strftime(), $0; fflush() }' | tee $OUTDIR/logs_checkpoint.txt;
+
+FILE benchmarks/API/make.sh | original lines 1–39
+1: GEM5_HOME=~/gem5-hpc
+2: 
+3: if [ "$1" = "FUNC" ]; then
+4:     # g++ -std=c++11 -march=corei7 -msse4.1 -mno-avx test.cpp -o test_T1K.o -g3 -fopenmp -DFUNC -DTILE_SIZE=1024 -O3
+5:     # g++ -std=c++11 -march=corei7 -msse4.1 -mno-avx test.cpp -o test_T2K.o -g3 -fopenmp -DFUNC -DTILE_SIZE=2048 -O3
+6:     # g++ -std=c++11 -march=corei7 -msse4.1 -mno-avx test.cpp -o test_T4K.o -g3 -fopenmp -DFUNC -DTILE_SIZE=4096 -O3
+7:     # g++ -std=c++11 -march=corei7 -msse4.1 -mno-avx test.cpp -o test_T8K.o -g3 -fopenmp -DFUNC -DTILE_SIZE=8192 -O3
+8:     g++ -std=c++11 -march=corei7 -msse4.1 -mno-avx test.cpp -o test_T16K.o -g3 -fopenmp -DFUNC -DTILE_SIZE=16384 -O3
+9:     # g++ -std=c++11 -march=corei7 -msse4.1 -mno-avx test_double.cpp -o test_double_T1K.o -g3 -fopenmp -DFUNC -DTILE_SIZE=1024 -O3
+10:     # g++ -std=c++11 -march=corei7 -msse4.1 -mno-avx test_double.cpp -o test_double_T2K.o -g3 -fopenmp -DFUNC -DTILE_SIZE=2048 -O3
+11:     # g++ -std=c++11 -march=corei7 -msse4.1 -mno-avx test_double.cpp -o test_double_T4K.o -g3 -fopenmp -DFUNC -DTILE_SIZE=4096 -O3
+12:     # g++ -std=c++11 -march=corei7 -msse4.1 -mno-avx test_double.cpp -o test_double_T8K.o -g3 -fopenmp -DFUNC -DTILE_SIZE=8192 -O3
+13:     # g++ -std=c++11 -march=corei7 -msse4.1 -mno-avx test_double.cpp -o test_double_T16K.o -g3 -fopenmp -DFUNC -DTILE_SIZE=16384 -O3
+14:     g++ -std=c++11 -march=corei7 -msse4.1 -mno-avx -D$1 -fPIC -c MAA_compiler_api.cpp -g3 -fopenmp -o  MAA_compiler_api.o
+15:     ar rcs libmaacompiler.a MAA_compiler_api.o
+16: elif [ "$1" = "GEM5" ]; then
+17:     GEM5_INCLUDE="-I${GEM5_HOME}/include/ -I${GEM5_HOME}/util/m5/src/"
+18:     GEM5_LIB="-L${GEM5_HOME}/util/m5/build/x86/out"
+19: # g++ -std=c++11 -march=corei7 -msse4.1 -mno-avx 
+20: #     -O3 -fopenmp -DGEM5 -DTILE_SIZE=16384 \
+21: #     -S test.cpp -o test2.s $GEM5_INCLUDE -fopt-info-vec-optimized -ftree-vectorizer-verbose=2
+22:     g++ -std=c++11 -march=corei7 -msse4.1 -mno-avx test.cpp $GEM5_LIB $GEM5_INCLUDE -fopenmp -DGEM5 -DTILE_SIZE=16384 -O3 -S -o test_T16K.s
+23:     # g++ -std=c++11 -march=corei7 -msse4.1 -mno-avx $GEM5_HOME/util/m5/build/x86/abi/x86/m5op.S test.cpp $GEM5_LIB $GEM5_INCLUDE -g3 -fopenmp -DGEM5 -DTILE_SIZE=1024 -O3 -o test_T1K.o
+24:     # g++ -std=c++11 -march=corei7 -msse4.1 -mno-avx $GEM5_HOME/util/m5/build/x86/abi/x86/m5op.S test.cpp $GEM5_LIB $GEM5_INCLUDE -g3 -fopenmp -DGEM5 -DTILE_SIZE=2048 -O3 -o test_T2K.o
+25:     # g++ -std=c++11 -march=corei7 -msse4.1 -mno-avx $GEM5_HOME/util/m5/build/x86/abi/x86/m5op.S test.cpp $GEM5_LIB $GEM5_INCLUDE -g3 -fopenmp -DGEM5 -DTILE_SIZE=4096 -O3 -o test_T4K.o
+26:     # g++ -std=c++11 -march=corei7 -msse4.1 -mno-avx $GEM5_HOME/util/m5/build/x86/abi/x86/m5op.S test.cpp $GEM5_LIB $GEM5_INCLUDE -g3 -fopenmp -DGEM5 -DTILE_SIZE=8192 -O3 -o test_T8K.o
+27:     g++ -std=c++11 -march=corei7 -msse4.1 -mno-avx $GEM5_HOME/util/m5/build/x86/abi/x86/m5op.S test.cpp $GEM5_LIB $GEM5_INCLUDE -g3 -fopenmp -DGEM5 -DTILE_SIZE=16384 -O3 -o test_T16K.o
+28:     # g++ -std=c++11 -march=corei7 -msse4.1 -mno-avx $GEM5_HOME/util/m5/build/x86/abi/x86/m5op.S test_double.cpp $GEM5_LIB $GEM5_INCLUDE -g3 -fopenmp -DGEM5 -DTILE_SIZE=1024 -O3 -o test_double_T1K.o
+29:     # g++ -std=c++11 -march=corei7 -msse4.1 -mno-avx $GEM5_HOME/util/m5/build/x86/abi/x86/m5op.S test_double.cpp $GEM5_LIB $GEM5_INCLUDE -g3 -fopenmp -DGEM5 -DTILE_SIZE=2048 -O3 -o test_double_T2K.o
+30:     # g++ -std=c++11 -march=corei7 -msse4.1 -mno-avx $GEM5_HOME/util/m5/build/x86/abi/x86/m5op.S test_double.cpp $GEM5_LIB $GEM5_INCLUDE -g3 -fopenmp -DGEM5 -DTILE_SIZE=4096 -O3 -o test_double_T4K.o
+31:     # g++ -std=c++11 -march=corei7 -msse4.1 -mno-avx $GEM5_HOME/util/m5/build/x86/abi/x86/m5op.S test_double.cpp $GEM5_LIB $GEM5_INCLUDE -g3 -fopenmp -DGEM5 -DTILE_SIZE=8192 -O3 -o test_double_T8K.o
+32:     # g++ -std=c++11 -march=corei7 -msse4.1 -mno-avx $GEM5_HOME/util/m5/build/x86/abi/x86/m5op.S test_double.cpp $GEM5_LIB $GEM5_INCLUDE -g3 -fopenmp -DGEM5 -DTILE_SIZE=16384 -O3 -o test_double_T16K.o
+33:     g++ -std=c++11 -march=corei7 -msse4.1 -mno-avx -c $GEM5_HOME/util/m5/build/x86/abi/x86/m5op.S  $GEM5_LIB $GEM5_INCLUDE -o m5op.o
+34:     g++ -std=c++11 -march=corei7 -msse4.1 -mno-avx -c MAA_compiler_api.cpp $GEM5_LIB $GEM5_INCLUDE -D$1 -fPIC -g3 -fopenmp -o MAA_compiler_api.o
+35:     ar rcs libmaacompiler.a m5op.o MAA_compiler_api.o
+36: else
+37:     echo "Usage: make.sh FUNC|GEM5"
+38:     exit 1
+39: fi
+
+FILE benchmarks/API/make_functional.sh | original lines 1–12
+1: GEM5_HOME=../..
+2: 
+3: if [ "$1" = "FUNC" ]; then
+4:     g++ -std=c++11 test_functional.cpp -o test_functional.o -g3 -fopenmp -DFUNC -DTILE_SIZE=16384 -DNUM_CORES=4 -O3
+5: elif [ "$1" = "GEM5" ]; then
+6:     GEM5_INCLUDE="-I${GEM5_HOME}/include/ -I${GEM5_HOME}/util/m5/src/"
+7:     GEM5_LIB="-L${GEM5_HOME}/util/m5/build/x86/out"
+8:     g++ -std=c++11 $GEM5_HOME/util/m5/build/x86/abi/x86/m5op.S test_functional.cpp $GEM5_LIB $GEM5_INCLUDE -g3 -fopenmp -DGEM5 -DTILE_SIZE=16384 -DNUM_CORES=4 -O3 -o test_functional.o
+9: else
+10:     echo "Usage: make.sh FUNC|GEM5"
+11:     exit 1
+12: fi
+
+FILE benchmarks/API/prefetch_depricated.cpp | original lines 1–82
+1: 
+2: void gather_rmw_indirectcond_indirectrangeloop_indirectcond_prefetch_maa(int *nodes, int *boundaries, float *a, float *b, int *idx, int min, int max, int stride, const float mul_const, float *cond, const float cond_const) {
+3:     std::cout << "starting gather_rmw_indirectcond_indirectrangeloop_indirectcond_prefetch_maa min(" << min << "), max(" << max << "), stride(" << stride << ")" << std::endl;
+4: 
+5: #ifdef GEM5
+6:     m5_work_begin(0, 0);
+7:     m5_reset_stats(0, 0);
+8: #endif
+9: 
+10:     init_MAA();
+11: 
+12:     // 1 scalar register
+13:     int one_reg_id = get_new_reg<int>(1);
+14:     // max scalar register
+15:     int max_reg_id = get_new_reg<int>(max);
+16:     // min scalar register
+17:     int min_reg_ids[2] = {get_new_reg<int>(), get_new_reg<int>()};
+18:     // stride scalar register
+19:     int stride_reg_id = get_new_reg<int>(stride);
+20:     // cond_const scalar register
+21:     int cond_const_reg_id = get_new_reg<float>(cond_const);
+22:     // the last i and j values that the range loop has generated
+23:     // used as the context for the next tile of j iterations
+24:     int last_i_reg_id = get_new_reg<int>(0);
+25:     int last_j_reg_id = get_new_reg<int>(-1);
+26: 
+27:     // allocate a tile of idx[j]
+28:     int idx_tiles[2] = {get_new_tile(), get_new_tile()};
+29:     // allocate a tile of b[idx[j]]
+30:     int b_tiles[2] = {get_new_tile(), get_new_tile()};
+31:     // allocate a tile of values that will be read-modified-written to a[idx[j]]
+32:     int a_tiles[2] = {get_new_tile(), get_new_tile()};
+33:     // allocate a tile of cond[nodes[i]] and cond[nodes[j]] values
+34:     int condi_tiles[2] = {get_new_tile(), get_new_tile()};
+35:     int condj_tiles[2] = {get_new_tile(), get_new_tile()};
+36:     // allocate a tile of boundaries[nodes[i]] and boundaries[nodes[i] + 1] values
+37:     int boundaries0_tiles[2] = {get_new_tile(), get_new_tile()};
+38:     int boundaries1_tiles[2] = {get_new_tile(), get_new_tile()};
+39:     // allocate a tile of i and j values that the range loop generates
+40:     int i_tiles[2] = {get_new_tile(), get_new_tile()};
+41:     int j_tiles[2] = {get_new_tile(), get_new_tile()};
+42:     // allocate a tile of nodes[i] and nodes[j] values
+43:     int nodesi_tiles[2] = {get_new_tile(), get_new_tile()};
+44:     int nodesj_tiles[2] = {get_new_tile(), get_new_tile()};
+45:     // allocate a tile of (cond_const < cond[nodes[i]]) values
+46:     int condi_res_tiles[2] = {get_new_tile(), get_new_tile()};
+47:     // allocate a tile of (cond_const < cond[nodes[j]]) values
+48:     int condj_res_tiles[2] = {get_new_tile(), get_new_tile()};
+49: 
+50:     // get the SPD pointer to the b[idx[j]] tile
+51:     float *b_ps[2] = {get_cacheable_tile_pointer<float>(b_tiles[0]),
+52:                       get_cacheable_tile_pointer<float>(b_tiles[1])};
+53:     // get the SPD address of a tile of values that will be read-modified-written to a[idx[j]]
+54:     volatile float *a_ps[2] = {get_noncacheable_tile_pointer<float>(a_tiles[0]),
+55:                                get_noncacheable_tile_pointer<float>(a_tiles[1])};
+56:     // get the SPD address of the i and j tiles
+57:     int *i_ps[2] = {get_cacheable_tile_pointer<int>(i_tiles[0]),
+58:                     get_cacheable_tile_pointer<int>(i_tiles[1])};
+59:     int *j_ps[2] = {get_cacheable_tile_pointer<int>(j_tiles[0]),
+60:                     get_cacheable_tile_pointer<int>(j_tiles[1])};
+61:     // get the SPD address of the boundaries[nodes[i]] and boundaries[nodes[i] + 1] tiles
+62:     int *boundaries0_ps[2] = {get_cacheable_tile_pointer<int>(boundaries0_tiles[0]),
+63:                               get_cacheable_tile_pointer<int>(boundaries0_tiles[1])};
+64:     int *boundaries1_ps[2] = {get_cacheable_tile_pointer<int>(boundaries1_tiles[0]),
+65:                               get_cacheable_tile_pointer<int>(boundaries1_tiles[1])};
+66:     // get the SPD address of the cond[nodes[i]] and cond[nodes[j]] tiles
+67:     float *condi_ps[2] = {get_cacheable_tile_pointer<float>(condi_tiles[0]),
+68:                           get_cacheable_tile_pointer<float>(condi_tiles[1])};
+69:     float *condj_ps[2] = {get_cacheable_tile_pointer<float>(condj_tiles[0]),
+70:                           get_cacheable_tile_pointer<float>(condj_tiles[1])};
+71: 
+72:     int current_tile_i = 0;
+73:     // Here we change a loop from min to max with stride to
+74:     // a loop from 0 to i_max with stride = 1
+75:     int i_max = (max - min - 1) / stride + 1;
+76: 
+77:     /*************** prefetch the first i tile ***************/
+78:     int i_base = 0;
+79:     int curr_min = i_base * stride + min;
+80:     // i = min
+81:     maa_const(curr_min, min_reg_ids[current_tile_i]);
+82:     // load a tile of nodes[i] values to the nodesi SPD
+
+FILE benchmarks/API/run_chkpt.sh | original lines 1–5
+1: OUTDIR=./chkpt/
+2: GEM5_HOME=~/gem5-hpc/
+3: 
+4: 
+5: OMP_PROC_BIND=false OMP_NUM_THREADS=4 ${GEM5_HOME}/build/X86/gem5.opt --outdir=${OUTDIR} ${GEM5_HOME}/configs/deprecated/example/se.py --cpu-type X86O3CPU -n 4 --mem-size '16GB' --sys-clock '3.2GHz' --cpu-clock '3.2GHz' --caches --l1d_size=32kB --l1d_assoc=8 --l1d-hwp-type=StridePrefetcher --l1d_mshrs=16 --l1i_size=32kB --l1i_assoc=8 --l1i-hwp-type=StridePrefetcher --l1i_mshrs=16 --l2cache --l2_size=256kB --l2_assoc=4 --l2-hwp-type=StridePrefetcher --l2_mshrs=32 --l3cache --l3_size=8MB --l3_assoc=16 --l3_mshrs=256 --cacheline_size=64 --mem-type Ramulator2 --ramulator-config ${GEM5_HOME}/ext/ramulator2/ramulator2/example_gem5_config.yaml --mem-channels 1 --maa --maa_num_tile_elements 16384 --cmd ./test_T16K.o --options "16384 1 MAA" -r 1 --prog-interval=1000 2>&1 | awk '{ print strftime(), $0; fflush() }' | tee ${OUTDIR}/logs_trace.txt
+
+FILE configs/common/MAA.py | original lines 1–31
+1: from m5.defines import buildEnv
+2: from m5.objects import *
+3: 
+4: from gem5.isas import ISA
+5: 
+6: class SharedMAA(MAA):
+7:     num_tiles_per_core = 8
+8:     num_tile_elements = 16384
+9:     num_regs_per_core = 8
+10:     num_instructions_per_core = 8
+11:     num_row_table_rows_per_slice = 64
+12:     num_row_table_entries_per_subslice_row = 8
+13:     num_row_table_config_cache_entries = 16
+14:     reconfigure_row_table = False
+15:     num_initial_row_table_slices = 32
+16:     num_request_table_addresses = 128
+17:     num_request_table_entries_per_address = 16
+18:     spd_read_latency = 1
+19:     spd_write_latency = 1
+20:     num_spd_read_ports_per_maa = 4
+21:     num_spd_write_ports_per_maa = 4
+22:     rowtable_latency = 1
+23:     ALU_lane_latency = 1
+24:     num_ALU_lanes = 16
+25:     max_outstanding_cache_side_packets = 512
+26:     max_outstanding_cpu_side_packets = 512
+27:     num_memory_channels = 2
+28:     num_cores = 4
+29:     num_maas = 1
+30:     no_reorder = False
+31:     force_cache_access = False
+
+FILE configs/common/MAAConfig.py | original lines 1–100
+1: from common import ObjectList
+2: from common.MAA import *
+3: 
+4: import m5
+5: from m5.objects import *
+6: 
+7: from gem5.isas import ISA
+8: 
+9: def _get_maa_opts(options):
+10:     opts = {}
+11: 
+12:     if hasattr(options, "maa_num_tiles_per_core"):
+13:         opts["num_tiles_per_core"] = getattr(options, "maa_num_tiles_per_core")
+14: 
+15:     if hasattr(options, "maa_num_tile_elements"):
+16:         opts["num_tile_elements"] = getattr(options, "maa_num_tile_elements")
+17: 
+18:     if hasattr(options, "maa_num_regs_per_core"):
+19:         opts["num_regs_per_core"] = getattr(options, "maa_num_regs_per_core")
+20: 
+21:     if hasattr(options, "maa_num_instructions_per_core"):
+22:         opts["num_instructions_per_core"] = getattr(options, "maa_num_instructions_per_core")
+23:     
+24:     if hasattr(options, "maa_num_row_table_rows_per_slice"):
+25:         opts["num_row_table_rows_per_slice"] = getattr(options, "maa_num_row_table_rows_per_slice")
+26: 
+27:     if hasattr(options, "maa_num_row_table_entries_per_subslice_row"):
+28:         opts["num_row_table_entries_per_subslice_row"] = getattr(options, "maa_num_row_table_entries_per_subslice_row")
+29: 
+30:     if hasattr(options, "maa_num_row_table_config_cache_entries"):
+31:         opts["num_row_table_config_cache_entries"] = getattr(options, "maa_num_row_table_config_cache_entries")
+32:     
+33:     if(hasattr(options, "maa_reconfigure_row_table")):
+34:         opts["reconfigure_row_table"] = getattr(options, "maa_reconfigure_row_table")
+35: 
+36:     if(hasattr(options, "maa_no_reorder")):
+37:         opts["no_reorder"] = getattr(options, "maa_no_reorder")
+38: 
+39:     if(hasattr(options, "maa_force_cache_access")):
+40:         opts["force_cache_access"] = getattr(options, "maa_force_cache_access")
+41: 
+42:     if(hasattr(options, "maa_num_initial_row_table_slices")):
+43:         opts["num_initial_row_table_slices"] = getattr(options, "maa_num_initial_row_table_slices")
+44:     
+45:     if(hasattr(options, "maa_num_request_table_addresses")):
+46:         opts["num_request_table_addresses"] = getattr(options, "maa_num_request_table_addresses")
+47:     
+48:     if hasattr(options, "maa_num_request_table_entries_per_address"):
+49:         opts["num_request_table_entries_per_address"] = getattr(options, "maa_num_request_table_entries_per_address")
+50: 
+51:     if hasattr(options, "maa_spd_read_latency"):
+52:         opts["spd_read_latency"] = getattr(options, "maa_spd_read_latency")
+53: 
+54:     if hasattr(options, "maa_spd_write_latency"):
+55:         opts["spd_write_latency"] = getattr(options, "maa_spd_write_latency")
+56: 
+57:     if hasattr(options, "maa_num_spd_read_ports_per_maa"):
+58:         opts["num_spd_read_ports_per_maa"] = getattr(options, "maa_num_spd_read_ports_per_maa")
+59: 
+60:     if hasattr(options, "maa_num_spd_write_ports_per_maa"):
+61:         opts["num_spd_write_ports_per_maa"] = getattr(options, "maa_num_spd_write_ports_per_maa")
+62:     
+63:     if hasattr(options, "maa_rowtable_latency"):
+64:         opts["rowtable_latency"] = getattr(options, "maa_rowtable_latency")
+65:     
+66:     if hasattr(options, "maa_ALU_lane_latency"):
+67:         opts["ALU_lane_latency"] = getattr(options, "maa_ALU_lane_latency")
+68: 
+69:     if hasattr(options, "maa_num_ALU_lanes"):
+70:         opts["num_ALU_lanes"] = getattr(options, "maa_num_ALU_lanes")
+71:     
+72:     if hasattr(options, "maa_num_maas"):
+73:         opts["num_maas"] = getattr(options, "maa_num_maas")
+74:     
+75:     opts["num_memory_channels"] = options.mem_channels
+76:     opts["num_cores"] = options.num_cpus
+77:     
+78:     addr_ranges = []
+79:     start = options.mem_size
+80: 
+81:     SPD_data_size = opts["num_tiles_per_core"] * opts["num_cores"] * opts["num_tile_elements"] * 4
+82: 
+83:     # scratchpad data (cacheable) (4 bytes each)
+84:     addr_ranges.append(AddrRange(start=start, size=SPD_data_size))
+85:     start = addr_ranges[-1].end
+86: 
+87:     # scratchpad data (noncacheable) (4 bytes each)
+88:     addr_ranges.append(AddrRange(start=start, size=SPD_data_size))
+89:     start = addr_ranges[-1].end
+90: 
+91:     # scratchpad size (noncacheable) (2 bytes each)
+92:     SPD_size_size = opts["num_tiles_per_core"] * opts["num_cores"] * 2
+93:     addr_ranges.append(AddrRange(start=start, size=SPD_size_size))
+94:     start = addr_ranges[-1].end
+95: 
+96:     # scratchpad ready (noncacheable) (2 bytes each)
+97:     SPD_ready_size = opts["num_tiles_per_core"] * opts["num_cores"] * 2
+98:     addr_ranges.append(AddrRange(start=start, size=SPD_ready_size))
+99:     start = addr_ranges[-1].end
+100: 
+
+FILE scripts/benchmark.py | original lines 1–67
+1: import argparse
+2: from sim import run_simulation, run_simulation_MICRO, run_simulation_DMP, run_simulation_TS, run_simulation_SC, set_data_directory, run_tasks
+3: from parse import parse_results, parse_header, plot_results, plot_results_DMP, plot_results_TS, plot_results_SC, plot_results_MICRO
+4: from sim import all_MICRO_modes, all_MICRO_kernels, all_MICRO_precisions, all_MICRO_sizes
+5: import os
+6: 
+7: parser = argparse.ArgumentParser(description='Benchmarking script')
+8: parser.add_argument('-j', type=int, required=True, help='Number of parallel simulations')
+9: parser.add_argument('-a', type=str, default='all', choices=['simulate', 'parse', 'plot', 'all'], help='Action to perform')
+10: parser.add_argument('-b', type=str, default='main', choices=['main', 'DMP', 'TS', 'SC', 'micro', 'all'], help='Type of benchmarking')
+11: parser.add_argument('-f', action='store_true', help='Rerun both finished simulations and checkpoints')
+12: parser.add_argument('-fs', action='store_true', help='Rerun finished simulations')
+13: parser.add_argument('-fc', action='store_true', help='Rerun finished checkpoints')
+14: parser.add_argument('-dir', type=str, required=True, help='Data directory used for storing Gem5 simulation results')
+15: args = parser.parse_args()
+16: 
+17: DATA_DIR = args.dir
+18: RSLT_DIR = f"{DATA_DIR}/results"
+19: 
+20: set_data_directory(DATA_DIR)
+21: 
+22: if args.a == 'simulate' or args.a == 'all':
+23:     print(f'Simulating with {args.j} parallel processes')
+24:     rerun_cpt = args.fc or args.f
+25:     rerun_sim = args.fs or args.f
+26:     if rerun_sim:
+27:         print('Rerunning finished simulations too')
+28:     if rerun_cpt:
+29:         print('Rerunning finished checkpoints too')
+30:     if args.b == 'main' or args.b == 'all':
+31:         run_simulation(args.j, rerun_cpt, rerun_sim)
+32:     if args.b == 'DMP' or args.b == 'all':
+33:         run_simulation_DMP(args.j, rerun_cpt, rerun_sim)
+34:     if args.b == 'TS' or args.b == 'all':
+35:         run_simulation_TS(args.j, rerun_cpt, rerun_sim)
+36:     if args.b == 'SC' or args.b == 'all':
+37:         run_simulation_SC(args.j, rerun_cpt, rerun_sim)
+38:     if args.b == 'micro':
+39:         run_simulation_MICRO(args.j, rerun_cpt, rerun_sim)
+40:     ########################################## RUN SELECTED EXPERIMENTS ##########################################
+41:     run_tasks(args.j)
+42: 
+43: if args.a == 'parse' or args.a == 'all':
+44:     print(f'Processing results')
+45:     os.system("mkdir -p results")
+46:     if args.b == 'main' or args.b == 'all':
+47:         with open("results/results_main.csv", "w") as f:
+48:             f.write("kernel,mode,size," + parse_header() + "\n")
+49:             f.write("BFS,BASE,22," + parse_results(f"{RSLT_DIR}/bfs/BASE/22", 1, "BASE",  2) + "\n")
+50:             f.write("BFS,MAA,22," + parse_results(f"{RSLT_DIR}/bfs/MAA/22", 1, "MAA",  2) + "\n")
+51:             f.write("PR,BASE,22," + parse_results(f"{RSLT_DIR}/pr/BASE/22", 1, "BASE",  2) + "\n")
+52:             f.write("PR,MAA,22," + parse_results(f"{RSLT_DIR}/pr/MAA/22", 1, "MAA",  2) + "\n")
+53:             # f.write("SSSP,BASE,21," + parse_results(f"{RSLT_DIR}/sssp/BASE/21", 1, "BASE",  2) + "\n")
+54:             # f.write("SSSP,MAA,21," + parse_results(f"{RSLT_DIR}/sssp/MAA/21", 1, "MAA",  2) + "\n")
+55:             f.write("BC,BASE,20," + parse_results(f"{RSLT_DIR}/bc/BASE/20", 1, "BASE",  2) + "\n")
+56:             f.write("BC,MAA,20," + parse_results(f"{RSLT_DIR}/bc/MAA/20", 1, "MAA",  2) + "\n")
+57:             f.write("IS,BASE,b," + parse_results(f"{RSLT_DIR}/is/BASE/b", 1, "BASE",  2) + "\n")
+58:             f.write("IS,MAA,b," + parse_results(f"{RSLT_DIR}/is/MAA/b", 1, "MAA",  2) + "\n")
+59:             f.write("CG,BASE,c," + parse_results(f"{RSLT_DIR}/cg/BASE/c", 1, "BASE",  2) + "\n")
+60:             f.write("CG,MAA,c," + parse_results(f"{RSLT_DIR}/cg/MAA/c", 1, "MAA",  2) + "\n")
+61:             f.write("PRH,BASE,2M," + parse_results(f"{RSLT_DIR}/PRH/BASE/2M", 1, "BASE",  2) + "\n")
+62:             f.write("PRH,MAA,2M," + parse_results(f"{RSLT_DIR}/PRH/MAA/2M", 1, "MAA",  2) + "\n")
+63:             f.write("PRO,BASE,2M," + parse_results(f"{RSLT_DIR}/PRO/BASE/2M", 1, "BASE",  2) + "\n")
+64:             f.write("PRO,MAA,2M," + parse_results(f"{RSLT_DIR}/PRO/MAA/2M", 1, "MAA",  2) + "\n")
+65:             f.write("XRAGE,BASE,--," + parse_results(f"{RSLT_DIR}/spatter/xrage/BASE", 1, "BASE",  2) + "\n")
+66:             f.write("XRAGE,MAA,--," + parse_results(f"{RSLT_DIR}/spatter/xrage/MAA", 1, "MAA",  2) + "\n")
+67:             f.write("GZP,BASE,2M," + parse_results(f"{RSLT_DIR}/gradzatp/BASE/2M", 1, "BASE",  2) + "\n")
+
+FILE src/mem/MAA/ALU.hh | original lines 1–80
+1: #ifndef __MEM_MAA_ALU_HH__
+2: #define __MEM_MAA_ALU_HH__
+3: 
+4: #include <cassert>
+5: #include <cstdint>
+6: #include <cstring>
+7: #include <string>
+8: #include "sim/system.hh"
+9: 
+10: namespace gem5 {
+11: 
+12: class MAA;
+13: class Instruction;
+14: 
+15: class ALUUnit {
+16: public:
+17:     enum class Status : uint8_t {
+18:         Idle = 0,
+19:         Decode = 1,
+20:         Work = 2,
+21:         Finish = 3,
+22:         max
+23:     };
+24: 
+25: protected:
+26:     std::string status_names[5] = {
+27:         "Idle",
+28:         "Decode",
+29:         "Work",
+30:         "Finish",
+31:         "max"};
+32:     Status state;
+33:     MAA *maa;
+34: 
+35: public:
+36:     ALUUnit();
+37: 
+38:     void allocate(MAA *_maa, int _my_alu_id, Cycles _ALU_lane_latency, int _num_ALU_lanes, int _num_tile_elements);
+39: 
+40:     Status getState() const { return state; }
+41: 
+42:     void setInstruction(Instruction *_instruction);
+43: 
+44:     bool scheduleNextExecution(bool force = false);
+45:     void scheduleExecuteInstructionEvent(int latency = 0);
+46: 
+47: protected:
+48:     Instruction *my_instruction;
+49:     int my_alu_id;
+50:     int my_dst_tile, my_dst_reg, my_cond_tile, my_src1_tile, my_src2_tile;
+51:     bool my_cond_tile_ready, my_src1_tile_ready, my_src2_tile_ready;
+52:     int my_i, my_max;
+53:     int my_input_word_size;
+54:     int my_input_words_per_cl;
+55:     int my_output_word_size;
+56:     int my_output_words_per_cl;
+57:     Cycles ALU_lane_latency;
+58:     int num_ALU_lanes;
+59:     Tick my_SPD_read_finish_tick;
+60:     Tick my_SPD_write_finish_tick;
+61:     Tick my_ALU_finish_tick;
+62:     Tick my_decode_start_tick;
+63:     int num_tile_elements;
+64:     int32_t my_red_i32;
+65:     uint32_t my_red_u32;
+66:     int64_t my_red_i64;
+67:     uint64_t my_red_u64;
+68:     float my_red_f32;
+69:     double my_red_f64;
+70: 
+71:     void executeInstruction();
+72:     void updateLatency(int num_spd_read_data_accesses,
+73:                        int num_spd_read_cond_accesses,
+74:                        int num_spd_write_accesses,
+75:                        int num_alu_accesses);
+76:     EventFunctionWrapper executeInstructionEvent;
+77: };
+78: } // namespace gem5
+79: 
+80: #endif // __MEM_MAA_ALU_HH__
+
+FILE src/mem/MAA/IF.hh | original lines 1–100
+1: #ifndef __MEM_MAA_IF_HH__
+2: #define __MEM_MAA_IF_HH__
+3: 
+4: #include <cassert>
+5: #include <cstdint>
+6: #include <cstring>
+7: #include <string>
+8: 
+9: #include "base/types.hh"
+10: #include "mem/MAA/SPD.hh"
+11: #include "sim/system.hh"
+12: #include "arch/generic/mmu.hh"
+13: 
+14: namespace gem5 {
+15: class MAA;
+16: 
+17: enum class FuncUnitType : uint8_t {
+18:     STREAM = 0,
+19:     INDIRECT = 1,
+20:     INVALIDATOR = 2,
+21:     ALU = 3,
+22:     RANGE = 4,
+23:     MAX
+24: };
+25: const std::string func_unit_names[6] = {
+26:     "STREAM",
+27:     "INDIRECT",
+28:     "INVALIDATOR",
+29:     "ALU",
+30:     "RANGE",
+31:     "MAX"};
+32: class Instruction {
+33: public:
+34:     enum class OpcodeType : uint8_t {
+35:         STREAM_LD = 0,
+36:         STREAM_ST = 1,
+37:         INDIR_LD = 2,
+38:         INDIR_ST_SCALAR = 3,
+39:         INDIR_ST_VECTOR = 4,
+40:         INDIR_RMW_SCALAR = 5,
+41:         INDIR_RMW_VECTOR = 6,
+42:         RANGE_LOOP = 7,
+43:         ALU_SCALAR = 8,
+44:         ALU_VECTOR = 9,
+45:         ALU_REDUCE = 10,
+46:         MAX
+47:     };
+48:     std::string opcode_names[11] = {
+49:         "STREAM_LD",
+50:         "STREAM_ST",
+51:         "INDIR_LD",
+52:         "INDIR_ST_SCALAR",
+53:         "INDIR_ST_VECTOR",
+54:         "INDIR_RMW_SCALAR",
+55:         "INDIR_RMW_VECTOR",
+56:         "RANGE_LOOP",
+57:         "ALU_SCALAR",
+58:         "ALU_VECTOR",
+59:         "ALU_REDUCE"};
+60:     enum class OPType : uint8_t {
+61:         ADD_OP = 0,
+62:         SUB_OP = 1,
+63:         MUL_OP = 2,
+64:         DIV_OP = 3,
+65:         MIN_OP = 4,
+66:         MAX_OP = 5,
+67:         AND_OP = 6,
+68:         OR_OP = 7,
+69:         XOR_OP = 8,
+70:         SHL_OP = 9,
+71:         SHR_OP = 10,
+72:         GT_OP = 11,
+73:         GTE_OP = 12,
+74:         LT_OP = 13,
+75:         LTE_OP = 14,
+76:         EQ_OP = 15,
+77:         MAX
+78:     };
+79:     std::string optype_names[16] = {
+80:         "ADD",
+81:         "SUB",
+82:         "MUL",
+83:         "DIV",
+84:         "MIN",
+85:         "MAX",
+86:         "AND",
+87:         "OR",
+88:         "XOR",
+89:         "SHL",
+90:         "SHR",
+91:         "GT",
+92:         "GTE",
+93:         "LT",
+94:         "LTE",
+95:         "EQ"};
+96:     enum class DataType : uint8_t {
+97:         UINT32_TYPE = 0,
+98:         INT32_TYPE = 1,
+99:         FLOAT32_TYPE = 2,
+100:         UINT64_TYPE = 3,
+
+FILE src/mem/MAA/IndirectAccess.hh | original lines 1–100
+1: #ifndef __MEM_MAA_INDIRECT_ACCESS_HH__
+2: #define __MEM_MAA_INDIRECT_ACCESS_HH__
+3: 
+4: #include <cassert>
+5: #include <cstdint>
+6: #include <cstring>
+7: #include <string>
+8: #include <map>
+9: #include <set>
+10: 
+11: #include "base/statistics.hh"
+12: #include "base/types.hh"
+13: #include "mem/packet.hh"
+14: #include "mem/request.hh"
+15: #include "sim/system.hh"
+16: #include "arch/generic/mmu.hh"
+17: #include "mem/MAA/Tables.hh"
+18: 
+19: namespace gem5 {
+20: 
+21: class MAA;
+22: class IndirectAccessUnit;
+23: class Instruction;
+24: 
+25: class IndirectAccessUnit : public BaseMMU::Translation {
+26: public:
+27:     enum class Status : uint8_t {
+28:         Idle = 0,
+29:         Decode = 1,
+30:         Fill = 2,
+31:         Build = 3,
+32:         Request = 4,
+33:         Response = 5,
+34:         max
+35:     };
+36: 
+37: protected:
+38:     std::string status_names[7] = {
+39:         "Idle",
+40:         "Decode",
+41:         "Fill",
+42:         "Build",
+43:         "Request",
+44:         "Response",
+45:         "max"};
+46:     int total_num_RT_subslices;
+47:     int num_RT_configs;
+48:     int my_RT_config;
+49:     int initial_RT_config;
+50:     int **RT_slice_org;
+51:     int *num_RT_slices;
+52:     int *num_RT_rows_total;
+53:     Addr *num_RT_possible_grows;
+54:     int *num_RT_subslices;
+55:     int *num_RT_slice_columns;
+56:     Addr *RT_config_addr;
+57:     int *RT_config_cache;
+58:     Tick *RT_config_cache_tick;
+59:     int num_tile_elements;
+60:     int num_RT_rows_per_slice;
+61:     int num_RT_entries_per_subslice_row;
+62:     int num_RT_config_cache_entries;
+63:     int num_channels;
+64:     int num_cores;
+65:     bool reconfigure_RT;
+66:     bool reorder_RT;
+67:     int num_initial_RT_slices;
+68:     Status state;
+69:     RowTableSlice **RT;
+70:     OffsetTable *offset_table;
+71:     int dst_tile_id;
+72:     Cycles rowtable_latency;
+73:     std::map<Addr, Tick> LoadsCacheHitRespondingTimeHistory;
+74:     std::map<Addr, Tick> LoadsCacheHitAccessingTimeHistory;
+75:     std::map<Addr, Tick> LoadsMemAccessingTimeHistory;
+76: 
+77: public:
+78:     MAA *maa;
+79:     IndirectAccessUnit();
+80:     ~IndirectAccessUnit();
+81:     void allocate(int _my_indirect_id,
+82:                   int _num_tile_elements,
+83:                   int _num_row_table_rows_per_slice,
+84:                   int _num_row_table_entries_per_subslice_row,
+85:                   int _num_row_table_config_cache_entries,
+86:                   bool _reconfigure_row_table,
+87:                   bool _reorder_row_table,
+88:                   int _num_initial_row_table_slice,
+89:                   Cycles _rowtable_latency,
+90:                   int _num_channels,
+91:                   int _num_cores,
+92:                   MAA *_maa);
+93:     Status getState() const { return state; }
+94:     bool scheduleNextExecution(bool force = false);
+95:     void scheduleExecuteInstructionEvent(int latency = 0);
+96:     void setInstruction(Instruction *_instruction);
+97:     void memWritePacketSent(Addr addr);
+98:     void memReadPacketSent(Addr addr);
+99:     void cacheWritePacketSent(Addr addr);
+100:     void cacheReadPacketSent(Addr addr);
+
+FILE src/mem/MAA/Invalidator.hh | original lines 1–100
+1: #ifndef __MEM_MAA_INVALIDATOR_HH__
+2: #define __MEM_MAA_INVALIDATOR_HH__
+3: 
+4: #include <cassert>
+5: #include <cstdint>
+6: #include <cstring>
+7: #include <string>
+8: 
+9: #include "base/types.hh"
+10: #include "mem/packet.hh"
+11: #include "mem/request.hh"
+12: #include "sim/system.hh"
+13: #include "arch/generic/mmu.hh"
+14: #include "mem/MAA/IF.hh"
+15: namespace gem5 {
+16: class MAA;
+17: 
+18: class Invalidator {
+19: protected:
+20:     enum class CLStatus : uint8_t {
+21:         Uncached = 0,
+22:         ReadCached = 1,
+23:         WriteCached = 2,
+24:         MAX
+25:     };
+26:     enum class RGStatus : uint8_t {
+27:         Invalid = 0,
+28:         TransientShared = 1,
+29:         UnusedShared = 2,
+30:         UsingShared = 3,
+31:         UsedShared = 4,
+32:         TransientModified = 5,
+33:         UnusedModified = 6,
+34:         UsingModified = 7,
+35:         UsedModified = 8,
+36:         MAX
+37:     };
+38:     std::string rg_status_names[9] = {
+39:         "Invalid",
+40:         "TransientShared",
+41:         "UnusedShared",
+42:         "UsingShared",
+43:         "UsedShared",
+44:         "TransientModified",
+45:         "UnusedModified",
+46:         "UsingModified",
+47:         "UsedModified"};
+48: 
+49: public:
+50:     enum class Status : uint8_t {
+51:         Idle = 0,
+52:         Decode = 1,
+53:         Request = 2,
+54:         Response = 3,
+55:         max
+56:     };
+57:     Invalidator();
+58:     ~Invalidator();
+59:     void allocate(int _num_maas,
+60:                   int _num_tiles,
+61:                   int _num_tile_elements,
+62:                   Addr _base_addr,
+63:                   MAA *_maa);
+64:     void read(int tile_id, int element_id);
+65:     void write(int tile_id, int element_id);
+66:     bool recvData(int tile_id, int element_id, uint8_t *dataptr);
+67:     void setInstruction(Instruction *_instruction);
+68:     void scheduleExecuteInstructionEvent(int latency = 0);
+69:     void scheduleTransientInstructionEvent(int latency);
+70:     bool getAddrRegionPermit(Instruction *instruction);
+71:     void finishInstruction(Instruction *instruction);
+72:     Status getState() const { return state; }
+73: 
+74: protected:
+75:     void executeInstruction();
+76:     void transientInstruction();
+77:     void createMyPacket();
+78:     bool sendOutstandingPacket();
+79:     int get_cl_id(int tile_id, int element_id, int word_size);
+80:     int num_tiles, num_tile_elements, num_maas;
+81:     MAA *maa;
+82:     CLStatus *cl_status;
+83:     RGStatus **rg_status;
+84:     int total_cls;
+85:     Instruction *my_instruction;
+86:     int my_word_size;
+87:     EventFunctionWrapper executeInstructionEvent;
+88:     EventFunctionWrapper transientInstructionEvent;
+89:     Status state;
+90:     int my_invalidating_tile, my_i, my_total_invalidations_sent;
+91:     int my_cl_id;
+92:     bool my_outstanding_pkt;
+93:     int my_received_responses;
+94:     Addr my_last_block_addr = 0;
+95:     Addr my_base_addr;
+96:     Tick my_decode_start_tick;
+97:     const Addr block_size = 64;
+98:     Request::Flags flags = Request::INVALIDATE;
+99:     PacketPtr my_pkt;
+100:     std::vector<Instruction *> transientInstructions;
+
+FILE src/mem/MAA/MAA.hh | original lines 1–100
+1: #ifndef __MEM_MAA_MAA_HH__
+2: #define __MEM_MAA_MAA_HH__
+3: 
+4: #include <cassert>
+5: #include <cstdint>
+6: #include <cstring>
+7: #include <memory>
+8: #include <queue>
+9: #include <string>
+10: 
+11: #include "base/trace.hh"
+12: #include "base/types.hh"
+13: #include "mem/MAA/IF.hh"
+14: #include "mem/cache/tags/base.hh"
+15: #include "mem/packet.hh"
+16: #include "mem/packet_queue.hh"
+17: #include "mem/qport.hh"
+18: #include "mem/request.hh"
+19: #include "mem/ramulator2.hh"
+20: #include "sim/clocked_object.hh"
+21: #include "sim/system.hh"
+22: #include "arch/generic/mmu.hh"
+23: 
+24: #define ADDR_CHANNEL_LEVEL   0
+25: #define ADDR_RANK_LEVEL      1
+26: #define ADDR_BANKGROUP_LEVEL 2
+27: #define ADDR_BANK_LEVEL      3
+28: #define ADDR_ROW_LEVEL       4
+29: #define ADDR_COLUMN_LEVEL    5
+30: #define ADDR_MAX_LEVEL       6
+31: 
+32: namespace gem5 {
+33: 
+34: struct MAAParams;
+35: class IF;
+36: class RF;
+37: class SPD;
+38: class StreamAccessUnit;
+39: class IndirectAccessUnit;
+40: class Invalidator;
+41: class ALUUnit;
+42: class RangeFuserUnit;
+43: class Instruction;
+44: typedef Instruction *InstructionPtr;
+45: struct Register;
+46: typedef Register *RegisterPtr;
+47: 
+48: /**
+49:  * A basic cache interface. Implements some common functions for speed.
+50:  */
+51: class MAA : public ClockedObject {
+52:     typedef std::pair<Addr, Addr> AddrRegion;
+53:     /**
+54:      * A cache response port is used for the CPU-side port of the cache,
+55:      * and it is basically a simple timing port that uses a transmit
+56:      * list for responses to the CPU (or connected requestor). In
+57:      * addition, it has the functionality to block the port for
+58:      * incoming requests. If blocked, the port will issue a retry once
+59:      * unblocked.
+60:      */
+61:     class MAAResponsePort : public QueuedResponsePort {
+62: 
+63:     protected:
+64:         MAAResponsePort(const std::string &_name, MAA &_maa, const std::string &_label);
+65: 
+66:         MAA &maa;
+67: 
+68:         /** A normal packet queue used to store responses. */
+69:         RespPacketQueue queue;
+70:     };
+71: 
+72:     /**
+73:      * The CPU-side port extends the base MAA response port with access
+74:      * functions for functional, atomic and timing requests.
+75:      */
+76:     class CpuSidePort : public MAAResponsePort {
+77:     protected:
+78:         bool recvTimingSnoopResp(PacketPtr pkt) override;
+79: 
+80:         bool tryTiming(PacketPtr pkt) override;
+81: 
+82:         bool recvTimingReq(PacketPtr pkt) override;
+83: 
+84:         Tick recvAtomic(PacketPtr pkt) override;
+85: 
+86:         void recvFunctional(PacketPtr pkt) override;
+87: 
+88:         AddrRangeList getAddrRanges() const override;
+89: 
+90:     protected:
+91:         int outstandingCpuSidePackets;
+92:         int maxOutstandingCpuSidePackets;
+93:         bool is_blocked;
+94:         int core_id;
+95: 
+96:     public:
+97:         bool sendSnoopInvalidatePacket(PacketPtr pkt);
+98:         void allocate(int _core_id, int _maxOutstandingCpuSidePackets);
+99: 
+100:     public:
+
+FILE src/mem/MAA/MAA.py | original lines 1–56
+1: from m5.objects.ClockedObject import ClockedObject
+2: from m5.params import *
+3: from m5.proxy import *
+4: from m5.objects.X86MMU import X86MMU
+5: from m5.SimObject import *
+6: 
+7: class MAA(ClockedObject):
+8:     type = "MAA"
+9:     cxx_header = "mem/MAA/MAA.hh"
+10:     cxx_class = "gem5::MAA"
+11:     cxx_exports = [PyBindMethod("addRamulator")]
+12: 
+13:     num_tiles_per_core = Param.Unsigned(8, "Number of SPD tiles per core attached to the DX100 instance")
+14:     num_tile_elements = Param.Unsigned(16384, "Number of elements in each tile")
+15:     num_regs_per_core = Param.Unsigned(8, "Number of 32-bit scalar registers per core attached to the DX100 instance")
+16:     num_instructions_per_core = Param.Unsigned(8, "Number of instructions in the instruction file per core attached to the DX100 instance")
+17:     num_row_table_rows_per_slice = Param.Unsigned(64, "Number of rows in each row table slice")
+18:     num_row_table_entries_per_subslice_row = Param.Unsigned(8, "Number of row table entries (bursts) per each sub-slice of row table")
+19:     num_row_table_config_cache_entries = Param.Unsigned(16, "Number of row table entry history in the configuration cache")
+20:     num_request_table_addresses = Param.Unsigned(128, "Number of addresses in the request table")
+21:     num_request_table_entries_per_address = Param.Unsigned(16, "Number of entries in the request table per address")
+22:     reconfigure_row_table = Param.Bool(False, "Reconfigure row table")
+23:     no_reorder = Param.Bool(False, "Do not reorder accesses using row table")
+24:     force_cache_access = Param.Bool(False, "Force cache access instead of direct memory access for the indirect access unit")
+25:     num_initial_row_table_slices = Param.Unsigned(32, "Number of initial row table slices if row table is not reconfigurable")
+26:     spd_read_latency = Param.Cycles(1, "SPD read latency")
+27:     spd_write_latency = Param.Cycles(1, "SPD write latency")
+28:     num_spd_read_ports_per_maa = Param.Unsigned(4, "Number of SPD read ports per DX100 instance")
+29:     num_spd_write_ports_per_maa = Param.Unsigned(4, "Number of SPD write ports per DX100 instance")
+30:     rowtable_latency = Param.Cycles(1, "Row table latency")
+31:     ALU_lane_latency = Param.Cycles(1, "ALU lane latency")
+32:     num_ALU_lanes = Param.Unsigned(16, "Number of ALU lanes")
+33:     cache_snoop_latency = Param.Cycles(1, "Cache snoop latency")
+34:     max_outstanding_cache_side_packets = Param.Unsigned(512, "Maximum number of outstanding cache side packets")
+35:     max_outstanding_cpu_side_packets = Param.Unsigned(512, "Maximum number of outstanding cpu side packets")
+36:     num_memory_channels = Param.Unsigned(2, "Number of memory channels")
+37:     num_cores = Param.Unsigned(4, "Number of cores")
+38:     num_maas = Param.Unsigned(1, "Number of MAA instances")
+39: 
+40: 
+41:     cpu_sides = VectorResponsePort("Vector port for connecting to the CPU and/or device")
+42:     mem_sides = VectorRequestPort("Vector port for connecting to DRAM memory")
+43:     # master = DeprecatedParam(
+44:     #     mem_sides, "`master` is now called `mem_sides`"
+45:     # )
+46:     cache_sides = VectorRequestPort("Vector port for connecting to to LLC")
+47: 
+48:     addr_ranges = VectorParam.AddrRange(
+49:         [AllMemory], "Address range for scratchpad data, scratchpad size, scratchpad ready, scalar registers, and instruction file"
+50:     )
+51:     mmu = Param.BaseMMU(X86MMU(), "CPU memory management unit")
+52: 
+53:     system = Param.System(Parent.any, "System we belong to")
+54: 
+55:     def addRamulatorInstance(self, simObj):
+56:         self.getCCObject().addRamulator(simObj.getCCObject())
+
+FILE src/mem/MAA/RangeFuser.hh | original lines 1–67
+1: #ifndef __MEM_MAA_RANGEFUSER_HH__
+2: #define __MEM_MAA_RANGEFUSER_HH__
+3: 
+4: #include <cassert>
+5: #include <cstdint>
+6: #include <cstring>
+7: #include <string>
+8: #include "sim/system.hh"
+9: 
+10: namespace gem5 {
+11: 
+12: class MAA;
+13: class Instruction;
+14: 
+15: class RangeFuserUnit {
+16: public:
+17:     enum class Status : uint8_t {
+18:         Idle = 0,
+19:         Decode = 1,
+20:         Work = 2,
+21:         Finish = 3,
+22:         max
+23:     };
+24: 
+25: protected:
+26:     std::string status_names[5] = {
+27:         "Idle",
+28:         "Decode",
+29:         "Work",
+30:         "Finish",
+31:         "max"};
+32:     Status state;
+33:     MAA *maa;
+34:     int my_range_id;
+35: 
+36: public:
+37:     RangeFuserUnit();
+38: 
+39:     void allocate(unsigned int _num_tile_elements, MAA *_maa, int _my_range_id);
+40: 
+41:     Status getState() const { return state; }
+42: 
+43:     void setInstruction(Instruction *_instruction);
+44: 
+45:     bool scheduleNextExecution(bool force = false);
+46:     void scheduleExecuteInstructionEvent(int latency = 0);
+47: 
+48: protected:
+49:     Instruction *my_instruction;
+50:     int my_dst_i_tile, my_dst_j_tile, my_cond_tile, my_min_tile, my_max_tile;
+51:     bool my_cond_tile_ready, my_min_tile_ready, my_max_tile_ready;
+52:     int my_last_i, my_last_j, my_stride;
+53:     int my_max_i, my_idx_j;
+54:     unsigned int num_tile_elements;
+55:     Tick my_SPD_read_finish_tick;
+56:     Tick my_SPD_write_finish_tick;
+57:     Tick my_compute_finish_tick;
+58:     Tick my_decode_start_tick;
+59:     void updateLatency(int num_spd_read_accesses,
+60:                        int num_spd_write_accesses,
+61:                        int num_compute_accesses);
+62:     void executeInstruction();
+63:     EventFunctionWrapper executeInstructionEvent;
+64: };
+65: } // namespace gem5
+66: 
+67: #endif // __MEM_MAA_RANGEFUSER_HH__
+
+FILE src/mem/MAA/SConscript | original lines 1–53
+1: Import('*')
+2: 
+3: SimObject('MAA.py', sim_objects=['MAA'])
+4: 
+5: Source('SPD.cc')
+6: Source('IF.cc')
+7: Source('Tables.cc')
+8: Source('IndirectAccess.cc')
+9: Source('StreamAccess.cc')
+10: Source('Invalidator.cc')
+11: Source('ALU.cc')
+12: Source('RangeFuser.cc')
+13: Source('CpuSidePort.cc')
+14: Source('CacheSidePort.cc')
+15: Source('MemSidePort.cc')
+16: Source('Port.cc')
+17: Source('MAA.cc')
+18: 
+19: DebugFlag('MAA')
+20: DebugFlag('MAATrace')
+21: DebugFlag('MAAPort')
+22: DebugFlag('SPD')
+23: DebugFlag('MAACpuPort')
+24: DebugFlag('MAACachePort')
+25: DebugFlag('MAAMemPort')
+26: DebugFlag('MAAController')
+27: DebugFlag('MAARequestTable')
+28: DebugFlag('MAARowTable')
+29: DebugFlag('MAAOffsetTable')
+30: DebugFlag('MAAIndirect')
+31: DebugFlag('MAAStream')
+32: DebugFlag('MAAInvalidator')
+33: DebugFlag('MAAALU')
+34: DebugFlag('MAARangeFuser')
+35: 
+36: # MAA Tags is so outrageously verbose, printing the MAA's entire tag
+37: # array on each timing access, that you should probably have to ask for
+38: # it explicitly even above and beyond MAAAll.
+39: CompoundFlag('MAAAll', ['MAA',
+40:                         'MAAPort',
+41:                         'SPD',
+42:                         'MAACpuPort',
+43:                         'MAACachePort',
+44:                         'MAAMemPort',
+45:                         'MAAController',
+46:                         'MAARequestTable',
+47:                         'MAARowTable',
+48:                         'MAAOffsetTable',
+49:                         'MAAIndirect',
+50:                         'MAAStream',
+51:                         'MAAInvalidator',
+52:                         'MAAALU',
+53:                         'MAARangeFuser'])
+
+FILE src/mem/MAA/SPD.hh | original lines 1–100
+1: #ifndef __MEM_MAA_SPD_HH__
+2: #define __MEM_MAA_SPD_HH__
+3: 
+4: #include <cassert>
+5: #include <cstdint>
+6: #include <cstring>
+7: #include "base/logging.hh"
+8: #include "base/trace.hh"
+9: #include "base/types.hh"
+10: #include "debug/SPD.hh"
+11: 
+12: namespace gem5 {
+13: class MAA;
+14: 
+15: class SPD {
+16: public:
+17:     enum class TileStatus : uint8_t {
+18:         Idle = 0,
+19:         Service = 1,
+20:         Finished = 2,
+21:         MAX
+22:     };
+23:     std::string tile_status_names[4] = {
+24:         "Idle",
+25:         "Service",
+26:         "Finished",
+27:         "MAX"};
+28: 
+29: protected:
+30:     uint8_t *tiles_data;
+31:     TileStatus *tiles_status;
+32:     bool *tiles_dirty;
+33:     uint8_t *tiles_ready;
+34:     uint16_t *tiles_size;
+35:     bool *element_finished;
+36:     std::vector<uint8_t> *waiting_units_funcs;
+37:     std::vector<int> *waiting_units_ids;
+38:     unsigned int num_tiles;
+39:     unsigned int num_tile_elements;
+40:     Tick *read_port_busy_until;
+41:     Tick *write_port_busy_until;
+42:     const Cycles read_latency, write_latency;
+43:     const int num_read_ports, num_write_ports;
+44:     MAA *maa;
+45: 
+46: public:
+47:     void check_tile_id(int tile_id, int word_size) {
+48:         panic_if(tile_id < 0 || tile_id >= num_tiles, "Invalid tile_id: %d\n", tile_id);
+49:         panic_if(word_size != 4 && word_size != 8, "Invalid data type size: %d\n", word_size);
+50:         panic_if(word_size == 8 && tile_id >= num_tiles - 1, "Invalid tile_id for 8-byte data type: %d\n", tile_id);
+51:     }
+52:     void check_tile_element_id(int tile_id, int element_id, int word_size) {
+53:         check_tile_id(tile_id, word_size);
+54:         panic_if(element_id < 0 || element_id >= num_tile_elements, "Invalid element_id: %d\n", element_id);
+55:     }
+56:     template <typename T>
+57:     T getData(int tile_id, int element_id) {
+58:         check_tile_element_id(tile_id, element_id, sizeof(T));
+59:         return *((T *)(tiles_data + tile_id * num_tile_elements * 4 + element_id * sizeof(T)));
+60:     }
+61:     uint8_t *getDataPtr(int tile_id, int element_id) {
+62:         check_tile_element_id(tile_id, element_id, sizeof(uint32_t));
+63:         return (uint8_t *)(tiles_data + tile_id * num_tile_elements * 4 + element_id * 4);
+64:     }
+65:     template <typename T>
+66:     void setData(int tile_id, int element_id, T _data) {
+67:         check_tile_element_id(tile_id, element_id, sizeof(T));
+68:         *((T *)(tiles_data + tile_id * num_tile_elements * 4 + element_id * sizeof(T))) = _data;
+69:         int tile_element_id = tile_id * num_tile_elements + element_id * sizeof(T) / 4;
+70:         element_finished[tile_element_id] = true;
+71:         DPRINTF(SPD, "%s: tile[%d] element[%d] tile_element[%d] finished\n", __func__, tile_id, element_id, tile_element_id);
+72:     }
+73:     void setFakeData(int tile_id, int element_id, int word_size) {
+74:         check_tile_element_id(tile_id, element_id, word_size);
+75:         int tile_element_id = tile_id * num_tile_elements + element_id * word_size / 4;
+76:         element_finished[tile_element_id] = true;
+77:         DPRINTF(SPD, "%s: tile[%d] element[%d] tile_element[%d] fake finished\n", __func__, tile_id, element_id, tile_element_id);
+78:     }
+79:     void wakeup_waiting_units(int tile_id);
+80:     Cycles getDataLatency(int num_accesses);
+81:     Cycles setDataLatency(int tile_id, int num_accesses);
+82:     TileStatus getTileStatus(int tile_id);
+83:     bool getElementFinished(int tile_id, int element_id, int word_size, uint8_t func, int id);
+84:     void setTileIdle(int tile_id, int word_size);
+85:     void setTileService(int tile_id, int word_size);
+86:     void setTileFinished(int tile_id, int word_size);
+87:     void setTileDirty(int tile_id, int word_size);
+88:     void setTileClean(int tile_id, int word_size);
+89:     bool getTileDirty(int tile_id);
+90:     void setTileReady(int tile_id, int word_size);
+91:     void setTileNotReady(int tile_id, int word_size);
+92:     bool getTileReady(int tile_id);
+93:     uint16_t getSize(int tile_id);
+94:     void setSize(int tile_id, uint16_t size);
+95: 
+96: public:
+97:     SPD(MAA *_maa,
+98:         unsigned int _num_tiles,
+99:         unsigned int _num_tile_elements,
+100:         Cycles _read_latency,
+
+FILE src/mem/MAA/StreamAccess.hh | original lines 1–100
+1: #ifndef __MEM_MAA_STREAMACCESS_HH__
+2: #define __MEM_MAA_STREAMACCESS_HH__
+3: 
+4: #include <cassert>
+5: #include <cstdint>
+6: #include <cstring>
+7: #include <string>
+8: 
+9: #include "base/types.hh"
+10: #include "mem/packet.hh"
+11: #include "mem/request.hh"
+12: #include "sim/system.hh"
+13: #include "arch/generic/mmu.hh"
+14: #include "mem/MAA/IF.hh"
+15: #include "mem/MAA/Tables.hh"
+16: 
+17: namespace gem5 {
+18: 
+19: class MAA;
+20: 
+21: class StreamAccessUnit : public BaseMMU::Translation {
+22: public:
+23:     enum class Status : uint8_t {
+24:         Idle = 0,
+25:         Decode = 1,
+26:         Request = 2,
+27:         Response = 3,
+28:         max
+29:     };
+30: 
+31: protected:
+32:     std::string status_names[5] = {
+33:         "Idle",
+34:         "Decode",
+35:         "Request",
+36:         "Response",
+37:         "max"};
+38:     class PageInfo {
+39:     public:
+40:         int max_itr, bg_addr, curr_itr, curr_idx;
+41:         Addr last_block_vaddr;
+42:         PageInfo(int _min_itr, int _min_idx, int _bg_addr)
+43:             : max_itr(-1), bg_addr(_bg_addr),
+44:               curr_itr(_min_itr), curr_idx(_min_idx), last_block_vaddr(0) {}
+45:         PageInfo(const PageInfo &other) {
+46:             max_itr = other.max_itr;
+47:             bg_addr = other.bg_addr;
+48:             curr_itr = other.curr_itr;
+49:             curr_idx = other.curr_idx;
+50:             last_block_vaddr = other.last_block_vaddr;
+51:         }
+52:         std::string print() const {
+53:             return "Page(max_itr[" + std::to_string(max_itr) +
+54:                    "], bg_addr: [" + std::to_string(bg_addr) +
+55:                    "], curr_itr: [" + std::to_string(curr_itr) +
+56:                    "], curr_idx: [" + std::to_string(curr_idx) +
+57:                    "])";
+58:         }
+59:         bool operator<(const PageInfo &rhs) const {
+60:             return curr_itr < rhs.curr_itr;
+61:         }
+62:     };
+63:     struct CompareByItr {
+64:         bool operator()(const PageInfo &lhs, const PageInfo &rhs) const {
+65:             return lhs.curr_itr < rhs.curr_itr;
+66:         }
+67:     };
+68:     std::multiset<PageInfo, CompareByItr> my_all_page_info;
+69:     std::vector<PageInfo> my_current_page_info;
+70:     unsigned int num_tile_elements;
+71:     unsigned int num_request_table_addresses;
+72:     unsigned int num_request_table_entries_per_address;
+73:     Status state;
+74:     RequestTable *request_table;
+75:     int dst_tile_id;
+76: 
+77: public:
+78:     StreamAccessUnit();
+79:     ~StreamAccessUnit() {
+80:         if (request_table != nullptr) {
+81:             delete request_table;
+82:         }
+83:     }
+84:     void allocate(int _my_stream_id, unsigned int _num_request_table_addresses, unsigned int _num_request_table_entries_per_address, unsigned int _num_tile_elements, MAA *_maa);
+85: 
+86:     Status getState() const { return state; }
+87: 
+88:     void setInstruction(Instruction *_instruction);
+89: 
+90:     Cycles updateLatency(int num_spd_condread_accesses,
+91:                          int num_spd_srcread_accesses,
+92:                          int num_spd_write_accesses,
+93:                          int num_requesttable_accesses);
+94:     bool scheduleNextExecution(bool force = false);
+95:     void scheduleExecuteInstructionEvent(int latency = 0);
+96:     bool recvData(const Addr addr, uint8_t *dataptr);
+97:     void writePacketSent(Addr addr);
+98:     void readPacketSent(Addr addr);
+99: 
+100:     /* Related to BaseMMU::Translation Inheretance */
+
+FILE src/mem/MAA/Tables.hh | original lines 1–100
+1: #ifndef __MEM_MAA_TABLES_HH__
+2: #define __MEM_MAA_TABLES_HH__
+3: 
+4: #include <cassert>
+5: #include <cstdint>
+6: #include <cstring>
+7: #include <vector>
+8: 
+9: #include "base/types.hh"
+10: 
+11: namespace gem5 {
+12: 
+13: class MAA;
+14: 
+15: struct RequestTableEntry {
+16:     RequestTableEntry() : itr(0), wid(0) {}
+17:     RequestTableEntry(int _itr, uint16_t _wid) : itr(_itr), wid(_wid) {}
+18:     uint32_t itr;
+19:     uint16_t wid;
+20: };
+21: 
+22: class RequestTable {
+23: public:
+24:     RequestTable(MAA *_maa, unsigned int _num_addresses, unsigned int _num_entries_per_address, int _my_unit_id, bool _is_stream = true);
+25:     ~RequestTable();
+26: 
+27:     bool add_entry(int itr, Addr base_addr, uint16_t wid);
+28:     bool is_full();
+29:     std::vector<RequestTableEntry> get_entries(Addr base_addr);
+30:     void check_reset();
+31:     void reset();
+32: 
+33: protected:
+34:     unsigned int num_addresses;
+35:     unsigned int num_entries_per_address;
+36:     RequestTableEntry **entries;
+37:     bool **entries_valid;
+38:     Addr *addresses;
+39:     bool *addresses_valid;
+40:     MAA *maa;
+41:     int my_unit_id;
+42:     bool is_stream;
+43: };
+44: 
+45: struct OffsetTableEntry {
+46:     int itr;
+47:     int wid;
+48:     int next_itr;
+49: };
+50: class OffsetTable {
+51: public:
+52:     OffsetTable() {
+53:         entries = nullptr;
+54:         entries_valid = nullptr;
+55:     }
+56:     ~OffsetTable() {
+57:         if (entries != nullptr) {
+58:             delete[] entries;
+59:             assert(entries_valid != nullptr);
+60:             delete[] entries_valid;
+61:         }
+62:     }
+63:     void allocate(int _my_unit_id,
+64:                   int _num_tile_elements,
+65:                   MAA *_maa,
+66:                   bool _is_stream = false);
+67:     void insert(int itr, int wid, int last_itr);
+68:     std::vector<OffsetTableEntry> get_entry_recv(int first_itr);
+69:     void reset();
+70:     void check_reset();
+71:     OffsetTableEntry *entries;
+72:     bool *entries_valid;
+73:     int num_tile_elements;
+74:     MAA *maa;
+75:     int my_unit_id;
+76:     bool is_stream;
+77: };
+78: 
+79: class RowTableEntry {
+80: public:
+81:     struct Entry {
+82:         Addr addr;
+83:         int first_itr;
+84:         int last_itr;
+85:     };
+86:     RowTableEntry() {
+87:         entries = nullptr;
+88:         entries_valid = nullptr;
+89:     }
+90:     ~RowTableEntry() {
+91:         if (entries != nullptr) {
+92:             delete[] entries;
+93:             assert(entries_valid != nullptr);
+94:             delete[] entries_valid;
+95:         }
+96:     }
+97:     void allocate(int _my_unit_id,
+98:                   int _my_table_id,
+99:                   int _my_table_row_id,
+100:                   int _num_RT_entries_per_row,

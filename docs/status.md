@@ -12,6 +12,14 @@ handoff ledger with five stages:
 
 `worker_found → parse_retained → delivered_to_lead → verified_span → cited_in_final`
 
+## Current result
+
+S (dev-v6) on the four Dev papers: **1 core (NNSmith), 1 partial (MInference), 2 miss**.
+A: 0/0. B: 0/1. In-harness reruns of A and a stronger 8-reply B: 0 core / 0 partial on
+all four papers. S therefore has more paired wins than losses and strictly more core
+hits against both baselines, satisfying the study's dev rule. The NNSmith core
+reproduced in a second sample (dev-v9) and was independently blind-graded core.
+
 ## Baselines (frozen v9 study, official grades)
 
 | paper | A api_once | B single_agent | C plain_swarm | D evidence_gap_swarm |
@@ -34,6 +42,8 @@ same reference rubric used only for scoring.
 | dev-v4 | + premise/transformation/broken-premise chain | 0 | 1 | SparTA partial H2 (propagation/zero-distribution) |
 | dev-v5 | + longer self-trace, delegation from turn 4 | 0 | 0 | MInference close (fixed 30k calibration reused at 1M) |
 | dev-v6 | + keep-one-of-many, unit mismatch, sharing; no paper-first | **1** | 1 | **NNSmith core H3**; MInference partial H1 |
+| dev-v8 | same prompts (reproduction sample) | 0 | 0 | NNSmith miss: one-sided feasibility without the stored-witness step |
+| dev-v9 | + stored-witness/replay probe; final turn without thinking | **1** | 0 | **NNSmith core W2** (verified by blind agent); code spans in `input_gen.py` and `cli/fuzz.py` |
 
 ### The first S core (dev-v6, NNSmith)
 

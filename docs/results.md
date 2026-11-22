@@ -39,7 +39,11 @@ prompt, the full packet, tools, and up to 8 replies.
 | NNSmith | miss | miss | **core** |
 | MInference | miss | miss | partial |
 | InfiniGen | miss | miss | miss |
-| SparTA | miss | pending | miss |
+| SparTA | miss | miss | miss |
+
+The in-harness baselines are all 0 core / 0 partial under the same holistic grader
+(`out/grades-baselines`), so S wins against both the archived and the strengthened
+baselines.
 
 ## Handoff audit
 

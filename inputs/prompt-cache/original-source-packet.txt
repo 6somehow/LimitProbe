@@ -1,0 +1,2963 @@
+FILE README.md | original lines 1–100
+1: # Prompt Cache
+2: 
+3: This is the repository for the [Prompt Cache: Modular Attention Reuse For Low-Latency Inference](https://arxiv.org/abs/2311.04934) paper. This repository includes the implementation and evaluation tools to demonstrate prompt caching technique.
+4: 
+5: ## Getting Started
+6: 
+7: ### Installation
+8: 
+9: To begin using the Prompt Cache, you need to install the required dependencies:
+10: 
+11: ```bash
+12: pip install -r requirements.txt
+13: ```
+14: 
+15: For evaluations involving `LongBench`, additional installation of `bleurt` from the source is necessary:
+16: 
+17: ```bash
+18: cd ./dependency/bleurt
+19: pip install .
+20: ```
+21: 
+22: ### Supported Architectures
+23: 
+24: The Prompt Cache extends the `transformers` library and is compatible with several Large Language Model (LLM) architectures. The inference engine currently supports:
+25: 
+26: - **Llama2**: For example, use `meta-llama/Llama-2-7b-chat-hf` or `codellama/CodeLlama-7b-Instruct-hf`.
+27: - **Falcon**: Example configuration is `tiiuae/falcon-7b-instruct`.
+28: - **MPT**: An example model is `mosaicml/mpt-7b-chat-8k`.
+29: 
+30: Model weights for these architectures are automatically retrieved from the Hugging Face model hub.
+31: 
+32: ### Demo
+33: 
+34: Explore the capabilities with our demo:
+35: 
+36: ```bash
+37: python demo.py
+38: ```
+39: 
+40: In the demo script `demo.py`, the `use_cache` flag can be toggled to enable or disable the Prompt Cache feature. You are encouraged to modify the script to experiment with different prompts and schemas.
+41: 
+42: The demo leverages a schema from `./examples/code_generation_game.xml` with the following prompt setup:
+43: 
+44: ```xml
+45: <prompt schema='code-generation-game'>
+46:     <unit.py/>
+47:     <map.py/>
+48:     <player.py/>
+49:     <game.py/>
+50:     <database.py/>
+51:     <user>Create a main entry for the game:</user>
+52: </prompt>
+53: ```
+54: 
+55: ### Additional Schemas
+56: 
+57: Find more examples of schemas in the `./examples` directory, which can serve as templates for creating your custom prompts and schemas. For instance, using the schema found at [/examples/persona_generation.xml](./benchmark/schema_persona_long.xml), you can create a prompt like the following:
+58: ```xml
+59: 
+60: <prompt schema='persona'>
+61:     <age>
+62:         <young-adult/>
+63:     </age>
+64:     <residence>
+65:         <seaside/>
+66:     </residence>
+67:     <education>
+68:         <doctorate/>
+69:     </education>
+70:     <occupation>
+71:         <technology/>
+72:     </occupation>
+73:     <martial-status>
+74:         <married/>
+75:     </martial-status>
+76:     <personality>
+77:         <introverted/>
+78:     </personality>
+79:     <user>
+80:         Introduce about yourself.
+81:     </user>
+82: </prompt>
+83: ```
+84: 
+85: Executing the above prompt will generate the following response,  GPU: NVIDIA RTX 4090 / CPU: Intel i9-13900K
+86: 
+87: - **Baseline (with KV cache)** (TTFT:  GPU: 286.9ms, CPU: 17917.14 ms)
+88: 
+89: ```
+90: User: Introduce about yourself.
+91: Assistant: Hello! My name is Alex, and I am a 25-year-old woman who lives in a beautiful coastal town. I have recently completed my
+92:  Ph.D. in computer science and am now working as a software engineer at a leading tech company. When I'm not working, I 
+93:  enjoy spending time outdoors, reading books, and trying out new recipes in the kitchen. I am also very passionate about 
+94:  my work and am constantly looking for opportunities to learn and grow in my
+95: ```
+96: 
+97: - **With PromptCache** (TTFT: GPU: 78.2ms, CPU: 511.31ms)
+98: 
+99: ```
+100: User: Introduce about yourself.
+
+FILE benchmark/__init__.py | original lines 1–1
+1: #
+
+FILE benchmark/benchmark_base.py | original lines 1–81
+1: # It provides APIs to load/initialize the dataset and evaluate the response from the llm
+2: 
+3: # * Required API
+4: #     * init() : download (one time) and load the dataset to run; do any preprocessing required for running this benchmark
+5: #     * get_entry_count(): return the number of entries in the dataset.
+6: #     * get_query(): return a list of Entry objects for the given range.
+7: import os, json
+8: import abc
+9: from typing import Tuple, List
+10: 
+11: SCHEMA_FILE_DIRECTORY = "./benchmark/schema"
+12: DATASET_LIST = ["squad_v2", "multi_news", "wiki_qa", "pubmed_qa", "ms_marco", "narrativeqa", "qasper",
+13:                 "multifieldqa_en", "hotpotqa", "2wikimqa", "musique", "dureader", "gov_report", "qmsum", "multi_news_long",
+14:                 "vcsum", "trec", "triviaqa", "samsum", "lsht", "passage_count", "passage_retrieval_en", "lcc",
+15:                 "repobench-p"]
+16: 
+17: DATASET_SUBSET = {
+18:     "pubmed_qa": ["pqa_artificial", "pqa_labeled", "pqa_unlabeled"],
+19:     "ms_marco": ["v1.1", "v2.1"]
+20: }
+21: 
+22: class Entry:
+23:     def __init__(self, schema, prompt, answer=None):
+24:         """
+25:         Constructor to initialize any required variables.
+26:         [schema: str] path to the schema file, usage: cache_engine.add_schema(read_file(schema, preproc))
+27:         [prompt: str] prompt text, which I should feed to the llm directly, it contains the used schema name and the question from dataset
+28:         [answer: [str]] the potential answer list to the above question
+29:         """
+30:         self.schema = schema
+31:         self.prompt = prompt
+32:         self.answer = answer
+33: 
+34:     def __repr__(self) -> str:
+35:         return f"Entry(schema={self.schema}, prompt={self.prompt}, answer={self.answer})"
+36: 
+37: 
+38: class Benchmark(abc.ABC):
+39:     def __init__(self, dataset_name: str):
+40:         """
+41:         Constructor to initialize any required variables.
+42:         """
+43:         if dataset_name not in DATASET_LIST:
+44:             raise ValueError("Dataset name cannot be None, valid dataset names are: " + ", ".join(DATASET_LIST))
+45: 
+46:         self.dataset_name = dataset_name
+47:         self.dataset = None
+48:         self.entries = []
+49:         self.schema_path = os.path.join(SCHEMA_FILE_DIRECTORY, dataset_name)
+50:         if not os.path.exists(self.schema_path):
+51:             os.makedirs(self.schema_path)
+52: 
+53:         self.load_prompt()
+54: 
+55:     def load_prompt(self):
+56:         base_path = os.path.dirname(os.path.abspath(__file__))
+57:         dataset_prompt_path = os.path.join(base_path, '../config/dataset_prompt.json')
+58:         with open(dataset_prompt_path, 'r') as f:
+59:             self.dataset_prompt = json.load(f)
+60:         self.dataset_prompt = self.dataset_prompt[self.dataset_name]
+61: 
+62:     @abc.abstractmethod
+63:     def init(self, limit_entries=None):
+64:         """
+65:         Download (one time) and load the dataset to run; 
+66:         Preprocess the dataset to be organized in the `Entry` format.
+67:         """
+68:         raise NotImplementedError("This method should be overridden by subclass")
+69: 
+70:     def get_entry_count(self) -> int:
+71:         """
+72:         Return the number of entries in the dataset.
+73:         """
+74:         return len(self.entries)
+75: 
+76:     def get_query(self, range: Tuple[int, int]) -> List[Entry]:
+77:         """
+78:         Return a list of Entry objects for the given range.
+79:         [range: (int, int)] the range of entries to return
+80:         """
+81:         return self.entries[range[0]:range[1]]
+
+FILE benchmark/dataset_download.py | original lines 1–27
+1: from datasets import load_dataset
+2: 
+3: ## I will simply list up datasets below
+4: 
+5: datasets = {}
+6: 
+7: 
+8: def load_documentation_summary():
+9:     ## Summary dataset
+10:     datasets['multi_news'] = load_dataset('multi_news')
+11:     return datasets['multi_news']
+12:     # print("Multi News\n", datasets['multi_news']['train'][0])
+13: 
+14: 
+15: def load_multidoc_qna():
+16:     ## Open domain question answering
+17:     # = version 2.1 =
+18:     # datasets['ms_marco'] = load_dataset('ms_marco', 'v2.1')
+19:     # print("MS_Marco", datasets['ms_marco']['train'][0])
+20: 
+21:     # = version 1.1 =
+22:     datasets['ms_marco'] = load_dataset('ms_marco', 'v1.1')
+23:     # print("MS_Marco", datasets['ms_marco']['train'][0])
+24:     return datasets['ms_marco']
+25: 
+26: 
+27: pass
+
+FILE benchmark/longbench.py | original lines 1–100
+1: # import re
+2: #
+3: # from .benchmark_base import Benchmark, Entry
+4: # from .utils import XMLSchemaBuilder
+5: # from datasets import load_dataset
+6: # import os
+7: #
+8: #
+9: # def escape_tags(input_str):
+10: #     # pattern = r'<(?P<content>.*?)>'
+11: #
+12: #     # # The lambda function ensures only the first letter is capitalized
+13: #     # def repl(match):
+14: #     #     return '(' + match.group("content").capitalize() + ')'
+15: #     #
+16: #     # return re.sub(pattern, repl, input_str)
+17: #     return input_str.replace('<', '(').replace('>', ')')
+18: #
+19: #
+20: # class LongBench(Benchmark):
+21: #     def __init__(self, subset_name: str):
+22: #         super().__init__(subset_name)
+23: #
+24: #     def init(self, limit_entries=None):
+25: #         """
+26: #         Download (one time) and load the dataset to run;
+27: #         Preprocess the dataset to be organized in the `Entry` format.
+28: #         """
+29: #         self.dataset = load_dataset('THUDM/LongBench', self.dataset_name)
+30: #
+31: #         count = 0
+32: #         for split in self.dataset.values():
+33: #             for item in split:
+34: #                 if limit_entries is not None and count >= limit_entries:
+35: #                     break
+36: #                 schema_name = f"schema_{item['_id']}"
+37: #
+38: #                 fmt_schema = self.dataset_prompt["context"].format(context=escape_tags(item["context"]))
+39: #                 fmt_prompt = self.dataset_prompt["question"].format(input=escape_tags(item["input"])[:1000])
+40: #                 fmt_question = self.dataset_prompt["answer"]
+41: #
+42: #                 schema = f"""
+43: # <schema name="{schema_name}"><system/><user><module name="context">{fmt_schema}</module></schema>
+44: # """
+45: #
+46: #                 prompt = f"""
+47: # <prompt schema='{schema_name}'><context/>{fmt_prompt}</user><assistant>{fmt_question}</prompt>
+48: # """
+49: #                 self.entries.append(Entry(schema, prompt, item["answers"]))
+50: #
+51: #                 count += 1
+52: 
+53: import re
+54: 
+55: from .benchmark_base import Benchmark, Entry
+56: from .utils import XMLSchemaBuilder
+57: from datasets import load_dataset
+58: import os
+59: 
+60: _system_description = "Below are a series of dialogues between various people and an AI assistant. The AI tries to be helpful, polite, \
+61: honest, sophisticated, emotionally aware, and humble-but-knowledgeable. The assistant is happy to help with \
+62: almost anything, and will do its best to understand exactly what is needed. It also tries to avoid giving false \
+63: or misleading information, and it caveats when it isn't entirely sure about the right answer. That said, the \
+64: assistant is practical and really does its best, and doesn't let caution get too much in the way of being \
+65: useful."
+66: _user_description = "For the upcoming interaction, I would like you to answer some questions about the document."
+67: _assistant_description = "Sure. I have read the document. Please give me any question."
+68: 
+69: 
+70: def escape_tags(input_str):
+71:     # pattern = r'<(?P<content>.*?)>'
+72: 
+73:     # # The lambda function ensures only the first letter is capitalized
+74:     # def repl(match):
+75:     #     return '(' + match.group("content").capitalize() + ')'
+76:     #
+77:     # return re.sub(pattern, repl, input_str)
+78:     return input_str.replace('<', '(').replace('>', ')')
+79: 
+80: 
+81: class LongBench(Benchmark):
+82:     def __init__(self, subset_name: str):
+83:         super().__init__(subset_name)
+84: 
+85:     def init(self, limit_entries=None):
+86:         """
+87:         Download (one time) and load the dataset to run;
+88:         Preprocess the dataset to be organized in the `Entry` format.
+89:         """
+90:         self.dataset = load_dataset('THUDM/LongBench', self.dataset_name)
+91: 
+92:         count = 0
+93:         for split in self.dataset.values():
+94:             for item in split:
+95:                 if limit_entries is not None and count >= limit_entries:
+96:                     break
+97:                 id = item["_id"]
+98:                 schema_name = f"schema_{id}"
+99: 
+100:                 fmt_schema = self.dataset_prompt["context"].format(context=escape_tags(item["context"]))
+
+FILE benchmark/metrics.py | original lines 1–40
+1: import os, requests, zipfile, io, sys
+2: from tqdm import tqdm
+3: from bleurt import score
+4: 
+5: BLEURT_20_URL = "https://storage.googleapis.com/bleurt-oss-21/BLEURT-20.zip"
+6: CHECKPOINT = "BLEURT-20"
+7: 
+8: def download_bleurt_20():
+9:     if not os.path.exists('./BLEURT-20/'):
+10:         print("Downloading BLEURT-20 checkpoint...")
+11:         with requests.get(BLEURT_20_URL, stream=True) as response:
+12:             total_size = int(response.headers.get('content-length', 0))
+13:             block_size = 1024  # 1 Kbyte
+14:             buffer = io.BytesIO()
+15:             # Initialize tqdm with the total file size, and use it as an iterable in a loop
+16:             with tqdm(total=total_size, unit='B', unit_scale=True) as pbar:
+17:                 for data in response.iter_content(block_size):
+18:                     buffer.write(data)
+19:                     # Update tqdm about the downloaded data size
+20:                     pbar.update(len(data))
+21:                     
+22:             buffer.seek(0)
+23:             
+24:             # Unzip the file
+25:             print("Unzipping BLEURT-20 checkpoint...")
+26:             with zipfile.ZipFile(buffer) as zip_file:
+27:                 # Extract all the contents into the current working directory
+28:                 zip_file.extractall(path=".")
+29: 
+30: class BleurtScorer:
+31:     def __init__(self):
+32:         download_bleurt_20()
+33:         self.scorer = score.BleurtScorer(CHECKPOINT)
+34: 
+35:     def score(self, refs=[str], hyps=[str]):
+36:         return self.scorer.score(references=refs, candidates=hyps)
+37: 
+38: if __name__ == '__main__':
+39:     bs = BleurtScorer()
+40:     print(bs.score(["i'm leo"], ["my name is leo"]))
+
+FILE benchmark/ms_marco_v1_1.py | original lines 1–92
+1: import sys
+2: import os
+3: 
+4: # Add the parent directory to the sys.path list
+5: document_summary_path = os.path.abspath(os.path.dirname(__file__))
+6: # sys.path.append(os.path.abspath(os.path.join(document_summary_path, '..')))
+7: 
+8: from .benchmark_base import Benchmark, Entry
+9: from .dataset_download import load_multidoc_qna
+10: from .utils import XMLSchemaBuilder
+11: 
+12: _document_schema_name = "multi_document_qna"
+13: _document_header = "Document"
+14: _document_dataset = "validation"
+15: _document_system_description = "Dialogues between a user and an AI about the document provided by the user with the aim of being helpful, aware, and accurate."
+16: _document_assistant_description = "Sure. I have read the documents separated by comma. Give me any instructions regarding query information based on the documents, and I will try to follow them."
+17: _document_user_summary = "Among the list of given documents separated by a comma, find the document that is most useful to answer the query and return its index starting at [0]. All documents are unrelated, return [-1]. Do not reply using a complete sentence, and only give the answer in the following format: [1]"  # Take a deep breath and think step-by-step.
+18: 
+19: MAX_DOCUMENT_LENGTH = 2560
+20: 
+21: class MSMarcoV1(Benchmark):
+22:     def __init__(self):
+23:         super().__init__("ms_marco")
+24:         self.next_query_idx = 0
+25: 
+26:     def init(self, limit_entries=None, verbose=False):
+27:         """
+28:         Download (one time) and load the dataset to run; 
+29:         Do any preprocessing required for running this benchmark.
+30:         """
+31:         self.dataset = load_multidoc_qna()
+32:         if verbose:
+33:             print("Dataset loaded. First entry below:")
+34:             print(self.dataset[_document_dataset][1])
+35:         # Now we can generate xml files
+36:         assert self.dataset is not None
+37:         schema_file_name = "schema_summary_sample.xml"
+38:         self._generate_xml(limit_entries)
+39: 
+40:     def _generate_xml(self, limit_entries):
+41:         # Generate xml files
+42:         # - In this version, we build the xml file per entry
+43:         count = 0
+44:         for document_idx in range(len(self.dataset[_document_dataset])):
+45:             if limit_entries is not None and count >= limit_entries:
+46:                 break
+47:             # Create an instance of XMLSchemaBuilder with the schema name "document_summary"
+48:             query_idx = self.dataset[_document_dataset][document_idx]["query_id"]
+49:             query_str = self.dataset[_document_dataset][document_idx]["query"]
+50:             schema_name = f"{_document_schema_name}_{document_idx}_q{query_idx}"
+51:             answer_list = self.dataset[_document_dataset][document_idx]["passages"]["is_selected"]
+52:             answer_str = str(answer_list.index(True)) if True in answer_list else "-1"
+53:             builder = XMLSchemaBuilder(schema_name)
+54: 
+55:             # Set the system description
+56:             builder.set_system_description(_document_system_description)
+57: 
+58:             # Set the user description
+59:             builder.set_user_description("")    # _document_user_description
+60:             # builder.add_document_module("DOC", "The given documents are the target for searching to answer the query. They can contain multiple sentences.")
+61: 
+62: 
+63:             # Add document modules
+64:             # - we need to collect passages into document str, separated by newline or \n
+65:             document_str = ""
+66: 
+67:             for p_idx, passage in enumerate(self.dataset[_document_dataset][document_idx]["passages"]["passage_text"]):
+68:                 document_str += f"\"[{p_idx}] {passage},\n"
+69:             document_str = document_str.replace("’", "'").replace("”", '"').replace("“", '"').replace("‘", "'").replace("…", "...").replace("–", "-")
+70: 
+71:             module_str = f"{_document_header}{document_idx}"
+72:             builder.add_document_module(f"{module_str}", document_str)
+73: 
+74:             # Set assistant reply
+75:             builder.set_assistant_description(_document_assistant_description)
+76: 
+77:             # Write the XML string to a file
+78:             schema_file_name = f"{schema_name}.xml"
+79:             with open(os.path.join(self.schema_path, schema_file_name), "w") as f:
+80:                 f.write(builder.generate_xml())
+81: 
+82:             # Prepare the entry
+83:             prompt = \
+84:                 f"""<prompt schema='{schema_name}'>
+85:                 <{module_str}/>
+86:                 <user>{_document_user_summary} Query: "{query_str}"</user>
+87:             </prompt>
+88:             """
+89:             self.entries.append(Entry(schema_file_name, prompt, answer_str))
+90: 
+91:             count += 1
+92: 
+
+FILE benchmark/multi_news.py | original lines 1–96
+1: import sys
+2: import os
+3: 
+4: # Add the parent directory to the sys.path list
+5: document_summary_path = os.path.abspath(os.path.dirname(__file__))
+6: # sys.path.append(os.path.abspath(os.path.join(document_summary_path, '..')))
+7: 
+8: from .benchmark_base import Benchmark, Entry
+9: from .dataset_download import load_documentation_summary
+10: from .utils import XMLSchemaBuilder
+11: 
+12: _document_header = "Document"
+13: _document_dataset = "validation"
+14: _document_system_description = "Dialogues between a user and an AI about the document provided by the user with the aim of being helpful, aware, and accurate."
+15: _document_assistant_description = "Sure. I have read the document. give me any instructions regarding summarization, and I will try to follow them."
+16: _document_user_summary = "Summarize the above document in around THREE sentences:"
+17: 
+18: MAX_DOCUMENT_LENGTH = 2560
+19: 
+20: class MultiNews(Benchmark):
+21:     def __init__(self):
+22:         super().__init__("multi_news")
+23:         self.next_query_idx = 0
+24: 
+25:     def init(self, limit_entries=None, verbose=False):
+26:         """
+27:         Download (one time) and load the dataset to run; 
+28:         Do any preprocessing required for running this benchmark.
+29:         """
+30:         self.dataset = load_documentation_summary()
+31:         if verbose:
+32:             print("Dataset loaded. First entry below:")
+33:             print(self.dataset[_document_dataset][1])
+34:         # Now we can generate xml files
+35:         assert self.dataset is not None
+36:         schema_file_name = "schema_summary_sample.xml"
+37:         self._generate_xml(limit_entries)
+38: 
+39:     def _generate_xml(self, limit_entries):
+40:         # Generate xml files
+41:         # - In this version, we build the xml file per entry
+42:         count = 0
+43:         for document_idx in range(len(self.dataset[_document_dataset])):
+44:             if limit_entries is not None and count >= limit_entries:
+45:                 break
+46:             # Create an instance of XMLSchemaBuilder with the schema name "document_summary"
+47:             schema_name = f"_document_schema_name_{document_idx}"
+48:             builder = XMLSchemaBuilder(schema_name)
+49: 
+50:             # Set the system description
+51:             builder.set_system_description(_document_system_description)
+52: 
+53:             # Set the user description
+54:             builder.set_user_description("")  # _document_user_description
+55: 
+56:             # Add document modules
+57:             # builder.add_document_module("DOC", "The given documents are the target for the summarization task. They can contain multiple sentences.")
+58:             document_str = self.dataset[_document_dataset][document_idx]["document"].replace("’", "'").replace("”",
+59:                                                                                                                '"').replace(
+60:                 "“", '"').replace("‘", "'").replace("…", "...").replace("–", "-")
+61:             if len(document_str) > MAX_DOCUMENT_LENGTH:
+62:                 document_str = document_str[:MAX_DOCUMENT_LENGTH]
+63:             builder.add_document_module(f"{_document_header}{document_idx}", document_str)
+64: 
+65:             # Set assistant reply
+66:             builder.set_assistant_description(_document_assistant_description)
+67: 
+68:             # Write the XML string to a file
+69:             schema_file_name = f"{schema_name}.xml"
+70:             with open(os.path.join(self.schema_path, schema_file_name), "w") as f:
+71:                 f.write(builder.generate_xml())
+72: 
+73:             # Prepare the entry        
+74:             prompt = f"""
+75:             <prompt schema='{schema_name}'>
+76:             <{_document_header}{document_idx}/>
+77:             <user>{_document_user_summary}</user></prompt>
+78:             """
+79:             summary_str = self.dataset[_document_dataset][document_idx]["summary"].replace("’", "'").replace("”",
+80:                                                                                                              '"').replace(
+81:                 "“", '"').replace("‘", "'").replace("…", "...").replace("–", "-")
+82:             self.entries.append(Entry(schema_file_name, prompt, summary_str))
+83: 
+84:             count += 1
+85: 
+86:     def get_next_query(self):
+87:         """
+88:         Return query_id (unsigned), query (string), and chosen modules (a list of string).
+89:         """
+90:         assert self.dataset is not None
+91:         assert self.dataset[_document_dataset] is not None
+92:         assert self.next_query_idx < len(self.dataset[_document_dataset])
+93:         response = self.next_query_idx, "", [f"{_document_header}{self.next_query_idx}"]
+94:         self.next_query_idx += 1
+95:         return response
+96: 
+
+FILE benchmark/profile_parser.py | original lines 1–69
+1: import json
+2: import os
+3: import sys
+4: 
+5: 
+6: class JsonParser:
+7:     def __init__(self, file_path):
+8:         # add this directory to the sys.path list
+9:         # print(sys.path)
+10:         print(f'Parsing {file_path}...')
+11:         assert os.path.isfile(file_path)
+12:         self.file_path = file_path
+13:         self.data = None
+14: 
+15:     def parse(self):
+16:         with open(self.file_path) as f:
+17:             self.data = json.load(f)
+18: 
+19:     def get_data(self):
+20:         return self.data
+21: 
+22: 
+23: class BenchmarkSetupParser(JsonParser):
+24:     dataset_size_str = 'dataset_sizes'
+25: 
+26:     def __init__(self, file_path):
+27:         super().__init__(file_path)
+28: 
+29:     def parse(self):
+30:         super().parse()
+31: 
+32:     def get_data_size(self, size_name: str):
+33:         assert self.data is not None
+34:         assert size_name in self.data[BenchmarkSetupParser.dataset_size_str]
+35:         return int(self.data[BenchmarkSetupParser.dataset_size_str][size_name])
+36: 
+37: 
+38: class BenchmarkProfileParser(JsonParser):
+39:     def __init__(self, file_path):
+40:         super().__init__(file_path)
+41:         self.benchmark_setup_parser: BenchmarkSetupParser = None
+42: 
+43:     def parse(self):
+44:         super().parse()
+45:         # try to get the benchmark setup
+46:         assert 'benchmark_dataset_name' in self.data
+47:         setup_json_path = f'benchmark/{self.data["benchmark_dataset_name"]}/setup.json'
+48:         self.benchmark_setup_parser = BenchmarkSetupParser(setup_json_path)
+49:         self.benchmark_setup_parser.parse()
+50:         print(f'Parsing benchmark setup from {setup_json_path}...')
+51:         # print(f'Dataset size: {self.benchmark_setup_parser.get_data_size(self.data["dataset_size"])}')
+52: 
+53:     def get_benchmark_name(self):
+54:         return self.data['benchmark_name']
+55: 
+56:     def get_benchmark_description(self):
+57:         return self.data['benchmark_description']
+58: 
+59:     def get_benchmark_dataset_name(self):
+60:         return self.data['benchmark_dataset_name']
+61: 
+62:     def get_benchmark_dataset_comment(self):
+63:         return self.data['benchmark_dataset_comment']
+64: 
+65:     def get_dataset_size(self):
+66:         return self.data['dataset_size']
+67: 
+68:     def get_prompt_cache(self):
+69:         return bool(self.data['prompt_cache'])
+
+FILE benchmark/squad_v2.py | original lines 1–66
+1: from .benchmark_base import Benchmark, Entry
+2: from .utils import XMLSchemaBuilder
+3: from datasets import load_dataset
+4: import os
+5: 
+6: _document_schema_name = "document_summary"
+7: _document_header = "Document"
+8: _document_system_description = "Below are a series of dialogues between various people and an AI assistant. The AI tries to be helpful, polite, \
+9: honest, sophisticated, emotionally aware, and humble-but-knowledgeable. The assistant is happy to help with \
+10: almost anything, and will do its best to understand exactly what is needed. It also tries to avoid giving false \
+11: or misleading information, and it caveats when it isn't entirely sure about the right answer. That said, the \
+12: assistant is practical and really does its best, and doesn't let caution get too much in the way of being \
+13: useful."
+14: _document_user_description = "For the upcoming interaction, I would like you to answer some questions about the document."
+15: _document_assistant_description = "Sure. I have read the document. Please give me any question."
+16: 
+17: 
+18: class SquadV2(Benchmark):
+19:     def __init__(self):
+20:         super().__init__("squad_v2")
+21: 
+22:     def init(self, limit_entries=None):
+23:         """
+24:         Download (one time) and load the dataset to run; 
+25:         Preprocess the dataset to be organized in the `Entry` format.
+26:         """
+27:         self.dataset = load_dataset(self.dataset_name)
+28:         count = 0
+29:         # for split in self.dataset.values():
+30:         # only use validation set
+31:         for item in self.dataset['validation']:
+32:             if limit_entries is not None and count >= limit_entries:
+33:                 break
+34:             id = item["id"]
+35:             schema_name = f"schema_{id}"
+36:             builder = XMLSchemaBuilder(schema_name)
+37:             context = item["context"]
+38:             # title = item["title"]
+39:             question = item["question"]
+40:             answer = item["answers"]["text"]
+41:             builder.set_system_description(_document_system_description)
+42:             builder.set_user_description(_document_user_description)
+43:             builder.add_document_module("context", self.dataset_prompt["context"].format(context=context))
+44:             builder.set_assistant_description(_document_assistant_description)
+45: 
+46:             schema_file_name = f"{schema_name}.xml"
+47:             with open(os.path.join(self.schema_path, schema_file_name), "w") as f:
+48:                 f.write(builder.generate_xml())
+49: 
+50:             # skip entry without ground truth
+51:             if len(answer) == 0:
+52:                 continue
+53: 
+54:             prompt = f"""
+55:             <prompt schema='{schema_name}'>
+56:             <context/>
+57:             <user>{self.dataset_prompt["question"].format(input=question)}</user></prompt>
+58:             """
+59:             self.entries.append(Entry(schema_file_name, prompt, answer))
+60: 
+61:             count += 1
+62: 
+63: if __name__ == '__main__':
+64:     sq = SquadV2()
+65:     sq.init()
+66:     print(sq.get_entry_count())
+
+FILE benchmark/utils.py | original lines 1–38
+1: from xml.etree.ElementTree import Element, SubElement, tostring, ElementTree
+2: from xml.dom import minidom
+3: 
+4: 
+5: class XMLSchemaBuilder:
+6:     def __init__(self, schema_name):
+7:         self.schema = Element('schema', name=schema_name)
+8:         self.user = None
+9:         self.user_union = None
+10: 
+11:     def set_system_description(self, description):
+12:         system = SubElement(self.schema, 'system')
+13:         system.text = description
+14: 
+15:     def set_user_description(self, description, user_union=False, scaffold_name="DOC"):
+16:         self.user = SubElement(self.schema, 'user')
+17:         self.user.text = description
+18:         if user_union:
+19:             self.user_union = SubElement(self.user, 'union', scaffold=scaffold_name)
+20: 
+21:     def add_document_module_union(self, module_name, content):
+22:         assert self.user_union is not None
+23:         module = SubElement(self.user_union, 'module', name=module_name)
+24:         module.text = content.replace('\n', '\\n').replace("'", "\'").replace('"', '\"')
+25: 
+26:     def add_document_module(self, module_name, content):
+27:         module = SubElement(self.user, 'module', name=module_name)
+28:         module.text = content.replace('\n', '\\n').replace("'", "\'").replace('"', '\"')
+29: 
+30:     def set_assistant_description(self, description):
+31:         assistant = SubElement(self.schema, 'assistant')
+32:         assistant.text = description
+33: 
+34:     def generate_xml(self):
+35:         rough_string = tostring(self.schema, 'utf-8')
+36:         reparsed = minidom.parseString(rough_string)
+37:         prettystr = reparsed.toprettyxml(indent="\t")
+38:         return prettystr.replace('&quot;', "'")
+
+FILE benchmark_memcpy.py | original lines 1–49
+1: # On RTX 4090
+2: # Host-to-Host (CPU to CPU) Average Latency: 3.79 milliseconds
+3: # Host-to-Device (CPU to GPU) Average Latency: 5.34 milliseconds
+4: # Device-to-Device (GPU to GPU) Average Latency: 0.23 milliseconds
+5: # Device-to-Host (GPU to CPU) Average Latency: 5.88 milliseconds
+6: 
+7: 
+8: import torch
+9: import time
+10: 
+11: NUM_LAYERS = 30
+12: SEQ_LEN = 5000
+13: CACHE_DIM = (40, SEQ_LEN, 128)
+14: 
+15: print('loaded')
+16: 
+17: 
+18: def create_cache(device):
+19:     return [(torch.rand(CACHE_DIM, dtype=torch.float16, device=device),
+20:              torch.rand(CACHE_DIM, dtype=torch.float16, device=device)) for _ in
+21:             range(NUM_LAYERS)]
+22: 
+23: 
+24: def benchmark_transfer(src_cache, dst_cache, description):
+25:     start_time = time.time()
+26:     for src, dst in zip(src_cache, dst_cache):
+27:         dst[0].copy_(src[0], non_blocking=True)
+28:         dst[1].copy_(src[0], non_blocking=True)
+29:     torch.cuda.synchronize()  # Ensure CUDA operations are synchronized
+30:     elapsed = (time.time() - start_time) / NUM_LAYERS
+31:     print(f"{description} Average Latency: {elapsed * 1000:.2f} milliseconds")
+32: 
+33: 
+34: cpu_cache = create_cache('cpu')
+35: gpu_cache = create_cache('cuda')
+36: cpu_cache_clone = create_cache('cpu')
+37: gpu_cache_clone = create_cache('cuda')
+38: 
+39: # Host-to-Host (CPU to CPU) Transfer
+40: benchmark_transfer(cpu_cache, cpu_cache_clone, "Host-to-Host (CPU to CPU)")
+41: 
+42: # Host-to-Device (CPU to GPU) Transfer
+43: benchmark_transfer(cpu_cache, gpu_cache_clone, "Host-to-Device (CPU to GPU)")
+44: 
+45: # Device-to-Device (GPU to GPU) Transfer
+46: benchmark_transfer(gpu_cache, gpu_cache_clone, "Device-to-Device (GPU to GPU)")
+47: 
+48: # Device-to-Host (GPU to CPU) Transfer
+49: benchmark_transfer(gpu_cache, cpu_cache_clone, "Device-to-Host (GPU to CPU)")
+
+FILE config/dataset_maxlen.json | original lines 1–28
+1: {
+2:     "narrativeqa": 128,
+3:     "qasper": 128,
+4:     "multifieldqa_en": 64,
+5:     "multifieldqa_zh": 64,
+6:     "hotpotqa": 32,
+7:     "2wikimqa": 32,
+8:     "musique": 32,
+9:     "dureader": 128,
+10:     "gov_report": 512,
+11:     "qmsum": 512,
+12:     "vcsum": 512,
+13:     "trec": 64,
+14:     "triviaqa": 32,
+15:     "samsum": 128,
+16:     "lsht": 64,
+17:     "passage_count": 32,
+18:     "passage_retrieval_en": 32,
+19:     "passage_retrieval_zh": 32,
+20:     "lcc": 64,
+21:     "repobench-p": 64,
+22:     "multi_news": 512,
+23:     "multi_news_long": 512,
+24:     "squad_v2": 32,
+25:     "wiki_qa": 128,
+26:     "pubmd_qa": 128,
+27:     "ms_marco": 32
+28: }
+
+FILE config/dataset_prompt.json | original lines 1–83
+1: {
+2:   "narrativeqa": {
+3:     "context": "You are given a story, which can be either a novel or a movie script, and a question. Answer the question as concisely as you can, using a single phrase if possible. Do not provide any explanation.\n\nStory: {context}\n\n",
+4:     "question": "Now, answer the question based on the story as concisely as you can, using a single phrase if possible. Do not provide any explanation. Question: {input}\n\n",
+5:     "answer": "The concise answer is:"
+6:   },
+7:   "qasper": {
+8:     "context": "You are given a scientific article and a question. Article: {context}",
+9:     "question": "Answer the question as concisely as you can, using a single phrase or sentence if possible. If the question cannot be answered based on the information in the article, write \"unanswerable\". If the question is a yes/no question, answer \"yes\", \"no\", or \"unanswerable\". Do not provide any explanation.\n\n Question: {input}\n\n",
+10:     "answer": "The concise answer is:"
+11:   },
+12:   "multifieldqa_en": {
+13:     "context": "Read the following text and answer briefly.\n\n{context}",
+14:     "question": "Question: {input}\n",
+15:     "answer": "The concise answer is:"
+16:   },
+17:   "multifieldqa_zh": {
+18:     "context": "阅读以下文字并用中文简短回答：\n\n{context}",
+19:     "question": "问题：{input}\n",
+20:     "answer": "回答："
+21:   },
+22:   "hotpotqa": {
+23:     "context": "Answer the question based on the given passages. Only give me the answer and do not output any other words.\n\nThe following are given passages.\n{context}",
+24:     "question": "Question: {input}\n",
+25:     "answer": "The concise answer is:"
+26:   },
+27:   "2wikimqa": {
+28:     "context": "Answer the question based on the given passages. Only give me the answer and do not output any other words.\n\nThe following are given passages.\n{context}",
+29:     "question": "Question: {input}\n",
+30:     "answer": "The concise answer is:"
+31:   },
+32:   "musique": {
+33:     "context": "Answer the question based on the given passages. Only give me the answer and do not output any other words.\n\nThe following are given passages.\n{context}",
+34:     "question": "Question: {input}\nAnswer:",
+35:     "answer": "The concise answer is:"
+36:   },
+37:   "dureader": {
+38:     "context": "请基于给定的文章回答下述问题。\n\n文章：{context}",
+39:     "question": "问题：{input}\n",
+40:     "answer": "回答："
+41:   },
+42:   "gov_report": {
+43:     "context": "You are given a report by a government agency. Write a one-page summary of the report.\n\nReport:\n{context}",
+44:     "question": "",
+45:     "answer": "Summary:"
+46:   },
+47:   "qmsum": {
+48:     "context": "You are given a meeting transcript and a query containing a question or instruction.\n\nTranscript:\n{context}",
+49:     "question": "Query: {input}\n",
+50:     "answer": "The concise answer is:"
+51:   },
+52:   "vcsum": {
+53:     "context": "下面有一段会议记录，请你阅读后，写一段总结，总结会议的内容。\n会议记录：\n{context}",
+54:     "question": "",
+55:     "answer": "会议总结："
+56:   },
+57:   "trec": {
+58:     "context": "Please determine the type of the question below. Here are some examples of questions.\n\n{context}",
+59:     "question": "{input}",
+60:     "answer": "Type of the question:"
+61:   },
+62:   "triviaqa": {
+63:     "context": "Answer the question based on the given passage. Only give me the answer and do not output any other words. The following are some examples.\n\n{context}",
+64:     "question": "{input}",
+65:     "answer": "The concise answer is:"
+66:   },
+67:   "samsum": {
+68:     "context": "Summarize the dialogue into a few short sentences. The following are some examples.\n\n{context}",
+69:     "question": "{input}",
+70:     "answer": "Summary:"
+71:   },
+72:   "lsht": {
+73:     "context": "请判断给定新闻的类别，下面是一些例子。\n\n{context}",
+74:     "question": "{input}"
+75:   },
+76:   "passage_count": {
+77:     "context": "There are some paragraphs below sourced from Wikipedia. Some of them may be duplicates. Please carefully read these paragraphs and determine how many unique paragraphs there are after removing duplicates. In other words, how many non-repeating paragraphs are there in total?\n\n{context}",
+78:     "question": "",
+79:     "answer": "The concise answer is: "
+80:   },
+81:   "passage_retrieval_en": {
+82:     "context": "Here are 30 paragraphs from Wikipedia, along with an abstract. Please determine which paragraph the abstract is from.\n\n{context}",
+83:     "question": "The following is an abstract.\n\n{input}\n\nPlease enter the number of the paragraph that the abstract is from. The answer format must be like \"Paragraph 1\", \"Paragraph 2\", etc.\n\n",
+
+FILE config/llm_config_falcon_40b.json | original lines 1–9
+1: {
+2:   "arch": "falcon",
+3:   "log_name": "falcon-40b",
+4:   "name": "tiiuae/falcon-40b-instruct",
+5:   "load_in_8bit": true,
+6:   "device_map": "auto",
+7:   "max_tokens": 1500,
+8:   "max_ctx_length": 3000
+9: }
+
+FILE config/llm_config_falcon_7b.json | original lines 1–9
+1: {
+2:   "arch": "falcon",
+3:   "log_name": "falcon-7b",
+4:   "name": "tiiuae/falcon-7b-instruct",
+5:   "load_in_8bit": true,
+6:   "device_map": "auto",
+7:   "max_tokens": 1500,
+8:   "max_ctx_length": 3000
+9: }
+
+FILE config/llm_config_llama2_13b.json | original lines 1–11
+1: {
+2: 
+3:   "arch": "llama",
+4:   "log_name": "llama2-13b",
+5:   "name": "meta-llama/Llama-2-13b-chat-hf",
+6:   "load_in_8bit": true,
+7:   "device_map": "auto",
+8:   "max_tokens": 3500,
+9:   "max_ctx_length": 4096
+10: 
+11: }
+
+FILE config/llm_config_llama2_7b.json | original lines 1–9
+1: {
+2:   "arch": "llama",
+3:   "log_name": "llama2-7b",
+4:   "name": "meta-llama/Llama-2-7b-chat-hf",
+5:   "load_in_8bit": true,
+6:   "device_map": "auto",
+7:   "max_tokens": 3500,
+8:   "max_ctx_length": 4096
+9: }
+
+FILE config/llm_config_longchat_7b.json | original lines 1–9
+1: {
+2:   "arch": "longchat",
+3:   "log_name": "longchat-7b",
+4:   "name": "lmsys/longchat-7b-v1.5-32k",
+5:   "load_in_8bit": true,
+6:   "device_map": "auto",
+7:   "max_tokens": 8000,
+8:   "max_ctx_length": 9186
+9: }
+
+FILE config/llm_config_mpt_30b.json | original lines 1–11
+1: {
+2: 
+3:   "arch": "mpt",
+4:   "log_name": "mpt-30b",
+5:   "name": "mosaicml/mpt-30b-chat",
+6:   "load_in_8bit": true,
+7:   "device_map": "auto",
+8:   "max_tokens": 3500,
+9:   "max_ctx_length": 4096
+10: 
+11: }
+
+FILE config/llm_config_mpt_7b.json | original lines 1–9
+1: {
+2:   "arch": "mpt",
+3:   "log_name": "mpt-7b",
+4:   "name": "mosaicml/mpt-7b-chat-8k",
+5:   "load_in_8bit": true,
+6:   "device_map": "auto",
+7:   "max_tokens": 3500,
+8:   "max_ctx_length": 4096
+9: }
+
+FILE config/llm_config_vicuna_7b.json | original lines 1–9
+1: {
+2:   "arch": "vicuna",
+3:   "log_name": "vicuna-7b",
+4:   "name": "lmsys/vicuna-7b-v1.5-16k",
+5:   "load_in_8bit": true,
+6:   "device_map": "auto",
+7:   "max_tokens": 8000,
+8:   "max_ctx_length": 9000
+9: }
+
+FILE demo.py | original lines 1–100
+1: import random
+2: import re
+3: 
+4: import numpy as np
+5: import torch.cuda
+6: import fire
+7: 
+8: from promptcache.model import Llama2, Falcon, Mpt, CodeLlama
+9: 
+10: from promptcache import Prompt, CompactSpaces, read_file, CacheEngine, \
+11:     GenerationEngine, GenerationParameters, llama2_template
+12: 
+13: 
+14: def escape_tags(input_str):
+15:     pattern = r'<(?P<content>.*?)>'
+16: 
+17:     def repl(match):
+18:         return '(' + match.group("content").capitalize() + ')'
+19: 
+20:     return re.sub(pattern, repl, input_str)
+21: 
+22: 
+23: def main(enable_cache=True):
+24:     enable_cpu_inference = False
+25:     disable_prompt_cache = not enable_cache
+26: 
+27:     lm_for_cache = CodeLlama("codellama/CodeLlama-7b-Instruct-hf",
+28:                              load_in_8bit=True,
+29:                              device_map="auto")
+30: 
+31:     lm = lm_for_cache
+32: 
+33:     if enable_cpu_inference:
+34:         lm = CodeLlama("codellama/CodeLlama-7b-Instruct-hf",
+35:                        load_in_8bit=False,
+36:                        device_map=None)
+37: 
+38:     # lm = Falcon("tiiuae/falcon-7b-instruct",
+39:     #             load_in_8bit=True if not disable_cuda else False,
+40:     #             device_map="auto" if not disable_cuda else None)
+41: 
+42:     # lm = Mpt("mosaicml/mpt-7b-chat-8k",
+43:     #          load_in_8bit=True if not disable_cuda else False,
+44:     #          device_map="auto" if not disable_cuda else None)
+45: 
+46:     cache_engine = CacheEngine(5000, lm_for_cache, target_device='cpu' if enable_cpu_inference else None)
+47:     gen_engine = GenerationEngine(lm)
+48: 
+49:     preproc = [
+50:         # CompactSpaces(),
+51:         lm.get_formatter()
+52:     ]
+53: 
+54:     cache_engine.add_schema(read_file("./examples/code_generation_game.xml", preproc), max_tokens=800)
+55: 
+56:     parameter = GenerationParameters(
+57:         temperature=1.0,
+58:         repetition_penalty=1.0,
+59:         top_p=0.95,
+60:         top_k=-1,
+61:         max_new_tokens=512,
+62:         stop_token_ids=lm.stop_token_ids,
+63:         stop_str=lm.stop_str
+64:     )
+65: 
+66:     prompt_text = f"""
+67:         <prompt schema='code-generation-game'>
+68:         <unit.py/>
+69:         <map.py/>
+70:         <player.py/>
+71:         <game.py/>
+72:         <database.py/>
+73:         <user>
+74:             Create a main entry for the game:
+75:         </user>
+76:         </prompt>
+77:         """
+78: 
+79:     prompt = Prompt(prompt_text, preproc)
+80:     token_ids, position_ids, cache_time, cache = cache_engine.process(prompt, no_cache=disable_prompt_cache,
+81:                                                                       return_full_position_ids=lm.use_full_position_ids)
+82: 
+83:     output_stream = gen_engine.generate(token_ids, position_ids, parameter, cache, stream_interval=2,
+84:                                         use_full_position_ids=lm.use_full_position_ids)
+85: 
+86:     print(f"Assistant: ", end="", flush=True)
+87: 
+88:     resp = ""
+89:     pre = 0
+90:     for outputs in output_stream:
+91:         output_text = outputs.new_text.strip().split(" ")
+92:         now = len(output_text) - 1
+93:         if now > pre:
+94:             tt = " ".join(output_text[pre:now])
+95:             resp += tt + " "
+96:             print(tt, end=" ", flush=True)
+97:             pre = now
+98:     tt = " ".join(output_text[pre:])
+99:     print(tt, flush=True)
+100:     resp += tt
+
+FILE eval.py | original lines 1–100
+1: import random
+2: 
+3: import numpy as np
+4: import torch.cuda
+5: import fire
+6: import sys, json
+7: import os
+8: import datetime
+9: from tqdm import tqdm
+10: from benchmark.longbench import LongBench
+11: from promptcache.model import Llama2, Falcon, Mpt
+12: from promptcache import Prompt, CompactSpaces, read_file, CacheEngine, \
+13:     GenerationEngine, GenerationParameters
+14: 
+15: from benchmark.benchmark_base import DATASET_LIST, SCHEMA_FILE_DIRECTORY
+16: from benchmark.squad_v2 import SquadV2
+17: from benchmark.multi_news import MultiNews
+18: from benchmark.ms_marco_v1_1 import MSMarcoV1
+19: 
+20: BENCHMARK_PATH = "./benchmark"
+21: 
+22: 
+23: class Eval:
+24:     def __init__(self, llm_config_path, dataset, enable_cache, use_cpu_for_inference=False):
+25:         with open("./config/dataset_maxlen.json", 'r') as f:
+26:             self.dataset_maxlen = json.load(f)
+27: 
+28:         with open(llm_config_path, 'r') as f:
+29:             self.llm_config = json.load(f)
+30:         self.enable_cache = enable_cache
+31:         self.use_cpu_for_inference = use_cpu_for_inference
+32: 
+33:         self.model_name = self.llm_config["name"]
+34:         if "llama" in self.model_name:
+35:             self.model_name = "llama"
+36:             self.lm_for_caching = Llama2(name=self.llm_config['name'], device_map="auto", load_in_8bit=True)
+37:         elif "falcon" in self.model_name:
+38:             self.model_name = "falcon"
+39:             self.lm_for_caching = Falcon(name=self.llm_config['name'], device_map="auto", load_in_8bit=True)
+40:         elif "mpt" in self.model_name:
+41:             self.model_name = "mpt"
+42:             self.lm_for_caching = Mpt(name=self.llm_config['name'], device_map="auto", load_in_8bit=True)
+43:         else:
+44:             raise ValueError("Invalid model name")
+45: 
+46:         if self.use_cpu_for_inference:
+47:             if "llama" in self.model_name:
+48:                 self.lm = Llama2(name=self.llm_config['name'], device_map=None)
+49:             elif "falcon" in self.model_name:
+50:                 self.lm = Falcon(name=self.llm_config['name'], device_map=None)
+51:             elif "mpt" in self.model_name:
+52:                 self.lm = Mpt(name=self.llm_config['name'], device_map=None)
+53:         else:
+54:             self.lm = self.lm_for_caching
+55: 
+56:         self.cache_engine = CacheEngine(self.llm_config.get("max_ctx_length", 4096), self.lm_for_caching,
+57:                                         target_device=self.lm.device)
+58:         self.gen_engine = GenerationEngine(self.lm)
+59:         self.preproc = [
+60:             # CompactSpaces(),
+61:             self.lm.get_formatter()
+62:         ]
+63: 
+64:         # self.parameter = GenerationParameters(
+65:         #     temperature=0.1,
+66:         #     repetition_penalty=1.17,
+67:         #     top_p=0.95,
+68:         #     top_k=-1,
+69:         #     max_new_tokens=512,
+70:         #     stop_token_ids=self.lm.stop_token_ids,
+71:         #     stop_str=self.lm.stop_str
+72:         # )
+73: 
+74:         self.parameter = GenerationParameters(
+75:             temperature=1.0,
+76:             repetition_penalty=1.0,
+77:             top_p=0.95,
+78:             top_k=-1,
+79:             max_new_tokens=self.dataset_maxlen[dataset],
+80:             stop_token_ids=self.lm.stop_token_ids,
+81:             stop_str=self.lm.stop_str
+82:         )
+83: 
+84:         if dataset is None or dataset not in DATASET_LIST:
+85:             raise ValueError("Dataset name cannot be None, valid dataset names are: " + ", ".join(DATASET_LIST))
+86: 
+87:         match dataset:
+88:             case "squad_v2":
+89:                 self.dataset = SquadV2()
+90: 
+91:             case "multi_news":
+92:                 self.dataset = MultiNews()
+93: 
+94:             case "narrativeqa":
+95:                 self.dataset = LongBench("narrativeqa")
+96: 
+97:             case "qasper":
+98:                 self.dataset = LongBench("qasper")
+99: 
+100:             case "multifieldqa_en":
+
+FILE eval_acc.py | original lines 1–100
+1: import math
+2: import random
+3: 
+4: import numpy as np
+5: import torch.cuda
+6: import fire
+7: import sys, json
+8: import os
+9: import datetime
+10: from tqdm import tqdm
+11: from benchmark.longbench import LongBench
+12: from promptcache.model import Llama2, Falcon, Mpt
+13: from promptcache import Prompt, CompactSpaces, read_file, CacheEngine, \
+14:     GenerationEngine, GenerationParameters
+15: 
+16: from benchmark.benchmark_base import DATASET_LIST, SCHEMA_FILE_DIRECTORY
+17: from benchmark.squad_v2 import SquadV2
+18: from benchmark.multi_news import MultiNews
+19: from promptcache.prompt import apply_preproc
+20: from metrics import (
+21:     qa_f1_score,
+22:     rouge_zh_score,
+23:     qa_f1_zh_score,
+24:     rouge_score,
+25:     classification_score,
+26:     retrieval_score,
+27:     retrieval_zh_score,
+28:     count_score,
+29:     code_sim_score
+30: )
+31: from multiprocessing import cpu_count, Process, Queue
+32: from concurrent.futures import ProcessPoolExecutor
+33: 
+34: dataset2metric = {
+35:     "narrativeqa": qa_f1_score,
+36:     "qasper": qa_f1_score,
+37:     "multifieldqa_en": qa_f1_score,
+38:     "multifieldqa_zh": qa_f1_zh_score,
+39:     "hotpotqa": qa_f1_score,
+40:     "2wikimqa": qa_f1_score,
+41:     "musique": qa_f1_score,
+42:     "dureader": rouge_zh_score,
+43:     "gov_report": rouge_score,
+44:     "qmsum": rouge_score,
+45:     "multi_news": rouge_score,
+46:     "vcsum": rouge_zh_score,
+47:     "trec": classification_score,
+48:     "triviaqa": qa_f1_score,
+49:     "samsum": rouge_score,
+50:     "lsht": classification_score,
+51:     "passage_retrieval_en": retrieval_score,
+52:     "passage_count": count_score,
+53:     "passage_retrieval_zh": retrieval_zh_score,
+54:     "lcc": code_sim_score,
+55:     "repobench-p": code_sim_score,
+56: }
+57: 
+58: BENCHMARK_PATH = "./benchmark"
+59: 
+60: 
+61: class Eval:
+62:     def __init__(self, gpu_id, llm_config_path, dataset_list, enable_cache):
+63:         with open("./config/dataset_maxlen.json", 'r') as f:
+64:             self.dataset_maxlen = json.load(f)
+65: 
+66:         with open(llm_config_path, 'r') as f:
+67:             self.llm_config = json.load(f)
+68: 
+69:         self.enable_cache = enable_cache
+70: 
+71:         self.model_name = self.llm_config["name"]
+72:         self.model_arch = self.llm_config["arch"]
+73:         self.model_log_name = self.llm_config["log_name"]
+74:         self.max_ctx_length = self.llm_config.get("max_ctx_length", 4096)
+75:         self.max_tokens = self.llm_config.get("max_tokens", 3500)
+76:         self.dataset_list = dataset_list
+77: 
+78:         if self.model_arch == "llama":
+79:             self.lm = Llama2(name=self.model_name, device_map={"": gpu_id}, load_in_8bit=True)
+80:         elif self.model_arch == "falcon":
+81:             self.lm = Falcon(name=self.model_name, device_map={"": gpu_id}, load_in_8bit=True)
+82:         elif self.model_arch == "mpt":
+83:             self.lm = Mpt(name=self.model_name, device_map={"": gpu_id}, load_in_8bit=True)
+84:         else:
+85:             raise ValueError("Invalid model name")
+86: 
+87:         self.cache_engine = CacheEngine(self.max_ctx_length, self.lm,
+88:                                         target_device=self.lm.device)
+89:         self.gen_engine = GenerationEngine(self.lm)
+90:         self.preproc = [
+91:             # CompactSpaces(),
+92:             self.lm.get_formatter()
+93:         ]
+94: 
+95:         # create result directory
+96:         self.result_directory = os.path.join(BENCHMARK_PATH, "results_acc")
+97:         if not os.path.exists(self.result_directory):
+98:             os.makedirs(self.result_directory)
+99: 
+100:     def run(self):
+
+FILE eval_sys.py | original lines 1–100
+1: import gc
+2: 
+3: import torch.cuda
+4: import fire
+5: import sys, json
+6: import os
+7: import datetime
+8: from tqdm import tqdm
+9: from benchmark.longbench import LongBench
+10: from promptcache.model import Llama2, Falcon, Mpt
+11: from promptcache import Prompt, CompactSpaces, read_file, CacheEngine, \
+12:     GenerationEngine, GenerationParameters
+13: 
+14: from benchmark.benchmark_base import SCHEMA_FILE_DIRECTORY
+15: 
+16: BENCHMARK_PATH = "./benchmark"
+17: from torch.profiler import profile, record_function, ProfilerActivity
+18: 
+19: 
+20: class Eval:
+21:     def __init__(self, memo, llm_config_path, use_cpu_for_inference=False):
+22:         with open("./config/dataset_maxlen.json", 'r') as f:
+23:             self.dataset_maxlen = json.load(f)
+24: 
+25:         with open(llm_config_path, 'r') as f:
+26:             self.llm_config = json.load(f)
+27:         self.memo = memo
+28:         self.use_cpu_for_inference = use_cpu_for_inference
+29:         self.repeat_times = 2 if use_cpu_for_inference else 3
+30:         self.model_name = self.llm_config["name"]
+31:         self.model_arch = self.llm_config["arch"]
+32:         self.model_log_name = self.llm_config["log_name"]
+33:         self.max_ctx_length = self.llm_config.get("max_ctx_length", 4096)
+34:         self.max_tokens = self.llm_config.get("max_tokens", 3500)
+35: 
+36:         if self.model_arch == "llama":
+37:             self.lm_for_caching = Llama2(name=self.model_name, device_map={"": 0}, load_in_8bit=True)
+38:         elif self.model_arch == "falcon":
+39:             self.lm_for_caching = Falcon(name=self.model_name, device_map={"": 0}, load_in_8bit=True)
+40:         elif self.model_arch == "mpt":
+41:             self.lm_for_caching = Mpt(name=self.model_name, device_map={"": 0}, load_in_8bit=True)
+42:         else:
+43:             raise ValueError("Invalid model name")
+44: 
+45:         if self.use_cpu_for_inference:
+46:             if self.model_arch == "llama":
+47:                 self.lm = Llama2(name=self.model_name, device_map=None)
+48:             elif self.model_arch == "falcon":
+49:                 self.lm = Falcon(name=self.model_name, device_map=None)
+50:             elif self.model_arch == "mpt":
+51:                 self.lm = Mpt(name=self.model_name, device_map=None)
+52:         else:
+53:             self.lm = self.lm_for_caching
+54: 
+55:         self.cache_engine = CacheEngine(self.max_ctx_length, self.lm,
+56:                                         target_device=self.lm.device)
+57:         self.gen_engine = GenerationEngine(self.lm)
+58:         self.preproc = [
+59:             # CompactSpaces(),
+60:             self.lm.get_formatter()
+61:         ]
+62: 
+63:         self.dataset_list = {
+64:             "narrativeqa": LongBench("narrativeqa"),
+65:             "qasper": LongBench("qasper"),
+66:             "multifieldqa_en": LongBench("multifieldqa_en"),
+67:             "hotpotqa": LongBench("hotpotqa"),
+68:             "2wikimqa": LongBench("2wikimqa"),
+69:             "musique": LongBench("musique"),
+70:             "gov_report": LongBench("gov_report"),
+71:             "qmsum": LongBench("qmsum"),
+72:             "multi_news": LongBench("multi_news"),
+73:             "triviaqa": LongBench("triviaqa"),
+74:             "samsum": LongBench("samsum"),
+75:             "passage_count": LongBench("passage_count"),
+76:             "passage_retrieval_en": LongBench("passage_retrieval_en"),
+77:         }
+78: 
+79:     # @torch.inference_mode()
+80:     # def profile_cpu_inference(self):
+81:     #
+82:     #     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
+83:     #         with record_function("model_inference"):
+84:     #             model(inputs)
+85: 
+86:     # recomputation overhead vs mem trasnfer overhead
+87:     @torch.inference_mode()
+88:     def run_critical_point(self):
+89: 
+90:         def create_cache(seq_len):
+91: 
+92:             # # llama 2 13B
+93:             num_layers = 40
+94:             num_heads = 40
+95:             head_dim = 128
+96: 
+97:             # # llama 2 7B
+98:             # num_layers = 32
+99:             # num_heads = 32
+100:             # head_dim = 128
+
+FILE g.sh | original lines 1–3
+1: srun --exclusive --mem=0 --nodes=1 --ntasks=1 --ntasks-per-node=1 --cpus-per-task=16 \
+2: --partition=gpuA40x4-interactive --account=bccn-delta-gpu --gpu-bind=verbose,per_task:1 \
+3: --gpus-per-node=1 --gpus-per-task=1 --constraint="scratch" --pty /bin/zsh
+
+FILE get_scores.py | original lines 1–100
+1: import glob
+2: import json
+3: 
+4: import numpy as np
+5: from tqdm import tqdm
+6: 
+7: from metrics import (
+8:     qa_f1_score,
+9:     rouge_zh_score,
+10:     qa_f1_zh_score,
+11:     rouge_score,
+12:     classification_score,
+13:     retrieval_score,
+14:     retrieval_zh_score,
+15:     count_score,
+16:     code_sim_score
+17: )
+18: 
+19: dataset2metric = {
+20:     "squad_v2": qa_f1_score,
+21:     "narrativeqa": qa_f1_score,
+22:     "qasper": qa_f1_score,
+23:     "multifieldqa_en": qa_f1_score,
+24:     "multifieldqa_zh": qa_f1_zh_score,
+25:     "hotpotqa": qa_f1_score,
+26:     "2wikimqa": qa_f1_score,
+27:     "musique": qa_f1_score,
+28:     "dureader": rouge_zh_score,
+29:     "gov_report": rouge_score,
+30:     "qmsum": rouge_score,
+31:     "multi_news": rouge_score,
+32:     # "trec": classification_score,
+33:     "triviaqa": qa_f1_score,
+34:     "samsum": rouge_score,
+35:     "passage_retrieval_en": retrieval_score,
+36:     "passage_count": count_score,
+37:     "passage_retrieval_zh": retrieval_zh_score,
+38:     "lcc": code_sim_score,
+39:     "repobench-p": code_sim_score,
+40: }
+41: 
+42: 
+43: def main():
+44:     dset_list = [
+45:         #"squad_v2",
+46:         "narrativeqa",
+47:         "qasper",
+48:         "multifieldqa_en",
+49:         "hotpotqa",
+50:         "2wikimqa",
+51:         "musique",
+52:         "gov_report",
+53:         "qmsum",
+54:         "multi_news",
+55:         # "trec",
+56:         "triviaqa",
+57:         # "samsum",
+58:         "passage_count",
+59:         "passage_retrieval_en",
+60:         # "lcc",
+61:         # "repobench-p",
+62:     ]
+63: 
+64:     model_list = [
+65:         #"falcon",
+66:         "llama",
+67:         #"mpt"
+68:     ]
+69: 
+70:     for dset in tqdm(dset_list):
+71:         print(f"Dataset: {dset}------------------------------")
+72:         for m in model_list:
+73:             p = f"./results_13b/{m}-{dset}"
+74:             with open(glob.glob(f"{p}/no_cache_*.json")[0], "r") as f:
+75:                 no_cache = [json.loads(line) for line in f]
+76:                 no_cache_score, nc_std = score(no_cache, dset)
+77: 
+78:             with open(glob.glob(f"{p}/with_cache_*.json")[0], "r") as f:
+79:                 with_cache = [json.loads(line) for line in f]
+80:                 with_cache_score, wc_std = score(with_cache, dset)
+81: 
+82:             print(f"{m}-{dset}: {no_cache_score:.2f} ({nc_std:.2f}) vs {with_cache_score:.2f} ({wc_std:.2f}) ")
+83: 
+84: 
+85: def score(results, dataset_name):
+86:     scores_list = []
+87:     for result in results:
+88:         response = result["response"].split('</s>')[0].split('<|endoftext|>')[0].split('<|im_end|>')[0]
+89:         answers = result["answers"]
+90: 
+91:         score = 0.
+92:         for answer in answers:
+93:             score = max(score, dataset2metric[dataset_name](response, answer))
+94: 
+95:         scores_list.append(score)
+96: 
+97:     #print(scores_list)
+98:     mean = np.mean(scores_list) * 100
+99:     std = np.std(scores_list)
+100: 
+
+FILE metrics.py | original lines 1–100
+1: import re
+2: import string
+3: 
+4: import jieba
+5: from fuzzywuzzy import fuzz
+6: import difflib
+7: 
+8: from typing import List
+9: from collections import Counter
+10: from rouge import Rouge
+11: 
+12: 
+13: def normalize_answer(s):
+14:     """Lower text and remove punctuation, articles and extra whitespace."""
+15: 
+16:     def remove_articles(text):
+17:         return re.sub(r"\b(a|an|the)\b", " ", text)
+18: 
+19:     def white_space_fix(text):
+20:         return " ".join(text.split())
+21: 
+22:     def remove_punc(text):
+23:         exclude = set(string.punctuation)
+24:         return "".join(ch for ch in text if ch not in exclude)
+25: 
+26:     def lower(text):
+27:         return text.lower()
+28: 
+29:     return white_space_fix(remove_articles(remove_punc(lower(s))))
+30: 
+31: 
+32: def normalize_zh_answer(s):
+33:     """Lower text and remove punctuation, extra whitespace."""
+34: 
+35:     def white_space_fix(text):
+36:         return "".join(text.split())
+37: 
+38:     def remove_punc(text):
+39:         cn_punctuation = "！？｡。＂＃＄％＆＇（）＊＋，－／：；＜＝＞＠［＼］＾＿｀｛｜｝～｟｠｢｣､、〃》「」『』【】〔〕〖〗〘〙〚〛〜〝〞〟〰〾〿–—‘’‛“”„‟…‧﹏."
+40:         all_punctuation = set(string.punctuation + cn_punctuation)
+41:         return "".join(ch for ch in text if ch not in all_punctuation)
+42: 
+43:     def lower(text):
+44:         return text.lower()
+45: 
+46:     return white_space_fix(remove_punc(lower(s)))
+47: 
+48: 
+49: def count_score(prediction, ground_truth, **kwargs):
+50:     numbers = re.findall(r"\d+", prediction)
+51:     right_num = 0
+52:     for number in numbers:
+53:         if str(number) == str(ground_truth):
+54:             right_num += 1
+55:     final_score = 0.0 if len(numbers) == 0 else right_num / len(numbers)
+56:     return float(final_score)
+57: 
+58: 
+59: def retrieval_score(prediction, ground_truth, **kwargs):
+60:     pattern = r'Paragraph (\d+)'
+61:     matches = re.findall(pattern, ground_truth)
+62:     ground_truth_id = matches[0]
+63:     numbers = re.findall(r"\d+", prediction)
+64:     right_num = 0
+65:     for number in numbers:
+66:         if str(number) == str(ground_truth_id):
+67:             right_num += 1
+68:     final_score = 0.0 if len(numbers) == 0 else right_num / len(numbers)
+69:     return float(final_score)
+70: 
+71: 
+72: def retrieval_zh_score(prediction, ground_truth, **kwargs):
+73:     pattern = r'段落(\d+)'
+74:     matches = re.findall(pattern, ground_truth)
+75:     ground_truth_id = matches[0]
+76:     numbers = re.findall(r"\d+", prediction)
+77:     right_num = 0
+78:     for number in numbers:
+79:         if str(number) == str(ground_truth_id):
+80:             right_num += 1
+81:     final_score = 0.0 if len(numbers) == 0 else right_num / len(numbers)
+82:     return float(final_score)
+83: 
+84: 
+85: def code_sim_score(prediction, ground_truth, **kwargs):
+86:     all_lines = prediction.lstrip('\n').split('\n')
+87:     prediction = ""
+88:     for line in all_lines:
+89:         if ('`' not in line) and ('#' not in line) and ('//' not in line):
+90:             prediction = line
+91:             break
+92:     return (fuzz.ratio(prediction, ground_truth) / 100)
+93: 
+94: 
+95: def classification_score(prediction, ground_truth, **kwargs):
+96:     em_match_list = []
+97:     all_classes = kwargs["all_classes"]
+98:     for class_name in all_classes:
+99:         if class_name in prediction:
+100:             em_match_list.append(class_name)
+
+FILE promptcache/__init__.py | original lines 1–7
+1: # re-export all modules
+2: 
+3: from .cache_engine import CacheEngine
+4: from .generation_engine import GenerationEngine, GenerationParameters
+5: from .prompt import Prompt, CompactSpaces, read_file
+6: from .schema import Schema
+7: from .conversation import llama2_template
+
+FILE promptcache/cache_engine.py | original lines 1–100
+1: import gc
+2: 
+3: from typing import List, Tuple, Union, Dict, Optional
+4: from tqdm import tqdm
+5: import itertools
+6: 
+7: import torch
+8: 
+9: from .model import LanguageModel
+10: from .prompt import Prompt, ModuleRef
+11: from .schema import Parameter, TokenSequence, UnionModule, Schema, Path, Module
+12: 
+13: # list - each decoding layer in transformer
+14: KVCache = List[Tuple[torch.Tensor, torch.Tensor]]
+15: 
+16: 
+17: def pad_unk(position_ids: List[int], token_ids: List[int], unk_token_id: int):
+18:     print('before')
+19:     print(position_ids)
+20:     print(token_ids)
+21: 
+22:     pos_min = min(position_ids)
+23:     pos_max = max(position_ids)
+24: 
+25:     padded_position_ids = list(range(pos_min, pos_max + 1))
+26:     padded_token_ids = [unk_token_id] * len(padded_position_ids)
+27: 
+28:     for i, token_id in zip(position_ids, token_ids):
+29:         padded_token_ids[padded_position_ids.index(i)] = token_id
+30: 
+31:     print('after')
+32:     print(padded_position_ids)
+33:     print(padded_token_ids)
+34: 
+35:     return padded_position_ids, padded_token_ids
+36: 
+37: 
+38: def pad_batch(batch_list: List[List[int]], pad_id: int) -> Tuple[List[List[int]], List[List[int]]]:
+39:     max_len = max(map(len, batch_list))
+40: 
+41:     padded_batch = []
+42:     mask_batch = []
+43:     for batch in batch_list:
+44:         padded_batch.append(batch + [pad_id] * (max_len - len(batch)))
+45:         mask_batch.append([1] * len(batch) + [0] * (max_len - len(batch)))
+46: 
+47:     return padded_batch, mask_batch
+48: 
+49: 
+50: class TokenSequenceCache:
+51:     token_sequence: TokenSequence
+52:     host_cache: KVCache
+53:     device_cache: Optional[KVCache] = None
+54: 
+55:     usage_counter: int = 0
+56: 
+57:     def __init__(self, seq: TokenSequence, cache: KVCache):
+58:         self.token_sequence = seq
+59:         self.host_cache = cache
+60:         self.usage_counter = 0
+61: 
+62:     def inc_usage_counter(self):
+63:         self.usage_counter += 1
+64: 
+65:     def upload(self, device: str):
+66:         if self.device_cache is None:
+67:             self.device_cache = [(kv[0].to(device, non_blocking=True),
+68:                                   kv[1].to(device, non_blocking=True)) for kv in self.host_cache]
+69: 
+70:     def free(self):
+71:         # need to invoke gc.collect() manually later
+72:         if self.device_cache is not None:
+73:             self.device_cache = None
+74: 
+75:     @property
+76:     def cache(self) -> KVCache:
+77:         # prioritize device cache
+78:         if self.device_cache is None:
+79:             return self.host_cache
+80:         return self.device_cache
+81: 
+82:     def __len__(self):
+83:         return len(self.token_sequence)
+84: 
+85: 
+86: # this persists in the device memory
+87: class PromptCache:
+88:     staged: List[TokenSequenceCache]
+89:     length: int
+90: 
+91:     # only device cache
+92:     max_ctx_length: int
+93:     num_head: int
+94:     head_dim: int
+95:     device_cache: KVCache
+96: 
+97:     # hidden_dim is usually num_head * head_dim
+98:     def __init__(self, max_ctx_length: int, num_layers: int, num_head: int, head_dim: int, target_device: torch.device):
+99: 
+100:         self.max_ctx_length = max_ctx_length
+
+FILE promptcache/compiler.py | original lines 1–100
+1: import ast
+2: import inspect
+3: import astor
+4: from functools import wraps
+5: 
+6: 
+7: class SchemaBuilder:
+8:     schema: list[str | tuple[bool, str], tuple[str, dict]]
+9:     schema_name: str | None
+10: 
+11:     def __init__(self):
+12:         self.schema = []
+13:         self.schema_name = None
+14: 
+15:     def text(self, value: str):
+16:         self.schema.append(value)
+17: 
+18:     def cond(self, cond: bool, _):
+19:         value = self.schema.pop()
+20:         self.schema.append((cond, value))
+21: 
+22:     def union(self, target: str, values: dict):
+23:         self.schema.append((target, values))
+24: 
+25:     def get_schema(self) -> str:
+26: 
+27:         uid = 0
+28:         output = ""
+29:         for item in self.schema:
+30:             match item:
+31:                 case str(val):
+32:                     output += val + "\n"
+33:                 case (bool(), str(val)):
+34:                     output += f"<module name=\"m_{uid}\">{val}</module>"
+35:                     uid += 1
+36:                 case (str(), dict(d)):
+37:                     output += "<union>"
+38:                     for cond, val in d.items():
+39:                         output += f"<module name=\"m_{uid}\">{val}</module>"
+40:                         uid += 1
+41:                     output += "</union>"
+42: 
+43:         self.schema_name = f'{abs(hash(output)):x}'
+44: 
+45:         output = f"<schema name=\"{self.schema_name}\">" + output
+46:         output += "</schema>"
+47:         return output
+48: 
+49:     def get_prompt(self) -> str:
+50: 
+51:         if self.schema_name is None:
+52:             self.get_schema()
+53: 
+54:         output = f"<prompt schema=\"{self.schema_name}\">"
+55:         uid = 0
+56:         for item in self.schema:
+57:             match item:
+58:                 case (bool(cond), str()):
+59:                     if cond:
+60:                         output += f"<m_{uid}/>"
+61:                     uid += 1
+62:                 case (str(target), dict(d)):
+63:                     for cond, val in d.items():
+64:                         if target == cond:
+65:                             output += f"<m_{uid}/>"
+66:                         uid += 1
+67:                 case _:
+68:                     ...
+69:         output += "</prompt>"
+70:         return output
+71: 
+72: 
+73: class CodeTransformer(ast.NodeTransformer):
+74: 
+75:     def visit_Expr(self, node):
+76:         if isinstance(node.value, ast.Constant) and isinstance(node.value.value, str):
+77:             # Safely format the string
+78:             return ast.parse(f'builder.text({repr(node.value.value)})').body[0]
+79:         return node
+80: 
+81:     def visit_If(self, node):
+82:         condition = astor.to_source(node.test).strip()
+83:         then_body = [self.visit(n) for n in node.body]
+84:         content = astor.to_source(then_body[0]).strip()
+85:         return ast.parse(f'builder.cond({condition}, {content})').body[0]
+86: 
+87:     def visit_Match(self, node):
+88:         subject = astor.to_source(node.subject).strip()
+89:         cases = {}
+90:         for case in node.cases:
+91:             key = astor.to_source(case.pattern.value).strip()
+92:             value = astor.to_source(case.body[0]).strip()
+93:             cases[key] = value
+94:         cases_str = ", ".join([f'{key}: {value}' for key, value in cases.items()])
+95:         return ast.parse(f'builder.union({subject}, {{{cases_str}}})').body[0]
+96: 
+97: 
+98: cached_compiled_funcs = dict()
+99: 
+100: 
+
+FILE promptcache/conversation.py | original lines 1–100
+1: from enum import auto, Enum, IntEnum
+2: from typing import List, Any, Dict
+3: import dataclasses
+4: 
+5: import numpy as np
+6: import torch
+7: import transformers
+8: from transformers.trainer_pt_utils import LabelSmoother
+9: 
+10: IGNORE_TOKEN_ID = LabelSmoother.ignore_index
+11: 
+12: 
+13: class SeparatorStyle(IntEnum):
+14:     """Separator styles."""
+15: 
+16:     ADD_COLON_SINGLE = auto()
+17:     ADD_COLON_TWO = auto()
+18:     ADD_COLON_SPACE_SINGLE = auto()
+19:     NO_COLON_SINGLE = auto()
+20:     NO_COLON_TWO = auto()
+21:     ADD_NEW_LINE_SINGLE = auto()
+22:     LLAMA2 = auto()
+23:     CHATGLM = auto()
+24:     CHATML = auto()
+25:     CHATINTERN = auto()
+26:     DOLLY = auto()
+27:     RWKV = auto()
+28:     PHOENIX = auto()
+29:     ROBIN = auto()
+30: 
+31: 
+32: @dataclasses.dataclass
+33: class Conversation:
+34:     """A class that manages prompt templates and keeps all conversation history."""
+35: 
+36:     # The name of this template
+37:     name: str
+38:     # The system prompt
+39:     system: str
+40:     # Two roles
+41:     roles: List[str]
+42:     # All messages. Each item is (role, message).
+43:     messages: List[List[str]]
+44:     # The number of few shot examples
+45:     offset: int
+46:     # Separators
+47:     sep_style: SeparatorStyle
+48:     sep: str
+49:     sep2: str = None
+50:     # Stop criteria (the default one is EOS token)
+51:     stop_str: str = None
+52:     # Stops generation if meeting any token in this list
+53:     stop_token_ids: List[int] = None
+54: 
+55:     def get_prompt(self) -> str:
+56:         """Get the prompt for generation."""
+57:         if self.sep_style == SeparatorStyle.ADD_COLON_SINGLE:
+58:             ret = self.system + self.sep
+59:             for role, message in self.messages:
+60:                 if message:
+61:                     ret += role + ": " + message + self.sep
+62:                 else:
+63:                     ret += role + ":"
+64:             return ret
+65:         elif self.sep_style == SeparatorStyle.ADD_COLON_TWO:
+66:             seps = [self.sep, self.sep2]
+67:             ret = self.system + seps[0]
+68:             for i, (role, message) in enumerate(self.messages):
+69:                 if message:
+70:                     ret += role + ": " + message + seps[i % 2]
+71:                 else:
+72:                     ret += role + ":"
+73:             return ret
+74:         elif self.sep_style == SeparatorStyle.ADD_COLON_SPACE_SINGLE:
+75:             ret = self.system + self.sep
+76:             for role, message in self.messages:
+77:                 if message:
+78:                     ret += role + ": " + message + self.sep
+79:                 else:
+80:                     ret += role + ": "  # must be end with a space
+81:             return ret
+82:         elif self.sep_style == SeparatorStyle.ADD_NEW_LINE_SINGLE:
+83:             ret = "" if self.system == "" else self.system + self.sep
+84:             for role, message in self.messages:
+85:                 if message:
+86:                     ret += role + "\n" + message + self.sep
+87:                 else:
+88:                     ret += role + "\n"
+89:             return ret
+90:         elif self.sep_style == SeparatorStyle.NO_COLON_SINGLE:
+91:             ret = self.system
+92:             for role, message in self.messages:
+93:                 if message:
+94:                     ret += role + message + self.sep
+95:                 else:
+96:                     ret += role
+97:             return ret
+98:         elif self.sep_style == SeparatorStyle.NO_COLON_TWO:
+99:             seps = [self.sep, self.sep2]
+100:             ret = self.system
+
+FILE promptcache/generation_engine.py | original lines 1–100
+1: import gc
+2: import time
+3: from dataclasses import dataclass, field
+4: from typing import Optional, Generator, List, Tuple
+5: 
+6: import torch
+7: 
+8: from promptcache.cache_engine import KVCache
+9: 
+10: from transformers.generation.logits_process import (
+11:     LogitsProcessorList,
+12:     RepetitionPenaltyLogitsProcessor,
+13:     TemperatureLogitsWarper,
+14:     TopKLogitsWarper,
+15:     TopPLogitsWarper,
+16: )
+17: import termcolor
+18: from promptcache.model import LanguageModel
+19: 
+20: 
+21: @dataclass
+22: class GenerationParameters:
+23:     temperature: float = 1.0
+24:     repetition_penalty: float = 1.0
+25:     top_p: float = 1.0
+26:     top_k: int = -1
+27:     max_new_tokens: int = 256
+28:     stop_token_ids: List[int] = field(default_factory=lambda: [])
+29:     stop_str: List[str] = field(default_factory=lambda: [])
+30:     echo: bool = True
+31: 
+32:     def get_logits_processor(self):
+33:         p = LogitsProcessorList()
+34:         if self.temperature >= 1e-5 and self.temperature != 1.0:
+35:             p.append(TemperatureLogitsWarper(self.temperature))
+36:         if self.repetition_penalty > 1.0:
+37:             p.append(RepetitionPenaltyLogitsProcessor(self.repetition_penalty))
+38:         if 1e-8 <= self.top_p < 1.0:
+39:             p.append(TopPLogitsWarper(self.top_p))
+40:         if self.top_k > 0:
+41:             p.append(TopKLogitsWarper(self.top_k))
+42:         return p
+43: 
+44: 
+45: def is_partial_stop(output: str, stop_str: str):
+46:     """Check whether the output contains a partial stop str."""
+47:     for i in range(0, min(len(output), len(stop_str))):
+48:         if stop_str.startswith(output[-i:]):
+49:             return True
+50:     return False
+51: 
+52: 
+53: @dataclass
+54: class Output:
+55:     text: str
+56:     new_text: str
+57:     response_time: float = 0.0
+58:     elapsed_time: float = 0.0
+59: 
+60: 
+61: class GenerationEngine:
+62:     lm: LanguageModel
+63: 
+64:     def __init__(self, lm: LanguageModel):
+65:         self.lm = lm
+66: 
+67:     @torch.inference_mode()
+68:     def generate(self,
+69:                  token_ids: List[int],
+70:                  position_ids: List[int],
+71:                  params: GenerationParameters,
+72:                  cache: Optional[KVCache] = None,
+73:                  stream_interval: int = 2,
+74:                  use_full_position_ids: bool = False) -> Generator[Output, None, None]:
+75: 
+76:         logits_processor = params.get_logits_processor()
+77:         output_ids = list(token_ids)
+78:         new_output_ids = list()
+79: 
+80:         device = self.lm.device
+81: 
+82:         position_offset = max(position_ids) + 1
+83:         past_key_values = None
+84:         new_token_id = 0
+85: 
+86:         inference_time = 0.0
+87:         response_time = 0.0
+88: 
+89:         position_ids_og = position_ids
+90: 
+91:         for i in range(params.max_new_tokens):
+92: 
+93:             # initial phase
+94:             if past_key_values is None:
+95: 
+96:                 input_ids = torch.tensor([token_ids], device=device, dtype=torch.long)
+97:                 position_ids = torch.tensor([position_ids], device=device, dtype=torch.long)
+98:                 # print(len(position_ids[0]))
+99: 
+100:                 # add redundant batch dim
+
+FILE promptcache/inference.py | original lines 1–100
+1: import abc
+2: import gc
+3: import math
+4: from typing import Iterable, Optional
+5: import sys
+6: import time
+7: import warnings
+8: 
+9: from conversation import Conversation, SeparatorStyle, llama2_template
+10: 
+11: import torch
+12: from transformers import (
+13:     AutoTokenizer,
+14:     AutoModelForCausalLM,
+15:     LlamaTokenizer,
+16:     LlamaForCausalLM,
+17:     AutoModel,
+18:     AutoModelForSeq2SeqLM,
+19:     T5Tokenizer,
+20:     AutoConfig,
+21: )
+22: from transformers.generation.logits_process import (
+23:     LogitsProcessorList,
+24:     RepetitionPenaltyLogitsProcessor,
+25:     TemperatureLogitsWarper,
+26:     TopKLogitsWarper,
+27:     TopPLogitsWarper,
+28: )
+29: 
+30: 
+31: def prepare_logits_processor(
+32:         temperature: float, repetition_penalty: float, top_p: float, top_k: int
+33: ) -> LogitsProcessorList:
+34:     processor_list = LogitsProcessorList()
+35:     # TemperatureLogitsWarper doesn't accept 0.0, 1.0 makes it a no-op so we skip two cases.
+36:     if temperature >= 1e-5 and temperature != 1.0:
+37:         processor_list.append(TemperatureLogitsWarper(temperature))
+38:     if repetition_penalty > 1.0:
+39:         processor_list.append(
+40:             RepetitionPenaltyLogitsProcessor(repetition_penalty))
+41:     if 1e-8 <= top_p < 1.0:
+42:         processor_list.append(TopPLogitsWarper(top_p))
+43:     if top_k > 0:
+44:         processor_list.append(TopKLogitsWarper(top_k))
+45:     return processor_list
+46: 
+47: 
+48: def partial_stop(output, stop_str):
+49:     for i in range(0, min(len(output), len(stop_str))):
+50:         if stop_str.startswith(output[-i:]):
+51:             return True
+52:     return False
+53: 
+54: 
+55: @torch.inference_mode()
+56: def generate_stream(
+57:         model, tokenizer, params, device, context_len=2048, stream_interval=2
+58: ):
+59:     prompt = params["prompt"]
+60:     len_prompt = len(prompt)
+61:     temperature = float(params.get("temperature", 1.0))
+62:     repetition_penalty = float(params.get("repetition_penalty", 1.0))
+63:     top_p = float(params.get("top_p", 1.0))
+64:     top_k = int(params.get("top_k", -1))  # -1 means disable
+65:     max_new_tokens = int(params.get("max_new_tokens", 256))
+66:     stop_str = params.get("stop", None)
+67:     echo = bool(params.get("echo", True))
+68:     stop_token_ids = params.get("stop_token_ids", None) or []
+69:     stop_token_ids.append(tokenizer.eos_token_id)
+70: 
+71:     logits_processor = prepare_logits_processor(
+72:         temperature, repetition_penalty, top_p, top_k
+73:     )
+74: 
+75:     input_ids = tokenizer(prompt).input_ids
+76:     input_echo_len = len(input_ids)
+77:     output_ids = list(input_ids)
+78: 
+79:     max_src_len = context_len - max_new_tokens - 8
+80: 
+81:     input_ids = input_ids[-max_src_len:]
+82: 
+83:     # print(prompt)
+84:     # aa = tokenizer.convert_ids_to_tokens(input_ids)
+85:     # print(aa)
+86: 
+87:     past_key_values = out = None
+88:     for i in range(max_new_tokens):
+89:         if i == 0:
+90:             print(torch.as_tensor(
+91:                 [input_ids], device=device))
+92: 
+93:             out = model(torch.as_tensor([input_ids], device=device))
+94:             logits = out.logits
+95:             past_key_values = out.past_key_values
+96:         else:
+97: 
+98:             out = model(
+99:                 input_ids=torch.as_tensor([[token]], device=device),
+100:                 use_cache=True,
+
+FILE promptcache/model/__init__.py | original lines 1–100
+1: import abc
+2: from typing import Callable, List, Optional, Tuple
+3: import torch
+4: import re
+5: 
+6: from transformers import AutoTokenizer, AutoModelForCausalLM, LlamaTokenizer, PreTrainedTokenizer, \
+7:     PretrainedConfig, PreTrainedModel, CodeLlamaTokenizer
+8: 
+9: from promptcache.model.falcon import FalconForCausalLM
+10: from promptcache.model.llama2 import LlamaForCausalLM
+11: from promptcache.model.mpt import MptForCausalLM
+12: from promptcache.prompt import Preprocessor, escape_xml, PreprocessorList
+13: 
+14: 
+15: # supported models
+16: # gpt2
+17: # aquilla
+18: # bloom
+19: # baichuan
+20: 
+21: # llama
+22: # llama2
+23: # code llama
+24: # wizardlm
+25: # mpt-chat
+26: # alpaca
+27: # ghatglm
+28: # t5
+29: # falcon
+30: # dolly
+31: #
+32: #
+33: # Aquila (BAAI/Aquila-7B, BAAI/AquilaChat-7B, etc.)
+34: # Baichuan (baichuan-inc/Baichuan-7B, baichuan-inc/Baichuan-13B-Chat, etc.)
+35: # BLOOM (bigscience/bloom, bigscience/bloomz, etc.)
+36: # Falcon (tiiuae/falcon-7b, tiiuae/falcon-40b, tiiuae/falcon-rw-7b, etc.)
+37: # GPT-2 (gpt2, gpt2-xl, etc.)
+38: # GPT BigCode (bigcode/starcoder, bigcode/gpt_bigcode-santacoder, etc.)
+39: # GPT-J (EleutherAI/gpt-j-6b, nomic-ai/gpt4all-j, etc.)
+40: # GPT-NeoX (EleutherAI/gpt-neox-20b, databricks/dolly-v2-12b, stabilityai/stablelm-tuned-alpha-7b, etc.)
+41: # InternLM (internlm/internlm-7b, internlm/internlm-chat-7b, etc.)
+42: # LLaMA & LLaMA-2 (meta-llama/Llama-2-70b-hf, lmsys/vicuna-13b-v1.3, young-geng/koala, openlm-research/open_llama_13b, etc.)
+43: # MPT (mosaicml/mpt-7b, mosaicml/mpt-30b, etc.)
+44: # OPT (facebook/opt-66b, facebook/opt-iml-max-30b, etc.)
+45: # Qwen (Qwen/Qwen-7B, Qwen/Qwen-7B-Chat, etc.)
+46: 
+47: 
+48: class FormatConversation(Preprocessor):
+49:     system: (str, str, str)
+50:     user: (str, str)
+51:     assistant: (str, str)
+52: 
+53:     def __init__(self, system: (str, str, str), user: (str, str), assistant: (str, str)):
+54:         super().__init__()
+55: 
+56:         self.system = (escape_xml(system[0]), escape_xml(system[1]), escape_xml(system[2]))
+57:         self.user = (escape_xml(user[0]), escape_xml(user[1]))
+58:         self.assistant = (escape_xml(assistant[0]), escape_xml(assistant[1]))
+59: 
+60:     def __call__(self, prompt: str) -> str:
+61:         replacement_pairs = [
+62:             ("<system>", self.system[0]),
+63:             ("</system>", self.system[1]),
+64:             ("<system/>", self.system[2]),
+65:             ("<user>", self.user[0]),
+66:             ("</user>", self.user[1]),
+67:             ("<assistant>", self.assistant[0]),
+68:             ("</assistant>", self.assistant[1])
+69:         ]
+70: 
+71:         # remove space before <system>
+72:         prompt = re.sub(r' +<system>', '<system>', prompt)
+73: 
+74:         for old, new in replacement_pairs:
+75:             prompt = prompt.replace(old, new)
+76: 
+77:         return prompt
+78: 
+79: 
+80: class FormatLlama2Conversation(FormatConversation):
+81: 
+82:     def __init__(self):
+83:         super().__init__(
+84:             system=("<s>[INST] <<SYS>>\n", "<</SYS>>\n\n", "<s>[INST]"),
+85:             user=(" ", "[/INST]"),
+86:             assistant=(" ", "</s><s>[INST]")
+87:         )
+88: 
+89: 
+90: class LanguageModel(abc.ABC):
+91:     name: str
+92:     hf_tokenizer: PreTrainedTokenizer
+93:     hf_model: PreTrainedModel
+94:     stop_token_ids: List[int]
+95:     stop_str: List[str]
+96:     use_full_position_ids: bool = False
+97: 
+98:     def __init__(self, name: str, model: PreTrainedModel, tokenizer: PreTrainedTokenizer,
+99:                  stop_token_ids: Optional[List[int]] = None, stop_str: Optional[List[str]] = None):
+100:         self.name = name
+
+FILE promptcache/model/falcon.py | original lines 1–100
+1: # coding=utf-8
+2: # Copyright 2023 the Falcon authors and HuggingFace Inc. team.  All rights reserved.
+3: #
+4: # Licensed under the Apache License, Version 2.0 (the "License");
+5: # you may not use this file except in compliance with the License.
+6: # You may obtain a copy of the License at
+7: #
+8: #     http://www.apache.org/licenses/LICENSE-2.0
+9: #
+10: # Unless required by applicable law or agreed to in writing, software
+11: # distributed under the License is distributed on an "AS IS" BASIS,
+12: # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+13: # See the License for the specific language governing permissions and
+14: # limitations under the License.
+15: """PyTorch Falcon model."""
+16: 
+17: import math
+18: import os
+19: from typing import Optional, Tuple, Union
+20: 
+21: import torch
+22: import torch.utils.checkpoint
+23: from torch import nn
+24: from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, LayerNorm, MSELoss
+25: from torch.nn import functional as F
+26: 
+27: from transformers.modeling_outputs import (
+28:     BaseModelOutputWithPastAndCrossAttentions,
+29:     CausalLMOutputWithCrossAttentions,
+30:     QuestionAnsweringModelOutput,
+31:     SequenceClassifierOutputWithPast,
+32:     TokenClassifierOutput,
+33: )
+34: from transformers.modeling_utils import PreTrainedModel
+35: from transformers.utils import (
+36:     add_code_sample_docstrings,
+37:     add_start_docstrings,
+38:     add_start_docstrings_to_model_forward,
+39:     is_flash_attn_available,
+40:     logging,
+41: )
+42: from transformers.models.falcon.configuration_falcon import FalconConfig
+43: 
+44: logger = logging.get_logger(__name__)
+45: 
+46: FALCON_PRETRAINED_MODEL_ARCHIVE_LIST = [
+47:     "tiiuae/falcon-40b",
+48:     "tiiuae/falcon-40b-instruct",
+49:     "tiiuae/falcon-7b",
+50:     "tiiuae/falcon-7b-instruct",
+51:     "tiiuae/falcon-rw-7b",
+52:     "tiiuae/falcon-rw-1b",
+53: ]
+54: _CHECKPOINT_FOR_DOC = "Rocketknight1/falcon-rw-1b"
+55: _CONFIG_FOR_DOC = "FalconConfig"
+56: 
+57: 
+58: # NOTE(Hesslow): Unfortunately we did not fuse matmul and bias during training, this means that there's one additional quantization to bfloat16 between the operations.
+59: # In order not to degrade the quality of our HF-port, we keep these characteristics in the final model.
+60: class FalconLinear(nn.Linear):
+61:     def forward(self, input: torch.Tensor) -> torch.Tensor:
+62:         hidden_states = input @ self.weight.T
+63:         if self.bias is None:
+64:             return hidden_states
+65:         return hidden_states + self.bias
+66: 
+67: 
+68: # rotary pos emb helpers (torch.jit.script does not seem to support staticmethod...)
+69: def rotate_half(x):
+70:     x1, x2 = x[..., : x.shape[-1] // 2], x[..., x.shape[-1] // 2:]
+71:     return torch.cat((-x2, x1), dim=-1)
+72: 
+73: 
+74: # Copied from transformers.models.llama.modeling_llama._get_unpad_data
+75: def _get_unpad_data(padding_mask):
+76:     seqlens_in_batch = padding_mask.sum(dim=-1, dtype=torch.int32)
+77:     indices = torch.nonzero(padding_mask.flatten(), as_tuple=False).flatten()
+78:     max_seqlen_in_batch = seqlens_in_batch.max().item()
+79:     cu_seqlens = F.pad(torch.cumsum(seqlens_in_batch, dim=0, dtype=torch.torch.int32), (1, 0))
+80:     return (
+81:         indices,
+82:         cu_seqlens,
+83:         max_seqlen_in_batch,
+84:     )
+85: 
+86: 
+87: # TODO (joao): Is this the same implementation as in Llama? If so, let's make them the same and add the copy facilities
+88: class FalconRotaryEmbedding(nn.Module):
+89:     """Implementation of RotaryEmbedding from GPT-NeoX.
+90:     This implementation is designed to operate on queries and keys that are compatible with `[batch_size,
+91:     n_heads_per_partition, seq_len, head_dim]` (e.g. MinGPTAttention format).
+92:     """
+93: 
+94:     def __init__(self, head_dim: int, base=10000, max_position_embeddings=2048):
+95:         super().__init__()
+96:         self.base = base
+97:         self.max_position_embeddings = max_position_embeddings
+98:         inv_freq = 1.0 / (self.base ** (torch.arange(0, head_dim, 2).float() / head_dim))
+99:         self.register_buffer("inv_freq", inv_freq, persistent=False)
+100:         self.head_dim = head_dim
+
+FILE promptcache/model/llama2.py | original lines 1–100
+1: # coding=utf-8
+2: # Copyright 2022 EleutherAI and the HuggingFace Inc. team. All rights reserved.
+3: #
+4: # This code is based on EleutherAI's GPT-NeoX library and the GPT-NeoX
+5: # and OPT implementations in this library. It has been modified from its
+6: # original forms to accommodate minor architectural differences compared
+7: # to GPT-NeoX and OPT used by the Meta AI team that trained the model.
+8: #
+9: # Licensed under the Apache License, Version 2.0 (the "License");
+10: # you may not use this file except in compliance with the License.
+11: # You may obtain a copy of the License at
+12: #
+13: #     http://www.apache.org/licenses/LICENSE-2.0
+14: #
+15: # Unless required by applicable law or agreed to in writing, software
+16: # distributed under the License is distributed on an "AS IS" BASIS,
+17: # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+18: # See the License for the specific language governing permissions and
+19: # limitations under the License.
+20: """ PyTorch LLaMA model."""
+21: import math
+22: from typing import List, Optional, Tuple, Union
+23: 
+24: import torch
+25: import torch.nn.functional as F
+26: import torch.utils.checkpoint
+27: from torch import nn
+28: from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
+29: 
+30: from transformers.activations import ACT2FN
+31: from transformers.modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast, \
+32:     SequenceClassifierOutputWithPast
+33: from transformers.modeling_utils import PreTrainedModel
+34: from transformers.pytorch_utils import ALL_LAYERNORM_LAYERS
+35: from transformers.utils import (
+36:     add_start_docstrings,
+37:     add_start_docstrings_to_model_forward,
+38:     logging,
+39:     replace_return_docstrings,
+40: )
+41: from transformers.models.llama.configuration_llama import LlamaConfig
+42: 
+43: 
+44: logger = logging.get_logger(__name__)
+45: 
+46: _CONFIG_FOR_DOC = "LlamaConfig"
+47: 
+48: 
+49: def _get_unpad_data(padding_mask):
+50:     seqlens_in_batch = padding_mask.sum(dim=-1, dtype=torch.int32)
+51:     indices = torch.nonzero(padding_mask.flatten(), as_tuple=False).flatten()
+52:     max_seqlen_in_batch = seqlens_in_batch.max().item()
+53:     cu_seqlens = F.pad(torch.cumsum(seqlens_in_batch, dim=0, dtype=torch.torch.int32), (1, 0))
+54:     return (
+55:         indices,
+56:         cu_seqlens,
+57:         max_seqlen_in_batch,
+58:     )
+59: 
+60: 
+61: # Copied from transformers.models.bart.modeling_bart._make_causal_mask
+62: def _make_causal_mask(
+63:         input_ids_shape: torch.Size, dtype: torch.dtype, device: torch.device, past_key_values_length: int = 0
+64: ):
+65:     """
+66:     Make causal mask used for bi-directional self-attention.
+67:     """
+68:     bsz, tgt_len = input_ids_shape
+69:     mask = torch.full((tgt_len, tgt_len), torch.finfo(dtype).min, device=device)
+70:     mask_cond = torch.arange(mask.size(-1), device=device)
+71:     mask.masked_fill_(mask_cond < (mask_cond + 1).view(mask.size(-1), 1), 0)
+72:     mask = mask.to(dtype)
+73: 
+74:     if past_key_values_length > 0:
+75:         mask = torch.cat([torch.zeros(tgt_len, past_key_values_length, dtype=dtype, device=device), mask], dim=-1)
+76:     return mask[None, None, :, :].expand(bsz, 1, tgt_len, tgt_len + past_key_values_length)
+77: 
+78: 
+79: # Copied from transformers.models.bart.modeling_bart._expand_mask
+80: def _expand_mask(mask: torch.Tensor, dtype: torch.dtype, tgt_len: Optional[int] = None):
+81:     """
+82:     Expands attention_mask from `[bsz, seq_len]` to `[bsz, 1, tgt_seq_len, src_seq_len]`.
+83:     """
+84:     bsz, src_len = mask.size()
+85:     tgt_len = tgt_len if tgt_len is not None else src_len
+86: 
+87:     expanded_mask = mask[:, None, None, :].expand(bsz, 1, tgt_len, src_len).to(dtype)
+88: 
+89:     inverted_mask = 1.0 - expanded_mask
+90: 
+91:     return inverted_mask.masked_fill(inverted_mask.to(torch.bool), torch.finfo(dtype).min)
+92: 
+93: 
+94: class LlamaRMSNorm(nn.Module):
+95:     def __init__(self, hidden_size, eps=1e-6):
+96:         """
+97:         LlamaRMSNorm is equivalent to T5LayerNorm
+98:         """
+99:         super().__init__()
+100:         self.weight = nn.Parameter(torch.ones(hidden_size))
+
+FILE promptcache/model/mpt.py | original lines 1–100
+1: # coding=utf-8
+2: # Copyright 2023 HuggingFace Inc. team and MosaicML NLP team.
+3: #
+4: # Licensed under the Apache License, Version 2.0 (the "License");
+5: # you may not use this file except in compliance with the License.
+6: # You may obtain a copy of the License at
+7: #
+8: #     http://www.apache.org/licenses/LICENSE-2.0
+9: #
+10: # Unless required by applicable law or agreed to in writing, software
+11: # distributed under the License is distributed on an "AS IS" BASIS,
+12: # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+13: # See the License for the specific language governing permissions and
+14: # limitations under the License.
+15: """PyTorch MPT model."""
+16: 
+17: import math
+18: from typing import Optional, Tuple, Union
+19: 
+20: import torch
+21: import torch.utils.checkpoint
+22: from torch import nn
+23: from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, LayerNorm, MSELoss
+24: from torch.nn import functional as F
+25: 
+26: from transformers.file_utils import add_code_sample_docstrings, add_start_docstrings, \
+27:     add_start_docstrings_to_model_forward
+28: from transformers.modeling_outputs import (
+29:     BaseModelOutputWithPastAndCrossAttentions,
+30:     CausalLMOutputWithCrossAttentions,
+31:     QuestionAnsweringModelOutput,
+32:     SequenceClassifierOutputWithPast,
+33:     TokenClassifierOutput,
+34: )
+35: from transformers.modeling_utils import PreTrainedModel
+36: from transformers.utils import logging
+37: from transformers.models.mpt.configuration_mpt import MptConfig
+38: 
+39: logger = logging.get_logger(__name__)
+40: 
+41: _CHECKPOINT_FOR_DOC = "mosaicml/mpt-7b"
+42: _CONFIG_FOR_DOC = "MptConfig"
+43: 
+44: MPT_PRETRAINED_MODEL_ARCHIVE_LIST = [
+45:     "mosaicml/mpt-7b",
+46:     "mosaicml/mpt-7b-storywriter",
+47:     "mosaicml/mpt-7b-instruct",
+48:     "mosaicml/mpt-7b-8k",
+49:     "mosaicml/mpt-7b-8k-instruct",
+50:     "mosaicml/mpt-7b-8k-chat",
+51:     "mosaicml/mpt-30b",
+52:     "mosaicml/mpt-30b-instruct",
+53:     "mosaicml/mpt-30b-chat"
+54:     # See all MPT models at https://huggingface.co/models?filter=mpt
+55: ]
+56: 
+57: 
+58: # Copied from transformers.models.bloom.modeling_bloom._make_causal_mask
+59: def _make_causal_mask(
+60:         input_ids_shape: torch.Size, device: torch.device, past_key_values_length: int
+61: ) -> torch.BoolTensor:
+62:     """
+63:     Make causal mask used for self-attention.
+64:     """
+65:     batch_size, target_length = input_ids_shape
+66:     mask = torch.empty((target_length, target_length + past_key_values_length), dtype=torch.bool, device=device)
+67:     # ONNX doesn't support `torch.Tensor.triu` properly, thus we use this workaround
+68:     seq_ids = torch.arange(target_length, device=device)
+69:     mask[:, past_key_values_length:] = seq_ids[:, None] < seq_ids[None, :]
+70: 
+71:     if past_key_values_length > 0:
+72:         mask[:, :past_key_values_length] = False
+73: 
+74:     expanded_mask = mask[None, None, :, :].expand(batch_size, 1, target_length, target_length + past_key_values_length)
+75:     return expanded_mask
+76: 
+77: 
+78: # Copied from transformers.models.bloom.modeling_bloom._expand_mask
+79: def _expand_mask(mask: torch.Tensor, tgt_length: int) -> torch.BoolTensor:
+80:     """
+81:     Expands attention_mask from `[batch_size, src_length]` to `[batch_size, 1, tgt_length, src_length]`.
+82:     """
+83:     batch_size, src_length = mask.shape
+84:     tgt_length = tgt_length if tgt_length is not None else src_length
+85: 
+86:     expanded_mask = ~(mask[:, None, None, :].to(torch.bool))
+87:     return expanded_mask.expand(batch_size, 1, tgt_length, src_length)
+88: 
+89: 
+90: def build_mpt_alibi_tensor(num_heads, sequence_length, alibi_bias_max=8, device=None):
+91:     r"""
+92:     Link to paper: https://arxiv.org/abs/2108.12409 - Alibi tensor is not causal as the original paper mentions, it
+93:     relies on a translation invariance of softmax for quick implementation. This implementation has been copied from
+94:     the alibi implementation of MPT source code that led to slightly different results than the Bloom alibi:
+95:     https://huggingface.co/mosaicml/mpt-7b/blob/main/attention.py#L292
+96:     """
+97:     alibi = torch.arange(1 - sequence_length, 1, dtype=torch.int32, device=device).view(1, 1, 1, sequence_length)
+98:     num_heads_power_of_2 = 2 ** math.ceil(math.log2(num_heads))
+99: 
+100:     base = torch.arange(1, num_heads_power_of_2 + 1, dtype=torch.float32, device=device)
+
+FILE promptcache/prompt.py | original lines 1–100
+1: from __future__ import annotations
+2: 
+3: import re
+4: from abc import ABC, abstractmethod
+5: from typing import Union, List, Any, Optional
+6: from dataclasses import dataclass
+7: 
+8: import lxml
+9: import lxml.etree
+10: 
+11: import xml.sax.saxutils
+12: 
+13: 
+14: def repr_indent(obj: Any, indent: int = 1) -> str:
+15:     return '\n'.join([indent * '\t' + s for s in repr(obj).split('\n')])
+16: 
+17: 
+18: def read_file(filename: str, preprocessors: List[Preprocessor] = None) -> str:
+19:     with open(filename, 'r') as f:
+20: 
+21:         text = f.read()
+22: 
+23:         if preprocessors is not None:
+24:             for p in preprocessors:
+25:                 text = p(text)
+26: 
+27:         return text
+28: 
+29: 
+30: def apply_preproc(text: str, preprocessors: List[Preprocessor] = None) -> str:
+31:     if preprocessors is not None:
+32:         for p in preprocessors:
+33:             text = p(text)
+34: 
+35:     return text
+36: 
+37: 
+38: def escape_xml(data):
+39:     return xml.sax.saxutils.escape(data, entities={
+40:         "'": "&apos;",
+41:         "\"": "&quot;"
+42:     })
+43: 
+44: 
+45: # Replaces multiple leading and trailing whitespaces with a single space.
+46: def compact_surrounding_spaces(text: str) -> str:
+47:     return re.sub(r'^\s+|\s+$', ' ', text)
+48: 
+49: 
+50: def compact_spaces(text: str) -> str:
+51:     return ' '.join(text.split())
+52: 
+53: 
+54: class Preprocessor(ABC):
+55:     """This class is used to preprocess the prompt before it is passed to the model."""
+56: 
+57:     def __init__(self):
+58:         pass
+59: 
+60:     @abstractmethod
+61:     def __call__(self, prompt: str) -> str:
+62:         raise NotImplementedError
+63: 
+64: 
+65: class PreprocessorList(Preprocessor):
+66:     """This class is used to preprocess the prompt before it is passed to the model."""
+67:     pre: List[Preprocessor]
+68: 
+69:     def __init__(self, pre: List[Preprocessor]):
+70:         self.pre = pre
+71: 
+72:         super().__init__()
+73: 
+74:     def __call__(self, prompt: str) -> str:
+75:         for p in self.pre:
+76:             prompt = p(prompt)
+77:         return prompt
+78: 
+79: 
+80: class CompactSpaces(Preprocessor):
+81:     """This class is used to remove all leading and trailing whitespaces."""
+82:     only_surrounding: bool
+83: 
+84:     def __init__(self, only_surrounding: bool = False):
+85:         super().__init__()
+86:         self.only_surrounding = only_surrounding
+87: 
+88:     def __call__(self, prompt: str) -> str:
+89: 
+90:         if self.only_surrounding:
+91:             return compact_surrounding_spaces(prompt)
+92:         else:
+93:             return compact_spaces(prompt)
+94: 
+95: 
+96: class ModuleRef:
+97:     """This class is used to represent a module reference in the prompt."""
+98:     name: str
+99:     args: List[Argument]
+100:     modules: List[ModuleRef]
+
+FILE promptcache/schema.py | original lines 1–100
+1: # Type hoisting
+2: from __future__ import annotations
+3: 
+4: import os
+5: import pathlib
+6: from abc import ABC, abstractmethod
+7: import re
+8: 
+9: import lxml
+10: import lxml.etree
+11: 
+12: from typing import List, Union, cast, Any, Optional
+13: 
+14: from .model import LanguageModel
+15: from .prompt import compact_surrounding_spaces
+16: 
+17: 
+18: def trim_with_padding(text: str, padding: int = 1) -> str:
+19:     pad_str = ' ' * padding
+20:     return pad_str + text.strip() + pad_str
+21: 
+22: 
+23: def is_valid_xml_element_name(name: str) -> bool:
+24:     pattern = r"^[a-zA-Z_][a-zA-Z0-9_\-.]*$"
+25:     return bool(re.fullmatch(pattern, name))
+26: 
+27: 
+28: def repr_indent(obj: Any, indent: int = 1) -> str:
+29:     return '\n'.join([indent * '\t' + s for s in repr(obj).split('\n')])
+30: 
+31: 
+32: class Path:
+33:     path: List[str]
+34: 
+35:     def __init__(self, path: Optional[Union[str, List[str]]] = None):
+36: 
+37:         if path is None:
+38:             path = []
+39: 
+40:         if type(path) == str:
+41:             if '/' in path:
+42:                 path = [s.strip() for s in path.split('/')]
+43:             elif len(path) > 0:
+44:                 path = [path]
+45:             else:
+46:                 path = []
+47: 
+48:         self.path = path
+49: 
+50:     def __len__(self):
+51:         return len(self.path)
+52: 
+53:     def __str__(self):
+54:         return '/'.join(self.path)
+55: 
+56:     def __repr__(self):
+57:         return str(self)
+58: 
+59:     @property
+60:     def is_root(self) -> bool:
+61:         return len(self.path) == 0
+62: 
+63:     @property
+64:     def head(self) -> Optional[str]:
+65:         return None if self.is_empty else self.path[0]
+66: 
+67:     @property
+68:     def is_empty(self) -> bool:
+69:         return len(self.path) == 0
+70: 
+71:     @property
+72:     def next(self) -> Path:
+73:         return Path(self.path[1:])
+74: 
+75: 
+76: class Element(ABC):
+77:     name: Union[None, str]
+78:     offset: int
+79: 
+80:     def __init__(self, offset: int, name: Optional[str] = None):
+81:         self.name = name
+82:         self.offset = offset
+83: 
+84:     @abstractmethod
+85:     def __len__(self) -> int:
+86:         raise NotImplementedError
+87: 
+88:     def __repr__(self):
+89:         return f"[{self.offset}:{self.offset + len(self)}]"
+90: 
+91:     @abstractmethod
+92:     def token_ids(self) -> List[int]:
+93:         raise NotImplementedError
+94: 
+95:     @abstractmethod
+96:     def position_ids(self) -> List[int]:
+97:         raise NotImplementedError
+98: 
+99: 
+100: class Parameter(Element):
+
+FILE score.py | original lines 1–60
+1: import fire
+2: import json
+3: 
+4: from metrics import (
+5:     qa_f1_score,
+6:     rouge_zh_score,
+7:     qa_f1_zh_score,
+8:     rouge_score,
+9:     classification_score,
+10:     retrieval_score,
+11:     retrieval_zh_score,
+12:     count_score,
+13:     code_sim_score
+14: )
+15: 
+16: dataset2metric = {
+17:     "narrativeqa": qa_f1_score,
+18:     "qasper": qa_f1_score,
+19:     "multifieldqa_en": qa_f1_score,
+20:     "multifieldqa_zh": qa_f1_zh_score,
+21:     "hotpotqa": qa_f1_score,
+22:     "2wikimqa": qa_f1_score,
+23:     "musique": qa_f1_score,
+24:     "dureader": rouge_zh_score,
+25:     "gov_report": rouge_score,
+26:     "qmsum": rouge_score,
+27:     "multi_news": rouge_score,
+28:     "vcsum": rouge_zh_score,
+29:     "trec": classification_score,
+30:     "triviaqa": qa_f1_score,
+31:     "samsum": rouge_score,
+32:     "lsht": classification_score,
+33:     "passage_retrieval_en": retrieval_score,
+34:     "passage_count": count_score,
+35:     "passage_retrieval_zh": retrieval_zh_score,
+36:     "lcc": code_sim_score,
+37:     "repobench-p": code_sim_score,
+38: }
+39: 
+40: 
+41: def main(result_file):
+42:     dataset_name = result_file.split('/')[-3].split('-')[1]
+43:     with open(result_file, 'r') as f:
+44:         # load line by line
+45:         results = [json.loads(line) for line in f]
+46:         total_score = 0.
+47:         for result in results:
+48:             response = result["response"]
+49:             answers = result["answers"]
+50: 
+51:             score = 0.
+52:             for answer in answers:
+53:                 score = max(score, dataset2metric[dataset_name](response, answer))
+54: 
+55:             total_score += score
+56:         print(total_score / len(results) * 100)
+57: 
+58: 
+59: if __name__ == '__main__':
+60:     fire.Fire(main)
+
+FILE scripts/run_benchmarks.py | original lines 1–95
+1: import subprocess
+2: import logging
+3: import json
+4: import os
+5: import sys
+6: import datetime
+7: from concurrent.futures import ThreadPoolExecutor
+8: import threading
+9: import queue
+10: 
+11: 
+12: def detect_nvidia_gpus():
+13:     try:
+14:         result = subprocess.run(['nvidia-smi', '--query-gpu=name', '--format=csv,noheader'], capture_output=True, text=True)
+15:         num_gpus = len(result.stdout.strip().split('\n'))
+16:         return num_gpus
+17:     except Exception as e:
+18:         logging.error(f"An error occurred: {e}")
+19:         return 0
+20: 
+21: def read_args_from_json(json_path):
+22:     with open(json_path, 'r') as f:
+23:         return json.load(f)
+24: 
+25: def construct_python_commands(default_args, benchmarks, llm_list):
+26:     commands = []
+27:     for llm in llm_list:
+28:         _llm_name = llm["llm"]
+29:         llm_config = llm["config_name"]
+30:         for benchmark in benchmarks:
+31:             for enable_cache in [True, False]:
+32:                 split = benchmark.get("split", 1)
+33:                 for index in range(split):
+34:                     command = "python3 eval.py"
+35:                     merged_args = {**default_args, **benchmark, "llm_config_path": llm_config}
+36:                     for key, value in merged_args.items():
+37:                         if key == "enable_cache":
+38:                             continue
+39:                         elif key == "split":
+40:                             command += f" --split {index},{split}"
+41:                         else:
+42:                             command += f" --{key} {value}"
+43:                     command += f" --enable_cache {enable_cache}"
+44:                     command += f" --test_latency False"
+45:                     commands.append(command)
+46:     return commands
+47:     
+48: global python_commands_list
+49: def gpu_worker(gpu_id, command_lock):
+50:     while True:
+51:         with command_lock:
+52:             global next_command_index
+53:             if next_command_index >= len(python_commands_list):
+54:                 return  # All commands are executed, so exit the thread
+55:             command = python_commands_list[next_command_index]
+56:             next_command_index += 1
+57:         
+58:         env_command = f"CUDA_VISIBLE_DEVICES={gpu_id} " + command
+59:         try:
+60:             subprocess.run("cd .. && " + env_command, shell=True, check=True)
+61:             logging.info(f"Worker using GPU {gpu_id}: Command {command} completed successfully.")
+62:         except subprocess.CalledProcessError as e:
+63:             logging.error(f"Worker using GPU {gpu_id}: Command {command} failed: {e}")
+64: 
+65: 
+66: def main():
+67:     # logging.basicConfig(level=logging.INFO)
+68:     logging.basicConfig(filename=f'benchmark_results_{datetime.date.today().strftime("%Y%m%d_%H%M%S")}.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+69:     num_gpus = detect_nvidia_gpus()
+70:     logging.info(f"Detected {num_gpus} Nvidia GPUs.")
+71:     
+72:     # Read arguments from JSON file
+73:     args_dict = read_args_from_json("benchmark_setup.json")
+74:     
+75:     global python_commands_list
+76:     # Construct the Python commands
+77:     python_commands_list = construct_python_commands(args_dict["default"], args_dict["benchmarks"], args_dict["llm_list"])
+78:     logging.info(f"Constructed {len(python_commands_list)} benchmarks.")
+79: 
+80:     global next_command_index
+81:     next_command_index = 0
+82:     command_lock = threading.Lock()
+83:     # Start a thread for each GPU
+84:     threads = []
+85:     for gpu_id in range(num_gpus):
+86:         t = threading.Thread(target=gpu_worker, args=(gpu_id, command_lock))
+87:         t.start()
+88:         threads.append(t)
+89:     
+90:     # Wait for all threads to finish
+91:     for t in threads:
+92:         t.join()
+93: 
+94: if __name__ == "__main__":
+95:     main()
+
+FILE tests/test.py | original lines 1–29
+1: import torch
+2: import math
+3: 
+4: def build_mpt_alibi_tensor(num_heads, sequence_length, alibi_bias_max=8, device='cpu'):
+5:     r"""
+6:     Link to paper: https://arxiv.org/abs/2108.12409 - Alibi tensor is not causal as the original paper mentions, it
+7:     relies on a translation invariance of softmax for quick implementation. This implementation has been copied from
+8:     the alibi implementation of MPT source code that led to slightly different results than the Bloom alibi:
+9:     https://huggingface.co/mosaicml/mpt-7b/blob/main/attention.py#L292
+10:     """
+11:     alibi = torch.arange(1 - sequence_length, 1, dtype=torch.int32, device=device).view(1, 1, 1, sequence_length)
+12:     num_heads_power_of_2 = 2 ** math.ceil(math.log2(num_heads))
+13: 
+14:     base = torch.arange(1, num_heads_power_of_2 + 1, dtype=torch.float32, device=device)
+15:     base = base * (alibi_bias_max / num_heads_power_of_2)
+16: 
+17:     slopes = 1.0 / torch.pow(2, base)
+18:     slopes = slopes.view(1, num_heads, 1, 1)
+19: 
+20:     if num_heads_power_of_2 != num_heads:
+21:         slopes = torch.concat([slopes[1::2], slopes[::2]])[:num_heads]
+22: 
+23:     alibi = alibi * slopes
+24:     return alibi.squeeze(0)
+25: 
+26: 
+27: table = build_mpt_alibi_tensor(16, 20)
+28: print(table.shape)
+29: print(table)
+
+FILE tests/test_document_summary.py | original lines 1–34
+1: # Add the parent directory to the sys.path list
+2: import os, sys
+3: document_summary_path = os.path.abspath(os.path.dirname(__file__))
+4: sys.path.append(os.path.abspath(os.path.join(document_summary_path, '..')))
+5: 
+6: import unittest
+7: from benchmark.multi_news import MultiNews
+8: 
+9: ## The following code is for testing the MultiNews class
+10: class TestMultiNews(unittest.TestCase):
+11:     def setUp(self):
+12:         self.document_summary = MultiNews()
+13:         self.document_summary.init(verbose=False)
+14: 
+15:     def test_get_next_query(self):
+16:         query_id, query, modules = self.document_summary.get_next_query()
+17:         self.assertIsInstance(query_id, int)
+18:         self.assertGreaterEqual(query_id, 0)
+19:         self.assertIsInstance(query, str)
+20:         self.assertEqual(query, "")    # query is empty string for summary benchmark
+21:         self.assertIsInstance(modules, list)
+22:         self.assertGreaterEqual(len(modules), 1)
+23:         for module in modules:
+24:             self.assertIsInstance(module, str)
+25: 
+26:     def test_evaluate(self):
+27:         query_id, query, modules = self.document_summary.get_next_query()
+28:         response = self.document_summary.evaluate(query_id, "response")
+29:         self.assertIsInstance(response, float)
+30:         self.assertGreaterEqual(response, 0.)
+31:         self.assertLessEqual(response, 1.)
+32: 
+33: if __name__ == '__main__':
+34:     unittest.main()
