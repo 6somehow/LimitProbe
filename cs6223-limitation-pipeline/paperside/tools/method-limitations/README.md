@@ -2,6 +2,8 @@
 
 The study uses original research papers and fixed author repositories to propose testable method limitations. Model generation has read-only evidence tools. The human reference enters the separate evaluator after final reports are frozen.
 
+**Current experiment.** The [targeted review pilot](#compare-self-review-with-delegated-evidence-checks) compares self-review and delegation from the same frozen draft. Use it to develop and validate the new role prompts. The A–D study below remains the comparison for selecting a method for Test.
+
 | Condition | Workflow |
 |---|---|
 | A | One DeepSeek API request with the fixed evidence packet |
@@ -10,6 +12,8 @@ The study uses original research papers and fixed author repositories to propose
 | D | Two independent procedure investigations, a targeted cross-check, and a traceable final report |
 
 The four Dev papers are NNSmith, MInference, InfiniGen, and SparTA. The paired Test cases with code are Prompt Cache, SpinQuant, KVQuant, and DX100. The four additional paper-only Test cases have a separate archive and comparison. Earlier pilots used these papers. The Test set is held out from iteration on the current protocol.
+
+In the completed four-paper A–D Dev comparison, A, C, and D scored zero core and zero partial matches. B scored one partial match on MInference. No method qualified for Test. The targeted review prompts are a separate Dev experiment.
 
 ## Setup and run
 
@@ -55,7 +59,8 @@ For D, each completed cell in `mapping.json` records how many candidate items a 
 The Dev-only targeted review pilot runs one lead session per paper. The lead follows method rules into their consumers and identifies one unanswered evidence question. Its exact report is shared by both arms. In self-review, the root investigates and writes the final. In delegated review, a separate Pi session investigates and sends its memo to the root. The original inputs, model, evidence question and maximum review and final reply counts match. Self-review retains its own tool history. The delegated root gets the exact memo and can reopen original evidence.
 
 ```sh
-.venv/bin/python tools/method-limitations/targeted_review.py prepare runs/targeted-dev --swarm-source /path/to/AgentSwarm-Serve
+.venv/bin/python tools/method-limitations/targeted_review.py prepare runs/targeted-dev \
+  --previous-runs runs/study-originals --swarm-source /path/to/sglang-swarm
 .venv/bin/python tools/method-limitations/targeted_review.py run runs/targeted-dev
 .venv/bin/python tools/method-limitations/swarm_evaluation.py packet runs/targeted-dev /path/to/review-packet /path/to/reference.json --split dev
 .venv/bin/python tools/method-limitations/swarm_evaluation.py summarize /path/to/review-packet /path/to/grades /path/to/targeted-dev-metrics.json
@@ -63,4 +68,21 @@ The Dev-only targeted review pilot runs one lead session per paper. The lead fol
 
 Compare the frozen drafts with the two finals to measure the effect of checking original evidence. Compare the two finals directly to measure the effect of delegation. `pair-audit.json` verifies that each final request received the exact frozen draft and review memo. Semantic scores, source citations and test-ready comparisons are evaluated separately. This pilot can inform a new D configuration for the A/B/C/D comparison.
 
-The default `method-path` prompt policy gives the lead, evidence investigator and final writer distinct responsibilities. The lead prioritizes the ordinary evaluated path and contrasts two in-scope cases at fixed configuration and resources. The reviewer follows the first divergence into its consumer and checks existing mitigation. The final writer reserves method candidates for that causal chain and records artifact-only differences as boundaries. Use `--prompt-policy original` at preparation to reproduce the prior wording. Prompt files are frozen and hashed along with the inputs. Use `run --draft-only` to evaluate the new lead prompts first, then use `run` to reuse those frozen drafts for the two review arms.
+The default `method-path` prompt policy gives each role a concrete deliverable.
+
+| Role | Deliverable |
+|---|---|
+| Lead | A frozen draft anchored in the evaluated call path. It contrasts two in-scope cases at fixed configuration and resources and identifies one evidence gap to check. |
+| Evidence investigator | A memo tracing the first behavioral divergence to its consumer and checking the mitigation, with original citations and a way to refute the claim. |
+| Final writer | A ranked report with a causal explanation and a measurable comparison. Artifact differences and scope caveats go under `known_boundaries`. |
+
+The runner freezes and hashes the three prompt files. Use `--prompt-policy original` at preparation to run the previous wording in a new directory. Use `run --draft-only` for a lead-prompt comparison. A later `run` reuses those drafts for the two review arms.
+
+| Output in the run directory | What to check |
+|---|---|
+| `protocol.json` and `input-index.json` | Model, limits, input revisions, and exact prompt hashes |
+| `<paper>/frozen_draft/final.txt` | Lead candidates and the chosen evidence question |
+| `<paper>/{self_review,delegated_review}/final.txt` | Reports to score against the reference |
+| `pair-audit.json` | Draft hashes and confirmation of memo delivery in each final request |
+
+Commit source, tests, and documentation to the paper-side branch. The SoCLaaS credential file, reference annotations, PDF and repository snapshots, and raw API archives stay outside Git.

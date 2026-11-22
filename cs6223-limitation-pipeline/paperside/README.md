@@ -4,6 +4,18 @@
 
 交接时先看本页；后续 agent 看 [`CLAUDE.md`](CLAUDE.md)；安装、复跑和接口细节看 [`HANDOFF.md`](HANDOFF.md)。
 
+## 方法限制实验
+
+这条研究线从论文的方法和固定版本的作者源码出发，找出在什么条件下算法的假设失效，以及可以用什么对照来检验。模型使用 SoCLaaS DeepSeek V4.1 Flash（max）。Shanghao 的参考答案只用于终稿评分。
+
+目前开发的是**定向补证**。主 agent 沿论文评估使用的正常源码路径提出一个待查问题，冻结草稿后，两组各自查同一个问题。一组由主 agent 自查，另一组由独立 Pi agent 补证。终稿用论文和源码证据给出触发条件、下游影响及可反驳的测试设计。
+
+- **开发集**包括 NNSmith、MInference、InfiniGen 和 SparTA。
+- **评估集**中有源码的四篇是 Prompt Cache、SpinQuant、KVQuant、DX100。另有四篇仅论文的案例，单独统计。
+- **当前结果**是 A–D 的四篇开发集对照中，单 Pi agent 在 MInference 上部分命中。两种 Swarm 方案都未超过基线。新角色提示词仍在开发集验证，尚未选定用于评估集的方法。
+
+[实验 README](tools/method-limitations/README.md) 有三种角色的职责、复跑命令、终稿评分和产物说明。下面的交接包用于论文声明与源码核验。
+
 ## 先拿什么
 
 当前 FlexPrefill、NNSmith 在 `handoffs/paper-side-v2/<paper>/`；其余和历史结果在 `handoffs/paper-side-v1/<paper>/`。接手只需先看三个文件：
