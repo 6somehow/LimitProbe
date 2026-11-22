@@ -96,6 +96,7 @@
 | `limitation_ids` / `limitations` | 背后的完整 Limitation 记录（两侧都可能有） | 看原始条件、论文原文和代码位置 |
 | `verification_ids` / `verifications` | 代码侧的 3b 结果：在哪里找到了说明、原文 | 判断“文档到底怎么写的” |
 | `confidence` | 目前全部是 llm_assisted | — |
+| `process_confidence` | 代码侧的静态证据：8 项检查的状态、重复测量、预测的测试档位上限、重要性数字（没有自己的档位），见第 6 节；纯论文侧的 Finding 为 null | 作为你定档的输入；不是测试结论 |
 
 注意：论文侧原始记录的 `effect_text` 有一部分写的是“同上……”，指的是 3a 同一条记录的 local_entry 描述。Finding 的 `summary` 已经展开，`limitations` 里保留原样。
 
@@ -146,7 +147,58 @@
 | resource / performance | 内存 / 时间 | resource：测量，对比 contrast |
 | other（论文侧几乎全是） | 实现和论文描述不同，没有确定的运行时后果 | witness 为 always 时：走到引用代码的任一输入，和论文公式 / 描述做 differential 或 metamorphic 对比；3a 只做了静态判断，后果未证实 |
 
-## 6. 典型例子
+## 6. 代码侧的静态证据（未校准，没有自己的档位）
+
+每条有代码侧记录的 Finding 带一个 `process_confidence` 块（格式 `process-confidence-v2`，规则见 `docs/11_process_confidence.md`）。它是对你的档位的补充：**代码侧不定档，档位只由你的测试证据决定**。不执行代码、不调模型，同样的输入得到同样的结果。块里有四部分。
+
+**1. `checks`：核对表。** 词汇和你的 defeater 表一样：`eliminated`（工具核对过）、`residual`（只有论证或模型判断）、`open`（没评估）、`refuted`（核对失败）。
+
+| 检查 | 对应的测试概念 | 对应你的 | `eliminated` 的条件 |
+|---|---|---|---|
+| C1 location | 输入有效性 | D12 | 固定 commit 下该行的语句就是记录的 snippet |
+| C2 condition | 语句的判定（decision） | D2 | 条件就是该语句的判定表达式或它的取反 |
+| C3 reachability | 可达性（RIPR 的 R） | D1、D14 | 从官方入口到目标有静态调用链，且没有靠猜的步骤 |
+| C4 feasibility | 不可行路径 | witness | z3 在完整路径前缀下找到触发点和对照点 |
+| C5 extraction | 分析的可重复性 | D8 | 静态路线找到，或 LLM 路线在全部抽取运行里都找到（同一文件同一行） |
+| C6 effect_label | oracle 与语句相符 | D4、效果类型 | 标注的效果能在该语句上判定（reject 要能抛异常，path_change 要是 if / while） |
+| C7 documentation | 缺失性断言，只作说明 | — | 3b 找到了原文；not_found 无法证明，为 residual；3 次重复不一致也为 residual |
+| C8 review | 审查（inspection） | — | 人工审过；LLM 盲审为 residual，没审为 open |
+
+**2. `repeats`：重复测量。** `extraction_runs`：这个位置在几次抽取运行里出现（`found_in` / `of`）；`documentation_check`：3b 重复几次、结果的一致率；`routes`：哪条路线找到的（`ast` 静态、`llm`）。
+
+**3. `testability`：预测你这边能测到哪一档。** 按你的规则推出来的上限，不是预报，实际可以更低。
+
+| 字段 | 含义 |
+|---|---|
+| `testable: false` + `expect_not_run` | C4 为 refuted 预计 `witness_unusable`；效果是 `other` 预计 `outcome_unsupported` |
+| `mutants` / `mutants_needed` | 用你的 `mutate.generate` 在目标行能造出几个变异体；少于 `n_min`（4）时 D3 消不掉 |
+| `ceiling` | `L1`：变异体不够；`L2`：没有调用链，D14 最多 residual；`L3`：静态上没有限制 |
+| `limited_by` | 卡在哪个 defeater，原因是什么 |
+| `condition_has_calls`、`integer_boundary` | 条件里有没有函数调用（影响 D2 能否直接求值）；边界变量是否都是整数（影响 D5 的邻点） |
+
+和已有测试报告对照（7 篇里测过的 130 条）：**没有一条的实际档位超过预测上限**，98 条正好等于上限；预计 `outcome_unsupported` 的 48 条、`witness_unusable` 的 12 条全部对上。这是在同一批数据上看的，不是独立验证。
+
+**4. `importance`：重要性，和把握分开。**
+
+- `path.decision_on`：`main` 每次调用都会求值这个判定；`side` 判定在某个 `if` / `except` / `case` 里面（自己函数里的见 `enclosing_conditions`，调用链上的见 `conditional_call_sites`）；`unknown` 没有调用链，看不到调用者。
+- `impact`：判定管住多少语句（分支体，或 assert / raise 之后函数里剩下的语句）、函数共多少语句、从入口来的调用链条数、仓库里解析到这个函数的调用点数。
+- `coverage`：目标函数里有多少个判定（if / while / assert）、代码侧列出了几个、入口能否静态到达这个函数。这是**分析的覆盖**，不是执行覆盖；执行覆盖在你的 `execution_report.json` 里。
+
+**建议的用法**：测之前按 `ceiling` 分配预算（`测不了` 的不测，`L1` 的少花时间）；测之后把 `limited_by` 放在档位旁边，说明是这句本身测不到更高还是测得不够；没测的 Finding 把 `checks` 和 `repeats` 作为确定性的证据并排列出；`importance` 只用于排序，不进档位。
+
+预测的测试档位上限：
+
+| 论文 | 测不了 | L1 | L2 | L3 | 没测量 | 合计 |
+|---|---|---|---|---|---|---|
+| sparta | 1 | 1 | 1 | 0 | 0 | 3 |
+
+判定在主路径还是侧路径：
+
+| 论文 | main | side | unknown | 合计 |
+|---|---|---|---|---|
+| sparta | 0 | 1 | 2 | 3 |
+
+## 7. 典型例子
 
 每个例子是一条 Finding 的精简版，长字段已截断；完整内容在 json 里。例子是按规则自动挑的第一条，不是挑好看的。“论文侧 · LLM 写出条件”那条正好说明了它的局限：条件在形式上能解，但不一定抓住了论文差异的本质，所以论文侧条件只当提示用。
 
@@ -286,7 +338,28 @@
    "quote": "TODO: support more than one block size"
   }
  ],
- "rationale": "3b: found in code_comment, docstring; merged (LLM: same issue): sparta-gap-M08-A03, sparta-gap-M09-A12, sparta-gap-M11-B01, sparta-gap-M11-B09, sparta-gap-M11-A01, sparta-gap-M12-B05-R01, sparta-gap-M12-A01; paper side also reports: impl_deviates, not_implemented; priority 2: impl_deviates; related…"
+ "rationale": "3b: found in code_comment, docstring; merged (LLM: same issue): sparta-gap-M08-A03, sparta-gap-M09-A12, sparta-gap-M11-B01, sparta-gap-M11-B09, sparta-gap-M11-A01, sparta-gap-M12-B05-R01, sparta-gap-M12-A01; paper side also reports: impl_deviates, not_implemented; priority 2: impl_deviates; related…",
+ "process_confidence": {
+  "checks": {
+   "C1": "eliminated",
+   "C2": "eliminated",
+   "C3": "open",
+   "C4": "residual",
+   "C5": "residual",
+   "C6": "eliminated",
+   "C7": "eliminated",
+   "C8": "residual"
+  },
+  "found_in_runs": 2,
+  "ceiling": "L1",
+  "limited_by": [
+   "D3: 1 mutant(s) of the target line, fewer than n_min=4; it cannot be eliminated",
+   "D14: no call chain from an official entry; a test has to call a deeper function, at most residual"
+  ],
+  "decision_on": "unknown",
+  "guarded_statements": 2,
+  "note": "... evidence per check and the full numbers are in the json"
+ }
 }
 ```
 
@@ -468,93 +541,93 @@
 }
 ```
 
-## 7. 全部 Finding 索引
+## 8. 全部 Finding 索引
 
-每篇按 priority 排序。列的含义：侧 = 代/论/合（代码侧 / 论文侧 / 两侧合并）；审 = 审阅状态（✓ worth_testing，~ real_but_minor，✗ wrong，空 = 未审）。
+每篇按 priority 排序。列的含义：侧 = 代/论/合（代码侧 / 论文侧 / 两侧合并）；审 = 审阅状态（✓ worth_testing，~ real_but_minor，✗ wrong，空 = 未审）；过程 = 过程置信度档位和判定所在路径（第 6 节；论文侧为空）。
 
 ### sparta（82 条）
 
-| ID | 侧 | 类别 | P | effect | witness | 审 | 位置 | 内容 |
-|---|---|---|---|---|---|---|---|---|
-| F001 | 代 | undisclosed | 2 | path_change | solved | ✓ | `sparta/transformation/weighted_block_cover.py:77` | When cover_sizes[(1, 1)] < ordered_pricing[0][0]: The choice of covering algorithm is driven by the… |
-| F002 | 合 | docs_only | 2 | reject | solved | ✓ | `sparta/transformation/weighted_block_cover.py:123` | When len(unique_block_sizes) != 1: wbc_matmul only supports a single block size for the weight tesa… |
-| F003 | 论 | impl_deviates | 2 | other | always |  | `` | 论文要求 S 初始为全部节点；代码初始队列只含源/汇节点，其余节点由度数递减触发入队 |
-| F004 | 论 | impl_deviates | 2 | other | no_condition |  | `` | 论文要求把全部邻居（除 N）插入 S；代码只在度数归零时入队，非全部邻居 |
-| F005 | 论 | impl_deviates | 2 | other | always |  | `` | 论文要求直到无 TeSA 需更新；代码固定两遍、每节点一次，不检测掩码是否仍变化 |
-| F006 | 论 | impl_deviates | 2 | other | always |  | `` | 论文要求随算子类型 AND 属性类型变化；代码仅覆盖剪枝一种属性种类（量化比特未实现，见 M02-B07-R02），属性维度分派缺失 |
-| F007 | 论 | impl_deviates | 2 | other | always |  | `` | 论文要求重复运行多次（经验 256 个随机张量）；代码单次前向，以批内方差近似重复采样，重复次数由 confidence/batch 维决定而非 256 次独立运行 |
-| F008 | 论 | impl_deviates | 2 | other | always |  | `` | 论文返回 Iupdated∪Oupdated 的输入与输出 TeSA 更新集；代码只返回每层 weight_mask，缺输入/输出更新集 |
-| F009 | 论 | impl_deviates | 2 | other | always |  | `` | artifact 路径无通用纳入机制。 |
-| F010 | 论 | impl_deviates | 2 | other | always |  | `script/figure14/search_finetune_fit_qat.py:169-178` | 论文要求用真实数据集推理得到的算子输入输出张量；逐模块传播路径用随机张量代替真实激活 |
-| F011 | 论 | impl_deviates | 2 | other | always |  | `script/figure14/search_finetune_fit_qat.py:301-335` | 论文要求对算子所有张量（输入/权重/输出）逐一评估；代码只对 weight 张量做位宽搜索，input/output 未评估 |
-| F012 | 论 | impl_deviates | 2 | other | no_condition |  | `script/figure14/search_finetune_fit_qat.py:496-538` | 论文要求精度下降小于预定义阈值（1%）才接受；代码用 best_acc<original_acc 即任何下降都拒绝，无 1% 阈值 |
-| F013 | 论 | impl_deviates | 2 | other | always |  | `script/figure14/search_finetune_fit_qat.py:496-538` | 论文要求拓扑序并缓存激活；代码按模块注册顺序遍历且无激活缓存 |
-| F014 | 论 | impl_deviates | 2 | other | solved |  | `script/figure14/search_finetune_fit_qat.py:571-664` | 论文要求同时更新 S 与 Supdated；代码只更新全局位设置，无 Supdated 累积 |
-| F015 | 论 | impl_deviates | 2 | other | always |  | `script/figure14/search_finetune_fit_qat.py:571-664` | 论文以 Tupdated==T 跳过；代码以精度下降 break，语义不同 |
-| F016 | 论 | impl_deviates | 2 | other | always |  | `script/figure16/a100/sparta.cu:118-140` | 论文报告第二 sub-Matmul 的具体残余稀疏度；实验路径无该测量/输出，且底层分派规则与数值趋势不符。 |
-| F017 | 论 | impl_deviates | 2 | other | no_condition |  | `script/figure16/a100/sparta.cu:266-311` | 实验路径的第二部分内核依赖为 Sputnik，而非 SparTA 专用稀疏内核。 |
-| F018 | 论 | impl_deviates | 2 | other | always |  | `script/figure19/run.sh:1-7` | artifact 脚本无反馈驱动的稀疏属性更新步骤。 |
-| F019 | 论 | impl_deviates | 2 | other | always |  | `script/figure19/run.sh:1-7` | artifact 无编译-测量迭代回路。 |
-| F020 | 论 | impl_deviates | 2 | other | always |  | `script/figure19/run.sh:1-7` | 加速来自 NNI ModelSpeedup 而非 SparTA 稀疏 kernel。 |
-| F021 | 论 | impl_deviates | 2 | other | always |  | `script/figure19/run.sh:1-7` | artifact 无目标稀疏度终止条件。 |
-| F022 | 论 | impl_deviates | 2 | other | always |  | `script/init_checkpoints.sh:1-34` | 论文要求传播为 Rammer 内专用编译 pass；实验路径在编译前以 Python 脚本离线传播，编译器 pass 列表无传播 pass。 |
-| F023 | 论 | impl_deviates | 2 | other | always |  | `script/run_all_2080ti.sh:1-57` | 论文要求复现 Figure 8-11、14-18、20；实际覆盖 8-11、13-15、17、19 与 table3，缺 figure18、figure20，且 2080Ti 路径无 figure1… |
-| F024 | 论 | impl_deviates | 2 | other | solved |  | `sparta/artifact_specialization/generate_code.py:58-82` | 论文要求 2 字节位域属性；artifact 路径以文本配置+按位宽分支替代，未实现 7/4/5 位布局 |
-| F025 | 论 | impl_deviates | 2 | other | solved |  | `sparta/artifact_specialization/generate_code.py:58-82` | 论文要求 4/8 表示 uint4/uint8；artifact 仅实现 int8 路径，无符号量化未体现 |
-| F026 | 论 | impl_deviates | 2 | other | always |  | `sparta/propagation/talgebra.py:4-17` | 论文要求 ×、÷、x^y 三类算子均满足任一 φ 即 φ；代码只提供 × 的 and 规则，÷ 与 x^y 无任何规则 |
-| F027 | 论 | impl_deviates | 2 | other | always |  | `sparta/propagation/talgebra.py:4-17` | 论文要求 ×/÷/x^y 三者均满足 α∧α→α；代码仅实现 × |
-| F028 | 论 | impl_deviates | 2 | other | always |  | `sparta/propagation/talgebra.py:20-34` | 论文要求对逐元素可表达算子按计算流计算输出 TeSA；代码只对 matmul 实现，一元与 ÷/x^y 算子无对应计算流 |
-| F029 | 论 | impl_deviates | 2 | other | always |  | `sparta/propagation/talgebra.py:50-62` | 论文要求三条导数公式（含 gB=gY）；代码仅实现两条，偏置项缺失。 |
-| F030 | 论 | impl_deviates | 2 | other | solved |  | `sparta/specialization/specialize_kernel.py:18-42` | 论文允许输入分解；artifact 路径只处理单输入 TeSA |
-| F031 | 论 | impl_deviates | 2 | other | solved |  | `sparta/specialization/specialize_kernel.py:18-42` | 输出不分解 |
-| F032 | 论 | impl_deviates | 2 | other | solved |  | `sparta/specialization/specialize_kernel.py:18-42` | 论文要求 m+1 维笛卡尔积；代码仅权重维枚举，实际 1 维 |
-| F033 | 论 | impl_deviates | 2 | other | solved |  | `sparta/specialization/specialize_kernel.py:44-77` | 论文要求位宽提示指导硬件指令选择（DP4A/wmma）；代码按位宽选不同 CUDA 模板，但模板选择处无基于位宽的指令级特化分支，32bit 分支直接走 cublas/稠密模板（artifact 范… |
-| F034 | 论 | impl_deviates | 2 | other | solved |  | `sparta/specialization/specialize_kernel.py:44-77` | artifact 路径无 dismantle 展开步骤，仅消费预生成 kernel。 |
-| F035 | 论 | impl_deviates | 2 | other | solved |  | `sparta/transformation/optimize_model.py:29-54` | 执行计划未被重写 |
-| F036 | 论 | impl_deviates | 2 | other | always |  | `sparta/transformation/transform_policy.py:56-81` | 论文要求每次调用产生新选项并初始化空列表；代码桩未实现且原地修改输入 |
-| F037 | 论 | impl_deviates | 2 | other | solved |  | `sparta/transformation/transform_policy.py:56-81` | 论文要求返回累积分解列表；代码无该累积返回 |
-| F038 | 论 | impl_deviates | 2 | other | always |  | `sparta/transformation/transform_policy.py:56-81` | 论文要求对每个 BitRounding 结果 extend 其 WBC 输出；代码 TransformTeSA 未实现该 extend，实际路径仅收集未使用的 transform_options |
-| F039 | 论 | impl_deviates | 2 | other | solved |  | `sparta/transformation/transform_policy.py:137-156` | 论文要求按采样位选项产生 k 个结果；代码无采样且限制最多 2 种位宽 |
-| F040 | 论 | impl_deviates | 2 | other | always |  | `sparta/transformation/transform_policy.py:137-156` | 论文要求先经 SampleBitOption 采样一个位选项再传给 BitRounding；代码无采样步骤，bit_align 直接使用 hardware_bit_precisions() 全集合（… |
-| F041 | 论 | impl_deviates | 2 | other | always |  | `sparta/transformation/transform_policy.py:137-156` | 论文要求每次运行返回新的（可不同的）变换选项；代码每次返回相同候选集合，无“per run 新选项”机制。（artifact 范围：。） |
-| F042 | 论 | impl_deviates | 2 | other | solved |  | `sparta/transformation/transform_policy.py:137-191` | 论文要求每个操作数 TeSA 各自带块大小；代码仅权重 TeSA 获得 block_size，输入/输出 TeSA 的 block_size 保持 None 且不被消费（artifact 范围：仅权… |
-| F043 | 论 | impl_deviates | 2 | other | always |  | `sparta/transformation/transform_policy.py:158-191` | 论文要求 RecordPerf 记录每次 profile；artifact 路径计算后未记录 |
-| F044 | 论 | impl_deviates | 2 | other | always |  | `sparta/transformation/transform_policy.py:158-191` | 论文要求返回策略选出的最佳变换；代码无选择逻辑，返回 None |
-| F045 | 论 | impl_deviates | 2 | other | solved |  | `sparta/transformation/transform_policy.py:158-191` | 论文要求先 SampleBitOption 采样再传 BitRounding；代码以固定硬件位宽集合枚举替代采样（artifact 范围：无 SampleBitOption 采样触发） |
-| F046 | 论 | impl_deviates | 2 | other | always |  | `sparta/transformation/transform_policy.py:158-191` | 论文要求返回变换后 TeSA 列表；代码对应函数为桩，实际入口返回 None kernel 列表，未返回变换 TeSA 列表 |
-| F047 | 论 | impl_deviates | 2 | other | always |  | `sparta/transformation/transform_policy.py:158-191` | 论文要求调用方迭代多个方案并选满足者；代码迭代循环被注释，未执行方案搜索 |
-| F048 | 论 | impl_deviates | 2 | other | always |  | `sparta/transformation/transform_policy.py:158-191` | 论文要求每次调用返回一个新选项；代码返回固定单元素列表或一次性全部结果 |
-| F049 | 论 | impl_deviates | 2 | other | always |  | `sparta/transformation/transform_policy.py:158-191` | 论文声称框架可纳入任意 sparsity-aware 技术；实验路径既未执行 specialization，其可达代码也只有固定模板枚举，无外部内核纳入能力。 |
-| F050 | 代 | undisclosed | 3 | other | solved | ~ | `sparta/common/sparsity.py:57` | When info.module_name in self.modules_info: When a module name is already present, the merge branch… |
-| F051 | 论 | not_implemented | 3 | other | always |  | `` | 论文要求量化比特收敛规则；代码只处理剪枝掩码，无量化属性种类 |
-| F052 | 论 | not_implemented | 3 | other | always |  | `` | 论文要求分发前初始化 Iupdated/Oupdated 空集；代码无规则分发，仅建空字典收集结果 |
-| F053 | 论 | not_implemented | 3 | other | always |  | `` | 论文要求 foreach RegisteredPropRule 调用规则；代码为固定两个硬编码推断函数，无注册表迭代 |
-| F054 | 论 | not_implemented | 3 | other | always |  | `` | 论文要求把规则返回的 Iproped/Oproped 合并进节点 Is/Os；代码无规则返回值，直接由硬编码推断写 masks |
-| F055 | 论 | not_implemented | 3 | other | no_condition |  | `` | 论文要求累积每条规则更新到 Iupdated/Oupdated；代码为逐层快照收集，无规则更新累积 |
-| F056 | 论 | not_implemented | 3 | other | no_condition |  | `` | artifact 路径无单块回退到通用稀疏/dense kernel 的分派。 |
-| F057 | 论 | not_implemented | 3 | other | always |  | `` | artifact 路径无该搜索步骤。 |
-| F058 | 论 | not_implemented | 3 | other | always |  | `script/figure14/search_finetune_fit_qat.py:260-299` | 论文要求从最近缓存激活部分推理；代码无缓存也无部分推理 |
-| F059 | 论 | not_implemented | 3 | other | always |  | `script/figure14/search_finetune_fit_qat.py:260-299` | 无注册调用 |
-| F060 | 论 | not_implemented | 3 | other | always |  | `script/figure14/search_finetune_fit_qat.py:260-299` | 论文要求 La 输出激活部分推理得 Lb 校准数据；代码无此复用 |
-| F061 | 论 | not_implemented | 3 | other | always |  | `script/figure14/search_finetune_fit_qat.py:301-335` | 无 TeSA 集合初始化 |
-| F062 | 论 | not_implemented | 3 | other | always |  | `script/figure14/search_finetune_fit_qat.py:301-335` | 无 SplitToIsOs 返回 |
-| F063 | 论 | not_implemented | 3 | other | always |  | `script/figure19/run.sh:1-7` | artifact 路径无编译后延迟/内存测量步骤。 |
-| F064 | 论 | not_implemented | 3 | other | always |  | `script/figure19/run.sh:1-7` | artifact 路径无真实延迟过滤。 |
-| F065 | 论 | not_implemented | 3 | other | always |  | `script/figure19/run.sh:1-7` | artifact 无编译迭代。 |
-| F066 | 论 | not_implemented | 3 | other | always |  | `script/figure19/run.sh:1-7` | artifact 无 FLOPs 过滤基线。 |
-| F067 | 论 | not_implemented | 3 | other | solved |  | `sparta/core/sparta.py:16-24` | 论文要求对每个 (sub)operator 执行量化特化；artifact 链中特化调用被注释、重建为直通，未执行任何循环级特化。 |
-| F068 | 论 | not_implemented | 3 | other | always |  | `sparta/propagation/talgebra.py:4-17` | 论文要求可注册新算子规则；代码无注册机制，新增算子需改源码 |
-| F069 | 论 | not_implemented | 3 | other | always |  | `sparta/specialization/specialize_kernel.py:18-42` | 无 TransformOp 级 S 初始化 |
-| F070 | 论 | not_implemented | 3 | other | always |  | `sparta/specialization/specialize_kernel.py:18-42` | 论文要求组合为图 G；代码无图构造步骤 |
-| F071 | 论 | not_implemented | 3 | other | solved |  | `sparta/specialization/specialize_kernel.py:44-77` | 依赖存在但未被该判定消费，属未接线而非实现 |
-| F072 | 论 | not_implemented | 3 | other | solved |  | `sparta/transformation/optimize_model.py:29-54` | 论文要求特化 tiling 对齐指令形状；artifact 入口链无 tiling 生成步骤。 |
-| F073 | 论 | not_implemented | 3 | other | solved |  | `sparta/transformation/optimize_model.py:29-54` | 论文要求 DP4A 重排+替换；artifact 入口链无此步骤。 |
-| F074 | 论 | not_implemented | 3 | other | always |  | `sparta/transformation/transform_policy.py:158-191` | 论文要求 while 搜索；artifact 路径仅单遍枚举 |
-| F075 | 论 | not_implemented | 3 | other | always |  | `sparta/transformation/transform_policy.py:158-191` | 论文要求按 TeSA 位宽选指令；artifact 链未调用特化，位宽选择步骤不存在。 |
-| F076 | 论 | not_implemented | 3 | other | always |  | `sparta/transformation/transform_policy.py:158-191` | 实验路径未执行 specialization 内核选择，且无 block==shape→通用稀疏内核的代码路径；依赖存在不等于执行路径存在。 |
-| F077 | 论 | not_implemented | 3 | other | always |  | `sparta/transformation/transform_policy.py:158-191` | 实验路径未运行内核选择，且无 block==shape 的稠密回退分支。 |
-| F078 | 论 | not_implemented | 3 | other | always |  | `sparta/transformation/transform_policy.py:172-191` | 论文要求从枚举结果选最佳；代码无候选集合，择优逻辑被注释 |
-| F079 | 论 | not_implemented | 3 | other | always |  | `sparta/transformation/weighted_block_cover.py:7-24` | artifact 路径无 13 块大小评估入口 |
-| F080 | 论 | not_implemented | 3 | other | always |  | `sparta/transformation/weighted_block_cover.py:7-24` | artifact 路径无零稀疏延迟测量入口 |
-| F081 | 论 | not_implemented | 3 | other | always |  | `sparta/transformation/weighted_block_cover.py:7-24` | 论文要求 latency/块数；代码无该计算，E2 除法语义不同（按覆盖元素数分摊） |
-| F082 | 论 | not_implemented | 3 | other | always |  | `sparta/transformation/weighted_block_cover.py:47-102` | 论文要求过稀疏时枚举所有块大小组合并选最优；代码无枚举、无最优选择、无触发条件 |
+| ID | 侧 | 类别 | P | effect | witness | 审 | 上限 路径 | 位置 | 内容 |
+|---|---|---|---|---|---|---|---|---|---|
+| F001 | 代 | undisclosed | 2 | path_change | solved | ✓ | L2 unknown | `sparta/transformation/weighted_block_cover.py:77` | When cover_sizes[(1, 1)] < ordered_pricing[0][0]: The choice of covering algorithm is driven by the… |
+| F002 | 合 | docs_only | 2 | reject | solved | ✓ | L1 unknown | `sparta/transformation/weighted_block_cover.py:123` | When len(unique_block_sizes) != 1: wbc_matmul only supports a single block size for the weight tesa… |
+| F003 | 论 | impl_deviates | 2 | other | always |  |  | `` | 论文要求 S 初始为全部节点；代码初始队列只含源/汇节点，其余节点由度数递减触发入队 |
+| F004 | 论 | impl_deviates | 2 | other | no_condition |  |  | `` | 论文要求把全部邻居（除 N）插入 S；代码只在度数归零时入队，非全部邻居 |
+| F005 | 论 | impl_deviates | 2 | other | always |  |  | `` | 论文要求直到无 TeSA 需更新；代码固定两遍、每节点一次，不检测掩码是否仍变化 |
+| F006 | 论 | impl_deviates | 2 | other | always |  |  | `` | 论文要求随算子类型 AND 属性类型变化；代码仅覆盖剪枝一种属性种类（量化比特未实现，见 M02-B07-R02），属性维度分派缺失 |
+| F007 | 论 | impl_deviates | 2 | other | always |  |  | `` | 论文要求重复运行多次（经验 256 个随机张量）；代码单次前向，以批内方差近似重复采样，重复次数由 confidence/batch 维决定而非 256 次独立运行 |
+| F008 | 论 | impl_deviates | 2 | other | always |  |  | `` | 论文返回 Iupdated∪Oupdated 的输入与输出 TeSA 更新集；代码只返回每层 weight_mask，缺输入/输出更新集 |
+| F009 | 论 | impl_deviates | 2 | other | always |  |  | `` | artifact 路径无通用纳入机制。 |
+| F010 | 论 | impl_deviates | 2 | other | always |  |  | `script/figure14/search_finetune_fit_qat.py:169-178` | 论文要求用真实数据集推理得到的算子输入输出张量；逐模块传播路径用随机张量代替真实激活 |
+| F011 | 论 | impl_deviates | 2 | other | always |  |  | `script/figure14/search_finetune_fit_qat.py:301-335` | 论文要求对算子所有张量（输入/权重/输出）逐一评估；代码只对 weight 张量做位宽搜索，input/output 未评估 |
+| F012 | 论 | impl_deviates | 2 | other | no_condition |  |  | `script/figure14/search_finetune_fit_qat.py:496-538` | 论文要求精度下降小于预定义阈值（1%）才接受；代码用 best_acc<original_acc 即任何下降都拒绝，无 1% 阈值 |
+| F013 | 论 | impl_deviates | 2 | other | always |  |  | `script/figure14/search_finetune_fit_qat.py:496-538` | 论文要求拓扑序并缓存激活；代码按模块注册顺序遍历且无激活缓存 |
+| F014 | 论 | impl_deviates | 2 | other | solved |  |  | `script/figure14/search_finetune_fit_qat.py:571-664` | 论文要求同时更新 S 与 Supdated；代码只更新全局位设置，无 Supdated 累积 |
+| F015 | 论 | impl_deviates | 2 | other | always |  |  | `script/figure14/search_finetune_fit_qat.py:571-664` | 论文以 Tupdated==T 跳过；代码以精度下降 break，语义不同 |
+| F016 | 论 | impl_deviates | 2 | other | always |  |  | `script/figure16/a100/sparta.cu:118-140` | 论文报告第二 sub-Matmul 的具体残余稀疏度；实验路径无该测量/输出，且底层分派规则与数值趋势不符。 |
+| F017 | 论 | impl_deviates | 2 | other | no_condition |  |  | `script/figure16/a100/sparta.cu:266-311` | 实验路径的第二部分内核依赖为 Sputnik，而非 SparTA 专用稀疏内核。 |
+| F018 | 论 | impl_deviates | 2 | other | always |  |  | `script/figure19/run.sh:1-7` | artifact 脚本无反馈驱动的稀疏属性更新步骤。 |
+| F019 | 论 | impl_deviates | 2 | other | always |  |  | `script/figure19/run.sh:1-7` | artifact 无编译-测量迭代回路。 |
+| F020 | 论 | impl_deviates | 2 | other | always |  |  | `script/figure19/run.sh:1-7` | 加速来自 NNI ModelSpeedup 而非 SparTA 稀疏 kernel。 |
+| F021 | 论 | impl_deviates | 2 | other | always |  |  | `script/figure19/run.sh:1-7` | artifact 无目标稀疏度终止条件。 |
+| F022 | 论 | impl_deviates | 2 | other | always |  |  | `script/init_checkpoints.sh:1-34` | 论文要求传播为 Rammer 内专用编译 pass；实验路径在编译前以 Python 脚本离线传播，编译器 pass 列表无传播 pass。 |
+| F023 | 论 | impl_deviates | 2 | other | always |  |  | `script/run_all_2080ti.sh:1-57` | 论文要求复现 Figure 8-11、14-18、20；实际覆盖 8-11、13-15、17、19 与 table3，缺 figure18、figure20，且 2080Ti 路径无 figure1… |
+| F024 | 论 | impl_deviates | 2 | other | solved |  |  | `sparta/artifact_specialization/generate_code.py:58-82` | 论文要求 2 字节位域属性；artifact 路径以文本配置+按位宽分支替代，未实现 7/4/5 位布局 |
+| F025 | 论 | impl_deviates | 2 | other | solved |  |  | `sparta/artifact_specialization/generate_code.py:58-82` | 论文要求 4/8 表示 uint4/uint8；artifact 仅实现 int8 路径，无符号量化未体现 |
+| F026 | 论 | impl_deviates | 2 | other | always |  |  | `sparta/propagation/talgebra.py:4-17` | 论文要求 ×、÷、x^y 三类算子均满足任一 φ 即 φ；代码只提供 × 的 and 规则，÷ 与 x^y 无任何规则 |
+| F027 | 论 | impl_deviates | 2 | other | always |  |  | `sparta/propagation/talgebra.py:4-17` | 论文要求 ×/÷/x^y 三者均满足 α∧α→α；代码仅实现 × |
+| F028 | 论 | impl_deviates | 2 | other | always |  |  | `sparta/propagation/talgebra.py:20-34` | 论文要求对逐元素可表达算子按计算流计算输出 TeSA；代码只对 matmul 实现，一元与 ÷/x^y 算子无对应计算流 |
+| F029 | 论 | impl_deviates | 2 | other | always |  |  | `sparta/propagation/talgebra.py:50-62` | 论文要求三条导数公式（含 gB=gY）；代码仅实现两条，偏置项缺失。 |
+| F030 | 论 | impl_deviates | 2 | other | solved |  |  | `sparta/specialization/specialize_kernel.py:18-42` | 论文允许输入分解；artifact 路径只处理单输入 TeSA |
+| F031 | 论 | impl_deviates | 2 | other | solved |  |  | `sparta/specialization/specialize_kernel.py:18-42` | 输出不分解 |
+| F032 | 论 | impl_deviates | 2 | other | solved |  |  | `sparta/specialization/specialize_kernel.py:18-42` | 论文要求 m+1 维笛卡尔积；代码仅权重维枚举，实际 1 维 |
+| F033 | 论 | impl_deviates | 2 | other | solved |  |  | `sparta/specialization/specialize_kernel.py:44-77` | 论文要求位宽提示指导硬件指令选择（DP4A/wmma）；代码按位宽选不同 CUDA 模板，但模板选择处无基于位宽的指令级特化分支，32bit 分支直接走 cublas/稠密模板（artifact 范… |
+| F034 | 论 | impl_deviates | 2 | other | solved |  |  | `sparta/specialization/specialize_kernel.py:44-77` | artifact 路径无 dismantle 展开步骤，仅消费预生成 kernel。 |
+| F035 | 论 | impl_deviates | 2 | other | solved |  |  | `sparta/transformation/optimize_model.py:29-54` | 执行计划未被重写 |
+| F036 | 论 | impl_deviates | 2 | other | always |  |  | `sparta/transformation/transform_policy.py:56-81` | 论文要求每次调用产生新选项并初始化空列表；代码桩未实现且原地修改输入 |
+| F037 | 论 | impl_deviates | 2 | other | solved |  |  | `sparta/transformation/transform_policy.py:56-81` | 论文要求返回累积分解列表；代码无该累积返回 |
+| F038 | 论 | impl_deviates | 2 | other | always |  |  | `sparta/transformation/transform_policy.py:56-81` | 论文要求对每个 BitRounding 结果 extend 其 WBC 输出；代码 TransformTeSA 未实现该 extend，实际路径仅收集未使用的 transform_options |
+| F039 | 论 | impl_deviates | 2 | other | solved |  |  | `sparta/transformation/transform_policy.py:137-156` | 论文要求按采样位选项产生 k 个结果；代码无采样且限制最多 2 种位宽 |
+| F040 | 论 | impl_deviates | 2 | other | always |  |  | `sparta/transformation/transform_policy.py:137-156` | 论文要求先经 SampleBitOption 采样一个位选项再传给 BitRounding；代码无采样步骤，bit_align 直接使用 hardware_bit_precisions() 全集合（… |
+| F041 | 论 | impl_deviates | 2 | other | always |  |  | `sparta/transformation/transform_policy.py:137-156` | 论文要求每次运行返回新的（可不同的）变换选项；代码每次返回相同候选集合，无“per run 新选项”机制。（artifact 范围：。） |
+| F042 | 论 | impl_deviates | 2 | other | solved |  |  | `sparta/transformation/transform_policy.py:137-191` | 论文要求每个操作数 TeSA 各自带块大小；代码仅权重 TeSA 获得 block_size，输入/输出 TeSA 的 block_size 保持 None 且不被消费（artifact 范围：仅权… |
+| F043 | 论 | impl_deviates | 2 | other | always |  |  | `sparta/transformation/transform_policy.py:158-191` | 论文要求 RecordPerf 记录每次 profile；artifact 路径计算后未记录 |
+| F044 | 论 | impl_deviates | 2 | other | always |  |  | `sparta/transformation/transform_policy.py:158-191` | 论文要求返回策略选出的最佳变换；代码无选择逻辑，返回 None |
+| F045 | 论 | impl_deviates | 2 | other | solved |  |  | `sparta/transformation/transform_policy.py:158-191` | 论文要求先 SampleBitOption 采样再传 BitRounding；代码以固定硬件位宽集合枚举替代采样（artifact 范围：无 SampleBitOption 采样触发） |
+| F046 | 论 | impl_deviates | 2 | other | always |  |  | `sparta/transformation/transform_policy.py:158-191` | 论文要求返回变换后 TeSA 列表；代码对应函数为桩，实际入口返回 None kernel 列表，未返回变换 TeSA 列表 |
+| F047 | 论 | impl_deviates | 2 | other | always |  |  | `sparta/transformation/transform_policy.py:158-191` | 论文要求调用方迭代多个方案并选满足者；代码迭代循环被注释，未执行方案搜索 |
+| F048 | 论 | impl_deviates | 2 | other | always |  |  | `sparta/transformation/transform_policy.py:158-191` | 论文要求每次调用返回一个新选项；代码返回固定单元素列表或一次性全部结果 |
+| F049 | 论 | impl_deviates | 2 | other | always |  |  | `sparta/transformation/transform_policy.py:158-191` | 论文声称框架可纳入任意 sparsity-aware 技术；实验路径既未执行 specialization，其可达代码也只有固定模板枚举，无外部内核纳入能力。 |
+| F050 | 代 | undisclosed | 3 | other | solved | ~ | 测不了 side | `sparta/common/sparsity.py:57` | When info.module_name in self.modules_info: When a module name is already present, the merge branch… |
+| F051 | 论 | not_implemented | 3 | other | always |  |  | `` | 论文要求量化比特收敛规则；代码只处理剪枝掩码，无量化属性种类 |
+| F052 | 论 | not_implemented | 3 | other | always |  |  | `` | 论文要求分发前初始化 Iupdated/Oupdated 空集；代码无规则分发，仅建空字典收集结果 |
+| F053 | 论 | not_implemented | 3 | other | always |  |  | `` | 论文要求 foreach RegisteredPropRule 调用规则；代码为固定两个硬编码推断函数，无注册表迭代 |
+| F054 | 论 | not_implemented | 3 | other | always |  |  | `` | 论文要求把规则返回的 Iproped/Oproped 合并进节点 Is/Os；代码无规则返回值，直接由硬编码推断写 masks |
+| F055 | 论 | not_implemented | 3 | other | no_condition |  |  | `` | 论文要求累积每条规则更新到 Iupdated/Oupdated；代码为逐层快照收集，无规则更新累积 |
+| F056 | 论 | not_implemented | 3 | other | no_condition |  |  | `` | artifact 路径无单块回退到通用稀疏/dense kernel 的分派。 |
+| F057 | 论 | not_implemented | 3 | other | always |  |  | `` | artifact 路径无该搜索步骤。 |
+| F058 | 论 | not_implemented | 3 | other | always |  |  | `script/figure14/search_finetune_fit_qat.py:260-299` | 论文要求从最近缓存激活部分推理；代码无缓存也无部分推理 |
+| F059 | 论 | not_implemented | 3 | other | always |  |  | `script/figure14/search_finetune_fit_qat.py:260-299` | 无注册调用 |
+| F060 | 论 | not_implemented | 3 | other | always |  |  | `script/figure14/search_finetune_fit_qat.py:260-299` | 论文要求 La 输出激活部分推理得 Lb 校准数据；代码无此复用 |
+| F061 | 论 | not_implemented | 3 | other | always |  |  | `script/figure14/search_finetune_fit_qat.py:301-335` | 无 TeSA 集合初始化 |
+| F062 | 论 | not_implemented | 3 | other | always |  |  | `script/figure14/search_finetune_fit_qat.py:301-335` | 无 SplitToIsOs 返回 |
+| F063 | 论 | not_implemented | 3 | other | always |  |  | `script/figure19/run.sh:1-7` | artifact 路径无编译后延迟/内存测量步骤。 |
+| F064 | 论 | not_implemented | 3 | other | always |  |  | `script/figure19/run.sh:1-7` | artifact 路径无真实延迟过滤。 |
+| F065 | 论 | not_implemented | 3 | other | always |  |  | `script/figure19/run.sh:1-7` | artifact 无编译迭代。 |
+| F066 | 论 | not_implemented | 3 | other | always |  |  | `script/figure19/run.sh:1-7` | artifact 无 FLOPs 过滤基线。 |
+| F067 | 论 | not_implemented | 3 | other | solved |  |  | `sparta/core/sparta.py:16-24` | 论文要求对每个 (sub)operator 执行量化特化；artifact 链中特化调用被注释、重建为直通，未执行任何循环级特化。 |
+| F068 | 论 | not_implemented | 3 | other | always |  |  | `sparta/propagation/talgebra.py:4-17` | 论文要求可注册新算子规则；代码无注册机制，新增算子需改源码 |
+| F069 | 论 | not_implemented | 3 | other | always |  |  | `sparta/specialization/specialize_kernel.py:18-42` | 无 TransformOp 级 S 初始化 |
+| F070 | 论 | not_implemented | 3 | other | always |  |  | `sparta/specialization/specialize_kernel.py:18-42` | 论文要求组合为图 G；代码无图构造步骤 |
+| F071 | 论 | not_implemented | 3 | other | solved |  |  | `sparta/specialization/specialize_kernel.py:44-77` | 依赖存在但未被该判定消费，属未接线而非实现 |
+| F072 | 论 | not_implemented | 3 | other | solved |  |  | `sparta/transformation/optimize_model.py:29-54` | 论文要求特化 tiling 对齐指令形状；artifact 入口链无 tiling 生成步骤。 |
+| F073 | 论 | not_implemented | 3 | other | solved |  |  | `sparta/transformation/optimize_model.py:29-54` | 论文要求 DP4A 重排+替换；artifact 入口链无此步骤。 |
+| F074 | 论 | not_implemented | 3 | other | always |  |  | `sparta/transformation/transform_policy.py:158-191` | 论文要求 while 搜索；artifact 路径仅单遍枚举 |
+| F075 | 论 | not_implemented | 3 | other | always |  |  | `sparta/transformation/transform_policy.py:158-191` | 论文要求按 TeSA 位宽选指令；artifact 链未调用特化，位宽选择步骤不存在。 |
+| F076 | 论 | not_implemented | 3 | other | always |  |  | `sparta/transformation/transform_policy.py:158-191` | 实验路径未执行 specialization 内核选择，且无 block==shape→通用稀疏内核的代码路径；依赖存在不等于执行路径存在。 |
+| F077 | 论 | not_implemented | 3 | other | always |  |  | `sparta/transformation/transform_policy.py:158-191` | 实验路径未运行内核选择，且无 block==shape 的稠密回退分支。 |
+| F078 | 论 | not_implemented | 3 | other | always |  |  | `sparta/transformation/transform_policy.py:172-191` | 论文要求从枚举结果选最佳；代码无候选集合，择优逻辑被注释 |
+| F079 | 论 | not_implemented | 3 | other | always |  |  | `sparta/transformation/weighted_block_cover.py:7-24` | artifact 路径无 13 块大小评估入口 |
+| F080 | 论 | not_implemented | 3 | other | always |  |  | `sparta/transformation/weighted_block_cover.py:7-24` | artifact 路径无零稀疏延迟测量入口 |
+| F081 | 论 | not_implemented | 3 | other | always |  |  | `sparta/transformation/weighted_block_cover.py:7-24` | 论文要求 latency/块数；代码无该计算，E2 除法语义不同（按覆盖元素数分摊） |
+| F082 | 论 | not_implemented | 3 | other | always |  |  | `sparta/transformation/weighted_block_cover.py:47-102` | 论文要求过稀疏时枚举所有块大小组合并选最优；代码无枚举、无最优选择、无触发条件 |

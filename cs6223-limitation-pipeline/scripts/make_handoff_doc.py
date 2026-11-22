@@ -75,6 +75,16 @@ def compact(f: dict) -> str:
                               "quote": short(v["matching_evidence"][0]["quote"], 120) if v["matching_evidence"] else None}
                              for v in f["verifications"]]
     keep["rationale"] = short(f["rationale"], 300)
+    b = f.get("process_confidence")
+    if b:
+        t, i = b["testability"], b["importance"]
+        keep["process_confidence"] = {"checks": {k: c["status"] for k, c in b["checks"].items()},
+                                      "found_in_runs": b["repeats"]["extraction_runs"].get("found_in"),
+                                      "ceiling": t.get("ceiling") or t.get("expect_not_run"),
+                                      "limited_by": t.get("limited_by"),
+                                      "decision_on": i["path"].get("decision_on"),
+                                      "guarded_statements": i["impact"].get("guarded_statements"),
+                                      "note": "... evidence per check and the full numbers are in the json"}
     return json.dumps(keep, ensure_ascii=False, indent=1)
 
 
@@ -149,7 +159,9 @@ def main() -> None:
           "| `rationale` | 分类依据、合并了谁、priority 的理由，以及判为“相关但不同”的其他 Finding | 查原因 |",
           "| `limitation_ids` / `limitations` | 背后的完整 Limitation 记录（两侧都可能有） | 看原始条件、论文原文和代码位置 |",
           "| `verification_ids` / `verifications` | 代码侧的 3b 结果：在哪里找到了说明、原文 | 判断“文档到底怎么写的” |",
-          "| `confidence` | 目前全部是 llm_assisted | — |", "",
+          "| `confidence` | 目前全部是 llm_assisted | — |",
+          "| `process_confidence` | 代码侧的静态证据：8 项检查的状态、重复测量、预测的测试档位上限、重要性数字（没有自己的档位），见第 6 节；"
+          "纯论文侧的 Finding 为 null | 作为你定档的输入；不是测试结论 |", "",
           "注意：论文侧原始记录的 `effect_text` 有一部分写的是“同上……”，指的是 3a 同一条记录的 local_entry 描述。"
           "Finding 的 `summary` 已经展开，`limitations` 里保留原样。", "",
           "## 4. witness_hint 怎么读", "",
@@ -192,7 +204,57 @@ def main() -> None:
           "| effect_type | 意思 | 建议的 oracle |", "|---|---|---|"]
     L += [f"| {e} | {m} | {o} |" for e, m, o in ORACLE] + [""]
 
-    L += ["## 6. 典型例子", "", "每个例子是一条 Finding 的精简版，长字段已截断；完整内容在 json 里。"
+    pc = [f for f in fs if f.get("process_confidence")]
+    if pc:
+        by_paper_pc = [(p, [f for f in items if f.get("process_confidence")]) for p, items in by_paper]
+
+        def ceiling(f):
+            t = f["process_confidence"]["testability"]
+            return "没测量" if not t.get("measured") else t["ceiling"] if t.get("testable") else "测不了"
+
+        L += ["## 6. 代码侧的静态证据（未校准，没有自己的档位）", "",
+              "每条有代码侧记录的 Finding 带一个 `process_confidence` 块（格式 `process-confidence-v2`，规则见 "
+              "`docs/11_process_confidence.md`）。它是对你的档位的补充：**代码侧不定档，档位只由你的测试证据决定**。"
+              "不执行代码、不调模型，同样的输入得到同样的结果。块里有四部分。", "",
+              "**1. `checks`：核对表。** 词汇和你的 defeater 表一样："
+              "`eliminated`（工具核对过）、`residual`（只有论证或模型判断）、`open`（没评估）、`refuted`（核对失败）。", "",
+              "| 检查 | 对应的测试概念 | 对应你的 | `eliminated` 的条件 |", "|---|---|---|---|",
+              "| C1 location | 输入有效性 | D12 | 固定 commit 下该行的语句就是记录的 snippet |",
+              "| C2 condition | 语句的判定（decision） | D2 | 条件就是该语句的判定表达式或它的取反 |",
+              "| C3 reachability | 可达性（RIPR 的 R） | D1、D14 | 从官方入口到目标有静态调用链，且没有靠猜的步骤 |",
+              "| C4 feasibility | 不可行路径 | witness | z3 在完整路径前缀下找到触发点和对照点 |",
+              "| C5 extraction | 分析的可重复性 | D8 | 静态路线找到，或 LLM 路线在全部抽取运行里都找到（同一文件同一行） |",
+              "| C6 effect_label | oracle 与语句相符 | D4、效果类型 | 标注的效果能在该语句上判定（reject 要能抛异常，path_change 要是 if / while） |",
+              "| C7 documentation | 缺失性断言，只作说明 | — | 3b 找到了原文；not_found 无法证明，为 residual；3 次重复不一致也为 residual |",
+              "| C8 review | 审查（inspection） | — | 人工审过；LLM 盲审为 residual，没审为 open |", "",
+              "**2. `repeats`：重复测量。** `extraction_runs`：这个位置在几次抽取运行里出现（`found_in` / `of`）；"
+              "`documentation_check`：3b 重复几次、结果的一致率；`routes`：哪条路线找到的（`ast` 静态、`llm`）。", "",
+              "**3. `testability`：预测你这边能测到哪一档。** 按你的规则推出来的上限，不是预报，实际可以更低。", "",
+              "| 字段 | 含义 |", "|---|---|",
+              "| `testable: false` + `expect_not_run` | C4 为 refuted 预计 `witness_unusable`；效果是 `other` 预计 `outcome_unsupported` |",
+              "| `mutants` / `mutants_needed` | 用你的 `mutate.generate` 在目标行能造出几个变异体；少于 `n_min`（4）时 D3 消不掉 |",
+              "| `ceiling` | `L1`：变异体不够；`L2`：没有调用链，D14 最多 residual；`L3`：静态上没有限制 |",
+              "| `limited_by` | 卡在哪个 defeater，原因是什么 |",
+              "| `condition_has_calls`、`integer_boundary` | 条件里有没有函数调用（影响 D2 能否直接求值）；边界变量是否都是整数（影响 D5 的邻点） |", "",
+              "和已有测试报告对照（7 篇里测过的 130 条）：**没有一条的实际档位超过预测上限**，98 条正好等于上限；"
+              "预计 `outcome_unsupported` 的 48 条、`witness_unusable` 的 12 条全部对上。这是在同一批数据上看的，不是独立验证。", "",
+              "**4. `importance`：重要性，和把握分开。**", "",
+              "- `path.decision_on`：`main` 每次调用都会求值这个判定；`side` 判定在某个 `if` / `except` / `case` 里面"
+              "（自己函数里的见 `enclosing_conditions`，调用链上的见 `conditional_call_sites`）；`unknown` 没有调用链，看不到调用者。",
+              "- `impact`：判定管住多少语句（分支体，或 assert / raise 之后函数里剩下的语句）、函数共多少语句、"
+              "从入口来的调用链条数、仓库里解析到这个函数的调用点数。",
+              "- `coverage`：目标函数里有多少个判定（if / while / assert）、代码侧列出了几个、入口能否静态到达这个函数。"
+              "这是**分析的覆盖**，不是执行覆盖；执行覆盖在你的 `execution_report.json` 里。", "",
+              "**建议的用法**：测之前按 `ceiling` 分配预算（`测不了` 的不测，`L1` 的少花时间）；测之后把 `limited_by` "
+              "放在档位旁边，说明是这句本身测不到更高还是测得不够；没测的 Finding 把 `checks` 和 `repeats` 作为确定性的证据并排列出；"
+              "`importance` 只用于排序，不进档位。", "",
+              "预测的测试档位上限：", ""]
+        L += counter_table(by_paper_pc, ["测不了", "L1", "L2", "L3", "没测量"], ceiling, "论文") + [""]
+        L += ["判定在主路径还是侧路径：", ""] + counter_table(
+            by_paper_pc, ["main", "side", "unknown"],
+            lambda f: f["process_confidence"]["importance"]["path"].get("decision_on"), "论文") + [""]
+
+    L += ["## 7. 典型例子", "", "每个例子是一条 Finding 的精简版，长字段已截断；完整内容在 json 里。"
           "例子是按规则自动挑的第一条，不是挑好看的。“论文侧 · LLM 写出条件”那条正好说明了它的局限："
           "条件在形式上能解，但不一定抓住了论文差异的本质，所以论文侧条件只当提示用。", ""]
     ex = [
@@ -216,19 +278,24 @@ def main() -> None:
         if f:
             L += [f"### {title}：`{f['finding_id']}`", "", "```json", compact(f), "```", ""]
 
-    L += ["## 7. 全部 Finding 索引", "",
+    L += ["## 8. 全部 Finding 索引", "",
           "每篇按 priority 排序。列的含义：侧 = 代/论/合（代码侧 / 论文侧 / 两侧合并）；"
-          "审 = 审阅状态（✓ worth_testing，~ real_but_minor，✗ wrong，空 = 未审）。", ""]
+          "审 = 审阅状态（✓ worth_testing，~ real_but_minor，✗ wrong，空 = 未审）；"
+          "过程 = 过程置信度档位和判定所在路径（第 6 节；论文侧为空）。", ""]
     mark = {"worth_testing": "✓", "real_but_minor": "~", "wrong": "✗", "unreviewed": ""}
     sd = {"代码侧": "代", "论文侧": "论", "两侧合并": "合"}
     for p, items in by_paper:
         L += [f"### {p}（{len(items)} 条）", "",
-              "| ID | 侧 | 类别 | P | effect | witness | 审 | 位置 | 内容 |", "|---|---|---|---|---|---|---|---|---|"]
+              "| ID | 侧 | 类别 | P | effect | witness | 审 | 上限 路径 | 位置 | 内容 |", "|---|---|---|---|---|---|---|---|---|---|"]
         for f in items:
             w = f["witness_hint"]
             loc = w.get("location") or (w.get("code_locations") or [""])[0]
+            b = f.get("process_confidence")
+            t = b["testability"] if b else {}
+            proc = (f"{t.get('ceiling') or ('测不了' if t.get('measured') else '')} "
+                    f"{b['importance']['path'].get('decision_on', '')}").strip() if b else ""
             L.append(f"| {f['finding_id'].split('-')[-1]} | {sd[side(f)]} | {f['category']} | {f['priority']} | "
-                     f"{f['effect_type']} | {w.get('status')} | {mark[f['review']]} | `{short(loc, 60)}` | "
+                     f"{f['effect_type']} | {w.get('status')} | {mark[f['review']]} | {proc} | `{short(loc, 60)}` | "
                      f"{short(f['summary'].rsplit(' (', 1)[0] if side(f) != '论文侧' else f['summary'], 100)} |")
         L.append("")
     (ROOT / a.out).write_text("\n".join(L))
