@@ -1,0 +1,2462 @@
+FILE README.md | original lines 1–41
+1: # InfiniGen: Efficient Generative Inference of Large Language Models with Dynamic KV Cache Management
+2: [[paper](https://arxiv.org/abs/2406.19707)]
+3: 
+4: ![infinigen](figures/infinigen.png)
+5: 
+6: ## Overview
+7: 
+8: This repository contains the code for the artifact evaluation of our paper "InfiniGen: Efficient Generative Inference of Large Language Models with Dynamic KV Cache Management".
+9: 
+10: - Getting Started (10 minutes)
+11: - Run Experiments
+12: 
+13: ## Abstract
+14: 
+15: Transformer-based large language models (LLMs) demonstrate impressive performance across various natural language processing tasks. Serving LLM inference for generating long contents, however, poses a challenge due to the enormous memory footprint of the transient state, known as the key-value (KV) cache, which scales with the sequence length and batch size. In this paper, we present InfiniGen, a novel KV cache management framework tailored for long-text generation, which synergistically works with modern offloading-based inference systems. InfiniGen leverages the key insight that a few important tokens that are essential for computing the subsequent attention layer in the Transformer can be speculated by performing a minimal rehearsal with the inputs of the current layer and part of the query weight and key cache of the subsequent layer. This allows us to prefetch only the essential KV cache entries (without fetching them all), thereby mitigating the fetch overhead from the host memory in offloading-based LLM serving systems. Our evaluation on several representative LLMs shows that InfiniGen improves the overall performance of a modern offloading-based system by up to 3.00x compared to prior KV cache management methods while offering substantially better model accuracy.
+16: 
+17: ## Getting Started (10 minutes)
+18: 
+19: ```sh
+20: git clone https://github.com/snu-comparch/infinigen
+21: conda create -n infinigen python=3.9
+22: conda activate infinigen
+23: pip install -r requirements.txt
+24: ```
+25: 
+26: ## Run Experiments
+27: 
+28: We provide the scripts for accuracy and speedup evaluation.
+29: You can find the source code for accuracy evaluation in the `accuracy` directory and speedup evaluation in the `speedup` directory.
+30: It takes about 40 hours and 7 hours for the accuracy and speedup experiments, respectively.
+31: 
+32: ## Citation
+33: 
+34: ```bibtex
+35: @inproceedings{lee-osdi24,
+36:   title = {{I}nfini{G}en: Efficient Generative Inference of Large Language Models with Dynamic KV Cache Management},
+37:   author = {Lee, Wonbeom and Lee, Jungi and Seo, Junghwan and Sim, Jaewoong},
+38:   booktitle = {18th USENIX Symposium on Operating Systems Design and Implementation (OSDI 24)},
+39:   year = {2024}
+40: }
+41: ```
+
+FILE accuracy/README.md | original lines 1–46
+1: # Language Modeling Evaluation
+2: This directory contains source code for evaluating the language modeling performance. You can reproduce perplexity and accuracy results in the paper. Some of the codes are referenced from the H2O (NeurIPS'23) GitHub repository.
+3: 
+4: ## Getting Started (60 minutes)
+5: We evaluate accuracy using the HuggingFace Transformers library. Also, please
+6: fetch llama-2 from [here](https://llama.meta.com/llama-downloads). Follow the
+7: instructions and set up Llama-2. You may also need to convert the model to
+8: huggingface format using the `convert_llama_weight_to_hf.py` in
+9: `transformers/src/transformers/models/llama`.
+10: 
+11: NOTE: We recommend using a GPU with a large VRAM size. We evaluate accuracy using `A100-80GB GPU`.
+12: 
+13: ```sh
+14: git clone -b v4.35-release https://github.com/huggingface/transformers.git
+15: cd transformers
+16: pip install -e .
+17: ```
+18: 
+19: After setting up the library and llama models, generate the partial weights and skewing matrix. You can safely ignore the uninitialized weight warning.
+20: ```sh
+21: cd setup
+22: export LLAMA_PATH=/path/to/llama-2
+23: bash setup.sh
+24: ```
+25: 
+26: For a "Hello world"-sized example, please run the following command (10 minutes):
+27: ```
+28: cd lm_eval
+29: mkdir results
+30: python -u generate_task_data.py --output-file results/openbookqa-5.jsonl --task-name openbookqa --num-fewshot 5
+31: bash ours.sh openbookqa ../setup/opt-model/opt-6.7b facebook/opt-6.7b opt 5 0.2 4 1.0 0.2 
+32: ```
+33: 
+34: ## Run Experiments (40 hours)
+35: You can reproduce the experimental results from Figure 11-13 and Table 2 by running the following commands:
+36: 
+37: ```sh
+38: cd scripts
+39: sh run_all.sh
+40: ```
+41: 
+42: If you want to reproduce the results for a specific figure, please `sh run.sh` in each corresponding directory. For example,
+43: ```
+44: cd scripts/figure11.sh
+45: sh run.sh
+46: ```
+
+FILE speedup/README.md | original lines 1–33
+1: # Speedup Evaluation
+2: This directory contains source codes for evaluating the speedup. You can reproduce inference latency results in the paper. Some of the codes are referenced from FlexGen (ICML'23) GitHub repository.
+3: - Getting Started (10 minutes)
+4: - Run Experiments (7 hours)
+5: 
+6: ## Getting Started (10 minutes)
+7: ```sh
+8: sh install.sh
+9: export CUDA_HOME=/path/to/cuda
+10: ```
+11: For a "Hello world"-sized example, please run the following command (10 minutes):
+12: ```
+13: python -m flexgen.flex_opt --model huggingface/opt-6.7b --percent 100 0 0 100 100 0 --overlap false --gpu-batch-size 2 --num-gpu-batches 1 --prompt-len 384 --gen-len 128 --warmup-input-path flexgen/pg19_firstbook.txt --test-input-path flexgen/pg19_firstbook.txt --alpha 4 --partial-weight-ratio 0.2 --max-num-kv 102
+14: ```
+15: ## Run Experiments (7 hours)
+16: We provide scripts to reproduce the experiment results from Figure 14 to Figure 17. To reproduce all the results at once, please run the following commands (7 hours).
+17: ```
+18: cd scripts
+19: sh run_all.sh
+20: ```
+21: If you want to reproduce the results for a specific figure, please `sh run.sh` in each corresponding directory. For example,
+22: ```
+23: cd scripts/figure14
+24: sh run.sh
+25: ```
+26: Following is the amount of time to run each experiments on our system (NVIDIA RTX A6000 GPU with 48GB of memory, Intel Xeon Gold 6136 processor with 96GB of DDR4-2666 memory, PCIe 3.0 x16 interconnection).
+27: - Figure 14: 80 minutes
+28: - Figure 15: 220 minutes
+29: - Figure 16a: 30 minutes
+30: - Figure 16b: 60 minutes
+31: - Figure 17a: 20 minutes
+32: - Figure 17b: 10 minutes
+33: 
+
+FILE accuracy/lm_eval/evaluate_task_result.py | original lines 1–100
+1: import argparse
+2: import json
+3: import os
+4: 
+5: from lm_eval import evaluator, tasks
+6: from tasks import EvalHarnessAdaptor
+7: 
+8: def json_to_key(obj):
+9:     return json.dumps(obj)
+10: 
+11: 
+12: if __name__ == '__main__':
+13:     
+14: 
+15:     parser = argparse.ArgumentParser(
+16:                         prog = 'ProgramName',
+17:                         description = 'What the program does',
+18:                         epilog = 'Text at the bottom of help')
+19: 
+20:     parser.add_argument('--result-file', type=str, default='result.jsonl')
+21:     parser.add_argument('--task-name', type=str, default='hellaswag')
+22:     parser.add_argument('--model-type', type=str, default='opt')
+23:     parser.add_argument('--debug', action='store_true', default=False)
+24:     parser.add_argument('--num-fewshot', type=int, default=0)
+25:     args = parser.parse_args()
+26:     
+27:     if args.model_type == 'opt':
+28:         os.environ['MODEL_NAME'] = "facebook/opt-66b"
+29:     elif args.model_type == 'bloom':
+30:         os.environ['MODEL_NAME'] = "bigscience/bloom"
+31:     elif args.model_type == 'gpt_neox':
+32:         os.environ['MODEL_NAME'] = "EleutherAI/gpt-neox-20b"
+33:     elif args.model_type == 'llama':
+34:         os.environ['MODEL_NAME'] = "huggyllama/llama-7b"
+35:     else:
+36:         assert False
+37: 
+38:     seq = 1024
+39:     total_batch = 1
+40:     pe = 'fixed'
+41: 
+42:     class RealRunner:
+43:         
+44:         def __init__(self, args):
+45:             
+46:             self.results = {}
+47:             
+48:             with open(args.result_file, 'r') as f:
+49:                 
+50:                 for line in f:
+51:                     if line.strip() == '':
+52:                         continue
+53:                     
+54:                     item = json.loads(line)
+55:                     
+56:                     request = item['request']
+57:                     result = item['result']
+58:                     
+59:                     self.results[json_to_key(request)] = result
+60:             
+61:             print(f"{len(self.results)} items in the cache")
+62:         
+63:         def eval(self, batch):
+64:             
+65:             from tasks.eval_harness import tokenizer
+66:             
+67:             mask_loss = []
+68:             each_correct = []
+69: 
+70:             for i, text in enumerate(batch['text']):
+71:                 
+72:                 request = {
+73:                         "best_of": 1, 
+74:                         "echo": True, 
+75:                         "logprobs": 1, 
+76:                         "max_tokens": 0, 
+77:                         "model": "x", 
+78:                         "n": 1, 
+79:                         "prompt": text, 
+80:                         "request_type": "language-model-inference", 
+81:                         "stop": None, 
+82:                         "temperature": 0, 
+83:                         "top_p": 1
+84:                     }
+85:                 
+86:                 key = json_to_key(request)
+87:                 
+88:                 correct = True
+89:                 
+90:                 if key in self.results:
+91:                     result = self.results[key]
+92:                     
+93:                     token_logprobs = result['choices'][0]['logprobs']['token_logprobs']
+94:                     tokens = result['choices'][0]['logprobs']['tokens']
+95:                     top_logprobs = result['choices'][0]['logprobs']['top_logprobs']
+96:                     assert token_logprobs[0] is None
+97:                     
+98:                     token_ids = tokenizer.convert_tokens_to_ids(tokens)
+99:                     
+100:                     obs = batch['obs'][i]
+
+FILE accuracy/lm_eval/figure11.py | original lines 1–100
+1: import json
+2: import os
+3: 
+4: with open("figure11-config.json") as f:
+5:     config = json.load(f)
+6: os.system("mkdir -p results")
+7: 
+8: shots = 5
+9: partial = 0.2
+10: capacity = 1.0
+11: 
+12: # Prepare dataset
+13: for task in ["piqa", "openbookqa", "winogrande", "copa", "rte"]:
+14:     cmd = []
+15:     cmd.append("python -u generate_task_data.py")
+16:     cmd.append(f"--output-file results/{task}-{shots}.jsonl")
+17:     cmd.append(f"--task-name {task}")
+18:     cmd.append(f"--num-fewshot {shots}")
+19:     cmd = ' '.join(cmd)
+20:     os.system(cmd)
+21: 
+22: ## Baseline
+23: print("="*10+" Full cache " + "="*10)
+24: # OPT
+25: for size in ["6.7b", "13b", "30b"]:
+26:     if size == "6.7b":
+27:         tasks = ["piqa", "openbookqa"]
+28:     elif size == "13b":
+29:         tasks = ["winogrande", "openbookqa"]
+30:     elif size == "30b":
+31:         tasks = ["copa", "openbookqa"]
+32:     for task in tasks:
+33:         cmd = []
+34:         cmd.append("bash full_cache.sh")
+35:         cmd.append(task)
+36:         cmd.append(f"facebook/opt-{size}")
+37:         cmd.append("opt")
+38:         cmd.append(str(shots))
+39:         cmd = ' '.join(cmd)
+40:         print(cmd)
+41:         os.system(cmd)
+42:         print("-------------------------------------------")
+43: 
+44: # Llama-2
+45: llama_2_dir = os.environ["LLAMA_PATH"]
+46: for size in ["7b", "13b"]:
+47:     if size == "7b":
+48:         tasks = ["rte", "piqa"]
+49:     elif size == "13b":
+50:         tasks = ["copa", "winogrande"]
+51:     for task in tasks:
+52:         cmd = []
+53:         cmd.append("bash full_cache.sh")
+54:         cmd.append(task)
+55:         cmd.append(f"{llama_2_dir}/llama-2-{size}")
+56:         cmd.append("llama")
+57:         cmd.append(str(shots))
+58:         cmd = ' '.join(cmd)
+59:         print(cmd)
+60:         os.system(cmd)
+61:         print("-------------------------------------------")
+62: 
+63: # InfiniGen
+64: print("="*10+" InfiniGen " + "="*10)
+65: # OPT
+66: for size in ["6.7b", "13b", "30b"]:
+67:     if size == "6.7b":
+68:         tasks = ["piqa", "openbookqa"]
+69:     elif size == "13b":
+70:         tasks = ["winogrande", "openbookqa"]
+71:     elif size == "30b":
+72:         tasks = ["copa", "openbookqa"]
+73:     for task in tasks:
+74:         for retain_ratio in range(4):
+75:             alpha, budget = config[f"opt-{size}"][task][retain_ratio]
+76:             cmd = []
+77:             cmd.append("bash ours.sh")
+78:             cmd.append(task)
+79:             cmd.append(f"../setup/opt-model/opt-{size}")
+80:             cmd.append(f"facebook/opt-{size}")
+81:             cmd.append("opt")
+82:             cmd.append(str(shots))
+83:             cmd.append(str(partial))
+84:             cmd.append(str(alpha))
+85:             cmd.append(str(capacity))
+86:             cmd.append(str(budget))
+87:             cmd = ' '.join(cmd)
+88:             print(cmd)
+89:             os.system(cmd)
+90:             print("-------------------------------------------")
+91: 
+92: 
+93: # Llama-2
+94: llama_2_dir = os.environ["LLAMA_PATH"]
+95: for size in ["7b", "13b"]:
+96:     if size == "7b":
+97:         tasks = ["rte", "piqa"]
+98:     elif size == "13b":
+99:         tasks = ["copa", "winogrande"]
+100:     for task in tasks:
+
+FILE accuracy/lm_eval/generate_task_data.py | original lines 1–76
+1: import argparse
+2: import json
+3: 
+4: from lm_eval import evaluator, tasks
+5: from tasks import EvalHarnessAdaptor
+6: 
+7: 
+8: if __name__ == '__main__':
+9:     
+10: 
+11:     parser = argparse.ArgumentParser(
+12:                         prog = 'ProgramName',
+13:                         description = 'What the program does',
+14:                         epilog = 'Text at the bottom of help')
+15: 
+16:     parser.add_argument('--output-file', type=str, default='input.jsonl')
+17:     parser.add_argument('--task-name', type=str, default='hellaswag')
+18:     parser.add_argument('--num-fewshot', type=int, default=0)
+19:     args = parser.parse_args()
+20: 
+21:     seq = 1024
+22:     total_batch = 1
+23:     pe = 'fixed'
+24: 
+25:     with open(args.output_file, 'w') as f:
+26:         pass
+27: 
+28:     class DryRunner:
+29:         def eval(self, batch):
+30: 
+31:             with open(args.output_file, 'a') as f:
+32: 
+33:                 for text in batch['text']:
+34:                     item = {
+35:                         "best_of": 1, 
+36:                         "echo": True, 
+37:                         "logprobs": 1, 
+38:                         "max_tokens": 0, 
+39:                         "model": "x", 
+40:                         "n": 1, 
+41:                         "prompt": text, 
+42:                         "request_type": "language-model-inference", 
+43:                         "stop": None, 
+44:                         "temperature": 0, 
+45:                         "top_p": 1
+46:                     }
+47: 
+48:                     f.write(json.dumps(item) + '\n')
+49: 
+50:             out = {
+51:                 'mask_loss': [1.0] * len(batch),
+52:                 'each_correct': [True] * len(batch),
+53:             }
+54:             return out
+55: 
+56:     t = DryRunner()
+57:     adaptor = EvalHarnessAdaptor(t, seq, total_batch, shrink=pe != "fixed")
+58:     results = evaluator.evaluate(adaptor, tasks.get_task_dict([args.task_name
+59:                                                             #"lambada_openai",
+60:                                                             #"piqa",
+61:                                                             #"hellaswag",
+62:                                                             #"winogrande",
+63:                                                             #"mathqa",
+64:                                                             #"pubmedqa",
+65:                                                             # "boolq",
+66:                                                             # "cb",
+67:                                                             # "copa",
+68:                                                             # "multirc",
+69:                                                             # "record",
+70:                                                             # "wic",
+71:                                                             # "wsc",
+72:                                                             ]), False, args.num_fewshot, None)
+73:     print('Finished')
+74: 
+75:     # dumped = json.dumps(results, indent=2)
+76:     # print(dumped)
+
+FILE accuracy/lm_eval/run_lm_eval_harness.py | original lines 1–100
+1: import argparse
+2: import json, tqdm
+3: import torch
+4: import copy
+5: import os, sys
+6: import math
+7: 
+8: def set_symlink(model_type, fname):
+9:     model_path = "../transformers/src/transformers/models/" + model_type
+10:     linker_path = os.path.realpath("../src/" + fname)
+11:     if not os.path.exists(linker_path):
+12:         print(f"No file exists at {linker_path}")
+13:         exit(0)
+14:     if not os.path.exists(model_path):
+15:         print(f"No file exists at {model_path}")
+16:         exit(0)
+17:     curr_dir = os.getcwd()
+18:     os.chdir(model_path)
+19:     if os.path.exists(f'modeling_{model_type}.py'):
+20:         cmd = f"rm modeling_{model_type}.py"
+21:         os.system(cmd)
+22:     cmd = f"ln -s {linker_path} modeling_{model_type}.py"
+23:     os.system(cmd)
+24:     os.chdir(curr_dir)
+25: 
+26: if __name__ == '__main__':
+27: 
+28:     parser = argparse.ArgumentParser(
+29:                         prog = 'ProgramName',
+30:                         description = 'What the program does',
+31:                         epilog = 'Text at the bottom of help')
+32: 
+33:     parser.add_argument('--input-path', type=str, default=None)
+34:     parser.add_argument('--output-path', type=str, default=None)
+35:     parser.add_argument('--model-name', type=str, default='facebook/opt-350m')
+36:     parser.add_argument('--model-path', type=str, default=None)
+37:     parser.add_argument('--model-type', type=str, default='opt')
+38: 
+39:     # Quant.
+40:     parser.add_argument('--enable_quant', action='store_true')
+41:     parser.add_argument("--qbits", type=int, default=8)
+42: 
+43:     # H2O
+44:     parser.add_argument('--enable_small_cache', action='store_true')
+45:     parser.add_argument("--heavy_ratio", type=float, default=0.1)
+46:     parser.add_argument("--recent_ratio", type=float, default=0.1)
+47: 
+48:     # InfiniGen
+49:     parser.add_argument('--ours', action='store_true')
+50:     parser.add_argument("--partial_weight_ratio", type=float, default=0.1)
+51:     parser.add_argument("--partial_weight_path", type=str)
+52:     parser.add_argument("--skewing_matrix_path", type=str)
+53:     parser.add_argument("--alpha",type=float, default=5)
+54:     parser.add_argument("--capacity",type=float, default=1.0)
+55:     parser.add_argument("--budget",type=float, default=0.2)
+56:     args = parser.parse_args()
+57:     
+58:     if args.ours:
+59:         set_symlink(args.model_type, f"modeling_{args.model_type}_ours.py")
+60:     else:
+61:         set_symlink(args.model_type, f"modeling_{args.model_type}_orig.py")
+62: 
+63: 
+64:     input_path = args.input_path
+65:     output_path = args.output_path
+66:     model_name = args.model_name
+67: 
+68:     from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig
+69:     config = AutoConfig.from_pretrained(model_name)
+70:     tokenizer = AutoTokenizer.from_pretrained(model_name, device_map = 'auto', torch_dtype=torch.float16)
+71:     if args.model_path is None:
+72:         model = AutoModelForCausalLM.from_pretrained(model_name, device_map = 'auto', torch_dtype=torch.float16)
+73:     else:
+74:         model = AutoModelForCausalLM.from_pretrained(args.model_path)
+75: 
+76:     if args.enable_quant:
+77:         if args.model_type == "opt":
+78:             for i, layer in enumerate(model.model.decoder.layers):
+79:                 if i>=2:
+80:                     layer.self_attn.enable_quant = True
+81:                     layer.self_attn.qbits = args.qbits
+82:         if args.model_type == "llama":
+83:             for i, layer in enumerate(model.model.layers):
+84:                 if i>=2:
+85:                     layer.self_attn.enable_quant = True
+86:                     layer.self_attn.qbits = args.qbits
+87: 
+88:     elif args.enable_small_cache:
+89:         from utils_lm_eval.modify_llama import convert_kvcache_llama_heavy_recent, LlamaAttention_heavy_hitter
+90:         from utils_lm_eval.modify_gptneox import convert_kvcache_gpt_neox_heavy_recent, GPTNeoXAttention_Mask
+91:         from utils_lm_eval.modify_opt import convert_kvcache_opt_heavy_recent, OPTAttention_Mask
+92:         ENABLE_Heavy_Hitter_FUNCTIONS = {
+93:             "llama": convert_kvcache_llama_heavy_recent,
+94:             "opt": convert_kvcache_opt_heavy_recent,
+95:             "gpt_neox": convert_kvcache_gpt_neox_heavy_recent,
+96:         }
+97:         print('Enable Small Cache Size')
+98:         config.heavy_ratio = args.heavy_ratio
+99:         config.recent_ratio = args.recent_ratio
+100:         base_path = os.path.basename(args.model_name)
+
+FILE accuracy/lm_eval/run_text_generation.py | original lines 1–100
+1: #!/usr/bin/env python
+2: # coding=utf-8
+3: # Copyright 2018 Google AI, Google Brain and Carnegie Mellon University Authors and the HuggingFace Inc. team.
+4: # Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
+5: #
+6: # Licensed under the Apache License, Version 2.0 (the "License");
+7: # you may not use this file except in compliance with the License.
+8: # You may obtain a copy of the License at
+9: #
+10: #     http://www.apache.org/licenses/LICENSE-2.0
+11: #
+12: # Unless required by applicable law or agreed to in writing, software
+13: # distributed under the License is distributed on an "AS IS" BASIS,
+14: # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+15: # See the License for the specific language governing permissions and
+16: # limitations under the License.
+17: """ Conditional text generation with the auto-regressive models
+18: """
+19: 
+20: 
+21: import argparse
+22: import logging
+23: 
+24: import numpy as np
+25: import torch
+26: import json
+27: import tqdm 
+28: import copy 
+29: 
+30: from transformers import (
+31:     CTRLLMHeadModel,
+32:     CTRLTokenizer,
+33:     GPT2LMHeadModel,
+34:     GPT2Tokenizer,
+35:     OpenAIGPTLMHeadModel,
+36:     OpenAIGPTTokenizer,
+37:     TransfoXLLMHeadModel,
+38:     TransfoXLTokenizer,
+39:     XLMTokenizer,
+40:     XLMWithLMHeadModel,
+41:     XLNetLMHeadModel,
+42:     XLNetTokenizer,
+43: )
+44: 
+45: from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig
+46: 
+47: from utils_hh.modify_llama import convert_kvcache_llama_heavy_recent, LlamaAttention_heavy_hitter
+48: from utils_hh.modify_gptneox import convert_kvcache_gpt_neox_heavy_recent, GPTNeoXAttention_Mask
+49: from utils_hh.modify_opt import convert_kvcache_opt_heavy_recent, OPTAttention_Mask
+50: 
+51: 
+52: logging.basicConfig(
+53:     format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
+54:     datefmt="%m/%d/%Y %H:%M:%S",
+55:     level=logging.INFO,
+56: )
+57: logger = logging.getLogger(__name__)
+58: 
+59: MAX_LENGTH = int(10000)  # Hardcoded max length to avoid infinite loop
+60: 
+61: MODEL_CLASSES = {
+62:     "gpt2": (GPT2LMHeadModel, GPT2Tokenizer),
+63:     "ctrl": (CTRLLMHeadModel, CTRLTokenizer),
+64:     "openai-gpt": (OpenAIGPTLMHeadModel, OpenAIGPTTokenizer),
+65:     "xlnet": (XLNetLMHeadModel, XLNetTokenizer),
+66:     "transfo-xl": (TransfoXLLMHeadModel, TransfoXLTokenizer),
+67:     "xlm": (XLMWithLMHeadModel, XLMTokenizer),
+68: }
+69: 
+70: # Padding text to help Transformer-XL and XLNet with short prompts as proposed by Aman Rusia
+71: # in https://github.com/rusiaaman/XLNet-gen#methodology
+72: # and https://medium.com/@amanrusia/xlnet-speaks-comparison-to-gpt-2-ea1a4e9ba39e
+73: PREFIX = """In 1991, the remains of Russian Tsar Nicholas II and his family
+74: (except for Alexei and Maria) are discovered.
+75: The voice of Nicholas's young son, Tsarevich Alexei Nikolaevich, narrates the
+76: remainder of the story. 1883 Western Siberia,
+77: a young Grigori Rasputin is asked by his father and a group of men to perform magic.
+78: Rasputin has a vision and denounces one of the men as a horse thief. Although his
+79: father initially slaps him for making such an accusation, Rasputin watches as the
+80: man is chased outside and beaten. Twenty years later, Rasputin sees a vision of
+81: the Virgin Mary, prompting him to become a priest. Rasputin quickly becomes famous,
+82: with people, even a bishop, begging for his blessing. <eod> </s> <eos>"""
+83: 
+84: 
+85: def set_seed(args):
+86:     np.random.seed(args.seed)
+87:     torch.manual_seed(args.seed)
+88:     if args.n_gpu > 0:
+89:         torch.cuda.manual_seed_all(args.seed)
+90: 
+91: 
+92: ENABLE_Heavy_Hitter_FUNCTIONS = {
+93:     "llama": convert_kvcache_llama_heavy_recent,
+94:     "opt": convert_kvcache_opt_heavy_recent,
+95:     "gpt_neox": convert_kvcache_gpt_neox_heavy_recent,
+96: }
+97: 
+98: 
+99: def main():
+100:     parser = argparse.ArgumentParser()
+
+FILE accuracy/perplexity/datautils.py | original lines 1–53
+1: from transformers import LlamaTokenizer, AutoTokenizer
+2: from datasets import load_dataset
+3: import numpy as np
+4: import torch
+5: import os
+6: 
+7: def set_symlink(model_type, fname):
+8:     model_path = "../transformers/src/transformers/models/" + model_type
+9:     linker_path = os.path.realpath("../src/" + fname)
+10:     if not os.path.exists(linker_path):
+11:         print(f"No file exists at {linker_path}")
+12:         exit(0)
+13:     if not os.path.exists(model_path):
+14:         print(f"No file exists at {model_path}")
+15:         exit(0)
+16:     curr_dir = os.getcwd()
+17:     os.chdir(model_path)
+18:     if os.path.exists(f'modeling_{model_type}.py'):
+19:         cmd = f"rm modeling_{model_type}.py"
+20:         os.system(cmd)
+21:     cmd = f"ln -s {linker_path} modeling_{model_type}.py"
+22:     os.system(cmd)
+23:     os.chdir(curr_dir)
+24: 
+25: def set_seed(seed):
+26:     np.random.seed(seed)
+27:     torch.random.manual_seed(seed)
+28: 
+29: def get_wikitext2(nsamples, seed, seqlen, model):
+30:     testdata = load_dataset('wikitext', 'wikitext-2-raw-v1', split='test')
+31:     try: 
+32:         tokenizer = AutoTokenizer.from_pretrained(model, use_fast=False)
+33:     except:
+34:         tokenizer = LlamaTokenizer.from_pretrained(model, use_fast=False)
+35:     testenc = tokenizer("\n\n".join(testdata['text']), return_tensors='pt')
+36:     return testenc
+37: 
+38: def get_ptb(nsamples, seed, seqlen, model):
+39:     valdata = load_dataset('ptb_text_only', 'penn_treebank', split='validation')
+40:     try: 
+41:         tokenizer = AutoTokenizer.from_pretrained(model, use_fast=False)
+42:     except:
+43:         tokenizer = LlamaTokenizer.from_pretrained(model, use_fast=False)
+44:     testenc = tokenizer("\n\n".join(valdata['sentence']), return_tensors='pt')
+45:     return testenc
+46: 
+47: def get_loaders(
+48:     name, nsamples=128, seed=0, seqlen=2048, model=''
+49: ):
+50:     if 'wikitext2' in name:
+51:         return get_wikitext2(nsamples, seed, seqlen, model)
+52:     if 'ptb' in name:
+53:         return get_ptb(nsamples, seed, seqlen, model)
+
+FILE accuracy/perplexity/llama.py | original lines 1–100
+1: import torch
+2: import torch.nn as nn
+3: import copy
+4: import argparse
+5: import math
+6: from datautils import *
+7: 
+8: 
+9: def get_llama(model, seqlen):
+10:     def skip(*args, **kwargs):
+11:         pass
+12:     torch.nn.init.kaiming_uniform_ = skip
+13:     torch.nn.init.uniform_ = skip
+14:     torch.nn.init.normal_ = skip
+15: 
+16:     from transformers import LlamaForCausalLM
+17:     model = LlamaForCausalLM.from_pretrained(model, device_map='cpu', torch_dtype=torch.float16)
+18: 
+19:     model.seqlen = seqlen
+20:     return model
+21: 
+22: 
+23: @torch.no_grad()
+24: def llama_eval(model, testenc, dev, eval_sample, ours, print_chunk = False):
+25:     print('Evaluating ...')
+26: 
+27:     testenc = testenc.input_ids
+28:     if eval_sample:
+29:         nsamples = eval_sample
+30:     else:
+31:         nsamples = min(1000, testenc.numel() // model.seqlen)
+32:     print("nsamples: ", nsamples)
+33: 
+34:     use_cache = model.config.use_cache
+35:     model.config.use_cache = False
+36:     layers = model.model.layers
+37: 
+38:     model.model.embed_tokens = model.model.embed_tokens.to(dev)
+39:     layers[0] = layers[0].to(dev)
+40: 
+41:     dtype = next(iter(model.parameters())).dtype
+42:     inps = torch.zeros((nsamples, model.seqlen, model.config.hidden_size), dtype=dtype, device=dev)
+43:     cache = {'i': 0, 'attention_mask': None}
+44: 
+45:     class Catcher(nn.Module):
+46: 
+47:         def __init__(self, module):
+48:             super().__init__()
+49:             self.module = module
+50: 
+51:         def forward(self, inp, **kwargs):
+52:             inps[cache['i']] = inp
+53:             cache['i'] += 1
+54:             cache['attention_mask'] = kwargs['attention_mask']
+55:             cache['position_ids'] = kwargs['position_ids']
+56:             raise ValueError
+57: 
+58:     layers[0] = Catcher(layers[0])
+59:     for i in range(nsamples):
+60:         batch = testenc[:, (i * model.seqlen):((i + 1) * model.seqlen)].to(dev)
+61:         try:
+62:             model(batch)
+63:         except ValueError:
+64:             pass
+65:     layers[0] = layers[0].module
+66: 
+67:     layers[0] = layers[0].cpu()
+68:     model.model.embed_tokens = model.model.embed_tokens.cpu()
+69:     torch.cuda.empty_cache()
+70: 
+71:     outs = torch.zeros_like(inps)
+72:     attention_mask = cache['attention_mask']
+73:     position_ids = cache['position_ids']
+74:     prev_hidden = []
+75: 
+76:     density = []
+77:     for i in range(len(layers)):
+78:         layer = layers[i].to(dev)
+79: 
+80:         for j in range(nsamples):
+81:             if ours:
+82:                 if i >= 2:
+83:                     layer.self_attn.previous_hidden_states = prev_hidden[j]
+84:             outs[j] = layer(inps[j].unsqueeze(0), attention_mask=attention_mask, position_ids=position_ids)[0]
+85:             if ours:
+86:                 if i >= 1:
+87:                     cur_bsz = layer.self_attn.current_hidden_states.shape[0]
+88:                     cur_tgt_len = layer.self_attn.current_hidden_states.shape[1]
+89:                     cur_device = layer.self_attn.current_hidden_states.device
+90:                     cur_dtype = layer.self_attn.current_hidden_states.dtype
+91:                     if i == 1:
+92:                         prev_hidden.append(layer.self_attn.current_hidden_states)
+93:                     else:
+94:                         prev_hidden[j] = layer.self_attn.current_hidden_states
+95:             if ours and layer.self_attn.density is not None:
+96:                 density.append(layer.self_attn.density)
+97:         
+98:         layers[i] = layer.cpu()
+99:         del layer
+100:         torch.cuda.empty_cache()
+
+FILE accuracy/perplexity/opt.py | original lines 1–100
+1: import torch
+2: import torch.nn as nn
+3: import copy
+4: import argparse
+5: import math
+6: from datautils import *
+7: 
+8: 
+9: def get_opt_base(model, seq_len):
+10:     def skip(*args, **kwargs):
+11:         pass
+12:     torch.nn.init.kaiming_uniform_ = skip
+13:     torch.nn.init.uniform_ = skip
+14:     torch.nn.init.normal_ = skip
+15: 
+16:     from transformers import OPTForCausalLM
+17:     model = OPTForCausalLM.from_pretrained(model, torch_dtype=torch.float16, device_map = 'cpu')
+18:     
+19:     model.seqlen = seq_len
+20:     return model
+21: 
+22: @torch.no_grad()
+23: def opt_eval(model, testenc, eval_samples, ours, print_chunk = False):
+24:     print('Evaluating ...')
+25:     
+26:     dev = torch.device('cuda:0')
+27:     testenc = testenc.input_ids
+28:     if eval_samples:
+29:         nsamples = eval_samples
+30:     else:
+31:         nsamples = min(1000, testenc.numel() // model.seqlen)
+32:     print("nsamples: ", nsamples)
+33: 
+34:     use_cache = model.config.use_cache
+35:     model.config.use_cache = False
+36:     layers = model.model.decoder.layers
+37: 
+38:     model.model.decoder.embed_tokens = model.model.decoder.embed_tokens.to(dev)
+39:     model.model.decoder.embed_positions = model.model.decoder.embed_positions.to(dev)
+40:     if hasattr(model.model.decoder, 'project_out') and model.model.decoder.project_out:
+41:         model.model.decoder.project_out = model.model.decoder.project_out.to(dev) 
+42:     if hasattr(model.model.decoder, 'project_in') and model.model.decoder.project_in:
+43:         model.model.decoder.project_in = model.model.decoder.project_in.to(dev) 
+44:     layers[0] = layers[0].to(dev)
+45: 
+46:     dtype = next(iter(model.parameters())).dtype
+47:     inps = torch.zeros(
+48:         (nsamples, model.seqlen, model.config.hidden_size), dtype=dtype, device=dev
+49:     )
+50:     cache = {'i': 0, 'attention_mask': None}
+51: 
+52:     class Catcher(nn.Module):
+53:         def __init__(self, module):
+54:             super().__init__()
+55:             self.module = module
+56:         def forward(self, inp, **kwargs):
+57:             inps[cache['i']] = inp
+58:             cache['i'] += 1
+59:             cache['attention_mask'] = kwargs['attention_mask']
+60:             raise ValueError
+61:     layers[0] = Catcher(layers[0])
+62:     for i in range(nsamples):
+63:         batch = testenc[:, (i * model.seqlen):((i + 1) * model.seqlen)].to(dev)
+64:         try:
+65:             model(batch)
+66:         except ValueError:
+67:             pass
+68:     layers[0] = layers[0].module
+69: 
+70:     layers[0] = layers[0].cpu()
+71:     model.model.decoder.embed_tokens = model.model.decoder.embed_tokens.cpu()
+72:     model.model.decoder.embed_positions = model.model.decoder.embed_positions.cpu()
+73:     if hasattr(model.model.decoder, 'project_out') and model.model.decoder.project_out:
+74:         model.model.decoder.project_out = model.model.decoder.project_out.cpu()
+75:     if hasattr(model.model.decoder, 'project_in') and model.model.decoder.project_in:
+76:         model.model.decoder.project_in = model.model.decoder.project_in.cpu()
+77:     torch.cuda.empty_cache()
+78: 
+79:     outs = torch.zeros_like(inps)
+80:     attention_mask = cache['attention_mask']
+81:     prev_hidden = []
+82: 
+83:     density = []
+84:     for i in range(len(layers)):
+85:         layer = layers[i].to(dev)
+86: 
+87:         for j in range(nsamples):
+88:             if ours:
+89:                 if i >= 2:
+90:                     layer.self_attn.previous_hidden_states = prev_hidden[j]
+91:             outs[j] = layer(inps[j].unsqueeze(0), attention_mask=attention_mask)[0]
+92:             if ours:
+93:                 if i >= 1:
+94:                     cur_bsz = layer.self_attn.current_hidden_states.shape[0]
+95:                     cur_tgt_len = layer.self_attn.current_hidden_states.shape[1]
+96:                     cur_device = layer.self_attn.current_hidden_states.device
+97:                     cur_dtype = layer.self_attn.current_hidden_states.dtype
+98:                     if i == 1:
+99:                         prev_hidden.append(torch.cat((layer.self_attn.current_hidden_states, torch.ones(cur_bsz, cur_tgt_len, 1).to(cur_device).to(cur_dtype)), dim = -1))
+100:                     else:
+
+FILE accuracy/setup/gen_llama_skewing_matrix.py | original lines 1–77
+1: from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig
+2: import argparse
+3: import torch
+4: import os
+5: from utils import *
+6: 
+7: ### Parameters
+8: 
+9: def process_options():
+10:   parser = argparse.ArgumentParser(description="Llama-2 Model")
+11:   parser.add_argument("--model", required=True, 
+12:                       help='Llama-2 model to load')
+13:   parser.add_argument("--output", required=True, 
+14:                       help='output directory to store result')
+15:   return parser
+16: 
+17: def main():
+18:     parser = process_options()
+19:     args = parser.parse_args()
+20: 
+21:     ### Model load
+22:     set_symlink("llama", "modeling_llama_orig.py")
+23: 
+24:     model_name = os.path.basename(args.model)
+25:     config = AutoConfig.from_pretrained(args.model)
+26:     tokenizer = AutoTokenizer.from_pretrained(args.model)
+27:     model = AutoModelForCausalLM.from_pretrained(args.model, torch_dtype=torch.float16).cuda()
+28:     head_dim = model.model.layers[0].self_attn.head_dim
+29:     n_head = model.model.layers[0].self_attn.num_heads
+30:     n_layer = config.num_hidden_layers
+31: 
+32:     ### Generation
+33:     file_path = "./pg19_firstbook.txt"
+34: 
+35:     with open(file_path, 'r') as file:
+36:         prompt = file.read()
+37: 
+38:     input_ids = tokenizer(prompt, return_tensors="pt").input_ids.cuda()[:, :2048]
+39: 
+40:     print("Start Generation")
+41: 
+42:     generated_ids = model.generate(input_ids, max_new_tokens = 1, min_new_tokens = 1)
+43: 
+44:     print(tokenizer.batch_decode(generated_ids, skip_special_tokens=True))
+45: 
+46:     query_v = {}
+47:     key_v = {}
+48: 
+49:     for i, layer in enumerate(model.model.layers):
+50:         query_v[str(i)] = layer.self_attn.rope_query
+51:         key_v[str(i)] = layer.self_attn.rope_key
+52: 
+53:     ### Gen Skewing Matrix A
+54:     A = torch.zeros(n_layer, n_head, head_dim, head_dim).to('cuda').to(torch.float16)
+55:     for name in query_v:
+56:         layer = int(name)
+57:         query = query_v[name]
+58:         key = key_v[name]
+59: 
+60:         for head in range(n_head):
+61:             in_q = query[0, head]
+62:             in_k = key[0, head]
+63:             uq, sq, vq = torch.svd(in_q.to(torch.float))
+64:             uk, sk, vk = torch.svd(in_k.to(torch.float))
+65:             s = sq * sk
+66:             a = torch.zeros(head_dim, head_dim).to('cuda')
+67:             _, ind = s.sort()
+68:             r,c = a.shape
+69:             A[layer, head] = a.scatter(-1, ind.unsqueeze(0).repeat(r,1), vq).to(torch.float16)
+70: 
+71:     save_dir = args.output
+72:     if not os.path.exists(save_dir):
+73:         os.system(f"mkdir -p {save_dir}")
+74:     torch.save(A, save_dir + "/" + model_name + ".pt")
+75: 
+76: if __name__ == "__main__":
+77:     main()
+
+FILE accuracy/setup/gen_opt_model.py | original lines 1–100
+1: from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig
+2: import argparse
+3: import torch
+4: import os
+5: from utils import *
+6: 
+7: def process_options():
+8:   parser = argparse.ArgumentParser(description="OPT Model")
+9:   parser.add_argument("--model", default="facebook/opt-6.7b", 
+10:                       help='OPT model to load')
+11:   parser.add_argument("--output", required=True, 
+12:                       help='output directory to store result')
+13:   parser.add_argument("--no_skewing", action='store_true', 
+14:                       help='whether to skew weight')
+15:   return parser
+16: 
+17: def main():
+18:     parser = process_options()
+19:     args = parser.parse_args()
+20: 
+21:     ### Model load
+22:     set_symlink("opt", "modeling_opt_orig.py")
+23: 
+24:     model_name = os.path.basename(args.model)
+25:     config = AutoConfig.from_pretrained(args.model)
+26:     tokenizer = AutoTokenizer.from_pretrained(args.model)
+27:     model = AutoModelForCausalLM.from_pretrained(args.model, torch_dtype=torch.float16).cuda()
+28:     head_dim = model.model.decoder.layers[0].self_attn.head_dim
+29:     n_head = model.model.decoder.layers[0].self_attn.num_heads
+30: 
+31:     ### Add hook
+32:     query_v = {}
+33:     key_v = {}
+34: 
+35:     def get_query(name):
+36:       def hook(model, input, output):
+37:         query_v[name] = output
+38:       return hook
+39:     def get_key(name):
+40:       def hook(model, input, output):
+41:         key_v[name] = output
+42:       return hook
+43: 
+44:     for i, layer in enumerate(model.model.decoder.layers):
+45:         query = layer.self_attn.q_proj.register_forward_hook(get_query("%d"%(i)))
+46:         key = layer.self_attn.k_proj.register_forward_hook(get_key("%d"%(i)))
+47: 
+48:     ### Generation
+49:     file_path = "./pg19_firstbook.txt"
+50: 
+51:     with open(file_path, 'r') as file:
+52:         prompt = file.read()
+53: 
+54:     input_ids = tokenizer(prompt, return_tensors="pt").input_ids.cuda()[:, :2048]
+55: 
+56:     print("Start Generation")
+57: 
+58:     generated_ids = model.generate(input_ids, max_new_tokens = 1, min_new_tokens = 1)
+59: 
+60:     print(tokenizer.batch_decode(generated_ids, skip_special_tokens=True))
+61: 
+62:     ### New weight generation
+63:     for name in query_v:
+64:         layer = int(name)
+65:         query = query_v[name][0]
+66:         query = query * (head_dim ** -0.5)
+67:         key = key_v[name][0]
+68: 
+69:         wq = model.model.decoder.layers[layer].self_attn.q_proj.weight.data
+70:         bq = model.model.decoder.layers[layer].self_attn.q_proj.bias.data
+71:         wk = model.model.decoder.layers[layer].self_attn.k_proj.weight.data
+72:         bk = model.model.decoder.layers[layer].self_attn.k_proj.bias.data
+73:         
+74:         new_wq = torch.cat((wq.transpose(-1,-2), bq.unsqueeze(0)), dim = 0) * (head_dim**-0.5)
+75:         new_wk = torch.cat((wk.transpose(-1,-2), bk.unsqueeze(0)), dim = 0)
+76:         
+77:         if not args.no_skewing:
+78:             for h in range(n_head):
+79:                 start = h * head_dim
+80:                 end = (h+1) * head_dim
+81:                 uq, sq, vq = torch.svd(query[:, start:end].to(torch.float))
+82:                 uk, sk, vk = torch.svd(key[:, start:end].to(torch.float))
+83:                 uq = uq.to(torch.float16)
+84:                 sq = sq.to(torch.float16)
+85:                 vq = vq.to(torch.float16)
+86:                 uk = uk.to(torch.float16)
+87:                 sk = sk.to(torch.float16)
+88:                 vk = vk.to(torch.float16)
+89:                 s = sq * sk
+90: 
+91:                 A = torch.zeros(head_dim, head_dim).to('cuda').to(torch.float16)
+92:                 _, ind = s.sort()
+93:                 r,c = A.shape
+94:                 A = A.scatter(-1, ind.unsqueeze(0).repeat(r,1), vq) 
+95:                 new_wq[:, start:end] = new_wq[:, start:end] @ A
+96:                 new_wk[:, start:end] = new_wk[:, start:end] @ A
+97: 
+98:         model.model.decoder.layers[layer].self_attn.q_proj.weight.data = new_wq
+99:         model.model.decoder.layers[layer].self_attn.k_proj.weight.data = new_wk
+100: 
+
+FILE accuracy/setup/gen_partial_weight.py | original lines 1–76
+1: from transformers import AutoModelForCausalLM, AutoTokenizer
+2: import argparse
+3: import torch
+4: import os
+5: from utils import *
+6: 
+7: def process_options():
+8:   parser = argparse.ArgumentParser(description="Generate partial weight")
+9:   parser.add_argument("--our_model_path", default=None, 
+10:                       help='our OPT model')
+11:   parser.add_argument("--skewing_matrix_path", default=None, 
+12:                       help='path to skewing matrix')
+13:   parser.add_argument("--model", default="facebook/opt-6.7b", 
+14:                       help='model')
+15:   parser.add_argument("--model_type", default = "opt", 
+16:                       help='model arch (opt, llama)')
+17:   parser.add_argument("--partial_weight_ratio", required=False, default=0.1, 
+18:                       help='Ours: partial weight ratio')
+19:   parser.add_argument("--output", required=True, 
+20:                       help='output directory to store result')
+21:   return parser
+22:     
+23: def main():
+24:     ## get arguments
+25:     parser = process_options()
+26:     args = parser.parse_args()
+27:     file_path = "./pg19_firstbook.txt"
+28: 
+29:     fname = f"modeling_{args.model_type}_ours_setup.py"
+30:     set_symlink(args.model_type, fname)
+31: 
+32:     if args.our_model_path is not None:
+33:         model = AutoModelForCausalLM.from_pretrained(args.our_model_path, torch_dtype=torch.float16).cuda()
+34:     else:
+35:         model = AutoModelForCausalLM.from_pretrained(args.model, torch_dtype=torch.float16).cuda()
+36: 
+37:     if args.skewing_matrix_path is not None:
+38:         A = torch.load(args.skewing_matrix_path).to('cuda').to(torch.float16)
+39:         if args.model_type == 'llama':
+40:             for layer_num, layer in enumerate(model.model.layers):
+41:                 layer.self_attn.skewing_matrix = A[layer_num]
+42: 
+43:     tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=False)
+44: 
+45:     prompt = ["The bartender refused to serve the patron because the patron was drunk.\n\nThe girl politely declined the hamburger because she was a vegetarian.\n\nThe spy discovered the enemy's location because the spy bugged the enemy's phone.\n\nI tossed the ball upwards therefore the ball hit the ceiling.\n\nThe rider fell to the ground because the bull bucked the rider.\n\nThe pair of students came under scrutiny by the teacher because the students both received excellent grades."]
+46:     
+47:     input_ids = tokenizer(prompt, return_tensors="pt").input_ids.cuda()
+48: 
+49:     if args.model_type == "opt":
+50:         for layer in model.model.decoder.layers:
+51:             layer.self_attn.partial_weight_ratio = float(args.partial_weight_ratio)
+52:     elif args.model_type == "llama":
+53:         for layer in model.model.layers:
+54:             layer.self_attn.partial_weight_ratio = float(args.partial_weight_ratio)
+55: 
+56:     print("Start Generation")
+57:     
+58:     generated_ids = model.generate(input_ids, max_new_tokens = 1, min_new_tokens = 1)
+59: 
+60:     print(tokenizer.batch_decode(generated_ids, skip_special_tokens=True))
+61: 
+62:     basepath = args.output + "/" + os.path.basename(os.path.normpath(args.model)) + "_%s"%(args.partial_weight_ratio)
+63:     if not os.path.exists(basepath):
+64:         os.system("mkdir -p %s"%(basepath))
+65: 
+66:     if args.model_type == "opt":
+67:         for layer in range(len(model.model.decoder.layers)):
+68:             partial_weight = model.model.decoder.layers[layer].self_attn.partial_weight_q
+69:             torch.save(partial_weight, "%s/partial_weight_q_"%(basepath) + str(layer) + ".pt")
+70:     elif args.model_type == "llama":
+71:         for layer in range(len(model.model.layers)):
+72:             partial_weight = model.model.layers[layer].self_attn.partial_weight_q
+73:             torch.save(partial_weight, "%s/partial_weight_q_"%(basepath) + str(layer) + ".pt")
+74: 
+75: if __name__ == "__main__":
+76:     main()
+
+FILE accuracy/setup/utils.py | original lines 1–18
+1: import os
+2: def set_symlink(model_type, fname):
+3:     model_path = "../transformers/src/transformers/models/" + model_type
+4:     linker_path = os.path.realpath("../src/" + fname)
+5:     if not os.path.exists(linker_path):
+6:         print(f"No file exists at {linker_path}")
+7:         exit(0)
+8:     if not os.path.exists(model_path):
+9:         print(f"No file exists at {model_path}")
+10:         exit(0)
+11:     curr_dir = os.getcwd()
+12:     os.chdir(model_path)
+13:     if os.path.exists(f'modeling_{model_type}.py'):
+14:         cmd = f"rm modeling_{model_type}.py"
+15:         os.system(cmd)
+16:     cmd = f"ln -s {linker_path} modeling_{model_type}.py"
+17:     os.system(cmd)
+18:     os.chdir(curr_dir)
+
+FILE accuracy/src/modeling_llama_orig.py | original lines 1–100
+1: # coding=utf-8
+2: # Copyright 2022 EleutherAI and the HuggingFace Inc. team. All rights reserved.
+3: #
+4: # This code is based on EleutherAI's GPT-NeoX library and the GPT-NeoX
+5: # and OPT implementations in this library. It has been modified from its
+6: # original forms to accommodate minor architectural differences compared
+7: # to GPT-NeoX and OPT used by the Meta AI team that trained the model.
+8: #
+9: # Licensed under the Apache License, Version 2.0 (the "License");
+10: # you may not use this file except in compliance with the License.
+11: # You may obtain a copy of the License at
+12: #
+13: #     http://www.apache.org/licenses/LICENSE-2.0
+14: #
+15: # Unless required by applicable law or agreed to in writing, software
+16: # distributed under the License is distributed on an "AS IS" BASIS,
+17: # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+18: # See the License for the specific language governing permissions and
+19: # limitations under the License.
+20: """ PyTorch LLaMA model."""
+21: import math
+22: import warnings
+23: from typing import List, Optional, Tuple, Union
+24: 
+25: import torch
+26: import torch.nn.functional as F
+27: import torch.utils.checkpoint
+28: from torch import nn
+29: from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
+30: 
+31: from ...activations import ACT2FN
+32: from ...modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast, SequenceClassifierOutputWithPast
+33: from ...modeling_utils import PreTrainedModel
+34: from ...pytorch_utils import ALL_LAYERNORM_LAYERS
+35: from ...utils import (
+36:     add_start_docstrings,
+37:     add_start_docstrings_to_model_forward,
+38:     is_flash_attn_2_available,
+39:     logging,
+40:     replace_return_docstrings,
+41: )
+42: from .configuration_llama import LlamaConfig
+43: 
+44: 
+45: if is_flash_attn_2_available():
+46:     from flash_attn import flash_attn_func, flash_attn_varlen_func
+47:     from flash_attn.bert_padding import index_first_axis, pad_input, unpad_input  # noqa
+48: 
+49: 
+50: logger = logging.get_logger(__name__)
+51: 
+52: _CONFIG_FOR_DOC = "LlamaConfig"
+53: 
+54: 
+55: def _get_unpad_data(attention_mask):
+56:     seqlens_in_batch = attention_mask.sum(dim=-1, dtype=torch.int32)
+57:     indices = torch.nonzero(attention_mask.flatten(), as_tuple=False).flatten()
+58:     max_seqlen_in_batch = seqlens_in_batch.max().item()
+59:     cu_seqlens = F.pad(torch.cumsum(seqlens_in_batch, dim=0, dtype=torch.torch.int32), (1, 0))
+60:     return (
+61:         indices,
+62:         cu_seqlens,
+63:         max_seqlen_in_batch,
+64:     )
+65: 
+66: 
+67: class AttnMaskConverter:
+68:     """
+69:     A utility attention mask class that allows:
+70:         - Create a causal 4d mask
+71:         - Create a causal 4d mask with slided window
+72:         - Convert a 2d attention mask (batch_size, query_length) to a 4d attention mask (batch_size, 1, query_length,
+73:           key_value_length) that can be multiplied with attention scores
+74: 
+75:     Parameters:
+76:         is_causal (`bool`):
+77:             Whether the attention mask should be a uni-directional (causal) or bi-directional mask.
+78: 
+79:         sliding_window (`int`, *optional*):
+80:             Optionally, the sliding window masks can be created if `sliding_window` is defined to a positive integer.
+81:     """
+82: 
+83:     def __init__(self, is_causal: bool, sliding_window: Optional[int] = None):
+84:         self.is_causal = is_causal
+85:         self.sliding_window = sliding_window
+86: 
+87:     def to_causal_4d(
+88:         self,
+89:         batch_size: int,
+90:         query_length: int,
+91:         key_value_length: int,
+92:         dtype: torch.dtype = torch.float32,
+93:         device: Union[torch.device, "str"] = "cpu",
+94:     ) -> torch.Tensor:
+95:         """
+96:         Creates a causal 4D mask of (bsz, head_dim=1, query_length, key_value_length) shape and adds large negative
+97:         bias to upper right hand triangular matrix (causal mask).
+98:         """
+99:         if not self.is_causal:
+100:             raise ValueError(f"Please use `to_causal_4d` only if {self.__class__} has `is_causal` set to True.")
+
+FILE accuracy/src/modeling_llama_ours.py | original lines 1–100
+1: # coding=utf-8
+2: # Copyright 2022 EleutherAI and the HuggingFace Inc. team. All rights reserved.
+3: #
+4: # This code is based on EleutherAI's GPT-NeoX library and the GPT-NeoX
+5: # and OPT implementations in this library. It has been modified from its
+6: # original forms to accommodate minor architectural differences compared
+7: # to GPT-NeoX and OPT used by the Meta AI team that trained the model.
+8: #
+9: # Licensed under the Apache License, Version 2.0 (the "License");
+10: # you may not use this file except in compliance with the License.
+11: # You may obtain a copy of the License at
+12: #
+13: #     http://www.apache.org/licenses/LICENSE-2.0
+14: #
+15: # Unless required by applicable law or agreed to in writing, software
+16: # distributed under the License is distributed on an "AS IS" BASIS,
+17: # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+18: # See the License for the specific language governing permissions and
+19: # limitations under the License.
+20: """ PyTorch LLaMA model."""
+21: import math
+22: from typing import List, Optional, Tuple, Union
+23: 
+24: import torch
+25: import torch.utils.checkpoint
+26: from torch import nn
+27: from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
+28: 
+29: from ...activations import ACT2FN
+30: from ...modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast, SequenceClassifierOutputWithPast
+31: from ...modeling_utils import PreTrainedModel
+32: from ...utils import add_start_docstrings, add_start_docstrings_to_model_forward, logging, replace_return_docstrings
+33: from .configuration_llama import LlamaConfig
+34: 
+35: 
+36: logger = logging.get_logger(__name__)
+37: 
+38: _CONFIG_FOR_DOC = "LlamaConfig"
+39: 
+40: 
+41: # Copied from transformers.models.bart.modeling_bart._make_causal_mask
+42: def _make_causal_mask(
+43:     input_ids_shape: torch.Size, dtype: torch.dtype, device: torch.device, past_key_values_length: int = 0
+44: ):
+45:     """
+46:     Make causal mask used for bi-directional self-attention.
+47:     """
+48:     bsz, tgt_len = input_ids_shape
+49:     mask = torch.full((tgt_len, tgt_len), torch.tensor(torch.finfo(dtype).min, device=device), device=device)
+50:     mask_cond = torch.arange(mask.size(-1), device=device)
+51:     mask.masked_fill_(mask_cond < (mask_cond + 1).view(mask.size(-1), 1), 0)
+52:     mask = mask.to(dtype)
+53: 
+54:     if past_key_values_length > 0:
+55:         mask = torch.cat([torch.zeros(tgt_len, past_key_values_length, dtype=dtype, device=device), mask], dim=-1)
+56:     return mask[None, None, :, :].expand(bsz, 1, tgt_len, tgt_len + past_key_values_length)
+57: 
+58: 
+59: # Copied from transformers.models.bart.modeling_bart._expand_mask
+60: def _expand_mask(mask: torch.Tensor, dtype: torch.dtype, tgt_len: Optional[int] = None):
+61:     """
+62:     Expands attention_mask from `[bsz, seq_len]` to `[bsz, 1, tgt_seq_len, src_seq_len]`.
+63:     """
+64:     bsz, src_len = mask.size()
+65:     tgt_len = tgt_len if tgt_len is not None else src_len
+66: 
+67:     expanded_mask = mask[:, None, None, :].expand(bsz, 1, tgt_len, src_len).to(dtype)
+68: 
+69:     inverted_mask = 1.0 - expanded_mask
+70: 
+71:     return inverted_mask.masked_fill(inverted_mask.to(torch.bool), torch.finfo(dtype).min)
+72: 
+73: 
+74: class LlamaRMSNorm(nn.Module):
+75:     def __init__(self, hidden_size, eps=1e-6):
+76:         """
+77:         LlamaRMSNorm is equivalent to T5LayerNorm
+78:         """
+79:         super().__init__()
+80:         self.weight = nn.Parameter(torch.ones(hidden_size))
+81:         self.variance_epsilon = eps
+82: 
+83:     def forward(self, hidden_states):
+84:         variance = hidden_states.to(torch.float32).pow(2).mean(-1, keepdim=True)
+85:         hidden_states = hidden_states * torch.rsqrt(variance + self.variance_epsilon)
+86: 
+87:         # convert into half-precision if necessary
+88:         if self.weight.dtype in [torch.float16, torch.bfloat16]:
+89:             hidden_states = hidden_states.to(self.weight.dtype)
+90: 
+91:         return self.weight * hidden_states
+92: 
+93: 
+94: class LlamaRotaryEmbedding(torch.nn.Module):
+95:     def __init__(self, dim, max_position_embeddings=2048, base=10000, device=None):
+96:         super().__init__()
+97:         inv_freq = 1.0 / (base ** (torch.arange(0, dim, 2).float().to(device) / dim))
+98:         self.register_buffer("inv_freq", inv_freq)
+99: 
+100:         # Build here to make `torch.jit.trace` work.
+
+FILE accuracy/src/modeling_llama_ours_prune.py | original lines 1–100
+1: # coding=utf-8
+2: # Copyright 2022 EleutherAI and the HuggingFace Inc. team. All rights reserved.
+3: #
+4: # This code is based on EleutherAI's GPT-NeoX library and the GPT-NeoX
+5: # and OPT implementations in this library. It has been modified from its
+6: # original forms to accommodate minor architectural differences compared
+7: # to GPT-NeoX and OPT used by the Meta AI team that trained the model.
+8: #
+9: # Licensed under the Apache License, Version 2.0 (the "License");
+10: # you may not use this file except in compliance with the License.
+11: # You may obtain a copy of the License at
+12: #
+13: #     http://www.apache.org/licenses/LICENSE-2.0
+14: #
+15: # Unless required by applicable law or agreed to in writing, software
+16: # distributed under the License is distributed on an "AS IS" BASIS,
+17: # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+18: # See the License for the specific language governing permissions and
+19: # limitations under the License.
+20: """ PyTorch LLaMA model."""
+21: import math
+22: from typing import List, Optional, Tuple, Union
+23: 
+24: import torch
+25: import torch.utils.checkpoint
+26: from torch import nn
+27: from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
+28: 
+29: from ...activations import ACT2FN
+30: from ...modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast, SequenceClassifierOutputWithPast
+31: from ...modeling_utils import PreTrainedModel
+32: from ...utils import add_start_docstrings, add_start_docstrings_to_model_forward, logging, replace_return_docstrings
+33: from .configuration_llama import LlamaConfig
+34: 
+35: 
+36: logger = logging.get_logger(__name__)
+37: 
+38: _CONFIG_FOR_DOC = "LlamaConfig"
+39: 
+40: 
+41: # Copied from transformers.models.bart.modeling_bart._make_causal_mask
+42: def _make_causal_mask(
+43:     input_ids_shape: torch.Size, dtype: torch.dtype, device: torch.device, past_key_values_length: int = 0
+44: ):
+45:     """
+46:     Make causal mask used for bi-directional self-attention.
+47:     """
+48:     bsz, tgt_len = input_ids_shape
+49:     mask = torch.full((tgt_len, tgt_len), torch.tensor(torch.finfo(dtype).min, device=device), device=device)
+50:     mask_cond = torch.arange(mask.size(-1), device=device)
+51:     mask.masked_fill_(mask_cond < (mask_cond + 1).view(mask.size(-1), 1), 0)
+52:     mask = mask.to(dtype)
+53: 
+54:     if past_key_values_length > 0:
+55:         mask = torch.cat([torch.zeros(tgt_len, past_key_values_length, dtype=dtype, device=device), mask], dim=-1)
+56:     return mask[None, None, :, :].expand(bsz, 1, tgt_len, tgt_len + past_key_values_length)
+57: 
+58: 
+59: # Copied from transformers.models.bart.modeling_bart._expand_mask
+60: def _expand_mask(mask: torch.Tensor, dtype: torch.dtype, tgt_len: Optional[int] = None):
+61:     """
+62:     Expands attention_mask from `[bsz, seq_len]` to `[bsz, 1, tgt_seq_len, src_seq_len]`.
+63:     """
+64:     bsz, src_len = mask.size()
+65:     tgt_len = tgt_len if tgt_len is not None else src_len
+66: 
+67:     expanded_mask = mask[:, None, None, :].expand(bsz, 1, tgt_len, src_len).to(dtype)
+68: 
+69:     inverted_mask = 1.0 - expanded_mask
+70: 
+71:     return inverted_mask.masked_fill(inverted_mask.to(torch.bool), torch.finfo(dtype).min)
+72: 
+73: 
+74: class LlamaRMSNorm(nn.Module):
+75:     def __init__(self, hidden_size, eps=1e-6):
+76:         """
+77:         LlamaRMSNorm is equivalent to T5LayerNorm
+78:         """
+79:         super().__init__()
+80:         self.weight = nn.Parameter(torch.ones(hidden_size))
+81:         self.variance_epsilon = eps
+82: 
+83:     def forward(self, hidden_states):
+84:         variance = hidden_states.to(torch.float32).pow(2).mean(-1, keepdim=True)
+85:         hidden_states = hidden_states * torch.rsqrt(variance + self.variance_epsilon)
+86: 
+87:         # convert into half-precision if necessary
+88:         if self.weight.dtype in [torch.float16, torch.bfloat16]:
+89:             hidden_states = hidden_states.to(self.weight.dtype)
+90: 
+91:         return self.weight * hidden_states
+92: 
+93: 
+94: class LlamaRotaryEmbedding(torch.nn.Module):
+95:     def __init__(self, dim, max_position_embeddings=2048, base=10000, device=None):
+96:         super().__init__()
+97:         inv_freq = 1.0 / (base ** (torch.arange(0, dim, 2).float().to(device) / dim))
+98:         self.register_buffer("inv_freq", inv_freq)
+99: 
+100:         # Build here to make `torch.jit.trace` work.
+
+FILE accuracy/src/modeling_llama_ours_setup.py | original lines 1–100
+1: # coding=utf-8
+2: # Copyright 2022 EleutherAI and the HuggingFace Inc. team. All rights reserved.
+3: #
+4: # This code is based on EleutherAI's GPT-NeoX library and the GPT-NeoX
+5: # and OPT implementations in this library. It has been modified from its
+6: # original forms to accommodate minor architectural differences compared
+7: # to GPT-NeoX and OPT used by the Meta AI team that trained the model.
+8: #
+9: # Licensed under the Apache License, Version 2.0 (the "License");
+10: # you may not use this file except in compliance with the License.
+11: # You may obtain a copy of the License at
+12: #
+13: #     http://www.apache.org/licenses/LICENSE-2.0
+14: #
+15: # Unless required by applicable law or agreed to in writing, software
+16: # distributed under the License is distributed on an "AS IS" BASIS,
+17: # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+18: # See the License for the specific language governing permissions and
+19: # limitations under the License.
+20: """ PyTorch LLaMA model."""
+21: import math
+22: from typing import List, Optional, Tuple, Union
+23: 
+24: import torch
+25: import torch.utils.checkpoint
+26: from torch import nn
+27: from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
+28: 
+29: from ...activations import ACT2FN
+30: from ...modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast, SequenceClassifierOutputWithPast
+31: from ...modeling_utils import PreTrainedModel
+32: from ...utils import add_start_docstrings, add_start_docstrings_to_model_forward, logging, replace_return_docstrings
+33: from .configuration_llama import LlamaConfig
+34: 
+35: 
+36: logger = logging.get_logger(__name__)
+37: 
+38: _CONFIG_FOR_DOC = "LlamaConfig"
+39: 
+40: 
+41: # Copied from transformers.models.bart.modeling_bart._make_causal_mask
+42: def _make_causal_mask(
+43:     input_ids_shape: torch.Size, dtype: torch.dtype, device: torch.device, past_key_values_length: int = 0
+44: ):
+45:     """
+46:     Make causal mask used for bi-directional self-attention.
+47:     """
+48:     bsz, tgt_len = input_ids_shape
+49:     mask = torch.full((tgt_len, tgt_len), torch.tensor(torch.finfo(dtype).min, device=device), device=device)
+50:     mask_cond = torch.arange(mask.size(-1), device=device)
+51:     mask.masked_fill_(mask_cond < (mask_cond + 1).view(mask.size(-1), 1), 0)
+52:     mask = mask.to(dtype)
+53: 
+54:     if past_key_values_length > 0:
+55:         mask = torch.cat([torch.zeros(tgt_len, past_key_values_length, dtype=dtype, device=device), mask], dim=-1)
+56:     return mask[None, None, :, :].expand(bsz, 1, tgt_len, tgt_len + past_key_values_length)
+57: 
+58: 
+59: # Copied from transformers.models.bart.modeling_bart._expand_mask
+60: def _expand_mask(mask: torch.Tensor, dtype: torch.dtype, tgt_len: Optional[int] = None):
+61:     """
+62:     Expands attention_mask from `[bsz, seq_len]` to `[bsz, 1, tgt_seq_len, src_seq_len]`.
+63:     """
+64:     bsz, src_len = mask.size()
+65:     tgt_len = tgt_len if tgt_len is not None else src_len
+66: 
+67:     expanded_mask = mask[:, None, None, :].expand(bsz, 1, tgt_len, src_len).to(dtype)
+68: 
+69:     inverted_mask = 1.0 - expanded_mask
+70: 
+71:     return inverted_mask.masked_fill(inverted_mask.to(torch.bool), torch.finfo(dtype).min)
+72: 
+73: 
+74: class LlamaRMSNorm(nn.Module):
+75:     def __init__(self, hidden_size, eps=1e-6):
+76:         """
+77:         LlamaRMSNorm is equivalent to T5LayerNorm
+78:         """
+79:         super().__init__()
+80:         self.weight = nn.Parameter(torch.ones(hidden_size))
+81:         self.variance_epsilon = eps
+82: 
+83:     def forward(self, hidden_states):
+84:         variance = hidden_states.to(torch.float32).pow(2).mean(-1, keepdim=True)
+85:         hidden_states = hidden_states * torch.rsqrt(variance + self.variance_epsilon)
+86: 
+87:         # convert into half-precision if necessary
+88:         if self.weight.dtype in [torch.float16, torch.bfloat16]:
+89:             hidden_states = hidden_states.to(self.weight.dtype)
+90: 
+91:         return self.weight * hidden_states
+92: 
+93: 
+94: class LlamaRotaryEmbedding(torch.nn.Module):
+95:     def __init__(self, dim, max_position_embeddings=2048, base=10000, device=None):
+96:         super().__init__()
+97:         inv_freq = 1.0 / (base ** (torch.arange(0, dim, 2).float().to(device) / dim))
+98:         self.register_buffer("inv_freq", inv_freq)
+99: 
+100:         # Build here to make `torch.jit.trace` work.
+
+FILE accuracy/src/modeling_opt_orig.py | original lines 1–100
+1: # coding=utf-8
+2: # Copyright 2022 The Fairseq Authors and The HuggingFace Inc. team. All rights reserved.
+3: #
+4: # Licensed under the Apache License, Version 2.0 (the "License");
+5: # you may not use this file except in compliance with the License.
+6: # You may obtain a copy of the License at
+7: #
+8: #     http://www.apache.org/licenses/LICENSE-2.0
+9: #
+10: # Unless required by applicable law or agreed to in writing, software
+11: # distributed under the License is distributed on an "AS IS" BASIS,
+12: # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+13: # See the License for the specific language governing permissions and
+14: # limitations under the License.
+15: """ PyTorch OPT model."""
+16: from typing import List, Optional, Tuple, Union
+17: 
+18: import torch
+19: import torch.utils.checkpoint
+20: from torch import nn
+21: from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
+22: 
+23: from ...activations import ACT2FN
+24: from ...modeling_outputs import (
+25:     BaseModelOutputWithPast,
+26:     CausalLMOutputWithPast,
+27:     QuestionAnsweringModelOutput,
+28:     SequenceClassifierOutputWithPast,
+29: )
+30: from ...modeling_utils import PreTrainedModel
+31: from ...utils import (
+32:     add_code_sample_docstrings,
+33:     add_start_docstrings,
+34:     add_start_docstrings_to_model_forward,
+35:     logging,
+36:     replace_return_docstrings,
+37: )
+38: from .configuration_opt import OPTConfig
+39: 
+40: 
+41: logger = logging.get_logger(__name__)
+42: 
+43: _CHECKPOINT_FOR_DOC = "facebook/opt-350m"
+44: _CONFIG_FOR_DOC = "OPTConfig"
+45: 
+46: # Base model docstring
+47: _EXPECTED_OUTPUT_SHAPE = [1, 8, 1024]
+48: 
+49: # SequenceClassification docstring
+50: _CHECKPOINT_FOR_SEQUENCE_CLASSIFICATION = "ArthurZ/opt-350m-dummy-sc"
+51: _SEQ_CLASS_EXPECTED_LOSS = 1.71
+52: _SEQ_CLASS_EXPECTED_OUTPUT = "'LABEL_0'"
+53: 
+54: OPT_PRETRAINED_MODEL_ARCHIVE_LIST = [
+55:     "facebook/opt-125m",
+56:     "facebook/opt-350m",
+57:     "facebook/opt-1.3b",
+58:     "facebook/opt-2.7b",
+59:     "facebook/opt-6.7b",
+60:     "facebook/opt-13b",
+61:     "facebook/opt-30b",
+62:     # See all OPT models at https://huggingface.co/models?filter=opt
+63: ]
+64: 
+65: 
+66: # Copied from transformers.models.bart.modeling_bart._make_causal_mask
+67: def _make_causal_mask(
+68:     input_ids_shape: torch.Size, dtype: torch.dtype, device: torch.device, past_key_values_length: int = 0
+69: ):
+70:     """
+71:     Make causal mask used for bi-directional self-attention.
+72:     """
+73:     bsz, tgt_len = input_ids_shape
+74:     mask = torch.full((tgt_len, tgt_len), torch.finfo(dtype).min, device=device)
+75:     mask_cond = torch.arange(mask.size(-1), device=device)
+76:     mask.masked_fill_(mask_cond < (mask_cond + 1).view(mask.size(-1), 1), 0)
+77:     mask = mask.to(dtype)
+78: 
+79:     if past_key_values_length > 0:
+80:         mask = torch.cat([torch.zeros(tgt_len, past_key_values_length, dtype=dtype, device=device), mask], dim=-1)
+81:     return mask[None, None, :, :].expand(bsz, 1, tgt_len, tgt_len + past_key_values_length)
+82: 
+83: 
+84: def _expand_mask(mask: torch.Tensor, dtype: torch.dtype, tgt_len: Optional[int] = None):
+85:     """
+86:     Expands attention_mask from `[bsz, seq_len]` to `[bsz, 1, tgt_seq_len, src_seq_len]`.
+87:     """
+88:     bsz, src_len = mask.size()
+89:     tgt_len = tgt_len if tgt_len is not None else src_len
+90: 
+91:     expanded_mask = mask[:, None, None, :].expand(bsz, 1, tgt_len, src_len).to(dtype)
+92: 
+93:     inverted_mask = 1.0 - expanded_mask
+94: 
+95:     return inverted_mask.masked_fill(inverted_mask.to(torch.bool), torch.finfo(dtype).min)
+96: 
+97: 
+98: class OPTLearnedPositionalEmbedding(nn.Embedding):
+99:     """
+100:     This module learns positional embeddings up to a fixed maximum size.
+
+FILE accuracy/src/modeling_opt_ours.py | original lines 1–100
+1: # coding=utf-8
+2: # Copyright 2022 The Fairseq Authors and The HuggingFace Inc. team. All rights reserved.
+3: #
+4: # Licensed under the Apache License, Version 2.0 (the "License");
+5: # you may not use this file except in compliance with the License.
+6: # You may obtain a copy of the License at
+7: #
+8: #     http://www.apache.org/licenses/LICENSE-2.0
+9: #
+10: # Unless required by applicable law or agreed to in writing, software
+11: # distributed under the License is distributed on an "AS IS" BASIS,
+12: # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+13: # See the License for the specific language governing permissions and
+14: # limitations under the License.
+15: """ PyTorch OPT model."""
+16: import random
+17: from typing import List, Optional, Tuple, Union
+18: 
+19: import torch
+20: import torch.utils.checkpoint
+21: from torch import nn
+22: from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
+23: 
+24: from ...activations import ACT2FN
+25: from ...modeling_outputs import (
+26:     BaseModelOutputWithPast,
+27:     CausalLMOutputWithPast,
+28:     QuestionAnsweringModelOutput,
+29:     SequenceClassifierOutputWithPast,
+30: )
+31: from ...modeling_utils import PreTrainedModel
+32: from ...utils import (
+33:     add_code_sample_docstrings,
+34:     add_start_docstrings,
+35:     add_start_docstrings_to_model_forward,
+36:     logging,
+37:     replace_return_docstrings,
+38: )
+39: from .configuration_opt import OPTConfig
+40: 
+41: 
+42: logger = logging.get_logger(__name__)
+43: 
+44: _CHECKPOINT_FOR_DOC = "facebook/opt-350m"
+45: _CONFIG_FOR_DOC = "OPTConfig"
+46: 
+47: # Base model docstring
+48: _EXPECTED_OUTPUT_SHAPE = [1, 8, 1024]
+49: 
+50: # SequenceClassification docstring
+51: _CHECKPOINT_FOR_SEQUENCE_CLASSIFICATION = "ArthurZ/opt-350m-dummy-sc"
+52: _SEQ_CLASS_EXPECTED_LOSS = 1.71
+53: _SEQ_CLASS_EXPECTED_OUTPUT = "'LABEL_0'"
+54: 
+55: OPT_PRETRAINED_MODEL_ARCHIVE_LIST = [
+56:     "facebook/opt-125m",
+57:     "facebook/opt-350m",
+58:     "facebook/opt-1.3b",
+59:     "facebook/opt-2.7b",
+60:     "facebook/opt-6.7b",
+61:     "facebook/opt-13b",
+62:     "facebook/opt-30b",
+63:     # See all OPT models at https://huggingface.co/models?filter=opt
+64: ]
+65: 
+66: 
+67: # Copied from transformers.models.bart.modeling_bart._make_causal_mask
+68: def _make_causal_mask(
+69:     input_ids_shape: torch.Size, dtype: torch.dtype, device: torch.device, past_key_values_length: int = 0
+70: ):
+71:     """
+72:     Make causal mask used for bi-directional self-attention.
+73:     """
+74:     bsz, tgt_len = input_ids_shape
+75:     mask = torch.full((tgt_len, tgt_len), torch.tensor(torch.finfo(dtype).min, device=device), device=device)
+76:     mask_cond = torch.arange(mask.size(-1), device=device)
+77:     mask.masked_fill_(mask_cond < (mask_cond + 1).view(mask.size(-1), 1), 0)
+78:     mask = mask.to(dtype)
+79: 
+80:     if past_key_values_length > 0:
+81:         mask = torch.cat([torch.zeros(tgt_len, past_key_values_length, dtype=dtype, device=device), mask], dim=-1)
+82:     return mask[None, None, :, :].expand(bsz, 1, tgt_len, tgt_len + past_key_values_length)
+83: 
+84: 
+85: def _expand_mask(mask: torch.Tensor, dtype: torch.dtype, tgt_len: Optional[int] = None):
+86:     """
+87:     Expands attention_mask from `[bsz, seq_len]` to `[bsz, 1, tgt_seq_len, src_seq_len]`.
+88:     """
+89:     bsz, src_len = mask.size()
+90:     tgt_len = tgt_len if tgt_len is not None else src_len
+91: 
+92:     expanded_mask = mask[:, None, None, :].expand(bsz, 1, tgt_len, src_len).to(dtype)
+93: 
+94:     inverted_mask = 1.0 - expanded_mask
+95: 
+96:     return inverted_mask.masked_fill(inverted_mask.to(torch.bool), torch.finfo(dtype).min)
+97: 
+98: 
+99: class OPTLearnedPositionalEmbedding(nn.Embedding):
+100:     """
+
+FILE accuracy/src/modeling_opt_ours_prune.py | original lines 1–100
+1: # coding=utf-8
+2: # Copyright 2022 The Fairseq Authors and The HuggingFace Inc. team. All rights reserved.
+3: #
+4: # Licensed under the Apache License, Version 2.0 (the "License");
+5: # you may not use this file except in compliance with the License.
+6: # You may obtain a copy of the License at
+7: #
+8: #     http://www.apache.org/licenses/LICENSE-2.0
+9: #
+10: # Unless required by applicable law or agreed to in writing, software
+11: # distributed under the License is distributed on an "AS IS" BASIS,
+12: # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+13: # See the License for the specific language governing permissions and
+14: # limitations under the License.
+15: """ PyTorch OPT model."""
+16: import random
+17: from typing import List, Optional, Tuple, Union
+18: 
+19: import torch
+20: import torch.utils.checkpoint
+21: from torch import nn
+22: from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
+23: 
+24: from ...activations import ACT2FN
+25: from ...modeling_outputs import (
+26:     BaseModelOutputWithPast,
+27:     CausalLMOutputWithPast,
+28:     QuestionAnsweringModelOutput,
+29:     SequenceClassifierOutputWithPast,
+30: )
+31: from ...modeling_utils import PreTrainedModel
+32: from ...utils import (
+33:     add_code_sample_docstrings,
+34:     add_start_docstrings,
+35:     add_start_docstrings_to_model_forward,
+36:     logging,
+37:     replace_return_docstrings,
+38: )
+39: from .configuration_opt import OPTConfig
+40: 
+41: 
+42: logger = logging.get_logger(__name__)
+43: 
+44: _CHECKPOINT_FOR_DOC = "facebook/opt-350m"
+45: _CONFIG_FOR_DOC = "OPTConfig"
+46: 
+47: # Base model docstring
+48: _EXPECTED_OUTPUT_SHAPE = [1, 8, 1024]
+49: 
+50: # SequenceClassification docstring
+51: _CHECKPOINT_FOR_SEQUENCE_CLASSIFICATION = "ArthurZ/opt-350m-dummy-sc"
+52: _SEQ_CLASS_EXPECTED_LOSS = 1.71
+53: _SEQ_CLASS_EXPECTED_OUTPUT = "'LABEL_0'"
+54: 
+55: OPT_PRETRAINED_MODEL_ARCHIVE_LIST = [
+56:     "facebook/opt-125m",
+57:     "facebook/opt-350m",
+58:     "facebook/opt-1.3b",
+59:     "facebook/opt-2.7b",
+60:     "facebook/opt-6.7b",
+61:     "facebook/opt-13b",
+62:     "facebook/opt-30b",
+63:     # See all OPT models at https://huggingface.co/models?filter=opt
+64: ]
+65: 
+66: 
+67: # Copied from transformers.models.bart.modeling_bart._make_causal_mask
+68: def _make_causal_mask(
+69:     input_ids_shape: torch.Size, dtype: torch.dtype, device: torch.device, past_key_values_length: int = 0
+70: ):
+71:     """
+72:     Make causal mask used for bi-directional self-attention.
+73:     """
+74:     bsz, tgt_len = input_ids_shape
+75:     mask = torch.full((tgt_len, tgt_len), torch.tensor(torch.finfo(dtype).min, device=device), device=device)
+76:     mask_cond = torch.arange(mask.size(-1), device=device)
+77:     mask.masked_fill_(mask_cond < (mask_cond + 1).view(mask.size(-1), 1), 0)
+78:     mask = mask.to(dtype)
+79: 
+80:     if past_key_values_length > 0:
+81:         mask = torch.cat([torch.zeros(tgt_len, past_key_values_length, dtype=dtype, device=device), mask], dim=-1)
+82:     return mask[None, None, :, :].expand(bsz, 1, tgt_len, tgt_len + past_key_values_length)
+83: 
+84: 
+85: def _expand_mask(mask: torch.Tensor, dtype: torch.dtype, tgt_len: Optional[int] = None):
+86:     """
+87:     Expands attention_mask from `[bsz, seq_len]` to `[bsz, 1, tgt_seq_len, src_seq_len]`.
+88:     """
+89:     bsz, src_len = mask.size()
+90:     tgt_len = tgt_len if tgt_len is not None else src_len
+91: 
+92:     expanded_mask = mask[:, None, None, :].expand(bsz, 1, tgt_len, src_len).to(dtype)
+93: 
+94:     inverted_mask = 1.0 - expanded_mask
+95: 
+96:     return inverted_mask.masked_fill(inverted_mask.to(torch.bool), torch.finfo(dtype).min)
+97: 
+98: 
+99: class OPTLearnedPositionalEmbedding(nn.Embedding):
+100:     """
+
+FILE accuracy/src/modeling_opt_ours_setup.py | original lines 1–100
+1: # coding=utf-8
+2: # Copyright 2022 The Fairseq Authors and The HuggingFace Inc. team. All rights reserved.
+3: #
+4: # Licensed under the Apache License, Version 2.0 (the "License");
+5: # you may not use this file except in compliance with the License.
+6: # You may obtain a copy of the License at
+7: #
+8: #     http://www.apache.org/licenses/LICENSE-2.0
+9: #
+10: # Unless required by applicable law or agreed to in writing, software
+11: # distributed under the License is distributed on an "AS IS" BASIS,
+12: # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+13: # See the License for the specific language governing permissions and
+14: # limitations under the License.
+15: """ PyTorch OPT model."""
+16: import random
+17: from typing import List, Optional, Tuple, Union
+18: 
+19: import torch
+20: import torch.utils.checkpoint
+21: from torch import nn
+22: from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
+23: 
+24: from ...activations import ACT2FN
+25: from ...modeling_outputs import (
+26:     BaseModelOutputWithPast,
+27:     CausalLMOutputWithPast,
+28:     QuestionAnsweringModelOutput,
+29:     SequenceClassifierOutputWithPast,
+30: )
+31: from ...modeling_utils import PreTrainedModel
+32: from ...utils import (
+33:     add_code_sample_docstrings,
+34:     add_start_docstrings,
+35:     add_start_docstrings_to_model_forward,
+36:     logging,
+37:     replace_return_docstrings,
+38: )
+39: from .configuration_opt import OPTConfig
+40: 
+41: 
+42: logger = logging.get_logger(__name__)
+43: 
+44: _CHECKPOINT_FOR_DOC = "facebook/opt-350m"
+45: _CONFIG_FOR_DOC = "OPTConfig"
+46: 
+47: # Base model docstring
+48: _EXPECTED_OUTPUT_SHAPE = [1, 8, 1024]
+49: 
+50: # SequenceClassification docstring
+51: _CHECKPOINT_FOR_SEQUENCE_CLASSIFICATION = "ArthurZ/opt-350m-dummy-sc"
+52: _SEQ_CLASS_EXPECTED_LOSS = 1.71
+53: _SEQ_CLASS_EXPECTED_OUTPUT = "'LABEL_0'"
+54: 
+55: OPT_PRETRAINED_MODEL_ARCHIVE_LIST = [
+56:     "facebook/opt-125m",
+57:     "facebook/opt-350m",
+58:     "facebook/opt-1.3b",
+59:     "facebook/opt-2.7b",
+60:     "facebook/opt-6.7b",
+61:     "facebook/opt-13b",
+62:     "facebook/opt-30b",
+63:     # See all OPT models at https://huggingface.co/models?filter=opt
+64: ]
+65: 
+66: 
+67: # Copied from transformers.models.bart.modeling_bart._make_causal_mask
+68: def _make_causal_mask(
+69:     input_ids_shape: torch.Size, dtype: torch.dtype, device: torch.device, past_key_values_length: int = 0
+70: ):
+71:     """
+72:     Make causal mask used for bi-directional self-attention.
+73:     """
+74:     bsz, tgt_len = input_ids_shape
+75:     mask = torch.full((tgt_len, tgt_len), torch.tensor(torch.finfo(dtype).min, device=device), device=device)
+76:     mask_cond = torch.arange(mask.size(-1), device=device)
+77:     mask.masked_fill_(mask_cond < (mask_cond + 1).view(mask.size(-1), 1), 0)
+78:     mask = mask.to(dtype)
+79: 
+80:     if past_key_values_length > 0:
+81:         mask = torch.cat([torch.zeros(tgt_len, past_key_values_length, dtype=dtype, device=device), mask], dim=-1)
+82:     return mask[None, None, :, :].expand(bsz, 1, tgt_len, tgt_len + past_key_values_length)
+83: 
+84: 
+85: def _expand_mask(mask: torch.Tensor, dtype: torch.dtype, tgt_len: Optional[int] = None):
+86:     """
+87:     Expands attention_mask from `[bsz, seq_len]` to `[bsz, 1, tgt_seq_len, src_seq_len]`.
+88:     """
+89:     bsz, src_len = mask.size()
+90:     tgt_len = tgt_len if tgt_len is not None else src_len
+91: 
+92:     expanded_mask = mask[:, None, None, :].expand(bsz, 1, tgt_len, src_len).to(dtype)
+93: 
+94:     inverted_mask = 1.0 - expanded_mask
+95: 
+96:     return inverted_mask.masked_fill(inverted_mask.to(torch.bool), torch.finfo(dtype).min)
+97: 
+98: 
+99: class OPTLearnedPositionalEmbedding(nn.Embedding):
+100:     """
+
+FILE speedup/flexgen/README.md | original lines 1–77
+1: # FlexGen: High-throughput Generative Inference of Large Language Models with a Single GPU [[paper](https://arxiv.org/abs/2303.06865)]
+2: 
+3: FlexGen is a high-throughput generation engine for running large language models with limited GPU memory. FlexGen allows **high-throughput** generation by IO-efficient offloading, compression, and **large effective batch sizes**.
+4: 
+5: ## Motivation
+6: 
+7: In recent years, large language models (LLMs) have shown great performance across a 
+8: wide range of tasks. Increasingly, LLMs have been applied not only to interactive 
+9: applications (such as chat), but also to many "back-of-house" tasks.
+10: These tasks include benchmarking, information extraction, data wrangling, and form processing.
+11: 
+12: One key characteristic of these applications is that they are **throughput-oriented**: they require
+13: running LLM inferences over millions of tokens in batches, e.g., all the private documents in a company's
+14: corpus, or all the tasks in the [HELM](https://crfm.stanford.edu/helm/latest/) benchmark.
+15: These workloads are less sensitive to latency - the user starts up a job and lets it run overnight -
+16: but increasing throughput is critical for reducing costs.
+17: Throughput is a measure of tokens processed per second over the job's entire runtime (which can be hours).
+18: Throughput-oriented workloads provide opportunities to trade off latency for higher throughput, which
+19: makes it easier to take advantage of low-cost commodity GPUs. 
+20: 
+21: The goal of FlexGen is to create a high-throughput system to enable new and exciting applications of 
+22: foundation models to throughput-oriented tasks on low-cost hardware, such as a single commodity GPU
+23: instead of expensive systems.
+24: 
+25: Check out the [examples](#examples) of what you can run on a single commodity GPU with FlexGen, including benchmarking and data wrangling.
+26: 
+27: ❌ **Limitation**. As an offloading-based system running on weak GPUs, FlexGen also has its limitations.
+28: FlexGen can be significantly slower than the case when you have enough powerful GPUs to hold the whole model, especially for small-batch cases.
+29: FlexGen is mostly optimized for throughput-oriented batch processing settings (e.g., classifying or extracting information from many documents in batches), on single GPUs.
+30: 
+31: ----------
+32: 
+33: This project was made possible thanks to a collaboration with
+34: 
+35: <a href="https://cs.stanford.edu/"><img src="https://identity.stanford.edu/wp-content/uploads/sites/3/2020/06/wordmark-nospace-red.png" height="20"></a> &nbsp;&nbsp;&nbsp;
+36: <a href="https://sky.cs.berkeley.edu/"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/University_of_California%2C_Berkeley_logo.svg/1280px-University_of_California%2C_Berkeley_logo.svg.png" height="22"></a> &nbsp;&nbsp;&nbsp;
+37: <a href="https://www.andrew.cmu.edu/user/beidic/"><img src="https://upload.wikimedia.org/wikipedia/commons/9/9b/Carnegie_Mellon_wordmark.svg" height="20"></a> &nbsp;&nbsp;&nbsp;
+38: <a href="https://www.together.xyz/"><img src="https://images.squarespace-cdn.com/content/v1/6358bea282189a0adf57fe16/eef09191-631f-40d9-9bfd-f875b25bcf0b/together-logo-black-transparent2.png" height="20"></a> &nbsp;&nbsp;&nbsp;
+39: <a href="https://research.yandex.com/"><img src="https://storage.yandexcloud.net/yandex-research/assets/yandex_research.png" height="20"></a> &nbsp;&nbsp;&nbsp;
+40: <a href="https://ds3lab.inf.ethz.ch/"><img src="https://user-images.githubusercontent.com/1608867/220273382-c09669b3-42fd-47c2-b88c-7ed55cb43820.png" height="20"></a>
+41: 
+42: ----------
+43: 
+44: ## Content
+45: - [Installation](#installation)
+46: - [Usage and Examples](#usage-and-examples)
+47:   - [Get Started with a Single GPU](#get-started-with-a-single-gpu)
+48:   - [Run HELM Benchmark with FlexGen](#run-helm-benchmark-with-flexgen)
+49:   - [Run Data Wrangling Tasks with FlexGen](#run-data-wrangling-tasks-with-flexgen)
+50:   - [Scaling to Distributed GPUs](#scaling-to-distributed-gpus)
+51:   - [API Example](#api-example)
+52:   - [Frequently Asked Questions](#frequently-asked-questions)
+53: - [Performance Results](#performance-results)
+54: - [How It Works](#how-it-works)
+55: - [Roadmap](#roadmap)
+56: 
+57: ## Installation
+58: Requirements:  
+59:  - PyTorch >= 1.12 [(Help)](https://pytorch.org/get-started/locally/)
+60: 
+61: ### Method 1: With pip
+62: ```
+63: pip install flexgen
+64: ```
+65: 
+66: ### Method 2: From source
+67: ```
+68: git clone https://github.com/FMInference/FlexGen.git
+69: cd FlexGen
+70: pip install -e .
+71: ```
+72: 
+73: ## Usage and Examples
+74: 
+75: ### Get Started with a Single GPU
+76: 
+77: #### OPT-1.3B
+
+FILE speedup/infinigen/setup.py | original lines 1–3
+1: from setuptools import setup, find_packages
+2: 
+3: setup(name="infinigen", version="0.1.0", packages=find_packages(include=["infinigen"]))
+
+FILE speedup/uvm/allocate.cpp | original lines 1–15
+1: #include <sys/types.h>
+2: #include <cuda_runtime_api.h>
+3: 
+4: extern "C" {
+5:   void* uvm_malloc(ssize_t size, int device, cudaStream_t stream) {
+6:     void *ptr;
+7:     //cudaMalloc(&ptr, size);
+8:     cudaMallocManaged(&ptr, size);
+9:     return ptr;
+10:   }
+11: 
+12:   void uvm_free(void* ptr, ssize_t size, int device, cudaStream_t stream) {
+13:     cudaFree(ptr);
+14:   }
+15: }
+
+FILE speedup/uvm/h2o_attention.py | original lines 1–100
+1: import torch
+2: from torch import nn
+3: from typing import Tuple
+4: 
+5: class SelfAttention(nn.Module):
+6:     """Multi-headed attention from 'Attention Is All You Need' paper"""
+7: 
+8:     def __init__(
+9:         self,
+10:         embed_dim: int,
+11:         num_heads: int,
+12:         h2o_ratio: float,
+13:         bias: bool = True
+14:     ):
+15:         super().__init__()
+16:         self.embed_dim = embed_dim
+17:         self.num_heads = num_heads
+18:         self.head_dim = embed_dim // num_heads
+19: 
+20:         if (self.head_dim * num_heads) != self.embed_dim:
+21:             raise ValueError(
+22:                 f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim}"
+23:                 f" and `num_heads`: {num_heads})."
+24:             )
+25:         self.scaling = self.head_dim**-0.5
+26: 
+27:         self.k_proj = nn.Linear(embed_dim, embed_dim, bias=bias, dtype=torch.float16, device=torch.device('cuda'))
+28:         self.v_proj = nn.Linear(embed_dim, embed_dim, bias=bias, dtype=torch.float16, device=torch.device('cuda'))
+29:         self.q_proj = nn.Linear(embed_dim, embed_dim, bias=bias, dtype=torch.float16, device=torch.device('cuda'))
+30:         self.out_proj = nn.Linear(embed_dim, embed_dim, bias=bias, dtype=torch.float16, device=torch.device('cuda'))
+31: 
+32:         self.acc = None
+33:         self.ratio = h2o_ratio
+34:         self.i = 0
+35:         self.past_key_value = None
+36: 
+37:     def _shape(self, tensor: torch.Tensor, seq_len: int, bsz: int):
+38:         return tensor.view(bsz, seq_len, self.num_heads, self.head_dim).transpose(1, 2).contiguous()
+39:     
+40:     def _heavy_hitter_pruning(self, k, v, attn_weights, hh_k):
+41:         # k, v: (s, b * n_head, head_dim)
+42:         # attn_weights: (b * n_head, s, s)
+43:         aggr_attn = torch.sum(attn_weights, 1)
+44:         # (b * n_head, hh_k)
+45:         _, topk_indices = aggr_attn[:, :].topk(
+46:             min(hh_k, aggr_attn.shape[1]), dim=1)
+47: 
+48:         # select heavy-hitters
+49:         # k, v: (b * n_head, s, head_dim)
+50:         k_t = k.transpose(1, 0)
+51:         v_t = v.transpose(1, 0)
+52:         dim0_indices = torch.arange(k_t.size(0))[:, None]
+53:         dim0_indices = dim0_indices.expand_as(topk_indices)
+54:         # (b * n_head, hh_k, head_dim)
+55:         k_hh_t = k_t[dim0_indices, topk_indices]
+56:         v_hh_t = v_t[dim0_indices, topk_indices]
+57:         # (hh_k, b * n_head, head_dim)
+58:         k = k_hh_t.transpose(1, 0)
+59:         v = v_hh_t.transpose(1, 0)
+60:         # new shape (hh_k, b * n_head)
+61:         aggr_attn = aggr_attn.transpose(0, 1)
+62:         dim1_indices = torch.arange(aggr_attn.size(1)).unsqueeze(0)
+63:         # (hh_k * 2, b * n_head)
+64:         acc = aggr_attn[topk_indices.transpose(0, 1), dim1_indices]
+65:         return k, v, acc
+66: 
+67:     def forward(
+68:         self,
+69:         hidden_states: torch.Tensor
+70:     ) -> Tuple[torch.Tensor, Tuple[torch.Tensor]]:
+71:         """Input shape: Batch x Time x Channel"""
+72: 
+73:         bsz, tgt_len, _ = hidden_states.size()
+74: 
+75:         # get query proj
+76:         query_states = self.q_proj(hidden_states) * self.scaling
+77:         
+78:         # get key/value proj
+79:         if self.past_key_value is not None:
+80:             # reuse k, v, self_attention
+81:             k = self._shape(self.k_proj(hidden_states), -1, bsz).squeeze()
+82:             v = self._shape(self.v_proj(hidden_states), -1, bsz).squeeze()
+83:             key_states = self.past_key_value[0]
+84:             key_states[:, :, -1] = k
+85:             value_states = self.past_key_value[1]
+86:             value_states[:, :, -1] = v
+87:         else:
+88:             # self_attention
+89:             key_states = self._shape(self.k_proj(hidden_states), -1, bsz)
+90:             value_states = self._shape(self.v_proj(hidden_states), -1, bsz)
+91: 
+92:         # update kv cache
+93:         #past_key_value = (key_states, value_states)
+94: 
+95:         # reshape
+96:         proj_shape = (bsz * self.num_heads, -1, self.head_dim)
+97:         query_states = self._shape(query_states, tgt_len, bsz).view(*proj_shape)
+98:         key_states = key_states.view(*proj_shape)
+99:         value_states = value_states.view(*proj_shape)
+100: 
+
+FILE speedup/uvm/selfattention.py | original lines 1–100
+1: import torch
+2: from torch import nn
+3: from typing import Tuple
+4: 
+5: class SelfAttention(nn.Module):
+6:     """Multi-headed attention from 'Attention Is All You Need' paper"""
+7: 
+8:     def __init__(
+9:         self,
+10:         embed_dim: int,
+11:         num_heads: int,
+12:         bias: bool = True
+13:     ):
+14:         super().__init__()
+15:         self.embed_dim = embed_dim
+16:         self.num_heads = num_heads
+17:         self.head_dim = embed_dim // num_heads
+18: 
+19:         if (self.head_dim * num_heads) != self.embed_dim:
+20:             raise ValueError(
+21:                 f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim}"
+22:                 f" and `num_heads`: {num_heads})."
+23:             )
+24:         self.scaling = self.head_dim**-0.5
+25: 
+26:         self.k_proj = nn.Linear(embed_dim, embed_dim, bias=bias, dtype=torch.float16, device=torch.device('cuda'))
+27:         self.v_proj = nn.Linear(embed_dim, embed_dim, bias=bias, dtype=torch.float16, device=torch.device('cuda'))
+28:         self.q_proj = nn.Linear(embed_dim, embed_dim, bias=bias, dtype=torch.float16, device=torch.device('cuda'))
+29:         self.out_proj = nn.Linear(embed_dim, embed_dim, bias=bias, dtype=torch.float16, device=torch.device('cuda'))
+30:         
+31:         self.past_key_value = None
+32:         self.src_s = 0
+33: 
+34: 
+35:     def _shape(self, tensor: torch.Tensor, seq_len: int, bsz: int):
+36:         return tensor.view(bsz, seq_len, self.num_heads, self.head_dim).transpose(1, 2).contiguous()
+37: 
+38:     def forward(
+39:         self,
+40:         hidden_states: torch.Tensor,
+41:     ) -> Tuple[torch.Tensor, Tuple[torch.Tensor]]:
+42:         """Input shape: Batch x Time x Channel"""
+43: 
+44:         bsz, tgt_len, _ = hidden_states.size()
+45:         if tgt_len > 1:
+46:             self.src_s = tgt_len
+47:         else:
+48:             self.src_s += 1
+49: 
+50:         # get query proj
+51:         query_states = self.q_proj(hidden_states) * self.scaling
+52:         
+53:         # get key/value proj
+54:         if self.past_key_value is not None:
+55:             # reuse k, v, self_attention
+56:             k = self._shape(self.k_proj(hidden_states), -1, bsz).squeeze()
+57:             v = self._shape(self.v_proj(hidden_states), -1, bsz).squeeze()
+58:             key_states = self.past_key_value[0, :, :, :self.src_s]
+59:             key_states[:, :, -1] = k
+60:             self.past_key_value[0, :, :, self.src_s] = k
+61:             value_states = self.past_key_value[1, :, :, :self.src_s]
+62:             value_states[:, :, -1] = v
+63:             self.past_key_value[1, :, :, self.src_s] = k
+64:         else:
+65:             # self_attention
+66:             self.past_key_value = torch.zeros((2, bsz, self.num_heads, 2048, self.head_dim), dtype=torch.float16, device=torch.device('cuda')) 
+67:             key_states = self._shape(self.k_proj(hidden_states), -1, bsz)
+68:             value_states = self._shape(self.v_proj(hidden_states), -1, bsz)
+69:             self.past_key_value[0, :, :, :tgt_len] = key_states
+70:             self.past_key_value[1, :, :, :tgt_len] = value_states
+71: 
+72:         # update kv cache
+73:         #self.past_key_value = (key_states, value_states)
+74: 
+75:         # reshape
+76:         proj_shape = (bsz * self.num_heads, -1, self.head_dim)
+77:         query_states = self._shape(query_states, tgt_len, bsz).view(*proj_shape)
+78:         key_states = key_states.view(*proj_shape)
+79:         value_states = value_states.view(*proj_shape)
+80: 
+81:         # qkt
+82:         src_len = key_states.size(1)
+83:         attn_weights = torch.bmm(query_states, key_states.transpose(1, 2))
+84:         
+85:         # masking
+86:         if attn_weights.shape[1] > 1: # prefill
+87:             mask = torch.triu(torch.ones(attn_weights.shape).to('cuda'), diagonal=1) * -10000
+88:             attn_weights = attn_weights + mask
+89: 
+90:         # softmax
+91:         attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(torch.float16)
+92: 
+93:         # sv
+94:         attn_output = torch.bmm(attn_weights, value_states)
+95: 
+96:         # reshape
+97:         attn_output = attn_output.view(bsz, self.num_heads, tgt_len, self.head_dim)
+98:         attn_output = attn_output.transpose(1, 2)
+99:         attn_output = attn_output.reshape(bsz, tgt_len, self.embed_dim)
+100: 
+
+FILE speedup/uvm/transformer.py | original lines 1–100
+1: import torch
+2: import transformerlayer
+3: import time
+4: 
+5: import argparse
+6: parser = argparse.ArgumentParser()
+7: 
+8: parser.add_argument(
+9:     '--embed_dim', type=int, default=4096,
+10:     help='model dim.'
+11: )
+12: parser.add_argument(
+13:     '--ffn_dim', type=int, default=4096*4,
+14:     help='ffn dim'
+15: )
+16: parser.add_argument(
+17:     '--enable_bias', action='store_true',
+18:     help='enable bias for projections'
+19: )
+20: parser.add_argument(
+21:     '--n_head', type=int, default=32,
+22:     help='num heads'
+23: )
+24: parser.add_argument(
+25:     '--do_layer_norm_before', action='store_true',
+26:     help='do layernorm before attention/ffn'
+27: )
+28: parser.add_argument(
+29:     '--n_layer', type=int, default=32,
+30:     help='num layers'
+31: )
+32: parser.add_argument(
+33:     '--bsz', type=int, default=4,
+34:     help='batch size'
+35: )
+36: parser.add_argument(
+37:     '--prompt_len', type=int, default=2048,
+38:     help='length of input prompt'
+39: )
+40: parser.add_argument(
+41:     '--gen_len', type=int, default=1024,
+42:     help='lenght of output'
+43: )
+44: parser.add_argument(
+45:     '--is_h2o', action='store_true',
+46:     help='enable h2o'
+47: )
+48: parser.add_argument(
+49:     '--h2o_ratio', type=float, default=0.2,
+50:     help='ratio of heavy hitter'
+51: )
+52: parser.add_argument(
+53:     '--runs', type=int, default=1,
+54:     help='number of runs'
+55: )
+56: args = parser.parse_args()
+57: 
+58: ### Parameters ###
+59: embed_dim = args.embed_dim
+60: ffn_dim = args.ffn_dim
+61: bias = args.enable_bias
+62: n_head = args.n_head
+63: do_layer_norm_before = args.do_layer_norm_before
+64: n_layer = args.n_layer
+65: 
+66: bsz = args.bsz
+67: prompt_len = args.prompt_len
+68: gen_len = args.gen_len
+69: ##################
+70: 
+71: new_alloc = torch.cuda.memory.CUDAPluggableAllocator(
+72:         'allocate.so', 'uvm_malloc', 'uvm_free')
+73: torch.cuda.memory.change_current_allocator(new_alloc)
+74: 
+75: ##################
+76: """
+77: def prefetch(name):
+78:   def hook(attn, input, output):
+79:     ind = output[2]
+80:     if int(name) < (n_layer - 1) and ind is not None:
+81:         next_layer = transformer[int(name) + 1]
+82:         torch.gather(next_layer.past_key_value[0], 2, ind)
+83:         torch.gather(next_layer.past_key_value[1], 2, ind)
+84: 
+85:   return hook
+86: 
+87: for layer_num in range(n_layer):
+88:     attn_in = transformer[layer_num].self_attn.register_forward_hook(prefetch("%d"%(layer_num)))
+89: """
+90: #################
+91: 
+92: total_prefill = 0.0
+93: total_decode = 0.0
+94: for run in range(args.runs):
+95:     transformer = [transformerlayer.TransformerLayer(embed_dim, ffn_dim, bias, n_head, do_layer_norm_before, args.is_h2o, args.h2o_ratio) for _ in range(n_layer)]
+96: 
+97:     prompt = torch.rand(bsz, prompt_len, embed_dim).to(torch.float16).to('cuda')
+98:     new_input = torch.rand(bsz, 1, embed_dim).to(torch.float16).to('cuda')
+99: 
+100:     # Warmup
+
+FILE speedup/uvm/transformerlayer.py | original lines 1–88
+1: import torch
+2: from torch import nn
+3: from typing import Tuple
+4: 
+5: class TransformerLayer(nn.Module):
+6:     def __init__(
+7:             self,
+8:             embed_dim,
+9:             ffn_dim,
+10:             bias,
+11:             n_head, 
+12:             do_layer_norm_before,
+13:             is_h2o,
+14:             h2o_ratio
+15:             ):
+16:         super().__init__()
+17:         self.embed_dim = embed_dim
+18:         if is_h2o:
+19:             import h2o_attention
+20:             self.self_attn = h2o_attention.SelfAttention(
+21:                 embed_dim=self.embed_dim,
+22:                 num_heads=n_head,
+23:                 bias=bias,
+24:                 h2o_ratio=h2o_ratio
+25:             )
+26:         else:
+27:             import selfattention
+28:             self.self_attn = selfattention.SelfAttention(
+29:                 embed_dim=self.embed_dim,
+30:                 num_heads=n_head,
+31:                 bias=bias,
+32:             )
+33: 
+34:         self.do_layer_norm_before = do_layer_norm_before
+35:         self.activation_fn = nn.ReLU()
+36: 
+37:         self.self_attn_layer_norm = nn.LayerNorm(
+38:             self.embed_dim, elementwise_affine=True, dtype=torch.float16, device=torch.device('cuda')
+39:         )
+40:         self.fc1 = nn.Linear(self.embed_dim, ffn_dim, bias=bias, dtype=torch.float16, device=torch.device('cuda'))
+41:         self.fc2 = nn.Linear(ffn_dim, self.embed_dim, bias=bias, dtype=torch.float16, device=torch.device('cuda'))
+42:         self.final_layer_norm = nn.LayerNorm(
+43:                 self.embed_dim, elementwise_affine=True, dtype=torch.float16, device=torch.device('cuda')
+44:         )
+45:         
+46:     def forward(
+47:         self,
+48:         hidden_states: torch.Tensor,
+49:     ) -> torch.Tensor:
+50:         
+51:         with torch.no_grad():
+52:             residual = hidden_states
+53: 
+54:             # OPT: 125m, 1.7B, ..., 175B applies layer norm BEFORE attention
+55:             if self.do_layer_norm_before:
+56:                 hidden_states = self.self_attn_layer_norm(hidden_states)
+57: 
+58:             # Self Attention
+59:             hidden_states = self.self_attn(
+60:                 hidden_states=hidden_states
+61:             )
+62:             hidden_states = residual + hidden_states
+63: 
+64:             # 350m applies layer norm AFTER attention
+65:             if not self.do_layer_norm_before:
+66:                 hidden_states = self.self_attn_layer_norm(hidden_states)
+67: 
+68:             # Fully Connected
+69:             hidden_states_shape = hidden_states.shape
+70:             hidden_states = hidden_states.reshape(-1, hidden_states.size(-1))
+71:             residual = hidden_states
+72: 
+73:             # 125m, 1.7B, ..., 175B applies layer norm BEFORE attention
+74:             if self.do_layer_norm_before:
+75:                 hidden_states = self.final_layer_norm(hidden_states)
+76: 
+77:             hidden_states = self.fc1(hidden_states)
+78:             hidden_states = self.activation_fn(hidden_states)
+79: 
+80:             hidden_states = self.fc2(hidden_states)
+81: 
+82:             hidden_states = (residual + hidden_states).view(hidden_states_shape)
+83: 
+84:             # 350m applies layer norm AFTER attention
+85:             if not self.do_layer_norm_before:
+86:                 hidden_states = self.final_layer_norm(hidden_states)
+87: 
+88:         return hidden_states

@@ -1,0 +1,2238 @@
+FILE README.md | original lines 1–100
+1: <p align="center">
+2:     <img src="https://github.com/ganler/nnsmith-logo/raw/master/nnsmith-logo.svg", width="500">
+3: </p>
+4: 
+5: <p align="center">
+6:     <a href="https://github.com/ise-uiuc/nnsmith/actions/workflows/ci.yaml"><img src="https://github.com/ise-uiuc/nnsmith/actions/workflows/ci.yaml/badge.svg">
+7:     <a href="https://pypi.org/project/nnsmith/"><img src="https://img.shields.io/pypi/v/nnsmith?color=g">
+8:     <a href="https://github.com/ise-uiuc/nnsmith/blob/main/LICENSE"><img src="https://img.shields.io/pypi/l/nnsmith"></a>
+9: </p>
+10: 
+11: ## Backend-Model Support
+12: 
+13: <center>
+14: 
+15: | Model\Engine | [TVM](https://github.com/apache/tvm) | [ORT](https://github.com/microsoft/onnxruntime) | [TensorRT](https://github.com/NVIDIA/TensorRT) | [TFLite](https://www.tensorflow.org/lite) | [XLA](https://www.tensorflow.org/xla) | [IREE](https://github.com/iree-org/iree) |
+16: | ------------ | ------------------------------------ | ----------------------------------------------- | ---------------------------------------------- | ----------------------------------------- | ------------------------------------- | ---------------------------------------- |
+17: | PyTorch-ONNX | ✅                                    | ✅                                               | ✅                                              |                                           |                                       |                                          |
+18: | TensorFlow   |                                      |                                                 |                                                | ⚠️                                         | ⚠️                                     | ⚠️                                        |
+19: 
+20: 
+21: ✅: Supported; ⚠️: Beta support; Others are not supported yet -- Contributions are welcome!
+22: 
+23: </center>
+24: 
+25: ## Setup
+26: 
+27: **Install latest stable release:**
+28: 
+29: ```shell
+30: pip install "nnsmith[torch,onnx]" --upgrade
+31: ```
+32: 
+33: <details><summary><b>Install GitHub HEAD: </b> <i>[click to expand]</i></summary>
+34: <div>
+35: 
+36: ```shell
+37: pip install "git+https://github.com/ise-uiuc/nnsmith@main#egg=nnsmith[torch,onnx]" --upgrade
+38: # or pip install "git+ssh://git@github.com/ise-uiuc/nnsmith@main#egg=nnsmith[torch,onnx]" --upgrade
+39: ```
+40: 
+41: </div>
+42: </details>
+43: 
+44: <details><summary><b>Install latest pre-release: </b> <i>[click to expand]</i></summary>
+45: <div>
+46: 
+47: ```shell
+48: pip install "nnsmith[torch,onnx]"                     \
+49:             --pre --upgrade                           \
+50:             --index-url https://test.pypi.org/simple/ \
+51:             --extra-index-url https://pypi.org/simple/
+52: ```
+53: 
+54: </div>
+55: </details>
+56: 
+57: 
+58: ## Quick Start
+59: 
+60: <details><summary><b>Setting up graphviz for debugging</b> <i>[click to expand]</i></summary>
+61: <div>
+62: 
+63: Graphviz provides `dot` for visualizing graphs in nice pictures. But it needs to be installed via the following methods:
+64: 
+65: ```shell
+66: sudo apt-get install graphviz graphviz-dev      # Linux
+67: brew install graphviz                           # MacOS
+68: conda install --channel conda-forge pygraphviz  # Conda
+69: choco install graphviz                          # Windows
+70: 
+71: pip install pygraphviz  # Final step.
+72: ```
+73: 
+74: Also see [pygraphviz install guidance](https://pygraphviz.github.io/documentation/stable/install.html).
+75: 
+76: </div>
+77: </details>
+78: 
+79: ```shell
+80: # Generate a random model in "nnsmith_outputs/*"
+81: nnsmith.model_gen model.type=onnx debug.viz=true
+82: ```
+83: 
+84: See other commands under [`doc/cli`](doc/cli.md). We use [hydra](https://hydra.cc/) to manage configurations. See `nnsmith/config/main.yaml`.
+85: 
+86: ## Developer Notes
+87: 
+88: - `pip install -r requirements/core.txt` to run generation and fuzzing;
+89: - `pip install --upgrade -r requirements/sys/[system].txt` to allow generating and running specific frameworks;
+90:   -  **Why "--upgrade"?** In fact, all the sources under `requirements/sys/` are nightly release (except tvm) as we want to "save the world" by catching new bugs;
+91: 
+92: <details><summary><b>Pre-commits</b> <i>[click to expand]</i></summary>
+93: <div>
+94: 
+95: You can use `pre-commit` to simpify development:
+96: 
+97: - `pip install -r requirements/dev.txt`;
+98: - `pre-commit install`;
+99: - `pre-commit` will run upon a commit; To explicitly run `pre-commit` for all files: `pre-commit run --all-files`.
+100: 
+
+FILE nnsmith/__init__.py | original lines 1–4
+1: try:
+2:     from nnsmith._version import __version__, __version_tuple__
+3: except ImportError:
+4:     pass
+
+FILE nnsmith/difftest.py | original lines 1–29
+1: from typing import Dict
+2: 
+3: import numpy as np
+4: from numpy import testing
+5: 
+6: 
+7: def assert_allclose(
+8:     actual: Dict[str, np.ndarray],
+9:     desired: Dict[str, np.ndarray],
+10:     actual_name: str,
+11:     oracle_name: str,
+12:     equal_nan=False,
+13:     rtol=1e-2,
+14:     atol=1e-3,
+15: ):
+16:     akeys = set(actual.keys())
+17:     dkeys = set(desired.keys())
+18:     if akeys != dkeys:
+19:         raise KeyError(f"{actual_name}: {akeys} != {oracle_name}: {dkeys}")
+20: 
+21:     for key in akeys:
+22:         testing.assert_allclose(
+23:             actual[key],
+24:             desired[key],
+25:             equal_nan=equal_nan,
+26:             rtol=rtol,
+27:             atol=atol,
+28:             err_msg=f"{actual_name} != {oracle_name} at {key}",
+29:         )
+
+FILE nnsmith/error.py | original lines 1–81
+1: import logging
+2: from abc import ABC, abstractmethod
+3: 
+4: 
+5: class InternalError(Exception):
+6:     """Fatal unexpected internal errors in NNSmith that should shut down the program immediately."""
+7: 
+8:     pass
+9: 
+10: 
+11: class ConstraintError(Exception):
+12:     """Expected possible constarint unsat error used in shape transfer function."""
+13: 
+14:     pass
+15: 
+16: 
+17: class BaseChecker(ABC):
+18:     @classmethod
+19:     @abstractmethod
+20:     def handler(cls, msg):
+21:         pass
+22: 
+23:     @classmethod
+24:     def eq(cls, lhs, rhs, msg=""):
+25:         if lhs != rhs:
+26:             cls.handler(f"Failed asertion :: {msg} | {lhs} != {rhs}")
+27: 
+28:     @classmethod
+29:     def gt(cls, lhs, rhs, msg=""):
+30:         if lhs <= rhs:
+31:             cls.handler(f"Failed asertion :: {msg} | {lhs} <= {rhs}")
+32: 
+33:     @classmethod
+34:     def ge(cls, lhs, rhs, msg=""):
+35:         if lhs < rhs:
+36:             cls.handler(f"Failed asertion :: {msg} | {lhs} < {rhs}")
+37: 
+38:     @classmethod
+39:     def lt(cls, lhs, rhs, msg=""):
+40:         if lhs >= rhs:
+41:             cls.handler(f"Failed asertion :: {msg} | {lhs} >= {rhs}")
+42: 
+43:     @classmethod
+44:     def le(cls, lhs, rhs, msg=""):
+45:         if lhs > rhs:
+46:             cls.handler(f"Failed asertion :: {msg} | {lhs} > {rhs}")
+47: 
+48:     @classmethod
+49:     def none(cls, obj, msg=""):
+50:         if obj is not None:
+51:             cls.handler(f"Failed asertion :: {msg} | expr is not None")
+52: 
+53:     @classmethod
+54:     def not_none(cls, obj, msg=""):
+55:         if obj is None:
+56:             cls.handler(f"Failed asertion :: {msg} | expr is None")
+57: 
+58:     @classmethod
+59:     def true(cls, cond, msg=""):
+60:         if not cond:
+61:             cls.handler(f"Failed asertion :: {msg} | condition is not True")
+62: 
+63:     @classmethod
+64:     def false(cls, cond, msg=""):
+65:         if cond:
+66:             cls.handler(f"Failed asertion :: {msg} | condition is not False")
+67: 
+68: 
+69: class SanityCheck(BaseChecker):
+70:     @classmethod
+71:     def handler(cls, msg):
+72:         logging.critical(msg)
+73:         raise InternalError(
+74:             msg + " | Reporting bugs @ https://github.com/ise-uiuc/nnsmith/issues"
+75:         )
+76: 
+77: 
+78: class ConstraintCheck(BaseChecker):
+79:     @classmethod
+80:     def handler(cls, msg):
+81:         raise ConstraintError(msg)
+
+FILE nnsmith/filter.py | original lines 1–77
+1: from inspect import signature
+2: from types import FunctionType
+3: from typing import Set, Type
+4: 
+5: from nnsmith.materialize import BugReport, Stage, Symptom
+6: 
+7: FILTERS = {}
+8: 
+9: 
+10: class filter:
+11:     def __init__(self, name):
+12:         self.name = name
+13: 
+14:     def __call__(self, fn_or_cls):
+15:         assert self.name not in FILTERS, f"Filter {self.name} already exists."
+16:         if isinstance(fn_or_cls, Type):  # Class checks
+17:             assert not signature(
+18:                 fn_or_cls
+19:             ).parameters, f"filter class {fn_or_cls.__name__} (aka {self.name}) should not have any parameters."
+20:             caller_sig = signature(fn_or_cls.__call__).parameters
+21:             assert (
+22:                 caller_sig["self"] and len(caller_sig) == 2
+23:             ), f"filter class {fn_or_cls.__name__} (aka {self.name}) should implement __call__(self, report: BugReport)."
+24:         elif isinstance(fn_or_cls, FunctionType):  # Function checks
+25:             caller_sig = signature(fn_or_cls).parameters
+26:             assert (
+27:                 len(caller_sig) == 1
+28:             ), f"filter function {fn_or_cls.__name__} (aka {self.name}) should implement __call__(report: BugReport)."
+29:         else:
+30:             raise ValueError(
+31:                 f"filter {fn_or_cls} (aka {self.name}) should be a class or function."
+32:             )
+33: 
+34:         FILTERS[self.name] = fn_or_cls
+35:         return fn_or_cls
+36: 
+37: 
+38: @filter("nan")
+39: def filter_nan(report: BugReport) -> bool:  # True means filter;
+40:     if report.symptom != Symptom.INCONSISTENCY or report.stage != Stage.VERIFICATION:
+41:         return False
+42: 
+43:     # numpy.assert_allclose style.
+44:     # TODO(ganler): can we use more well-formed checking? say directly checking the results?
+45:     return "nan location mismatch" in report.log
+46: 
+47: 
+48: @filter("inf")
+49: def filter_inf(report: BugReport) -> bool:
+50:     if report.symptom != Symptom.INCONSISTENCY or report.stage != Stage.VERIFICATION:
+51:         return False
+52: 
+53:     # numpy.assert_allclose style.
+54:     return "inf" in report.log.replace("Max relative difference: inf", "")
+55: 
+56: 
+57: @filter("dup")  # duplicate
+58: class FilterDup:
+59:     def __init__(self):
+60:         self.seen: Set[int] = set()
+61: 
+62:     def __call__(self, report: BugReport) -> bool:
+63:         if (
+64:             report.symptom != Symptom.EXCEPTION
+65:             and report.symptom != Symptom.INCONSISTENCY
+66:         ):
+67:             return False  # don't filter bugs other than inconsistency/exception
+68: 
+69:         str_hash = hash(report.log)
+70:         if str_hash in self.seen:
+71:             return True
+72: 
+73:         self.seen.add(str_hash)
+74:         return False
+75: 
+76: 
+77: # You can patch your own filters!
+
+FILE nnsmith/graph_gen.py | original lines 1–100
+1: import copy
+2: import logging
+3: import math
+4: import os
+5: import random
+6: import textwrap
+7: import time
+8: import traceback
+9: import uuid
+10: from abc import abstractmethod
+11: from collections import defaultdict, namedtuple
+12: from inspect import signature
+13: from typing import Dict, List, Set, Tuple, Type
+14: 
+15: import networkx as nx
+16: import z3
+17: 
+18: from nnsmith.abstract.arith import *
+19: from nnsmith.abstract.dtype import *
+20: from nnsmith.abstract.op import (
+21:     __MAX_RANK__,
+22:     AbsOpBase,
+23:     AbsTensor,
+24:     Expand,
+25:     Placeholder,
+26:     concretize_op,
+27:     random_group,
+28: )
+29: from nnsmith.error import ConstraintError, SanityCheck
+30: from nnsmith.logging import MGEN_LOG, SMT_LOG
+31: from nnsmith.util import HAS_PYGRAPHVIZ, set_seed, viz_dot
+32: 
+33: NNSMITH_LIMNF_V = os.getenv("NNSMITH_LIMNF_V", "0")
+34: assert NNSMITH_LIMNF_V in ["0", "1"]
+35: NNSMITH_BV_SIZE = os.getenv("NNSMITH_BV_SIZE", "8")
+36: 
+37: 
+38: class RequiredDimNotFound(Exception):
+39:     pass
+40: 
+41: 
+42: __MB_LIM__ = 6 * 1024
+43: __TEXTWRAP_WIDTH__ = 30
+44: 
+45: 
+46: TensorCtx = namedtuple("TensorCtx", ["op_id", "type", "output_idx"])
+47: # Every tensor is represented by a (unique) integer key.
+48: 
+49: 
+50: def concretize_graph(
+51:     graph: nx.MultiDiGraph, dataflow: List[TensorCtx], model: z3.ModelRef
+52: ) -> Tuple[nx.MultiDiGraph, Dict[int, AbsTensor]]:
+53:     concrete_shapes: Dict[int, AbsTensor] = {}
+54: 
+55:     # freeze node with static attributes in label;
+56:     for node_id in nx.topological_sort(graph):
+57:         node = graph.nodes[node_id]
+58:         op = concretize_op(node["op"], model)
+59: 
+60:         # concretize shapes;
+61:         itensors = [concrete_shapes[df_idx] for df_idx in node["itensor_idx"]]
+62:         otensors = op.checked_type_transfer(itensors)
+63:         op.input_like = itensors
+64:         op.output_like = otensors
+65: 
+66:         node["op"] = op
+67:         node["label"] = textwrap.fill(f"#{node_id} ~ {op}", width=__TEXTWRAP_WIDTH__)
+68: 
+69:         for i, df_idx in enumerate(node["otensor_idx"]):
+70:             concrete_shapes[df_idx] = otensors[i]
+71: 
+72:     # freeze edge with static attributes in label;
+73:     for src, dst, idx in graph.edges(keys=True):
+74:         edge = graph.edges[src, dst, idx]
+75:         out_operand_idx, in_operand_idx = edge["operand_idx"]
+76:         svar = concrete_shapes[edge["shape_idx"]]
+77:         edge["label"] = textwrap.fill(
+78:             f"{out_operand_idx}→{in_operand_idx} {svar.dtype.short()}!{svar.shape}",
+79:             width=__TEXTWRAP_WIDTH__,
+80:         )
+81: 
+82:     return graph, concrete_shapes
+83: 
+84: 
+85: class SimpleGenerator:
+86:     def __init__(
+87:         self,
+88:         opset,
+89:         init_rank=4,
+90:         megabyte_lim=__MB_LIM__,
+91:         seed=None,
+92:         limnf=True,
+93:         forward_prob=None,
+94:         init_fp=False,
+95:     ):
+96:         assert len(opset) > 0, "opset must not be empty"
+97:         if seed is not None:
+98:             set_seed(seed)
+99:             z3.set_param(
+100:                 "smt.phase_selection",
+
+FILE nnsmith/logging.py | original lines 1–12
+1: import logging
+2: 
+3: VIZ_LOG = logging.getLogger("viz")
+4: FUZZ_LOG = logging.getLogger("fuzz")
+5: MGEN_LOG = logging.getLogger("mgen")
+6: SMT_LOG = logging.getLogger("smt")
+7: EXEC_LOG = logging.getLogger("exec")
+8: DTEST_LOG = logging.getLogger("dtest")
+9: CORE_LOG = logging.getLogger("core")
+10: 
+11: TF_LOG = logging.getLogger("gen|tf")
+12: TORCH_LOG = logging.getLogger("gen|torch")
+
+FILE nnsmith/macro.py | original lines 1–9
+1: import os
+2: 
+3: ONNX_EXTERNAL_DATA_DIR_SUFFIX = "-mlist"
+4: NNSMITH_ORT_INTRA_OP_THREAD = int(os.getenv("NNSMITH_ORT_INTRA_OP_THREAD", 1))
+5: NNSMITH_BUG_PATTERN_TOKEN = "${PATTERN}"
+6: 
+7: 
+8: def onnx2external_data_dir(onnx_file):
+9:     return onnx_file + ONNX_EXTERNAL_DATA_DIR_SUFFIX
+
+FILE nnsmith/narrow_spec.py | original lines 1–100
+1: """
+2: Class members of AbsOpBase like in_dtypes, out_dtypes, etc. are just the superset
+3: of the valid domain that do not take the upcoming inference engine's operator
+4: availability into account. For example, older versions of TVM may not support trilu
+5: and TensorRT does not accept a 2D Pool whose kernel is larger than 300. Therefore,
+6: to narrow those specifications, we look at the following methods:
+7: - Identifier: Model and BackendFactory
+8: 1. Single-operator specification testing: Iterate over possible operator instances
+9:    of available `data types` (and `ranks`), and try to kick out failing ones (loggings
+10:    will be kept to see if it is just an unimplemented feature or a bug).
+11: 2. Constraint extension: for a BackendFactory, it can add more constraints to an operator.
+12:    This is useful for cases like TensorRT where the kernel size is limited to < 300.
+13: - HOWTO:
+14: 1. Single-operator potential data types (and ranks) are serializable as a JSON file.
+15: 2. Constraint extensions are defined as Python codes. That said, we can just overload the
+16:    operator specifactions in backend (see nnsmith/abstract/extension).
+17: """
+18: 
+19: 
+20: import os
+21: import tempfile
+22: from copy import deepcopy
+23: from dataclasses import dataclass
+24: from os import PathLike
+25: from typing import Dict, List, Optional, Type
+26: 
+27: import z3
+28: from appdirs import user_cache_dir
+29: from omegaconf import OmegaConf
+30: 
+31: from nnsmith.abstract.dtype import DType
+32: from nnsmith.abstract.extension import BACKEND_REQUIRES
+33: from nnsmith.abstract.op import AbsOpBase, AbsTensor, Constant, Input, concretize_op
+34: from nnsmith.backends import BackendFactory
+35: from nnsmith.logging import DTEST_LOG
+36: from nnsmith.materialize import Instruction, Model, Schedule, TestCase
+37: 
+38: NNSMITH_CACHE_DIR = user_cache_dir("nnsmith")
+39: 
+40: 
+41: def get_cache_name(model_cls: Type[Model], factory: BackendFactory) -> str:
+42:     if factory is None:
+43:         return f"{model_cls.__name__}_exportable"
+44:     return f"{model_cls.__name__}_{factory.system_name}_{factory.target}"
+45: 
+46: 
+47: @dataclass
+48: class OpConfig:
+49:     in_dtypes: List[List[DType]]
+50:     out_dtypes: List[List[DType]]
+51: 
+52: 
+53: def _make_single_op_schedules(
+54:     op: AbsOpBase, ishapes, available_idtypes
+55: ):  # List<Tup<DTypeComb,DTypeComb,Sched>>
+56:     """Given a concretized op, return a schedule for it."""
+57:     schedule_list = []
+58:     input_keys = list(range(len(ishapes)))
+59:     for idtype_group in available_idtypes:
+60:         key2type = {}
+61:         instr = []
+62:         inputs = []
+63: 
+64:         for idx, (ishape, idtype) in enumerate(zip(ishapes, idtype_group)):
+65:             inp = Input(dim=len(ishape))
+66:             inp.abs_tensor = AbsTensor(shape=ishape, dtype=idtype)
+67:             instr.append(
+68:                 Instruction(
+69:                     op=inp,
+70:                     inputs=[],
+71:                     outputs=[idx],
+72:                 )
+73:             )
+74:             key2type[input_keys[idx]] = inp.abs_tensor
+75:             inputs.append(inp.abs_tensor)
+76: 
+77:         this_op = deepcopy(op)
+78:         outputs = this_op.checked_type_transfer(inputs)
+79:         this_op.input_like = inputs
+80:         this_op.output_like = outputs
+81: 
+82:         leaf_keys = list(range(len(inputs), len(inputs) + len(outputs)))
+83: 
+84:         instr.append(
+85:             Instruction(
+86:                 op=this_op,
+87:                 inputs=input_keys,
+88:                 outputs=leaf_keys,
+89:             )
+90:         )
+91: 
+92:         for key, aten in zip(leaf_keys, outputs):
+93:             key2type[key] = aten
+94: 
+95:         schedule_list.append(
+96:             (
+97:                 idtype_group,
+98:                 tuple([out.dtype for out in outputs]),
+99:                 Schedule(instr, input_keys, leaf_keys, key2type),
+100:             )
+
+FILE nnsmith/util.py | original lines 1–100
+1: import os
+2: import random
+3: import shutil
+4: from typing import Callable, Dict, List
+5: 
+6: import numpy as np
+7: 
+8: try:
+9:     import pygraphviz as pgv
+10: 
+11:     HAS_PYGRAPHVIZ = True
+12: except ImportError:
+13:     import warnings
+14: 
+15:     warnings.warn(
+16:         "Install pygraphviz for visualization: https://pygraphviz.github.io/documentation/stable/install.html\n"
+17:         "Currently graph visualization is not enabled."
+18:     )
+19:     pgv = None
+20:     HAS_PYGRAPHVIZ = False
+21: 
+22: 
+23: from nnsmith.logging import CORE_LOG, VIZ_LOG
+24: 
+25: SEED_SETTERS = {
+26:     "random": random.seed,
+27:     "numpy": np.random.seed,
+28: }
+29: 
+30: 
+31: def register_seed_setter(
+32:     name: str,
+33:     fn: Callable[[int], None],
+34:     overwrite=False,
+35: ):
+36:     if not overwrite:
+37:         assert name not in SEED_SETTERS, f"{name} is already registered"
+38:     SEED_SETTERS[name] = fn
+39:     CORE_LOG.debug(f"Register seed setter for {name}")
+40: 
+41: 
+42: def set_seed(seed: int, names: List = None):
+43:     if names is None:
+44:         names = SEED_SETTERS.keys()
+45:     for name in names:
+46:         SEED_SETTERS[name](seed)
+47: 
+48: 
+49: def mkdir(dir: os.PathLike, yes=False):
+50:     if os.path.exists(dir):
+51:         decision = ""
+52:         if yes:
+53:             decision = "y"
+54:         while decision.lower() not in ["y", "n"]:
+55:             CORE_LOG.warning(
+56:                 "Report folder already exists. Press [Y/N] to continue or exit..."
+57:             )
+58:             decision = input()
+59:         if decision.lower() == "n":
+60:             CORE_LOG.error(f"{dir} already exist... Remove it or use a different name.")
+61:             raise RuntimeError("Folder already exists")
+62:         else:
+63:             shutil.rmtree(dir)
+64: 
+65:     os.makedirs(dir)
+66: 
+67: 
+68: def parse_timestr(timestr: str):
+69:     if timestr.endswith("hr"):
+70:         return int(timestr[:-2]) * 3600
+71:     elif timestr.endswith("h"):
+72:         return int(timestr[:-1]) * 3600
+73:     elif timestr.endswith("min"):
+74:         return int(timestr[:-3]) * 60
+75:     elif timestr.endswith("m"):
+76:         return int(timestr[:-1]) * 60
+77:     elif timestr.endswith("s"):
+78:         return int(timestr[:-1])
+79: 
+80:     raise ValueError(
+81:         f"Cannot parse time string: {timestr}. Valid examples: 1hr, 1h, 1min, 1m, 1s"
+82:     )
+83: 
+84: 
+85: def is_invalid(output: Dict[str, np.ndarray]):
+86:     for _, o in output.items():
+87:         if np.isnan(o).any() or np.isinf(o).any():
+88:             return True
+89:     return False
+90: 
+91: 
+92: _DOT_EXIST = shutil.which("dot") is not None
+93: _CONDA_EXIST = shutil.which("conda") is not None
+94: _APT_EXIST = shutil.which("apt") is not None
+95: _BREW_EXIST = shutil.which("brew") is not None
+96: 
+97: _CALL_ONCE = False
+98: 
+99: 
+100: def _check_dot_install():
+
+FILE nnsmith/abstract/arith.py | original lines 1–100
+1: from typing import Union
+2: 
+3: import z3
+4: 
+5: from nnsmith.error import SanityCheck
+6: 
+7: ARITH_MAX_WIDTH: int = 64
+8: 
+9: 
+10: def align_bvs(
+11:     left: Union[float, int, z3.ExprRef],
+12:     right: Union[float, int, z3.ExprRef],
+13:     carry=False,
+14:     mult=False,
+15: ):
+16:     left_is_arith = isinstance(left, (int, float, z3.ArithRef))
+17:     right_is_arith = isinstance(right, (int, float, z3.ArithRef))
+18:     # If both values are of arithmetic type, we do not need to do anything.
+19:     if left_is_arith and right_is_arith:
+20:         return (left, right)
+21:     # We assume that the width of an arithmetic type is ARITH_MAX_WIDTH.
+22:     if left_is_arith:
+23:         if isinstance(left, int):
+24:             left_size = min(ARITH_MAX_WIDTH, left.bit_length())
+25:         else:
+26:             left_size = ARITH_MAX_WIDTH
+27:     elif isinstance(left, z3.BitVecRef):
+28:         left_size = left.size()
+29:     else:
+30:         raise RuntimeError(f"Unsupported alignment value {left} of type {type(left)}")
+31:     # We assume that the width of an arithmetic type is ARITH_MAX_WIDTH.
+32:     if right_is_arith:
+33:         if isinstance(right, int):
+34:             right_size = min(ARITH_MAX_WIDTH, right.bit_length())
+35:         else:
+36:             right_size = ARITH_MAX_WIDTH
+37:     elif isinstance(right, z3.BitVecRef):
+38:         right_size = right.size()
+39:     else:
+40:         raise RuntimeError(f"Unsupported alignment value {right} of type {type(right)}")
+41:     # Extend the bitvector that is smaller with the necessary amount of zeroes.
+42:     SanityCheck.true(
+43:         not (carry and mult),
+44:         "Carry and multiplication extension are mutually exclusive",
+45:     )
+46:     SanityCheck.le(
+47:         left_size,
+48:         ARITH_MAX_WIDTH,
+49:         f"Bitvector sizes must not exceed {ARITH_MAX_WIDTH} bits.",
+50:     )
+51:     SanityCheck.le(
+52:         right_size,
+53:         ARITH_MAX_WIDTH,
+54:         f"Bitvector sizes must not exceed {ARITH_MAX_WIDTH} bits.",
+55:     )
+56:     diff = left_size - right_size
+57:     if left_is_arith:
+58:         if diff > 0:
+59:             right = z3.Concat(z3.BitVecVal(0, diff), right)
+60:         if isinstance(left, z3.IntNumRef):
+61:             left = left.as_long()
+62:         return z3.BitVecVal(left, right.size()), z3.simplify(right)
+63:     if right_is_arith:
+64:         if diff < 0:
+65:             left = z3.Concat(z3.BitVecVal(0, abs(diff)), left)
+66:         if isinstance(left, z3.IntNumRef):
+67:             left = left.as_long()
+68:         return left, z3.BitVecVal(right, left.size())
+69:     if diff < 0:
+70:         left = z3.Concat(z3.BitVecVal(0, abs(diff)), left)
+71:     elif diff > 0:
+72:         right = z3.Concat(z3.BitVecVal(0, diff), right)
+73: 
+74:     if carry and max(left_size, right_size) < ARITH_MAX_WIDTH:
+75:         left = z3.Concat(z3.BitVecVal(0, 1), left)
+76:         right = z3.Concat(z3.BitVecVal(0, 1), right)
+77:     if mult:
+78:         max_val = right.size() + left.size()
+79:         if max_val >= ARITH_MAX_WIDTH:
+80:             return (left, right)
+81:         else:
+82:             max_val = ARITH_MAX_WIDTH - max_val
+83:         left = z3.Concat(z3.BitVecVal(0, max_val), left)
+84:         right = z3.Concat(z3.BitVecVal(0, max_val), right)
+85:     return (left, right)
+86: 
+87: 
+88: def nnsmith_mul(
+89:     left: Union[float, int, z3.ExprRef], right: Union[float, int, z3.ExprRef]
+90: ):
+91:     left, right = align_bvs(left, right, mult=True)
+92:     return left * right
+93: 
+94: 
+95: def nnsmith_add(
+96:     left: Union[float, int, z3.ExprRef], right: Union[float, int, z3.ExprRef]
+97: ):
+98:     left, right = align_bvs(left, right, carry=True)
+99:     return left + right
+100: 
+
+FILE nnsmith/abstract/dtype.py | original lines 1–100
+1: from enum import Enum, unique
+2: 
+3: import numpy as np
+4: 
+5: 
+6: # TODO(@ganler): add float16 support.
+7: @unique
+8: class DType(Enum):
+9:     float16 = "float16"
+10:     float32 = "float32"
+11:     float64 = "float64"
+12:     int8 = "int8"
+13:     int16 = "int16"
+14:     int32 = "int32"
+15:     int64 = "int64"
+16:     bool = "bool"
+17:     complex64 = "complex64"
+18:     complex128 = "complex128"
+19: 
+20:     def __repr__(self) -> str:
+21:         return self.name
+22: 
+23:     def __str__(self) -> str:
+24:         s = super().__str__()
+25:         assert s.startswith("DType."), s
+26:         return s[len("DType.") :]
+27: 
+28:     def short(self) -> str:
+29:         return {
+30:             DType.float16: "f16",
+31:             DType.float32: "f32",
+32:             DType.float64: "f64",
+33:             DType.int8: "i8",
+34:             DType.int16: "i16",
+35:             DType.int32: "i32",
+36:             DType.int64: "i64",
+37:             DType.complex64: "c64",
+38:             DType.complex128: "c128",
+39:             DType.bool: "bool",
+40:         }[self]
+41: 
+42:     @staticmethod
+43:     def is_float(dtype):  # Don't use string. Make it well-formed.
+44:         return dtype in [DType.float32, DType.float64]
+45: 
+46:     @staticmethod
+47:     def from_str(s):
+48:         return {
+49:             "f16": DType.float16,
+50:             "f32": DType.float32,
+51:             "f64": DType.float64,
+52:             "i8": DType.int8,
+53:             "i32": DType.int32,
+54:             "i64": DType.int64,
+55:             "c64": DType.complex64,
+56:             "c128": DType.complex128,
+57:             "float32": DType.float32,
+58:             "float64": DType.float64,
+59:             "int8": DType.int8,
+60:             "int32": DType.int32,
+61:             "int64": DType.int64,
+62:             "complex64": DType.complex64,
+63:             "complex128": DType.complex128,
+64:             "bool": DType.bool,
+65:         }[s]
+66: 
+67:     def numpy(self):
+68:         return {
+69:             DType.float16: np.float16,
+70:             DType.float32: np.float32,
+71:             DType.float64: np.float64,
+72:             DType.int8: np.int8,
+73:             DType.int16: np.int16,
+74:             DType.int32: np.int32,
+75:             DType.int64: np.int64,
+76:             DType.complex64: np.complex64,
+77:             DType.complex128: np.complex128,
+78:             DType.bool: np.bool_,
+79:         }[self]
+80: 
+81:     # TODO(@ganler): put "torchization" in a separate file.
+82:     def torch(self) -> "torch.dtype":
+83:         import torch
+84: 
+85:         return {
+86:             DType.float16: torch.float16,
+87:             DType.float32: torch.float32,
+88:             DType.float64: torch.float64,
+89:             DType.int8: torch.int8,
+90:             DType.int16: torch.int16,
+91:             DType.int32: torch.int32,
+92:             DType.int64: torch.int64,
+93:             DType.complex64: torch.complex64,
+94:             DType.complex128: torch.complex128,
+95:             DType.bool: torch.bool,
+96:         }[self]
+97: 
+98:     @staticmethod
+99:     def from_torch(dtype) -> "DType":
+100:         import torch
+
+FILE nnsmith/abstract/extension.py | original lines 1–43
+1: import functools
+2: import types
+3: from typing import List
+4: 
+5: from nnsmith.abstract.op import AbsOpBase
+6: from nnsmith.abstract.tensor import AbsTensor
+7: 
+8: BACKEND_REQUIRES = {}
+9: 
+10: 
+11: def copy_requires(f):
+12:     g = types.FunctionType(
+13:         f.__code__, f.__globals__, name=f.__name__, closure=f.__closure__
+14:     )
+15:     return functools.update_wrapper(g, f)
+16: 
+17: 
+18: class rewrite_requires:
+19:     def __init__(self, tag: str, opname: str):
+20:         self.tag = tag
+21:         self.opname = opname
+22: 
+23:     def __call__(self, f):
+24:         BACKEND_REQUIRES.setdefault(self.tag, {}).setdefault(self.opname, f)
+25:         return f
+26: 
+27: 
+28: class patch_requires:
+29:     def __init__(self, tag: str, opname: str):
+30:         self.tag = tag
+31:         self.opname = opname
+32:         self.prev_fn = None
+33: 
+34:     def __call__(self, f):
+35:         def patch_with_prev(op: AbsOpBase, itensors: List[AbsTensor]):
+36:             if self.prev_fn is None:
+37:                 self.prev_fn = copy_requires(op.requires)
+38:             return f(op, itensors) + self.prev_fn(op, itensors)
+39: 
+40:         BACKEND_REQUIRES.setdefault(self.tag, {}).setdefault(
+41:             self.opname, patch_with_prev
+42:         )
+43:         return patch_with_prev
+
+FILE nnsmith/abstract/op.py | original lines 1–100
+1: import os
+2: import random
+3: from abc import ABC, abstractmethod
+4: from copy import deepcopy
+5: from functools import reduce
+6: from inspect import signature
+7: from typing import Dict, List, Optional, Tuple, Type, Union
+8: 
+9: import z3
+10: 
+11: from nnsmith.abstract.arith import *
+12: from nnsmith.abstract.dtype import DTYPE_ALL, DTYPE_FLOATS, DTYPE_NON_BOOLS, DType
+13: from nnsmith.abstract.tensor import AbsTensor
+14: from nnsmith.error import ConstraintCheck, SanityCheck
+15: 
+16: # There are following types of constraints at this point:
+17: # 1. Shape variables must be greater than 0;
+18: # 2. Shape variables must avoid devision by 0;
+19: # 3. Intra-input shape constraints; e.g., add(x, y) where x.shape() must be equal to y.shape();
+20: # 4. Extra constraints introduced by individual operators;
+21: 
+22: FLOPS_LIM = os.getenv("NNSMITH_FLOPS_LIM", "auto")
+23: if FLOPS_LIM == "auto":  # use predefined value
+24:     FLOPS_LIM = 2**30
+25: elif FLOPS_LIM == "off":
+26:     FLOPS_LIM = None
+27: else:
+28:     FLOPS_LIM = float(FLOPS_LIM)
+29: 
+30: # control wheter to model FLOPS in z3 too. If not, we will check it after model is concretized.
+31: Z3_CONS_FLOPS = os.getenv("NNSMITH_Z3_CONS_FLOPS", "on")
+32: assert Z3_CONS_FLOPS in [
+33:     "on",
+34:     "off",
+35: ], "NNSMITH_Z3_CONS_FLOPS must be either 'on' or 'off'"
+36: Z3_CONS_FLOPS = Z3_CONS_FLOPS == "on"
+37: 
+38: 
+39: __MIN_RANK__ = 0
+40: __MAX_RANK__ = 5
+41: 
+42: FULL_OPERATOR_SETS: Dict[str, List[Type["AbsOpBase"]]] = dict()
+43: 
+44: _PRAGMA_ONCE_CORE_OP = True  # have to use this dirty hack to avoid namespace violation.
+45: 
+46: 
+47: class mark_abstract:
+48:     def __init__(self, dialect):
+49:         assert (
+50:             dialect != "core" or _PRAGMA_ONCE_CORE_OP
+51:         ), "`core` is exclusive to nnsmith.abstract.op. Please use other dilect names"
+52:         self.dialect = dialect
+53: 
+54:     def __call__(self, op_type: Type["AbsOpBase"]) -> Type["AbsOpBase"]:
+55:         op_type.dialect = self.dialect
+56:         return op_type
+57: 
+58: 
+59: class mark_materialize:
+60:     def __init__(self, dialect: str):
+61:         self.dialect = dialect
+62: 
+63:     def __call__(self, op_type: Type["AbsOpBase"]) -> Type["AbsOpBase"]:
+64:         op_list = FULL_OPERATOR_SETS.setdefault(self.dialect, [])
+65: 
+66:         if op_type not in op_list:
+67:             op_list.append(op_type)
+68:             op_list.sort(key=lambda x: x.__name__)
+69:             op_type = mark_abstract(self.dialect)(op_type)
+70: 
+71:         return op_type
+72: 
+73: 
+74: def int_from(start):
+75:     return tuple(range(start, __MAX_RANK__ + 1))
+76: 
+77: 
+78: def int_range(start, end):
+79:     return tuple(range(start, end + 1))
+80: 
+81: 
+82: def int_until(end):
+83:     return tuple(range(__MIN_RANK__, end + 1))
+84: 
+85: 
+86: def int_all():
+87:     return tuple(range(__MIN_RANK__, __MAX_RANK__ + 1))
+88: 
+89: 
+90: def check_shape_fn(func):
+91:     def wrapper_check_shape_fn(self, input_shapes):
+92:         SanityCheck.true(
+93:             self.out_ranks,
+94:             "Empty output dimensions in {}".format(self.__class__.__name__),
+95:         )
+96:         SanityCheck.eq(
+97:             len(input_shapes),
+98:             len(self.inp_ranks),
+99:             "{} requires {} inputs, but got {}".format(
+100:                 self.__class__.__name__, len(self.inp_ranks), len(input_shapes)
+
+FILE nnsmith/abstract/tensor.py | original lines 1–68
+1: from functools import reduce
+2: from typing import List, Union
+3: 
+4: import z3
+5: 
+6: from nnsmith.abstract.arith import *
+7: from nnsmith.abstract.dtype import DType
+8: from nnsmith.error import ConstraintCheck, SanityCheck
+9: 
+10: 
+11: class AbsTensor:
+12:     def __init__(self, shape: List[Union[int, z3.ExprRef]], dtype: DType):
+13:         assert isinstance(
+14:             shape, (list, tuple)
+15:         ), f"Shape must be a list/tuple, but got {shape}"
+16:         self.shape = list(shape)
+17:         self.dtype = DType(dtype)
+18: 
+19:     def __repr__(self):
+20:         return f"AbsTensor<{self.dtype.short()}>{str(self.shape)}"
+21: 
+22:     def __eq__(self, other):
+23:         return self.shape == other.shape and self.dtype == other.dtype
+24: 
+25:     def gt_zero(self):
+26:         ret = []
+27:         for s in self.shape:
+28:             if isinstance(s, z3.ExprRef):
+29:                 ret.append(nnsmith_gt(s, 0))
+30:             else:
+31:                 ConstraintCheck.gt(s, 0)
+32:         return ret
+33: 
+34:     def eq(self, other):
+35:         SanityCheck.eq(self.ndims, other.ndims)
+36:         ret = []
+37:         for i in range(self.ndims):
+38:             if isinstance(self.shape[i], z3.ExprRef) or isinstance(
+39:                 other.shape[i], z3.ExprRef
+40:             ):
+41:                 ret.append(nnsmith_eq(self.shape[i], other.shape[i]))
+42:             else:
+43:                 ConstraintCheck.eq(self.shape[i], other.shape[i])
+44:         return ret
+45: 
+46:     def torch(self):
+47:         import torch
+48: 
+49:         return torch.Size(self.shape)
+50: 
+51:     def constains_symbol(self) -> bool:
+52:         return any(isinstance(s, z3.ExprRef) for s in self.shape)
+53: 
+54:     def nelement(self):
+55:         if len(self.shape) == 0:  # Scalar
+56:             return 1
+57:         return reduce(lambda x, y: nnsmith_mul(x, y), self.shape, 1)
+58: 
+59:     def deepcopy(self):
+60:         return AbsTensor(shape=list(self.shape), dtype=self.dtype)
+61: 
+62:     @staticmethod
+63:     def from_torch(torch_tensor):
+64:         return AbsTensor(list(torch_tensor.shape), DType.from_torch(torch_tensor.dtype))
+65: 
+66:     @property
+67:     def ndims(self):
+68:         return len(self.shape)
+
+FILE nnsmith/backends/__init__.py | original lines 1–1
+1: from nnsmith.backends.factory import BackendFactory
+
+FILE nnsmith/backends/factory.py | original lines 1–100
+1: import multiprocessing as mp
+2: import os
+3: import sys
+4: import traceback
+5: from abc import ABC, abstractmethod
+6: from typing import Callable, Dict, List, Optional, Type, Union
+7: 
+8: import numpy as np
+9: 
+10: from nnsmith.abstract.dtype import DType
+11: from nnsmith.abstract.extension import BACKEND_REQUIRES
+12: from nnsmith.abstract.op import AbsOpBase
+13: from nnsmith.abstract.tensor import AbsTensor
+14: from nnsmith.difftest import assert_allclose
+15: from nnsmith.error import InternalError
+16: from nnsmith.logging import CORE_LOG
+17: from nnsmith.materialize import BugReport, Model, Oracle, Stage, Symptom, TestCase
+18: 
+19: BackendCallable = Callable[[Dict[str, np.ndarray]], Dict[str, np.ndarray]]
+20: 
+21: 
+22: class BackendFactory(ABC):
+23:     def __init__(self, target="cpu", optmax: bool = False):
+24:         super().__init__()
+25:         self.target = target
+26:         self.optmax = optmax
+27: 
+28:     @property
+29:     @abstractmethod
+30:     def system_name(self) -> str:
+31:         pass
+32: 
+33:     def __str__(self) -> str:
+34:         return f"{self.system_name} ({self.target} opt: {self.optmax})"
+35: 
+36:     @staticmethod
+37:     def make_random_input(
+38:         input_like: Dict[str, AbsTensor], low=1, high=2
+39:     ) -> Dict[str, np.ndarray]:
+40:         return {
+41:             name: np.random.uniform(low=low, high=high, size=aten.shape).astype(
+42:                 aten.dtype.numpy()
+43:             )
+44:             for name, aten in input_like.items()
+45:         }
+46: 
+47:     @classmethod
+48:     def skip_dtypes(cls) -> List[DType]:
+49:         return []
+50: 
+51:     @abstractmethod
+52:     def make_backend(self, model: Model) -> BackendCallable:
+53:         raise NotImplementedError
+54: 
+55:     def critical_assert_dispatchable(self, model: Model):
+56:         if not self.make_backend.dispatch(type(model)):
+57:             CORE_LOG.critical(
+58:                 f"[Not implemented] {type(self).__name__} for {type(model).__name__}!\n"
+59:                 "Check https://github.com/ise-uiuc/nnsmith#backend-model-support for compatile `model.type` and `backend.type`."
+60:             )
+61:             sys.exit(1)
+62: 
+63:     def checked_make_backend(self, model: Model) -> BackendCallable:
+64:         self.critical_assert_dispatchable(model)
+65:         return self.make_backend(model)
+66: 
+67:     def checked_compile(self, testcase: TestCase) -> Union[BackendCallable, BugReport]:
+68:         try:  # compilation
+69:             return self.checked_make_backend(testcase.model)
+70:         except InternalError as e:
+71:             raise e
+72:         except Exception:
+73:             return BugReport(
+74:                 testcase=testcase,
+75:                 system=self.system_name,
+76:                 symptom=Symptom.EXCEPTION,
+77:                 stage=Stage.COMPILATION,
+78:                 log=traceback.format_exc(),
+79:             )
+80: 
+81:     def checked_exec(
+82:         self, executable: BackendCallable, testcase: TestCase
+83:     ) -> Union[Dict[str, np.ndarray], BugReport]:
+84:         input = testcase.oracle.input
+85:         if input is None:
+86:             input = self.make_random_input(testcase.model.input_like)
+87:             testcase = TestCase(
+88:                 model=testcase.model, oracle=Oracle(input=input, output=None)
+89:             )
+90: 
+91:         try:  # execution
+92:             return executable(input)
+93:         except InternalError as e:
+94:             raise e
+95:         except Exception:
+96:             return BugReport(
+97:                 testcase=testcase,
+98:                 system=self.system_name,
+99:                 symptom=Symptom.EXCEPTION,
+100:                 stage=Stage.EXECUTION,
+
+FILE nnsmith/backends/iree.py | original lines 1–66
+1: from typing import Dict
+2: 
+3: import iree.compiler.tf
+4: import iree.runtime
+5: import numpy as np
+6: import tensorflow as tf
+7: from multipledispatch import dispatch
+8: 
+9: from nnsmith.backends.factory import BackendCallable, BackendFactory
+10: from nnsmith.materialize.tensorflow import TFModel
+11: 
+12: 
+13: class IREEFactory(BackendFactory):
+14:     def __init__(self, target="cpu", optmax: bool = False):
+15:         """
+16:         Initialize the IREE backend factory.
+17: 
+18:         Parameters
+19:         ----------
+20:         target : str, optional
+21:             The compilation target including "cpu" (same as "llvm-cpu"), "vmvx", "vulkan-spirv", by default "cpu"
+22:         optmax : bool, optional
+23:             Release mode or not, by default False
+24:         """
+25:         if target == "cpu":
+26:             target = "llvm-cpu"
+27:         supported_backends = [
+28:             "vmvx",
+29:             "llvm-cpu",
+30:             "vulkan-spirv",
+31:         ]
+32:         assert (
+33:             target in supported_backends
+34:         ), f"Unsupported target {target}. Consider one of {supported_backends}"
+35:         super().__init__(target=target, optmax=optmax)
+36: 
+37:     @property
+38:     def system_name(self) -> str:
+39:         return "iree"
+40: 
+41:     @dispatch(TFModel)
+42:     def make_backend(self, model: TFModel) -> BackendCallable:
+43:         setattr(
+44:             model.net,
+45:             "iree_fn",
+46:             tf.function(input_signature=[model.input_specs])(model.net.call_by_dict),
+47:         )
+48:         # https://iree-python-api.readthedocs.io/en/latest/compiler/tools.html
+49:         vm_flatbuffer = iree.compiler.tf.compile_module(
+50:             model.net,
+51:             target_backends=[self.target],
+52:             exported_names=["iree_fn"],
+53:             optimize=self.optmax,
+54:         )
+55: 
+56:         compiled_model = iree.runtime.load_vm_flatbuffer(
+57:             vm_flatbuffer,
+58:             backend=self.target,
+59:         )
+60: 
+61:         def closure(inputs: Dict[str, np.ndarray]) -> Dict[str, np.ndarray]:
+62:             outputs = compiled_model.iree_fn(inputs)  # can directly accept np.ndarray
+63:             outputs = {k: np.array(v) for k, v in outputs.items()}
+64:             return outputs
+65: 
+66:         return closure
+
+FILE nnsmith/backends/onnxruntime.py | original lines 1–62
+1: import onnx
+2: import onnxruntime as ort
+3: from multipledispatch import dispatch
+4: 
+5: from nnsmith.backends import BackendFactory
+6: from nnsmith.backends.factory import BackendCallable
+7: from nnsmith.macro import NNSMITH_ORT_INTRA_OP_THREAD
+8: from nnsmith.materialize.onnx import ONNXModel
+9: 
+10: OPT_LEVELS = [
+11:     ort.GraphOptimizationLevel.ORT_DISABLE_ALL,
+12:     ort.GraphOptimizationLevel.ORT_ENABLE_BASIC,
+13:     ort.GraphOptimizationLevel.ORT_ENABLE_EXTENDED,
+14:     ort.GraphOptimizationLevel.ORT_ENABLE_ALL,
+15: ]
+16: 
+17: 
+18: class ORTFactory(BackendFactory):
+19:     def __init__(self, target, optmax, **kwargs):
+20:         """opt_level ranges from 0 to 3, stands for ORT_DISABLE_ALL, ORT_ENABLE_BASIC, ORT_ENABLE_EXTENDED and ORT_ENABLE_ALL.
+21:         See https://onnxruntime.ai/docs/performance/graph-optimizations.html for detail"""
+22:         super().__init__(target, optmax, **kwargs)
+23:         self.opt_level = OPT_LEVELS[-1 if optmax else 0]
+24: 
+25:         if target == "cuda":
+26:             self.providers = [
+27:                 "CUDAExecutionProvider",
+28:                 "CPUExecutionProvider",
+29:             ]  # ordered by precedence
+30:         elif target == "cpu":
+31:             self.providers = ["CPUExecutionProvider"]
+32:         else:
+33:             raise ValueError(
+34:                 f"Unknown target `{target}`. Only `cpu` and `cuda` are supported."
+35:             )
+36: 
+37:     @property
+38:     def system_name(self) -> str:
+39:         return "onnxruntime"
+40: 
+41:     @dispatch(ONNXModel)
+42:     def make_backend(
+43:         self,
+44:         model: ONNXModel,
+45:     ) -> BackendCallable:
+46:         sess_options = ort.SessionOptions()
+47:         sess_options.graph_optimization_level = self.opt_level
+48:         # https://github.com/microsoft/onnxruntime/issues/8313
+49:         sess_options.intra_op_num_threads = NNSMITH_ORT_INTRA_OP_THREAD
+50: 
+51:         sess = ort.InferenceSession(
+52:             onnx._serialize(model.native_model),
+53:             providers=self.providers,
+54:             sess_options=sess_options,
+55:         )
+56:         out_names = list(model.output_like.keys())
+57: 
+58:         def closure(inputs):
+59:             res = sess.run(out_names, inputs)
+60:             return {n: r for n, r in zip(out_names, res)}
+61: 
+62:         return closure
+
+FILE nnsmith/backends/tensorrt.py | original lines 1–100
+1: from dataclasses import dataclass
+2: from typing import List
+3: 
+4: import numpy as np
+5: import onnx
+6: import pycuda.driver as cuda
+7: import tensorrt as trt
+8: from multipledispatch import dispatch
+9: from pycuda.driver import DeviceAllocation
+10: 
+11: from nnsmith.abstract.arith import *
+12: from nnsmith.abstract.dtype import DType
+13: from nnsmith.abstract.extension import patch_requires
+14: from nnsmith.abstract.op import AbsOpBase
+15: from nnsmith.abstract.tensor import AbsTensor
+16: from nnsmith.backends import BackendFactory
+17: from nnsmith.materialize.onnx import ONNXModel
+18: 
+19: 
+20: @dataclass
+21: class HostDeviceMem:
+22:     host: np.ndarray
+23:     device: DeviceAllocation
+24: 
+25: 
+26: class TRTFactory(BackendFactory):
+27:     def __init__(self, target="cuda", optmax=True, **kwargs):
+28:         super().__init__(target, optmax, **kwargs)
+29: 
+30:         if target != "cuda":
+31:             raise ValueError("TensorRT backend only supports GPU!")
+32: 
+33:         if optmax is False:
+34:             # TODO(@ganler): support non-optimized TensorRT by using performing
+35:             # inference over a model that marks all nodes as outputs.
+36:             raise ValueError("There is not O0 mode for TensorRT so far.")
+37: 
+38:     @property
+39:     def system_name(self) -> str:
+40:         return "tensorrt"
+41: 
+42:     @dispatch(ONNXModel)
+43:     def make_backend(self, model: ONNXModel):
+44:         import pycuda.autoinit
+45: 
+46:         onnx_model = model.native_model
+47:         engine = self.build_engine_onnx(onnx_model)
+48: 
+49:         def closure(inputs):
+50:             (
+51:                 trt_inputs,
+52:                 trt_outputs,
+53:                 trt_bindings,
+54:                 stream,
+55:                 onames,
+56:                 name2idx,
+57:             ) = self.allocate_buffers(engine)
+58:             context = engine.create_execution_context()
+59: 
+60:             for iname in inputs:
+61:                 np.copyto(
+62:                     trt_inputs[name2idx[iname]].host,
+63:                     inputs[iname]
+64:                     .astype(trt.nptype(engine.get_binding_dtype(iname)))
+65:                     .ravel(),
+66:                 )
+67: 
+68:             trt_concrete_outputs = self.do_inference_v2(
+69:                 context,
+70:                 bindings=trt_bindings,
+71:                 inputs=trt_inputs,
+72:                 outputs=trt_outputs,
+73:                 stream=stream,
+74:             )
+75: 
+76:             return {
+77:                 n: v.reshape(engine.get_binding_shape(n))
+78:                 for n, v in zip(onames, trt_concrete_outputs)
+79:             }
+80: 
+81:         return closure
+82: 
+83:     @staticmethod
+84:     def build_engine_onnx(onnx_model):
+85:         builder = trt.Builder(trt.Logger(trt.Logger.WARNING))
+86:         network = builder.create_network(
+87:             1 << (int)(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH)
+88:         )
+89:         config = builder.create_builder_config()
+90:         config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, 2 << 30)
+91:         parser = trt.OnnxParser(network, trt.Logger(trt.Logger.WARNING))
+92:         # Load the Onnx model and parse it in order to populate the TensorRT network.
+93:         if not parser.parse(onnx._serialize(onnx_model)):
+94:             error_msg = ""
+95:             for error in range(parser.num_errors):
+96:                 error_msg += str(parser.get_error(error))
+97:             raise RuntimeError(error_msg)
+98:         engine_bytes = builder.build_serialized_network(network, config)
+99:         return trt.Runtime(trt.Logger(trt.Logger.WARNING)).deserialize_cuda_engine(
+100:             engine_bytes
+
+FILE nnsmith/backends/tflite.py | original lines 1–100
+1: from os import PathLike
+2: from typing import Dict
+3: 
+4: import numpy as np
+5: import tensorflow as tf  # type: ignore
+6: from multipledispatch import dispatch
+7: 
+8: from nnsmith.backends.factory import BackendCallable, BackendFactory
+9: from nnsmith.materialize.tensorflow import TFModel, TFNetCallable
+10: 
+11: 
+12: class TFLiteRunner:
+13:     def __init__(self, tfnet_callable: TFNetCallable) -> None:
+14:         self.tfnet_callable = tfnet_callable
+15: 
+16:     def __call__(self, input: Dict[str, np.ndarray]) -> Dict[str, np.ndarray]:
+17:         return self.tfnet_callable(**input)
+18:         # It can automatically convert input args to np.ndarray, and it outputs np.ndarray.
+19: 
+20: 
+21: class TFLiteFactory(BackendFactory):
+22:     """Factory to build TFLite backend.
+23:     Convertion Graph:
+24:         TFModel & one concrete function
+25:                     v  TFLiteConverter with configs
+26:         TFLite model content in bytes -- (f.write) --> model.tflite file
+27:                     v  tf.lite.Interpreter  <-- (f.read) <---
+28:         TFLite Python Callable
+29:     """
+30: 
+31:     def __init__(self, target, optmax, **kwargs) -> None:
+32:         # https://github.com/tensorflow/tensorflow/issues/34536#issuecomment-565632906
+33:         # TFLite doesn't support NVIDIA GPU.
+34:         assert target != "cuda"
+35:         super().__init__(target, optmax, **kwargs)
+36: 
+37:     @property
+38:     def system_name(self) -> str:
+39:         return "tflite"
+40: 
+41:     @dispatch(TFModel)
+42:     def make_backend(
+43:         self,
+44:         model: TFModel,
+45:     ) -> BackendCallable:
+46:         """Create TFLite callable from a concrete function.
+47:         TFModel is required because functions have a weak reference to Variables, which are stored in `tf.Module`.
+48:         Ref: https://www.tensorflow.org/api_docs/python/tf/lite/TFLiteConverter#from_concrete_functions
+49:         """
+50:         return self.make_backend_from_content(self.make_content(model))
+51: 
+52:     def make_backend_from_path(
+53:         self,
+54:         path: PathLike,
+55:     ) -> BackendCallable:
+56:         """Create TFLite callable from path of a TF SavedModel.
+57:         Ref: https://www.tensorflow.org/api_docs/python/tf/lite/TFLiteConverter#from_saved_model
+58:         """
+59:         return self.make_backend_from_content(
+60:             self.make_content(path),
+61:         )
+62: 
+63:     @dispatch(bytes)
+64:     def make_backend_from_content(self, content: bytes) -> BackendCallable:
+65:         # Ref: https://www.tensorflow.org/api_docs/python/tf/lite/Interpreter
+66:         interpreter = tf.lite.Interpreter(model_content=content)
+67:         return TFLiteRunner(interpreter.get_signature_runner())
+68: 
+69:     @dispatch(TFModel)
+70:     def make_content(
+71:         self,
+72:         model: TFModel,
+73:     ) -> bytes:
+74:         """Create TFLite content from a concrete function.
+75:         TFModel is required because functions have a weak reference to Variables, which are stored in `tf.Module`.
+76:         Ref: https://www.tensorflow.org/api_docs/python/tf/lite/TFLiteConverter#from_concrete_functions
+77:         """
+78:         converter = tf.lite.TFLiteConverter.from_concrete_functions(
+79:             funcs=[model.concrete_net()],
+80:             trackable_obj=model.net,
+81:         )
+82:         return self._tflite_content_from_converter(converter)
+83: 
+84:     def make_content_with_func(
+85:         self,
+86:         model: TFModel,
+87:         concrete_func: TFNetCallable,
+88:     ) -> bytes:
+89:         """Create TFLite content from a concrete function.
+90:         TFModel is required because functions have a weak reference to Variables, which are stored in `tf.Module`.
+91:         Ref: https://www.tensorflow.org/api_docs/python/tf/lite/TFLiteConverter#from_concrete_functions
+92:         """
+93:         converter = tf.lite.TFLiteConverter.from_concrete_functions(
+94:             funcs=[concrete_func],
+95:             trackable_obj=model.net,
+96:         )
+97:         return self._tflite_content_from_converter(converter)
+98: 
+99:     def make_backend_with_func(
+100:         self,
+
+FILE nnsmith/backends/tvm.py | original lines 1–85
+1: import logging
+2: 
+3: import tvm
+4: from multipledispatch import dispatch
+5: from tvm import relay
+6: 
+7: from nnsmith.backends import BackendFactory
+8: from nnsmith.materialize.onnx import ONNXModel
+9: 
+10: logging.getLogger("te_compiler").disabled = True
+11: logging.getLogger("autotvm").disabled = True
+12: 
+13: 
+14: def list_eq(a, b):
+15:     if len(a) != len(b):
+16:         return False
+17:     for i in range(len(a)):
+18:         if a[i] != b[i]:
+19:             return False
+20:     return True
+21: 
+22: 
+23: class TVMFactory(BackendFactory):
+24:     def __init__(self, target="cpu", optmax=True, executor="graph", **kwargs) -> None:
+25:         super().__init__(target, optmax, **kwargs)
+26:         # WARNING: setting opt_level 4 sometimes causes false alarms
+27:         # as in this level fast_math is enabled where slight numerical
+28:         # inconsistency is allowed and outputs for UB-input may differ.
+29:         self.opt_level = 4 if optmax else 0
+30:         if target == "cpu":
+31:             self.target = tvm.target.Target("llvm")
+32:         else:
+33:             tvm_possible_targets = tvm.target.Target.list_kinds()
+34:             assert (
+35:                 target in tvm_possible_targets
+36:             ), f"Unknown target {target}. Possible targets are {tvm_possible_targets}"
+37:             self.target = tvm.target.Target("cuda")
+38: 
+39:         self.executor_mode = executor
+40: 
+41:     def get_device(self):
+42:         if (
+43:             self.target.export()["kind"] == "cuda"
+44:             or self.target.export()["kind"] == "nvptx"
+45:         ):
+46:             return tvm.cuda()
+47:         if self.target.export()["kind"] == "rocm":
+48:             return tvm.rocm()
+49:         return tvm.cpu()
+50: 
+51:     @property
+52:     def system_name(self) -> str:
+53:         return "tvm"
+54: 
+55:     @staticmethod
+56:     def cvt_result(output):
+57:         """Pack output tensor(s) into a list"""
+58:         # TODO(jinkun): may not work for nested list / dynamic shape
+59:         assert output is not None, "Output should not be None"
+60:         if isinstance(output, (tvm.runtime.container.ADT, list)):
+61:             output = [r.numpy() for r in output]
+62:         elif output is not None:
+63:             output = [output.numpy()]
+64:         return output
+65: 
+66:     @dispatch(ONNXModel)
+67:     def make_backend(self, model: ONNXModel):
+68:         onnx_model = model.native_model
+69:         shape_dict = {name: aten.shape for name, aten in model.input_like.items()}
+70:         mod, params = relay.frontend.from_onnx(
+71:             onnx_model, shape_dict, freeze_params=True
+72:         )
+73:         mod = relay.transform.InferType()(mod)
+74: 
+75:         with tvm.transform.PassContext(opt_level=self.opt_level):
+76:             executor = relay.build_module.create_executor(
+77:                 self.executor_mode, mod, self.get_device(), self.target, params
+78:             ).evaluate()
+79: 
+80:         def closure(inputs):
+81:             output = executor(**inputs)
+82:             output = self.cvt_result(output)
+83:             return dict(zip(model.output_like.keys(), output))
+84: 
+85:         return closure
+
+FILE nnsmith/backends/xla.py | original lines 1–42
+1: from typing import Dict
+2: 
+3: import tensorflow as tf  # type: ignore
+4: from multipledispatch import dispatch
+5: 
+6: from nnsmith.backends.factory import BackendCallable, BackendFactory
+7: from nnsmith.materialize.tensorflow import (
+8:     EagerModeCtx,
+9:     TFModel,
+10:     np_dict_from_tf,
+11:     tf_dict_from_np,
+12: )
+13: 
+14: 
+15: class XLAFactory(BackendFactory):
+16:     def __init__(self, target="cpu", optmax: bool = False):
+17:         super().__init__(target, optmax)
+18: 
+19:         if self.target == "cpu":
+20:             self.device = tf.device(tf.config.list_logical_devices("CPU")[0].name)
+21:         elif self.target == "cuda":
+22:             self.device = tf.device(tf.config.list_logical_devices("GPU")[0].name)
+23:         else:
+24:             raise ValueError(
+25:                 f"Unknown device: {self.target}. Only `cpu` and `cuda` are supported."
+26:             )
+27: 
+28:     @property
+29:     def system_name(self) -> str:
+30:         return "xla"
+31: 
+32:     @dispatch(TFModel)
+33:     def make_backend(self, model: TFModel) -> BackendCallable:
+34:         with self.device, EagerModeCtx(False):
+35:             compiled = tf.function(jit_compile=True)(model.concrete_net())
+36: 
+37:         def closure(inputs: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
+38:             with self.device, EagerModeCtx(False):
+39:                 result = np_dict_from_tf(compiled(**tf_dict_from_np(inputs)))
+40:             return result
+41: 
+42:         return closure
+
+FILE nnsmith/cli/dtype_test.py | original lines 1–25
+1: import hydra
+2: from omegaconf import DictConfig
+3: 
+4: from nnsmith.backends import BackendFactory
+5: from nnsmith.materialize import Model
+6: from nnsmith.narrow_spec import auto_opconfig
+7: 
+8: 
+9: @hydra.main(version_base=None, config_path="../config", config_name="main")
+10: def main(cfg: DictConfig):
+11:     backend_cfg = cfg["backend"]
+12:     if backend_cfg["type"] is not None:
+13:         factory = BackendFactory.init(
+14:             name=backend_cfg["type"],
+15:             target=backend_cfg["target"],
+16:             optmax=backend_cfg["optmax"],
+17:         )
+18:     else:
+19:         factory = None
+20:     model_type = Model.init(cfg["model"]["type"], backend_target=backend_cfg["target"])
+21:     auto_opconfig(model_type, factory)
+22: 
+23: 
+24: if __name__ == "__main__":
+25:     main()
+
+FILE nnsmith/cli/fuzz.py | original lines 1–100
+1: import os
+2: import random
+3: import time
+4: import traceback
+5: from importlib.util import module_from_spec, spec_from_file_location
+6: from pathlib import Path
+7: from types import FunctionType
+8: from typing import Type
+9: 
+10: import hydra
+11: from omegaconf import DictConfig
+12: 
+13: from nnsmith.backends.factory import BackendFactory
+14: from nnsmith.cli.model_exec import verify_testcase
+15: from nnsmith.error import InternalError
+16: from nnsmith.filter import FILTERS
+17: from nnsmith.graph_gen import concretize_graph, random_model_gen
+18: from nnsmith.logging import FUZZ_LOG
+19: from nnsmith.macro import NNSMITH_BUG_PATTERN_TOKEN
+20: from nnsmith.materialize import Model, Schedule, TestCase
+21: from nnsmith.narrow_spec import auto_opset
+22: from nnsmith.util import mkdir, parse_timestr, set_seed
+23: 
+24: 
+25: class StatusCollect:
+26:     def __init__(self, root):
+27:         self.root = Path(root)
+28:         mkdir(self.root)
+29:         self.n_testcases = 0
+30:         self.n_bugs = 0
+31: 
+32:     def get_next_bug_path(self):
+33:         return self.root / f"bug-{NNSMITH_BUG_PATTERN_TOKEN}-{self.n_bugs}"
+34: 
+35: 
+36: class FuzzingLoop:
+37:     def __init__(
+38:         self,
+39:         cfg: DictConfig,
+40:     ):
+41:         self.cfg = cfg
+42: 
+43:         # FIXME(@ganler): well-form the fix or report to TF
+44:         # Dirty fix for TFLite on CUDA-enabled systems.
+45:         # If CUDA is not needed, disable them all.
+46:         if cfg["backend"]["type"] == "tflite" and (
+47:             cfg["cmp"]["with"] is None or cfg["cmp"]["with"]["target"] != "cuda"
+48:         ):
+49:             os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+50: 
+51:         self.crash_safe = bool(cfg["fuzz"]["crash_safe"])
+52:         self.test_timeout = cfg["fuzz"]["test_timeout"]
+53:         if self.test_timeout is not None:
+54:             if isinstance(self.test_timeout, str):
+55:                 self.test_timeout = parse_timestr(self.test_timeout)
+56:             assert isinstance(
+57:                 self.test_timeout, int
+58:             ), "`fuzz.test_timeout` must be an integer (or with `s` (default), `m`/`min`, or `h`/`hr`)."
+59: 
+60:         if not self.crash_safe and self.test_timeout is not None:
+61:             # user enabled test_timeout but not crash_safe.
+62:             FUZZ_LOG.warning(
+63:                 "`fuzz.crash_safe` is automatically enabled given `fuzz.test_timeout` is set."
+64:             )
+65: 
+66:         self.filters = []
+67:         # add filters.
+68:         filter_types = (
+69:             [cfg["filter"]["type"]]
+70:             if isinstance(cfg["filter"]["type"], str)
+71:             else cfg["filter"]["type"]
+72:         )
+73:         if filter_types:
+74:             patches = (
+75:                 [cfg["filter"]["patch"]]
+76:                 if isinstance(cfg["filter"]["patch"], str)
+77:                 else cfg["filter"]["patch"]
+78:             )
+79:             for f in patches:
+80:                 assert os.path.isfile(
+81:                     f
+82:                 ), "filter.patch must be a list of file locations."
+83:                 assert "@filter(" in open(f).read(), f"No filter found in the {f}."
+84:                 spec = spec_from_file_location("module.name", f)
+85:                 spec.loader.exec_module(module_from_spec(spec))
+86:                 FUZZ_LOG.info(f"Imported filter patch: {f}")
+87:             for filter in filter_types:
+88:                 filter = str(filter)
+89:                 if filter not in FILTERS:
+90:                     raise ValueError(
+91:                         f"Filter {filter} not found. Available filters: {FILTERS.keys()}"
+92:                     )
+93:                 fn_or_cls = FILTERS[filter]
+94:                 if isinstance(fn_or_cls, Type):
+95:                     self.filters.append(fn_or_cls())
+96:                 elif isinstance(fn_or_cls, FunctionType):
+97:                     self.filters.append(fn_or_cls)
+98:                 else:
+99:                     raise InternalError(
+100:                         f"Invalid filter type: {fn_or_cls} (aka {filter})"
+
+FILE nnsmith/cli/model_exec.py | original lines 1–100
+1: """Directly perform model execution from a bare model, NNSmith model folder, or NNSmith bug report folder.
+2: Example usage:
+3: # compile + run the model (in ORT by default); verify with the oracle under `nnsmith_output`;
+4:  nnsmith.model_exec model.path=nnsmith_output/model.onnx
+5: # compile + run the model; verify with the oracle with fallback mode (random input)
+6:  nnsmith.model_exec model.path=nnsmith_output/model.onnx cmp.oracle=null
+7: # differential testing with tvm
+8:  nnsmith.model_exec model.path=nnsmith_output/model.onnx cmp.with='{type:tvm, optmax:true, target:cpu}'
+9: """
+10: 
+11: import os
+12: import pickle
+13: import random
+14: from pathlib import Path
+15: from types import FunctionType
+16: from typing import List, Optional
+17: 
+18: import hydra
+19: from omegaconf import DictConfig, ListConfig
+20: 
+21: from nnsmith.backends import BackendFactory
+22: from nnsmith.logging import EXEC_LOG
+23: from nnsmith.macro import NNSMITH_BUG_PATTERN_TOKEN
+24: from nnsmith.materialize import BugReport, Model, Oracle, TestCase
+25: 
+26: 
+27: def verify_testcase(
+28:     cmp_cfg: DictConfig,
+29:     factory: BackendFactory,
+30:     testcase: TestCase,
+31:     output_dir: os.PathLike,
+32:     filters: List = None,
+33:     supress_succ=True,
+34:     crash_safe: bool = False,
+35:     timeout: Optional[int] = None,
+36: ) -> bool:
+37:     if filters is None:
+38:         filters = []
+39: 
+40:     def check_result(bug_report_or, odir, msg=None) -> bool:  # succ?
+41:         msg = "" if msg is None else msg
+42:         if not isinstance(bug_report_or, BugReport):
+43:             if not supress_succ:
+44:                 EXEC_LOG.info(f"[PASS] {msg}")
+45:             return True
+46:         else:
+47:             bug_report = bug_report_or
+48: 
+49:             for f in filters:
+50:                 if f(bug_report):  # filter: no log & dump. but still a bug.
+51:                     filter_name = (
+52:                         f.__name__ if isinstance(f, FunctionType) else type(f).__name__
+53:                     )
+54:                     EXEC_LOG.info(
+55:                         f"Filter [{filter_name}] {bug_report.symptom} at {bug_report.stage}"
+56:                     )
+57:                     return False
+58: 
+59:             EXEC_LOG.warning("[FAIL] ")
+60:             EXEC_LOG.warning(bug_report.log)
+61:             if odir is not None:
+62:                 odir = str(odir).replace(
+63:                     NNSMITH_BUG_PATTERN_TOKEN,
+64:                     f"{bug_report.symptom}-{bug_report.stage}",
+65:                 )
+66:                 EXEC_LOG.warning("Saving bug report to {}".format(odir))
+67:                 bug_report.dump(odir)
+68:             return False
+69: 
+70:     bug_or_res = factory.checked_compile_and_exec(
+71:         testcase, crash_safe=crash_safe, timeout=timeout
+72:     )
+73:     if check_result(
+74:         bug_or_res, odir=output_dir, msg=f"Compile + Execution [{factory}]"
+75:     ):
+76:         if testcase.oracle.output is not None:  # we have output results && no bug yet
+77:             # do result verification
+78:             if not check_result(
+79:                 factory.verify_results(
+80:                     bug_or_res,
+81:                     testcase,
+82:                     equal_nan=cmp_cfg["equal_nan"],
+83:                 ),
+84:                 odir=output_dir,
+85:                 msg=f"Result Verification w/ Oracle from {testcase.oracle.provider}",
+86:             ):
+87:                 return False
+88:     else:
+89:         return False
+90: 
+91:     # Compare with
+92:     if cmp_cfg["with"] is not None and cmp_cfg["with"]["type"] is not None:
+93:         cmp_fac = BackendFactory.init(
+94:             cmp_cfg["with"]["type"],
+95:             target=cmp_cfg["with"]["target"],
+96:             optmax=cmp_cfg["with"]["optmax"],
+97:         )
+98:         cmp_testcase = cmp_fac.make_testcase(
+99:             testcase.model,
+100:             input=testcase.oracle.input,
+
+FILE nnsmith/cli/model_gen.py | original lines 1–75
+1: import logging
+2: import os
+3: import random
+4: 
+5: import hydra
+6: from omegaconf import DictConfig
+7: 
+8: from nnsmith.backends.factory import BackendFactory
+9: from nnsmith.graph_gen import concretize_graph, random_model_gen, viz
+10: from nnsmith.logging import MGEN_LOG
+11: from nnsmith.materialize import Model, Schedule, TestCase
+12: from nnsmith.narrow_spec import auto_opset
+13: from nnsmith.util import mkdir
+14: 
+15: 
+16: @hydra.main(version_base=None, config_path="../config", config_name="main")
+17: def main(cfg: DictConfig):
+18:     # Generate a random ONNX model
+19:     # TODO(@ganler): clean terminal outputs.
+20:     mgen_cfg = cfg["mgen"]
+21: 
+22:     seed = random.getrandbits(32) if mgen_cfg["seed"] is None else mgen_cfg["seed"]
+23: 
+24:     MGEN_LOG.info(f"Using seed {seed}")
+25: 
+26:     # TODO(@ganler): skip operators outside of model gen with `cfg[exclude]`
+27:     model_cfg = cfg["model"]
+28:     ModelType = Model.init(model_cfg["type"], backend_target=cfg["backend"]["target"])
+29:     ModelType.add_seed_setter()
+30: 
+31:     if cfg["backend"]["type"] is not None:
+32:         factory = BackendFactory.init(
+33:             cfg["backend"]["type"],
+34:             target=cfg["backend"]["target"],
+35:             optmax=cfg["backend"]["optmax"],
+36:         )
+37:     else:
+38:         factory = None
+39: 
+40:     gen = random_model_gen(
+41:         opset=auto_opset(ModelType, factory),
+42:         init_rank=mgen_cfg["init_rank"],
+43:         seed=seed,
+44:         max_nodes=mgen_cfg["max_nodes"],
+45:         timeout_ms=mgen_cfg["timeout_ms"],
+46:     )
+47:     MGEN_LOG.info(
+48:         f"{len(gen.get_solutions())} symbols and {len(gen.solver.assertions())} constraints."
+49:     )
+50: 
+51:     if MGEN_LOG.getEffectiveLevel() <= logging.DEBUG:
+52:         MGEN_LOG.debug("solution:" + ", ".join(map(str, gen.get_solutions())))
+53: 
+54:     fixed_graph, concrete_abstensors = concretize_graph(
+55:         gen.abstract_graph, gen.tensor_dataflow, gen.get_solutions()
+56:     )
+57: 
+58:     mkdir(mgen_cfg["save"])
+59:     if cfg["debug"]["viz"]:
+60:         G = fixed_graph
+61:         fmt = cfg["debug"]["viz_fmt"].replace(".", "")
+62:         viz(G, os.path.join(mgen_cfg["save"], f"graph.{fmt}"))
+63: 
+64:     schedule = Schedule.init(fixed_graph, concrete_abstensors)
+65: 
+66:     model = ModelType.from_schedule(schedule)
+67:     model.refine_weights()  # either random generated or gradient-based.
+68:     oracle = model.make_oracle()
+69: 
+70:     testcase = TestCase(model, oracle)
+71:     testcase.dump(root_folder=mgen_cfg["save"])
+72: 
+73: 
+74: if __name__ == "__main__":
+75:     main()
+
+FILE nnsmith/materialize/__init__.py | original lines 1–100
+1: import json
+2: import os
+3: import pickle
+4: from abc import ABC, abstractmethod
+5: from collections import namedtuple
+6: from dataclasses import dataclass
+7: from enum import Enum
+8: from os import PathLike
+9: from typing import Any, Dict, List, Tuple, Type
+10: 
+11: import networkx as nx
+12: import numpy as np
+13: from multipledispatch import dispatch
+14: 
+15: from nnsmith.abstract.op import AbsOpBase, Constant, Input
+16: from nnsmith.abstract.tensor import AbsTensor
+17: from nnsmith.error import SanityCheck
+18: from nnsmith.util import HAS_PYGRAPHVIZ, viz_dot
+19: 
+20: 
+21: def framework_operator_impl(
+22:     framework_realizable_ops: List[Type[AbsOpBase]],
+23:     all_framework_ops: List[Type[AbsOpBase]],
+24:     op_type: AbsOpBase,
+25:     *args,
+26:     **kwargs,
+27: ):
+28:     """When implementing `forward_fn` for an operator class, add this operator into all_framework_ops list.
+29: 
+30:     Usage:
+31:         In `forward.py`, define `operator_impl = partial(framework_operator_impl, FW_REALIZABLE_OPS, ALL_FM_OPS)`.
+32:         Then add `@operator_impl(OpClass)` when implementing `forward_fn` for `OpClass`.
+33: 
+34:     Args:
+35:         framework_realizable_ops (List[Type[AbsOpBase]]): all realizable ops in the framework. Usually it can be obtained by FULL_OPERATOR_SETS["core"].union(FULL_OPERATOR_SETS["framework_name"])
+36:         all_framework_ops (List[Type[AbsOpBase]]): list of operator classes that are implemented `forward_fn` in the framework.
+37:         op_type (AbsOpBase): operator class
+38:     """
+39:     SanityCheck.true(
+40:         issubclass(op_type, AbsOpBase),
+41:         f"Decorator operator_impl takes AbsOpBase subclass, but got {op_type}",
+42:     )
+43:     if op_type is not Constant:  # Constant comes from placeholder.
+44:         dispatchables = [
+45:             rtype for rtype in framework_realizable_ops if issubclass(rtype, op_type)
+46:         ]
+47:         for rtype in dispatchables:
+48:             all_framework_ops.append(rtype)
+49: 
+50:         SanityCheck.true(
+51:             len(dispatchables) != 0,
+52:             f"Decorator operator_impl only take types decorated by `mark_realize`, but got {op_type}",
+53:         )
+54:     return dispatch(op_type, *args, **kwargs)
+55: 
+56: 
+57: Instruction: Tuple[AbsOpBase, List[int], List[int]] = namedtuple(
+58:     "Instruction", ["op", "inputs", "outputs"]
+59: )
+60: 
+61: 
+62: @dataclass
+63: class Schedule:
+64:     """Minimal information for constructing a graph."""
+65: 
+66:     instructions: List[Instruction]
+67:     input_keys: List[int]
+68:     leaf_keys: List[int]
+69:     key2type: Dict[int, AbsTensor]
+70: 
+71:     @staticmethod
+72:     def init(graph: nx.MultiDiGraph, key2type: Dict[int, AbsTensor]) -> "Schedule":
+73:         # The input graph should be a concretized graph.
+74:         instructions: List[Instruction] = []
+75:         input_keys = []
+76:         user_keys = set()
+77: 
+78:         # freeze node with static attributes in label;
+79:         for node_id in nx.topological_sort(graph):
+80:             node = graph.nodes[node_id]
+81:             op = node["op"]
+82: 
+83:             if isinstance(op, Input):
+84:                 input_keys.append(node["otensor_idx"][0])
+85: 
+86:             for used_idx in node["itensor_idx"]:
+87:                 user_keys.add(used_idx)
+88: 
+89:             # TODO(@ganler): Better name than "otensor_idx"
+90:             # TODO(@ganler): Add refcnt or last ref mechanism to save memory
+91:             instructions.append(
+92:                 Instruction(
+93:                     op=op,
+94:                     inputs=node["itensor_idx"],
+95:                     outputs=node["otensor_idx"],
+96:                 )
+97:             )
+98: 
+99:         # simplify the statements above
+100:         leaf_keys = [key for key in key2type if key not in user_keys]
+
+FILE nnsmith/materialize/onnx/__init__.py | original lines 1–100
+1: import os
+2: import random
+3: import warnings
+4: from io import BytesIO
+5: from os import PathLike
+6: from typing import Dict, Tuple, Union
+7: 
+8: import onnx
+9: import onnx.checker
+10: import onnx.helper
+11: import torch
+12: import torch.onnx
+13: from onnx.external_data_helper import load_external_data_for_model
+14: from onnx.tools import update_model_dims
+15: 
+16: from nnsmith.abstract.dtype import DType
+17: from nnsmith.abstract.op import AbsTensor
+18: from nnsmith.macro import onnx2external_data_dir
+19: from nnsmith.materialize import Schedule
+20: from nnsmith.materialize.torch import SymbolNet, TorchModel
+21: 
+22: 
+23: def create_deadcode_onnx(onnx_model, name_mask) -> onnx.ModelProto:
+24:     graph_def = onnx.helper.make_graph(
+25:         nodes=onnx_model.graph.node,  # nodes
+26:         name=onnx_model.graph.name,  # name
+27:         inputs=onnx_model.graph.input,  # inputs
+28:         outputs=[o for o in onnx_model.graph.output if o.name in name_mask],  # outputs
+29:         initializer=onnx_model.graph.initializer,
+30:     )
+31: 
+32:     model_def = onnx.helper.make_model(
+33:         graph=graph_def, producer_name="nnsmith.deadcode"
+34:     )
+35: 
+36:     onnx.checker.check_model(model_def, full_check=True)
+37:     return model_def
+38: 
+39: 
+40: def torch2onnx(
+41:     model: SymbolNet,
+42:     exportable: Union[str, BytesIO],
+43:     verbose=False,
+44:     dummy_inputs=None,
+45:     do_constant_folding=False,
+46: ) -> None:
+47:     """Convert PyTorch model to ONNX format."""
+48:     proxy_enabled = model.proxy_enabled
+49:     if proxy_enabled:
+50:         model.disable_proxy_grad()
+51: 
+52:     # Dummy inputs
+53:     if dummy_inputs is None:
+54:         dummy_inputs = [
+55:             torch.ones(size=svar.shape).uniform_(1, 2).to(dtype=svar.dtype.torch())
+56:             for _, svar in model.input_like.items()
+57:         ]
+58: 
+59:     input_names = list(model.input_like.keys())
+60: 
+61:     with torch.no_grad():
+62:         with warnings.catch_warnings():
+63:             warnings.simplefilter(
+64:                 "default" if verbose else "ignore", category=torch.jit.TracerWarning
+65:             )
+66:             warnings.simplefilter(
+67:                 "default" if verbose else "ignore", category=UserWarning, append=True
+68:             )
+69:             model.eval()
+70:             torch.onnx.export(
+71:                 model,
+72:                 tuple(dummy_inputs),
+73:                 exportable,
+74:                 input_names=input_names,
+75:                 output_names=list(model.output_like.keys()),
+76:                 verbose=verbose,
+77:                 do_constant_folding=do_constant_folding,
+78:                 opset_version=14,
+79:             )
+80: 
+81:     if proxy_enabled:  # Re-enable proxy grad
+82:         model.enable_proxy_grad()
+83: 
+84: 
+85: def dtype_from_onnx(onnx_dtype: onnx.TensorProto.DataType) -> DType:
+86:     """Return dtype from ONNX data type."""
+87:     return {
+88:         onnx.TensorProto.DataType.FLOAT: DType.float32,
+89:         onnx.TensorProto.DataType.DOUBLE: DType.float64,
+90:         onnx.TensorProto.DataType.INT8: DType.int8,
+91:         onnx.TensorProto.DataType.INT16: DType.int16,
+92:         onnx.TensorProto.DataType.INT32: DType.int32,
+93:         onnx.TensorProto.DataType.INT64: DType.int64,
+94:         onnx.TensorProto.DataType.BOOL: DType.bool,
+95:         onnx.TensorProto.DataType.COMPLEX64: DType.complex64,
+96:         onnx.TensorProto.DataType.COMPLEX128: DType.complex128,
+97:         onnx.TensorProto.DataType.FLOAT16: DType.float16,
+98:         # onnx.TensorProto.DataType.UINT8: DType.uint8, // unsigned type not supported
+99:         # onnx.TensorProto.DataType.UINT16: DType.uint16,
+100:         # onnx.TensorProto.DataType.UINT32: DType.uint32,
+
+FILE nnsmith/materialize/tensorflow/__init__.py | original lines 1–100
+1: from __future__ import annotations
+2: 
+3: import logging
+4: import os
+5: import pickle
+6: from abc import ABC
+7: from os import PathLike
+8: from typing import Callable, Dict, List, Type
+9: 
+10: os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+11: logging.getLogger("tensorflow").setLevel(logging.ERROR)
+12: logging.getLogger("absl").disabled = True
+13: 
+14: import numpy as np
+15: import tensorflow as tf  # type: ignore
+16: from multipledispatch import dispatch  # type: ignore
+17: 
+18: 
+19: def configure_tf_gpu_mem(max_megabytes=None):
+20:     for gpu in tf.config.list_physical_devices("GPU"):
+21:         tf.config.experimental.set_memory_growth(gpu, True)
+22:         if isinstance(max_megabytes, int):
+23:             tf.config.set_logical_device_configuration(
+24:                 gpu, [tf.config.LogicalDeviceConfiguration(memory_limit=max_megabytes)]
+25:             )
+26: 
+27: 
+28: configure_tf_gpu_mem()
+29: 
+30: from nnsmith.abstract.op import AbsOpBase, AbsTensor
+31: from nnsmith.materialize import Model, Oracle, Schedule
+32: from nnsmith.materialize.tensorflow.forward import ALL_TF_OPS
+33: from nnsmith.materialize.tensorflow.tfnet import TFNet
+34: from nnsmith.util import register_seed_setter
+35: 
+36: TFNetCallable = Callable[..., Dict[str, tf.Tensor]]
+37: 
+38: 
+39: @dispatch(dict)
+40: def randn_from_specs(specs: Dict[str, tf.TensorSpec]) -> Dict[str, tf.Tensor]:
+41:     return {
+42:         name: tf.cast(tf.random.normal(shape=spec.shape), dtype=spec.dtype)
+43:         for name, spec in specs.items()
+44:     }
+45: 
+46: 
+47: def np_dict_from_tf(x: Dict[str, tf.Tensor]) -> Dict[str, np.ndarray]:
+48:     return {key: value.numpy() for key, value in x.items()}
+49: 
+50: 
+51: def tf_dict_from_np(x: Dict[str, np.ndarray]) -> Dict[str, tf.Tensor]:
+52:     return {key: tf.convert_to_tensor(value) for key, value in x.items()}
+53: 
+54: 
+55: class EagerModeCtx:
+56:     def __init__(self, eagerly: bool) -> None:
+57:         assert isinstance(
+58:             eagerly, bool
+59:         ), f"argument eagerly should not be {eagerly.__class__}. It must be a boolean."
+60:         self.eagerly = eagerly
+61: 
+62:     def __enter__(self) -> None:
+63:         self.old_mode = tf.config.functions_run_eagerly()
+64:         tf.config.run_functions_eagerly(self.eagerly)
+65: 
+66:     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+67:         tf.config.run_functions_eagerly(self.old_mode)
+68: 
+69: 
+70: class TFModel(Model, ABC):  # Don't directly instantiate this class
+71:     """Wrapper class of TFNet (tf.Module)
+72:     It only stores net. Other information like I/O info are temporarily generated.
+73:     Other values like I/O values should be managed by the user.
+74:     """
+75: 
+76:     def __init__(self, schedule: Schedule) -> None:
+77:         """Must provide a schedule to avoid NoneType errors"""
+78:         super().__init__()
+79:         self.schedule = schedule
+80:         self.net: TFNet = TFNet(
+81:             schedule=schedule,
+82:         )
+83: 
+84:     @classmethod
+85:     def from_schedule(cls, schedule: Schedule, **kwargs) -> "TFModel":
+86:         return cls(schedule)
+87: 
+88:     @property
+89:     def native_model(self) -> TFNet:
+90:         return self.net
+91: 
+92:     @property
+93:     def input_like(self) -> Dict[str, AbsTensor]:
+94:         return {
+95:             f"i{i_inp}": self.schedule.key2type[key]
+96:             for i_inp, key in enumerate(self.schedule.input_keys)
+97:         }
+98: 
+99:     @property
+100:     def output_like(self) -> Dict[str, AbsTensor]:
