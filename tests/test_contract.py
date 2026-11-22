@@ -55,6 +55,13 @@ def test_bare_candidate_list_is_kept():
     assert report["records"][0]["id"] == "X"
 
 
+def test_early_closed_root_object_is_merged():
+    text = '{"paper_id":"demo","method_model":{"objective":"x"}}, "candidates":[{"id":"X","title":"one"}]}'
+    report = parse_finding_report(text)
+    assert "merged_early_close" in report["repairs"]
+    assert [r["id"] for r in report["records"]] == ["X"]
+
+
 def test_nested_wrapper_is_searched():
     data = {"answer": {"results": [{"id": "N1", "rule": "r"}]}}
     groups = candidate_groups(data)

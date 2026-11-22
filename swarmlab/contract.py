@@ -95,11 +95,31 @@ def _repair_truncated(text: str):
     return None
 
 
+def _merge_early_close(stripped: str):
+    """Repair `{...}} , "candidates": ...` where the root object closed early."""
+    obj = _first_object(stripped)
+    if obj is None:
+        return None
+    rest = stripped[stripped.find(obj) + len(obj):]
+    if not re.match(r'\s*,\s*"', rest):
+        return None
+    candidate = obj[:-1] + rest
+    try:
+        value = json.loads(candidate)
+    except ValueError:
+        return None
+    return value if isinstance(value, dict) else None
+
+
 def parse_json(text: str, repairs: list | None = None):
     repairs = repairs if repairs is not None else []
     if not isinstance(text, str) or not text.strip():
         raise ValueError("empty reply")
     stripped = _strip_fence(text)
+    merged_first = _merge_early_close(stripped)
+    if merged_first is not None:
+        repairs.append("merged_early_close")
+        return merged_first
     attempts = [stripped]
     obj = _first_object(stripped)
     if obj and obj != stripped and stripped.find(obj) == stripped.find("{"):

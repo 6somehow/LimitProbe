@@ -48,7 +48,27 @@ only with a verdict and a missing-evidence statement. Delegation now requires an
 
 A second s2 sample on NNSmith (dev-v11) also produced a core (H1: the search keeps the
 first feasible witness and `make_oracle` uses only that one), blind-confirmed. So the
-s2 prompts reached the core in 2 of 2 samples, 4 of 5 NNSmith samples overall.
+s2 prompts reached the core in 2 of 2 samples, 5 of 6 NNSmith samples overall.
+
+## s3 (dev-v12): disclosed boundaries and balanced diversity
+
+s2 demoted author-disclosed weaker results to `known_boundaries`, which cost SpinQuant
+its R1 compromise on the test run. s3 restates the rubric rule (a disclosed weaker
+result is a candidate when the aggregate metric cannot expose it) and balances the
+diversity requirement between witness-stage coverage and shared-artifact conflict.
+
+| paper | S s3 (dev-v12) | blind check |
+|---|---|---|
+| NNSmith | **core** (H1) | core, all three items yes |
+| MInference | miss | — |
+| InfiniGen | partial (H4) | **core**: shared key representation, per-head basis conflict, consequence and controlled comparison all present |
+| SparTA | miss | — |
+
+The InfiniGen H4 record is the first candidate in this whole study to name the GQA
+shared key representation and the per-head column/basis conflict. The holistic grader
+called it partial; the report keeps both readings (core under blind adjudication,
+partial under the conservative holistic grader). Worker delivery: 4/4 handoffs returned
+candidates with a verdict.
 
 Worker delivery changed from 6/13 handoffs returning candidates (v3-v6, no verdict
 asked) to **5/5 handoffs returning candidates with a verdict** (v10-v11: 2 supports,
@@ -109,12 +129,20 @@ unit mismatch, sharing, stored-witness) was run once on the four test-with-sourc
 papers. No tuning was done on these papers; the reference rows 05/07/09/14 were used
 only for scoring.
 
-| paper | S | best record | note |
+| paper | S (s1, test-v1) | best record | note |
 |---|---|---|---|
 | Prompt Cache | partial | H2 | parameter placeholder freezes the suffix KV (same family as the reference's missing conditioning, but intra-module) |
 | SpinQuant | **core** | H1 | shared global R1 forces a per-layer compromise; the paper's own Fig. 7c shows one layer's SNR worsens; per-layer R2 absorption is discussed; per-layer R1 comparison proposed |
 | KVQuant | partial | H2 | outlier budget allocated by magnitude rather than sensitivity; the first-token position proxy is not addressed |
 | DX100 | miss | H1 | tile-capacity truncation, not cross-iteration dependence blocking offload |
+
+A post-hoc s3 run on SpinQuant (the paper was already inspected during the s2->s3 fix,
+so this is labelled post-hoc and is not held-out) retained the single global R1 record
+(H3: one model-level R1, per-layer compromise, paper Fig. 7c evidence, per-layer R1
+comparison). The blind grader called it core with one missing qualification check
+(whether per-layer R2 absorbs the conflict); the holistic grader called the best record
+partial because it selected H1 (per-head R2) instead. Report both readings; the
+conservative reading is partial.
 
 A blind independent grader agreed on the SpinQuant core, graded Prompt Cache core (a
 more lenient reading of the same conditioning family), KVQuant partial and DX100 miss.

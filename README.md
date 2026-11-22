@@ -6,11 +6,12 @@ research-method limitations", built beside the existing pipeline. It asks one qu
 its trigger and its downstream consequence) where a single API call and a single agent
 do not?**
 
-Short answer on the Dev split: **yes, on NNSmith**, and the core reproduces in four of
-five samples (each core independently blind-graded). On the held-out Test split the
-frozen pre-s2 prompt also reached a core on SpinQuant. The latest role-contract prompts (`s2`) raise
-worker candidate yield from 6/13 handoffs to 5/5 with explicit verdicts, and keep the
-NNSmith core in both s2 samples.
+Short answer on the Dev split: **yes, on NNSmith** (core reproduces across samples,
+each core blind-graded) and, with the latest s3 role contracts, also on **InfiniGen**
+(a first for this study). Worker candidate yield rose from 6/13 handoffs to 8/8 with
+explicit verdicts across s2+s3. The pre-s2 (s1) prompt also reached a core on the
+held-out SpinQuant. Prompt iterations and their measured effects are in
+[docs/prompt-iterations.md](docs/prompt-iterations.md).
 
 ## Current evidence
 
@@ -18,22 +19,27 @@ Dev papers: NNSmith, MInference, InfiniGen, SparTA. Scores are `core / partial /
 against the archived Shanghao reference, used for scoring only. A/B/C/D are the frozen
 v9 study conditions with their official grades; S is this track.
 
-| paper | A api_once | B single_agent (v9) | C plain_swarm | D evidence_gap_swarm | S s2 (dev-v10) |
+| paper | A api_once | B single_agent (v9) | C plain_swarm | D evidence_gap_swarm | S s3 (dev-v12) |
 |---|---|---|---|---|---|
 | NNSmith | miss | miss | miss | miss | **core** |
-| MInference | miss | partial | miss | miss | partial |
-| InfiniGen | miss | miss | miss | miss | miss |
+| MInference | miss | partial | miss | miss | miss |
+| InfiniGen | miss | miss | miss | miss | partial (blind: core) |
 | SparTA | miss | miss | miss | miss | miss |
-| core/partial | 0/0 | 0/1 | 0/0 | 0/0 | **1/1** |
+| core/partial | 0/0 | 0/1 | 0/0 | 0/0 | **1/2** |
 
 * A and a **stronger 8-reply single agent** (same packet, tools, historical direct
   prompt) were re-run inside this harness: 0 cores and 0 partials on all four papers.
 * NNSmith samples: dev-v6 core, dev-v8 miss, dev-v9 core (stored-witness probe),
-  dev-v10 core and dev-v11 core (role contracts). All four cores were blind-confirmed;
-  the miss is retained, not filtered.
-* Held-out Test split with the frozen method (no tuning): SpinQuant **core**, Prompt
-  Cache partial, KVQuant partial, DX100 miss. A blind independent grader agreed on the
-  SpinQuant core and the DX100 miss.
+  dev-v10 core, dev-v11 core and dev-v12 core (role contracts). Every core was
+  blind-confirmed; the miss is retained, not filtered.
+* s3 adds the first InfiniGen candidate naming the GQA shared key representation and
+  the per-head column/basis conflict (H4); the blind grader calls it core, the holistic
+  grader partial. Both readings are kept.
+* Test split: the s1 prompt reached SpinQuant **core**, Prompt Cache partial, KVQuant
+  partial, DX100 miss. The s2 prompt regressed there (all four miss) because it demoted
+  the author-disclosed R1 compromise to `known_boundaries`; s3 fixes that rule, but the
+  post-hoc s3 SpinQuant run (partial) is not held-out because the paper was inspected
+  during the fix. Test numbers are reported with that caveat.
 * Every core listed above was also blind-graded by a separate agent that saw only the
   frozen final and the rubric.
 
@@ -75,13 +81,14 @@ empty list is allowed only with a verdict and what evidence would settle the que
 
 **Handoff ledger** for every worker: `worker_found → parse_retained →
 delivered_to_lead → verified_span → cited_in_final` (`ledger.json`). The parser accepts
-field aliases, bare lists and truncated JSON and records every repair, so a structured
-candidate list is never dropped silently. Across v3–v6: 13 delegated gaps, 6 candidate
-sets returned, 6 parsed and delivered, 2 cited in a final report. With the s2 role
-contracts (v10-v11): 5/5 handoffs returned candidates with a verdict (2 supports, 3
-narrows); on NNSmith the worker itself returned `nnsmith-single-witness-consumption`
-and then `nnsmith-single-witness-first-feasible`, with counts considered=2, kept=1,
-replay=1, consumer=1.
+field aliases, bare candidate lists, truncated JSON and a root object that closes early
+before `"candidates"`; it records every repair, so a structured candidate list is never
+dropped silently. Across v3–v6: 13 delegated gaps, 6 candidate
+sets returned, 6 parsed and delivered, 2 cited in a final report. With the s2/s3 role
+contracts (v10-v12): 8/8 handoffs returned candidates with a verdict (4 supports,
+4 narrows); on NNSmith the worker returned `nnsmith-single-witness-consumption` and
+`nnsmith-single-witness-first-feasible` with counts considered=2, kept=1, replay=1,
+consumer=1.
 
 ## Repository layout
 
@@ -154,5 +161,7 @@ the same 10-request cell cap.
 * [docs/method.md](docs/method.md) — the S workflow and why it differs from C/D
 * [docs/results.md](docs/results.md) — per-paper grades, variance, in-harness baselines
 * [docs/report.md](docs/report.md) — full report with threats to validity
+* [docs/prompt-iterations.md](docs/prompt-iterations.md) — s1→s2→s3 changes and
+  measured role delivery
 * [docs/port-notes.md](docs/port-notes.md) — what to port into the main pipeline
 * [docs/status.md](docs/status.md) — run log
