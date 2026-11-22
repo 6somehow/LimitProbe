@@ -92,7 +92,13 @@ and better evidenced (code spans in `input_gen.py` and `cli/fuzz.py`).
   four-question rubric grader, and an independent blind agent. They agree on the
   acceptance of the NNSmith core and disagree on weaker partial cases; disagreements
   are documented in `out/grades-*`.
-* The test split has not been run with S yet.
+* The probe list names generic transformation categories (context length/extension,
+  position scaling, grouping, zero arrangement, input values). These categories overlap
+  the reference rubric's categories by construction. The probes never name a paper's
+  diagnosis, and the held-out SpinQuant core (shared global R1) comes from a different
+  category than the dev core, but this is a design-coupling risk to keep in mind.
+* The test split has been run with S once (SpinQuant core, two partials, one miss);
+  A/B were not re-run on test.
 
 ## Held-out test run
 
