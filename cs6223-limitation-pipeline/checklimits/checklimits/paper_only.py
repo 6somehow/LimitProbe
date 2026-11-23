@@ -15,6 +15,9 @@ import ast
 import hashlib
 import json
 import operator
+import os
+import time
+from concurrent.futures import ThreadPoolExecutor
 import re
 from pathlib import Path
 from typing import Any, Callable, Optional
@@ -317,11 +320,63 @@ V3_FILTER = """Self-filter and rank these candidates by non-obviousness, causal 
 CANDIDATES\n{candidates}"""
 
 
+MECH_V3C = "paper-only-mech-v3c"
+V3C_INVENTORY = """In English, inventory 8-15 core mechanisms or design decisions with verbatim quote anchors, what each optimizes, unit and granularity, workload, model and hardware assumptions, regularity exploited, and where cost goes. Apply all seven lenses to each: L1 proxy guarantee; L2 objective or stopping rule versus goal; L3 compatibility of units; L4 coupling of choices; L5 origin and change of regularity; L6 shifted cost and net-benefit threshold; L7 bottleneck changes over scale or time. For worthwhile pairs include a short list of lens and one-sentence conditional consequence ideas; explain unexplained observations as causal hypotheses. Return JSON with mechanisms, each containing mechanism, quotes, and sweep. Quotes may cite paper or supplied code; code quotes include their file path.
+PAPER TEXT\n{text}\nCODE EXCERPTS\n{code}"""
+V3C_WRITE = """Write at most 3 candidates in English for this mechanism and its lens ideas. Return JSON with candidates. Each has headline in the form A does not imply or guarantee B, or A conflicts with B; claim; paper_fact (verbatim quote); premise (general knowledge); inference; optional toy_example explicitly marked not a measurement; conditional consequence; critical_link; necessary_conditions, defeaters and do_not_infer as lists; disclosure (reported, mechanism_reported_consequence_inferred, or inferred); category_code; lens; quotes (1-3 verbatim paper or code quotes with source and locator); kind (mechanism or evaluation_critique); and integer non_obviousness from 1 to 5. Use applicability_limitation for environmental conditions, mechanism_origin_unclear for unexplained origins, and method_shortcoming for design or objective limits. Include explicit author boundaries and inferred consequences.
+MECHANISM\n{mechanism}\nPAPER TEXT\n{text}\nCODE EXCERPTS\n{code}"""
+
 def _json_object(response):
     match = re.search(r"\{.*\}", response, re.S)
     if not match:
         raise ValueError("no JSON object in the answer")
-    return json.loads(match.group())
+    text = match.group()
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+    # Tolerant repair: strip code fences / trailing commas; if the object is cut, close it at the last complete item.
+    text = re.sub(r",\s*([}\]])", r"\1", text)
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+    for end in range(len(text) - 1, 0, -1):
+        if text[end] not in "}]":
+            continue
+        head = text[: end + 1]
+        stack = []
+        in_str = esc = False
+        for ch in head:
+            if in_str:
+                esc = (not esc) and ch == "\\"
+                if not esc and ch == '"':
+                    in_str = False
+                continue
+            if ch == '"':
+                in_str = True
+            elif ch in "{[":
+                stack.append("}" if ch == "{" else "]")
+            elif ch in "}]" and stack:
+                stack.pop()
+        if in_str:
+            continue
+        try:
+            return json.loads(head + "".join(reversed(stack)))
+        except json.JSONDecodeError:
+            continue
+    raise ValueError("unparseable JSON in the answer")
+
+
+def _ask_json(ask, prompt, tries=3, **kw):
+    """One model call that must return a JSON object; a bad answer is re-asked (fresh call), not fatal."""
+    last = None
+    for _ in range(tries):
+        try:
+            return _json_object(ask(prompt, **kw))
+        except ValueError as exc:
+            last = exc
+    raise last
 
 def mechanism_candidates(text, code_files, ask, *, version=MECH_V1, examples_path=None, stats=None, no_filter=False):
     """Generate and verify candidates; return mechanisms, critiques and dropped count."""
@@ -338,6 +393,41 @@ def mechanism_candidates(text, code_files, ask, *, version=MECH_V1, examples_pat
             raise ValueError("no mechanisms list in inventory")
         examples = Path(examples_path).read_text(encoding="utf-8") if examples_path else "None"
         response = ask(MECH_ANALYSIS.format(inventory=json.dumps(inventory), text=text[:MAX_TEXT_CHARS], code=code, examples=examples))
+    elif version == MECH_V3C:
+        started = time.monotonic()
+        inventory = _ask_json(ask, V3C_INVENTORY.format(text=text[:MAX_TEXT_CHARS], code=code), max_tokens=18000, timeout=600)  # reasoning model: thinking eats the budget first; 6000 gave an empty answer
+        entries = inventory.get("mechanisms")
+        if not isinstance(entries, list) or not entries:
+            raise ValueError("no mechanisms list in inventory")
+        inventory_seconds = time.monotonic() - started
+        def chunk(entry):
+            start = time.monotonic()
+            for attempt in range(2):
+                try:
+                    result = _ask_json(ask, V3C_WRITE.format(mechanism=json.dumps(entry), text=text[:MAX_TEXT_CHARS], code=code), tries=1, max_tokens=14000, timeout=600)
+                    if not isinstance(result.get("candidates"), list):
+                        raise ValueError("no candidates list")
+                    return result["candidates"][:3], {"seconds": time.monotonic() - start, "attempts": attempt + 1}
+                except Exception as exc:
+                    error = f"{type(exc).__name__}: {exc}"
+            return None, {"seconds": time.monotonic() - start, "attempts": 2, "error": error}
+        start = time.monotonic()
+        with ThreadPoolExecutor(max_workers=max(1, int(os.environ.get("LIMITSET_MECH_THREADS", "6")))) as pool:
+            chunks = list(pool.map(chunk, entries))
+        failures = sum(items is None for items, _ in chunks)
+        if stats is not None:
+            stats.update(chunk_count=len(chunks), chunk_failures=failures, chunk_timings=[detail for _, detail in chunks], inventory_seconds=inventory_seconds, chunks_seconds=time.monotonic() - start)
+        if failures == len(chunks):
+            raise ValueError("all mechanism chunks failed")
+        candidates = [c for items, _ in chunks if items is not None for c in items if isinstance(c, dict)]
+        if not no_filter:
+            def rank(c):
+                score = c.get("non_obviousness")
+                score = score if type(score) is int and 1 <= score <= 5 else 1
+                conditions = c.get("necessary_conditions")
+                return -(score * bool(conditions) if isinstance(conditions, list) else 0)
+            candidates.sort(key=rank)
+        response = json.dumps({"candidates": candidates})
     elif version == MECH_V3:
         inventory = _json_object(ask(V3_INVENTORY.format(text=text[:MAX_TEXT_CHARS], code=code)))
         if not isinstance(inventory.get("mechanisms"), list):
@@ -365,7 +455,7 @@ def mechanism_candidates(text, code_files, ask, *, version=MECH_V1, examples_pat
         raise ValueError("no candidates list")
     mechanisms, critiques, dropped = [], [], 0
     merged = 0
-    for c in (candidates if version == MECH_V3 else candidates[:30 if version == MECH_V2 else 20]):
+    for c in (candidates if version in (MECH_V3, MECH_V3C) else candidates[:30 if version == MECH_V2 else 20]):
         if not isinstance(c, dict):
             continue
         quotes = c.get("quotes") or ([c["paper_fact"]] if isinstance(c.get("paper_fact"), str) else None)
@@ -390,11 +480,13 @@ def mechanism_candidates(text, code_files, ask, *, version=MECH_V1, examples_pat
             dropped += 1
             continue
         item = {**c, "evidence": evidence}
-        if version == MECH_V3:
+        if version == MECH_V3C and not isinstance(item.get("necessary_conditions"), list):
+            item["necessary_conditions"] = []
+        if version in (MECH_V3, MECH_V3C):
             item["claim"] = c.get("claim") or c.get("headline") or ""
             item["mechanism"] = c.get("mechanism") or " ".join(str(c.get(k) or "") for k in ("premise", "inference", "consequence")).strip()
         if c.get("kind") != "evaluation_critique" and c.get("category_code") in MECHANISM_KINDS:
-            if version == MECH_V2:
+            if version == MECH_V2 or (version == MECH_V3C and not no_filter):
                 words = set(re.findall(r"\w+", str(c.get("mechanism") or "").lower()))
                 anchors = {_flat(e["support_description"]) for e in evidence}
                 duplicate = False
@@ -411,6 +503,8 @@ def mechanism_candidates(text, code_files, ask, *, version=MECH_V1, examples_pat
         else:
             item["kind"] = "evaluation_critique"
             critiques.append(item)
+    if version == MECH_V3C and not no_filter:
+        mechanisms = mechanisms[:20]
     if stats is not None:
         stats["merged_candidates"] = merged
     return mechanisms, critiques, dropped
