@@ -135,5 +135,4 @@ conservative reading.
 1. Make the worker discover rather than only verify: give it the lead's top-two gaps
    and three replies, and measure cited-in-final per worker.
 2. Pre-register two samples per condition for the next evaluation round.
-3. Try the paper-only test stratum (OneSidedMW, CXLfork, Juneberry, Twilight) with
-   paper-only tools.
+3. Evaluate on a fresh set of papers that were not inspected during prompt development.

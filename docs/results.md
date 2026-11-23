@@ -1,8 +1,9 @@
 # Results
 
-Full 12-paper matrix (dev, test-with-source, paper-only; blind coverage primary and
-holistic sensitivity): [docs/full-matrix.md](full-matrix.md). Exported finals, grades and
-a sha256 manifest are in `results/` (blind) and `results-holistic/`.
+Eight source-backed papers (dev + test-with-source): per-paper grades, coverage figure
+and scoring details are in [docs/paper-side-evaluation.md](paper-side-evaluation.md).
+Exported finals, grades and a sha256 manifest are in `results/` (blind) and
+`results-holistic/`.
 
 ## Dev split
 

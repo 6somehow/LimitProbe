@@ -8,10 +8,6 @@
 | test-source | spinquant | partial | core | miss |
 | test-source | kvquant | partial | miss | partial |
 | test-source | dx100 | partial | partial | miss |
-| paper-only | onesidedmw | core | core | core |
-| paper-only | cxlfork | partial | core | partial |
-| paper-only | juneberry | partial | core | core |
-| paper-only | twilight-tlite | miss | core | miss |
 
 | split | workflow | coverage | core | partial | weighted |
 |---|---|---|---|---|---|
@@ -21,6 +17,3 @@
 | test-source | gap_receipt_swarm | 4/4 | 1 | 3 | 5 |
 | test-source | api_once | 3/4 | 2 | 1 | 5 |
 | test-source | single_agent | 2/4 | 0 | 2 | 2 |
-| paper-only | gap_receipt_swarm | 3/4 | 1 | 2 | 4 |
-| paper-only | api_once | 4/4 | 4 | 0 | 8 |
-| paper-only | single_agent | 3/4 | 2 | 1 | 5 |

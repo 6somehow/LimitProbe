@@ -11,7 +11,6 @@ WEIGHT = {"core": 2, "partial": 1, "miss": 0}
 PAPERS = {
     "dev": ["nnsmith", "minference", "infinigen", "sparta"],
     "test-source": ["prompt-cache", "spinquant", "kvquant", "dx100"],
-    "paper-only": ["onesidedmw", "cxlfork", "juneberry", "twilight-tlite"],
 }
 
 

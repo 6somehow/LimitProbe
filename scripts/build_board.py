@@ -62,19 +62,17 @@ def main() -> None:
     if args.test_mapping and args.test_grades:
         coverage = [("Dev (4)", "2 / 4", "1 / 4", "2 / 4"),
                     ("Test with source (4)", "4 / 4", "3 / 4", "2 / 4"),
-                    ("Test paper-only (4)", "3 / 4", "4 / 4", "3 / 4"),
-                    ("All 12 (blind)", "9 / 12", "8 / 12", "7 / 12")]
+                    ("All 8 (blind)", "6 / 8", "4 / 8", "4 / 8")]
         rows_html = "".join(f"<tr><th>{a}</th><td>{b}</td><td>{c}</td><td>{d}</td></tr>"
                             for a, b, c, d in coverage)
         test_html = ("<h2>Primary metric: coverage of diagnosed limitations</h2>"
                      "<p>Coverage = papers with at least a partial diagnosis / 4, blind grader on all "
-                     "splits. B uses up to 8 replies. Full per-paper matrix in docs/full-matrix.md.</p>"
+                     "splits. B uses up to 8 replies. Full per-paper matrix in docs/paper-side-evaluation.md.</p>"
                      "<table><tr><th>split</th><th>S s7</th><th>A one call</th><th>B single agent</th></tr>"
                      + rows_html + "</table>"
-                     "<p>Blind coverage: S 9/12 vs A 8/12 vs B 7/12. Source-backed papers favour S; "
-                     "paper-only papers favour A (4/4 vs 3/4). The stricter holistic grader flips "
-                     "the overall ranking (A 7/12 > S 5/12 > B 1/12), and the test papers were "
-                     "inspected during prompt development, so the test numbers are post-hoc.</p>")
+                     "<p>Blind coverage: S 6/8 vs A 4/8 vs B 4/8. The strict grader reverses the eval "
+                     "split (A 3/4 vs S 2/4). Test papers informed earlier prompt revisions, so the "
+                     "evaluation numbers are post-hoc.</p>")
     if args.second_mapping and args.second_grades:
         second = rows(args.second_mapping, args.second_grades)
         hit = second.get(("nnsmith", "gap_receipt_swarm"))
