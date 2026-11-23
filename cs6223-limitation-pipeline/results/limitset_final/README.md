@@ -15,3 +15,24 @@ conda run -n findlimit python scripts/limitset/reproduce_tables.py --root result
 ```
 
 Real re-scoring requires the scorer, its dataset inputs, a configured judge endpoint and credentials, and incurs model calls. This bundle alone does not contain the inputs or credentials needed for that operation; the saved scores suffice for the offline tables.
+
+## Re-scoring for real (needs a model service)
+
+The tables in this bundle are rebuilt offline (`python scripts/limitset/reproduce_tables.py --root results/limitset_final --out tables.md`). Re-scoring the predictions needs a judge model behind a local OpenAI-compatible relay (the relay holds the key; the scorer only sees a placeholder). Set the environment variable names below; never write key values into files.
+
+```bash
+# judge: OpenAI gpt-6.1-terra through a relay on port 8789 (variables read by scorer_limitset)
+export LIMITSET_JUDGE_MODEL=gpt-6.1-terra LIMITSET_JUDGE_RELAY_PORT=8789 LIMITSET_JUDGE_CHUNK=150
+
+# limitset2 (22 human-reviewed labels): needs the Limitation Testset root for its schemas
+python -m scorer_limitset --pred results/limitset_final/limitset2/b1/predictions.jsonl \
+  --root <path-to-CS6223_Limitation_Testset> --dataset limitset2 --labels data/limitset2/labels.jsonl \
+  --out /tmp/rescore_b1 --judge relay --workers 8
+
+# development cases (4 cases; Chinese labels translated to English, scorer-only)
+python -m scorer_limitset --pred results/limitset_final/validation/b1/predictions.jsonl \
+  --root <path-to-CS6223_Limitation_Testset> --splits data/limitset/splits.json \
+  --out /tmp/rescore_val_b1 --judge relay --labels-en data/limitset/labels_en.jsonl --workers 4
+```
+
+The judge accepts only its default temperature, so a re-score is not bit-for-bit identical to the committed `score.json` files; expect small differences in the per-label decisions.
