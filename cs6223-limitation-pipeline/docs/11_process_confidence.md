@@ -115,7 +115,7 @@ python scripts/run_step4.py --process-only [--only <id> ...]
 python scripts/make_handoff_doc.py
 ```
 
-Each paper's summary is in `process_confidence` in `findings.report.json`; the table for all papers is in `results/step4/process_confidence.md`. Section 6 of `HANDOFF.md` explains it.
+Each paper's summary is in `process_confidence` in `findings.report.json`; the table for all papers is in `results/step4/process_confidence.md`. Section 6 of the generated `HANDOFF.md` explains it.
 
 ## Team decisions needed
 

@@ -31,8 +31,8 @@ Results:
 | File | Contents |
 |---|---|
 | `results/step4/<id>/limitations_for_tests.json` | All limitations from both sides for this paper (after deduplication, classification, priority and witness_hint) |
-| `results/step4/<id>/HANDOFF.md` | Instructions for the test side |
-| `results/step4/limitations_for_tests.json`, `HANDOFF.md` | All papers combined (automatically refreshed each time) |
+| `results/step4/<id>/HANDOFF.md` | Instructions for the test side (generated on demand by the `doc` stage; not committed) |
+| `results/step4/limitations_for_tests.json`, `HANDOFF.md` (generated, not committed) | All papers combined (automatically refreshed each time) |
 | `results/tests/<id>/<finding_id>/report.json` | `pipeline test`: test record per Finding (judgment and tier if tested, reason code if not) |
 | `results/tests/<id>/index.json`, `ENV.json`, `pipeline_test.log` | Summary and 1:1 check, environment preflight, complete test-side output |
 | `results/report/<id>/LIMITATIONS.md` | Summary report, with tiers marked uncalibrated |
