@@ -1,77 +1,78 @@
-# Pilot：FlexPrefill
+# Pilot: FlexPrefill
 
-- 论文：FlexPrefill: A Context-Aware Sparse Attention Mechanism for Efficient Long-Sequence Inference，ICLR 2025 Oral（[arXiv 2502.20766](https://arxiv.org/abs/2502.20766)）
-- 仓库：[bytedance/FlexPrefill](https://github.com/bytedance/FlexPrefill) @ `a24b27bf117fd6ad4ba34b0db82c598e7786fd59`
-- 入口：`flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention`（第 1791 行）
+- Paper: FlexPrefill: A Context-Aware Sparse Attention Mechanism for Efficient Long-Sequence Inference, ICLR 2025 Oral ([arXiv 2502.20766](https://arxiv.org/abs/2502.20766))
+- Repository: [bytedance/FlexPrefill](https://github.com/bytedance/FlexPrefill) @ `a24b27bf117fd6ad4ba34b0db82c598e7786fd59`
+- Entry: `flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention` (line 1791)
 
-## 为什么选它
+## Why choose it
 
-- 官方仓库，论文与代码同一作者；核心逻辑集中在一个文件，入口清晰。
-- 同时含有几乎所有信号类型：assert、配置依赖的 fallback 边界、模块级缓存、环境分支、硬编码常数。
-- 决策逻辑在 Python 层，Triton kernel 可以 mock，Shanghao 能在 CPU 上确认大部分区域。
-- 和 Shanghao 的方向（稀疏 attention）一致，方便领域把关。
+- Official repository, with the same authors for paper and code; core logic is concentrated in one file with a clear entry point.
+- Contains nearly all signal types: asserts, configuration-dependent fallback boundaries, module-level caching, environment branches, and hard-coded constants.
+- Decision logic is at the Python layer, Triton kernels can be mocked, and Shanghao can confirm most regions on CPU.
+- Aligns with Shanghao's area (sparse attention), making domain review easier.
 
-## 论文侧要点（临时 stub，见 `data/pilot_flexprefill/paper_side_stub.json`，由 Zhaopeng 替换）
+## Paper-side highlights (temporary stub; see `data/pilot_flexprefill/paper_side_stub.json`; to be replaced by Zhaopeng)
 
-- 机制：query-aware / vertical-slash 逐 head 选择（τ 判定），按累计注意力阈值 γ 选块。
-- 评测配置：block_size = 128；每个 head 至少 1024 tokens；τ = 0.1；γ = 0.9 / 0.95；单张 A100 80GB；RULER 4k–128k；四个模型（Llama-3.1-8B、GLM-4-9B、Yi-9B-200K、Qwen2-7B），head_dim 均为 128。
-- 论文**没有提到**：batch size、dtype、短序列走 dense、decode、多轮 / KV cache 复用 / chunked prefill、GQA 处理细节。没有单独的 Limitations 一节。
-- README 写了："only supports inference with a batch size of 1 and has only been tested with bfloat16 precision"；vLLM 示例里设置了 `enable_chunked_prefill=False`，但没有解释原因。
+- Mechanism: per-head query-aware / vertical-slash selection (τ decision), selecting blocks by cumulative attention threshold γ.
+- Evaluation configuration: block_size = 128; at least 1024 tokens per head; τ = 0.1; γ = 0.9 / 0.95; one A100 80GB; RULER 4k–128k; four models (Llama-3.1-8B、GLM-4-9B、Yi-9B-200K、Qwen2-7B), all with head_dim 128.
+- The paper **does not mention**: batch size, dtype, dense handling of short sequences, decode, multi-turn / KV cache reuse / chunked prefill, or GQA handling details. There is no separate Limitations section.
+- README states: "only supports inference with a batch size of 1 and has only been tested with bfloat16 precision"; the vLLM example sets `enable_chunked_prefill=False` but does not explain why.
 
-## Gold 区域表（`gold_regions.json`，人工标注，16 条）
+## Gold region table (`gold_regions.json`, manually annotated, 16 entries)
 
-| ID | 条件 | 结局 | 位置 |
+| ID | Condition | Outcome | Location |
 |---|---|---|---|
 | R01 | batch_size != 1 | reject | 1824 |
-| R02 | q_len == 1（decode） | fallback（dense，设计如此） | 1825 |
-| R03 | q_len != k_len（在已有 KV cache 上 prefill） | reject | 1836 |
+| R02 | q_len == 1 (decode) | fallback (dense, by design) | 1825 |
+| R03 | q_len != k_len (prefill on an existing KV cache) | reject | 1836 |
 | R04 | head_dim ∉ {16,32,64,128} | reject | 1837 |
 | R05 | block_size ∉ {16,32,64,128} | reject | 1838 |
-| R06 | q_len ≤ max(2·block_size, ⌈min_budget/block_size⌉·block_size) | fallback（dense） | 1842 |
-| R07 | 其余 | mechanism | 1856 |
-| R08 | dtype ≠ bfloat16（稀疏路径） | reject | 1218 |
-| R09 | head_dim ≤ 128 且 block_size ∉ {32,64,128} | reject（与 R05 矛盾） | 1222 |
+| R06 | q_len ≤ max(2·block_size, ⌈min_budget/block_size⌉·block_size) | fallback (dense) | 1842 |
+| R07 | Otherwise | mechanism | 1856 |
+| R08 | dtype ≠ bfloat16 (sparse path) | reject | 1218 |
+| R09 | head_dim ≤ 128 and block_size ∉ {32,64,128} | reject (contradicts R05) | 1222 |
 | R10 | num_q_heads % num_kv_heads ≠ 0 | reject | 1258 |
-| R11 | triton 主版本 < 3 | env_dependent | 1267 |
-| R12 | block_size ≠ 128（`// 128` 硬编码） | suspicious | 1708 |
-| R13 | 模块级 causal_mask 缓存跨调用复用 | state_dependent | 1694 |
-| R14 | JS 散度 < τ | mechanism_variant | 1727 |
-| R15 | GPU 不是 H100 / A100 / 4090 | env_dependent | 86 |
-| R16 | 未安装 flash_attn | env_dependent | 1784 |
+| R11 | triton major version < 3 | env_dependent | 1267 |
+| R12 | block_size ≠ 128 (hard-coded `// 128`) | suspicious | 1708 |
+| R13 | Module-level causal_mask cache reused across calls | state_dependent | 1694 |
+| R14 | JS divergence < τ | mechanism_variant | 1727 |
+| R15 | GPU is not H100 / A100 / 4090 | env_dependent | 86 |
+| R16 | flash_attn is not installed | env_dependent | 1784 |
 
-R06 的边界依赖配置：论文配置（128, 1024）下 q_len ≤ 1024；README 示例（min_budget=512）下 ≤ 512；默认（None）下 ≤ 256。
+R06's boundary depends on configuration: q_len ≤ 1024 with the paper configuration (128, 1024); ≤ 512 with the README example (min_budget=512); ≤ 256 with the default (None).
 
-## 初步 finding（`draft_findings.json`，草稿，待团队评审和执行确认）
+## Preliminary findings (`draft_findings.json`, draft, pending team review and execution confirmation)
 
-| ID | 类别 | 内容 | 优先级 | 置信度 |
+| ID | Category | Description | Priority | Confidence |
 |---|---|---|---|---|
-| F01 | undocumented | 在已有 KV cache 上 prefill（多轮、prefix 复用、chunked prefill）被 assert 拒绝 | 1 | mechanical |
-| F02 | undocumented | 块预算按硬编码 128 换算；block_size 为 32/64 时 γ 覆盖可能不成立 | 1 | llm_assisted（候选） |
-| F03 | undocumented | 模块级 causal_mask 缓存可能在跨设备或换 block_size 时出错 | 1 | llm_assisted（候选） |
-| F04 | undocumented | head_dim 不在 {16,32,64,128} 的模型被拒绝 | 2 | mechanical |
-| F05 | documented_elsewhere | 稀疏路径要求 bf16，README 只说"测过" | 2 | mechanical |
-| F06 | undocumented（out of scope） | block_size=16 通过入口检查和 docstring，却在 kernel 中失败 | 3 | mechanical |
-| F07 | documented_elsewhere | batch size 必须为 1（仅 README） | 3 | mechanical |
+| F01 | undocumented | Prefill on an existing KV cache (multi-turn, prefix reuse, chunked prefill) is rejected by an assert | 1 | mechanical |
+| F02 | undocumented | Block budget is converted using hard-coded 128; γ coverage may not hold when block_size is 32/64 | 1 | llm_assisted (candidate) |
+| F03 | undocumented | Module-level causal_mask cache may fail across devices or when block_size changes | 1 | llm_assisted (candidate) |
+| F04 | undocumented | Models with head_dim outside {16,32,64,128} are rejected | 2 | mechanical |
+| F05 | documented_elsewhere | Sparse path requires bf16; README only says it was “tested” | 2 | mechanical |
+| F06 | undocumented (out of scope) | block_size=16 passes the entry check and docstring but fails in the kernel | 3 | mechanical |
+| F07 | documented_elsewhere | batch size must be 1 (README only) | 3 | mechanical |
 
-被过滤的：decode 走 dense（论文只讲 prefill）、短序列走 dense（边界低于评测的 4K，且与"至少 1024 tokens"一致）、GQA 不整除、triton 版本、flash_attn 可选。
+Filtered out: decode uses dense (paper discusses only prefill), short sequences use dense (boundary is below the evaluated 4K and consistent with “at least 1024 tokens”), GQA non-divisibility, triton version, optional flash_attn.
 
-**F02、F03 是人工读代码发现的候选，必须由 Shanghao 执行确认后才能计入结果。**
+**F02 and F03 are candidates found by manually reading code; Shanghao must confirm them by execution before they can be counted as results.**
 
-## 抽取器 v0 在 pilot 上的结果
+## Extractor v0 results on the pilot
 
 ```
 gold regions: 16   predicted: 30
 recall: 16/16 = 1.00
 unmatched predictions: 10
-  6 条：decode kernel 的 assert（prefill 前缀下不可达）      -> 需要路径可行性剪枝
-  2 条：triton_bnhd_pool 的 assert（已被入口 assert 覆盖）    -> 需要冗余判断
-  2 条：block_idx 的 isinstance / len 断言（内部不变量）       -> 需要内部不变量过滤
+  6: decode kernel asserts (unreachable under prefill prefix)      -> path feasibility pruning needed
+  2: triton_bnhd_pool asserts (covered by entry asserts)          -> redundancy detection needed
+  2: block_idx isinstance / len asserts (internal invariants)     -> internal invariant filtering needed
 ```
 
-**注意：v0 的规则是对着这个 pilot 写的，recall 1.00 不代表泛化能力。** 第二个 artifact 才是真正的检验（TASKS.md M3）。
 
-## CPU 执行时要提醒 Shanghao 的点
+**Note: v0 rules were written against this pilot; recall 1.00 does not demonstrate generalization.** The second artifact is the real test (TASKS.md M3).
 
-- `GPU_NAME` 在没有 CUDA 时是 None，`get_num_warps_stages` 里的 `.lower()` 会报错，需要 mock。
-- 模块导入时就 `import triton`，CPU 环境需要安装 triton 或 stub 掉。
-- 未安装 flash_attn 时，dense fallback 会改走 `triton_flash_attention`，它同样要求 bf16 和指定的 head_dim。
+## Points to flag to Shanghao for CPU execution
+
+- `GPU_NAME` is None without CUDA; `.lower()` in `get_num_warps_stages` will fail and needs a mock.
+- The module runs `import triton` at import time; the CPU environment needs triton installed or stubbed out.
+- When flash_attn is not installed, dense fallback switches to `triton_flash_attention`, which also requires bf16 and specified head_dim values.
