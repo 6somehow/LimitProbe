@@ -15,3 +15,12 @@ Translate these files to clear, accurate ENGLISH, in place (same names): docs/01
 Rules: AGENTS.md. Never read or print anything under /home/somehow6/LLM_API_KEY/. Do not edit paperside/, third_party/, out/, docs/13_limitset_results.md. Do not run git add/commit. ENGLISH output. Keep meaning exactly; keep tables, code blocks, commands, paths, identifiers, schema field names and quotes unchanged; do not invent results. Comments/docs only: no runtime behavior changes. Translate EVERY Chinese sentence of every file in your list, not a sample: finish all files before you stop, then verify with: grep -nP "[\x{4e00}-\x{9fff}]" FILE (only quoted original-language prompt text or dataset quotes may remain, each marked with an English translation next to it).
 ## Checks
 - grep -nP '[\x{4e00}-\x{9fff}]' on each listed file shows no unmarked Chinese
+
+STATUS: DONE
+COMMITS: pending controller commit
+EXECUTOR: codex; requested medium -> actual model id unavailable; effort unavailable
+SUMMARY: Translated both specified documents into English while preserving their technical content, links, identifiers, and reported results; no runtime behavior changed.
+CHECKS: grep -nP '[\x{4e00}-\x{9fff}]' docs/01_related_work_codeside.md and docs/02_schema.md; PASS (no matches). git diff --check; PASS. git status; PASS (changes limited to the two documents and this return block).
+GPU: none
+SELF-REVIEW: Scope and translation completeness checked against both source documents and Chinese-character scan; technical identifiers, links, figures, and commands preserved; runtime and child-process checks do not apply to documentation-only changes.
+RISKS: Publication claims were translated as supplied and were not independently verified, as required by the task scope.
