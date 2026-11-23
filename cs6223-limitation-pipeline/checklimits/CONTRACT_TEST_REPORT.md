@@ -1,50 +1,54 @@
-# test / report 接口契约（版本 `checklimits-test-report/1`，2026-11-15）
+# test / report interface contract (version `checklimits-test-report/1`, 2026-11-15)
 
-对应 `docs/E2E_PLAN_P0_2026-11-15.md` 的 P0-4。生产方：Shanghao。接收方：Wanting（`pipeline` 的 test 阶段）、全组（报告）。
+Corresponds to P0-4 in `docs/E2E_PLAN_P0_2026-11-15.md`. Producer: Shanghao. Consumers: Wanting (the `pipeline` test stage) and the whole group (the report).
 
-## 1. 调用
+## 1. Invocation
 
-在 `cs6223-limitation-pipeline/checklimits/` 目录下执行（从仓库根目录执行 `python -m checklimits` 会因目录同名而失败，pipeline 调用时用 `cwd=` 指定）：
+Run from the `cs6223-limitation-pipeline/checklimits/` directory (`python -m checklimits` fails from the repository root because the directories have the same name; pipeline specifies `cwd=` when invoking it):
 
 ```bash
-python -m checklimits envcheck <artifact>                 # 环境预检，写 ENV.json
-python -m checklimits test     <artifact> [选项]          # 选取、测试、写 report.json 和 LIMITATIONS.md
-python -m checklimits report   <artifact> [--results-root] # 只用已有 report.json 重新生成 LIMITATIONS.md
+python -m checklimits envcheck <artifact>                 # Environment precheck; writes ENV.json
+python -m checklimits test     <artifact> [选项]          # Select, test, and write report.json and LIMITATIONS.md
+python -m checklimits report   <artifact> [--results-root] # Regenerate LIMITATIONS.md using existing report.json files only
 ```
 
-`test` 的选项：
+In the command above, `[选项]` is an original-language placeholder [options].
 
-| 选项 | 含义 |
+Options for `test`:
+
+| Option | Meaning |
 |---|---|
-| `--results-root DIR` | 输出根目录，默认 `checklimits/results/e2e`。pipeline 接线时传 `<pipeline 根>/results` |
-| `--attempts-root DIR`（可重复） | 查找已有测试包（attempt）的目录。默认：`agent_results/` 和 `<results-root>/tests/<artifact>/` |
-| `--run-agent` | 对"能判断但没有测试包"的 Finding 运行 code agent（需要中继和 SoCLaaS 凭据，每条约 5 到 15 分钟）。不加则这些 Finding 记为 `not_run(not_attempted)` |
-| `--only ID`（可重复） | 只测指定 Finding；报告仍包含全部 Finding，其余的沿用已有记录（见 §5） |
-| `--workers N` | 并行度，默认 3 |
-| `--fast` | 少做重复和变异（只用于冒烟，档位会变低） |
-| `--strict` | 有任何 `env_unavailable` / `agent_failed` / `harness_error` 时退出码为 4 |
-| `--skip-envcheck` | 不做环境预检 |
-| `--provision` | 环境预检不通过、但仓库已检出时，先建 `scratch/venv_<artifact>`（`provision`：按仓库钉的版本装 torch CPU 版和依赖，不跑仓库自己的测试），再检查一次。过程写进 `ENV.json` 的 `provisioned`。pipeline 的 `test` 命令还没有透传这个选项 |
+| `--results-root DIR` | Output root, default `checklimits/results/e2e`. Pass `<pipeline 根>/results` when connecting the pipeline. |
+| `--attempts-root DIR` (repeatable) | Directory to search for existing test packages (attempts). Default: `agent_results/` and `<results-root>/tests/<artifact>/`. |
+| `--run-agent` | Run a code agent for each Finding that can be assessed but has no test package (requires relay and SoCLaaS credentials; about 5 to 15 minutes per Finding). Without it, these Findings are recorded as `not_run(not_attempted)`. |
+| `--only ID` (repeatable) | Test only the specified Finding; the report still includes all Findings, using existing records for the rest (see §5). |
+| `--workers N` | Parallelism, default 3. |
+| `--fast` | Perform fewer repetitions and mutations (for smoke testing only; the level will be lower). |
+| `--strict` | Exit with code 4 if there is any `env_unavailable` / `agent_failed` / `harness_error`. |
+| `--skip-envcheck` | Skip the environment precheck. |
+| `--provision` | If the environment precheck fails but the repository is checked out, first create `scratch/venv_<artifact>` (`provision`: install the CPU version of torch and dependencies at the versions pinned by the repository, without running the repository's own tests), then check again. Record the process in `provisioned` in `ENV.json`. The pipeline `test` command does not yet pass this option through. |
 
-输入：`results/step4/<artifact>/limitations_for_tests.json`（schema 0.2.0）和 `data/*/artifact.json`（`artifact_id` 匹配的那个）。
+In `<pipeline 根>/results`, `根` is an original-language placeholder [root].
 
-## 2. 输出布局
+Inputs: `results/step4/<artifact>/limitations_for_tests.json` (schema 0.2.0) and `data/*/artifact.json` (the one whose `artifact_id` matches).
 
-`<results-root>` 下：
+## 2. Output layout
+
+Under `<results-root>`:
 
 ```
-tests/<artifact>/ENV.json                    环境预检结果
-tests/<artifact>/index.json                  汇总：输入条数、记录条数、各状态计数、1:1 检查结果
-tests/<artifact>/<finding_id>/report.json    每条 Finding 一份，本文 §3
-tests/<artifact>/<finding_id>/execution_report.json   仅 status=tested：harness 的完整报告（models.ExecutionReport）
-tests/<artifact>/<finding_id>/testcase.json  仅 status=tested：codeside 的 TestCase 记录（`codeside.cli validate` 可校验）
-tests/<artifact>/<finding_id>/attempt/       仅 status=tested：被审计的测试包副本，可重放
-report/<artifact>/LIMITATIONS.md             汇总报告
+tests/<artifact>/ENV.json                    Environment precheck result
+tests/<artifact>/index.json                  Summary: input count, record count, counts by status, 1:1 check result
+tests/<artifact>/<finding_id>/report.json    One per Finding, see §3
+tests/<artifact>/<finding_id>/execution_report.json   Only for status=tested: full harness report (models.ExecutionReport)
+tests/<artifact>/<finding_id>/testcase.json  Only for status=tested: codeside TestCase record (validated by `codeside.cli validate`)
+tests/<artifact>/<finding_id>/attempt/       Only for status=tested: copy of the audited test package, replayable
+report/<artifact>/LIMITATIONS.md             Summary report
 ```
 
-`<finding_id>` 是 step 4 的完整 id，例如 `nnsmith-F004`。
+`<finding_id>` is the full step 4 id, for example `nnsmith-F004`.
 
-## 3. `report.json`（每条 Finding 一份，不论是否测了）
+## 3. `report.json` (one per Finding, whether tested or not)
 
 ```json
 {
@@ -76,55 +80,55 @@ report/<artifact>/LIMITATIONS.md             汇总报告
 }
 ```
 
-| 字段 | 规则 |
+| Field | Rule |
 |---|---|
-| `status` | `tested`：harness 对这条 Finding 跑出了完整报告（`verdict` 仍可能是 `inconclusive`）。`not_run`：没有运行，`not_run` 字段必填 |
-| `not_run` | `{"code": ..., "reason": "..."}`，`code` 取值见 §4。`status=tested` 时为 `null` |
-| `verdict` | `yes` / `no` / `inconclusive`；`not_run` 时为 `null` |
-| `level` | `L0` / `L1` / `L2` / `L3` / `invalid` / `n/a`；`not_run` 时为 `null` |
-| `calibrated` | 现在恒为 `false`，`confidence_label` 恒为 `"uncalibrated"`。档位表示"哪些已知的出错理由被测量并排除了"，**不是**经验准确率 |
-| `defeaters` | `eliminated` / `residual` / `open` / `refuted`，定义见 `CONFIDENCE_SPEC.md` |
-| `open_doubts` | 所有不是 `eliminated` 的 defeater 及其证据，报告里的"未消除的疑点" |
-| `evidence` | 取自 step 4 的原始数据，没有改写 |
+| `status` | `tested`: the harness produced a full report for this Finding (`verdict` may still be `inconclusive`). `not_run`: not run; the `not_run` field is required. |
+| `not_run` | `{"code": ..., "reason": "..."}`; see §4 for `code` values. `null` when `status=tested`. |
+| `verdict` | `yes` / `no` / `inconclusive`; `null` when `not_run`. |
+| `level` | `L0` / `L1` / `L2` / `L3` / `invalid` / `n/a`; `null` when `not_run`. |
+| `calibrated` | Currently always `false`, and `confidence_label` is always `"uncalibrated"`. The level indicates which known reasons for error have been measured and ruled out; it is **not** empirical accuracy. |
+| `defeaters` | `eliminated` / `residual` / `open` / `refuted`; see `CONFIDENCE_SPEC.md` for definitions. |
+| `open_doubts` | All defeaters that are not `eliminated`, with their evidence; the unresolved doubts in the report. |
+| `evidence` | Taken from the original step 4 data without rewriting. |
 
-`analysis`（可选，2026-11-18）：`not_run` 记录可带分析块，字段 `kind="analysis_only"`、`tier`（A0/A1/A2）、`assessment`、`reasoning`、`static`、`probes`、`would_confirm`、`calibrated=false`。它不是测试，`status` 仍是 `not_run`，`verdict`/`level` 仍是 `null`。见 `CONFIDENCE_SPEC.md` §22。
+`analysis` (optional, 2026-11-18): a `not_run` record may carry an analysis block with fields `kind="analysis_only"`, `tier` (A0/A1/A2), `assessment`, `reasoning`, `static`, `probes`, `would_confirm`, and `calibrated=false`. It is not a test; `status` remains `not_run`, and `verdict`/`level` remain `null`. See `CONFIDENCE_SPEC.md` §22.
 
-兼容规则：只增加可选字段，不改名、不删字段、不改枚举含义；改了就升 `checklimits-test-report/2`。
+Compatibility rule: only add optional fields; do not rename or remove fields or change enum meanings. Any such change requires a bump to `checklimits-test-report/2`.
 
-## 4. `not_run.code` 取值
+## 4. `not_run.code` values
 
-| code | 含义 | 谁能解除 |
+| code | Meaning | Who can resolve it |
 |---|---|---|
-| `no_code_location` | Finding 没有代码位置（纯论文侧，或 Limitation 没有 code_evidence） | Zhaopeng（Z3 给出可测性提示和代码位置） |
-| `outcome_unsupported` | 效果类型或目标语句 harness 无法判断（例如 `reject` 标在不能抛异常的语句上；`fallback` 标在赋值上；效果是 `suspicious`） | Wanting（W2 标签约定） |
-| `witness_unusable` | step 4 的 witness 没有可用的 trigger（状态 `trigger_only`、`unsat`、`unknown`） | Wanting（W1、W3） |
-| `env_unavailable` | 仓库没有检出，或该 artifact 的解释器、依赖不可用 | Shanghao（S3）或人工装环境。**环境失败不是 Finding 失败** |
-| `input_unreadable` | Finding 或其位置读不出来（文件不存在、行号越界、JSON 缺字段） | 上游数据 |
-| `not_attempted` | harness 能判断，但没有测试包，也没有开 `--run-agent` | 运行 `--run-agent` |
-| `agent_failed` | 开了 `--run-agent`，agent 没有产出可审计的测试包（预算耗尽、崩溃） | 重跑 |
-| `harness_error` | 重新审计已有测试包时 harness 抛了异常 | Shanghao（bug） |
+| `no_code_location` | Finding has no code location (paper-side only, or Limitation has no code_evidence). | Zhaopeng (Z3 provides testability hints and code locations). |
+| `outcome_unsupported` | The harness cannot assess the effect type or target statement (for example, `reject` is attached to a statement that cannot raise an exception; `fallback` is attached to an assignment; the effect is `suspicious`). | Wanting (W2 labeling conventions). |
+| `witness_unusable` | The step 4 witness has no usable trigger (status `trigger_only`, `unsat`, `unknown`). | Wanting (W1, W3). |
+| `env_unavailable` | The repository is not checked out, or the interpreter or dependencies for the artifact are unavailable. | Shanghao (S3) or manual environment setup. **An environment failure is not a Finding failure.** |
+| `input_unreadable` | The Finding or its location cannot be read (file missing, line number out of range, JSON field missing). | Upstream data. |
+| `not_attempted` | The harness can assess it, but there is no test package and `--run-agent` was not enabled. | Run `--run-agent`. |
+| `agent_failed` | `--run-agent` was enabled, but the agent did not produce an auditable test package (budget exhausted, crash). | Rerun. |
+| `harness_error` | The harness raised an exception while reauditing an existing test package. | Shanghao (bug). |
 
-## 5. 不丢条目（1:1）
+## 5. No dropped entries (1:1)
 
-* `index.json` 的 `n_input` 是 step 4 文件里的 Finding 数，`n_records` 是 `report.json` 数，`LIMITATIONS.md` 里每个 Finding 出现一次作为表格行、一次作为小节。三者必须相等且 id 集合一致，`one_to_one` 为 `true`。
-* 不一致时 `test` 退出码为 3，并在 `index.json` 的 `problems` 里列出差异。
-* `--only` 只限制这次运行谁去测；其余 Finding 的记录从 `<results-root>/tests/<artifact>/` 里已有的 `report.json` 沿用，没有就按 §4 记为 `not_run`。
+* `n_input` in `index.json` is the number of Findings in the step 4 file, `n_records` is the number of `report.json` files, and each Finding appears once as a table row and once as a subsection in `LIMITATIONS.md`. The three counts must be equal and the id sets must match; `one_to_one` is `true`.
+* If they do not match, `test` exits with code 3 and lists the differences in `problems` in `index.json`.
+* `--only` limits which Findings are tested in this run; records for the other Findings are reused from existing `report.json` files under `<results-root>/tests/<artifact>/`, or recorded as `not_run` per §4 if none exists.
 
-## 6. 退出码
+## 6. Exit codes
 
-| 码 | 含义 |
+| Code | Meaning |
 |---|---|
-| 0 | 报告完整（1:1 通过）。有 `not_run` 不影响 |
-| 2 | 输入错误：artifact 未登记、findings 文件不存在或不是 schema 0.2.0 |
-| 3 | 1:1 检查失败，或写出的文件无法再读回 |
-| 4 | 仅 `--strict`：报告完整，但有环境、agent 或 harness 方面的 `not_run` |
-| 1 | 其他未处理异常 |
+| 0 | Report complete (1:1 check passed). `not_run` does not affect this. |
+| 2 | Input error: artifact not registered, findings file missing, or not schema 0.2.0. |
+| 3 | 1:1 check failed, or written files cannot be read back. |
+| 4 | Only with `--strict`: report complete, but there are `not_run` records for environment, agent, or harness reasons. |
+| 1 | Other unhandled exception. |
 
-`envcheck` 的退出码：0 为 `ok`，4 为 `not_ok`，2 为输入错误。
+`envcheck` exit codes: 0 for `ok`, 4 for `not_ok`, and 2 for input error.
 
-stdout 最后输出一个 JSON 对象（`artifact`、`n_input`、`counts`、`one_to_one`、`report`、`exit_code`），pipeline 可以直接解析。
+The last output on stdout is a JSON object (`artifact`, `n_input`, `counts`, `one_to_one`, `report`, `exit_code`) that pipeline can parse directly.
 
-## 7. 环境预检 `ENV.json`
+## 7. Environment precheck `ENV.json`
 
 ```json
 {"artifact_id": "nnsmith", "status": "ok", "reasons": [],
@@ -134,9 +138,9 @@ stdout 最后输出一个 JSON 对象（`artifact`、`n_input`、`counts`、`one
  "execution_env": ["cpu"]}
 ```
 
-`status` 为 `ok` 或 `not_ok`。`not_ok` 时，所有能判断的 Finding 记为 `not_run(env_unavailable)`，`reason` 引用 ENV.json 里的原因。预检只检查和记录，不安装任何东西。
+`status` is `ok` or `not_ok`. When `not_ok`, all Findings that can be assessed are recorded as `not_run(env_unavailable)`, with `reason` referring to the reasons in ENV.json. The precheck only checks and records; it does not install anything.
 
-## 8. 不在今天范围内
+## 8. Outside today's scope
 
-* `python -m pipeline test <id>` 的接线（W6）在 `pipeline/run.py`，属于 Wanting。接线只需要在 `cwd=checklimits/` 下调用 `python -m checklimits test <id> --results-root ../results`，并按 §6 解释退出码。
-* 档位校准（C1）。
+* The `python -m pipeline test <id>` integration (W6) is in `pipeline/run.py` and belongs to Wanting. Integration only needs to invoke `python -m checklimits test <id> --results-root ../results` with `cwd=checklimits/` and interpret exit codes per §6.
+* Level calibration (C1).
