@@ -3,17 +3,31 @@ import asyncio
 import json
 import os
 from pathlib import Path
+import shutil
 import tempfile
 import unittest
 from unittest.mock import patch
 
 import pilot
+import prepare_runtime
 from swarm_evaluation import final_response, gap_trace, select_dev_method, source_evidence, summarize
 from swarm_study import BACKEND, CONDITIONS, DEV, StudyCell, freeze_study, run
 from targeted_review import MODES, TargetedCell, audit_receipt, frozen_draft, prepare as prepare_review
 
 
 class GapProtocol(unittest.TestCase):
+    def test_bundled_runtime_rejects_changed_source(self):
+        with tempfile.TemporaryDirectory() as work:
+            root = Path(work)
+            broken = root/'bundle'
+            shutil.copytree(prepare_runtime.BUNDLED,broken)
+            with (broken/'agent.mjs').open('a') as stream:
+                stream.write('\n// test change\n')
+            with patch.object(prepare_runtime,'BUNDLED',broken):
+                with self.assertRaisesRegex(ValueError,'SHA-256'):
+                    prepare_runtime.prepare(None,root/'runtime')
+            self.assertFalse((root/'runtime').exists())
+
     def test_contrast_routes_preserve_unparsed_worker_lead(self):
         async def exercise(root):
             class Fake(StudyCell):
