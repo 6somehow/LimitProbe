@@ -24,8 +24,9 @@ This project finds limitations in systems-research prototypes using a paper and 
 - `data/`: artifact metadata and derived dataset records.
 - `results/`: committed derived findings and experimental results.
 - `docs/`: specifications, reports, and development notes.
-- `tools/`: development and dispatch tools.
-- `development/`: task packages and project workflow records.
+- `examples/`: offline demo and fixtures (no keys, network or PDFs needed).
+
+The git repository also holds `tools/` (agent dispatch scripts), `development/` (task packages and project workflow records) and `docs/harness/`; they are development scaffolding and are left out of the course ZIP archive.
 
 ## Requirements and setup
 
