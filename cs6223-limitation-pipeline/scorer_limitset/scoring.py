@@ -7,12 +7,15 @@ import re
 import urllib.request
 import urllib.error
 import socket
+import threading
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import nullcontext
 from collections import defaultdict
 from pathlib import Path
 from typing import Protocol
 
 FIELDS = ("mechanism", "conditions", "defeaters", "evidence_location", "category", "disclosure")
-PROMPT_VERSION = "limitset-judge-v1"
+PROMPT_VERSION = "judge-v2-batched"
 
 
 def read_jsonl(path):
@@ -83,11 +86,19 @@ class FakeJudge:
 
     def __init__(self, results=None):
         self.results = iter(results) if results is not None else None
+        self.calls = 0
+        self._lock = threading.Lock()
 
     def judge(self, label, finding, signals):
         if self.results is not None:
-            return next(self.results)
+            with self._lock:
+                return next(self.results)
         return {"matched": bool(signals["mechanism"] and signals["conditions"]), "coverage": dict(signals)}
+
+    def judge_batch(self, label, findings, signal_list):
+        with self._lock:
+            self.calls += 1
+        return [self.judge(label, f, sig) for f, sig in zip(findings, signal_list)]
 
 
 class JudgeUnavailable(Exception):
@@ -95,40 +106,84 @@ class JudgeUnavailable(Exception):
 
 
 class RelayJudge:
-    """Independent one-request-per-finding reviewer using the pipeline relay."""
+    """Batch reviewer using a relay shared for the scoring run."""
     prompt_version = PROMPT_VERSION
 
     def __init__(self, root, model_id, temperature=0.0, env=None, timeout=120, retries=2):
         self.root, self.model_id, self.temperature = Path(root), model_id, temperature
         self.env = env
         self.timeout, self.retries = timeout, retries
+        self.calls = 0
+        self._lock = threading.Lock()
 
-    def judge(self, label, finding, signals):
-        from pipeline.e2e import Relay, RELAY_URL, PLACEHOLDER_KEY
+    def __enter__(self):
+        from pipeline.e2e import Relay, relay_up
         from pipeline.run import env as pipeline_env
+        self._relay = nullcontext() if relay_up() else Relay(self.env if self.env is not None else pipeline_env())
+        self._relay.__enter__()
+        return self
+
+    def __exit__(self, *exc):
+        return self._relay.__exit__(*exc)
+
+    def _request(self, prompt):
+        from pipeline.e2e import RELAY_URL, PLACEHOLDER_KEY
         rubric = (self.root / "evaluation/RUBRIC_zh.md").read_text(encoding="utf-8")
-        prompt = ("Independently assess this single prediction against the reference using the rubric. "
-                  "Matching requires the same mechanism, triggering conditions and consequence; topic overlap is insufficient. "
-                  "Return only JSON: {\"matched\": boolean, \"coverage\": {" +
-                  ", ".join('"%s": boolean' % f for f in FIELDS) +
-                  "}}. Mark a field true only when covered. Signals are heuristic, not decisions.\n" +
-                  json.dumps({"reference": label, "prediction": finding, "signals": signals}, ensure_ascii=False))
         body = json.dumps({"model": self.model_id, "temperature": self.temperature,
                            "messages": [{"role": "system", "content": rubric}, {"role": "user", "content": prompt}],
                            "response_format": {"type": "json_object"}}).encode()
         for attempt in range(self.retries + 1):
             try:
-                with Relay(self.env if self.env is not None else pipeline_env()):
-                    request = urllib.request.Request(RELAY_URL + "/chat/completions", data=body,
-                              headers={"Content-Type": "application/json", "Authorization": "Bearer " + PLACEHOLDER_KEY})
-                    with urllib.request.urlopen(request, timeout=self.timeout) as response:
-                        result = json.loads(json.load(response)["choices"][0]["message"]["content"])
-                break
+                request = urllib.request.Request(RELAY_URL + "/chat/completions", data=body,
+                          headers={"Content-Type": "application/json", "Authorization": "Bearer " + PLACEHOLDER_KEY})
+                with self._lock:
+                    self.calls += 1
+                with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                    return json.loads(json.load(response)["choices"][0]["message"]["content"])
             except (urllib.error.URLError, TimeoutError, OSError):
                 if attempt == self.retries:
                     raise JudgeUnavailable("judge unreachable")
 
-        return result
+    def judge(self, label, finding, signals):
+        prompt = ("Assess this prediction against the reference. Matching requires the same mechanism, "
+                  "triggering conditions and consequence. Return only JSON with boolean matched and coverage "
+                  "containing boolean fields " + ", ".join(FIELDS) + ". Signals are heuristic.\n" +
+                  json.dumps({"reference": label, "prediction": finding, "signals": signals}, ensure_ascii=False))
+        return self._request(prompt)
+
+    def judge_batch(self, label, findings, signal_list):
+        predictions = []
+        for i, (finding, sig) in enumerate(zip(findings, signal_list)):
+            item = dict(finding)
+            for field in ("claim", "mechanism", "evidence"):
+                if field in item:
+                    value = item[field]
+                    if isinstance(value, str): item[field] = value[:2000]
+                    else: item[field] = json.dumps(value, ensure_ascii=False)[:2000]
+            predictions.append({"index": i, "finding": item, "signals": sig})
+        prompt = ("Independently assess each prediction against the single reference. Matching requires the same "
+                  "mechanism, triggering conditions and consequence; topic overlap is insufficient. Signals are "
+                  "heuristic. Return only JSON: {\"matches\":[{\"index\":i,\"matched\":boolean,"
+                  "\"coverage\":{field:boolean}}]}; include every index once and all coverage fields: " +
+                  ", ".join(FIELDS) + ".\n" + json.dumps({"reference": label, "predictions": predictions}, ensure_ascii=False))
+        result = self._request(prompt)
+        matches = result.get("matches") if isinstance(result, dict) else None
+        if not isinstance(matches, list) or len(matches) != len(findings):
+            raise ValueError("invalid batch")
+        indexed = {}
+        for item in matches:
+            if not isinstance(item, dict) or type(item.get("index")) is not int or item["index"] in indexed or not valid_decision(item):
+                raise ValueError("invalid batch")
+            indexed[item["index"]] = {"matched": item["matched"], "coverage": item["coverage"]}
+        if set(indexed) != set(range(len(findings))):
+            raise ValueError("invalid batch")
+        return [indexed[i] for i in range(len(findings))]
+
+
+def valid_decision(result):
+    return (isinstance(result, dict) and type(result.get("matched")) is bool and
+            isinstance(result.get("coverage"), dict) and
+            all(type(result["coverage"].get(f)) is bool for f in FIELDS))
 
 
 def wilson(success, total):
@@ -142,7 +197,12 @@ def wilson(success, total):
     return {"covered": success, "total": total, "fraction": p, "wilson_95": [max(0, center-margin), min(1, center+margin)]}
 
 
-def score(labels, predictions, splits, judge, label_schema=None, prediction_schema=None):
+def score(labels, predictions, splits, judge, label_schema=None, prediction_schema=None, workers=4):
+    with judge if hasattr(judge, "__enter__") else nullcontext():
+        return _score(labels, predictions, splits, judge, label_schema, prediction_schema, workers)
+
+
+def _score(labels, predictions, splits, judge, label_schema, prediction_schema, workers):
     by_case, invalid = {}, []
     for label in labels:
         cid = label.get("case_id") if isinstance(label, dict) else None
@@ -168,41 +228,63 @@ def score(labels, predictions, splits, judge, label_schema=None, prediction_sche
             if cid not in by_case or cid in membership: raise ValueError(f"unknown or duplicate split case: {cid}")
             membership[cid] = split
     if set(membership) != set(by_case): raise ValueError("splits must cover all labels")
+    def evaluate_repeat(label, record):
+        findings = record["findings"]
+        sigs = [signals(label, f) for f in findings]
+        evaluations = []
+        for start in range(0, len(findings), 30 if len(findings) > 60 else max(1, len(findings))):
+            chunk = findings[start:start + (30 if len(findings) > 60 else len(findings))]
+            chunk_sigs = sigs[start:start + len(chunk)]
+            try:
+                results = judge.judge_batch(label, chunk, chunk_sigs)
+                if not isinstance(results, list) or len(results) != len(chunk) or not all(valid_decision(r) for r in results):
+                    raise ValueError("invalid batch")
+            except (ValueError, KeyError, TypeError, json.JSONDecodeError):
+                results = []
+                for finding, sig in zip(chunk, chunk_sigs):
+                    try:
+                        result = judge.judge(label, finding, sig)
+                        if not valid_decision(result):
+                            raise ValueError("judge must return boolean matched and all coverage fields")
+                        results.append(result)
+                    except (JudgeUnavailable, TimeoutError, ConnectionError):
+                        results.append(None)
+            except (JudgeUnavailable, TimeoutError, ConnectionError):
+                results = [None] * len(chunk)
+            for offset, (sig, result) in enumerate(zip(chunk_sigs, results)):
+                if result is None:
+                    evaluations.append({"index": start + offset, "signals": sig, "matched": None, "coverage": sig, "judge_unavailable": True})
+                else:
+                    evaluations.append({"index": start + offset, "signals": sig, **result})
+        matches = [e for e in evaluations if e["matched"] is True]
+        unavailable = any(e.get("judge_unavailable") for e in evaluations)
+        best = max(matches, key=lambda e: sum(e["coverage"].values()), default=None)
+        fallback = next((e for e in evaluations if e.get("judge_unavailable")), None)
+        return {"found": True if best else None if unavailable else False,
+                "coverage": best["coverage"] if best else fallback["coverage"] if fallback else {f: False for f in FIELDS},
+                "judge_unavailable": unavailable, "matched_prediction_index": best["index"] if best else None,
+                "novel_for_human_review": [e["index"] for e in evaluations if e["matched"] is False], "evaluations": evaluations}
+
     cases = []
-    for cid, (label, label_errors) in by_case.items():
-        repeats, case_errors = [], []
-        if label_errors: case_errors.append({"record": "label", "errors": label_errors})
-        for record, errors in groups.get(cid, []):
-            if errors:
-                case_errors.append({"record": "prediction", "errors": errors})
-                continue
-            if label_errors: continue
-            evaluations = []
-            for index, finding in enumerate(record["findings"]):
-                sig = signals(label, finding)
-                try:
-                    result = judge.judge(label, finding, sig)
-                except (JudgeUnavailable, TimeoutError, ConnectionError):
-                    evaluations.append({"index": index, "signals": sig, "matched": None, "coverage": sig, "judge_unavailable": True})
-                    continue
-                if type(result.get("matched")) is not bool or any(type(result.get("coverage", {}).get(f)) is not bool for f in FIELDS):
-                    raise ValueError("judge must return boolean matched and all coverage fields")
-                evaluations.append({"index": index, "signals": sig, **result})
-            matches = [e for e in evaluations if e["matched"] is True]
-            unavailable = any(e.get("judge_unavailable") for e in evaluations)
-            best = max(matches, key=lambda e: sum(e["coverage"].values()), default=None)
-            fallback = next((e for e in evaluations if e.get("judge_unavailable")), None)
-            repeats.append({"found": True if best else None if unavailable else False,
-                            "coverage": best["coverage"] if best else fallback["coverage"] if fallback else {f: False for f in FIELDS},
-                            "judge_unavailable": unavailable, "matched_prediction_index": best["index"] if best else None,
-                            "novel_for_human_review": [e["index"] for e in evaluations if e["matched"] is False], "evaluations": evaluations})
-        known = [r for r in repeats if r["found"] is not None]
-        found = True if any(r["found"] is True for r in repeats) else None if any(r["found"] is None for r in repeats) or not known else False
-        selected = max(repeats, key=lambda r: (r["found"] is True, sum(r["coverage"].values())), default=None)
-        cases.append({"case_id": cid, "category": label.get("category_code"), "split": membership[cid], "found": found,
-                      "fields": selected["coverage"] if selected else {f: None for f in FIELDS},
-                      "judge_unavailable": any(r["judge_unavailable"] for r in repeats), "validation_errors": case_errors,
-                      "repeats": repeats, "stability": wilson(sum(r["found"] for r in known), len(known))})
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        pending = {(cid, i): executor.submit(evaluate_repeat, label, record)
+                   for cid, (label, label_errors) in by_case.items() if not label_errors
+                   for i, (record, errors) in enumerate(groups.get(cid, [])) if not errors}
+        for cid, (label, label_errors) in by_case.items():
+            repeats, case_errors = [], []
+            if label_errors: case_errors.append({"record": "label", "errors": label_errors})
+            for i, (record, errors) in enumerate(groups.get(cid, [])):
+                if errors:
+                    case_errors.append({"record": "prediction", "errors": errors})
+                elif not label_errors:
+                    repeats.append(pending[cid, i].result())
+            known = [r for r in repeats if r["found"] is not None]
+            found = True if any(r["found"] is True for r in repeats) else None if any(r["found"] is None for r in repeats) or not known else False
+            selected = max(repeats, key=lambda r: (r["found"] is True, sum(r["coverage"].values())), default=None)
+            cases.append({"case_id": cid, "category": label.get("category_code"), "split": membership[cid], "found": found,
+                          "fields": selected["coverage"] if selected else {f: None for f in FIELDS},
+                          "judge_unavailable": any(r["judge_unavailable"] for r in repeats), "validation_errors": case_errors,
+                          "repeats": repeats, "stability": wilson(sum(r["found"] for r in known), len(known))})
     aggregate = {}
     for dimension in ("category", "split"):
         aggregate[dimension] = {}
@@ -216,5 +298,5 @@ def score(labels, predictions, splits, judge, label_schema=None, prediction_sche
                 fields[f] = wilson(sum(observed), len(observed))
             aggregate[dimension][value] = {"found": wilson(sum(c["found"] for c in known), len(known)),
                 "mean_per_repeat_rate": sum(repeat_rates) / len(repeat_rates) if repeat_rates else None, "fields": fields}
-    return {"judge": {"model_id": judge.model_id, "prompt_version": judge.prompt_version, "temperature": judge.temperature},
+    return {"judge": {"model_id": judge.model_id, "prompt_version": judge.prompt_version, "temperature": judge.temperature, "calls": judge.calls},
             "cases": cases, "invalid_records": invalid, "aggregate": aggregate}
