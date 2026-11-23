@@ -74,3 +74,74 @@ def test_unavailable_judge_keeps_deterministic_fields():
     assert case["judge_unavailable"] and case["found"] is None
     assert case["fields"]["mechanism"] is True
     assert result["aggregate"]["split"]["validation"]["found"]["total"] == 0
+
+
+def test_relay_batch_fallback_and_chunks(tmp_path, monkeypatch):
+    import io
+    import urllib.request
+    from scorer_limitset.scoring import RelayJudge
+    import pipeline.e2e as e2e
+
+    (tmp_path / "evaluation").mkdir()
+    (tmp_path / "evaluation" / "RUBRIC_zh.md").write_text("rubric")
+    monkeypatch.setattr(e2e, "relay_up", lambda: True)
+    calls = []
+    decision = {"matched": True, "coverage": {f: True for f in FIELDS}}
+
+    def transport(request, timeout):
+        payload = json.loads(request.data)
+        prompt = payload["messages"][1]["content"]
+        data = json.loads(prompt[prompt.index("\n") + 1:])
+        calls.append(data)
+        if "predictions" in data:
+            content = {"matches": [{"index": x["index"], **decision} for x in data["predictions"]]}
+        else:
+            content = decision
+        return io.BytesIO(json.dumps({"choices": [{"message": {"content": json.dumps(content)}}]}).encode())
+
+    monkeypatch.setattr(urllib.request, "urlopen", transport)
+    label, finding = fixture()
+    judge = RelayJudge(tmp_path, "test")
+    splits = {"validation": [label["case_id"]], "test": []}
+    result = score([label], [{"case_id": label["case_id"], "findings": [finding] * 61}], splits, judge)
+    assert [len(c["predictions"]) for c in calls] == [30, 30, 1]
+    assert result["judge"]["calls"] == 3
+    assert len(result["cases"][0]["repeats"][0]["evaluations"]) == 61
+
+    calls.clear()
+    def invalid_batch(request, timeout):
+        payload = json.loads(request.data)
+        prompt = payload["messages"][1]["content"]
+        data = json.loads(prompt[prompt.index("\n") + 1:])
+        calls.append(data)
+        content = {"matches": []} if "predictions" in data else decision
+        return io.BytesIO(json.dumps({"choices": [{"message": {"content": json.dumps(content)}}]}).encode())
+    monkeypatch.setattr(urllib.request, "urlopen", invalid_batch)
+    judge = RelayJudge(tmp_path, "test")
+    result = score([label], [{"case_id": label["case_id"], "findings": [finding, finding]}], splits, judge)
+    assert result["judge"]["calls"] == 3
+    assert result["cases"][0]["found"] is True
+
+
+def test_relay_lifetime_and_parallel_repeats(tmp_path, monkeypatch):
+    import threading
+    import pipeline.e2e as e2e
+    from scorer_limitset.scoring import RelayJudge
+
+    events = []
+    class Relay:
+        def __init__(self, env): events.append(("init", env))
+        def __enter__(self): events.append("enter")
+        def __exit__(self, *args): events.append("exit")
+    monkeypatch.setattr(e2e, "relay_up", lambda: False)
+    monkeypatch.setattr(e2e, "Relay", Relay)
+    barrier = threading.Barrier(2)
+    judge = RelayJudge(tmp_path, "test", env={})
+    def batch(label, findings, sigs):
+        barrier.wait(timeout=3)
+        return [{"matched": True, "coverage": dict(sig)} for sig in sigs]
+    monkeypatch.setattr(judge, "judge_batch", batch)
+    label, finding = fixture()
+    score([label], [{"case_id": label["case_id"], "findings": [finding]}] * 2,
+          {"validation": [label["case_id"]], "test": []}, judge, workers=2)
+    assert events == [("init", {}), "enter", "exit"]
