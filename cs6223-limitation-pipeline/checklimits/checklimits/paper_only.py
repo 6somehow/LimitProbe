@@ -465,6 +465,7 @@ def mechanism_candidates(text, code_files, ask, *, version=MECH_V1, examples_pat
         raise ValueError("no candidates list")
     mechanisms, critiques, dropped = [], [], 0
     merged = 0
+    unverified_kept = 0
     for c in (candidates if version in (MECH_V3, MECH_V3C) else candidates[:30 if version == MECH_V2 else 20]):
         if not isinstance(c, dict):
             continue
@@ -499,10 +500,13 @@ def mechanism_candidates(text, code_files, ask, *, version=MECH_V1, examples_pat
                     break
                 source, locator = "code", hit
             evidence.append({"source_id": source, "location": str(locator), "support_description": quote})
-        if not evidence or (not lenient and len(evidence) != len(quotes)):
+        if not lenient and len(evidence) != len(quotes):
             dropped += 1
             continue
-        item = {**c, "evidence": evidence}
+        if lenient and not evidence:
+            # v3c keeps the candidate (its value is the mechanism argument) but marks it: no quote verified, so it cites none.
+            unverified_kept += 1
+        item = {**c, "evidence": evidence, "quote_verified": bool(evidence)}
         if version == MECH_V3C and not isinstance(item.get("necessary_conditions"), list):
             item["necessary_conditions"] = []
         if version in (MECH_V3, MECH_V3C):
@@ -530,4 +534,5 @@ def mechanism_candidates(text, code_files, ask, *, version=MECH_V1, examples_pat
         mechanisms = mechanisms[:20]
     if stats is not None:
         stats["merged_candidates"] = merged
+        stats["unverified_kept"] = unverified_kept
     return mechanisms, critiques, dropped
