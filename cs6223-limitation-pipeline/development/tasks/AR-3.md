@@ -19,3 +19,12 @@ Verify with grep -rlP '[\x{4e00}-\x{9fff}]' that no allowed .md file keeps Chine
 Rules: CLAUDE.md (Chinese; read it) and AGENTS.md. Never read or print anything under /home/somehow6/LLM_API_KEY/. No secrets, no PDFs, no paper text in anything you write. Do not edit paperside/ (a teammate's code), third_party/, out/, docs/13_limitset_results.md (the controller finishes it). Do not run git add/commit. All documents you write are ENGLISH. Keep meaning exactly when translating; do not invent results. Do not change runtime behavior of code (comments, docstrings and docs only unless the package says otherwise).
 ## Checks
 - /home/somehow6/miniconda3/envs/findlimit/bin/python -m pytest -q -> all pass
+
+STATUS: PARTIAL
+COMMITS: pending controller commit
+EXECUTOR: codex; requested medium -> actual model id unavailable; effort unavailable
+SUMMARY: Translated docs/07_pipeline_b_3b.md into English, retaining results and executable command options. Remaining requested translations and generated-document templates were not completed.
+CHECKS: conda run -n findlimit python -m pytest -q --basetemp=/tmp/codex-AR-3-1; PASS (271 passed, 2 skipped); git diff --check; PASS; grep -rlP '[\x{4e00}-\x{9fff}]' on existing allowed Markdown; FAIL (Chinese remains in 22 files); generation of handoff documents NOT_RUN.
+GPU: none
+SELF-REVIEW: Compared the translated report against its original for counts, paths and identifiers; grep confirms no Chinese remains in that report. Test literals in tests/test_step4.py contain Chinese inputs expected by resolve_same_as_above and were retained. No runtime code was changed. Remaining task requirements are incomplete.
+RISKS: Remaining documents, CLAUDE.md, and scripts/make_handoff_doc.py still need translation and regenerated handoff files need review. E2E_PLAN.md is absent. Machine-generated or dataset files with Chinese text left as is: checklimits/labels/*, results/report/*, results/tests/*, results/step4/*.json.
