@@ -290,7 +290,9 @@ def main(argv=None):
     env = dict(os.environ)
     env['PYTHONPATH'] = os.pathsep.join(filter(None, [str(ROOT), env.get('PYTHONPATH')]))
     sha = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=ROOT, env=env, capture_output=True, text=True, check=True).stdout.strip()
-    manifest = {'git_sha': sha, 'model_id': env.get('PIPELINE_MODEL', 'x-test-2'), 'split': a.split, 'dataset': a.dataset, 'generator': a.generator, 'mechanism_version': a.mechanism_version, 'mech_no_filter': a.mech_no_filter, 'mechanism_examples': str(a.mechanism_examples) if a.mechanism_examples else None, 'repeats': a.repeats, 'started_at': now(), 'pdf_hashes': {c['case_id']: c['pdf_sha256'] for c in selected}}
+    gen_model = os.environ.get('LIMITSET_GEN_MODEL') or env.get('PIPELINE_MODEL', 'x-test-2')  # generator-only override; the judge never uses it
+    gen_port = int(os.environ.get('LIMITSET_GEN_RELAY_PORT') or 0) or None
+    manifest = {'git_sha': sha, 'model_id': gen_model, 'gen_relay_port': gen_port, 'split': a.split, 'dataset': a.dataset, 'generator': a.generator, 'mechanism_version': a.mechanism_version, 'mech_no_filter': a.mech_no_filter, 'mechanism_examples': str(a.mechanism_examples) if a.mechanism_examples else None, 'repeats': a.repeats, 'started_at': now(), 'pdf_hashes': {c['case_id']: c['pdf_sha256'] for c in selected}}
     from pipeline.limitset_enrich import PROMPT_VERSION
     manifest['enrichment'] = {'enabled': not a.no_enrich, 'model_id': manifest['model_id'], 'prompt_version': PROMPT_VERSION}
     manifest_path = out / 'run_manifest.json'
@@ -326,11 +328,11 @@ def main(argv=None):
                 # Relay's standard log paths are shared; keep this runner's logs in out.
                 with RunnerRelay(e2e, pipeline_run, e, out):
                     from pipeline.limitset_enrich import RelayLLM
-                    llm = None if a.no_enrich and a.generator != 'mechanism' else RelayLLM(manifest['model_id'], e2e.RELAY_PORT, timeout=900 if a.generator == 'mechanism' else 60)
+                    llm = None if a.no_enrich and a.generator != 'mechanism' else RelayLLM(manifest['model_id'], gen_port or e2e.RELAY_PORT, timeout=900 if a.generator == 'mechanism' else 60)
                     if a.generator == 'mechanism' and a.mech_version == 'v3c':
                         from checklimits.checklimits.analysis import chat
                         def llm(prompt, *, timeout, max_tokens):
-                            return chat(prompt, manifest['model_id'], f'http://127.0.0.1:{e2e.RELAY_PORT}/v1', 'relay', timeout=timeout, max_tokens=max_tokens)
+                            return chat(prompt, manifest['model_id'], f'http://127.0.0.1:{gen_port or e2e.RELAY_PORT}/v1', 'relay', timeout=timeout, max_tokens=max_tokens)
                     with ThreadPoolExecutor(max_workers=a.workers) as pool:
                         records = list(pool.map(lambda job: worker(*job, out, raw, a.timeout, env, schema, a.swarm_report, llm, manifest['model_id'], a.generator, a.mechanism_version, a.mechanism_examples, a.mech_no_filter, cases_path), jobs))
         except Exception as exc:

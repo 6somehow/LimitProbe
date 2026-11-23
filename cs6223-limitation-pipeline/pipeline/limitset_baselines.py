@@ -109,7 +109,11 @@ def main(argv=None):
     schema = dataset_schema(args.dataset, raw)
     out.mkdir(parents=True, exist_ok=True)
     sha = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=ROOT, env=env, capture_output=True, text=True, check=True).stdout.strip()
-    identity = {'method': args.method, 'model_id': env.get('PIPELINE_MODEL', 'x-test-2'),
+    gen_model = os.environ.get('LIMITSET_GEN_MODEL') or env.get('PIPELINE_MODEL', 'x-test-2')  # generator-only override
+    gen_port = int(os.environ.get('LIMITSET_GEN_RELAY_PORT') or 0) or None
+    if gen_model != env.get('PIPELINE_MODEL', 'x-test-2'):
+        env['PIPELINE_MODEL'] = gen_model
+    identity = {'method': args.method, 'model_id': gen_model, 'gen_relay_port': gen_port,
                 'git_sha': sha, 'dataset': args.dataset, 'temperature': 0, 'split': args.split}
     manifest_path = out / 'run_manifest.json'
     if manifest_path.exists():
@@ -129,7 +133,7 @@ def main(argv=None):
             relay_env = dict(os.environ)
             with RunnerRelay(e2e, pipeline_run, relay_env, out):
                 env['SOCLAAS_API_KEY'] = 'relay'
-                env['SOCLAAS_BASE_URL'] = e2e.RELAY_URL
+                env['SOCLAAS_BASE_URL'] = f'http://127.0.0.1:{gen_port}/v1' if gen_port else e2e.RELAY_URL
                 with ThreadPoolExecutor(max_workers=args.workers) as pool:
                     rows = list(pool.map(lambda job: worker(job, args.method, out, raw, args.timeout, env, schema, cases_path), jobs))
     except Exception as exc:
