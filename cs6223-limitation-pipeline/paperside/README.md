@@ -12,7 +12,7 @@
 
 - **开发集**包括 NNSmith、MInference、InfiniGen 和 SparTA。
 - **评估集**中有源码的四篇是 Prompt Cache、SpinQuant、KVQuant、DX100。另有四篇仅论文的案例，单独统计。
-- **Pi 对照结果**记录在 [Pi 实验 README](tools/method-limitations/README.md)，包含角色分工、复跑命令、评分和产物。
+- **Pi A/B/C/D 对照**见 [AgentSwarm-Serve 安装与运行](tools/method-limitations/README.md)。本仓库已内置所需运行代码。
 - **便携 A/B/S 对照**和数据重建入口见 [AgentSwarm 实验与数据集](tools/agentswarm-study/README.md)，供队友安装和联调。
 
 下面的交接包用于论文声明与源码核验。

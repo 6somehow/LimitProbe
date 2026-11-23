@@ -73,9 +73,6 @@ scored 0 core and 2 partial versus A's 1 core and 2 partial under conservative
 grading. The portable runner gives B the same investigation task with a self-review
 instruction. The historical archived B grades refer to its original prompt.
 
-This handoff includes the study runner and its offline tests, so the commands above work
-from the team repository. For an exact replay of the separate Pi experiments, request
-read access from Zhaopeng for the team-developed [AgentSwarm-Serve repository](https://github.com/fzp0424/sglang-swarm).
-Clone the repository, then pass its path as `--swarm-source` to the
-[Pi study runner](../method-limitations/README.md). It reads the runtime at commit
-`6e46093badbbc109c5be7296c24fe2f09efb00ae`.
+Both runners are in this repository. Use the commands above for A/B/S. For the
+Pi-based A/B/C/D experiments, follow the [AgentSwarm-Serve setup](../method-limitations/README.md).
+The Pi runner uses the bundled AgentSwarm-Serve source pinned at `6e46093`.

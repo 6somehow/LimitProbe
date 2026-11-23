@@ -18,6 +18,7 @@ import signal
 import subprocess
 import time
 import urllib.request
+from prepare_runtime import prepare as prepare_runtime
 
 HERE = Path(__file__).resolve().parent
 MODULE = HERE.parents[1]
@@ -30,9 +31,15 @@ def git(repo, *args): return subprocess.check_output(['git','-C',str(repo),*args
 
 def secret_env():
     values = {}
-    for row in (Path.home()/'.config/soclaas/soclaas.env').read_text().splitlines():
+    path = Path.home()/'.config/soclaas/soclaas.env'
+    for row in path.read_text().splitlines() if path.is_file() else ():
         k, sep, v = row.removeprefix('export ').partition('=')
         if sep: values[k.strip()] = v.strip().strip('\"\'')
+    for name in ('SOCLAAS_API_KEY','SOCLAAS_BASE_URL'):
+        if os.environ.get(name):
+            values[name] = os.environ[name]
+    if not values.get('SOCLAAS_API_KEY'):
+        raise ValueError('Set SOCLAAS_API_KEY or configure ~/.config/soclaas/soclaas.env')
     return values
 
 
@@ -82,7 +89,7 @@ def prepare(root, profile='procedure_max', papers=None, sources=None):
         if profile in ['procedure_audit','procedure_thinking','procedure_max']:
             with p.open('a') as f:
                 f.write('''\nPROCEDURE AUDIT: Enumerate every author-proposed algorithm or decision procedure before ranking hypotheses. For each, record inputs, mutable state, chosen objective or decision criterion, transition/update rule, termination/acceptance condition, returned artifact, and the downstream research objective. Ask what the output logically establishes and which relevant properties remain unconstrained. Examine selection, discarded alternatives, iteration and repeated invocations as well as one successful run. Check whether randomness, restarts, feedback or other mitigations close a proposed gap. Do not assume an unconstrained property is automatically a flaw: give a concrete causal consequence and a controlled way to test it. Preserve conditional testing opportunities even when they are not contradictions of an explicit universal claim.\nAdd procedure_map with these records to final JSON. Retain up to six candidates rather than three; do not invent candidates to fill a quota. No keyword, case-specific example or reference limitation is supplied. All delegated workers are paper-only in this condition; only the root can inspect repository evidence, after freezing its paper-first hypotheses. Keep every narrative field within 90 Chinese characters and each original quotation within 40 words; avoid repeating the full paper or the same rationale.\n''')
-    shutil.copytree(HERE/'vendor-pi-swarm', root/'runtime')
+    prepare_runtime(None,root/'runtime')
     shutil.copy2(Path(__file__), root/'pilot.snapshot.py')
     for aid in dict.fromkeys(papers or ['sparta','nnsmith']):
         folder=root/aid;folder.mkdir();(folder/'images').mkdir()
