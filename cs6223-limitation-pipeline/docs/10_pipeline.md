@@ -1,125 +1,106 @@
-# 一条命令跑完整条 pipeline（2026-11-11）
+# Run the entire pipeline with one command (2026-11-11)
 
-论文侧（Zhaopeng，步骤 1 + 3a）、代码侧（Wanting，步骤 2 + 3b）和整合（步骤 4）合在一个入口里：
-`python -m pipeline`（代码在 `pipeline/run.py`）。输入一篇论文和它的仓库，输出这篇论文**两侧的全部 limitation**，
-格式和现在交给 Shanghao 的一样（`limitations_for_tests.json` + `HANDOFF.md`）。
+The paper side (Zhaopeng, steps 1 + 3a), code side (Wanting, steps 2 + 3b), and integration (step 4) share one entry point: `python -m pipeline` (code in `pipeline/run.py`). Given a paper and its repository, it outputs **all limitations from both sides** for that paper, in the same format currently handed to Shanghao (`limitations_for_tests.json` + `HANDOFF.md`).
 
-已有的五篇（FlexPrefill、SparTA、MInference、InfiniGen、NNSmith）不用重跑：每一步发现输出已经存在就跳过，直接复用。
+The existing five papers (FlexPrefill, SparTA, MInference, InfiniGen, NNSmith) do not need to be rerun: each step skips and reuses existing output.
 
-## 新论文怎么跑
+## Running a new paper
 
 ```bash
-# 0. 一次性：装论文侧依赖（Python 包 paperprobe + Pi 代理的 node_modules）
+# 0. One-time setup: install paper-side dependencies (Python package paperprobe + Pi agent node_modules)
 python -m pipeline setup-paperside
 
-# 1. 登记论文：写 data/<id>/artifact.json（commit 要写完整哈希；entry 是实现论文机制的函数，可多个）
+# 1. Register the paper: write data/<id>/artifact.json (commit must be the full hash; entry is a function implementing the paper's mechanism, possibly multiple)
 python -m pipeline init --id mypaper --title "..." --paper-url https://arxiv.org/abs/... \
-  --repo-url https://github.com/org/repo --commit <40 位哈希> --domain sparse_attention \
+  --repo-url https://github.com/org/repo --commit <40-digit hash> --domain sparse_attention \
   --entry pkg/module.py::main_function --entry pkg/other.py::Class.method \
-  [--package-root src]             # 仓库里 import 的根目录不是仓库根时才需要
+  [--package-root src]             # Needed only when the import root is not the repository root
 
-# 2. 看还缺什么
+# 2. Check what is missing
 python -m pipeline status mypaper
 
-# 3. 跑（会调模型、花钱；论文侧最贵，要显式加 --run-paper-side）
+# 3. Run (calls models and costs money; the paper side is most expensive and requires explicit --run-paper-side)
 python -m pipeline run mypaper --pdf /path/to/paper.pdf --run-paper-side
 
-# 4. 测试侧（Shanghao 的 checklimits）：每条 Finding 一份 report.json，汇总成 LIMITATIONS.md
+# 4. Test side (Shanghao's checklimits): one report.json per Finding, summarized in LIMITATIONS.md
 python -m pipeline test mypaper [--run-agent] [--strict]
 ```
 
-结果：
+Results:
 
-| 文件 | 内容 |
+| File | Contents |
 |---|---|
-| `results/step4/<id>/limitations_for_tests.json` | 这篇论文两侧的全部 limitation（去重、分类、priority、witness_hint 之后） |
-| `results/step4/<id>/HANDOFF.md` | 给测试侧的说明 |
-| `results/step4/limitations_for_tests.json`、`HANDOFF.md` | 所有论文合在一起（每次自动刷新） |
-| `results/tests/<id>/<finding_id>/report.json` | `pipeline test`：每条 Finding 的测试记录（测了的有判定和档位，没测的有原因代码） |
-| `results/tests/<id>/index.json`、`ENV.json`、`pipeline_test.log` | 汇总和 1:1 检查、环境预检、测试侧的完整输出 |
-| `results/report/<id>/LIMITATIONS.md` | 汇总报告，档位标明未校准 |
+| `results/step4/<id>/limitations_for_tests.json` | All limitations from both sides for this paper (after deduplication, classification, priority and witness_hint) |
+| `results/step4/<id>/HANDOFF.md` | Instructions for the test side |
+| `results/step4/limitations_for_tests.json`, `HANDOFF.md` | All papers combined (automatically refreshed each time) |
+| `results/tests/<id>/<finding_id>/report.json` | `pipeline test`: test record per Finding (judgment and tier if tested, reason code if not) |
+| `results/tests/<id>/index.json`, `ENV.json`, `pipeline_test.log` | Summary and 1:1 check, environment preflight, complete test-side output |
+| `results/report/<id>/LIMITATIONS.md` | Summary report, with tiers marked uncalibrated |
 
-也可以在 Python 里调：`from pipeline.run import run`。
+It can also be called from Python: `from pipeline.run import run`.
 
-## 一个入口：`doctor` 和 `e2e`（2026-11-17）
+## One entry point: `doctor` and `e2e` (2026-11-17)
 
-配置只来自环境变量（或根目录的 `.env`，环境变量优先；模板见 `.env.example`）：
+Configuration comes only from environment variables (or `.env` in the root directory, with environment variables taking precedence; see `.env.example` for a template):
 
-| 变量 | 含义 |
+| Variable | Meaning |
 |---|---|
-| `SOCLAAS_API_KEY` | 真 key。只有中继进程拿到；其余进程只拿到占位值 |
-| `SOCLAAS_BASE_URL` | 模型服务的上游地址，如 `https://host/v1` |
-| `SOCLAAS_IFACE` | 中继出站绑定的网卡，默认 `eth0`；设为空则走普通路由 |
-| `PIPELINE_MODEL` | 记录和缓存用的模型名，默认 `x-test-2`（研究用的模型；改了就不会命中缓存）。**不读 `SOCLAAS_MODEL`** |
+| `SOCLAAS_API_KEY` | Real key. Only the relay process receives it; other processes receive a placeholder |
+| `SOCLAAS_BASE_URL` | Upstream model service address, such as `https://host/v1` |
+| `SOCLAAS_IFACE` | Interface bound to relay outbound traffic, default `eth0`; set empty for normal routing |
+| `PIPELINE_MODEL` | Model name for records and cache, default `x-test-2` (research model; changing it causes cache misses). **Does not read `SOCLAAS_MODEL`** |
 
 ```bash
-# 0. 一次性：python -m pipeline setup-paperside；pip install -e ".[llm,verify,dev]"
-# 1. 登记论文：python -m pipeline init --id X ...
-# 2. 运行前检查（不调模型；--live 会通过中继调一次 GET /models，验证 key、地址、网卡）
+# 0. One-time setup: python -m pipeline setup-paperside; pip install -e ".[llm,verify,dev]"
+# 1. Register the paper: python -m pipeline init --id X ...
+# 2. Pre-run checks (no model call; --live makes one GET /models call through the relay to verify key, address and interface)
 python -m pipeline doctor X --paper-side --agent --live --pdf paper.pdf
-# 3. 一条命令：检查 -> 起中继 -> 步骤 1 到 4 -> 测试（带 --provision）-> 关中继
+# 3. One command: checks -> start relay -> steps 1 through 4 -> test (with --provision) -> stop relay
 python -m pipeline e2e X --pdf paper.pdf --run-paper-side --run-agent
 ```
 
-`e2e` 先做 `doctor` 的全部静态检查和一次真实调用，任何一项 FAIL 就在花钱和克隆之前停下（退出码 1，消息 `stopped: ...`）。
-中继固定在 `127.0.0.1:8787`（代码 agent 的沙箱配置写死了这个端口）；已有中继在监听时直接复用，不会再起、也不会关。
-所有阶段有输出就跳过，所以中途失败后重跑同一条命令即可续上；`--run-paper-side` 的论文侧不会续跑一个不完整的请求，
-见 `checklimits/HANDOFF.md` §0。`pipeline test` 也有了 `--provision`。
+`e2e` first performs all static `doctor` checks and one live call. Any FAIL stops it before spending money or cloning (exit code 1, message `stopped: ...`). The relay is fixed at `127.0.0.1:8787` (the code agent's sandbox configuration hard-codes this port); an existing listening relay is reused and is neither started nor stopped by the command. All stages skip existing output, so rerunning the same command after a failure resumes progress; the paper side under `--run-paper-side` does not resume an incomplete request, see `checklimits/HANDOFF.md` §0. `pipeline test` also has `--provision`.
 
-## 不能测的 Finding 和没有代码的论文（2026-11-18）
+## Untestable Findings and papers without code (2026-11-18)
 
-* `python -m pipeline e2e <id> ...` 末尾默认给每条**没测的** Finding 加一个分析（档位 A0–A2，**不是测试结论**，没有 yes/no）。不要分析加 `--no-analyze`。
-* 只补分析、不重跑测试：`python -m pipeline analyze <id> [--force]`（自动启动和关闭中继）。
-* 没有公开代码的论文（例如 Tessera）：`python -m pipeline paper-only <id> --pdf P --title T --venue V`。模型读 PDF 列出限制，每条引用必须逐字出现在 PDF 里，否则丢弃；档位最高 A1。输出在 `results/tests/<id>/` 和 `results/report/<id>/LIMITATIONS.md`。
-* 档位含义、探针规则、限制见 `checklimits/CONFIDENCE_SPEC.md` §22。
-* 需要 GPU 的代码：agent 用 CPU 替身，并用 `sim_check` 自证替身与参考一致（数值或符号），见 §23。
+* `python -m pipeline e2e <id> ...` adds an analysis by default at the end for every **untested** Finding (tier A0–A2, **not a test conclusion**, no yes/no). Add `--no-analyze` to skip analysis.
+* Add analysis only, without rerunning tests: `python -m pipeline analyze <id> [--force]` (starts and stops the relay automatically).
+* Papers without public code (such as Tessera): `python -m pipeline paper-only <id> --pdf P --title T --venue V`. A model reads the PDF and lists limitations; each quote must appear verbatim in the PDF or it is discarded. The highest tier is A1. Output is in `results/tests/<id>/` and `results/report/<id>/LIMITATIONS.md`.
+* For tier meanings, probe rules and limitations, see `checklimits/CONFIDENCE_SPEC.md` §22.
+* For code requiring a GPU, the agent uses a CPU substitute and uses `sim_check` to demonstrate that the substitute agrees with the reference (numerically or symbolically), see §23.
 
-## 每一步做什么
+## What each step does
 
-| 步骤 | 做什么 | 谁的代码 | 输出 | 调模型 |
+| Step | Action | Owner's code | Output | Model call |
 |---|---|---|---|---|
-| fetch | 按 commit 克隆仓库，放好 PDF | — | `third_party/<Repo>`、`third_party/papers/<id>.pdf` | 否 |
-| code | 步骤 2 最终路线 B：B-sweep 和 B-agent（都从路线 A 出发）→ 复核 → 合并 → Limitation | Wanting `codeside/` | `out/routes_*/<id>/`、`out/pipeline_ps/<id>/limitations.json` | 是 |
-| paper | 步骤 1 + 3a：`run_complete_corpus.py`（独立找机制 → 拆行为 → 每个机制一个 Pi 代理查源码 → 接口）然后 `finalize_handoff.py` | Zhaopeng `paperside/` | `paperside/handoffs/paper-side-v1/<id>/` | 是（最贵） |
-| verify3b | 步骤 3b：代码侧每条在论文 / README / docstring 里有没有写 | Wanting | `out/pipeline_ps/<id>/3b.json` | 是 |
-| step4 | 去重、分类、priority、witness_hint | Wanting | `results/step4/<id>/` | 是（有缓存） |
-| doc | 生成说明 | Wanting | `HANDOFF.md` | 否 |
+| fetch | Clone repository at commit and place PDF | — | `third_party/<Repo>`, `third_party/papers/<id>.pdf` | No |
+| code | Step 2 final route B: B-sweep and B-agent (both start from route A) → review → merge → Limitation | Wanting `codeside/` | `out/routes_*/<id>/`, `out/pipeline_ps/<id>/limitations.json` | Yes |
+| paper | Steps 1 + 3a: `run_complete_corpus.py` (independently find mechanisms → split behaviors → one Pi agent per mechanism checks source → interface) then `finalize_handoff.py` | Zhaopeng `paperside/` | `paperside/handoffs/paper-side-v1/<id>/` | Yes (most expensive) |
+| verify3b | Step 3b: whether each code-side item is documented in the paper / README / docstring | Wanting | `out/pipeline_ps/<id>/3b.json` | Yes |
+| step4 | Deduplication, classification, priority, witness_hint | Wanting | `results/step4/<id>/` | Yes (cached) |
+| doc | Generate instructions | Wanting | `HANDOFF.md` | No |
 
-**test**（`python -m pipeline test <id>`，2026-11-15）：在 `checklimits/` 目录下调用
-`python -m checklimits test <id> --results-root <pipeline 根>/results`，接口见 `checklimits/CONTRACT_TEST_REPORT.md`。
-它不是 `run` 的一步：开 `--run-agent` 时每条 Finding 要跑一个 code agent（5 到 15 分钟）。
+**test** (`python -m pipeline test <id>`, 2026-11-15): invokes `python -m checklimits test <id> --results-root <pipeline root>/results` in `checklimits/`; see `checklimits/CONTRACT_TEST_REPORT.md` for the interface. It is not a step of `run`: with `--run-agent`, each Finding runs a code agent (5 to 15 minutes).
 
-- 不开 `--run-agent` 时只重新审计 `checklimits/agent_results/` 和 `results/tests/<id>/` 里已有的测试包，
-  能判断但没有测试包的记为 `not_run(not_attempted)`。
-- 退出码按契约第 6 节：0 报告完整（有 `not_run` 也算）；2 输入错误、3 条目对不上、1 测试侧异常时停下并说明原因；
-  4（只在 `--strict` 下）报告已写出，但有环境、agent 或 harness 原因的 `not_run`，也按失败退出。
-- `status` 里 test 一行：`done` 报告完整且由当前的步骤 4 文件生成；`stale` 步骤 4 重跑过，要重测；`todo` 还没有报告。
-- 被测仓库的环境由测试侧预检（`ENV.json`），不安装任何东西。缺依赖时能判断的 Finding 都记为 `not_run(env_unavailable)`，
-  原因写在报告里。
+- Without `--run-agent`, it only re-audits existing test packages in `checklimits/agent_results/` and `results/tests/<id>/`; Findings that can be judged but lack a test package are marked `not_run(not_attempted)`.
+- Exit codes follow section 6 of the contract: 0 means the report is complete (including `not_run`); 2 indicates input error, 3 mismatched items, and 1 a test-side exception, stopping with an explanation. 4 (only with `--strict`) means the report was written but contains `not_run` due to environment, agent or harness reasons, and exits as a failure.
+- The test line in `status`: `done` means the report is complete and generated from the current step 4 file; `stale` means step 4 was rerun and tests must be rerun; `todo` means no report exists yet.
+- The test side preflights the tested repository's environment (`ENV.json`) and installs nothing. If dependencies are missing, Findings that can be judged are marked `not_run(env_unavailable)`, with the reason in the report.
 
-顺序是 code → paper → verify3b：Zhaopeng 的 `finalize_handoff.py` 会读代码侧的 limitation
-（`results/pipeline/<id>/limitations.json`，pipeline 自动放好），3b 又要用论文侧的 `paper_side.json`。
+The order is code → paper → verify3b: Zhaopeng's `finalize_handoff.py` reads code-side limitations (`results/pipeline/<id>/limitations.json`, placed automatically by the pipeline), and 3b needs the paper-side `paper_side.json`.
 
-- **跳过和重做**：fetch、code、paper、verify3b 看输出是否存在，存在就跳过；要重做就删掉对应输出。step4 和 doc 每次都重跑
-  （LLM 答案有缓存，很快）。`--until <步骤>` 跑到某一步为止。
-- **论文侧为什么要显式开启**：每个机制开一个 Pi coding agent，调用量远大于其他步骤；而且会写进 `paperside/`
-  （运行记录 `paperside/runs/`、交接包 `paperside/handoffs/`）。没有 `--run-paper-side` 时，如果交接包不存在就停下并说明原因。
-  也可以把 Zhaopeng 单独跑好的交接包直接放进 `paperside/handoffs/paper-side-v1/<id>/`。
-- **论文侧的前置条件**，pipeline 自动处理：在 `paperside/workstreams/zhaopeng/team-reviewed.json` 里登记这篇论文的
-  commit 和 PDF 哈希（他的代码要求先登记）；在 `paperside/data/repos/team-<id>` 放一份固定 commit 的仓库。
-  这两项都只是数据，不改他的代码。
-- **API key** 从环境变量或 `.env` 读，不会打印。
-- 日志：代码侧在 `out/pipeline_ps/<id>/pipeline.log`，论文侧在 `out/paperside_logs/<id>.log`。
+- **Skipping and rerunning**: fetch, code, paper and verify3b check whether output exists and skip if it does; delete the corresponding output to rerun. step4 and doc rerun every time (LLM answers are cached, so they are fast). `--until <step>` runs through the specified step.
+- **Why the paper side requires explicit enabling**: it starts one Pi coding agent per mechanism, making far more calls than other steps; it also writes to `paperside/` (run records `paperside/runs/`, handoff packages `paperside/handoffs/`). Without `--run-paper-side`, it stops with an explanation if the handoff package is missing. A package run separately by Zhaopeng can also be placed directly in `paperside/handoffs/paper-side-v1/<id>/`.
+- **Paper-side prerequisites**, handled automatically by the pipeline: register the paper's commit and PDF hash in `paperside/workstreams/zhaopeng/team-reviewed.json` (his code requires registration first); place a pinned-commit repository in `paperside/data/repos/team-<id>`. Both are data only and do not modify his code.
+- **API key** is read from environment variables or `.env` and is not printed.
+- Logs: code side in `out/pipeline_ps/<id>/pipeline.log`, paper side in `out/paperside_logs/<id>.log`.
 
-## 现状和限制
+## Status and limitations
 
-- **新论文的完整流程还没有真正跑过一次**（太贵，也还没有新论文）。已经验证的部分：
-  - 五篇论文上，每一步都能识别为已完成并复用，step4 和 doc 能重新生成；
-  - 用临时 artifact 测过 init、fetch、status，以及论文侧缺前置条件或没开 `--run-paper-side` 时的报错；
-  - 论文侧依赖装好后，Zhaopeng 的 219 个单元测试和 `validate_delivery.py` 在 schema v0.1.0 下全部通过。
-- **schema v0.2.0 会触发 Zhaopeng 的哈希检查**：他的 `validate_delivery.py` 和 10 个单元测试会对比 `schema/models.py`
-  的哈希，所以在 v0.2.0 下会报 “Shared consumer schema changed”。v0.2.0 只改了 Finding，没改他输出的四个数组和 Limitation。
-  团队确认 v0.2.0 后，需要他更新这个哈希。我没有改他的文件。
-- 论文侧有些硬编码只对五篇有效（例如 SparTA 的专用脚本）。新论文走的是 `run_complete_corpus.py` 的通用流程，没有人工
-  `review-adjustments.json`，所以接口修订少于五篇已交付的包。
-- 代码侧只用第 1 次运行（`run1`），和现在五篇的结果一致。
+- **The complete flow has not actually run on a new paper yet** (too expensive, and there is no new paper yet). Verified parts:
+  - On the five papers, each step can be recognized as complete and reused, and step4 and doc can be regenerated;
+  - init, fetch and status were tested with a temporary artifact, as were errors when paper-side prerequisites are missing or `--run-paper-side` is absent;
+  - After paper-side dependencies were installed, all 219 of Zhaopeng's unit tests and `validate_delivery.py` passed under schema v0.1.0.
+- **Schema v0.2.0 triggers Zhaopeng's hash check**: his `validate_delivery.py` and 10 unit tests compare the hash of `schema/models.py`, so they report “Shared consumer schema changed” under v0.2.0. v0.2.0 changed only Finding, not the four arrays and Limitation he outputs. Once the team confirms v0.2.0, he needs to update this hash. I did not change his files.
+- Some paper-side hard-coding applies only to the five papers (such as the SparTA-specific script). New papers use the general `run_complete_corpus.py` flow without a manual `review-adjustments.json`, so the interface has fewer revisions than the five delivered packages.
+- The code side uses only the first run (`run1`), consistent with the current results for the five papers.
