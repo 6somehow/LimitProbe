@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Union existing prediction runs without invoking a model."""
 import argparse
+SIMILARITY = 0.6  # --exact sets it above 1: only identical claims are merged
 import json
 import re
 from collections import Counter, defaultdict
@@ -65,9 +66,14 @@ def union(inputs, tags):
                     match = None
                     for i, existing in enumerate(merged):
                         other = {token.lower() for token in words(existing)}
-                        if tokens and other and len(tokens & other) / len(tokens | other) >= 0.6:
+                        if SIMILARITY > 1:
+                            same = " ".join(str(finding.get("claim", "")).lower().split()) == " ".join(str(existing.get("claim", "")).lower().split())
+                        else:
+                            same = bool(tokens and other and len(tokens & other) / len(tokens | other) >= SIMILARITY)
+                        if same:
                             match = i
                             break
+                    finding["origin_system"] = tag
                     if match is None:
                         merged.append(finding)
                         sources.append([tag])
@@ -86,7 +92,11 @@ def main():
     parser.add_argument("--in", dest="inputs", action="append", required=True)
     parser.add_argument("--out", required=True)
     parser.add_argument("--label-tag", action="append", default=[], metavar="INPUT=NAME")
+    parser.add_argument("--exact", action="store_true", help="merge only findings with identical claim text")
     args = parser.parse_args()
+    global SIMILARITY
+    if args.exact:
+        SIMILARITY = 2.0
     labels = {}
     for label in args.label_tag:
         if "=" not in label:
