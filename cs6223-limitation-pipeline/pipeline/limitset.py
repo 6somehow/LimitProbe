@@ -72,6 +72,12 @@ def failure_record(case, repeat, out, reason):
     return failure
 
 
+def _as_list(value):
+    if isinstance(value, list):
+        return [str(x) for x in value if str(x).strip()]
+    return [str(value)] if value else []
+
+
 def run_generator(cmd, *, env, timeout, log):
     proc = subprocess.Popen(cmd, env=env, cwd=ROOT, start_new_session=True,
                             stdout=log, stderr=subprocess.STDOUT)
@@ -154,7 +160,7 @@ def worker(case, repeat, out, raw, timeout, env, schema, swarm_template=None, en
             findings = []
             for c in candidates:
                 findings.append({'claim': str(c.get('claim') or ''), 'category_code': c['category_code'],
-                                 'mechanism': str(c.get('mechanism') or ''), 'conditions': c.get('necessary_conditions') or c.get('conditions') or [],
+                                 'mechanism': str(c.get('mechanism') or ''), 'conditions': _as_list(c.get('necessary_conditions') or c.get('conditions')),
                                  'evidence': c['evidence'], 'caveats': [], 'origin': mechanism_version})
             (run / 'mechanism_evidence.json').write_text(json.dumps({'candidates': candidates, 'dropped_for_unverified_quotes': dropped, **stats}, ensure_ascii=False, indent=2) + '\n')
             (run / 'evaluation_critiques.json').write_text(json.dumps(critiques, ensure_ascii=False, indent=2) + '\n')
