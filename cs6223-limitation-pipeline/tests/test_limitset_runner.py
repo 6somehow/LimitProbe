@@ -81,7 +81,8 @@ def test_relay_start_failure_writes_manifest(tmp_path, monkeypatch):
 
 
 def test_swarm_report_passed_to_paper_lane(tmp_path, monkeypatch):
-    from pipeline import e2e
+    from pipeline import e2e, run
+    monkeypatch.setattr(run, 'ROOT', run.ROOT)  # paper_worker overwrites run.ROOT; restore at teardown
     report = tmp_path / 'report.txt'
     report.write_text('report')
     captured = []
