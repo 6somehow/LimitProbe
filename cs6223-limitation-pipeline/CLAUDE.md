@@ -75,6 +75,7 @@ python -m codeside.verify3b --limitations data/pilot_flexprefill/gold_code_limit
   --model x-test-2 --repeats 3 --out out/3b/flexprefill.json   # 需要 .[verify] + .env
 python scripts/eval_3b.py          # 3b 的已知答案测试
 python scripts/run_pipeline.py --out-dir out/pipeline_ps --seed-cache out/pipeline   # B → 3b（论文侧用交接包）
+python scripts/run_step4.py --code-dir results/pipeline   # 复现已提交的步骤 4：默认读 out/pipeline_ps（不进 git，内容可能不同）；输入哈希写在 findings.report.json 的 inputs，不一致会警告
 python scripts/run_step4.py        # 步骤 4：Finding + witness_hint，写到 results/step4/（调模型，有缓存；--no-llm 不调）
 python scripts/run_step4.py --process-only   # 只重算代码侧静态证据（不调模型，其余内容不变），之后跑 make_handoff_doc.py
 python -m codeside.cli validate data/*/*.json
