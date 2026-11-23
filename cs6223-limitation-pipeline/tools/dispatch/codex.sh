@@ -21,7 +21,7 @@ usage='usage: tools/dispatch/codex.sh TASK-ID MODEL EFFORT [PROMPT_FILE [WORKTRE
 [[ $# == 3 || $# == 4 || $# == 5 ]] || { echo "$usage" >&2; exit 2; }
 T="$1"; M="$2"; E="$3"
 [[ "$T" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]*$ ]] || { echo 'Invalid task id' >&2; exit 2; }
-WT="${5:-$CODEX_DISPATCH_WORKTREE_ROOT/$T}"
+WT="${5:-$CODEX_DISPATCH_WORKTREE_ROOT/$T/cs6223-limitation-pipeline}"  # repo root is the parent dir; project is a subdir
 [[ -d "$WT" ]] || { echo "missing worktree $WT" >&2; exit 2; }
 WT="$(cd -- "$WT" && pwd)"
 mkdir -p "$CODEX_DISPATCH_LOG_DIR"
