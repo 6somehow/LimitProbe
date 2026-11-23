@@ -469,17 +469,22 @@ def mechanism_candidates(text, code_files, ask, *, version=MECH_V1, examples_pat
         if not isinstance(c, dict):
             continue
         quotes = c.get("quotes") or ([c["paper_fact"]] if isinstance(c.get("paper_fact"), str) else None)
-        if not isinstance(quotes, list) or not 1 <= len(quotes) <= 3:
+        if not isinstance(quotes, list) or not 1 <= len(quotes) <= (6 if version == MECH_V3C else 3):
             dropped += 1
             continue
         evidence = []
+        lenient = version == MECH_V3C  # v3c: cite only the quotes that verify; drop the candidate only if none does
         for q in quotes:
             if isinstance(q, str):
                 q = {"source": "paper", "quote": q, "locator": c.get("locator", "")}
             if not isinstance(q, dict):
+                if lenient:
+                    continue
                 break
             source, quote, locator = q.get("source"), q.get("quote"), q.get("locator", "")
             if not isinstance(quote, str):
+                if lenient:
+                    continue
                 break
             # The model often omits or varies `source`: decide it from where the quote verbatim occurs.
             if quote_in_text(quote, _flat(text)) or (version == MECH_V3C and _alnum_quote_in(quote, text)):
@@ -489,10 +494,12 @@ def mechanism_candidates(text, code_files, ask, *, version=MECH_V1, examples_pat
             else:
                 hit = next((path for path, body in code_files.items() if quote in body), None)
                 if hit is None:
+                    if lenient:
+                        continue
                     break
                 source, locator = "code", hit
             evidence.append({"source_id": source, "location": str(locator), "support_description": quote})
-        if len(evidence) != len(quotes):
+        if not evidence or (not lenient and len(evidence) != len(quotes)):
             dropped += 1
             continue
         item = {**c, "evidence": evidence}
