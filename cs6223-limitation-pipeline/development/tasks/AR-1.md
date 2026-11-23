@@ -20,3 +20,12 @@ Rules: CLAUDE.md (Chinese; read it) and AGENTS.md. Never read or print anything 
 ## Checks
 - conda run -n findlimit bash examples/offline_demo.sh -> exit 0
 - /home/somehow6/miniconda3/envs/findlimit/bin/python -m pytest -q -> all pass
+
+STATUS: DONE
+COMMITS: pending controller commit
+EXECUTOR: codex; requested medium -> actual model id unavailable; effort unavailable
+SUMMARY: Added English artifact documentation, conda environment and packaging metadata, Makefile targets, and a synthetic offline scorer/union/comparison demo; table reproduction references the AR-5 deliverables.
+CHECKS: conda run -n findlimit bash examples/offline_demo.sh; PASS; /tmp/codex-AR-1-demo.log (271 passed, 2 skipped; synthetic coverage and comparison produced). conda run -n findlimit python -m pytest -q --basetemp /tmp/codex-AR-1-pytest; PASS; /tmp/codex-AR-1-pytest.log (271 passed, 2 skipped). git status and git diff --check; PASS. make tables; NOT_RUN (AR-5 script and bundle not present). Editable installation; NOT_RUN (shared environment must not be modified).
+GPU: none
+SELF-REVIEW: Scope and English documentation checked against task; demo uses synthetic inputs and fake judge, with no network or PDFs; test and demo outputs inspected; package list checked against package initializers; no runtime code or secrets changed; external data and AR-5 dependencies identified. Independent review does not apply under project workflow override.
+RISKS: AR-5 must supply results/limitset_final/ and scripts/limitset/reproduce_tables.py before table reproduction works; clean installation was not exercised because package installation is prohibited; real model runs require external data and service.
