@@ -65,8 +65,9 @@ def artifact_json(aid: str) -> Path:
 
 
 class Paths:
-    def __init__(self, aid: str):
+    def __init__(self, aid: str, paper_source: str = "v1"):
         self.aid = aid
+        self.paper_source = paper_source
         self.art_json = artifact_json(aid)
         self.art = json.loads(self.art_json.read_text())
         self.repo = ROOT / "third_party" / self.art["repo_url"].rstrip("/").split("/")[-1]
@@ -80,9 +81,11 @@ class Paths:
         self.lims_for_paperside = ROOT / "results/pipeline" / aid / "limitations.json"  # finalize_handoff reads it
         self.handoff = HANDOFFS / aid
         self.verify3b = self.code_dir / "3b.json"
-        self.step4 = ROOT / "results/step4" / aid / "limitations_for_tests.json"
-        self.doc = ROOT / "results/step4" / aid / "HANDOFF.md"
         self.results = ROOT / "results"  # --results-root of the test side
+        if paper_source == "swarm":
+            self.results /= "swarm"
+        self.step4 = self.results / "step4" / aid / "limitations_for_tests.json"
+        self.doc = self.step4.with_name("HANDOFF.md")
         self.test_index = self.results / "tests" / aid / "index.json"
         self.report = self.results / "report" / aid / "LIMITATIONS.md"
         cfg = self.art_json.parent / "pipeline.json"
@@ -148,7 +151,8 @@ def done(stage: str, P: Paths) -> bool:
         "fetch": git_head(P.repo) == P.art["commit"] and P.pdf.is_file(),
         "code": P.lims.is_file(),
         "paper": (P.handoff / "paper_side.json").is_file() and (P.handoff / "binding_provenance.json").is_file(),
-        "verify3b": P.verify3b.is_file(),
+        "verify3b": P.verify3b.is_file() and (
+            P.paper_source != "swarm" or P.verify3b.with_suffix(".detail.json").is_file()),
         "step4": P.step4.is_file(),
         "doc": P.doc.is_file(),
     }[stage]
@@ -231,6 +235,24 @@ def stage_code(P: Paths, a) -> None:
 
 
 def stage_paper(P: Paths, a) -> None:
+    if P.paper_source == "swarm":
+        from paperside_bridge.swarm_to_paper_side import convert, write_handoff
+
+        try:
+            handoff, limitations = convert(P.aid, Path(a.swarm_report), P.pdf,
+                                           extractor=a.swarm_pdf_extractor)
+        except (OSError, ValueError) as error:
+            raise StageError(f"Swarm handoff: {error}") from error
+        key = hashlib.sha256(json.dumps([handoff, sha256(P.lims), a.model],
+                                        sort_keys=True).encode()).hexdigest()[:24]
+        P.handoff = ROOT / "out/swarm_handoffs" / key / P.aid
+        P.swarm_code = ROOT / "out/swarm_verification" / key / P.aid
+        P.verify3b = P.swarm_code / "3b.json"
+        write_handoff(P.handoff, handoff, limitations)
+        print(f"  {len(limitations)} Swarm candidates retained, {len(handoff['dropped'])} dropped")
+        for item in handoff["dropped"]:
+            print(f"  {item['id']}: {item['reason']}")
+        return
     if not a.run_paper_side:
         raise StageError(
             f"no paper-side hand-off at {P.handoff.relative_to(ROOT)}. Zhaopeng's pipeline is expensive (one Pi coding "
@@ -267,6 +289,13 @@ def stage_paper(P: Paths, a) -> None:
 
 
 def stage_verify3b(P: Paths, a) -> None:
+    if P.paper_source == "swarm":
+        P.swarm_code.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(P.lims, P.swarm_code / "limitations.json")
+        sh([sys.executable, "-m", "codeside.verify3b", "--limitations", P.lims, "--artifact", P.art_json,
+            "--pdf", P.pdf, "--repo", P.repo, "--paper-side", P.handoff / "paper_side.json",
+            "--model", a.model, "--workers", "3", "--out", P.verify3b])
+        return
     sh([sys.executable, "scripts/run_pipeline.py", "--only", P.aid, "--out-dir", "out/pipeline_ps",
         "--paper-side-dir", str(HANDOFFS.relative_to(ROOT)), "--model", a.model, "--parallel", "1", "--workers", "3"])
     if not P.verify3b.is_file():
@@ -274,12 +303,20 @@ def stage_verify3b(P: Paths, a) -> None:
 
 
 def stage_step4(P: Paths, a) -> None:
-    sh([sys.executable, "scripts/run_step4.py", "--only", P.aid, "--model", a.model])
+    cmd = [sys.executable, "scripts/run_step4.py", "--only", P.aid, "--model", a.model]
+    if P.paper_source == "swarm":
+        cmd += ["--paper-dir", P.handoff.parent, "--code-dir", P.swarm_code.parent,
+                "--out", P.step4.parent.parent, "--labels", ""]
+    sh(cmd)
 
 
 def stage_doc(P: Paths, a) -> None:
     sh([sys.executable, "scripts/make_handoff_doc.py", "--src", P.step4.relative_to(ROOT), "--out", P.doc.relative_to(ROOT)])
-    sh([sys.executable, "scripts/make_handoff_doc.py"])
+    if P.paper_source == "swarm":
+        sh([sys.executable, "scripts/make_handoff_doc.py", "--src", P.step4.parent.parent / P.step4.name,
+            "--out", P.doc.parent.parent / P.doc.name])
+    else:
+        sh([sys.executable, "scripts/make_handoff_doc.py"])
 
 
 RUN = {"fetch": stage_fetch, "code": stage_code, "paper": stage_paper, "verify3b": stage_verify3b,
@@ -289,17 +326,36 @@ ALWAYS = {"step4", "doc"}
 
 def run(aid: str, a) -> Path:
     """Run every missing stage for `aid`; return the path of its limitations_for_tests.json."""
-    P = Paths(aid)
+    source = getattr(a, "paper_side_source", "v1")
+    if source == "swarm":
+        from paperside_bridge.swarm_to_paper_side import input_path
+
+        if a.run_paper_side or not a.swarm_report:
+            raise StageError("Swarm requires --swarm-report and is incompatible with --run-paper-side")
+        try:
+            if not input_path(Path(a.swarm_report)).is_file():
+                raise StageError(f"no Swarm report at {a.swarm_report}")
+            if a.pdf:
+                input_path(Path(a.pdf))
+        except ValueError as error:
+            raise StageError(str(error)) from error
+    elif getattr(a, "swarm_report", None):
+        raise StageError("--swarm-report requires --paper-side-source swarm")
+    P = Paths(aid, source)
+    if source == "swarm" and a.pdf and P.pdf.is_file():
+        supplied = Path(a.pdf)
+        if not supplied.is_file() or sha256(supplied) != sha256(P.pdf):
+            raise StageError(f"--pdf must match the cached paper at {P.pdf.relative_to(ROOT)}")
     last = STAGES.index(a.until) if a.until else len(STAGES) - 1
     for stage in STAGES[: last + 1]:
-        if done(stage, P) and stage not in ALWAYS:
+        if done(stage, P) and stage not in ALWAYS and (stage != "paper" or source != "swarm"):
             print(f"[done] {stage}")
             continue
         print(f"[run ] {stage}", flush=True)
         RUN[stage](P, a)
     if last == len(STAGES) - 1:
         print(f"\nall limitations of {aid}: {P.step4.relative_to(ROOT)}\nexplained in:            {P.doc.relative_to(ROOT)}"
-              f"\nall papers together:     results/step4/limitations_for_tests.json, results/step4/HANDOFF.md")
+              f"\nall papers together:     {P.step4.parent.parent.relative_to(ROOT)}/{P.step4.name}, HANDOFF.md")
     return P.step4
 
 
@@ -357,8 +413,12 @@ def last_json(text: str) -> Optional[dict]:
 
 
 def test_cmd(aid: str, a) -> list:
-    cmd = [sys.executable, "-m", "checklimits", "test", aid, "--results-root", str(ROOT / "results"),
+    swarm = getattr(a, "paper_side_source", "v1") == "swarm"
+    results = ROOT / ("results/swarm" if swarm else "results")
+    cmd = [sys.executable, "-m", "checklimits", "test", aid, "--results-root", str(results),
            "--workers", str(a.workers)]
+    if swarm:
+        cmd += ["--findings-file", str(results / "step4" / aid / "limitations_for_tests.json")]
     for flag in ("run_agent", "fast", "strict", "skip_envcheck", "provision", "analyze"):
         if getattr(a, flag, False):
             cmd.append("--" + flag.replace("_", "-"))
@@ -371,7 +431,8 @@ def test_cmd(aid: str, a) -> list:
 
 def test(aid: str, a) -> dict:
     """Run the test side on the step 4 output of `aid` (contract checklimits-test-report/1) and check its result."""
-    P = Paths(aid)
+    source = getattr(a, "paper_side_source", "v1")
+    P = Paths(aid, source) if source == "swarm" else Paths(aid)
     if not P.step4.is_file():
         raise StageError(f"no step 4 output {_rel(P.step4)}; run `python -m pipeline run {aid}` first")
     if not (CHECKLIMITS / "checklimits" / "__main__.py").is_file():
@@ -464,6 +525,7 @@ def main(argv: Optional[list] = None) -> None:
     t.add_argument("--analyze", action="store_true",
                    help="also add an analysis (tier A0-A2, not a verdict) to Findings that were not tested; needs the relay")
     t.add_argument("--python", help="interpreter of the code under test (default: the test side's per-artifact venv)")
+    t.add_argument("--paper-side-source", choices=["v1", "swarm"], default="v1")
     an = sub.add_parser("analyze", help="analyse the Findings that were not tested (analysis tiers A0-A2, not verdicts)")
     an.add_argument("artifact_id")
     an.add_argument("--model", default=None)
@@ -475,6 +537,8 @@ def main(argv: Optional[list] = None) -> None:
     po.add_argument("--title")
     po.add_argument("--venue")
     po.add_argument("--model", default=None)
+    po.add_argument("--swarm-report", type=Path)
+    po.add_argument("--swarm-pdf-extractor", choices=["pypdf", "pymupdf"], default="pypdf")
     d = sub.add_parser("doctor", help="check the setup (environment variables, tools, packages, network) before a run")
     d.add_argument("artifact_id", nargs="?")
     d.add_argument("--paper-side", action="store_true", help="also check what the paper-side pipeline needs")
@@ -498,6 +562,10 @@ def main(argv: Optional[list] = None) -> None:
                    help="skip steps 1 to 4 and test the existing step 4 output (step 4 would otherwise run again)")
     e.add_argument("--no-analyze", action="store_true", help="do not analyse the Findings that were not tested")
     e.add_argument("--python", default=None)
+    for sp in (r, e):
+        sp.add_argument("--paper-side-source", choices=["v1", "swarm"], default="v1")
+        sp.add_argument("--swarm-report", type=Path)
+        sp.add_argument("--swarm-pdf-extractor", choices=["pypdf", "pymupdf"], default="pypdf")
     sub.add_parser("setup-paperside", help="pip install paperside[team,vision] and npm ci for the Pi agent")
     a = ap.parse_args(argv)
     try:

@@ -1,4 +1,4 @@
-# 共享 schema v0.2.0（Wanting 负责，需三人评审）
+# 共享 schema v0.2.1（Wanting 负责，需三人评审）
 
 定义在 `schema/models.py`（pydantic v2，`extra="forbid"`）。不用 Python 的模块可以用
 `schema/json/*.schema.json` 校验（`python -m schema.export_json_schema` 生成）。
@@ -26,7 +26,7 @@
 - **Region.condition.expr 用代码层的名字**；从论文参数到代码名字的映射只放在 Binding 里。
 - **provenance** 区分 ast / llm / manual；**confidence** 区分 mechanical / llm_assisted / llm_only。
 - **Outcome**：mechanism、mechanism_variant、fallback、reject、env_dependent、state_dependent、suspicious。
-- **FindingCategory（v0.2.0）**，7 类：
+- **FindingCategory（v0.2.1）**，8 类：
   | 类别 | 来源 | 意思 |
   |---|---|---|
   | `undisclosed` | 代码侧 | 代码有这个限制，用户能读到的地方都没写（核心发现） |
@@ -36,6 +36,7 @@
   | `paper_stated` | 代码侧 | 论文写了，边界与代码一致 |
   | `impl_deviates` | 论文侧 | 论文描述了，代码实现得不一样 |
   | `not_implemented` | 论文侧 | 论文描述了，代码里没有 |
+  | `paper_hypothesis` | Swarm | 有论文引文的候选假设 |
 - **"算不算写了"的统一规则**：只算用户会读到的地方——论文（含附录）、README、其他用户文档、公开函数的 docstring。
   代码注释（包括 TODO/FIXME）、私有函数（`_` 开头）的 docstring、只写版本号的说明都不算。
 - **Finding.review**：`unreviewed` / `worth_testing` / `real_but_minor` / `wrong`；`review_note` 写明谁审的
@@ -43,6 +44,9 @@
 
 ## 版本记录
 
+- **v0.2.1** 增加 `Finding.origin`（`v1` 或 `swarm`，旧记录默认 `v1`）、
+  `paper_hypothesis` 和可选的 `Limitation.swarm_category`、`Limitation.swarm_provenance`。
+  类别映射和来源信息见 [Swarm 接口](12_swarm_interface.md)。
 - **v0.2.0**（Wanting 草稿，待三人确认）：FindingCategory 从 5 类改为上面的 7 类
   （`undocumented`→`undisclosed`，`documented_elsewhere`→`docs_only`，`confirmed`→`paper_stated`，
   `paper_only`→`not_implemented`；原 `boundary_mismatch` 拆成代码侧 `stated_differently` 和论文侧 `impl_deviates`；
