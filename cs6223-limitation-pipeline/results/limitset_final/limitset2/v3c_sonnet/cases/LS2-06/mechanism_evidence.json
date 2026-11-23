@@ -1,0 +1,718 @@
+{
+  "candidates": [
+    {
+      "headline": "The rule 'maximum tokens without violating the TBT SLO' conflicts with the rule 'budget that maximizes system capacity'",
+      "claim": "Section 4.3 states two budget-selection criteria, and they need not give the same value. The first is a latency-only upper bound. The second also accounts for chunking overhead and pipeline bubbles. The paper's own 1536 exception for LLaMA2-70B is consistent with the two diverging.",
+      "paper_fact": "We leverage Vidur [28], a LLM inference profiler and simulator to determine the token budget that maximizes system capacity under specific deployment scenario.",
+      "premise": "A latency feasibility constraint gives an upper bound on batch size. A throughput or capacity objective can have its optimum strictly below that bound when larger batches raise other costs, such as pipeline bubbles.",
+      "inference": "The paper says larger chunks cause higher inter-batch runtime variation and pipeline bubbles. Under PP, the capacity-maximizing budget can therefore be below the largest SLO-feasible one. The two rules are not interchangeable, and the text does not say which one the reported budgets (512, 2048, 1536) came from.",
+      "toy_example": "Illustrative only, not a measurement: suppose 2048 tokens still meets the SLO, but at 2048 the bubbles cost 15% throughput while at 1536 they cost 5% and chunk overhead rises only 2%. The 'max feasible' rule picks 2048 while the 'max capacity' rule picks 1536.",
+      "conditional_consequence": "If bubble cost or chunking overhead varies with budget within the SLO-feasible range, then the largest SLO-feasible budget is not the capacity-maximizing budget.",
+      "critical_link": "Whether the capacity curve peaks before the SLO limit, which the PP bubble cost and chunking overhead determine.",
+      "necessary_conditions": [
+        "Bubble cost or chunk overhead changes non-monotonically or opposite to latency over the feasible range.",
+        "Pipeline parallelism, or another coupling, is active in the deployment."
+      ],
+      "defeaters": [
+        "With TP only and large budgets, chunk overhead is negligible (the paper reports almost negligible overhead at 2048), so the two rules may coincide.",
+        "If Vidur is run with the SLO as a constraint, the result is already the capacity-maximizing feasible budget."
+      ],
+      "do_not_infer": [
+        "Do not infer that the authors used the wrong rule; Vidur is stated as the actual method.",
+        "Do not infer the magnitude of the gap, or that 1536 is optimal.",
+        "The paper attributes 1536 to pipeline bubbles. That is a reported reason, not a measured ablation."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L2+L6",
+      "quotes": [
+        {
+          "text": "Larger chunks lead to higher inter-batch runtime variations that result in pipeline bubbles which results in lower overall system throughput.",
+          "source": "paper",
+          "locator": "Sec 4.3, page 9"
+        },
+        {
+          "text": "We use token budget of 2048 and 512 for all models under the relaxed and strict settings, respectively, except for the LLaMA2-70B relaxed configuration where we use token budget of 1536 to reduce the impact of pipeline bubbles.",
+          "source": "paper",
+          "locator": "Sec 5.1, page 10"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A latency feasibility constraint gives an upper bound on batch size. A throughput or capacity objective can have its optimum strictly below that bound when larger batches raise other costs, such as pipeline bubbles. The paper says larger chunks cause higher inter-batch runtime variation and pipeline bubbles. Under PP, the capacity-maximizing budget can therefore be below the largest SLO-feasible one. The two rules are not interchangeable, and the text does not say which one the reported budgets (512, 2048, 1536) came from."
+    },
+    {
+      "headline": "The theoretical ~200-token knee conflicts with the measured ~500-600-token knee, and the cause is asserted rather than shown",
+      "claim": "The paper gives a 2-3x gap between the theoretical and measured knee and attributes it to fixed overheads. It does not decompose those overheads, so the origin is only asserted. This matters because the strict 512 budget sits near the measured knee, where the slack is nearly exhausted.",
+      "paper_fact": "Theoretically, we expect the operators to become compute-bound at ∼200 tokens on A100 GPUs, however, in practice we observe that it happens at ∼500-600 tokens for higher tensor parallel dimensions due to fixed overheads.",
+      "premise": "Per-iteration fixed costs such as all-reduce latency and kernel launches are not amortized until enough tokens arrive. They can make the flat region of the time-vs-tokens curve extend past the roofline prediction.",
+      "inference": "The practical slack is larger than the roofline implies, but its size depends on overheads the paper does not measure. This makes the slack hard to port to other TP degrees or interconnects. A budget chosen from the roofline (~200) would under-use the batch, while 512 leaves little margin before latency grows linearly.",
+      "conditional_consequence": "If fixed overheads change (different interconnect, TP degree, kernels), the knee and the usable slack move, and the 512 budget may no longer sit at the knee.",
+      "critical_link": "The attribution to fixed overheads is stated without an overhead breakdown, and Figure 6 only shows the flat 128-512 range.",
+      "necessary_conditions": [
+        "The overhead source varies with deployment (TP degree, interconnect, kernel implementation)",
+        "The budget is set from the observed knee rather than re-profiled"
+      ],
+      "defeaters": [
+        "The paper sets the budget by profiling, not from the roofline",
+        "Overheads are stable across the deployments evaluated"
+      ],
+      "do_not_infer": [
+        "That the all-reduce or kernel-launch explanation is wrong",
+        "That the measurements are unreliable",
+        "That the paper claims a specific overhead breakdown"
+      ],
+      "disclosure": "inferred",
+      "category_code": "mechanism_origin_unclear",
+      "lens": "L1+L2+L6",
+      "quotes": [
+        {
+          "text": "When the number of tokens is small, execution time is dictated by the cost of fetching weights from HBM memory. Hence, execution time is largely stagnant in the 128-512 tokens range, especially for higher tensor parallel degrees.",
+          "source": "paper",
+          "locator": "Figure 6 caption"
+        },
+        {
+          "text": "This can be handled with a one-time profiling of batches with different number of tokens and setting the token budget to maximum number of tokens that can be packed in a batch without violating TBT SLO.",
+          "source": "paper",
+          "locator": "§4.3 Determining Token Budget"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Per-iteration fixed costs such as all-reduce latency and kernel launches are not amortized until enough tokens arrive. They can make the flat region of the time-vs-tokens curve extend past the roofline prediction. The practical slack is larger than the roofline implies, but its size depends on overheads the paper does not measure. This makes the slack hard to port to other TP degrees or interconnects. A budget chosen from the roofline (~200) would under-use the batch, while 512 leaves little margin before latency grows linearly."
+    },
+    {
+      "headline": "A tile-aligned token budget does not imply a tile-aligned prefill chunk size",
+      "claim": "The paper tells readers to account for tile quantization when choosing the token budget, and its example is phrased in terms of 'chunk size'. Under Algorithm 3 the prefill chunk is the leftover budget after decodes are packed, so it is generally not a multiple of the tile size even when the budget is. Which quantity the 257-vs-256 effect applies to is left unstated.",
+      "paper_fact": "When adding prefill requests to the batch, we compute the maximum chunk size that can be accommodated within the leftover token budget for that batch (lines 11, 15).",
+      "premise": "In a hybrid batch, the linear layers (QKV, output and FFN projections) run as one matmul over all tokens in the batch. The M dimension of that matmul is therefore the total of decode tokens plus prefill-chunk tokens. Tile quantization acts on that M dimension, whereas attention kernels handle the prefill chunk separately.",
+      "inference": "The paper says decodes are packed first and the prefill chunk fills the remainder. So with a budget of 512 and a varying number of running decodes, the chunk length varies from iteration to iteration. If the cost-relevant dimension is the batch total, a full budget stays aligned and the 257-vs-256 example does not transfer directly to chunk size. If it is the chunk alone, a budget aligned to the tile size gives no protection.",
+      "toy_example": "Illustration only, not a measurement. Budget 512 with 37 decodes gives a chunk of 475. The batch total is 512, which is aligned, while the chunk is not a multiple of 64 or 128.",
+      "conditional_consequence": "If tile quantization acts on the total batch tokens, a tile-aligned budget keeps linear layers aligned whenever the batch is full, regardless of the chunk length. If it acts on the chunk length alone, a tile-aligned budget would not remove the penalty, because the chunk length follows the decode count.",
+      "critical_link": "Whether the 32% penalty in the 257-vs-256 example applies to the prefill chunk length or to the total batch tokens in the matmul M dimension.",
+      "necessary_conditions": [
+        "Decodes are packed before the prefill chunk, as in Algorithm 3.",
+        "The number of running decodes varies across iterations.",
+        "The kernel library's tile size is larger than 1 token along M."
+      ],
+      "defeaters": [
+        "The authors' kernels may pad or round the chunk internally.",
+        "The 257-vs-256 example may have been measured on a prefill-only batch, where chunk size and batch total coincide.",
+        "Attention kernels may dominate in some configurations."
+      ],
+      "do_not_infer": [
+        "Do not infer that the reported 32% penalty occurs in Sarathi-Serve's hybrid batches under production load.",
+        "Do not infer that the budgets of 512, 1024, 1536 and 2048 were chosen for alignment; the paper does not say so.",
+        "Do not infer that aligning the budget has no benefit."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "mechanism_origin_unclear",
+      "lens": "L3 x L4 (aligned dimension versus chunk definition, interacting with decode count)",
+      "quotes": [
+        {
+          "text": "When adding prefill requests to the batch, we compute the maximum chunk size that can be accommodated within the leftover token budget for that batch (lines 11, 15).",
+          "source": "paper, Section 4.2",
+          "locator": "page 8"
+        },
+        {
+          "text": "We observe that tile-quantization can dramatically increase prefill computation time e.g., in some cases, using chunk size of 257 can increase prefill time by 32% compared to that with chunk size 256.",
+          "source": "paper, Section 4.3",
+          "locator": "page 9"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "In a hybrid batch, the linear layers (QKV, output and FFN projections) run as one matmul over all tokens in the batch. The M dimension of that matmul is therefore the total of decode tokens plus prefill-chunk tokens. Tile quantization acts on that M dimension, whereas attention kernels handle the prefill chunk separately. The paper says decodes are packed first and the prefill chunk fills the remainder. So with a budget of 512 and a varying number of running decodes, the chunk length varies from iteration to iteration. If the cost-relevant dimension is the batch total, a full budget stays aligned and the 257-vs-256 example does not transfer directly to chunk size. If it is the chunk alone, a budget aligned to the tile size gives no protection."
+    },
+    {
+      "headline": "Chunk inefficiency as the reason for higher chunked-only TTFT does not explain why combined scheduling has lower TTFT than chunked-only",
+      "claim": "The paper attributes the higher TTFT of 'chunked-prefills-only' to prefill chunks being 'slightly inefficient'. The combined scheduler also chunks prefills, at the same token budget, yet its TTFT is lower (0.76 vs 1.04 s on openchat_sharegpt4; 3.90 vs 5.38 s on arxiv_summarization). Chunk inefficiency therefore cannot account for the whole gap. The paper does not explain what the remaining difference comes from or how the chunked-only arm schedules its iterations.",
+      "paper_fact": "chunked-prefills-only increases TTFT as prefill chunks are slightly inefficient whereas hybrid-batching-only increases TBT because long prefills can still create generation stalls.",
+      "premise": "If two configurations chunk prefills identically, a difference between them cannot be attributed to the existence of chunking. It must come from some other aspect of scheduling, such as whether chunks share iterations with decodes or run in iterations of their own.",
+      "inference": "The combined arm has the same chunk size and the same chunking overhead as chunked-only, so the TTFT gap (0.28 s and 1.48 s in Table 4) must come from another difference. One plausible reading, inferred and not stated in the paper, is that without hybrid batching the chunked-only arm runs prefill chunks and decodes in separate iterations. Each prompt's chunks then wait behind decode-only iterations and its total prefill duration stretches. This reading would also bear on whether the chunk-inefficiency explanation is the main effect.",
+      "toy_example": "Illustrative only, not a measurement: if a prompt needs 4 chunks and each chunk has to wait for 1 decode-only iteration before running, its prefill takes about 8 iteration slots instead of 4. The numbers are hypothetical.",
+      "conditional_consequence": "If the scheduling-interleaving reading is right, the cost of chunking depends strongly on whether chunks can be co-scheduled with decodes. The chunk-overhead measurement in Figure 14 would then understate the TTFT cost of chunking without hybrid batching.",
+      "critical_link": "The explanation given for chunked-only TTFT (chunk inefficiency) applies equally to the combined arm, so it cannot account for the gap between them.",
+      "necessary_conditions": [
+        "The combined and chunked-only arms use the same chunk size (the token budget is 1024 for Table 4).",
+        "The chunked-only arm is implemented as chunked prefills without mixing prefill and decode tokens in one batch.",
+        "The TTFT difference is not noise from 128 requests."
+      ],
+      "defeaters": [
+        "The chunked-only arm may use a different effective chunk size or an implementation detail the paper does not describe.",
+        "A 128-request run with P50 TTFT might include load-dependent queueing differences.",
+        "The paper's explanation may be meant only relative to unchunked prefills, not relative to the combined arm."
+      ],
+      "do_not_infer": [
+        "Do not infer the hypothesised queueing explanation is confirmed. No code or measurement here tests it.",
+        "Do not infer chunk overhead is negligible: Figure 14 reports it at up to about 25% at chunk size 512.",
+        "Do not infer the combined scheduler's TTFT is lower than unchunked prefill: hybrid-only is lower still."
+      ],
+      "disclosure": "inferred",
+      "category_code": "mechanism_origin_unclear",
+      "lens": "L4",
+      "quotes": [
+        {
+          "text": "chunked-prefills-only increases TTFT as prefill chunks are slightly inefficient whereas hybrid-batching-only increases TBT because long prefills can still create generation stalls.",
+          "source": "paper",
+          "locator": "Section 5.4.2"
+        },
+        {
+          "text": "chunked-prefills-only 1.04 0.17 5.38 0.20",
+          "source": "paper",
+          "locator": "Table 4, row 2"
+        },
+        {
+          "text": "Sarathi-Serve (combined) 0.76 0.14 3.90 0.17",
+          "source": "paper",
+          "locator": "Table 4, row 3"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "If two configurations chunk prefills identically, a difference between them cannot be attributed to the existence of chunking. It must come from some other aspect of scheduling, such as whether chunks share iterations with decodes or run in iterations of their own. The combined arm has the same chunk size and the same chunking overhead as chunked-only, so the TTFT gap (0.28 s and 1.48 s in Table 4) must come from another difference. One plausible reading, inferred and not stated in the paper, is that without hybrid batching the chunked-only arm runs prefill chunks and decodes in separate iterations. Each prompt's chunks then wait behind decode-only iterations and its total prefill duration stretches. This reading would also bear on whether the chunk-inefficiency explanation is the main effect."
+    },
+    {
+      "headline": "Equal-token chunks do not imply equal per-iteration compute or latency",
+      "claim": "Sarathi-Serve cuts each prompt into chunks of equal token count (budget τ) and describes them as 'equal compute-sized'. Attention in later chunks must read the KV-cache of all earlier chunks, so a later chunk of a long prompt costs more than an early chunk with the same token count. Iteration latency can therefore still drift upward within a long prompt, and P99 TBT can sit above a latency profiled at the same token budget.",
+      "paper_fact": "the attention operation for every chunk of a prompt needs to access the KV-cache of all prior chunks of the same prompt.",
+      "premise": "In causal attention, the work and memory traffic for a chunk grow with the number of prior tokens in the same sequence. Token count is a proxy for compute, not a measure of it.",
+      "inference": "Within one long prompt, chunk k attends to roughly (k-1)·τ prior tokens, so its attention cost rises with k even though the token count is fixed. A budget profiled on short or early chunks therefore understates the latency of later chunks. The paper says this effect is small, because linear layers dominate and attention stays compute-bound.",
+      "toy_example": "NOT A MEASUREMENT: with τ=512 and an 8192-token prompt there are 16 chunks. Chunk 16 attends to about 7.7K prior tokens, while chunk 1 attends to none. The attention portion of their iteration times differs even though the token counts match.",
+      "conditional_consequence": "If attention is a non-trivial share of iteration time at long context, per-iteration latency is not near-uniform across chunks. That undermines both the TBT bound derived from the profiled token budget and the pipeline-bubble reduction that relies on uniform micro-batches.",
+      "critical_link": "Whether the growing attention cost of later chunks is large enough, relative to the linear-layer cost, to move iteration latency visibly above the profiled budget.",
+      "necessary_conditions": [
+        "Prompts are long enough that many chunks accumulate large prior context.",
+        "Attention is a non-negligible fraction of iteration time, for example at very long context or with a slower attention kernel.",
+        "The token budget is profiled on a context length unrepresentative of the late chunks."
+      ],
+      "defeaters": [
+        "Linear operators contribute more than 80% of runtime even at high sequence lengths (paper, Section 3.1).",
+        "The paper reports that attention prefill is compute-bound even at small chunk sizes.",
+        "The paper hedges with 'in most cases' for uniform hybrid batches.",
+        "Budget profiling with Vidur may already include context effects."
+      ],
+      "do_not_infer": [
+        "Do not infer that Sarathi-Serve's measured P99 TBT results are wrong.",
+        "Do not infer that the paper measured per-chunk latency drift. This is an inferred consequence.",
+        "Do not infer that the effect matters at the 2K-8K prompt lengths evaluated."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1+L3 (token count as a proxy for compute; tokens versus seconds)",
+      "quotes": [
+        {
+          "text": "splits a prefill request\ninto near equal sized chunks",
+          "source": "paper abstract",
+          "locator": "page 1, Abstract"
+        },
+        {
+          "text": "the attention operation for every chunk of a prompt needs to access the KV-cache of all prior chunks of the same prompt.",
+          "source": "paper",
+          "locator": "Section 4.3, page 9"
+        },
+        {
+          "text": "However, we find that even at small chunk sizes attention prefill operation is compute bound operation.",
+          "source": "paper",
+          "locator": "Section 4.3, page 9"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "In causal attention, the work and memory traffic for a chunk grow with the number of prior tokens in the same sequence. Token count is a proxy for compute, not a measure of it. Within one long prompt, chunk k attends to roughly (k-1)·τ prior tokens, so its attention cost rises with k even though the token count is fixed. A budget profiled on short or early chunks therefore understates the latency of later chunks. The paper says this effect is small, because linear layers dominate and attention stays compute-bound."
+    },
+    {
+      "headline": "Decode-first packing in Algorithm 3 does not guarantee that any prefill is admitted",
+      "claim": "Algorithm 3 adds one token per running decode to nt without comparing it to the token budget. New requests are admitted only while nt < τ. If running decodes alone reach τ, the leftover chunk size is zero and no prefill proceeds. The paper does not state what happens in that case.",
+      "paper_fact": "Only after all the running requests have been accommodated, we admit new requests (lines 13-20).",
+      "premise": "In Algorithm 3 the decode loop (lines 6-8) increments nt unconditionally. The admission loop (line 14) requires nt < τ, and chunk size is computed from the leftover budget (τ minus nt). Strict decode priority with a hard token cap implies that a full decode set can leave zero budget.",
+      "inference": "If the number of running decodes reaches or exceeds the token budget, admission yields c = 0 and the loop breaks. Prefill, in-progress or new, then makes no progress until decodes finish. At high load this could become prefill starvation and unbounded TTFT.",
+      "toy_example": "Not a measurement: token budget τ = 64 and 80 running decodes. After the decode loop nt = 80 ≥ τ, so no chunk is scheduled until some decodes complete.",
+      "conditional_consequence": "When the running decode count approaches or exceeds the token budget, TTFT and queueing grow because prefill gets no budget. This reduces the capacity achievable at a given scheduling-delay cap.",
+      "critical_link": "Decodes are charged to the budget but never checked against it, and prefill gets only the remainder.",
+      "necessary_conditions": [
+        "Token budget ≤ number of concurrently running decodes",
+        "Sustained high load that keeps many decodes resident"
+      ],
+      "defeaters": [
+        "Evaluated settings use max batch size 128 with token budgets 512 to 2048, so decodes cannot exceed the budget there",
+        "The paper (Table 4) uses a budget of 1024 and a max batch of 128 in the ablation",
+        "A very small budget or a much larger max batch size is needed to reach the starvation regime"
+      ],
+      "do_not_infer": [
+        "Do not infer that starvation occurs in any reported experiment",
+        "Do not infer that the open-source code handles this case incorrectly, since only the algorithm text was reviewed",
+        "Do not infer a general flaw in chunked prefill"
+      ],
+      "disclosure": "inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L3+L7",
+      "quotes": [
+        {
+          "text": "In every scheduling iteration, we first pack all the running decodes in the next batch (lines 6-8 in Algorithm 3).",
+          "source": "paper",
+          "locator": "§4.2 Stall-free batching"
+        },
+        {
+          "text": "while can_allocate_request(Rnew) ∧nt < τ do",
+          "source": "paper",
+          "locator": "Algorithm 3, line 14"
+        },
+        {
+          "text": "For Sarathi-Serve, we consider token budget of 512 and 2048 with max batch size of 128.",
+          "source": "paper",
+          "locator": "Figure 12 caption"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "In Algorithm 3 the decode loop (lines 6-8) increments nt unconditionally. The admission loop (line 14) requires nt < τ, and chunk size is computed from the leftover budget (τ minus nt). Strict decode priority with a hard token cap implies that a full decode set can leave zero budget. If the number of running decodes reaches or exceeds the token budget, admission yields c = 0 and the loop breaks. Prefill, in-progress or new, then makes no progress until decodes finish. At high load this could become prefill starvation and unbounded TTFT."
+    },
+    {
+      "headline": "A one-time profiled SLO-feasible token budget does not guarantee P99 TBT stays within the SLO when serving conditions differ from the profile",
+      "claim": "The token budget is a static count chosen by one-time profiling. Latency at that count also depends on decode batch size and context lengths, which change at serving time. So a budget that was SLO-feasible when profiled may exceed the P99 TBT SLO if the decode population or contexts drift above the profiled assumptions.",
+      "paper_fact": "This can be handled with a one-time profiling of batches with different number of tokens and setting the token budget to maximum number of tokens that can be packed in a batch without violating TBT SLO.",
+      "premise": "Iteration latency is not a function of total token count alone. Decode attention cost grows with the accumulated KV-cache length and the number of decodes in the batch. A profile fixes one distribution of these quantities.",
+      "inference": "The profiled latency at N tokens is a proxy for serving-time P99 TBT only while the decode batch size and context lengths match the profile. The paper does not say what workload the profiling used, so the match cannot be checked from the text.",
+      "toy_example": "Illustrative only, not a measurement: suppose the profile used 32 decodes with 4k context and a 512-token batch took 90 ms against a 100 ms SLO. If serving load pushes it to 128 decodes with 8k context, the same 512-token batch could take 130 ms, which breaks the SLO even though the budget is unchanged.",
+      "conditional_consequence": "If decode batch size or context lengths at serving time exceed those assumed when profiling, then P99 TBT at the configured budget can exceed the SLO.",
+      "critical_link": "Whether the profiled batch composition (decode count and KV length) is representative of the tail batches seen in serving.",
+      "necessary_conditions": [
+        "Serving-time decode batch size or context lengths exceed those in the profiling run.",
+        "Per-iteration latency at fixed token count is sensitive to those factors at the deployment in question.",
+        "The SLO margin at profiling time is smaller than the added latency."
+      ],
+      "defeaters": [
+        "The profile was run at worst-case decode batch size and context length.",
+        "The SLO has enough slack to absorb the drift.",
+        "Attention cost is a small share of iteration time, as the paper says linear operators dominate (more than 80%)."
+      ],
+      "do_not_infer": [
+        "Do not infer that the paper's reported capacity results violate the SLO; they are reported as meeting the P99 TBT limits.",
+        "Do not infer that profiling is useless; the point concerns drift between profile and serving conditions.",
+        "Do not infer the size of the violation."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L1+L5+L7",
+      "quotes": [
+        {
+          "text": "This can be handled with a one-time profiling of batches with different number of tokens and setting the token budget to maximum number of tokens that can be packed in a batch without violating TBT SLO.",
+          "source": "paper",
+          "locator": "Sec 4.3, page 9"
+        },
+        {
+          "text": "bubbles like PB3 that occur due to difference in decode compute times between micro-batches since the attention cost depends on the accumulated context length (size of the KV-cache) and varies across requests",
+          "source": "paper",
+          "locator": "Sec 3.3, page 7"
+        },
+        {
+          "text": "The system performance can be further enhanced by dynamically varying the token budget based on workload characteristics.",
+          "source": "paper",
+          "locator": "Sec 5.1, page 10"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Iteration latency is not a function of total token count alone. Decode attention cost grows with the accumulated KV-cache length and the number of decodes in the batch. A profile fixes one distribution of these quantities. The profiled latency at N tokens is a proxy for serving-time P99 TBT only while the decode batch size and context lengths match the profile. The paper does not say what workload the profiling used, so the match cannot be checked from the text."
+    },
+    {
+      "headline": "A memory-bound decode slack measured on A100 does not imply a fixed 512-token budget is the right fill level on other GPUs or TP degrees",
+      "claim": "The knee where linear layers turn compute-bound depends on hardware and tensor-parallel degree. A single token budget (512 strict, 2048 relaxed) therefore does not fill the same fraction of the slack everywhere. The paper profiles the slack on A100, but evaluates LLaMA2-70B on A40.",
+      "paper_fact": "Theoretically, we expect the operators to become compute-bound at ∼200 tokens on A100 GPUs, however, in practice we observe that it happens at ∼500-600 tokens for higher tensor parallel dimensions due to fixed overheads.",
+      "premise": "The compute-bound knee in tokens is roughly the device FLOPS-to-bandwidth ratio. This ratio differs between GPU SKUs, and quantized weights change the bytes fetched per token.",
+      "inference": "A token budget tuned near the A100 knee may sit below the knee on a GPU with a higher ratio, leaving slack unused. On a GPU with a lower ratio it may sit above the knee, so added prefill tokens cost latency. The shared budget of 512 across models and GPUs is therefore not guaranteed to be balanced for A40 or for other TP degrees.",
+      "toy_example": "Illustration only, not a measurement: if one GPU's knee were 300 tokens and another's 900, a 512 budget would overshoot the first and leave about 40% of the second's slack unused.",
+      "conditional_consequence": "If the deployment GPU or TP degree differs from the profiled one, the 512-token budget changes both efficiency and P99 TBT unless it is re-profiled.",
+      "critical_link": "The Figure 5/9 knee profiles come from A100, while the strict budget of 512 is applied to the A40 LLaMA2-70B configuration.",
+      "necessary_conditions": [
+        "The target GPU has a different FLOPS/bandwidth ratio or TP degree than the profiled A100 setup",
+        "The budget is not re-profiled for the new setup"
+      ],
+      "defeaters": [
+        "Budget is re-profiled per deployment (the paper says it uses Vidur or one-time profiling)",
+        "Pipeline-bubble or SLO constraints, rather than the knee, dominate the budget choice"
+      ],
+      "do_not_infer": [
+        "That the reported A40 results are wrong",
+        "That 512 is a bad budget on A40",
+        "That the paper never profiles per deployment"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L3+L5",
+      "quotes": [
+        {
+          "text": "Therefore, selecting a suitable token budget is a complex decision which depends on the desired TBT SLO, parallelism configuration, and specific hardware properties.",
+          "source": "paper",
+          "locator": "§4.3 Determining Token Budget"
+        },
+        {
+          "text": "We use token budget of 2048 and 512 for all models under the relaxed and strict settings, respectively, except for the LLaMA2-70B relaxed configuration where we use token budget of 1536 to reduce the impact of pipeline bubbles.",
+          "source": "paper",
+          "locator": "§5.1 Capacity Evaluation"
+        },
+        {
+          "text": "For LLaMA2-70B, we use a server with eight pairwise connected NVIDIA 48GB A40 GPUs.",
+          "source": "paper",
+          "locator": "§5 Models and Environment"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "The compute-bound knee in tokens is roughly the device FLOPS-to-bandwidth ratio. This ratio differs between GPU SKUs, and quantized weights change the bytes fetched per token. A token budget tuned near the A100 knee may sit below the knee on a GPU with a higher ratio, leaving slack unused. On a GPU with a lower ratio it may sit above the knee, so added prefill tokens cost latency. The shared budget of 512 across models and GPUs is therefore not guaranteed to be balanced for A40 or for other TP degrees."
+    },
+    {
+      "headline": "Compute-bound attention at small chunk sizes on a GQA model does not imply that repeated KV-cache reads stay hidden for other attention layouts or longer prompts",
+      "claim": "The paper bounds chunking overhead at about 25% using one GQA model (Yi-34B) and prompts up to 8K. That bound does not carry over to MHA-style models or to prompts beyond the measured range. How well the repeated KV reads hide under compute depends on arithmetic intensity, which depends on the KV layout and the chunk size.",
+      "paper_fact": "However, we find that even at small chunk sizes attention prefill operation is compute bound operation.",
+      "premise": "General knowledge: GQA/MQA shrinks the KV-cache, so each chunk's attention reads fewer bytes per FLOP. With MHA the KV footprint per token is several times larger. The ratio of KV bytes to attention FLOPs for a chunk then depends on the KV layout and the chunk size, and it may not stay under the compute roofline.",
+      "inference": "The N-1, N-2, ... reload pattern grows quadratically in the number of chunks, but attention FLOPs for later chunks also grow with context. So prompt length alone does not decide whether the reads are hidden. The head-sharing ratio and the chunk size matter more, and the paper measures only one point on those axes. The 25% figure is therefore a measured value for Yi-34B, TP-2, 2K-8K prompts, not a general ceiling.",
+      "toy_example": "Illustrative arithmetic, not a measurement: an 8K prompt at chunk 512 has 16 chunks, giving 15+14+...+0 = 120 chunk-KV reloads. A 16K prompt has 32 chunks, giving 496 reloads. Whether the extra reloads show up in latency depends on whether each chunk's attention stays compute-bound, which the paper tests only for Yi-34B up to 8K.",
+      "conditional_consequence": "If a deployment uses an MHA model, a much smaller chunk size, or a hardware ratio with less compute per byte of bandwidth, the compute-bound property may fail. Chunking overhead could then exceed the reported ~25% at chunk 512.",
+      "critical_link": "Attention at each chunk stays compute-bound only if its arithmetic intensity stays above the device's FLOPs-to-bandwidth ratio. The paper checks this only for Yi-34B (GQA) on A100s.",
+      "necessary_conditions": [
+        "The model uses a small-KV layout (GQA/MQA/sliding window) like those in Table 1.",
+        "The chunk is large enough that per-chunk attention intensity exceeds the device ratio.",
+        "The hardware FLOPs-to-bandwidth ratio resembles A100."
+      ],
+      "defeaters": [
+        "Fused chunked-prefill kernels (e.g., FlashAttention/FlashInfer with paged chunks) may keep reads efficient even for larger KV.",
+        "Per-chunk intensity may not fall with prompt length, so overhead might stay flat beyond 8K.",
+        "Overhead might be dominated by fixed kernel-launch costs rather than KV reads."
+      ],
+      "do_not_infer": [
+        "Do not infer that overhead exceeds 25% at 16K or for MHA models. The paper does not measure this.",
+        "Do not infer that the paper's compute-bound claim is wrong for Yi-34B.",
+        "Do not infer that quadratic KV reloads translate directly into quadratic slowdown."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L5+L7",
+      "quotes": [
+        {
+          "text": "the first chunk’s KV-cache is loaded N −1 times, the second chunk’s KV-cache is loaded N −2 times, and so on.",
+          "source": "paper",
+          "locator": "§4.3 Determining Token Budget"
+        },
+        {
+          "text": "even with the smallest chunk size of 512, we observe a moderate overhead of at most ∼25%.",
+          "source": "paper",
+          "locator": "§5.4.1"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "General knowledge: GQA/MQA shrinks the KV-cache, so each chunk's attention reads fewer bytes per FLOP. With MHA the KV footprint per token is several times larger. The ratio of KV bytes to attention FLOPs for a chunk then depends on the KV layout and the chunk size, and it may not stay under the compute roofline. The N-1, N-2, ... reload pattern grows quadratically in the number of chunks, but attention FLOPs for later chunks also grow with context. So prompt length alone does not decide whether the reads are hidden. The head-sharing ratio and the chunk size matter more, and the paper measures only one point on those axes. The 25% figure is therefore a measured value for Yi-34B, TP-2, 2K-8K prompts, not a general ceiling."
+    },
+    {
+      "headline": "Tile-aligned budgets conflict with the unaligned batches that arise from partial fills and prompt remainders",
+      "claim": "The paper picks round budgets such as 512, 1536 and 2048 and says each batch is built to reach the pre-configured size. A batch can only reach the budget when enough prefill or decode work is queued, and each prompt ends in a remainder chunk. In under-loaded iterations and at the tail of each prompt, the batch total is not tile-aligned. The alignment benefit therefore depends on load, and the paper does not report how often batches are full.",
+      "paper_fact": "This involves constructing a batch by coalescing all the on-going decodes with one (or more) prefill chunks from new requests such that each batch reaches the pre-configured chunk size.",
+      "premise": "A prompt of length L split into chunks of at most c tokens leaves a final remainder of L mod c tokens unless L is a multiple of c. An iteration with too little pending work cannot fill the budget. Neither case is controlled by the choice of budget.",
+      "inference": "Alignment of the total batch tokens is likely only in the full-budget iterations that occur under high load. At low load, or with the last chunk of a prompt, the M dimension is arbitrary and may incur tile quantization regardless of how the budget was chosen. The paper does not quantify the fraction of such iterations. At high load, where capacity is measured, most iterations may be aligned.",
+      "toy_example": "Illustration only, not a measurement. With a budget of 512 and a 1730-token prompt (the median in openchat_sharegpt4), the chunks are 512, 512, 512 and 194. The last chunk is not aligned and the batch may be short of 512 if no other work is queued.",
+      "conditional_consequence": "Under high load, where capacity is measured, most iterations hit the budget and alignment is preserved. Under light load, or for latency measured at the tail of a request, remainder and partial batches lose the alignment benefit, so the gain from aligned budgets would be smaller there.",
+      "critical_link": "The fraction of iterations whose total tokens equal the aligned budget, which the paper does not report.",
+      "necessary_conditions": [
+        "Prompt lengths are not multiples of the budget.",
+        "Load is low enough that some iterations cannot fill the budget."
+      ],
+      "defeaters": [
+        "Under high load a full budget is reached in nearly every iteration.",
+        "The remainder chunk may be merged with other requests' prefills or decodes to restore the aligned total.",
+        "Kernel libraries may pad internally."
+      ],
+      "do_not_infer": [
+        "Do not infer that Sarathi-Serve's capacity results are invalid.",
+        "Do not infer that remainder chunks incur the 32% penalty.",
+        "Do not infer anything about the fraction of unaligned iterations, since the paper does not report it."
+      ],
+      "disclosure": "inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L2 and L7 (remainder chunks and load-dependent fill)",
+      "quotes": [
+        {
+          "text": "This involves constructing a batch by coalescing all the on-going decodes with one (or more) prefill chunks from new requests such that each batch reaches the pre-configured chunk size.",
+          "source": "paper, Section 1",
+          "locator": "page 2"
+        },
+        {
+          "text": "We use token budget of 2048 and 512 for all models under the relaxed and strict settings, respectively, except for the LLaMA2-70B relaxed configuration where we use token budget of 1536 to reduce the impact of pipeline bubbles.",
+          "source": "paper, Section 5.1",
+          "locator": "page 11"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A prompt of length L split into chunks of at most c tokens leaves a final remainder of L mod c tokens unless L is a multiple of c. An iteration with too little pending work cannot fill the budget. Neither case is controlled by the choice of budget. Alignment of the total batch tokens is likely only in the full-budget iterations that occur under high load. At low load, or with the last chunk of a prompt, the M dimension is arbitrary and may incur tile quantization regardless of how the budget was chosen. The paper does not quantify the fraction of such iterations. At high load, where capacity is measured, most iterations may be aligned."
+    },
+    {
+      "headline": "Equal token count per micro-batch does not imply equal micro-batch execution time",
+      "claim": "Sarathi-Serve equalizes the token count of hybrid batches. The paper itself says attention cost depends on each request's accumulated KV length, so micro-batches with the same tokens can still differ in runtime. PB3-type bubbles can therefore survive the uniform-token-budget mechanism.",
+      "paper_fact": "bubbles like PB3 that occur due to difference in decode compute times between micro-batches since the attention cost depends on the accumulated context length (size of the KV-cache) and varies across requests.",
+      "premise": "Linear-layer cost scales with the number of tokens in a batch. Attention cost scales with the sum over requests of (query tokens x context length). A token budget fixes the first quantity but not the second.",
+      "inference": "Two micro-batches that both fill the token budget can have different decode context lengths and different attention time. The stage-to-stage mismatch then persists. The 'near-uniform' claim holds only to the extent that linear layers dominate runtime.",
+      "toy_example": "Illustration only, not a measurement: two 512-token micro-batches each hold 32 decodes plus a prefill chunk. Batch A's decodes sit at about 1k context and batch B's at about 12k. The linear-layer time is the same, but B has several times the attention time, so the downstream stage waits.",
+      "conditional_consequence": "If a workload has long and heterogeneous contexts (such as arxiv_summarization, median prompt 7059 tokens) and many decodes per batch, the attention-driven variance grows. Residual bubbles could then cap the throughput gain from uniform token budgets.",
+      "critical_link": "The link from 'uniform token count' to 'uniform stage time' holds only if attention time is a small, roughly constant share of iteration time.",
+      "necessary_conditions": [
+        "Attention is a non-negligible share of iteration time for the model, hardware and context length in question.",
+        "Decode context lengths differ across micro-batches in flight.",
+        "Enough decodes are in each micro-batch for attention differences to add up."
+      ],
+      "defeaters": [
+        "Linear layers dominate runtime (the paper reports more than 80% even at high sequence lengths for Mistral-7B on one A100), so PB3 may be small.",
+        "Falcon-180B and LLaMA2-70B use GQA, which shrinks KV reads and attention cost.",
+        "Contexts across micro-batches average out when many requests are in flight."
+      ],
+      "do_not_infer": [
+        "Do not infer that the paper measured PB3 or its size.",
+        "Do not infer that uniform batches give no bubble reduction.",
+        "Do not infer that PB1 and PB2 bubbles are not reduced."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1+L7",
+      "quotes": [
+        {
+          "text": "bubbles like PB3 that occur due to difference in decode compute times between micro-batches since the attention cost depends on the accumulated context length (size of the KV-cache) and varies across requests.",
+          "source": "paper",
+          "locator": "Section 3.3, page 7"
+        },
+        {
+          "text": "stall-free batching combined with chunked-prefills also ensures uniform compute hybrid batches in most cases",
+          "source": "paper",
+          "locator": "Section 4.2, page 9"
+        },
+        {
+          "text": "linear operators still contribute more than 80% to the total time even at high sequence lengths",
+          "source": "paper",
+          "locator": "Section 3.1, page 5"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Linear-layer cost scales with the number of tokens in a batch. Attention cost scales with the sum over requests of (query tokens x context length). A token budget fixes the first quantity but not the second. Two micro-batches that both fill the token budget can have different decode context lengths and different attention time. The stage-to-stage mismatch then persists. The 'near-uniform' claim holds only to the extent that linear layers dominate runtime."
+    },
+    {
+      "headline": "A large token budget for efficient prefills conflicts with uniform micro-batches under pipeline parallelism",
+      "claim": "Token budget sets both chunk overhead and inter-batch runtime variance. The efficient large budget (2048) raises variation across micro-batches, and a small budget lowers prefill efficiency. The uniform-compute benefit therefore depends on a tuned, deployment-specific budget and is not a free property of chunking.",
+      "paper_fact": "Larger chunks lead to higher inter-batch runtime variations that result in pipeline bubbles which results in lower overall system throughput.",
+      "premise": "A larger chunk takes longer per iteration, so batches with and without a prefill chunk differ more in absolute time. Smaller chunks add repeated KV reads and lower arithmetic intensity.",
+      "inference": "With PP, the best budget sits between the chunk-overhead optimum and the bubble optimum, and moves with SLO, hardware and parallelism layout. The 1536 choice for LLaMA2-70B relaxed shows the generic 2048 relaxed budget was not best under PP. The reported PP gains may therefore reflect a tuned point and not a default setting.",
+      "toy_example": "Illustration only, not a measurement: with 50 ms for a decode-only iteration, a 2048-token chunk adds far more time than a 512-token chunk. The gap between a hybrid and a decode-only micro-batch is then larger at 2048.",
+      "conditional_consequence": "If a deployment uses the default relaxed budget of 2048 on a PP layout, bubbles may reduce throughput. Reaching the reported gains may require per-deployment profiling, such as the Vidur search the paper describes.",
+      "critical_link": "The bubble benefit depends on the budget being small enough for iteration times to be near-uniform, yet large enough to keep chunk overhead low.",
+      "necessary_conditions": [
+        "PP deployment with several micro-batches in flight.",
+        "A budget large enough that chunk time dominates the decode-only iteration time.",
+        "Mixed prefill and decode traffic that keeps filling the budget."
+      ],
+      "defeaters": [
+        "With a small enough budget, chunk overhead is moderate (at most about 25% at 512 for Yi-34B), so a small budget may cost little.",
+        "Chunk-size tuning by profiling (the paper uses Vidur) can find the sweet spot per deployment.",
+        "In decode-heavy low-load regimes, budgets are rarely filled and the issue does not arise."
+      ],
+      "do_not_infer": [
+        "Do not infer that 1536 is optimal; the paper gives no sweep.",
+        "Do not infer that the budget effect is quantified for Falcon-180B.",
+        "Do not infer that dynamic budgets would fix this; the authors leave that as future work."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L4+L6",
+      "quotes": [
+        {
+          "text": "Larger chunks lead to higher inter-batch runtime variations that result in pipeline bubbles which results in lower overall system throughput.",
+          "source": "paper",
+          "locator": "Section 4.3, page 9"
+        },
+        {
+          "text": "except for the LLaMA2-70B relaxed configuration where we use token budget of 1536 to reduce the impact of pipeline bubbles",
+          "source": "paper",
+          "locator": "Section 5.1, page 10"
+        },
+        {
+          "text": "even with the smallest chunk size of 512, we observe a moderate overhead of at most ∼25%.",
+          "source": "paper",
+          "locator": "Section 5.4.1, page 13"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A larger chunk takes longer per iteration, so batches with and without a prefill chunk differ more in absolute time. Smaller chunks add repeated KV reads and lower arithmetic intensity. With PP, the best budget sits between the chunk-overhead optimum and the bubble optimum, and moves with SLO, hardware and parallelism layout. The 1536 choice for LLaMA2-70B relaxed shows the generic 2048 relaxed budget was not best under PP. The reported PP gains may therefore reflect a tuned point and not a default setting."
+    },
+    {
+      "headline": "PP's advantage over TP across commodity-network nodes conflicts with availability of a high-bandwidth cross-node fabric",
+      "claim": "The Falcon-180B result that TP4-PP2 beats cross-node TP-8 is a statement about 100 Gbps Ethernet between nodes. On a fabric where cross-node all-reduce is cheap, the reason to use PP weakens. Sarathi-Serve's reported gain over vLLM's TP-only and hybrid configurations then shrinks to what stall-free batching alone provides.",
+      "paper_fact": "Thus, PP is more efficient than TP when high-bandwidth interconnects are unavailable e.g., in cross-node deployments.",
+      "premise": "All-reduce volume per layer is unchanged by node placement. Its cost scales inversely with link bandwidth, so the TP communication penalty shrinks as inter-node bandwidth approaches intra-node bandwidth.",
+      "inference": "The ~2x median decode TBT gap and the 4.3x capacity gain over vLLM TP-only were measured on one interconnect regime (NVLink inside nodes, 100 Gbps Ethernet between them). They are not an interconnect-independent property of TP versus PP. With a hyper-cluster fabric, TP-8 could become competitive, and the capacity ratios against TP-only would not carry over.",
+      "toy_example": "Illustrative only, not a measurement: if cross-node all-reduce latency fell to NVLink-like levels, the TP-8 vs TP4-PP2 median TBT ratio could approach 1x. PP would then add only bubble risk and no communication saving.",
+      "conditional_consequence": "If a high-bandwidth fabric is available, TP-8 removes the PP rationale. The PP-specific capacity gains would not apply, and the benefit attributable to Sarathi-Serve would be mainly the stall-free part.",
+      "critical_link": "Whether the cross-node all-reduce cost on the target fabric is large enough, relative to per-layer compute, to dominate TP-8 decode latency.",
+      "necessary_conditions": [
+        "Inter-node bandwidth and latency are close to intra-node NVLink-class values.",
+        "Batch sizes and model size stay in a regime where all-reduce is the dominant TP overhead."
+      ],
+      "defeaters": [
+        "The fabric is only moderately faster than Ethernet, so the TP penalty remains large.",
+        "Memory capacity or batch-size constraints still favor PP even with a fast fabric.",
+        "TP-8 across more than 8 GPUs has other scaling costs, such as head-count divisibility."
+      ],
+      "do_not_infer": [
+        "Do not infer that the paper claims TP-8 is better on fast fabrics. The authors only say TP is preferred within a single node and PP is more efficient when high-bandwidth interconnects are unavailable.",
+        "Do not infer that stall-free batching or chunked prefill would give no benefit on a fast fabric.",
+        "Do not infer a numerical size for the reduced gain. The paper has no experiment on a fast cross-node fabric."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L5+L4",
+      "quotes": [
+        {
+          "text": "Thus, PP is more efficient than TP when high-bandwidth interconnects are unavailable e.g., in cross-node deployments.",
+          "source": "paper",
+          "locator": "§2.3 Multi-GPU LLM Inference, page 4"
+        },
+        {
+          "text": "TP is preferred only within a single node where GPUs are connected via high bandwidth interconnects like NVLink.",
+          "source": "paper",
+          "locator": "§2.3, page 4"
+        },
+        {
+          "text": "Sarathi-Serve increases Falcon-180B’s serving capacity by 4.3× and 3.6× over vLLM’s TP-only and hybrid-parallel configurations under strict SLOs.",
+          "source": "paper",
+          "locator": "Figure 13 caption, page 12"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "All-reduce volume per layer is unchanged by node placement. Its cost scales inversely with link bandwidth, so the TP communication penalty shrinks as inter-node bandwidth approaches intra-node bandwidth. The ~2x median decode TBT gap and the 4.3x capacity gain over vLLM TP-only were measured on one interconnect regime (NVLink inside nodes, 100 Gbps Ethernet between them). They are not an interconnect-independent property of TP versus PP. With a hyper-cluster fabric, TP-8 could become competitive, and the capacity ratios against TP-only would not carry over."
+    },
+    {
+      "headline": "Absence of prefill-induced generation stalls does not guarantee stable P99 TBT",
+      "claim": "Stall-free batching removes stalls caused by a co-running prefill chunk. It does not by itself bound per-iteration latency. That bound depends on the token budget matching the SLO on the actual hardware, context lengths and decode batch size.",
+      "paper_fact": "By restricting the computational load in every iteration, stall-free batching ensures that decodes never experience a generation stall due to a co-running prefill chunk.",
+      "premise": "Iteration time on a GPU depends on more than the token count. Attention cost grows with the accumulated KV-cache length, and a single decode step reads every running request's KV cache. A fixed token count is therefore only a proxy for iteration time.",
+      "inference": "The 'never stall' guarantee covers one cause of stalls, which is prefill interference. A batch with many long-context decodes plus a full-budget chunk can still run slower than the profiled point and push P99 TBT over the SLO. The scheduler's stopping rule counts tokens and does not measure iteration time.",
+      "toy_example": "Not a measurement: a budget of 512 is profiled at moderate context lengths. If the running decodes later have much longer contexts, the same 512-token batch takes longer. No generation stall occurs, but TBT is higher than the profile predicted.",
+      "conditional_consequence": "If deployment context lengths or decode batch sizes differ materially from the profiled configuration, P99 TBT can exceed the SLO even though the schedule is stall-free.",
+      "critical_link": "The token budget is a proxy for iteration time, and the proxy holds only for the profiled workload and hardware regime.",
+      "necessary_conditions": [
+        "The runtime mix of decode batch size and context length differs from the profile used to set the token budget",
+        "The token budget is not re-tuned for that mix"
+      ],
+      "defeaters": [
+        "The paper sets the budget by one-time profiling against the TBT SLO, and the authors tune it per SLO (512 strict, 2048 relaxed)",
+        "Figure 9 shows the relative impact of chunks falls at higher decode batch size and context length",
+        "Evaluated P99 TBT stayed within SLO in the reported capacity runs"
+      ],
+      "do_not_infer": [
+        "Do not infer that Sarathi-Serve violates its SLOs in the reported experiments",
+        "Do not infer that the authors claim a hard TBT bound",
+        "Do not infer that the token-budget proxy fails on the evaluated workloads"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1+L2",
+      "quotes": [
+        {
+          "text": "By restricting the computational load in every iteration, stall-free batching ensures that decodes never experience a generation stall due to a co-running prefill chunk.",
+          "source": "paper",
+          "locator": "§4.2 Stall-free batching"
+        },
+        {
+          "text": "This can be handled with a one-time profiling of batches with different number of tokens and setting the token budget to maximum number of tokens that can be packed in a batch without violating TBT SLO.",
+          "source": "paper",
+          "locator": "§4.3 Determining Token Budget"
+        },
+        {
+          "text": "Further, the relative impact of Sarathi-Serve on latency reduces with higher decode batch size and context lengths.",
+          "source": "paper",
+          "locator": "Figure 9 caption"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 2,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Iteration time on a GPU depends on more than the token count. Attention cost grows with the accumulated KV-cache length, and a single decode step reads every running request's KV cache. A fixed token count is therefore only a proxy for iteration time. The 'never stall' guarantee covers one cause of stalls, which is prefill interference. A batch with many long-context decodes plus a full-budget chunk can still run slower than the profiled point and push P99 TBT over the SLO. The scheduler's stopping rule counts tokens and does not measure iteration time."
+    }
+  ],
+  "dropped_for_unverified_quotes": 0,
+  "chunk_count": 10,
+  "chunk_failures": 0,
+  "chunk_timings": [
+    {
+      "seconds": 39.16461162013002,
+      "attempts": 1
+    },
+    {
+      "seconds": 39.231801385991275,
+      "attempts": 1
+    },
+    {
+      "seconds": 42.27066242485307,
+      "attempts": 1
+    },
+    {
+      "seconds": 34.941910799825564,
+      "attempts": 1
+    },
+    {
+      "seconds": 49.99820239492692,
+      "attempts": 1
+    },
+    {
+      "seconds": 37.25832735002041,
+      "attempts": 1
+    },
+    {
+      "seconds": 44.443013224052265,
+      "attempts": 1
+    },
+    {
+      "seconds": 46.40540352696553,
+      "attempts": 1
+    },
+    {
+      "seconds": 43.14799653994851,
+      "attempts": 1
+    },
+    {
+      "seconds": 45.676284164888784,
+      "attempts": 1
+    }
+  ],
+  "inventory_seconds": 129.69290260295384,
+  "chunks_seconds": 164.22800595196895,
+  "merged_candidates": 0,
+  "unverified_kept": 30
+}

@@ -1,0 +1,1308 @@
+{
+  "candidates": [
+    {
+      "headline": "Auto-regressive decode regularity does not guarantee one-page-group-per-iteration overlap under multi-token speculation or chunked prefill.",
+      "claim": "vAttention's one-page-group-per-iteration overlap does not guarantee hidden mapping latency if decode regularity changes to multi-token speculation or chunked prefill.",
+      "paper_fact": "For a request in the decode phase, the number of new page-groups required is at most one per virtual tensor. This is because each iteration produces only one output token for a request.",
+      "premise": "Speculative decoding can produce multiple tokens per iteration, and chunked prefill maps many prompt tokens at once.",
+      "inference": "The overlap sizing and deferred reclamation tuned for one token per decode iteration may not cover the larger per-iteration mapping demand.",
+      "conditional_consequence": "If speculative decoding or larger chunked prefill is used, VMM mapping latency may appear in the critical path unless page-group allocation is resized or prefetched.",
+      "critical_link": "The critical link is per-iteration demand predictability and the one-token growth assumption; overlap is sized to at most one new page-group per virtual tensor per decode iteration.",
+      "necessary_conditions": [
+        "Decode produces one output token per request per iteration",
+        "Prefill demand is handled separately from decode overlap",
+        "Page-group size matches per-token footprint",
+        "Background thread has enough iteration time to map pages"
+      ],
+      "defeaters": [
+        "Speculative decoding is disabled",
+        "Chunked prefill is small enough for eager allocation",
+        "Mapping latency is hidden by other means",
+        "Page-group size is resized for multi-token demand"
+      ],
+      "do_not_infer": [
+        "Do not infer vAttention cannot support speculative decoding",
+        "Do not infer the paper evaluated speculative decoding",
+        "Do not infer the one-page-group rule holds for multi-token iterations"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L5",
+      "quotes": [
+        {
+          "quote": "For a request in the decode phase, the number of new page-groups required is at most one per virtual tensor. This is because each iteration produces only one output token for a request.",
+          "source": "paper",
+          "locator": "p. 8, §5.3.3"
+        },
+        {
+          "quote": "The prefill phase processes the input tokens of a given prompt in parallel. Therefore, the amount of physical memory needed to be mapped depends on the number of prompt tokens being scheduled.",
+          "source": "paper",
+          "locator": "p. 8, §5.3.3"
+        },
+        {
+          "quote": "KV cache memory requirement is predictable on a per-iteration basis.",
+          "source": "paper",
+          "locator": "p. 5, §4"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p. 8, §5.3.3",
+          "support_description": "For a request in the decode phase, the number of new page-groups required is at most one per virtual tensor. This is because each iteration produces only one output token for a request."
+        },
+        {
+          "source_id": "paper",
+          "location": "p. 8, §5.3.3",
+          "support_description": "The prefill phase processes the input tokens of a given prompt in parallel. Therefore, the amount of physical memory needed to be mapped depends on the number of prompt tokens being scheduled."
+        },
+        {
+          "source_id": "paper",
+          "location": "p. 5, §4",
+          "support_description": "KV cache memory requirement is predictable on a per-iteration basis."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Speculative decoding can produce multiple tokens per iteration, and chunked prefill maps many prompt tokens at once. The overlap sizing and deferred reclamation tuned for one token per decode iteration may not cover the larger per-iteration mapping demand."
+    },
+    {
+      "headline": "Deferred reclamation does not imply or guarantee net throughput gain.",
+      "claim": "Reusing a completed request's page-groups can avoid prefill allocation latency, but retaining those physical pages can reduce the memory available for active requests, so deferred reclamation does not by itself guarantee higher end-to-end throughput.",
+      "paper_fact": "vAttention simply defers the reclamation of R1’s page-groups (Figure 5(d)) and assigns R1’s reqId to R2.",
+      "premise": "GPU physical memory is finite, and KV-cache page-groups retained for future reuse are not available to increase the current batch size or to admit other requests.",
+      "inference": "If retained pages reduce the maximum batch size or force preemption, the throughput lost from lower concurrency can exceed the prefill-latency savings from avoiding page mapping.",
+      "toy_example": "Not a measurement: if retaining pages for reuse prevents one additional request from fitting in the active batch, the saved mapping time may be smaller than the lost decode throughput from that request.",
+      "conditional_consequence": "Under high memory pressure or high request churn with large active batches, deferred reclamation can lower throughput even though it reduces allocation calls in prefill.",
+      "critical_link": "The retained page-groups must materially reduce free physical memory and batch capacity, and the saved allocation latency must be smaller than the throughput cost of reduced concurrency.",
+      "necessary_conditions": [
+        "physical memory is the limiting resource for batch size",
+        "retained pages are not quickly reused by a new request",
+        "allocation latency is not the dominant cost",
+        "the serving policy does not otherwise compensate with admission control or preemption"
+      ],
+      "defeaters": [
+        "enough memory headroom exists so retained pages do not reduce batch size",
+        "a new request reuses the retained pages immediately",
+        "prefill allocation latency dominates throughput",
+        "the reclamation threshold frees pages before memory pressure affects batch capacity"
+      ],
+      "do_not_infer": [
+        "Do not infer that the paper measured a throughput regression from deferred reclamation.",
+        "Do not infer that deferred reclamation is always harmful.",
+        "Do not infer that the 10% threshold is optimal or validated for all workloads.",
+        "Do not attribute this inferred trade-off to the authors as a reported result."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L6",
+      "quotes": [
+        {
+          "quote": "vAttention simply defers the reclamation of R1’s page-groups (Figure 5(d)) and assigns R1’s reqId to R2.",
+          "source": "paper",
+          "locator": "§6.1.2"
+        },
+        {
+          "quote": "we trigger memory reclamation only when the number of page-groups cached in vAttention falls below a certain threshold (e.g., less than 10% of GPU memory).",
+          "source": "paper",
+          "locator": "§6.1.2"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§6.1.2",
+          "support_description": "vAttention simply defers the reclamation of R1’s page-groups (Figure 5(d)) and assigns R1’s reqId to R2."
+        },
+        {
+          "source_id": "paper",
+          "location": "§6.1.2",
+          "support_description": "we trigger memory reclamation only when the number of page-groups cached in vAttention falls below a certain threshold (e.g., less than 10% of GPU memory)."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "GPU physical memory is finite, and KV-cache page-groups retained for future reuse are not available to increase the current batch size or to admit other requests. If retained pages reduce the maximum batch size or force preemption, the throughput lost from lower concurrency can exceed the prefill-latency savings from avoiding page mapping."
+    },
+    {
+      "headline": "Dense-attention evidence does not imply or guarantee no TLB thrashing for irregular or sparse attention",
+      "claim": "The paper's finding that 64KB pages do not degrade evaluated attention kernels and show no evidence of TLB thrashing is limited to regular dense attention and hand-tuned kernels; it does not guarantee the same for irregular or sparse attention.",
+      "paper_fact": "We attribute this to the regular computation pattern of the attention operator as well as the hand-tuned implementations that explicitly try to avoid irregular memory accesses.",
+      "premise": "TLB performance depends on access locality and working-set size; smaller pages generally require more translations and can thrash when accesses are irregular or sparse.",
+      "inference": "If attention access becomes irregular or sparse, the 64KB page mechanism may incur TLB misses that were not observed in the paper's dense-attention experiments.",
+      "toy_example": "Toy example, not a measurement: a sparse kernel touching one token per 64KB page could require many TLB entries, but this is illustrative only.",
+      "conditional_consequence": "If deployed with sparse or irregular attention kernels, the small-page benefit may be offset by TLB overhead, so page size should be re-evaluated.",
+      "critical_link": "The no-thrashing result is tied to the regular computation pattern and hand-tuned kernels that avoid irregular memory accesses.",
+      "necessary_conditions": [
+        "dense or regular attention access pattern",
+        "hand-tuned kernels avoiding irregular memory accesses",
+        "working set and TLB coverage sufficient for small pages",
+        "evaluated GPU and driver environment"
+      ],
+      "defeaters": [
+        "measurement showing no TLB thrashing for sparse or irregular attention",
+        "TLB capacity or page-walk latency hiding sufficient to absorb extra translations",
+        "sparse pattern still has high locality"
+      ],
+      "do_not_infer": [
+        "do not infer small pages are universally TLB-safe",
+        "do not infer the paper evaluated sparse or irregular attention",
+        "do not infer TLB thrashing cannot occur"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L5",
+      "quotes": [
+        {
+          "quote": "we do not find any evidence of TLB thrashing.",
+          "source": "paper",
+          "locator": "p. 2"
+        },
+        {
+          "quote": "We attribute this to the regular computation pattern of the attention operator as well as the hand-tuned implementations that explicitly try to avoid irregular memory accesses.",
+          "source": "paper",
+          "locator": "p. 13"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "author_boundaries": [
+        "Authors report no evidence of TLB thrashing for evaluated attention kernels; they do not claim universal absence of TLB thrashing."
+      ],
+      "inferred_consequences": [
+        "Sparse or irregular attention may require re-evaluating page size and TLB behavior."
+      ],
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p. 2",
+          "support_description": "we do not find any evidence of TLB thrashing."
+        },
+        {
+          "source_id": "paper",
+          "location": "p. 13",
+          "support_description": "We attribute this to the regular computation pattern of the attention operator as well as the hand-tuned implementations that explicitly try to avoid irregular memory accesses."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "TLB performance depends on access locality and working-set size; smaller pages generally require more translations and can thrash when accesses are irregular or sparse. If attention access becomes irregular or sparse, the 64KB page mechanism may incur TLB misses that were not observed in the paper's dense-attention experiments."
+    },
+    {
+      "headline": "cache_batch_idx mapping does not imply or guarantee compatibility with paged or strided KV layouts",
+      "claim": "cache_batch_idx mapping does not imply or guarantee compatibility with paged or strided KV layouts; vAttention's unmodified-kernel path depends on virtual contiguity or kernel stride support.",
+      "paper_fact": "Conventional implementations of the attention operator assume that the two input tensors K and V (Equation 2) are stored in contiguous memory.",
+      "premise": "cache_batch_idx reorders batch indices; it does not translate block-table addresses or make non-contiguous KV blocks contiguous.",
+      "inference": "The mechanism is limited to kernels that accept contiguous KV or supported strides; it does not remove the need for paged kernels when the KV layout is paged.",
+      "conditional_consequence": "If a kernel requires a block table or lacks stride support for non-contiguous KV, then vAttention cannot deploy it unmodified under its contiguous-virtual-memory design.",
+      "critical_link": "vAttention preserves virtual contiguity; cache_batch_idx only handles batch-dimension mapping, not KV address translation.",
+      "necessary_conditions": [
+        "KV cache is virtually contiguous for each request's sub-tensor.",
+        "Kernel accepts cache_batch_idx for Q/KV batch-size mismatch.",
+        "If tensor slicing is used, kernel supports strided memory addressing."
+      ],
+      "defeaters": [
+        "Kernel natively supports paged KV and block tables.",
+        "Kernel supports arbitrary strides and the framework supplies correct strides.",
+        "The layout remains contiguous and no mid-batch holes occur."
+      ],
+      "do_not_infer": [
+        "Do not infer that cache_batch_idx makes a paged kernel work with vAttention.",
+        "Do not infer that vAttention supports all non-contiguous layouts out-of-the-box.",
+        "Do not infer that the authors claim tensor slicing is universally compatible; they note earlier FlashInfer lacked stride support."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L5: Regularity is contiguous KV; paged or strided layouts change compatibility.",
+      "quotes": [
+        {
+          "quote": "Conventional implementations of the attention operator assume that the two input tensors K and V (Equation 2) are stored in contiguous memory.",
+          "source": "paper",
+          "locator": "p. 3, §3.1"
+        },
+        {
+          "quote": "Computing attention over such a tensor slice is possible only if the the attention kernel supports memory addressing with strides. While many kernels (e.g., FlashAttention-2) support strides out-of-the-box, the earlier versions of FlashInfer lacked such support.",
+          "source": "paper",
+          "locator": "p. 14, §8.2"
+        },
+        {
+          "quote": "FlashAttention provides rich API support to address this issue; its argument cache_batch_idx allows Q and KV cache to have different batch sizes and also be arranged in arbitrary order",
+          "source": "paper",
+          "locator": "p. 8, §5.3"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p. 3, §3.1",
+          "support_description": "Conventional implementations of the attention operator assume that the two input tensors K and V (Equation 2) are stored in contiguous memory."
+        },
+        {
+          "source_id": "paper",
+          "location": "p. 14, §8.2",
+          "support_description": "Computing attention over such a tensor slice is possible only if the the attention kernel supports memory addressing with strides. While many kernels (e.g., FlashAttention-2) support strides out-of-the-box, the earlier versions of FlashInfer lacked such support."
+        },
+        {
+          "source_id": "paper",
+          "location": "p. 8, §5.3",
+          "support_description": "FlashAttention provides rich API support to address this issue; its argument cache_batch_idx allows Q and KV cache to have different batch sizes and also be arranged in arbitrary order"
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "cache_batch_idx reorders batch indices; it does not translate block-table addresses or make non-contiguous KV blocks contiguous. The mechanism is limited to kernels that accept contiguous KV or supported strides; it does not remove the need for paged kernels when the KV layout is paged."
+    },
+    {
+      "headline": "Preallocating physical pages does not guarantee forward progress under memory pressure",
+      "claim": "vAttention's preallocated page pool plus failure/preemption policy can make some request progress, but it does not guarantee high aggregate goodput or bounded wasted work when memory pressure triggers preemption.",
+      "paper_fact": "If vAttention cannot satisfy the memory demand, it returns with a failure in response to which a serving framework can preempt one or more requests to allow forward progress",
+      "premise": "Preemption is a recovery action: it frees memory by dropping or delaying a request, and the dropped request's KV cache and generated tokens are typically lost or must be recomputed.",
+      "inference": "The mechanism's failure path guarantees only that some request can proceed after preemption; it does not guarantee high aggregate goodput or bounded wasted work, because the paper does not model or measure preemption recompute cost and explicitly leaves swapping as future work.",
+      "toy_example": "Toy example, not a measurement: two requests each need one more page-group; the pool has one free page-group; step returns failure; the framework preempts one request; that request's generated tokens are discarded and must be recomputed later.",
+      "conditional_consequence": "If overload causes frequent preemption and recompute cost per preempted token exceeds the cost of swapping or admission control, then the no-swap policy can reduce goodput relative to alternatives.",
+      "critical_link": "The step API returns failure when the preallocated pool cannot satisfy demand; the framework then preempts; the cost of that preemption is outside the reported mechanism and is not evaluated.",
+      "necessary_conditions": [
+        "memory demand exceeds available preallocated or mapped pages",
+        "serving framework responds to failure by preempting",
+        "preempted request work is discarded or recomputed",
+        "no CPU swap or equivalent spill is used"
+      ],
+      "defeaters": [
+        "preemption is rare because the pool is sized to peak demand",
+        "recompute cost is small relative to swap or queueing",
+        "workload is not overloaded",
+        "framework uses admission control or swapping instead"
+      ],
+      "do_not_infer": [
+        "do not infer that the paper measured preemption recompute overhead",
+        "do not infer that no-swap is always worse than swapping",
+        "do not infer that vAttention guarantees high goodput under all overloads",
+        "do not infer that the paper evaluated CPU swapping"
+      ],
+      "author_boundaries": [
+        "The authors state swapping to CPU is future work.",
+        "The authors present preemption as a framework option, not as an evaluated policy.",
+        "The paper's overload evaluation is near capacity, not a preemption-cost study."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L6",
+      "quotes": [
+        {
+          "quote": "If vAttention cannot satisfy the memory demand, it returns with a failure in response to which a serving framework can preempt one or more requests to allow forward progress",
+          "source": "paper",
+          "locator": "page 7, §5.3.3"
+        },
+        {
+          "quote": "We leave more sophisticated policies such as swapping out KV cache to CPU memory as future work.",
+          "source": "paper",
+          "locator": "page 8, §5.3.3"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "page 7, §5.3.3",
+          "support_description": "If vAttention cannot satisfy the memory demand, it returns with a failure in response to which a serving framework can preempt one or more requests to allow forward progress"
+        },
+        {
+          "source_id": "paper",
+          "location": "page 8, §5.3.3",
+          "support_description": "We leave more sophisticated policies such as swapping out KV cache to CPU memory as future work."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Preemption is a recovery action: it frees memory by dropping or delaying a request, and the dropped request's KV cache and generated tokens are typically lost or must be recomputed. The mechanism's failure path guarantees only that some request can proceed after preemption; it does not guarantee high aggregate goodput or bounded wasted work, because the paper does not model or measure preemption recompute cost and explicitly leaves swapping as future work."
+    },
+    {
+      "headline": "Decoupling virtual and physical KV-cache allocation does not guarantee net serving benefit if CUDA VMM mapping latency is not hidden.",
+      "claim": "vAttention's fragmentation reduction does not by itself guarantee a throughput gain; the net benefit depends on hiding or amortizing CUDA VMM mapping latency.",
+      "paper_fact": "growing the KV cache of one request by new page-groups (two per layer) adds about 5 millisecond latency to the corresponding iteration.",
+      "premise": "VMM API calls have non-trivial latency; if they are on the critical path, lower fragmentation need not translate into higher throughput.",
+      "inference": "Therefore, vAttention's net benefit over PagedAttention depends on hiding or amortizing mapping latency, not on fragmentation reduction alone.",
+      "conditional_consequence": "If mapping latency is not hidden, vAttention may be slower than PagedAttention despite lower physical fragmentation.",
+      "critical_link": "The critical link is that VMM API latency is on the critical path unless overlapped; fragmentation reduction is not a throughput guarantee.",
+      "necessary_conditions": [
+        "Background thread overlaps mapping with compute",
+        "Per-iteration demand is predictable",
+        "Deferred reclamation can reuse pages",
+        "Mapping latency is amortized or hidden"
+      ],
+      "defeaters": [
+        "Mapping latency is small relative to iteration time",
+        "Other latency hiding is used",
+        "Workload is compute-bound enough to hide mapping",
+        "Fragmentation reduction directly increases batch size without mapping cost"
+      ],
+      "do_not_infer": [
+        "Do not infer vAttention always beats PagedAttention",
+        "Do not infer fragmentation reduction alone guarantees throughput",
+        "Do not infer the paper claims VMM latency is free"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L6",
+      "quotes": [
+        {
+          "quote": "growing the KV cache of one request by new page-groups (two per layer) adds about 5 millisecond latency to the corresponding iteration.",
+          "source": "paper",
+          "locator": "p. 8, §6.1"
+        },
+        {
+          "quote": "overlapping memory allocation with compute effectively hides the latency of CUDA VMM APIs.",
+          "source": "paper",
+          "locator": "p. 12, §7.6.1"
+        },
+        {
+          "quote": "memory allocation using CUDA VMM APIs incurs high latency because each allocation involves a round-trip to the OS kernel.",
+          "source": "paper",
+          "locator": "p. 2, §1"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p. 8, §6.1",
+          "support_description": "growing the KV cache of one request by new page-groups (two per layer) adds about 5 millisecond latency to the corresponding iteration."
+        },
+        {
+          "source_id": "paper",
+          "location": "p. 12, §7.6.1",
+          "support_description": "overlapping memory allocation with compute effectively hides the latency of CUDA VMM APIs."
+        },
+        {
+          "source_id": "paper",
+          "location": "p. 2, §1",
+          "support_description": "memory allocation using CUDA VMM APIs incurs high latency because each allocation involves a round-trip to the OS kernel."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "VMM API calls have non-trivial latency; if they are on the critical path, lower fragmentation need not translate into higher throughput. Therefore, vAttention's net benefit over PagedAttention depends on hiding or amortizing mapping latency, not on fragmentation reduction alone."
+    },
+    {
+      "headline": "Virtual contiguity does not guarantee absence of physical fragmentation unless page granularity is small.",
+      "claim": "vAttention's virtual contiguity preserves kernel compatibility but does not by itself eliminate physical fragmentation; with native 2MB pages, internal fragmentation can remain.",
+      "paper_fact": "Use of large pages can create significant fragmentation. We address this challenge by modifying the open-source CUDA unified virtual memory driver, adding support for smaller 64KB pages.",
+      "premise": "Virtual address contiguity is a mapping property; physical fragmentation is determined by physical page allocation granularity and mapping policy.",
+      "inference": "Therefore, vAttention's virtual contiguity alone does not guarantee low physical fragmentation; the benefit depends on using small page-groups or tensor slicing.",
+      "conditional_consequence": "If only native 2MB pages are used and tensor slicing is not applied, vAttention can still waste physical memory and cap batch size relative to 64KB page-groups.",
+      "critical_link": "The critical link is page-group size: physical fragmentation is bounded by allocation granularity, not by virtual contiguity.",
+      "necessary_conditions": [
+        "Small page support or tensor slicing is available",
+        "Page-group size is configured appropriately",
+        "Driver modification or alternative slicing is deployed",
+        "Workload batch/context is sensitive to fragmentation"
+      ],
+      "defeaters": [
+        "2MB page waste is negligible for the workload",
+        "Tensor slicing is used",
+        "Batch size is not limited by fragmentation",
+        "Online latency constraints make 2MB pages sufficient"
+      ],
+      "do_not_infer": [
+        "Do not infer virtual contiguity equals physical contiguity",
+        "Do not infer vAttention always eliminates fragmentation",
+        "Do not infer 2MB pages are always inadequate; paper says they are good enough for some online serving"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1",
+      "quotes": [
+        {
+          "quote": "Use of large pages can create significant fragmentation. We address this challenge by modifying the open-source CUDA unified virtual memory driver, adding support for smaller 64KB pages.",
+          "source": "paper",
+          "locator": "p. 2, §1"
+        },
+        {
+          "quote": "using 2MB pages could serve batch sizes of up to 187, 203 and 56 for Yi-6B, Llama-3-8B and Yi-34B on a dynamic trace",
+          "source": "paper",
+          "locator": "p. 12, §7.6.3"
+        },
+        {
+          "quote": "In contrast, 64KB pages helped serve batch sizes of up to 240, 258 and 68 for our models",
+          "source": "paper",
+          "locator": "p. 12, §7.6.3"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p. 2, §1",
+          "support_description": "Use of large pages can create significant fragmentation. We address this challenge by modifying the open-source CUDA unified virtual memory driver, adding support for smaller 64KB pages."
+        },
+        {
+          "source_id": "paper",
+          "location": "p. 12, §7.6.3",
+          "support_description": "using 2MB pages could serve batch sizes of up to 187, 203 and 56 for Yi-6B, Llama-3-8B and Yi-34B on a dynamic trace"
+        },
+        {
+          "source_id": "paper",
+          "location": "p. 12, §7.6.3",
+          "support_description": "In contrast, 64KB pages helped serve batch sizes of up to 240, 258 and 68 for our models"
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Virtual address contiguity is a mapping property; physical fragmentation is determined by physical page allocation granularity and mapping policy. Therefore, vAttention's virtual contiguity alone does not guarantee low physical fragmentation; the benefit depends on using small page-groups or tensor slicing."
+    },
+    {
+      "headline": "Pre-reserving for maximum context does not imply efficient physical memory use for short contexts.",
+      "claim": "Sizing virtual buffers to the model's maximum context and batch does not mean physical memory is wasted for short requests; physical pages are mapped on demand, but virtual address space remains oversized.",
+      "paper_fact": "we pre-allocate it in size that is large enough to hold the KV cache of the maximum batch size (configurable) that needs to be supported. In doing so, we assume that each request’s context length is same as the maximum supported by the model.",
+      "premise": "Virtual address reservation consumes address space, not physical pages; physical pages are committed when mapped/accessed.",
+      "inference": "For short-context workloads, the mechanism can keep physical memory low while consuming large virtual address ranges; the tradeoff is virtual address consumption, not physical fragmentation.",
+      "toy_example": "Toy example (not a measurement): with L=200K and B=500, each per-layer buffer may reserve 100GB virtually, but a 1K-token request maps only a small fraction of physical pages.",
+      "conditional_consequence": "If many workers/processes reserve max-size buffers, virtual address space can become the limiting resource even when physical memory is underused; reducing L or B can recover address space.",
+      "critical_link": "The reservation is virtual; physical efficiency depends on page mapping granularity and demand paging, while virtual efficiency depends on B, L, layers, and TP.",
+      "necessary_conditions": [
+        "demand paging maps physical pages on demand",
+        "virtual address space is large but finite",
+        "B and L are configured before serving",
+        "page-group size controls physical mapping granularity"
+      ],
+      "defeaters": [
+        "virtual address space is effectively unlimited for the deployment",
+        "all requests actually use max context",
+        "reservation is not contiguous or is lazily sized",
+        "physical pages are eagerly committed for the whole reservation"
+      ],
+      "do_not_infer": [
+        "Do not infer that max-context virtual reservation causes physical memory fragmentation.",
+        "Do not infer that short contexts make the reservation free in virtual address space.",
+        "Do not infer that the paper measured short-context virtual address exhaustion."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L3",
+      "quotes": [
+        {
+          "text": "we pre-allocate it in size that is large enough to hold the KV cache of the maximum batch size (configurable) that needs to be supported. In doing so, we assume that each request’s context length is same as the maximum supported by the model.",
+          "source": "paper",
+          "locator": "page 5, §5.1.1"
+        },
+        {
+          "text": "This design preserves virtual contiguity of KV cache without fragmenting physical memory. Note that this approach could fragment and waste virtual memory. However, this is not an issue since virtual memory is abundant",
+          "source": "paper",
+          "locator": "page 5, §5.1"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "author_boundaries": "Paper states the max-context assumption and virtual abundance; it does not claim virtual reservation is physically free or that short-context workloads cannot exhaust virtual address space.",
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Virtual address reservation consumes address space, not physical pages; physical pages are committed when mapped/accessed. For short-context workloads, the mechanism can keep physical memory low while consuming large virtual address ranges; the tradeoff is virtual address consumption, not physical fragmentation."
+    },
+    {
+      "headline": "Pre-reserving max batch/context buffers does not guarantee reservation success under address-space limits.",
+      "claim": "The formula B×S per buffer and 2N buffers can grow to terabytes; virtual memory abundance does not guarantee every configured B/L/TP combination can reserve contiguous address space or initialize.",
+      "paper_fact": "The maximum size of a buffer is 𝐵𝑆= 𝐵× 𝑆 where B is the maximum batch size and 𝑆 is the maximum size of a single request’s per-layer K cache (or V cache) on a worker. Further, 𝑆= 𝐿× 𝐻× 𝐷× 𝑃",
+      "premise": "A process has finite user-addressable virtual memory; contiguous reservation requires a sufficiently large free range, and TP changes per-worker H and S.",
+      "inference": "Overestimating B or L, or increasing layers/workers, increases virtual reservation; if the contiguous range is unavailable, initialization or max-batch configuration can fail even when physical memory is free.",
+      "toy_example": "Toy example (not a measurement): Yi-34B TP-2 with B=500 and L=200K is reported as 120 buffers of 100GB each (12TB total); a smaller per-process virtual address limit would make that reservation infeasible.",
+      "conditional_consequence": "If reservation fails, the serving framework must reduce B or L, change TP/worker layout, or abandon the max-batch configuration; this limits the mechanism's applicability.",
+      "critical_link": "Contiguous virtual allocation depends on address-space size and fragmentation, not on physical page availability.",
+      "necessary_conditions": [
+        "64-bit user-addressable virtual memory",
+        "contiguous free virtual range large enough for 2N buffers",
+        "B and L configured to supported maxima",
+        "TP layout determines H and S per worker"
+      ],
+      "defeaters": [
+        "virtual address space is effectively unlimited for the deployment",
+        "reservation is split or non-contiguous",
+        "B/L are set low enough",
+        "OS/driver supports overcommit without contiguous reservation"
+      ],
+      "do_not_infer": [
+        "Do not infer that virtual memory is infinite or that reservation cannot fail.",
+        "Do not infer that the paper measured reservation failure for all B/L.",
+        "Do not infer that physical memory availability alone determines max batch."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L4",
+      "quotes": [
+        {
+          "text": "The maximum size of a buffer is 𝐵𝑆= 𝐵× 𝑆 where B is the maximum batch size and 𝑆 is the maximum size of a single request’s per-layer K cache (or V cache) on a worker. Further, 𝑆= 𝐿× 𝐻× 𝐷× 𝑃",
+          "source": "paper",
+          "locator": "page 5, §5.1.3"
+        },
+        {
+          "text": "Assuming 𝐵= 500, the maximum size of each buffer per-worker is 𝐵𝑆= 100𝐺𝐵 (500 × 200𝑀𝐵). Therefore, the total virtual memory requirement for 60 layers is 120 buffers of 100GB each (12TB total).",
+          "source": "paper",
+          "locator": "page 6, §5.1.3"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "author_boundaries": "Paper reports the formula and a 12TB example and argues virtual memory is plentiful; it does not guarantee reservation success for arbitrary B/L/TP or address-space limits.",
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A process has finite user-addressable virtual memory; contiguous reservation requires a sufficiently large free range, and TP changes per-worker H and S. Overestimating B or L, or increasing layers/workers, increases virtual reservation; if the contiguous range is unavailable, initialization or max-batch configuration can fail even when physical memory is free."
+    },
+    {
+      "headline": "Request-level reqId indexing conflicts with attention kernels that require Q and KV batch dimensions to match",
+      "claim": "ReqId slots create holes when requests exit, so reqId indexing does not by itself guarantee compatibility with attention kernels that expect the query batch and KV cache batch to have the same size and order.",
+      "paper_fact": "When a request from somewhere in the middle of a batch exits, it creates an unused hole in the virtual tensors of KV cache. This layout is not supported by implementations that expect the query (Q) and KV cache to be of the same size in batch (𝐵) dimension.",
+      "premise": "Many attention kernels assume aligned batch dimensions or a direct batch-index correspondence between Q and KV; a hole in the KV slot array breaks that correspondence unless the kernel supports an explicit mapping or the system compacts/remaps.",
+      "inference": "The reqId design relies on cache_batch_idx or equivalent remapping to handle mid-batch exits; without such kernel support, holes from reqId slots force compaction or kernel changes.",
+      "toy_example": "Not a measurement: with B=4 and reqIds 0,1,2 active, if reqId 1 exits, Q has 3 rows but the KV virtual tensor still has 4 slots; a kernel without cache_batch_idx cannot map Q row 2 to KV slot 2 unless the system remaps or compacts.",
+      "conditional_consequence": "If the serving stack uses an attention kernel that lacks cache_batch_idx or arbitrary Q-to-KV batch mapping, then continuous batching with reqId holes will require compaction, kernel modification, or avoidance of mid-batch exits.",
+      "critical_link": "The paper explicitly says the hole layout is unsupported by implementations expecting equal Q and KV batch sizes, and it relies on FlashAttention’s cache_batch_idx to map Q tensors to reqId-based KV slots.",
+      "necessary_conditions": [
+        "A request exits from the middle of the active batch, leaving a hole",
+        "The attention kernel expects Q and KV cache to have the same batch size or a direct batch-index correspondence",
+        "The kernel does not support cache_batch_idx or an equivalent arbitrary mapping",
+        "The system does not compact or otherwise eliminate the hole before the kernel runs"
+      ],
+      "defeaters": [
+        "The attention kernel supports cache_batch_idx or arbitrary Q-to-KV batch mapping",
+        "The system compacts or remaps slots before invoking the kernel",
+        "No request exits mid-batch, so no hole is created",
+        "The serving stack can change kernels or add the required mapping support"
+      ],
+      "do_not_infer": [
+        "Do not infer that all attention kernels fail with reqId slots; the paper says FlashAttention provides cache_batch_idx support.",
+        "Do not infer that reqId indexing is unusable for continuous batching in general.",
+        "Do not infer a measured performance loss for kernels that already support the mapping."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L4",
+      "quotes": [
+        {
+          "quote": "When a request from somewhere in the middle of a batch exits, it creates an unused hole in the virtual tensors of KV cache.",
+          "source": "paper",
+          "locator": "page 8, §5.3.4"
+        },
+        {
+          "quote": "This layout is not supported by implementations that expect the query (Q) and KV cache to be of the same size in batch (𝐵) dimension.",
+          "source": "paper",
+          "locator": "page 8, §5.3.4"
+        },
+        {
+          "quote": "its argument cache_batch_idx allows Q and KV cache to have different batch sizes and also be arranged in arbitrary order",
+          "source": "paper",
+          "locator": "page 8, §5.3.4"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "author_boundary": "The paper reports the hole problem and the cache_batch_idx dependency; it does not claim that every kernel lacks such support or measure a failure for kernels without it.",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "page 8, §5.3.4",
+          "support_description": "When a request from somewhere in the middle of a batch exits, it creates an unused hole in the virtual tensors of KV cache."
+        },
+        {
+          "source_id": "paper",
+          "location": "page 8, §5.3.4",
+          "support_description": "This layout is not supported by implementations that expect the query (Q) and KV cache to be of the same size in batch (𝐵) dimension."
+        },
+        {
+          "source_id": "paper",
+          "location": "page 8, §5.3.4",
+          "support_description": "its argument cache_batch_idx allows Q and KV cache to have different batch sizes and also be arranged in arbitrary order"
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Many attention kernels assume aligned batch dimensions or a direct batch-index correspondence between Q and KV; a hole in the KV slot array breaks that correspondence unless the kernel supports an explicit mapping or the system compacts/remaps. The reqId design relies on cache_batch_idx or equivalent remapping to handle mid-batch exits; without such kernel support, holes from reqId slots force compaction or kernel changes."
+    },
+    {
+      "headline": "Ensuring enough mapped pages before kernel dispatch does not imply or guarantee hidden step latency.",
+      "claim": "The step API's guarantee that physical pages are mapped up to each active request's current context length is a backing/correctness guarantee; it does not by itself guarantee that the mapping work is off the critical path or that an iteration will avoid latency spikes.",
+      "paper_fact": "growing the KV cache of one request by new page-groups (two per layer) adds about 5 millisecond latency to the corresponding iteration. The latency overhead grows proportional to the number of requests that need new page-groups in a given iteration.",
+      "premise": "CUDA VMM mapping calls have nonzero latency; if the framework invokes step synchronously before dispatching the first kernel, the mapping time is on the iteration's critical path unless it is overlapped or avoided.",
+      "inference": "A step call can return with enough pages mapped and still delay kernel dispatch when many requests need new page-groups and the mapping is not overlapped. The paper's latency hiding comes from separate optimizations such as a background thread, eager allocation, and deferred reclamation, not from the step API's mapping guarantee alone.",
+      "toy_example": "Toy example (not a measurement): if many decode requests each need a new page-group and each mapping costs tens of microseconds per layer, a synchronous step can add milliseconds before the kernel starts.",
+      "conditional_consequence": "If many active requests need new page-groups in the same iteration and allocation is synchronous or the background thread cannot keep up, then step latency can scale with batch and become visible in iteration latency.",
+      "critical_link": "The step API ensures backing before dispatch; latency hiding depends on when and how the mapping is performed relative to compute, not on the fact that pages are mapped.",
+      "necessary_conditions": [
+        "mapping is performed synchronously or not sufficiently ahead of dispatch",
+        "multiple requests need new page-groups in the same iteration",
+        "mapping latency is non-negligible relative to iteration time"
+      ],
+      "defeaters": [
+        "background-thread overlap successfully maps pages during the prior iteration",
+        "deferred reclamation or eager allocation supplies pages without new mapping",
+        "few or no requests need new page-groups in the iteration"
+      ],
+      "do_not_infer": [
+        "step API always causes latency spikes",
+        "vAttention is slower than PagedAttention overall",
+        "mapping enough pages guarantees no OOM",
+        "the paper's reported throughput gains are invalid"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L6",
+      "quotes": [
+        {
+          "quote": "growing the KV cache of one request by new page-groups (two per layer) adds about 5 millisecond latency to the corresponding iteration. The latency overhead grows proportional to the number of requests that need new page-groups in a given iteration.",
+          "source": "paper",
+          "locator": "p.8 §6.1"
+        },
+        {
+          "quote": "before dispatching the first kernel of an iteration to the GPU, the framework invokes the step API",
+          "source": "paper",
+          "locator": "p.7 §5.3.3"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p.8 §6.1",
+          "support_description": "growing the KV cache of one request by new page-groups (two per layer) adds about 5 millisecond latency to the corresponding iteration. The latency overhead grows proportional to the number of requests that need new page-groups in a given iteration."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.7 §5.3.3",
+          "support_description": "before dispatching the first kernel of an iteration to the GPU, the framework invokes the step API"
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "CUDA VMM mapping calls have nonzero latency; if the framework invokes step synchronously before dispatching the first kernel, the mapping time is on the iteration's critical path unless it is overlapped or avoided. A step call can return with enough pages mapped and still delay kernel dispatch when many requests need new page-groups and the mapping is not overlapped. The paper's latency hiding comes from separate optimizations such as a background thread, eager allocation, and deferred reclamation, not from the step API's mapping guarantee alone."
+    },
+    {
+      "headline": "Monotonic context growth does not guarantee step mapping stays off the critical path.",
+      "claim": "The step API's overlap and prediction optimizations rely on monotonic per-request context growth; they do not guarantee hidden mapping latency when preemption, request restart, or new long prefills break that regularity.",
+      "paper_fact": "once a request enters the decode phase, its KV cache size increases uniformly by one token per iteration. This allows the serving system to determine in advance if additional memory will be required during the iteration’s execution.",
+      "premise": "Overlapping allocation with compute requires knowing future page demand; preemption or restart can reset a request's context length or change batch composition, making the prior prediction stale.",
+      "inference": "The mechanism can still map pages correctly after a disruption, but the latency-hiding benefit is conditional on predictable growth and available deferred/eager pages. A disruption can force new mappings on the critical path.",
+      "toy_example": "Toy example (not a measurement): a decode request is preempted and later restarted with a different context length; the background thread's prior next-iteration mapping plan no longer matches the new demand, so step may need to map pages synchronously.",
+      "conditional_consequence": "If preemption/restart or a new long prefill changes demand faster than deferred reclamation and eager allocation can cover, then step may perform mapping in the critical path and iteration latency can rise.",
+      "critical_link": "The paper's overlap optimization uses current context length to predict next iteration's page needs; monotonic growth is the assumption that makes the prediction reliable.",
+      "necessary_conditions": [
+        "request context growth is interrupted or reset",
+        "deferred reclamation or eager allocation does not already cover the new demand",
+        "mapping is needed before the next kernel dispatch"
+      ],
+      "defeaters": [
+        "deferred reclamation reuses already-mapped pages",
+        "eager allocation has enough pages ready",
+        "new request's context length is no larger than reused pages",
+        "no preemption or restart occurs"
+      ],
+      "do_not_infer": [
+        "vAttention fails under all preemption",
+        "monotonicity is always broken",
+        "step API cannot handle restarts correctly",
+        "the paper's reported gains are invalid"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L5",
+      "quotes": [
+        {
+          "quote": "once a request enters the decode phase, its KV cache size increases uniformly by one token per iteration. This allows the serving system to determine in advance if additional memory will be required during the iteration’s execution.",
+          "source": "paper",
+          "locator": "p.5 §4 Observation-1"
+        },
+        {
+          "quote": "vAttention keeps track of the current context length and how much physical memory is already mapped for each request. Using this information, it determines when a request would need more memory and uses a background thread to allocate new page-groups when the preceding iteration is executing.",
+          "source": "paper",
+          "locator": "p.8 §6.1.1"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p.5 §4 Observation-1",
+          "support_description": "once a request enters the decode phase, its KV cache size increases uniformly by one token per iteration. This allows the serving system to determine in advance if additional memory will be required during the iteration’s execution."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.8 §6.1.1",
+          "support_description": "vAttention keeps track of the current context length and how much physical memory is already mapped for each request. Using this information, it determines when a request would need more memory and uses a background thread to allocate new page-groups when the preceding iteration is executing."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Overlapping allocation with compute requires knowing future page demand; preemption or restart can reset a request's context length or change batch composition, making the prior prediction stale. The mechanism can still map pages correctly after a disruption, but the latency-hiding benefit is conditional on predictable growth and available deferred/eager pages. A disruption can force new mappings on the critical path."
+    },
+    {
+      "headline": "Overlapping memory allocation with decode compute does not imply or guarantee that background mapping completes before the next iteration under short iterations or load.",
+      "claim": "vAttention's background-thread overlap hides VMM mapping latency only when the decode iteration is long enough relative to the mapping work; it is not a hard deadline guarantee for small-batch, short-iteration, or loaded conditions.",
+      "paper_fact": "Since per-iteration latency is typically in the range of 10s-100s of milliseconds, the background thread has enough time to prepare physical memory mappings for an iteration before it starts executing.",
+      "premise": "A background thread is not a hard real-time mechanism; its completion depends on CPU scheduling, driver contention, number of page-groups, and iteration duration. Overlap hides latency only if mapping finishes before the next iteration needs the pages.",
+      "inference": "The paper's overlap is a latency-hiding optimization scoped to decode iterations long enough to cover mapping work. It does not establish that mapping always completes before the next iteration at small batch, short iteration, or under load; if mapping exceeds iteration time, latency can reappear on the critical path.",
+      "toy_example": "Not a measurement: if a decode iteration takes 2 ms and background mapping of required page-groups takes 5 ms, the next step could wait for the mapping, so overlap would not hide all latency.",
+      "conditional_consequence": "If iteration time is shorter than mapping time or the background thread is delayed, then step/forward may stall or the benefit shrinks; if iteration time is much longer than mapping time, overlap can hide latency as reported.",
+      "critical_link": "The causal link is completion of background mapping before the next iteration's step/forward; overlap alone does not enforce that deadline.",
+      "necessary_conditions": [
+        "decode produces one token per iteration",
+        "page demand is known one iteration ahead",
+        "background thread can run concurrently with compute",
+        "mapping completes before the next iteration needs the pages",
+        "enough page-group allocation bandwidth"
+      ],
+      "defeaters": [
+        "Figure 12 reports hidden latency at batch size 32 with 2MB pages",
+        "paper's typical decode iteration is 10s-100s ms",
+        "Table 9 reports allocation bandwidth above decode demand",
+        "if the workload matches these conditions, the concern may not materialize"
+      ],
+      "do_not_infer": [
+        "Do not infer overlap always fails",
+        "Do not infer no benefit at small batch without measurement",
+        "Do not attribute to the authors a claim that overlap is a hard real-time deadline guarantee; they report hiding latency in their evaluated decode setting",
+        "Do not infer the background thread cannot be preempted or delayed"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L7",
+      "quotes": [
+        {
+          "quote": "We leverage the predictability of memory demand to overlap memory allocation with computation.",
+          "source": "paper",
+          "locator": "p.8 §6.1.1"
+        },
+        {
+          "quote": "Since per-iteration latency is typically in the range of 10s-100s of milliseconds, the background thread has enough time to prepare physical memory mappings for an iteration before it starts executing.",
+          "source": "paper",
+          "locator": "p.8 §6.1.1"
+        },
+        {
+          "quote": "In contrast, allocating memory synchronously via CUDA APIs leads to frequent latency spikes of 5 to 15 milliseconds, depending on how many requests require physical memory allocation in a given iteration.",
+          "source": "paper",
+          "locator": "p.12 §7.6.1"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p.8 §6.1.1",
+          "support_description": "We leverage the predictability of memory demand to overlap memory allocation with computation."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.8 §6.1.1",
+          "support_description": "Since per-iteration latency is typically in the range of 10s-100s of milliseconds, the background thread has enough time to prepare physical memory mappings for an iteration before it starts executing."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.12 §7.6.1",
+          "support_description": "In contrast, allocating memory synchronously via CUDA APIs leads to frequent latency spikes of 5 to 15 milliseconds, depending on how many requests require physical memory allocation in a given iteration."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "A background thread is not a hard real-time mechanism; its completion depends on CPU scheduling, driver contention, number of page-groups, and iteration duration. Overlap hides latency only if mapping finishes before the next iteration needs the pages. The paper's overlap is a latency-hiding optimization scoped to decode iterations long enough to cover mapping work. It does not establish that mapping always completes before the next iteration at small batch, short iteration, or under load; if mapping exceeds iteration time, latency can reappear on the critical path."
+    },
+    {
+      "headline": "Hiding VMM mapping latency does not imply or guarantee eliminating allocation cost or memory pressure.",
+      "claim": "Overlap moves CUDA VMM API latency off the critical path but does not remove background CPU/driver work, synchronization, over-mapping, or deferred-reclamation memory retention; net benefit depends on iteration time exceeding mapping time and available memory.",
+      "paper_fact": "This way, vAttention hides the latency of CUDA APIs by performing memory allocations out of the critical path.",
+      "premise": "Background work still consumes CPU/driver resources and can contend with serving; deferred reclamation and eager allocation hold or map physical pages ahead, increasing memory footprint. Hiding latency is not the same as reducing total work.",
+      "inference": "The mechanism is a latency-hiding and work-shifting optimization, not a cost elimination. Under CPU/driver contention or memory pressure, background work may interfere or reduce available memory; when iteration time is long and memory headroom exists, net benefit can be positive.",
+      "toy_example": "Not a measurement: if deferred reclamation keeps 10% of GPU memory cached and eager allocation maps pages for an inactive reqId, the critical path may be shorter but physical memory available to active requests is lower.",
+      "conditional_consequence": "If background work contends with critical CPU work or memory headroom is tight, then throughput/latency may degrade; if iteration time exceeds mapping time and memory is ample, overlap can hide latency.",
+      "critical_link": "The link is that hidden latency is paid in background work and memory footprint; benefit requires those costs not to affect the critical path or capacity.",
+      "necessary_conditions": [
+        "spare CPU/driver capacity for background work",
+        "enough GPU memory for over-mapping and deferred reclamation",
+        "synchronization ensures pages are mapped before use",
+        "reclamation threshold leaves headroom",
+        "iteration time exceeds mapping time"
+      ],
+      "defeaters": [
+        "Figure 12 reports hidden latency",
+        "Table 9 reports allocation bandwidth sufficient for decode",
+        "deferred reclamation threshold is 10% of GPU memory",
+        "if these hold, background cost may be acceptable"
+      ],
+      "do_not_infer": [
+        "Do not infer total allocation cost is zero",
+        "Do not infer background work is free",
+        "Do not infer memory pressure is absent",
+        "Do not attribute to authors a claim that overlap eliminates all allocation overhead"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L6",
+      "quotes": [
+        {
+          "quote": "This way, vAttention hides the latency of CUDA APIs by performing memory allocations out of the critical path.",
+          "source": "paper",
+          "locator": "p.8 §6.1.1"
+        },
+        {
+          "quote": "We delegate both deferred reclamation and eager allocation to the background thread that the step API spawns.",
+          "source": "paper",
+          "locator": "p.9 §6.1.2"
+        },
+        {
+          "quote": "Finally, we trigger memory reclamation only when the number of page-groups cached in vAttention falls below a certain threshold (e.g., less than 10% of GPU memory).",
+          "source": "paper",
+          "locator": "p.9 §6.1.2"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p.8 §6.1.1",
+          "support_description": "This way, vAttention hides the latency of CUDA APIs by performing memory allocations out of the critical path."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.9 §6.1.2",
+          "support_description": "We delegate both deferred reclamation and eager allocation to the background thread that the step API spawns."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.9 §6.1.2",
+          "support_description": "Finally, we trigger memory reclamation only when the number of page-groups cached in vAttention falls below a certain threshold (e.g., less than 10% of GPU memory)."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Background work still consumes CPU/driver resources and can contend with serving; deferred reclamation and eager allocation hold or map physical pages ahead, increasing memory footprint. Hiding latency is not the same as reducing total work. The mechanism is a latency-hiding and work-shifting optimization, not a cost elimination. Under CPU/driver contention or memory pressure, background work may interfere or reduce available memory; when iteration time is long and memory headroom exists, net benefit can be positive."
+    },
+    {
+      "headline": "Eager prefill allocation does not imply or guarantee critical-path allocation avoidance for larger prompts.",
+      "claim": "Proactively mapping a small number of page-groups ahead of time can avoid prefill allocation only when the new request's prompt fits within the retained or preallocated pages; larger prompts still require additional mapping.",
+      "paper_fact": "We further optimize the prefill phase by proactively allocating a small number of page-groups ahead of time.",
+      "premise": "Prefill memory demand scales with the number of prompt tokens, while eager allocation is described as a small number of page-groups.",
+      "inference": "For prompts longer than the cached or eagerly allocated pages, vAttention must map additional page-groups, so eager allocation does not eliminate allocation from the prefill critical path for all workloads.",
+      "toy_example": "Not a measurement: a small eager allocation sized for a short prompt cannot cover a much longer prompt without additional page-group mapping.",
+      "conditional_consequence": "Workloads with growing or highly variable prompt lengths may still incur prefill allocation latency and see less benefit from eager allocation.",
+      "critical_link": "The number of eagerly allocated page-groups must cover the new request's prompt length, or the background thread must hide the additional mapping latency.",
+      "necessary_conditions": [
+        "new request context length is not much larger than the retained or preallocated pages",
+        "physical memory headroom exists for eager allocation",
+        "background thread can complete any extra mapping before prefill needs it"
+      ],
+      "defeaters": [
+        "prompts are similar in length to completed requests",
+        "eager allocation is sized to cover the maximum prompt",
+        "background thread hides additional mapping latency",
+        "the serving framework preempts or queues requests to avoid critical-path allocation"
+      ],
+      "do_not_infer": [
+        "Do not infer that eager allocation never helps.",
+        "Do not infer that the paper claims all prefill allocation is eliminated.",
+        "Do not infer a measured latency penalty for long prompts from this mechanism description alone.",
+        "Do not attribute this limitation to the authors as a reported result."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L1",
+      "quotes": [
+        {
+          "quote": "We further optimize the prefill phase by proactively allocating a small number of page-groups ahead of time.",
+          "source": "paper",
+          "locator": "§6.1.2"
+        },
+        {
+          "quote": "Therefore, new allocations are required only if R2’s context length is higher than R1.",
+          "source": "paper",
+          "locator": "§6.1.2"
+        },
+        {
+          "quote": "In most cases, these eager allocations obviate the need to allocate physical memory in the critical path of prefill execution.",
+          "source": "paper",
+          "locator": "§6.1.2"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§6.1.2",
+          "support_description": "We further optimize the prefill phase by proactively allocating a small number of page-groups ahead of time."
+        },
+        {
+          "source_id": "paper",
+          "location": "§6.1.2",
+          "support_description": "Therefore, new allocations are required only if R2’s context length is higher than R1."
+        },
+        {
+          "source_id": "paper",
+          "location": "§6.1.2",
+          "support_description": "In most cases, these eager allocations obviate the need to allocate physical memory in the critical path of prefill execution."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Prefill memory demand scales with the number of prompt tokens, while eager allocation is described as a small number of page-groups. For prompts longer than the cached or eagerly allocated pages, vAttention must map additional page-groups, so eager allocation does not eliminate allocation from the prefill critical path for all workloads."
+    },
+    {
+      "headline": "Smaller page-groups do not imply or guarantee end-to-end benefit when fragmentation is not the limiting factor",
+      "claim": "The paper reports smaller page-groups improve max batch size in throughput-oriented dynamic workloads, but also states 2MB pages are good enough for many online serving scenarios where latency constraints prevent high batch sizes; thus small pages are not universally beneficial.",
+      "paper_fact": "In terms of end-to-end system performance, we find that 2MB pages are good enough for many online serving scenarios where latency constraints prevent use of very high batch sizes. In contrast, smaller page-groups are better for throughput-oriented scenarios where maximizing batch size is important to obtain peak performance.",
+      "premise": "Page-size tradeoff: smaller pages reduce internal fragmentation but increase mapping count and potential TLB overhead; net benefit requires fragmentation loss to exceed overhead.",
+      "inference": "At small batch or latency-bound workloads, 2MB pages may suffice and 64KB pages may add driver complexity without throughput gain.",
+      "conditional_consequence": "If workload is latency-bound or small-batch, deploying modified driver for 64KB pages may not improve end-to-end performance.",
+      "critical_link": "Benefit depends on fragmentation pressure and batch size, not page size alone.",
+      "necessary_conditions": [
+        "throughput-oriented workload with high batch size",
+        "fragmentation loss significant",
+        "mapping/TLB overhead hidden or small",
+        "dynamic workload where max batch matters"
+      ],
+      "defeaters": [
+        "small pages also improve latency-bound workloads",
+        "fragmentation still limits batch at small batch",
+        "overhead fully hidden and small pages never hurt"
+      ],
+      "do_not_infer": [
+        "do not infer small pages always faster",
+        "do not infer 2MB pages always sufficient",
+        "do not infer paper measured all workload types"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L7",
+      "quotes": [
+        {
+          "quote": "In terms of end-to-end system performance, we find that 2MB pages are good enough for many online serving scenarios where latency constraints prevent use of very high batch sizes. In contrast, smaller page-groups are better for throughput-oriented scenarios where maximizing batch size is important to obtain peak performance.",
+          "source": "paper",
+          "locator": "p. 13"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "author_boundaries": [
+        "Authors report 2MB pages are good enough for many online scenarios and smaller pages are better for throughput-oriented scenarios; they do not claim small pages always improve all workloads."
+      ],
+      "inferred_consequences": [
+        "Latency-bound deployments may avoid driver modification for small pages."
+      ],
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p. 13",
+          "support_description": "In terms of end-to-end system performance, we find that 2MB pages are good enough for many online serving scenarios where latency constraints prevent use of very high batch sizes. In contrast, smaller page-groups are better for throughput-oriented scenarios where maximizing batch size is important to obtain peak performance."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Page-size tradeoff: smaller pages reduce internal fragmentation but increase mapping count and potential TLB overhead; net benefit requires fragmentation loss to exceed overhead. At small batch or latency-bound workloads, 2MB pages may suffice and 64KB pages may add driver complexity without throughput gain."
+    },
+    {
+      "headline": "Modifying open-source NVIDIA unified memory driver does not imply or guarantee portability across all drivers or GPU environments",
+      "claim": "The small-page mechanism depends on modifying the open-source portion of NVIDIA's unified memory driver; this does not guarantee availability or portability on closed-source, future, or otherwise unsupported driver/GPU environments.",
+      "paper_fact": "Unfortunately, the CUDA VMM APIs are implemented in the closed-source NVIDIA drivers which makes it impossible for us to modify their implementation. Fortunately, some part of NVIDIA drivers (particularly related to unified memory management) is open-source. Therefore, we implement a new set of APIs in the open-source NVIDIA drivers to mimic the same functionality that existing CUDA APIs provide but with support for multiple page sizes.",
+      "premise": "Driver modifications depend on specific open-source components, driver versions, and GPU support; closed-source or changed drivers may not expose the same hooks.",
+      "inference": "If the open-source unified memory driver component is unavailable or incompatible, the 64/128/256KB page-group mechanism may not be deployable, forcing fallback to 2MB pages or tensor slicing.",
+      "conditional_consequence": "On unsupported driver/GPU environments, the small-page benefit may be unavailable; portability claims are bounded by the modified driver.",
+      "critical_link": "The mechanism's small-page support is implemented in the open-source NVIDIA driver, not in standard CUDA VMM APIs.",
+      "necessary_conditions": [
+        "open-source NVIDIA unified memory driver available",
+        "compatible driver and CUDA version",
+        "GPU supports small pages",
+        "modified APIs deployed"
+      ],
+      "defeaters": [
+        "upstreamed or vendor-supported small-page VMM APIs",
+        "alternative tensor slicing achieves similar fragmentation reduction",
+        "driver modifications portable across target environments"
+      ],
+      "do_not_infer": [
+        "do not infer mechanism works on all NVIDIA drivers",
+        "do not infer paper evaluated all GPU/driver combinations",
+        "do not infer standard CUDA APIs support small pages"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L6",
+      "quotes": [
+        {
+          "quote": "Unfortunately, the CUDA VMM APIs are implemented in the closed-source NVIDIA drivers which makes it impossible for us to modify their implementation. Fortunately, some part of NVIDIA drivers (particularly related to unified memory management) is open-source. Therefore, we implement a new set of APIs in the open-source NVIDIA drivers to mimic the same functionality that existing CUDA APIs provide but with support for multiple page sizes.",
+          "source": "paper",
+          "locator": "p. 9"
+        },
+        {
+          "quote": "our APIs allocate physical memory in 64KB, 128KB and 256KB sized page-groups.",
+          "source": "paper",
+          "locator": "p. 9"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "author_boundaries": [
+        "Authors report implementing new APIs in open-source NVIDIA drivers; they do not claim standard CUDA VMM APIs or all drivers support small pages."
+      ],
+      "inferred_consequences": [
+        "Portability and deployment depend on matching driver modifications; fallback may be needed."
+      ],
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p. 9",
+          "support_description": "Unfortunately, the CUDA VMM APIs are implemented in the closed-source NVIDIA drivers which makes it impossible for us to modify their implementation. Fortunately, some part of NVIDIA drivers (particularly related to unified memory management) is open-source. Therefore, we implement a new set of APIs in the open-source NVIDIA drivers to mimic the same functionality that existing CUDA APIs provide but with support for multiple page sizes."
+        },
+        {
+          "source_id": "paper",
+          "location": "p. 9",
+          "support_description": "our APIs allocate physical memory in 64KB, 128KB and 256KB sized page-groups."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Driver modifications depend on specific open-source components, driver versions, and GPU support; closed-source or changed drivers may not expose the same hooks. If the open-source unified memory driver component is unavailable or incompatible, the 64/128/256KB page-group mechanism may not be deployable, forcing fallback to 2MB pages or tensor slicing."
+    },
+    {
+      "headline": "Configurable page-group size does not imply or guarantee lower latency; it trades fragmentation against mapping overhead by workload regime",
+      "claim": "Author boundary: the paper reports a workload-dependent tradeoff and says 2MB pages are good enough for many online serving scenarios; it does not claim smaller page-groups always improve latency. Inferred consequence: page-group size should be chosen by whether fragmentation or mapping overhead is the binding constraint.",
+      "paper_fact": "2MB pages are good enough for many online serving scenarios where latency constraints prevent use of very high batch sizes. In contrast, smaller page-groups are better for throughput-oriented scenarios where maximizing batch size is important to obtain peak performance.",
+      "premise": "Smaller allocation granularity reduces internal fragmentation but increases the number of mappings; mapping operations have latency and can add overhead unless hidden or amortized.",
+      "inference": "Therefore, smaller page-groups are not a universal latency optimization; they can help throughput by increasing max batch size, but may not help latency-bound low-batch serving.",
+      "toy_example": "Not a measurement: a latency-bound service at batch 50 may see no benefit from 64KB pages if 2MB already avoids fragmentation; a throughput-bound service at batch 240 may benefit.",
+      "conditional_consequence": "If the workload is latency-bound with low batch and fragmentation is not limiting, then 2MB may be adequate and smaller pages may add mapping overhead; if throughput-bound and fragmentation limits batch, smaller pages may increase max batch.",
+      "critical_link": "Fragmentation reduction must translate into larger batch or less memory waste without mapping overhead dominating the critical path.",
+      "necessary_conditions": [
+        "fragmentation is limiting batch size",
+        "mapping overhead is hidden or small relative to iteration time",
+        "kernel performance is not degraded by smaller pages",
+        "workload batch/latency regime matches the chosen page-group size"
+      ],
+      "defeaters": [
+        "mapping overhead remains on the critical path",
+        "TLB thrashing or kernel slowdown with smaller pages",
+        "batch size is not fragmentation-limited",
+        "virtual memory or driver constraints prevent the chosen granularity"
+      ],
+      "do_not_infer": [
+        "smaller pages always lower latency",
+        "2MB pages are always sufficient",
+        "page size alone determines throughput",
+        "reported max batch sizes generalize to all traces"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L2",
+      "quotes": [
+        {
+          "source": "paper",
+          "locator": "p. 13, §7.6.3",
+          "quote": "2MB pages are good enough for many online serving scenarios where latency constraints prevent use of very high batch sizes. In contrast, smaller page-groups are better for throughput-oriented scenarios where maximizing batch size is important to obtain peak performance."
+        },
+        {
+          "source": "paper",
+          "locator": "p. 9, §7",
+          "quote": "We find that the choice of page size does not affect vAttention as long as fragmentation is not a concern."
+        },
+        {
+          "source": "paper",
+          "locator": "p. 9, §6.2",
+          "quote": "A serving framework can configure a desired page-group size in vAttention while initializing it"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p. 13, §7.6.3",
+          "support_description": "2MB pages are good enough for many online serving scenarios where latency constraints prevent use of very high batch sizes. In contrast, smaller page-groups are better for throughput-oriented scenarios where maximizing batch size is important to obtain peak performance."
+        },
+        {
+          "source_id": "paper",
+          "location": "p. 9, §7",
+          "support_description": "We find that the choice of page size does not affect vAttention as long as fragmentation is not a concern."
+        },
+        {
+          "source_id": "paper",
+          "location": "p. 9, §6.2",
+          "support_description": "A serving framework can configure a desired page-group size in vAttention while initializing it"
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Smaller allocation granularity reduces internal fragmentation but increases the number of mappings; mapping operations have latency and can add overhead unless hidden or amortized. Therefore, smaller page-groups are not a universal latency optimization; they can help throughput by increasing max batch size, but may not help latency-bound low-batch serving."
+    },
+    {
+      "headline": "Tensor slicing across layers does not guarantee support for unmodified attention kernels",
+      "claim": "Tensor slicing can reduce 2MB-page fragmentation, but it changes per-layer K/V contiguity and therefore requires stride-capable attention kernels; it cannot be assumed to work with every unmodified kernel.",
+      "paper_fact": "Computing attention over such a tensor slice is possible only if the the attention kernel supports memory addressing with strides.",
+      "premise": "Kernel compatibility is not implied by a memory-layout transformation; stride support must be implemented and tested per kernel.",
+      "inference": "Inferred consequence: the slicing alternative's fragmentation benefit is conditional on stride-capable kernels; for deployments requiring unmodified kernels without stride support, slicing cannot serve as the primary fragmentation fix.",
+      "toy_example": "Toy example (not a measurement): a kernel that assumes contiguous per-layer K/V will not correctly address a layer slice unless it uses strides.",
+      "conditional_consequence": "If the target kernel lacks stride support and cannot be modified, then tensor slicing alone cannot be used as the primary fragmentation-reduction mechanism; a small-page driver path or kernel change is required.",
+      "critical_link": "Whether the attention kernel can address the layer slice with strides.",
+      "necessary_conditions": [
+        "attention kernel supports strided memory addressing",
+        "layer-slice layout is accepted by the kernel",
+        "no requirement to support unmodified kernels lacking strides",
+        "fallback small-page path or kernel modification is available if needed"
+      ],
+      "defeaters": [
+        "all target kernels support strides",
+        "kernel can be modified to support strides",
+        "small-page driver support is available",
+        "workload does not require FlashInfer or similar kernels"
+      ],
+      "do_not_infer": [
+        "Do not infer tensor slicing is useless; the authors say FlashAttention-2 supports strides and the two solutions are compatible.",
+        "Do not infer FlashInfer never supports strides; the paper says earlier versions lacked such support.",
+        "Do not infer the authors measured a failure of slicing; they chose small pages to support unmodified FlashInfer kernels."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L1",
+      "quotes": [
+        {
+          "source": "paper §8.2",
+          "locator": "p.13",
+          "quote": "Computing attention over such a tensor slice is possible only if the the attention kernel supports memory addressing with strides."
+        },
+        {
+          "source": "paper §8.2",
+          "locator": "p.13",
+          "quote": "While many kernels (e.g., FlashAttention-2) support strides out-of-the-box, the earlier versions of FlashInfer lacked such support [14]."
+        },
+        {
+          "source": "paper §8.2",
+          "locator": "p.13",
+          "quote": "Therefore, relying on tensor slicing as the primary method of reducing fragmentation would have prevented vAttention from supporting FlashInfer kernels."
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "author_boundaries": "Authors present tensor slicing as an alternative that avoids driver changes and note it is compatible with small pages; they do not claim it is universally kernel-compatible.",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p.13",
+          "support_description": "Computing attention over such a tensor slice is possible only if the the attention kernel supports memory addressing with strides."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.13",
+          "support_description": "While many kernels (e.g., FlashAttention-2) support strides out-of-the-box, the earlier versions of FlashInfer lacked such support [14]."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.13",
+          "support_description": "Therefore, relying on tensor slicing as the primary method of reducing fragmentation would have prevented vAttention from supporting FlashInfer kernels."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Kernel compatibility is not implied by a memory-layout transformation; stride support must be implemented and tested per kernel. Inferred consequence: the slicing alternative's fragmentation benefit is conditional on stride-capable kernels; for deployments requiring unmodified kernels without stride support, slicing cannot serve as the primary fragmentation fix."
+    },
+    {
+      "headline": "Unmodified kernel support does not imply or guarantee best performance for all attention backends",
+      "claim": "vAttention's use of unmodified attention kernels does not guarantee that every supported backend will deliver competitive decode performance; portability can coexist with poor kernel latency.",
+      "paper_fact": "Unfortunately FlashInfer’s non-paged decode kernel has significantly higher latency (up to 14.6×) compared to all these other kernels. Hence, while vAttention can support dynamic memory allocation for FlashInfer’s non-paged decode kernel, we omit it for evaluation in this section.",
+      "premise": "A kernel's API compatibility, such as support for cache_batch_idx, is separate from its runtime efficiency; a non-paged kernel can be slower than paged or other non-paged kernels.",
+      "inference": "The mechanism can only inherit the performance of the selected unmodified kernel; if that kernel is slow, vAttention's decode path is slow, and the paper's evaluation may omit it.",
+      "conditional_consequence": "If a backend's non-paged decode kernel has high latency, then vAttention's decode throughput will be bounded by that kernel and may not beat PagedAttention alternatives.",
+      "critical_link": "cache_batch_idx enables batch-index mapping for continuous batching but does not optimize the kernel's memory access or compute.",
+      "necessary_conditions": [
+        "The selected non-paged kernel supports cache_batch_idx or equivalent batch mapping.",
+        "The selected non-paged kernel has competitive latency for the target phase (prefill/decode).",
+        "The serving framework can update cache_batch_idx when batch composition changes."
+      ],
+      "defeaters": [
+        "All candidate non-paged kernels for the target phase are at least as fast as paged alternatives.",
+        "The workload is prefill-bound where non-paged kernels are consistently faster.",
+        "A backend-specific tuning makes the non-paged kernel competitive despite initial latency."
+      ],
+      "do_not_infer": [
+        "Do not infer that vAttention guarantees speedup for every attention backend.",
+        "Do not infer that the authors claim FlashInfer non-paged decode is competitive; they explicitly omit it.",
+        "Do not infer that cache_batch_idx alone improves kernel latency."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L1: Unmodified kernel is proxy for portability; it does not guarantee best performance for all backends.",
+      "quotes": [
+        {
+          "quote": "Unfortunately FlashInfer’s non-paged decode kernel has significantly higher latency (up to 14.6×) compared to all these other kernels. Hence, while vAttention can support dynamic memory allocation for FlashInfer’s non-paged decode kernel, we omit it for evaluation in this section.",
+          "source": "paper",
+          "locator": "p. 10, §7.2"
+        },
+        {
+          "quote": "vAttention is only as good as the state-of-the-art PagedAttention for decode throughput",
+          "source": "paper",
+          "locator": "p. 11, §7.2"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p. 10, §7.2",
+          "support_description": "Unfortunately FlashInfer’s non-paged decode kernel has significantly higher latency (up to 14.6×) compared to all these other kernels. Hence, while vAttention can support dynamic memory allocation for FlashInfer’s non-paged decode kernel, we omit it for evaluation in this section."
+        },
+        {
+          "source_id": "paper",
+          "location": "p. 11, §7.2",
+          "support_description": "vAttention is only as good as the state-of-the-art PagedAttention for decode throughput"
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "A kernel's API compatibility, such as support for cache_batch_idx, is separate from its runtime efficiency; a non-paged kernel can be slower than paged or other non-paged kernels. The mechanism can only inherit the performance of the selected unmodified kernel; if that kernel is slow, vAttention's decode path is slow, and the paper's evaluation may omit it."
+    }
+  ],
+  "dropped_for_unverified_quotes": 0,
+  "chunk_count": 12,
+  "chunk_failures": 0,
+  "chunk_timings": [
+    {
+      "seconds": 78.40870321099646,
+      "attempts": 1
+    },
+    {
+      "seconds": 91.97989569697529,
+      "attempts": 1
+    },
+    {
+      "seconds": 63.852138018934056,
+      "attempts": 1
+    },
+    {
+      "seconds": 78.08250259398483,
+      "attempts": 1
+    },
+    {
+      "seconds": 107.32868282613344,
+      "attempts": 1
+    },
+    {
+      "seconds": 85.85126159898937,
+      "attempts": 1
+    },
+    {
+      "seconds": 75.68656137795188,
+      "attempts": 1
+    },
+    {
+      "seconds": 106.38544469699264,
+      "attempts": 1
+    },
+    {
+      "seconds": 85.06851251982152,
+      "attempts": 1
+    },
+    {
+      "seconds": 77.00049543310888,
+      "attempts": 1
+    },
+    {
+      "seconds": 83.52311091683805,
+      "attempts": 1
+    },
+    {
+      "seconds": 82.74330941401422,
+      "attempts": 1
+    }
+  ],
+  "inventory_seconds": 190.3261939410586,
+  "chunks_seconds": 366.9623072121758,
+  "merged_candidates": 10,
+  "unverified_kept": 3
+}

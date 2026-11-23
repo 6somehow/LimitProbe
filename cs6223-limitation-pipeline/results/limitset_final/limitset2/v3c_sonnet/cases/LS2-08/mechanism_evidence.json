@@ -1,0 +1,1026 @@
+{
+  "candidates": [
+    {
+      "headline": "A word-level co-occurrence correlation does not imply that position-level heavy hitters arise from co-occurrence",
+      "claim": "The paper explains heavy hitters by co-occurrence, using an analysis per vocabulary word type. The deployed policy keeps token positions within one sequence, per head. The paper's own appendix names two other possible sources of high accumulated score: the bias from accumulating past scores and a concentration at sentence beginnings. The origin of the heavy-hitter regularity is therefore not established for the unit that is actually evicted.",
+      "paper_fact": "Additionally, we can see the accumulated attention score of each word (in red dots) have a high correlation with their co-occurrences in the data (gray curve).",
+      "premise": "Aggregating attention by word type over a corpus averages out position effects. Under causal masking, early positions are attended by more later queries, so they accumulate more mass regardless of word identity. Sink-like behavior at sequence start also concentrates attention independently of co-occurrence.",
+      "inference": "The word-level correlation (Fig 2b, with the x-axis being the word index in the vocabulary) does not show that the positions selected by H2O are the ones selected because of co-occurrence. Part of the heavy-hitter signal may come from position-driven accumulation and start-of-sentence effects. In that case the regularity would shift with prompt style or model family in ways the co-occurrence story does not predict.",
+      "toy_example": "Illustration only, not a measurement. In a 100-token sequence, token 1 is attended by 100 queries and token 90 by 10. Even if both have equal per-query attention, token 1 has 10 times the accumulated mass. A word-type aggregate would not reveal this.",
+      "conditional_consequence": "If position accumulation or sink behavior drives much of the signal, then H2 selection tracks token age and start-of-text rather than importance. Behavior would change when prompt formats move the informative content away from the start or from frequent words.",
+      "critical_link": "The word-type-level correlation is used to explain the position-level, per-head eviction set.",
+      "necessary_conditions": [
+        "Position accumulation or sink effects contribute materially to accumulated score",
+        "The evaluated workloads do not separate these effects from co-occurrence"
+      ],
+      "defeaters": [
+        "Per-position scores within a sequence also correlate with word frequency",
+        "Ablations show removing H2 hurts accuracy (Fig 2c), which supports their importance regardless of origin",
+        "The averaged-score variant, tried to counter the bias, degraded performance, so any bias may be benign"
+      ],
+      "do_not_infer": [
+        "Do not infer that H2 tokens are unimportant",
+        "Do not infer that co-occurrence plays no role",
+        "Do not infer that H2O accuracy results are wrong"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "mechanism_origin_unclear",
+      "lens": "L3+L5 (unit compatibility, regularity origin)",
+      "quotes": [
+        {
+          "text": "Additionally, we can see the accumulated attention score of each word (in red dots) have a high correlation with their co-occurrences in the data (gray curve).",
+          "source": "paper",
+          "locator": "Sec 3.2, Observation"
+        },
+        {
+          "text": "employing the accumulated attention score to evict KV embeddings can lead to a potential bias favoring the least recent tokens.",
+          "source": "paper",
+          "locator": "Appendix B.2, Previous Attempts"
+        },
+        {
+          "text": "Additionally, we observed a significant proportion of H2 occurrences at the beginning of sentences.",
+          "source": "paper",
+          "locator": "Appendix B.2, Previous Attempts"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Aggregating attention by word type over a corpus averages out position effects. Under causal masking, early positions are attended by more later queries, so they accumulate more mass regardless of word identity. Sink-like behavior at sequence start also concentrates attention independently of co-occurrence. The word-level correlation (Fig 2b, with the x-axis being the word index in the vocabulary) does not show that the positions selected by H2O are the ones selected because of co-occurrence. Part of the heavy-hitter signal may come from position-driven accumulation and start-of-sentence effects. In that case the regularity would shift with prompt style or model family in ways the co-occurrence story does not predict."
+    },
+    {
+      "headline": "A '20% KV cache budget' does not imply a 5x memory reduction when the implementation keeps K heavy hitters plus K recent tokens",
+      "claim": "The headline '5x reduction' holds only if the reported percentage is the total retained fraction (K/2 per half). The appendix describes a cache of 2K entries built from K per half, and the paper never states which reading the percentage follows. If the percentage is the per-half K, the real retained fraction is about 40% and the reduction about 2.5x.",
+      "paper_fact": "we always maintain a list of KV cache with the first K entries as heavy hitters, and the last K entries as most recent tokens.",
+      "premise": "A cache that holds K heavy-hitter entries plus K recent entries holds 2K entries per head. Memory reduction is the ratio of full-prompt length to retained entries.",
+      "inference": "The paper calls the budget '20% of the prompt's length' and then reports more than 5x reduction. The appendix parameterises the cache by K per half. If '20%' means K/prompt_length, the retained fraction is 2K/prompt_length = 40%, so the reduction is 2.5x, not 5x. The text does not settle which definition the experiments used. The sizes in Figure 9 are given in absolute tokens, which does not settle it either.",
+      "toy_example": "Illustration only, not a measurement: prompt length 1000. If K = 200 per half, 400 entries are kept (40%, 2.5x reduction). If the total is 200 (K = 100 per half), the figure is 20% (5x reduction).",
+      "conditional_consequence": "If '20%' denotes K per half, then every 'up to 5x memory reduction' and every '20% budget' comparison against baselines such as Local or Sparse Transformer (budget-matched) overstates compression by about 2x. Throughput gains from larger batch sizes would then rest on a smaller memory saving than claimed.",
+      "critical_link": "Whether the percentage in the experiments is the total cache fraction or the per-half K. The paper does not state this.",
+      "necessary_conditions": [
+        "The experiment code passes the percentage as K, not as 2K, to the selection routine.",
+        "Baselines (Local, Sparse Transformer) are budgeted by the same percentage figure, not by the number of entries retained."
+      ],
+      "defeaters": [
+        "Experiments convert the percentage to total entries and split it in half, so K = 10% each.",
+        "The 'more than 5x' statement is derived from measured memory usage, not from the nominal percentage."
+      ],
+      "do_not_infer": [
+        "Do not infer that the reported accuracies are wrong.",
+        "Do not infer that H2O fails to reduce memory.",
+        "Do not infer that the throughput numbers are wrong, since they may be measured with actual cache sizes."
+      ],
+      "disclosure": "inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L3",
+      "quotes": [
+        {
+          "text": "we always maintain a list of KV cache with the first K entries as heavy hitters, and the last K entries as most recent tokens.",
+          "source": "paper, Appendix A System Details",
+          "locator": "Appendix A, System Details paragraph"
+        },
+        {
+          "text": "with less than 20% KV cache budget(i.e., more than 5× memory reduction)",
+          "source": "paper, Section 5.1 Main Results",
+          "locator": "Section 5.1, observation (2)"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A cache that holds K heavy-hitter entries plus K recent entries holds 2K entries per head. Memory reduction is the ratio of full-prompt length to retained entries. The paper calls the budget '20% of the prompt's length' and then reports more than 5x reduction. The appendix parameterises the cache by K per half. If '20%' means K/prompt_length, the retained fraction is 2K/prompt_length = 40%, so the reduction is 2.5x, not 5x. The text does not settle which definition the experiments used. The sizes in Figure 9 are given in absolute tokens, which does not settle it either."
+    },
+    {
+      "headline": "Per-step attention sparsity above 95% does not imply that a persistent 5% KV cache (a 20x reduction) is sufficient",
+      "claim": "The paper measures sparsity separately for each softmax row, but H2O evicts permanently. The 5% / 20x argument therefore compares a per-step quantity with a persistent-set quantity. The reduction that holds across all steps depends on how stable the important positions are over time, and the paper does not measure that stability in this observation.",
+      "paper_fact": "Therefore, only 5% of the KV cache is sufficient for decoding the same output token at each generation step, which suggests it may be possible to have up to a 20× reduction in KV cache size without an accuracy drop.",
+      "premise": "A cache that never re-admits evicted entries must cover the union of the positions needed over all future steps. That union is at least as large as the support at any single step, and it grows if the support drifts across steps or heads.",
+      "inference": "If the per-row sparse supports differ across decoding steps, the persistent cache needed to avoid accuracy loss exceeds the per-step 5%. The 20x figure is then an upper bound on potential savings, not an expectation. The paper's later results use a 20% budget, which is consistent with this reading but does not establish its cause.",
+      "toy_example": "Not a measurement. Suppose each step needs only 5 of 100 positions, but a different set of 5 each time. Over 20 steps the union is all 100 positions, so a permanent 5-slot cache would miss most future needs.",
+      "conditional_consequence": "If the important positions drift across steps, a permanent cache must be much larger than 5% to avoid misses. The realized reduction would then be well below 20x.",
+      "critical_link": "Per-step row sparsity is treated as if it set the size of a persistent set of retained positions, with no measurement of how much supports overlap across steps.",
+      "necessary_conditions": [
+        "Important positions at step t differ at least partly from those at step t+1.",
+        "Eviction is irreversible, as in the H2O policy.",
+        "Accuracy depends on attention mass from positions outside the retained set."
+      ],
+      "defeaters": [
+        "Supports are highly stable across steps and heads, so the union stays near 5%.",
+        "Heavy-hitter accumulation plus the recent window captures the drifting positions well.",
+        "The authors present 5% only as motivation ('suggests it may be possible'), not as a guarantee."
+      ],
+      "do_not_infer": [
+        "Do not infer that the observation is false.",
+        "Do not infer that 20% is the minimum safe budget.",
+        "Do not infer that support drift is the sole reason the paper's experiments use a 20% budget."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L3/L1 unit mismatch and proxy guarantee: per-step row sparsity versus a persistent retained set",
+      "quotes": [
+        {
+          "quote": "Consequently, these evicted KV embeddings become inaccessible in the subsequent decoding steps.",
+          "source": "paper",
+          "locator": "Section 4.1, after Figure 3"
+        },
+        {
+          "quote": "with less than 20% KV cache budget(i.e., more than 5× memory reduction), H2O achieves comparable performance as the model with full KV embeddings",
+          "source": "paper",
+          "locator": "Section 5.1, Main Results"
+        },
+        {
+          "quote": "resulting in a higher KV cache budget (30-40%)",
+          "source": "paper",
+          "locator": "Appendix C.3"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "Section 4.1, after Figure 3",
+          "support_description": "Consequently, these evicted KV embeddings become inaccessible in the subsequent decoding steps."
+        },
+        {
+          "source_id": "paper",
+          "location": "Section 5.1, Main Results",
+          "support_description": "with less than 20% KV cache budget(i.e., more than 5× memory reduction), H2O achieves comparable performance as the model with full KV embeddings"
+        },
+        {
+          "source_id": "paper",
+          "location": "Appendix C.3",
+          "support_description": "resulting in a higher KV cache budget (30-40%)"
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "A cache that never re-admits evicted entries must cover the union of the positions needed over all future steps. That union is at least as large as the support at any single step, and it grows if the support drifts across steps or heads. If the per-row sparse supports differ across decoding steps, the persistent cache needed to avoid accuracy loss exceeds the per-step 5%. The 20x figure is then an upper bound on potential savings, not an expectation. The paper's later results use a 20% budget, which is consistent with this reading but does not establish its cause."
+    },
+    {
+      "headline": "A visual correlation with word co-occurrence does not imply that word frequency explains heavy hitters",
+      "claim": "The paper presents the link between accumulated attention and co-occurrence as a 'high correlation' read from a plot. It gives no coefficient, and the appendix reports a position effect (heavy hitters at sentence starts) that frequency alone does not obviously explain. The origin of heavy hitters is therefore not established.",
+      "paper_fact": "Additionally, we can see the accumulated attention score of each word (in red dots) have a high correlation with their co-occurrences in the data (gray curve).",
+      "premise": "Frequent tokens, such as function words, punctuation, and sentence starts, also tend to sit at structurally privileged positions. Attention-sink effects can concentrate mass on early or delimiter tokens regardless of word identity.",
+      "inference": "Correlation with frequency is compatible with both a word-frequency account and a position or attention-sink account. The paper's own observation about sentence-initial H2s indicates a position component, so the abstract's 'natural' emergence from co-occurrence is under-identified.",
+      "toy_example": "Not a measurement: a rare token placed at the start of every sentence might still receive a large accumulated score. A frequent token in mid-sentence might not.",
+      "conditional_consequence": "If position or sink effects dominate, then inputs with unusual structure or many rare tokens could show a different heavy-hitter set than word frequency predicts, and a frequency-based explanation would not transfer.",
+      "critical_link": "Whether frequency, position, or both drive accumulated attention is not tested.",
+      "necessary_conditions": [
+        "Position and frequency must be separable in the data, for example by shuffling or controlled inputs."
+      ],
+      "defeaters": [
+        "The correlation may be genuinely strong even without a coefficient.",
+        "Frequency and sentence-start effects may be mutually consistent, since sentence-initial words are often frequent."
+      ],
+      "do_not_infer": [
+        "Do not infer that the correlation is absent or weak.",
+        "Do not infer that the H2O algorithm depends on the frequency explanation, since it uses online accumulated scores."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "mechanism_origin_unclear",
+      "lens": "L5",
+      "quotes": [
+        {
+          "text": "we can see the accumulated attention score of each word (in red dots) have a high correlation with their co-occurrences in the data (gray curve).",
+          "source": "paper",
+          "locator": "Section 3.2, Observation"
+        },
+        {
+          "text": "Additionally, we observed a significant proportion of H2 occurrences at the beginning of sentences.",
+          "source": "paper",
+          "locator": "Appendix B.2, Previous Attempts"
+        },
+        {
+          "text": "the emergence of H2 is natural and strongly correlates with the frequent co-occurrence of tokens in the text",
+          "source": "paper",
+          "locator": "Abstract"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Frequent tokens, such as function words, punctuation, and sentence starts, also tend to sit at structurally privileged positions. Attention-sink effects can concentrate mass on early or delimiter tokens regardless of word identity. Correlation with frequency is compatible with both a word-frequency account and a position or attention-sink account. The paper's own observation about sentence-initial H2s indicates a position component, so the abstract's 'natural' emergence from co-occurrence is under-identified."
+    },
+    {
+      "headline": "The 'mild assumptions' label does not imply the per-step universal conditions are mild, since their tolerances scale as 1/n",
+      "claim": "The abstract says the guarantee holds under mild assumptions. The formal proof invokes universal monotone, dynamic and approximation conditions for every step i, with tolerances θ=γ=α/(10n) and ε0=β/(10n). Those conditions must hold at ever-tighter tolerance as sequence length n grows. Their validity for real attention is not tested in the paper.",
+      "paper_fact": "The proof follows from using Theorem D.17, Corollary D.18, Lemma D.30 with choosing ϵ0 = β/(10n) and θ = γ = α/(10n).",
+      "premise": "A guarantee obtained by chaining n inductive steps, each losing a factor (1-θ)(1-γ) or an additive ε0, stays meaningful only if each per-step loss is O(1/n). A universal condition must therefore hold with slack O(1/n) at every token.",
+      "inference": "Lemma D.30 loses an additive ε0 per step, giving (i+1)·ε0, and a factor (1-θ) per step, giving (1-θ)^{i+1}. To keep the total loss at β and α, the paper sets ε0, θ, γ to 1/(10n) of the target. Definitions D.25/D.26 and D.28 then require, for every i and every admissible S_i, that fS_i,i(S_i) ≥ (1-θ)·fS_{i-1},i-1(S_i) and opt_i ≥ (1-γ)·opt_{i-1}. These are quantitative regularity requirements on the attention surrogate across steps. Submodularity is motivated by a coverage analogy (D.7), not verified on attention.",
+      "toy_example": "Not a measurement. If n=4000 and α=0.1, then θ=γ=0.1/40000=2.5e-6. Each step's value must change by less than that relative amount, and the approximate score must be within β/40000 of the exact one.",
+      "conditional_consequence": "If the real attention surrogate violates the dynamic conditions at even a few steps by more than 1/(10n), the stated bound no longer follows from the proof. The mildness of the assumptions would then not be established for long sequences.",
+      "critical_link": "Whether real attention satisfies the universal dynamic, monotone and approximation conditions at tolerance proportional to 1/n at every step.",
+      "necessary_conditions": [
+        "The theorem's constants are chosen exactly as in Theorem D.32's proof.",
+        "The conditions are required for all i and all admissible sets, as stated in Definitions D.25/D.26/D.28."
+      ],
+      "defeaters": [
+        "The conditions might hold with margin in practice for attention, given how smoothly attention scores change per step.",
+        "A tighter analysis might remove the 1/n dependence."
+      ],
+      "do_not_infer": [
+        "Do not infer the conditions are violated; the paper neither tests nor refutes them.",
+        "Do not infer the algorithm degrades with length; the paper reports streaming up to four million tokens empirically, which is separate from the theorem."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L3 unit compatibility x L6 shifted cost",
+      "quotes": [
+        {
+          "text": "The proof follows from using Theorem D.17, Corollary D.18, Lemma D.30 with choosing ϵ0 = β/(10n) and θ = γ = α/(10n).",
+          "source": "paper, Theorem D.32 proof",
+          "locator": "Appendix D.14, page 42"
+        },
+        {
+          "text": "We say ef has universal dynamic condition 1(for approximate function), if for all i ∈[n] for all Si ⊆[i −1], Si−1 ⊆[i −2], |Si\\Si−1| ≤1, we have",
+          "source": "paper, Definition D.26",
+          "locator": "Appendix D.11, page 40"
+        },
+        {
+          "text": "We formulate the KV cache eviction as a dynamic submodular problem and prove (under mild assumptions) a theoretical guarantee for our novel eviction algorithm",
+          "source": "paper, Abstract",
+          "locator": "page 1"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A guarantee obtained by chaining n inductive steps, each losing a factor (1-θ)(1-γ) or an additive ε0, stays meaningful only if each per-step loss is O(1/n). A universal condition must therefore hold with slack O(1/n) at every token. Lemma D.30 loses an additive ε0 per step, giving (i+1)·ε0, and a factor (1-θ) per step, giving (1-θ)^{i+1}. To keep the total loss at β and α, the paper sets ε0, θ, γ to 1/(10n) of the target. Definitions D.25/D.26 and D.28 then require, for every i and every admissible S_i, that fS_i,i(S_i) ≥ (1-θ)·fS_{i-1},i-1(S_i) and opt_i ≥ (1-γ)·opt_{i-1}. These are quantitative regularity requirements on the attention surrogate across steps. Submodularity is motivated by a coverage analogy (D.7), not verified on attention."
+    },
+    {
+      "headline": "Removing eviction data movement does not guarantee throughput keeps scaling once memory is freed",
+      "claim": "No-swap in-place replacement cuts I/O on eviction and lets batches grow. This does not ensure throughput scales with the freed memory, because the bottleneck can shift to compute or dequantization.",
+      "paper_fact": "Despite the batch size being enlarged by 20 times, the actual throughput improvement is less than 2 times.",
+      "premise": "In offloaded inference the PCIe transfer is often the bottleneck. When the cache fits on the GPU, per-step compute, quantization and score upkeep become the limiting terms.",
+      "inference": "The paper's own quantized-H2O result shows throughput growing far less than batch size. By the same pattern, the I/O savings from the no-swap design should give diminishing returns once PCIe stops being the bottleneck. The paper attributes the sub-linear scaling to inefficient quantization, not to the no-swap mechanism, so the extension is inferred.",
+      "toy_example": "Illustration only, not a measurement: if I/O were 70% of step time and the no-swap design removed all of it, the step time would fall to 30% and the speedup would cap near 3.3x however large the batch grows.",
+      "conditional_consequence": "On hardware or configurations where the KV cache already fits on the GPU, the benefit of in-place replacement over FlexGen is smaller than in the offloaded T4 settings.",
+      "critical_link": "The gain is tied to PCIe I/O being the dominant cost, which holds in the CPU-offload T4 tests.",
+      "necessary_conditions": [
+        "The KV cache fits in GPU memory or the offloading cost is small",
+        "Compute or dequantization overhead is comparable to I/O"
+      ],
+      "defeaters": [
+        "Larger batches raise compute utilization enough to keep scaling",
+        "An optimized quantization kernel removes the compute overhead the paper names"
+      ],
+      "do_not_infer": [
+        "That the no-swap mechanism itself is slow",
+        "That the paper reports in-place replacement as the cause of the sub-linear scaling",
+        "That H2O is never faster than FlexGen on A100"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L7: bottleneck shift over scale",
+      "quotes": [
+        {
+          "text": "However, it should be emphasized that the quantization method employed in FlexGen is not implemented most efficiently, resulting in considerable computational overhead.",
+          "source": "paper",
+          "locator": "Appendix C.2"
+        },
+        {
+          "text": "Despite the batch size being enlarged by 20 times, the actual throughput improvement is less than 2 times.",
+          "source": "paper",
+          "locator": "Appendix C.2"
+        },
+        {
+          "text": "oldest = ((i - 1) % K) - K",
+          "source": "paper code",
+          "locator": "Appendix A, store_cache()"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "In offloaded inference the PCIe transfer is often the bottleneck. When the cache fits on the GPU, per-step compute, quantization and score upkeep become the limiting terms. The paper's own quantized-H2O result shows throughput growing far less than batch size. By the same pattern, the I/O savings from the no-swap design should give diminishing returns once PCIe stops being the bottleneck. The paper attributes the sub-linear scaling to inefficient quantization, not to the no-swap mechanism, so the extension is inferred."
+    },
+    {
+      "headline": "Accumulated-score eviction does not guarantee that H2O's advantage over a static sink persists as the stream grows",
+      "claim": "In H2O, token scores are running sums of attention with no decay or normalization by age. Over a very long stream, the retained heavy-hitter set can therefore be dominated by early, long-accumulating tokens. It would then behave like a near-static prefix, which is what StreamingLLM keeps by rule, and H2O's edge over StreamingLLM could shrink with stream length.",
+      "paper_fact": "In H2O, employing the accumulated attention score to evict KV embeddings can lead to a potential bias favoring the least recent tokens.",
+      "premise": "A sum of nonnegative per-step attention weights grows with the number of steps a token has been observed. Softmax rows sum to 1, so total score mass grows linearly with time. A token that has been present for millions of steps can hold a much larger sum than one that has been present for hundreds.",
+      "inference": "Without decay, a late-arriving token that matters only briefly cannot overtake long-resident early tokens, so the heavy-hitter slots can freeze on early content. The paper reports the bias but does not test it at multi-million-token scale. It also tried averaged scores only on benchmarks, where they degraded performance.",
+      "toy_example": "Illustration only, not a measurement: an early token receives 0.05 attention per step. After 1,000,000 steps its score is 50,000. A new token receiving 0.3 attention per step for 1,000 steps reaches 300 and is evicted first.",
+      "conditional_consequence": "If scores are never decayed or rescaled, H2O's perplexity gap over StreamingLLM would be expected to narrow or vanish as the stream grows. The retained set would converge to a fixed early-token set plus the local window.",
+      "critical_link": "Scores accumulated over unbounded time dominate comparisons against recently admitted tokens.",
+      "necessary_conditions": [
+        "Scores accumulate without decay in the long-stream setting.",
+        "The heavy-hitter budget is small relative to the number of early high-attention tokens.",
+        "The local window does not hold the tokens needed later."
+      ],
+      "defeaters": [
+        "The implementation resets or rescales scores periodically.",
+        "Early tokens' attention falls off enough that their sums stop dominating.",
+        "Figure 5 shows a persistent gap to four million tokens, which would then be explained by something other than adaptive selection."
+      ],
+      "do_not_infer": [
+        "Do not infer that H2O is worse than StreamingLLM at any length.",
+        "Do not infer that the authors' four-million-token result is wrong.",
+        "Do not infer that accumulated scores always freeze the retained set."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L5+L7",
+      "quotes": [
+        {
+          "text": "employing the accumulated attention score to evict KV embeddings can lead to a potential bias favoring the least recent tokens.",
+          "source": "paper",
+          "locator": "Appendix B.2, Previous Attempts"
+        },
+        {
+          "text": "Accumulate the scores (Remark D.15)",
+          "source": "paper",
+          "locator": "Appendix D.6, Algorithm 2, line 9"
+        },
+        {
+          "text": "H2O can empower LLMs to tackle input with length up to four million tokens, achieving a better performance (lower perplexity) than the original StreamLLM method [52] across various cache size.",
+          "source": "paper",
+          "locator": "Section 5.3, Q1/A1"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A sum of nonnegative per-step attention weights grows with the number of steps a token has been observed. Softmax rows sum to 1, so total score mass grows linearly with time. A token that has been present for millions of steps can hold a much larger sum than one that has been present for hundreds. Without decay, a late-arriving token that matters only briefly cannot overtake long-resident early tokens, so the heavy-hitter slots can freeze on early content. The paper reports the bias but does not test it at multi-million-token scale. It also tried averaged scores only on benchmarks, where they degraded performance."
+    },
+    {
+      "headline": "Recognizing the accumulated-score age bias does not imply that averaging the score removes it or improves eviction",
+      "claim": "The authors identify that summing attention over queries favors older tokens, but their own fix (averaging) degraded performance. So the age bias of the sum is not shown to be a defect to remove. It may partly act as useful retention of early, sink-like tokens, and the paper does not test that.",
+      "paper_fact": "employing the accumulated attention score to evict KV embeddings can lead to a potential bias favoring the least recent tokens.",
+      "premise": "In a causally masked decoder, a token at position j is attended to by every later query, so a sum over queries grows with token age. A mean divides out the number of queries and removes that exposure effect. Early tokens such as the first tokens of a sequence often receive disproportionately large attention in autoregressive LMs.",
+      "inference": "If the mean is the fairer importance estimate yet performs worse, the sum's age-proportional term may be correlated with what the model needs, for example initial tokens that the authors say play a substantial role. The sum may therefore be doing implicit sink retention in addition to counting importance. The paper does not separate these two effects.",
+      "toy_example": "Not a measurement. Two tokens each receive attention 0.1 from every query that sees them. Token A is at position 1 and token B at position n-4, with n=100. Sum scores: A=10.0, B=0.5. Mean scores: both 0.1. The sum keeps A, and the mean cannot distinguish them, so a tie-break rule would decide which is evicted.",
+      "conditional_consequence": "If early tokens act as attention sinks, replacing the sum with a mean (or any age-normalized score) without explicitly pinning the first tokens could evict sinks and reduce quality. This is what the reported degradation would be consistent with.",
+      "critical_link": "Whether the quality loss from averaging comes from evicting sink-like early tokens or from noisy averages of recently added tokens. The paper does not test either.",
+      "necessary_conditions": [
+        "The averaged variant is implemented per-head with the same recent/heavy-hitter split as the summed variant.",
+        "Early tokens carry importance that the mean fails to register.",
+        "The degradation is not due to a noisy mean on tokens seen by few queries."
+      ],
+      "defeaters": [
+        "A mean with a minimum-observation prior could outperform the sum.",
+        "The degradation may come from implementation details or hyperparameters of the averaged run.",
+        "Pinning the first tokens could remove the need for age bias."
+      ],
+      "do_not_infer": [
+        "Do not infer that the sum is optimal.",
+        "Do not infer that sink retention is the confirmed cause of the degradation.",
+        "Do not infer that the age bias is harmless at all context lengths."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L2 objective vs goal (age vs importance)",
+      "quotes": [
+        {
+          "text": "employing the accumulated attention score to evict KV embeddings can lead to a potential bias favoring the least recent tokens.",
+          "source": "paper, Appendix B.2 Previous Attempts",
+          "locator": "page 21"
+        },
+        {
+          "text": "However, this alternative approach resulted in performance degradation.",
+          "source": "paper, Appendix B.2 Previous Attempts",
+          "locator": "page 22"
+        },
+        {
+          "text": "This finding suggests that the initial tokens play a substantial role in subsequent generation tasks.",
+          "source": "paper, Appendix B.2 Previous Attempts",
+          "locator": "page 22"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "In a causally masked decoder, a token at position j is attended to by every later query, so a sum over queries grows with token age. A mean divides out the number of queries and removes that exposure effect. Early tokens such as the first tokens of a sequence often receive disproportionately large attention in autoregressive LMs. If the mean is the fairer importance estimate yet performs worse, the sum's age-proportional term may be correlated with what the model needs, for example initial tokens that the authors say play a substantial role. The sum may therefore be doing implicit sink retention in addition to counting importance. The paper does not separate these two effects."
+    },
+    {
+      "headline": "Reduced repetition under H2O eviction does not imply or guarantee better text modeling; it may be a side effect of lost context",
+      "claim": "The paper presents lower Self-BELU and less repetition as a 'bonus' of H2O. Its own framing is that evicted KV entries are never seen again. A plausible alternative cause is that eviction removes the earlier tokens a repeating phrase would copy from. In that case the diversity gain is an information-loss side effect, and no faithfulness or recall metric accompanies it.",
+      "paper_fact": "Since the evicted KV will not be seen in the future steps, dropping certain critical KV embeddings can cause a severe functional collapse, resulting in significant performance degradation",
+      "premise": "Loops such as 'so moved that ... so moved that' typically rely on attention to earlier occurrences of the repeated phrase (induction-style copying). If eviction drops those earlier tokens, the copy loop can break regardless of whether the model is otherwise better.",
+      "inference": "Under the paper's own description of eviction, the reduction in repetition is consistent with discarded context rather than improved generation. The paper reports no faithfulness metric on the same outputs to separate the two causes. The paper does not claim a mechanism, so this is an inferred alternative, not a reported finding.",
+      "toy_example": "Illustration only, not a measurement: an output that avoids repeating 'the musician began to cry' because that earlier sentence was evicted would look more diverse. It might also fail to remember that a musician was mentioned, which a recall-based task would reveal.",
+      "conditional_consequence": "If the diversity comes from eviction removing the repeated context, a faithfulness or recall-sensitive evaluation on the same generations would show degradation, or no gain, alongside the lower Self-BELU. The diversity claim would then not reflect a quality improvement.",
+      "critical_link": "Attributing reduced repetition to H2O's heavy-hitter selection without ruling out that dropped context, rather than better modeling, removes the repetition.",
+      "necessary_conditions": [
+        "The repeated phrases in the full-model outputs depend on attention to evicted earlier tokens",
+        "Decoding uses a setting where repetition loops occur, such as greedy or low-temperature decoding"
+      ],
+      "defeaters": [
+        "Repetition rates still differ under sampling-based decoding, indicating the effect does not depend on loop avoidance",
+        "A faithfulness metric on the same outputs shows H2O matches the full model",
+        "An attention analysis shows that evicted tokens are not the repeated-phrase sources"
+      ],
+      "do_not_infer": [
+        "Do not infer that H2O harms accuracy; the paper's task results show comparable accuracy at 20% budget",
+        "Do not infer that the diversity effect is absent; only its cause and meaning are unclear",
+        "Do not infer that the effect disappears under sampling; this is not tested"
+      ],
+      "disclosure": "inferred",
+      "category_code": "mechanism_origin_unclear",
+      "lens": "L1+L3",
+      "quotes": [
+        {
+          "quote": "Since the evicted KV will not be seen in the future steps, dropping certain critical KV embeddings can cause a severe functional collapse, resulting in significant performance degradation",
+          "source": "paper",
+          "locator": "Section 5.1, Analysis, p.8"
+        },
+        {
+          "quote": "we also observe an bonus introduced by H2O, i.e., the improved diversity of generated content.",
+          "source": "paper",
+          "locator": "Section 5.3, Q5/A5, p.10"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "Section 5.1, Analysis, p.8",
+          "support_description": "Since the evicted KV will not be seen in the future steps, dropping certain critical KV embeddings can cause a severe functional collapse, resulting in significant performance degradation"
+        },
+        {
+          "source_id": "paper",
+          "location": "Section 5.3, Q5/A5, p.10",
+          "support_description": "we also observe an bonus introduced by H2O, i.e., the improved diversity of generated content."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Loops such as 'so moved that ... so moved that' typically rely on attention to earlier occurrences of the repeated phrase (induction-style copying). If eviction drops those earlier tokens, the copy loop can break regardless of whether the model is otherwise better. Under the paper's own description of eviction, the reduction in repetition is consistent with discarded context rather than improved generation. The paper reports no faithfulness metric on the same outputs to separate the two causes. The paper does not claim a mechanism, so this is an inferred alternative, not a reported finding."
+    },
+    {
+      "headline": "Accumulated attention score does not imply token importance at prefill",
+      "claim": "Prefill selects heavy hitters by summing attention over the prompt. Under a causal mask, earlier tokens are attended to by more queries and accumulate larger sums. The selection can therefore favor early positions independent of importance, and the paper's own alternative (averaging) did worse.",
+      "paper_fact": "In H2O, employing the accumulated attention score to evict KV embeddings can lead to a potential bias favoring the least recent tokens.",
+      "premise": "In causal attention, key j receives probability mass from the n−j+1 queries at or after position j. Each row sums to 1, so earlier keys appear in more rows. Unnormalized column sums are therefore position-biased.",
+      "inference": "One-shot prefill selection ranks prompt tokens partly by position, which can inflate early tokens. This may explain the observation that heavy hitters concentrate at sentence beginnings. A frequency-correct score is not obviously better, since the averaged variant degraded performance.",
+      "toy_example": "Not a measurement: with 4 tokens and uniform causal attention, token 1 gets 1+1/2+1/3+1/4≈2.08, while token 4 gets 1/4. Token 1 ranks highest purely from position.",
+      "conditional_consequence": "If prompt content mattering for generation sits late in the prompt, a pure accumulated-sum selection could rank it below early tokens, and only the recent-K window protects it.",
+      "critical_link": "The selection score is an unnormalized sum over a causal mask, so position changes how many terms a token receives.",
+      "necessary_conditions": [
+        "Causal masking",
+        "Selection by raw accumulated attention sum",
+        "Importance not already correlated with early position"
+      ],
+      "defeaters": [
+        "Early tokens being genuinely important (attention-sink-like)",
+        "The recent-K half of the budget covering late tokens",
+        "Normalizations other than the simple mean that the paper did not test"
+      ],
+      "do_not_infer": [
+        "That the heavy-hitter selection is useless",
+        "That averaged scores would help (the paper reports they degraded performance)",
+        "That the bias was measured at prefill specifically; the paper discusses accumulation generally"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "selection-criterion bias",
+      "quotes": [
+        {
+          "source": "paper, Appendix B.2",
+          "locator": "Previous Attempts",
+          "text": "This bias arises because most previous tokens have a higher number of attention scores,"
+        },
+        {
+          "source": "paper, Appendix B.2",
+          "locator": "Previous Attempts",
+          "text": "However, this\nalternative approach resulted in performance degradation."
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "In causal attention, key j receives probability mass from the n−j+1 queries at or after position j. Each row sums to 1, so earlier keys appear in more rows. Unnormalized column sums are therefore position-biased. One-shot prefill selection ranks prompt tokens partly by position, which can inflate early tokens. This may explain the observation that heavy hitters concentrate at sentence beginnings. A frequency-correct score is not obviously better, since the averaged variant degraded performance."
+    },
+    {
+      "headline": "The recency half's usefulness in five-shot lm-eval tasks does not imply it is useful for tasks with non-local dependencies",
+      "claim": "The design reserves half the cache for recent tokens on the stated intuition that nearby words correlate more strongly with the current token. The main accuracy results mostly use short five-shot lm-eval tasks, so they do not test settings where relevant evidence sits far from the current position. In such settings the recency half may contribute little and half the budget is effectively idle.",
+      "paper_fact": "The intuition is that recent words typically exhibit stronger correlations with current tokens.",
+      "premise": "Locality of dependencies is a property of the data. In retrieval, multi-document question answering or code with distant definitions, the needed tokens can lie far outside any fixed-size recent window.",
+      "inference": "The paper uses locality as the reason for the recency half, and its main tasks are five-shot lm-eval-harness tasks plus summarisation. The appendix itself notes that StreamingLLM-style policies (first tokens plus local window) lose key information when it sits in the middle of the input. H2O's recency half has the same property for the local portion, and only the heavy-hitter half can recover distant evidence. For such tasks the fixed 50/50 split would give fewer useful slots than a heavy-hitter-heavy split.",
+      "conditional_consequence": "If a task's critical evidence is both distant and not high in accumulated attention, then H2O with an even split loses accuracy at a budget where the paper reports parity, and the claimed 5x reduction would not carry over.",
+      "critical_link": "The assumption that recent tokens are strongly correlated with the current token, which is a property of natural language text and not of the eviction mechanism.",
+      "necessary_conditions": [
+        "The target task depends on evidence outside the recent window.",
+        "That evidence does not accumulate enough attention to be selected as a heavy hitter."
+      ],
+      "defeaters": [
+        "Heavy hitters capture the distant evidence because it receives high accumulated attention.",
+        "Task evidence is local, as in the tasks the paper evaluates."
+      ],
+      "do_not_infer": [
+        "Do not infer that H2O fails on long-range tasks; the paper reports comparisons with StreamingLLM on multi-document QA and summarisation where H2O does better.",
+        "Do not infer a specific accuracy loss; the paper contains no test of a recency-free or heavy-hitter-heavy split on such tasks."
+      ],
+      "disclosure": "inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L5",
+      "quotes": [
+        {
+          "text": "The intuition is that recent words typically exhibit stronger correlations with current tokens.",
+          "source": "paper, Section 3.2 Analysis",
+          "locator": "Section 3.2, Analysis paragraph"
+        },
+        {
+          "text": "we default to conduct five-shot inference",
+          "source": "paper, Appendix A Experiment Details",
+          "locator": "Appendix A, Experiment Details paragraph"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Locality of dependencies is a property of the data. In retrieval, multi-document question answering or code with distant definitions, the needed tokens can lie far outside any fixed-size recent window. The paper uses locality as the reason for the recency half, and its main tasks are five-shot lm-eval-harness tasks plus summarisation. The appendix itself notes that StreamingLLM-style policies (first tokens plus local window) lose key information when it sits in the middle of the input. H2O's recency half has the same property for the local portion, and only the heavy-hitter half can recover distant evidence. For such tasks the fixed 50/50 split would give fewer useful slots than a heavy-hitter-heavy split."
+    },
+    {
+      "headline": "A vocabulary-level accumulated-attention power law does not imply that per-sequence, per-head token eviction follows the same distribution",
+      "claim": "The power-law evidence is plotted per vocabulary word type, from OPT-1.3B, layer by layer. The eviction policy acts on token positions within a sequence, independently per head and layer. The distribution is shown at a different unit and aggregation scope from where the policy applies it.",
+      "paper_fact": "The x-axis represents the word index in the vocabulary.",
+      "premise": "Summing attention over every occurrence of a word across a corpus can look heavy-tailed even if, within a single head and sequence, attention mass is spread differently across positions. A skew in the aggregate does not fix the skew in each head's per-sequence slice.",
+      "inference": "The aggregate power law motivates the existence of heavy hitters but does not show that each head, in each sequence, has a small concentrated set of positions. Fig. 10 shows layers, not individual heads, so per-head concentration is not displayed.",
+      "toy_example": "Not a measurement: two heads could each put attention on different, disjoint sets of positions. Summed together they look heavy-tailed, yet each head still needs its own different retained set.",
+      "conditional_consequence": "If per-head, per-sequence attention is much flatter than the aggregate, a fixed budget per head would lose more mass than the vocabulary-level plot suggests.",
+      "critical_link": "The step from word-type, corpus-level accumulated attention to per-head, per-sequence token importance is assumed rather than shown.",
+      "necessary_conditions": [
+        "Per-head accumulated scores must be heavy-tailed within a single sequence.",
+        "The word-level aggregate must reflect per-sequence head behavior."
+      ],
+      "defeaters": [
+        "The end-to-end results (Table 2, Fig 4) show per-head eviction works at 20% budgets on the tested tasks and models.",
+        "Appendix D.6 accumulates scores per sequence (õ_i ← õ_{i-1} + o_i), so the algorithm itself uses a within-sequence statistic."
+      ],
+      "do_not_infer": [
+        "Do not infer that per-head eviction fails.",
+        "Do not infer that the aggregation scope used in Fig 10 is stated beyond the caption."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L3/L4",
+      "quotes": [
+        {
+          "text": "The x-axis represents the word index in the vocabulary.",
+          "source": "paper",
+          "locator": "Figure 2 caption"
+        },
+        {
+          "text": "in our algorithm, each token can be kept or evicted independently across heads and layers",
+          "source": "paper",
+          "locator": "Appendix C.9"
+        },
+        {
+          "text": "Results are obtained from OPT-1.3B.",
+          "source": "paper",
+          "locator": "Figure 10 caption"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Summing attention over every occurrence of a word across a corpus can look heavy-tailed even if, within a single head and sequence, attention mass is spread differently across positions. A skew in the aggregate does not fix the skew in each head's per-sequence slice. The aggregate power law motivates the existence of heavy hitters but does not show that each head, in each sequence, has a small concentrated set of positions. Fig. 10 shows layers, not individual heads, so per-head concentration is not displayed."
+    },
+    {
+      "headline": "The (1-1/e) greedy guarantee does not imply that submodularity explains H2O's choice of accumulated-score eviction over other score-sum rules",
+      "claim": "The paper presents the submodular guarantee as justification for the H2O eviction rule. But the instantiation it presents for intuition, h(z)=z, makes the score function a plain sum of per-token accumulated attention scores. For such a modular set function, greedy top-k is trivially optimal. The (1-1/e) bound is therefore uninformative about why H2O's particular accumulated-score rule would beat other rules.",
+      "paper_fact": "For simplicity, in Algorithm 1 (which is the informal version of Algorithm 2), we choose h(z) = z",
+      "premise": "A set function of the form f(S)=sum of non-negative weights over S is modular. Appendix D.2 itself lists linear functions as monotone submodular. For a modular function under a cardinality constraint, picking the k largest weights is exactly optimal.",
+      "inference": "With h(z)=z, the score is Fscore(T)=sum of accumulated scores over T. Removing the argmax-of-remaining-score element is then just dropping the lowest accumulated score. The guarantee reduces to 'top-k by accumulated score is optimal for the sum of accumulated scores'. That statement holds for any score-sum top-k rule that uses the same scores, so it cannot single out H2O's choices (for example recent plus heavy-hitter, or accumulated rather than averaged scores) as better.",
+      "toy_example": "Not a measurement. Weights {5,3,1,1} with k=2: greedy picks {5,3}, which is optimal. The same holds for any other rule that ranks by those weights. The bound says nothing about whether those weights are the right ones.",
+      "conditional_consequence": "If the implemented score is linear in accumulated attention, the theorem supports 'greedy on this surrogate is optimal for this surrogate'. It does not support the claim that this surrogate yields better generation quality than alternative eviction rules.",
+      "critical_link": "Whether the surrogate f that the theorem is stated for (with concave h, as in Remark D.14) matches the h(z)=z score actually used in Algorithm 1.",
+      "necessary_conditions": [
+        "The implemented Fscore uses h(z)=z, as in Algorithm 1.",
+        "The baselines being compared also rank tokens by sums of attention-derived scores."
+      ],
+      "defeaters": [
+        "The authors' actual implementation uses a concave h not shown in the provided excerpts.",
+        "The theorem is only offered as a loose explanation, not as an explanation of H2O's advantage over baselines."
+      ],
+      "do_not_infer": [
+        "Do not infer that the theorem is false or that the proof is wrong.",
+        "Do not infer that H2O performs no better than baselines; the empirical results are separate.",
+        "Do not infer anything about the code, since no code excerpts were provided."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1 proxy guarantee x L4 coupling",
+      "quotes": [
+        {
+          "text": "For simplicity, in Algorithm 1 (which is the informal version of Algorithm 2), we choose h(z) = z",
+          "source": "paper, Remark D.14",
+          "locator": "Appendix D.6, page 37"
+        },
+        {
+          "text": "h(z) is usually chosen to be some non-decreasing concave function such as √z + 1 and log(z + 1)",
+          "source": "paper, Remark D.14",
+          "locator": "Appendix D.6, page 37"
+        },
+        {
+          "text": "A linear function can be represented as f(S) = P i∈S wi. If all the weights wi are nonnegative, then the function f is considered monotone.",
+          "source": "paper, Definition D.2 discussion",
+          "locator": "Appendix D.2, page 33"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A set function of the form f(S)=sum of non-negative weights over S is modular. Appendix D.2 itself lists linear functions as monotone submodular. For a modular function under a cardinality constraint, picking the k largest weights is exactly optimal. With h(z)=z, the score is Fscore(T)=sum of accumulated scores over T. Removing the argmax-of-remaining-score element is then just dropping the lowest accumulated score. The guarantee reduces to 'top-k by accumulated score is optimal for the sum of accumulated scores'. That statement holds for any score-sum top-k rule that uses the same scores, so it cannot single out H2O's choices (for example recent plus heavy-hitter, or accumulated rather than averaged scores) as better."
+    },
+    {
+      "headline": "Per-head independent eviction does not guarantee a wall-clock cost advantage, since per-head bookkeeping is never separately timed",
+      "claim": "H2O evicts a different heavy hitter in each head and tracks per-head eviction indices. The throughput results cover the whole system and do not isolate the cost or benefit of per-head selection against a shared selection.",
+      "paper_fact": "one heavy hitter will be evicted for each head",
+      "premise": "Per-head selection needs per-head index state, such as eviction indices and replacement writes, which adds work and metadata that scale with heads × layers × batch. Whether this shows up in wall-clock time depends on the kernel implementation and the hardware.",
+      "inference": "The reported speedups are end-to-end gains from a smaller KV cache, which allows larger batches or avoids offloading. The paper never compares per-head selection against a shared-across-heads variant in timing, so the incremental cost of per-head independence is unmeasured.",
+      "conditional_consequence": "If the per-head index and replacement overhead is non-trivial at large batch, part of the memory-driven speedup is offset. The net benefit of per-head versus shared eviction then remains unknown.",
+      "critical_link": "Is the overhead of per-head eviction indices and replacement writes small compared with the memory-driven gains?",
+      "necessary_conditions": [
+        "Large batch and many heads, so that per-head metadata and replacement work are non-trivial",
+        "The implementation moves per-head indices or writes per step"
+      ],
+      "defeaters": [
+        "A profile showing negligible per-head overhead",
+        "Preallocated dense cache with in-place replacement keeping the cost small",
+        "A shared-selection variant that is no faster"
+      ],
+      "do_not_infer": [
+        "That H2O's reported throughput gains are wrong",
+        "That per-head eviction is slower than shared eviction",
+        "That the system is inefficient"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L6+L7",
+      "quotes": [
+        {
+          "text": "one heavy hitter will be evicted for each head",
+          "source": "paper",
+          "locator": "Appendix A, System Details/Pseudocode paragraph"
+        },
+        {
+          "text": "H2O with a 20% budget improves the generation throughput over FlexGen, DeepSpeed, and Accelerate by up to 3×, 29×, and 29×",
+          "source": "paper",
+          "locator": "Section 5.2, Results"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Per-head selection needs per-head index state, such as eviction indices and replacement writes, which adds work and metadata that scale with heads × layers × batch. Whether this shows up in wall-clock time depends on the kernel implementation and the hardware. The reported speedups are end-to-end gains from a smaller KV cache, which allows larger batches or avoids offloading. The paper never compares per-head selection against a shared-across-heads variant in timing, so the incremental cost of per-head independence is unmeasured."
+    },
+    {
+      "headline": "A percentage-of-prompt cache budget does not imply a fixed absolute memory reduction or a prompt-independent 5x saving",
+      "claim": "The headline 5x memory reduction is defined relative to prompt length. It does not show that any fixed number of retained KV entries preserves accuracy. The saving at a given quality level depends on how long the prompt is.",
+      "paper_fact": "Our study involves the evaluation with varying sizes of KV cache that encompass 4%, 10%, 20%, and 60% of the prompt’s length.",
+      "premise": "KV cache memory is roughly proportional to the number of retained entries. A budget set as a fraction of prompt length therefore gives an absolute entry count that scales with the prompt. Deployments, including the paper's own implementation, allocate a fixed entry count K.",
+      "inference": "A 20% budget on a long 5-shot prompt is a large absolute number of entries. The same 20% on a short prompt is a small one. The accuracy-preserving absolute budget is not established by the sweep, so the 'more than 5x' result is conditional on the prompt lengths used.",
+      "toy_example": "Illustration only, not a measurement: a 1000-token prompt at 20% keeps 200 entries. A 250-token prompt at 20% keeps 50 entries. If 200 entries were the true requirement, the 250-token prompt would need 80% of its cache, which is only a 1.25x reduction.",
+      "conditional_consequence": "If the entries needed for accuracy are roughly constant in absolute terms rather than proportional to prompt length, then shorter prompts will need a much larger budget fraction and will get a much smaller memory reduction.",
+      "critical_link": "Whether the number of entries needed to preserve accuracy scales with prompt length or is roughly fixed.",
+      "necessary_conditions": [
+        "The evaluated prompts are long enough that 20% is a large number of entries.",
+        "The entries needed for accuracy do not scale proportionally down for short prompts."
+      ],
+      "defeaters": [
+        "If the required entry count is itself proportional to prompt length, the percentage budget transfers across lengths.",
+        "The paper says 'up to 5x' and 'less than 20%', so the headline is already partly hedged."
+      ],
+      "do_not_infer": [
+        "Do not infer that H2O fails at fixed absolute budgets; the paper does not test this.",
+        "Do not infer that the 5x claim is wrong for the 5-shot prompts evaluated."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L3",
+      "quotes": [
+        {
+          "text": "Our study involves the evaluation with varying sizes of KV cache that encompass 4%, 10%, 20%, and 60% of the prompt’s length.",
+          "source": "paper, Appendix A",
+          "locator": "Experiment Details"
+        },
+        {
+          "text": "for the given parameter K, we always maintain a list of KV cache with the first K entries as heavy hitters, and the last K entries as most recent tokens.",
+          "source": "paper, Appendix A",
+          "locator": "System Details"
+        },
+        {
+          "text": "with less than 20% KV cache budget(i.e., more than 5× memory reduction), H2O achieves comparable performance as the model with full KV embeddings",
+          "source": "paper, Section 5.1",
+          "locator": "Main Results (2)"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "KV cache memory is roughly proportional to the number of retained entries. A budget set as a fraction of prompt length therefore gives an absolute entry count that scales with the prompt. Deployments, including the paper's own implementation, allocate a fixed entry count K. A 20% budget on a long 5-shot prompt is a large absolute number of entries. The same 20% on a short prompt is a small one. The accuracy-preserving absolute budget is not established by the sweep, so the 'more than 5x' result is conditional on the prompt lengths used."
+    },
+    {
+      "headline": "Up to 5x reduction under zero/one-shot conflicts with the 30-40% budgets those tasks need",
+      "claim": "The appendix says the 5x reduction holds under zero-shot and one-shot inference across tasks. The same paragraph says some tasks need 30-40% of the cache, which is only about 2.5-3.3x. The saving is therefore prompt- and task-dependent, not uniformly 5x.",
+      "paper_fact": "However, unlike 5-shot, we also found that some tasks are more difficult, and the model requires more information to generate the correct content, resulting in a higher KV cache budget (30-40%).",
+      "premise": "A budget of fraction f gives a reduction of 1/f. 30% is about 3.3x and 40% is 2.5x. Short prompts have little demonstration text that can be evicted without loss.",
+      "inference": "The 5x figure holds only for some tasks and shot settings. Where prompts are 100-300 tokens, the break-even budget rises and the saving shrinks. This is consistent with the 5x result coming largely from compressible few-shot demonstrations.",
+      "conditional_consequence": "For short-prompt uses such as zero-shot queries or single chat turns, the realised memory reduction would be below 5x at equal accuracy.",
+      "critical_link": "Whether the budget fraction needed for accuracy rises as prompts get shorter.",
+      "necessary_conditions": [
+        "The 100-300 token zero/one-shot prompts are representative of the short-prompt regime.",
+        "The 30-40% budget reflects the true accuracy-preserving requirement for those tasks."
+      ],
+      "defeaters": [
+        "The paper says 'up to 5x' and 'some tasks', so the claim is not strictly contradicted.",
+        "Some zero/one-shot tasks may still reach 20%, which the paper implies but does not enumerate."
+      ],
+      "do_not_infer": [
+        "Do not infer H2O fails on zero-shot tasks; the paper reports matching accuracy at the higher budget.",
+        "Do not infer a specific cause; the paper only says 'might be expected' because of shorter sequences."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L3+L5",
+      "quotes": [
+        {
+          "text": "H2O can successfully mitigate the memory requirements of the KV cache by up to 5× under both one/zero-shot inference across different tasks",
+          "source": "paper, Appendix C.3",
+          "locator": "first paragraph"
+        },
+        {
+          "text": "resulting in a higher KV cache budget (30-40%).",
+          "source": "paper, Appendix C.3",
+          "locator": "first paragraph"
+        },
+        {
+          "text": "This might be expected since 0/1 shots in our benchmarks have shorter sequence lengths ranging from 100 to 300.",
+          "source": "paper, Appendix C.3",
+          "locator": "first paragraph"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A budget of fraction f gives a reduction of 1/f. 30% is about 3.3x and 40% is 2.5x. Short prompts have little demonstration text that can be evicted without loss. The 5x figure holds only for some tasks and shot settings. Where prompts are 100-300 tokens, the break-even budget rises and the saving shrinks. This is consistent with the 5x result coming largely from compressible few-shot demonstrations."
+    },
+    {
+      "headline": "A fixed-size preallocated KV buffer with in-place replacement does not imply the reported throughput gain holds for variable-length prompts",
+      "claim": "The no-swap, preallocated circular-buffer design is evaluated on prompts padded to one length. This does not show the same speedup over FlexGen for batches with mixed prompt lengths.",
+      "paper_fact": "We use synthetic datasets where all prompts are padded to the same length.",
+      "premise": "A statically shaped buffer needs one budget K per batch. When prompt lengths differ and the budget is set as a fraction of the prompt length, a batch must either pad or use a common K.",
+      "inference": "With mixed lengths, a common K is sized by the longest prompt or the budget differs per sequence. Short prompts then reserve slots they do not use, which reduces the batch size the memory can hold, and that gain is what the paper credits for the speedup. The size of the effect is not measured.",
+      "toy_example": "Illustration only, not a measurement: if one prompt in a batch of 4 needs K=400 and the others need K=100, a shared static buffer reserves 4x400 slots instead of 700, so about 43% of the reserved KV memory goes unused.",
+      "conditional_consequence": "If real workloads have widely varying lengths, the batch-size and throughput advantage over FlexGen is likely smaller than in the padded setting.",
+      "critical_link": "Static buffer shape relies on the padded equal-length setup. The XSUM result is the only evidence outside it, and the text does not say whether XSUM prompts were padded.",
+      "necessary_conditions": [
+        "Prompt lengths in the target workload vary substantially",
+        "The system uses one shared K and buffer shape per batch",
+        "The batch size the memory allows drives the claimed throughput gain"
+      ],
+      "defeaters": [
+        "XSUM prompts were already length-bucketed or padded, so the real-world result still reflects the padded regime",
+        "Per-sequence buffers or length bucketing remove the waste",
+        "The speedup comes mostly from the no-swap I/O saving rather than from batch size"
+      ],
+      "do_not_infer": [
+        "That H2O is slower than FlexGen on variable-length data",
+        "That the XSUM throughput gain is invalid",
+        "That the eviction policy's accuracy depends on equal-length prompts"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L5+L6: regularity origin change combined with shifted cost",
+      "quotes": [
+        {
+          "text": "We use synthetic datasets where all prompts are padded to the same length.",
+          "source": "paper",
+          "locator": "Section 5.2 Setup"
+        },
+        {
+          "text": "In order to avoid data movement in memory, the memory for KV cache is preallocated.",
+          "source": "paper",
+          "locator": "Appendix A, System Details"
+        },
+        {
+          "text": "will return K heavy hitters and K recent tokens if the prompt has a length greater than or equal to 2K, otherwise return all the KV cache",
+          "source": "paper",
+          "locator": "Appendix A, Pseudocode"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A statically shaped buffer needs one budget K per batch. When prompt lengths differ and the budget is set as a fraction of the prompt length, a batch must either pad or use a common K. With mixed lengths, a common K is sized by the longest prompt or the budget differs per sequence. Short prompts then reserve slots they do not use, which reduces the batch size the memory can hold, and that gain is what the paper credits for the speedup. The size of the effect is not measured."
+    },
+    {
+      "headline": "A 20× larger batch from freed memory does not guarantee a proportional throughput gain",
+      "claim": "Shrinking memory to enlarge the batch is not enough for throughput to scale. When the bottleneck moves to another cost (here FlexGen's dequantization), throughput grows far less than the batch.",
+      "paper_fact": "Despite the batch size being enlarged by 20 times, the actual throughput improvement is less than 2 times.",
+      "premise": "Throughput is bounded by the slowest resource (compute, weight traffic, or kernel overhead). Once memory stops binding, adding batch only helps until another resource saturates.",
+      "inference": "With 4-bit weight compression (H2O-c), the batch goes from 4 to 70 but throughput goes only from 35.1 to 50.5 tok/s (512+32). So the memory-to-batch-to-throughput chain breaks once compute overhead dominates. The authors attribute this to FlexGen's unoptimized quantization. They suggest an optimized CUDA kernel could help but do not test it.",
+      "toy_example": "Illustration only, not a measurement: if each step costs a fixed dequantization time D plus a per-sample compute time c, throughput saturates at about 1/c regardless of batch. Raising the batch beyond that point buys almost nothing.",
+      "conditional_consequence": "Further KV-cache reduction would yield diminishing returns unless the dequantization or weight-loading bottleneck is also reduced, e.g. by faster kernels. For 30B with offload, weight traffic over PCIe would similarly cap gains.",
+      "critical_link": "Whether the sub-linear scaling is caused by quantization overhead (as claimed) rather than another limit; the paper gives no profiling breakdown.",
+      "necessary_conditions": [
+        "H2O is combined with FlexGen's 4-bit weight quantization.",
+        "No optimized quantization kernel is used."
+      ],
+      "defeaters": [
+        "An efficient quantization kernel would remove the dequantization overhead.",
+        "Hardware with higher compute headroom would shift the ceiling."
+      ],
+      "do_not_infer": [
+        "That H2O without quantization has the same <2× limit.",
+        "That combining H2O with quantization is not beneficial; the paper still reports a gain (35.1 to 50.5, and larger at 512+512).",
+        "That the 30B offloaded regime is capped by weight traffic; this is a plausible inference, not a reported measurement."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L6/L7: shifted cost and bottleneck over scale",
+      "quotes": [
+        {
+          "text": "Despite the batch size being enlarged by 20 times, the actual throughput improvement is less than 2 times.",
+          "source": "paper, Appendix C.2",
+          "locator": "page 24"
+        },
+        {
+          "text": "However, it should be emphasized that the quantization method employed in FlexGen is not implemented most efficiently, resulting in considerable computational overhead.",
+          "source": "paper, Appendix C.2",
+          "locator": "page 24"
+        },
+        {
+          "text": "H2O-c (20%)\n50.5 (70)",
+          "source": "paper, Table 7",
+          "locator": "page 24"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Throughput is bounded by the slowest resource (compute, weight traffic, or kernel overhead). Once memory stops binding, adding batch only helps until another resource saturates. With 4-bit weight compression (H2O-c), the batch goes from 4 to 70 but throughput goes only from 35.1 to 50.5 tok/s (512+32). So the memory-to-batch-to-throughput chain breaks once compute overhead dominates. The authors attribute this to FlexGen's unoptimized quantization. They suggest an optimized CUDA kernel could help but do not test it."
+    },
+    {
+      "headline": "Memory freed by weight quantization allowing a larger batch does not guarantee proportional throughput gain",
+      "claim": "The paper attributes H2O-c's extra throughput to GPU memory freed by weight quantization allowing a larger batch. It also reports that dequantization overhead absorbs most of the benefit, so the compatibility gain is far below the batch-size gain.",
+      "paper_fact": "Despite the batch size being enlarged by 20 times, the actual throughput improvement is less than 2 times.",
+      "premise": "Throughput scales with batch size only while the system is memory-bound. Once weights are 4-bit, each step needs dequantization compute. If that is inefficiently implemented, the bottleneck moves from memory to compute and the gain saturates.",
+      "inference": "Table 7 shows H2O at batch 4 and H2O-c at batch 70, 52 and 44, a 17.5x, 13x and 11x increase. Throughput rises only from 35.1 to 50.5, 51.7 to 72.5 and 52.1 to 62.3 token/s (1.4x, 1.4x and 1.2x). The batch-size mechanism is real, but the net benefit is limited by compute overhead the authors say comes from an unoptimized FlexGen quantizer.",
+      "toy_example": "Illustration only, not a measurement: if per-token dequantization added a fixed compute cost, a bigger batch would amortize memory traffic but not that compute. Throughput would plateau regardless of batch size.",
+      "conditional_consequence": "If the dequantization cost is not reduced (for example with an optimized CUDA kernel), stacking quantization on H2O yields modest throughput benefit at much larger memory and batch footprints. The 'compatibility' claim then holds mainly for accuracy.",
+      "critical_link": "Efficiency of the 4-bit dequantization implementation.",
+      "necessary_conditions": [
+        "The FlexGen quantizer is compute-inefficient, as stated by the authors.",
+        "The workload is on a T4 with OPT-6.7B without offloading."
+      ],
+      "defeaters": [
+        "An optimized CUDA kernel makes dequantization cheap, as the authors suggest could happen.",
+        "On hardware with higher compute-to-memory ratio the overhead is negligible."
+      ],
+      "do_not_infer": [
+        "Do not infer that quantization plus H2O is useless; the paper still reports a 1.2-1.4x gain.",
+        "Do not infer the same limit applies to an optimized kernel or to other GPUs."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L6+L7",
+      "quotes": [
+        {
+          "text": "This improvement results from the GPU memory freed by weight quantization, which allows for a significant increase in batch size.",
+          "source": "paper, Appendix C.2",
+          "locator": "page 24"
+        },
+        {
+          "text": "Despite the batch size being enlarged by 20 times, the actual throughput improvement is less than 2 times.",
+          "source": "paper, Appendix C.2",
+          "locator": "page 24"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Throughput scales with batch size only while the system is memory-bound. Once weights are 4-bit, each step needs dequantization compute. If that is inefficiently implemented, the bottleneck moves from memory to compute and the gain saturates. Table 7 shows H2O at batch 4 and H2O-c at batch 70, 52 and 44, a 17.5x, 13x and 11x increase. Throughput rises only from 35.1 to 50.5, 51.7 to 72.5 and 52.1 to 62.3 token/s (1.4x, 1.4x and 1.2x). The batch-size mechanism is real, but the net benefit is limited by compute overhead the authors say comes from an unoptimized FlexGen quantizer."
+    },
+    {
+      "headline": "The accumulated-score selection of heavy hitters conflicts with standalone use because the age bias leaves it dependent on the recency half",
+      "claim": "Heavy-hitter-only retention based on accumulated scores performs far worse than the combination with local tokens in the paper's own ablation. This is consistent with the sum's age bias leaving the policy dependent on the recent window, though the paper does not test this causal link.",
+      "paper_fact": "only retaining the embeddings of H2 or local tokens can’t maintain a similar performance as the model using full embeddings, with a performance degradation from 2.85% to 22.75%.",
+      "premise": "Accumulated sums grow with the number of queries a token has seen, so new tokens have small scores and are the first candidates for eviction, however relevant they are to the current query. Recent tokens often matter most for the next-token prediction.",
+      "inference": "The recency half plausibly offsets this under-valuation of fresh tokens. The H2-only collapse in Table 9 (for example OPT-30B Winogrande 47.36 vs 69.06 for Local + H2) is consistent with it, but other explanations are equally possible (for example no coverage of local syntax).",
+      "toy_example": "Not a measurement. With a budget of 4 and every new token scoring below older ones, a pure sum-ranked cache would evict each newest token almost immediately, so the cache stagnates on early tokens.",
+      "conditional_consequence": "A deployment that shrinks the recent window to free budget for more heavy hitters could degrade sharply, which the ablation hints at.",
+      "critical_link": "Whether the H2-only collapse is caused by the age bias of the sum rather than by the loss of local context. The paper does not test this.",
+      "necessary_conditions": [
+        "Fresh tokens receive lower accumulated scores than older tokens of similar relevance.",
+        "Newly generated tokens are relevant to the next prediction."
+      ],
+      "defeaters": [
+        "Local tokens matter independently of any score bias.",
+        "A recency-corrected score could make H2-only work."
+      ],
+      "do_not_infer": [
+        "Do not infer that the age bias is the sole or main reason H2-only fails.",
+        "Do not infer that the 50/50 split of the budget is optimal."
+      ],
+      "disclosure": "inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L4 coupling to the recency half",
+      "quotes": [
+        {
+          "text": "only retaining the embeddings of H2 or local tokens can’t maintain a similar performance as the model using full embeddings, with a performance degradation from 2.85% to 22.75%.",
+          "source": "paper, Section 5.3 Q4",
+          "locator": "page 10"
+        },
+        {
+          "text": "This bias arises because most previous tokens have a higher number of attention scores, resulting in a higher accumulated attention score and, consequently, a greater likelihood of being retained.",
+          "source": "paper, Appendix B.2 Previous Attempts",
+          "locator": "page 21"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Accumulated sums grow with the number of queries a token has seen, so new tokens have small scores and are the first candidates for eviction, however relevant they are to the current query. Recent tokens often matter most for the next-token prediction. The recency half plausibly offsets this under-valuation of fresh tokens. The H2-only collapse in Table 9 (for example OPT-30B Winogrande 47.36 vs 69.06 for Local + H2) is consistent with it, but other explanations are equally possible (for example no coverage of local syntax)."
+    }
+  ],
+  "dropped_for_unverified_quotes": 0,
+  "chunk_count": 15,
+  "chunk_failures": 0,
+  "chunk_timings": [
+    {
+      "seconds": 37.67550978786312,
+      "attempts": 1
+    },
+    {
+      "seconds": 37.37450454197824,
+      "attempts": 1
+    },
+    {
+      "seconds": 33.52690338413231,
+      "attempts": 1
+    },
+    {
+      "seconds": 39.31447136797942,
+      "attempts": 1
+    },
+    {
+      "seconds": 41.94063362409361,
+      "attempts": 1
+    },
+    {
+      "seconds": 31.076793269021437,
+      "attempts": 1
+    },
+    {
+      "seconds": 34.40250961994752,
+      "attempts": 1
+    },
+    {
+      "seconds": 39.41232578409836,
+      "attempts": 1
+    },
+    {
+      "seconds": 37.720608809031546,
+      "attempts": 1
+    },
+    {
+      "seconds": 35.53364380495623,
+      "attempts": 1
+    },
+    {
+      "seconds": 33.695960693992674,
+      "attempts": 1
+    },
+    {
+      "seconds": 35.08933873497881,
+      "attempts": 1
+    },
+    {
+      "seconds": 40.487383535830304,
+      "attempts": 1
+    },
+    {
+      "seconds": 35.222027241950855,
+      "attempts": 1
+    },
+    {
+      "seconds": 39.82433244003914,
+      "attempts": 1
+    }
+  ],
+  "inventory_seconds": 148.0788087269757,
+  "chunks_seconds": 191.95304292999208,
+  "merged_candidates": 0,
+  "unverified_kept": 36
+}

@@ -1,0 +1,689 @@
+[
+  {
+    "headline": "Iteration-level batching does not guarantee throughput capacity under latency SLOs at high load.",
+    "claim": "Iteration-level batching can improve throughput by avoiding request-level padding, but it does not guarantee higher serving capacity under latency SLOs when prefill interference dominates at high load.",
+    "paper_fact": "The interleaving of prefills and decodes involves a trade-off between throughput and latency for current LLM inference schedulers.",
+    "premise": "Serving capacity is maximum QPS under a latency target, not raw tokens per second; prefill interference can make TBT the binding constraint.",
+    "inference": "At high load, eager prefill admission can cause generation stalls that cap capacity under a TBT SLO, so the throughput benefit of iteration-level batching is conditional on admission policy and load.",
+    "toy_example": "Toy example (not a measurement): a long prefill admitted eagerly delays decodes; if the TBT SLO is tight, the system cannot sustain the higher QPS even though batch membership is dynamic.",
+    "conditional_consequence": "If load is high and prefill admission is eager, TBT SLO may cap capacity; if prefill tokens are chunked or throttled, capacity can improve.",
+    "critical_link": "Capacity is measured under an SLO, and the mechanism does not control prefill interference or per-iteration prefill token count.",
+    "necessary_conditions": [
+      "Latency SLO is enforced",
+      "Requests have variable prompt lengths",
+      "Prefill-prioritizing admission is used",
+      "KV-cache paging is available"
+    ],
+    "defeaters": [
+      "No latency SLO",
+      "Decode-only workload",
+      "Disaggregated prefill and decode",
+      "Short prompts",
+      "Low load"
+    ],
+    "do_not_infer": [
+      "Do not infer iteration-level batching always improves capacity",
+      "Do not infer raw throughput equals serving capacity",
+      "Do not infer high load always erases the benefit"
+    ],
+    "author_boundaries": [
+      "Paper reports that vLLM and Orca trade TBT latency for high throughput",
+      "Paper does not claim iteration-level batching alone maximizes capacity under all SLOs"
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "applicability_limitation",
+    "lens": "L7_bottleneck_over_scale_time",
+    "quotes": [
+      {
+        "quote": "The interleaving of prefills and decodes involves a trade-off between throughput and latency for current LLM inference schedulers.",
+        "source": "Sarathi-Serve paper",
+        "locator": "p.7"
+      },
+      {
+        "quote": "State-of-the-art systems today use prefill-prioritizing schedules that trade TBT latency for high throughput.",
+        "source": "Sarathi-Serve paper",
+        "locator": "p.7"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 4,
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p.7",
+        "support_description": "The interleaving of prefills and decodes involves a trade-off between throughput and latency for current LLM inference schedulers."
+      },
+      {
+        "source_id": "paper",
+        "location": "p.7",
+        "support_description": "State-of-the-art systems today use prefill-prioritizing schedules that trade TBT latency for high throughput."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Serving capacity is maximum QPS under a latency target, not raw tokens per second; prefill interference can make TBT the binding constraint. At high load, eager prefill admission can cause generation stalls that cap capacity under a TBT SLO, so the throughput benefit of iteration-level batching is conditional on admission policy and load."
+  },
+  {
+    "headline": "Reducing pipeline bubbles does not guarantee lower TBT latency.",
+    "claim": "Bubble reduction is primarily a throughput/capacity effect; it does not by itself guarantee lower time-between-tokens or time-to-first-token, because chunked prefills and token-budget choices can trade latency.",
+    "paper_fact": "Sarathi-Serve also reduces pipeline bubbles, resulting in up to 5.6× gains in end-to-end serving capacity for Falcon-180B deployed with pipeline parallelism.",
+    "premise": "Throughput and latency are distinct objectives; a schedule can improve one while worsening another.",
+    "inference": "Bubble reduction can raise capacity without guaranteeing per-request latency; latency depends on token budget and chunking.",
+    "toy_example": "Toy example (not a measurement): a schedule with zero bubbles but a very small token budget may still have high TTFT due to chunk overhead.",
+    "conditional_consequence": "If SLO is strict, smaller token budget may be needed, reducing efficiency; if relaxed, larger budget may improve throughput but increase TBT variation.",
+    "critical_link": "The paper measures capacity under SLOs and separately reports TTFT/TBT effects of components; bubble reduction is tied to capacity gains, not directly to TBT.",
+    "necessary_conditions": [
+      "TBT SLO is defined",
+      "token budget is tuned",
+      "chunking overhead is bounded",
+      "pipeline schedule is active"
+    ],
+    "defeaters": [
+      "bubble reduction also reduces queueing delay enough to improve TBT indirectly",
+      "paper shows Sarathi-Serve lowers TBT in Table 4 when combined",
+      "workload is throughput-only with no latency SLO"
+    ],
+    "do_not_infer": [
+      "do not infer bubble reduction always lowers TBT",
+      "do not infer capacity gain equals latency gain",
+      "do not infer chunking is free"
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L2",
+    "quotes": [
+      {
+        "quote": "Sarathi-Serve also reduces pipeline bubbles, resulting in up to 5.6× gains in end-to-end serving capacity for Falcon-180B deployed with pipeline parallelism.",
+        "source": "paper",
+        "locator": "p.3"
+      },
+      {
+        "quote": "chunked-prefills-only increases TTFT as prefill chunks are slightly inefficient whereas hybrid-batching-only increases TBT because long prefills can still create generation stalls.",
+        "source": "paper",
+        "locator": "p.13"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 4,
+    "author_boundaries": "Authors claim capacity gains and reduced bubbles; they do not claim bubble reduction alone guarantees TBT.",
+    "inferred_consequences": [
+      "Deployments optimizing only bubbles may miss latency SLOs."
+    ],
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p.3",
+        "support_description": "Sarathi-Serve also reduces pipeline bubbles, resulting in up to 5.6× gains in end-to-end serving capacity for Falcon-180B deployed with pipeline parallelism."
+      },
+      {
+        "source_id": "paper",
+        "location": "p.13",
+        "support_description": "chunked-prefills-only increases TTFT as prefill chunks are slightly inefficient whereas hybrid-batching-only increases TBT because long prefills can still create generation stalls."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Throughput and latency are distinct objectives; a schedule can improve one while worsening another. Bubble reduction can raise capacity without guaranteeing per-request latency; latency depends on token budget and chunking."
+  },
+  {
+    "headline": "Tile-quantization-aware chunk sizing does not imply or guarantee an optimal token budget for throughput-latency tradeoff.",
+    "claim": "The paper's tile-quantization effect is one factor in token-budget selection; optimizing for tile alignment can conflict with TBT SLO and pipeline-bubble minimization, so an aligned chunk is not the same as the serving goal.",
+    "paper_fact": "Larger chunks lead to higher inter-batch runtime variations that result in pipeline bubbles which results in lower overall system throughput. On the other hand, picking a very small token budget can lead to higher overhead due to lower arithmetic intensity and other fixed overheads.",
+    "premise": "Token budget controls both prefill efficiency and decode latency; larger chunks improve prefill efficiency but can increase TBT and pipeline bubbles, while smaller chunks reduce latency but add chunking overhead.",
+    "inference": "Tile alignment is a local stopping criterion, not the global objective; the token budget must be chosen by trading off TBT SLO, chunking overhead, pipeline bubbles, and hardware tile effects.",
+    "toy_example": "Not a measurement: an aligned 2048-token chunk may improve prefill efficiency but increase TBT under a strict SLO; illustrative only.",
+    "conditional_consequence": "If alignment favors a larger chunk under a strict TBT SLO, the aligned choice may violate latency; if it favors a very small chunk, chunking overhead may reduce throughput.",
+    "critical_link": "Alignment must be evaluated inside a token-budget search that satisfies the TBT SLO and pipeline-parallelism constraints, not as a standalone objective.",
+    "necessary_conditions": [
+      "TBT SLO known",
+      "parallelism configuration known",
+      "ability to vary chunk size",
+      "profiler or simulator for token budget",
+      "pipeline-bubble effects considered when using PP"
+    ],
+    "defeaters": [
+      "relaxed SLO",
+      "no pipeline parallelism",
+      "large decode batch absorbs prefill cost",
+      "chunking overhead negligible",
+      "tile quantization effect small relative to other costs"
+    ],
+    "do_not_infer": [
+      "do not infer tile alignment alone maximizes capacity",
+      "do not infer aligned chunk is always best for TBT",
+      "do not infer tile alignment replaces token-budget profiling"
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L2_objective_stopping_vs_goal",
+    "quotes": [
+      {
+        "quote": "Larger chunks lead to higher inter-batch runtime variations that result in pipeline bubbles which results in lower overall system throughput. On the other hand, picking a very small token budget can lead to higher overhead due to lower arithmetic intensity and other fixed overheads.",
+        "source": "paper",
+        "locator": "p.9, §4.3"
+      },
+      {
+        "quote": "Therefore, selecting a suitable token budget is a complex decision which depends on the desired TBT SLO, parallelism configuration, and specific hardware properties.",
+        "source": "paper",
+        "locator": "p.9, §4.3"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 4,
+    "author_boundaries": "Authors list tile quantization as one factor among TBT SLO, chunking overhead, and pipeline bubbles; they do not claim tile alignment is the global objective.",
+    "inferred_consequences": [
+      "Alignment should be evaluated inside a multi-objective token-budget search.",
+      "Strict SLO may favor smaller or differently aligned chunks over larger aligned chunks."
+    ],
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p.9, §4.3",
+        "support_description": "Larger chunks lead to higher inter-batch runtime variations that result in pipeline bubbles which results in lower overall system throughput. On the other hand, picking a very small token budget can lead to higher overhead due to lower arithmetic intensity and other fixed overheads."
+      },
+      {
+        "source_id": "paper",
+        "location": "p.9, §4.3",
+        "support_description": "Therefore, selecting a suitable token budget is a complex decision which depends on the desired TBT SLO, parallelism configuration, and specific hardware properties."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Token budget controls both prefill efficiency and decode latency; larger chunks improve prefill efficiency but can increase TBT and pipeline bubbles, while smaller chunks reduce latency but add chunking overhead. Tile alignment is a local stopping criterion, not the global objective; the token budget must be chosen by trading off TBT SLO, chunking overhead, pipeline bubbles, and hardware tile effects."
+  },
+  {
+    "headline": "Maximizing capacity under a TBT SLO does not imply or guarantee meeting TTFT or end-to-end cost goals.",
+    "claim": "Token-budget selection is framed around TBT SLO and chunking overhead to maximize capacity; it does not by itself guarantee TTFT or overall cost objectives, which are separate latency and utilization concerns.",
+    "paper_fact": "The token budget is determined based on two competing factors — TBT SLO requirement and chunked-prefills overhead.",
+    "premise": "TBT and TTFT are distinct metrics; a policy that maximizes QPS under a TBT constraint can still queue requests and affect TTFT or cost.",
+    "inference": "A budget that is optimal for capacity under P99 TBT may not be optimal for applications with strict TTFT or cost targets.",
+    "toy_example": "Toy example, not a measurement: a workload with strict 200 ms TTFT but relaxed 1 s TBT could accept a large token budget that meets TBT yet queues requests beyond TTFT.",
+    "conditional_consequence": "If the application objective includes TTFT or cost rather than only TBT-constrained capacity, the selected token budget may need to be different.",
+    "critical_link": "The critical link is objective mismatch: the stopping rule is TBT-feasible capacity, while the goal may include TTFT and cost.",
+    "necessary_conditions": [
+      "Primary SLO is expressed as TBT",
+      "Capacity is defined as QPS under latency targets",
+      "TTFT is not part of the token-budget stopping rule"
+    ],
+    "defeaters": [
+      "TTFT included explicitly in admission or scheduling constraints",
+      "Multi-objective token-budget selection",
+      "Workload where TTFT is not sensitive to batching"
+    ],
+    "do_not_infer": [
+      "Do not infer the paper ignores TTFT; it reports TTFT and discusses latency metrics.",
+      "Do not infer the paper claims TBT-optimal budgets are globally optimal for all serving objectives."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L2",
+    "quotes": [
+      {
+        "quote": "The token budget is determined based on two competing factors — TBT SLO requirement and chunked-prefills overhead.",
+        "source": "paper",
+        "locator": "p.9, §4.3"
+      },
+      {
+        "quote": "We use a throughput metric, Capacity, defined as the maximum request load (queries-per-second) a system can sustain while meeting certain latency targets.",
+        "source": "paper",
+        "locator": "p.4, §2.4"
+      },
+      {
+        "quote": "chunked-prefills-only increases TTFT as prefill chunks are slightly inefficient whereas hybrid-batching-only increases TBT because long prefills can still create generation stalls.",
+        "source": "paper",
+        "locator": "p.13, §5.4.2"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p.9, §4.3",
+        "support_description": "The token budget is determined based on two competing factors — TBT SLO requirement and chunked-prefills overhead."
+      },
+      {
+        "source_id": "paper",
+        "location": "p.4, §2.4",
+        "support_description": "We use a throughput metric, Capacity, defined as the maximum request load (queries-per-second) a system can sustain while meeting certain latency targets."
+      },
+      {
+        "source_id": "paper",
+        "location": "p.13, §5.4.2",
+        "support_description": "chunked-prefills-only increases TTFT as prefill chunks are slightly inefficient whereas hybrid-batching-only increases TBT because long prefills can still create generation stalls."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "TBT and TTFT are distinct metrics; a policy that maximizes QPS under a TBT constraint can still queue requests and affect TTFT or cost. A budget that is optimal for capacity under P99 TBT may not be optimal for applications with strict TTFT or cost targets."
+  },
+  {
+    "headline": "Balanced arithmetic intensity does not imply or guarantee meeting the TBT SLO",
+    "claim": "Sarathi-Serve's balanced hybrid batches maximize compute and bandwidth utilization, but arithmetic-intensity balance is only a utilization proxy and does not by itself guarantee the P99 TBT SLO.",
+    "paper_fact": "Sarathi-Serve forms balanced batches by combining decodes and prefill chunks to maximize both compute and bandwidth utilization.",
+    "premise": "Arithmetic intensity and utilization are hardware/operator-level metrics; TBT SLO is an end-to-end tail-latency requirement. A batch can be balanced yet still exceed a latency bound if its absolute work is too large or if tail effects dominate.",
+    "inference": "The mechanism's balance property is not a latency guarantee; it must be paired with token-budget selection and SLO validation.",
+    "conditional_consequence": "If the token budget is chosen so each hybrid iteration's compute fits the TBT budget, balance can help utilization; if not, balanced batches can still violate P99 TBT.",
+    "critical_link": "The missing link is a per-iteration latency bound: arithmetic-intensity balance does not bound absolute iteration time or tail latency.",
+    "necessary_conditions": [
+      "Token budget calibrated to TBT SLO",
+      "Chunk size within decode slack",
+      "Workload and hardware profiling",
+      "Admission control within token budget"
+    ],
+    "defeaters": [
+      "Measured P99 TBT under SLO across token budgets",
+      "Dynamic token budget",
+      "Workloads where balance directly bounds iteration time"
+    ],
+    "do_not_infer": [
+      "Balanced batches always meet SLO",
+      "High utilization equals low tail latency",
+      "Token budget is workload-independent"
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L1",
+    "quotes": [
+      {
+        "quote": "Sarathi-Serve forms balanced batches by combining decodes and prefill chunks to maximize both compute and bandwidth utilization.",
+        "source": "paper",
+        "locator": "p.6"
+      },
+      {
+        "quote": "selecting a suitable token budget is a complex decision which depends on the desired TBT SLO, parallelism configuration, and specific hardware properties.",
+        "source": "paper",
+        "locator": "p.9"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "author_boundaries": [
+      "Paper reports balanced batches and token-budget complexity; it does not claim arithmetic-intensity balance alone guarantees TBT SLO."
+    ],
+    "inferred_consequence": "Balanced hybrid batches can improve utilization while still requiring SLO-specific token-budget tuning to avoid tail-latency violations.",
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p.6",
+        "support_description": "Sarathi-Serve forms balanced batches by combining decodes and prefill chunks to maximize both compute and bandwidth utilization."
+      },
+      {
+        "source_id": "paper",
+        "location": "p.9",
+        "support_description": "selecting a suitable token budget is a complex decision which depends on the desired TBT SLO, parallelism configuration, and specific hardware properties."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Arithmetic intensity and utilization are hardware/operator-level metrics; TBT SLO is an end-to-end tail-latency requirement. A batch can be balanced yet still exceed a latency bound if its absolute work is too large or if tail effects dominate. The mechanism's balance property is not a latency guarantee; it must be paired with token-budget selection and SLO validation."
+  },
+  {
+    "headline": "Prefill-prioritizing eager admission conflicts with high capacity under strict TBT SLO at high load or long prompts",
+    "claim": "At high load or with long prompts under a strict TBT SLO, generation stalls can dominate and cap capacity despite the throughput proxy of larger decode batches.",
+    "paper_fact": "The maximum capacity of vLLM gets capped due to generation stalls under stringent TBT SLOs.",
+    "premise": "At high load, queueing and long prefill durations make latency SLOs bind before throughput saturates.",
+    "inference": "The throughput proxy can be dominated by generation stalls, so capacity under strict SLO can be lower than a stall-free schedule.",
+    "toy_example": "Toy example (not a measurement): at high load, a queue of long prompts can keep admitting whole prefills and delay decodes; this illustrates the mechanism, not a measured result.",
+    "conditional_consequence": "If load is high and prompts are long under strict SLO, capacity is capped; if load is low or SLO is relaxed, eager admission may still help.",
+    "critical_link": "Load and prompt-length distribution relative to SLO slack.",
+    "necessary_conditions": [
+      "high load",
+      "long or variable prompts",
+      "strict P99 TBT SLO",
+      "prefill-prioritizing admission"
+    ],
+    "defeaters": [
+      "chunked prefills",
+      "disaggregation",
+      "relaxed SLO",
+      "short prompts"
+    ],
+    "do_not_infer": [
+      "Do not infer eager admission always reduces capacity",
+      "Do not infer the paper's capacity gains for Sarathi-Serve transfer to all baselines",
+      "Do not infer a universal SLO threshold"
+    ],
+    "author_boundaries": [
+      "Paper evaluates vLLM/Orca under selected models, datasets, and SLOs; it does not establish a workload-independent capacity ranking."
+    ],
+    "inferred_consequences": [
+      "Capacity comparisons are SLO- and workload-conditional"
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "applicability_limitation",
+    "lens": "L7_bottleneck_over_scale_time",
+    "quotes": [
+      {
+        "quote": "The maximum capacity of vLLM gets capped due to generation stalls under stringent TBT SLOs.",
+        "source": "paper",
+        "locator": "p.12"
+      },
+      {
+        "quote": "The larger prompts makes Orca and vLLM more susceptible to latency violations due to higher processing time of these longer prefills.",
+        "source": "paper",
+        "locator": "p.11"
+      },
+      {
+        "quote": "Current iteration-level batching systems such as vLLM [23] and Orca [75] use prefill-prioritizing schedules that eagerly admit new requests in a running batch at the first available opportunity",
+        "source": "paper",
+        "locator": "p.5"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p.12",
+        "support_description": "The maximum capacity of vLLM gets capped due to generation stalls under stringent TBT SLOs."
+      },
+      {
+        "source_id": "paper",
+        "location": "p.11",
+        "support_description": "The larger prompts makes Orca and vLLM more susceptible to latency violations due to higher processing time of these longer prefills."
+      },
+      {
+        "source_id": "paper",
+        "location": "p.5",
+        "support_description": "Current iteration-level batching systems such as vLLM [23] and Orca [75] use prefill-prioritizing schedules that eagerly admit new requests in a running batch at the first available opportunity"
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "At high load, queueing and long prefill durations make latency SLOs bind before throughput saturates. The throughput proxy can be dominated by generation stalls, so capacity under strict SLO can be lower than a stall-free schedule."
+  },
+  {
+    "headline": "Decode-prioritizing request-level batching does not imply efficient GPU utilization or low TTFT",
+    "claim": "Optimizing TBT by admitting new requests only when no decodes remain does not guarantee efficient GPU utilization, high serving capacity, or low time-to-first-token for queued requests.",
+    "paper_fact": "\"This approach reduces the operational complexity of the scheduling framework but at the expense of inefficient resource utilization.\"",
+    "premise": "TTFT includes queueing and admission delay; GPU utilization depends on batch size and padding; TBT is only inter-token latency.",
+    "inference": "Decode-prioritizing can leave GPU compute idle and delay new requests, so TBT optimization is not a proxy for TTFT or utilization.",
+    "toy_example": "Toy example (not a measurement): many requests arrive while a long batch decodes; they wait until the batch completes, so TTFT grows even if admitted decodes have stable TBT.",
+    "conditional_consequence": "If many requests queue while a long batch decodes, TTFT increases; if batch sizes are small, utilization drops. If load is low, these costs may be small.",
+    "critical_link": "Admission only when no decodes remain delays new prefills and can leave decode-only iterations with small batch sizes.",
+    "necessary_conditions": [
+      "request-level batching",
+      "no preemption or dynamic exit",
+      "pending queue exists",
+      "TTFT or utilization is a relevant objective"
+    ],
+    "defeaters": [
+      "low load",
+      "short batches",
+      "iteration-level batching",
+      "disaggregated prefill/decode"
+    ],
+    "do_not_infer": [
+      "Author boundary: the paper does not claim decode-prioritizing always has poor TTFT or utilization in every deployment.",
+      "Do not infer that TBT is poor under this mechanism.",
+      "Do not infer that throughput is always lower than all alternatives."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L2_objective_stopping_vs_goal",
+    "quotes": [
+      {
+        "quote": "\"This approach reduces the operational complexity of the scheduling framework but at the expense of inefficient resource utilization.\"",
+        "source": "Sarathi-Serve paper",
+        "locator": "p.4"
+      },
+      {
+        "quote": "\"Request-level schedulers pad shorter requests with zeros to match their length with the longest request in the batch which results in wasteful compute and longer wait times for pending requests [75].\"",
+        "source": "Sarathi-Serve paper",
+        "locator": "p.4"
+      },
+      {
+        "quote": "\"New requests are admitted only if there are no decodes left (line 3). This optimizes TBT but wastes GPU compute in many decode-only iterations (line 10) with potentially small batch sizes.\"",
+        "source": "Sarathi-Serve paper",
+        "locator": "p.4, Algorithm 1 caption"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p.4",
+        "support_description": "\"This approach reduces the operational complexity of the scheduling framework but at the expense of inefficient resource utilization.\""
+      },
+      {
+        "source_id": "paper",
+        "location": "p.4",
+        "support_description": "\"Request-level schedulers pad shorter requests with zeros to match their length with the longest request in the batch which results in wasteful compute and longer wait times for pending requests [75].\""
+      },
+      {
+        "source_id": "paper",
+        "location": "p.4, Algorithm 1 caption",
+        "support_description": "\"New requests are admitted only if there are no decodes left (line 3). This optimizes TBT but wastes GPU compute in many decode-only iterations (line 10) with potentially small batch sizes.\""
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "TTFT includes queueing and admission delay; GPU utilization depends on batch size and padding; TBT is only inter-token latency. Decode-prioritizing can leave GPU compute idle and delay new requests, so TBT optimization is not a proxy for TTFT or utilization."
+  },
+  {
+    "headline": "A capacity metric defined by a P99 TBT SLO does not imply or guarantee application-level latency quality or rankings when TTFT or mean latency is the primary objective",
+    "claim": "M10's capacity metric, defined by P99 TBT SLO and a median scheduling-delay limit, does not guarantee application-level latency quality or rankings when TTFT or mean latency is the primary objective.",
+    "paper_fact": "We focus on the median value for the TTFT since this metric is obtained only once per user request and on the 99th percentile (P99) for TBT values since every decode token results in a TBT latency value.",
+    "premise": "Applications differ in which latency percentile and metric they optimize; a system can meet a P99 TBT SLO while having poor median TTFT or mean latency.",
+    "inference": "Therefore, capacity numbers and rankings from M10 are conditional on the chosen SLO and metric and should not be read as general serving-quality guarantees.",
+    "toy_example": "Toy example (not a measurement): two systems A and B have equal capacity under a P99 TBT SLO, but A has much worse median TTFT; an application gated on TTFT would not treat them as equal.",
+    "conditional_consequence": "If an application's primary latency objective is TTFT or mean latency rather than P99 TBT, then M10 capacity rankings may not match that application's goals.",
+    "critical_link": "The link is the metric definition: capacity is max QPS subject to P99 TBT and median scheduling delay, not subject to TTFT or mean latency.",
+    "necessary_conditions": [
+      "The application's primary latency objective is P99 TBT",
+      "The median scheduling-delay limit is acceptable",
+      "The workload and model/hardware match the evaluation"
+    ],
+    "defeaters": [
+      "The paper also reports TTFT in Table 4 and discusses TTFT",
+      "Capacity is explicitly defined as meeting certain latency targets, not all latency targets",
+      "Figure 12 sweeps SLO values"
+    ],
+    "do_not_infer": [
+      "Do not infer Sarathi-Serve worsens TTFT",
+      "Do not infer P99 TBT is irrelevant",
+      "Do not infer capacity rankings are invalid for the paper's stated SLO"
+    ],
+    "author_boundaries": [
+      "Authors define capacity and SLOs explicitly; they do not claim capacity under P99 TBT guarantees TTFT or mean-latency goals."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L2_objective_stopping_vs_goal",
+    "quotes": [
+      {
+        "quote": "Capacity, defined as the maximum request load (queries-per-second) a system can sustain while meeting certain latency targets.",
+        "source": "paper",
+        "locator": "p.4"
+      },
+      {
+        "quote": "We focus on the median value for the TTFT since this metric is obtained only once per user request and on the 99th percentile (P99) for TBT values since every decode token results in a TBT latency value.",
+        "source": "paper",
+        "locator": "p.10"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p.4",
+        "support_description": "Capacity, defined as the maximum request load (queries-per-second) a system can sustain while meeting certain latency targets."
+      },
+      {
+        "source_id": "paper",
+        "location": "p.10",
+        "support_description": "We focus on the median value for the TTFT since this metric is obtained only once per user request and on the 99th percentile (P99) for TBT values since every decode token results in a TBT latency value."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Applications differ in which latency percentile and metric they optimize; a system can meet a P99 TBT SLO while having poor median TTFT or mean latency. Therefore, capacity numbers and rankings from M10 are conditional on the chosen SLO and metric and should not be read as general serving-quality guarantees."
+  },
+  {
+    "headline": "A 2-second median scheduling-delay limit does not imply or guarantee bounded tail queueing delay or tail TTFT",
+    "claim": "M10's sustainability check uses a 2-second median scheduling-delay limit; passing it does not guarantee that tail queueing delay or tail TTFT is acceptable.",
+    "paper_fact": "For all load experiments, we ensure that the maximum load is sustainable, i.e., the queuing delay does not blow up (we use a limit of 2 seconds on median scheduling delay).",
+    "premise": "A median bound does not bound a tail percentile; TTFT includes time waiting before the first token.",
+    "inference": "Capacity may be reported at loads where median queue delay is within 2 seconds but some requests experience much larger queueing and TTFT.",
+    "toy_example": "Toy example (not a measurement): a load where median scheduling delay is 1.9s but 1% of requests wait 10s; the median limit passes while tail TTFT suffers.",
+    "conditional_consequence": "If an application has a tail TTFT or tail queueing requirement, M10 capacity may overstate acceptable load.",
+    "critical_link": "The sustainability criterion is median scheduling delay, while user-visible TTFT is affected by the full queueing distribution.",
+    "necessary_conditions": [
+      "Median scheduling delay is the relevant sustainability metric",
+      "Tail TTFT is not part of the capacity stopping rule",
+      "Arrival process and workload are similar to the evaluation"
+    ],
+    "defeaters": [
+      "The paper focuses on median TTFT and P99 TBT",
+      "P99 TBT is measured between output tokens and may not include initial queueing",
+      "The 2s limit is a guard against blow-up, not a service-level guarantee"
+    ],
+    "do_not_infer": [
+      "Do not infer queueing delay is unbounded",
+      "Do not infer median scheduling delay is useless",
+      "Do not infer the paper claims a tail TTFT guarantee"
+    ],
+    "author_boundaries": [
+      "Authors state the 2s median limit as a sustainability check; they do not claim it bounds tail queueing or tail TTFT."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L1_proxy_guarantee",
+    "quotes": [
+      {
+        "quote": "For all load experiments, we ensure that the maximum load is sustainable, i.e., the queuing delay does not blow up (we use a limit of 2 seconds on median scheduling delay).",
+        "source": "paper",
+        "locator": "p.10"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p.10",
+        "support_description": "For all load experiments, we ensure that the maximum load is sustainable, i.e., the queuing delay does not blow up (we use a limit of 2 seconds on median scheduling delay)."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "A median bound does not bound a tail percentile; TTFT includes time waiting before the first token. Capacity may be reported at loads where median queue delay is within 2 seconds but some requests experience much larger queueing and TTFT."
+  },
+  {
+    "headline": "Support for FlashInfer paged chunk-prefill does not imply or guarantee that FlashInfer is exercised in the reported evaluations.",
+    "claim": "The paper reports support for paged chunk prefill using both FlashAttention v2 and FlashInfer kernels, but also states that all evaluations use the FlashAttention backend; therefore the reported results do not by themselves validate the FlashInfer path.",
+    "paper_fact": "We use FlashAttention backend for all the evaluations in this paper due to its support for wider set of models.",
+    "premise": "Supporting multiple backends in code does not mean every backend is used in every benchmark; evaluation results are backend-specific.",
+    "inference": "Because the paper says all evaluations use FlashAttention, the reported numbers do not by themselves validate the FlashInfer paged chunk-prefill path.",
+    "toy_example": "Not a measurement: a build that compiles both FlashAttention and FlashInfer paths but runs all benchmark configurations with FlashAttention would not exercise FlashInfer.",
+    "conditional_consequence": "If the artifact's evaluation harness selects only FlashAttention, then reported numbers do not validate the FlashInfer paged chunk-prefill path.",
+    "critical_link": "The link is backend selection in evaluation: support for two kernels is not evidence that both are exercised.",
+    "necessary_conditions": [
+      "FlashInfer path is present and selectable",
+      "Evaluation harness can choose backend",
+      "Reported results are produced with FlashAttention only",
+      "No separate FlashInfer results are shown"
+    ],
+    "defeaters": [
+      "Paper or artifact reports FlashInfer-specific evaluation",
+      "Code default or config uses FlashInfer for reported runs",
+      "Results are shown to be backend-independent"
+    ],
+    "do_not_infer": [
+      "FlashInfer is incorrect or slower",
+      "FlashAttention results transfer to FlashInfer",
+      "The artifact lacks FlashInfer code"
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L2_objective_stopping_vs_goal",
+    "quotes": [
+      {
+        "quote": "We added support for paged chunk prefill using FlashAttention v2 [38] and FlashInfer [74] kernels.",
+        "source": "paper",
+        "locator": "p.9"
+      },
+      {
+        "quote": "We use FlashAttention backend for all the evaluations in this paper due to its support for wider set of models.",
+        "source": "paper",
+        "locator": "p.9"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "author_boundaries": [
+      "Authors report support for both kernels but state all evaluations use FlashAttention; they do not claim FlashInfer was evaluated."
+    ],
+    "inferred_consequences": [
+      "Reported capacity numbers are FlashAttention-backend results",
+      "FlashInfer path needs separate validation"
+    ],
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p.9",
+        "support_description": "We added support for paged chunk prefill using FlashAttention v2 [38] and FlashInfer [74] kernels."
+      },
+      {
+        "source_id": "paper",
+        "location": "p.9",
+        "support_description": "We use FlashAttention backend for all the evaluations in this paper due to its support for wider set of models."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Supporting multiple backends in code does not mean every backend is used in every benchmark; evaluation results are backend-specific. Because the paper says all evaluations use FlashAttention, the reported numbers do not by themselves validate the FlashInfer paged chunk-prefill path."
+  },
+  {
+    "headline": "SLO multiples tied to decode-iteration time do not imply or guarantee relevance to other application SLOs",
+    "claim": "M10's strict and relaxed SLOs are defined as 5x and 25x a model-hardware-specific decode-iteration time; capacity rankings under these SLOs do not guarantee rankings under different absolute or relative SLOs.",
+    "paper_fact": "we define the SLO on P99 TBT to be equal to 5× and 25× the execution time of a decode iteration for a request (with prefill length of 4k and 32 batch size) running without any prefill interference for the strict and relaxed settings, respectively.",
+    "premise": "Application SLOs are not generally proportional to a particular model-hardware decode-iteration time; changing the SLO threshold can change which system has higher capacity.",
+    "inference": "Thus M10's capacity rankings are conditional on its SLO construction and do not guarantee rankings under other SLOs.",
+    "toy_example": "Toy example (not a measurement): an application with a 300 ms P99 TBT SLO could rank two systems differently from the 5x/25x decode-iteration SLOs.",
+    "conditional_consequence": "If an application's P99 TBT SLO differs materially from the 5x/25x definitions, the reported capacity advantage may change.",
+    "critical_link": "The SLO baseline is computed from a decode iteration with prefill length 4k and batch size 32 without prefill interference, coupling the threshold to model, hardware, and workload assumptions.",
+    "necessary_conditions": [
+      "The application's SLO is well represented by the 5x/25x decode-iteration multiples",
+      "The decode-iteration baseline is representative of the deployment",
+      "The workload and model/hardware match the evaluation"
+    ],
+    "defeaters": [
+      "The paper also sweeps P99 TBT SLO values in Figure 12",
+      "Table 3 gives absolute SLO thresholds for each model",
+      "The SLO definition is explicitly stated for comparability"
+    ],
+    "do_not_infer": [
+      "Do not infer the SLOs are arbitrary or invalid",
+      "Do not infer capacity rankings fail for all other SLOs",
+      "Do not infer the paper omits SLO sensitivity analysis"
+    ],
+    "author_boundaries": [
+      "Authors define strict/relaxed SLOs for comparability and also sweep SLO values; they do not claim universal validity for arbitrary application SLOs."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "applicability_limitation",
+    "lens": "L5_origin_change_regularity",
+    "quotes": [
+      {
+        "quote": "we define the SLO on P99 TBT to be equal to 5× and 25× the execution time of a decode iteration for a request (with prefill length of 4k and 32 batch size) running without any prefill interference for the strict and relaxed settings, respectively.",
+        "source": "paper",
+        "locator": "p.10"
+      },
+      {
+        "quote": "we vary the P99 TBT latency SLO and observe the impact on system capacity",
+        "source": "paper",
+        "locator": "p.11"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 2,
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p.10",
+        "support_description": "we define the SLO on P99 TBT to be equal to 5× and 25× the execution time of a decode iteration for a request (with prefill length of 4k and 32 batch size) running without any prefill interference for the strict and relaxed settings, respectively."
+      },
+      {
+        "source_id": "paper",
+        "location": "p.11",
+        "support_description": "we vary the P99 TBT latency SLO and observe the impact on system capacity"
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Application SLOs are not generally proportional to a particular model-hardware decode-iteration time; changing the SLO threshold can change which system has higher capacity. Thus M10's capacity rankings are conditional on its SLO construction and do not guarantee rankings under other SLOs."
+  }
+]

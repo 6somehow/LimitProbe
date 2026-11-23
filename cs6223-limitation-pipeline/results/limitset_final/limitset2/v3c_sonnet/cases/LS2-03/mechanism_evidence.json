@@ -1,0 +1,673 @@
+{
+  "candidates": [
+    {
+      "headline": "Meeting a cumulative per-token deadline schedule does not imply smooth token delivery",
+      "claim": "The deadline for token n is a fixed linear schedule from arrival. Slack banked by an early first token or early decodes is spent on larger chunks. A decode request can therefore see inter-token gaps well above the nominal TBT SLO and still count as compliant. A per-token TBT target and a cumulative-deadline check measure different things.",
+      "paper_fact": "For each request in the decode queue, we define slack as the difference between the deadline for the next token (Eq. 2) and current time.",
+      "premise": "Eq. 2 defines D_n = arrival + TTFT + (n-1)*TBT, so every decode request is measured against a cumulative schedule. Finishing the first token early moves the request ahead of that schedule. Any later gap that keeps it behind the D_n line is not a violation.",
+      "inference": "The chunk-size budget is set from min decode slack, which can be large when the first token came early. Under this scheme one batch iteration can then take much longer than 50ms. That produces a gap between consecutive tokens above the TBT target, and it is still deadline-compliant.",
+      "toy_example": "Not a measurement: the first token arrives at 1s against a 6s TTFT SLO, so about 5s of slack is banked. One 2s iteration later in the stream still meets D_n, although its gap is 40x the 50ms TBT target.",
+      "conditional_consequence": "If users perceive stalls or bursty streaming, the reported 'no TBT violations' can coexist with poor streaming smoothness. A per-gap TBT metric would be stricter than the cumulative-deadline metric.",
+      "critical_link": "Compliance is judged against the cumulative D_n, not against each inter-token gap.",
+      "necessary_conditions": [
+        "The request's first token arrives well before its TTFT deadline.",
+        "The scheduler spends the banked slack on larger chunks.",
+        "TBT compliance is computed against D_n rather than against per-gap thresholds."
+      ],
+      "defeaters": [
+        "The TBT violation metric is actually per-gap (the evaluation code is not shown).",
+        "Batch latency is capped at SLO_TBT regardless of slack.",
+        "Slack is small in practice because of high load."
+      ],
+      "do_not_infer": [
+        "That actual TBT violations are frequent.",
+        "That the paper's reported <0.1% average TBT violations is wrong.",
+        "That user experience is worse than with Sarathi."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1",
+      "quotes": [
+        {
+          "text": "For each request in the decode queue, we define slack as the difference between the deadline for the next token (Eq. 2) and current time.",
+          "source": "paper §3.3",
+          "locator": "Dynamic Chunking"
+        },
+        {
+          "text": "after A’s prefill phase completes earlier than its deadline, it accumulates significant slack before its next token is due.",
+          "source": "paper §3.5",
+          "locator": "Illustrative Example"
+        },
+        {
+          "text": "We omit TBT plots since across all schemes, the average TBT violations was less than 0.1%, by virtue of carefully chosen chunk size.",
+          "source": "paper §4.2",
+          "locator": "Latency"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Eq. 2 defines D_n = arrival + TTFT + (n-1)*TBT, so every decode request is measured against a cumulative schedule. Finishing the first token early moves the request ahead of that schedule. Any later gap that keeps it behind the D_n line is not a violation. The chunk-size budget is set from min decode slack, which can be large when the first token came early. Under this scheme one batch iteration can then take much longer than 50ms. That produces a gap between consecutive tokens above the TBT target, and it is still deadline-compliant."
+    },
+    {
+      "headline": "Slack-based chunk enlargement conflicts with sustained overload and large-baseline-chunk setups",
+      "claim": "Dynamic chunking draws on slack from lenient tiers and low load, so its benefit depends on that slack existing. The paper itself shows no gain from dynamic chunking in PD disaggregation, where the baseline chunk is already 8K. Under sustained overload the paper does not show that the chunking gain persists, and its ablation attributes the larger share of overload improvement to relegation.",
+      "paper_fact": "The throughput gains are lower compared to PD colocation because we are unable to exploit dynamic chunking here, because of the large baseline chunk size.",
+      "premise": "Slack is a consumable quantity. It is produced when prefills finish early and when requests have lenient deadlines, and it is consumed when the system is saturated or strict requests dominate. Raising the chunk past the baseline only helps when there is room above that baseline.",
+      "inference": "The 20% chunking gain is a regime-specific result near optimal load with a small baseline chunk. At high load, chunk sizes plausibly return toward the strict-tier size. That is inferred, since the paper shows chunk traces only for the Az-conv trace over 200 iterations, not under overload. The overload-handling advantage is more plausibly attributable to relegation and prioritization.",
+      "toy_example": "Illustrative only, not a measurement: with a fixed 8K baseline chunk and a 2500 cap, no enlargement is possible. With a saturated queue of strict Q1 decodes, the minimum slack is near zero and the chunk collapses to the strict-tier size.",
+      "conditional_consequence": "If load rises until the Q1 decodes have no slack, chunk size falls toward 256 and the throughput benefit from dynamic chunking shrinks. Most of the remaining improvement would come from eager relegation and hybrid prioritization.",
+      "critical_link": "Slack availability, which is load- and tier-mix-dependent, determines how much larger than the strict-tier chunk the system can go.",
+      "necessary_conditions": [
+        "The batch contains at least one strict-tier decode whose slack is nearly exhausted.",
+        "The baseline chunk is not already large.",
+        "Load is high enough that early prefill completion no longer accumulates slack."
+      ],
+      "defeaters": [
+        "Table 5 shows dynamic chunking alone cutting violations from 100% to 74% at QPS=6, so some benefit persists under overload.",
+        "A workload dominated by lenient tiers keeps slack available even under high load.",
+        "Relegation frees capacity, which can restore slack and indirectly help chunking."
+      ],
+      "do_not_infer": [
+        "Do not infer that dynamic chunking has no value under overload; Table 5 shows a 26% reduction in violations at QPS=6.",
+        "Do not infer chunk traces under overload; the paper reports none.",
+        "Do not infer that disaggregated decode nodes are unaffected; the paper leaves them to future work."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L5/L7",
+      "quotes": [
+        {
+          "text": "The throughput gains are lower compared to PD colocation because we are unable to exploit dynamic chunking here, because of the large baseline chunk size.",
+          "source": "paper",
+          "locator": "Sec 4.1.3, PD disaggregation"
+        },
+        {
+          "text": "QoServe benefits from dynamically increasing chunk size by exploiting any deadline slack of the non-interactive QoS requests as well as any slack of interactive requests during lower load.",
+          "source": "paper",
+          "locator": "Sec 4.1.1"
+        },
+        {
+          "text": "Table 5 shows that dynamic chunking provides a 20% boost in throughput",
+          "source": "paper",
+          "locator": "Sec 4.4.1"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Slack is a consumable quantity. It is produced when prefills finish early and when requests have lenient deadlines, and it is consumed when the system is saturated or strict requests dominate. Raising the chunk past the baseline only helps when there is room above that baseline. The 20% chunking gain is a regime-specific result near optimal load with a small baseline chunk. At high load, chunk sizes plausibly return toward the strict-tier size. That is inferred, since the paper shows chunk traces only for the Az-conv trace over 200 iterations, not under overload. The overload-handling advantage is more plausibly attributable to relegation and prioritization."
+    },
+    {
+      "headline": "A tuned alpha of 8 ms/token does not imply that hybrid prioritization interpolates across QoS tiers",
+      "claim": "With the reported alpha range (0 to 10 ms/token) and Az-Code prompt lengths, the alpha*remaining-prefill term is far smaller than the gap between the 600s and 1800s tier deadlines. Hybrid prioritization should therefore act mostly as SRPF reordering within a tier, while cross-tier order stays close to EDF. 'Smooth interpolation' holds only when deadlines are close together.",
+      "paper_fact": "An 𝛼 of 8 ms/token provided the best trade-off, reducing violations without affecting tail latency.",
+      "premise": "A linear key deadline + alpha*tokens reorders two requests only if the alpha*token difference exceeds their deadline difference. Millisecond-per-token coefficients times a few thousand tokens give tens of seconds.",
+      "inference": "Table 3 gives tier deadlines of 6s (TTFT), 600s and 1800s (TTLT). The p90 Az-Code prompt is 6251 tokens (Table 2), so alpha=8 shifts a long request's key by about 50s. That is above the 6s Q1 TTFT deadline but well below the 600s and 1800s tier gaps. Cross-tier overtaking would need arrival-time differences of several hundred seconds. This is an inference from the reported numbers, not something the authors state.",
+      "toy_example": "Illustration, not a measurement: a Q2 request arriving at t=0 has key about 600 + 0.008*6000 = 648. A Q3 request arriving at t=0 has key about 1800 + a similar alpha term. Even a 6K-token Q2 request cannot be overtaken by a short Q3 request.",
+      "conditional_consequence": "If a deployment used closer SLO tiers (for example 6s vs 30s) or a larger alpha, the same alpha would reorder across tiers and the violation split by tier would change. The tuned alpha=8 would then not transfer.",
+      "critical_link": "Magnitude of alpha*tokens relative to the inter-tier deadline gap.",
+      "necessary_conditions": [
+        "Deadlines are in seconds and alpha is in ms/token, so the shift is alpha*tokens/1000 seconds.",
+        "Prompt lengths stay near the Az-Code distribution (p90 about 6K).",
+        "The Table 3 tiers (6s / 600s / 1800s) are used."
+      ],
+      "defeaters": [
+        "A very large alpha or a much longer prompt distribution.",
+        "Tiers with close deadlines (the paper varies SLOs to 3s/6s/1000s in 4.4.2, which narrows the gap).",
+        "Eq. 5 adds the decode estimate to the alpha term for non-interactive jobs, which can raise their shift."
+      ],
+      "do_not_infer": [
+        "Do not infer that hybrid prioritization has no effect.",
+        "Do not infer that alpha=8 is suboptimal.",
+        "Do not infer that the authors claim cross-tier interpolation."
+      ],
+      "disclosure": "inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L3",
+      "quotes": [
+        {
+          "text": "QoServe smoothly interpolates between EDF and SRPF to compute the priority of a request.",
+          "source": "paper",
+          "locator": "Section 3.4, Hybrid Prioritization"
+        },
+        {
+          "text": "An 𝛼 of 8 ms/token provided the best trade-off, reducing violations without affecting tail latency.",
+          "source": "paper",
+          "locator": "Section 3.6"
+        },
+        {
+          "text": "Q2: O(minutes) — user-facing but relaxed SLO",
+          "source": "paper",
+          "locator": "Section 4, Workloads and QoS Tiers (tier values in Table 3)"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A linear key deadline + alpha*tokens reorders two requests only if the alpha*token difference exceeds their deadline difference. Millisecond-per-token coefficients times a few thousand tokens give tens of seconds. Table 3 gives tier deadlines of 6s (TTFT), 600s and 1800s (TTLT). The p90 Az-Code prompt is 6251 tokens (Table 2), so alpha=8 shifts a long request's key by about 50s. That is above the 6s Q1 TTFT deadline but well below the 600s and 1800s tier gaps. Cross-tier overtaking would need arrival-time differences of several hundred seconds. This is an inference from the reported numbers, not something the authors state."
+    },
+    {
+      "headline": "Leaving TBT out of request priority conflicts with deriving the prefill budget from decode slack",
+      "claim": "Priority uses only the TTFT/TTLT deadline plus remaining work, and the paper says TBT is handled by chunking. The prefill budget C is computed from the minimum slack over all decodes. A tight-slack decode request therefore shrinks the prefill work available to every queued request, and the prefill selector cannot see or weigh this. The stated objective, minimizing violations while maximizing throughput, gives no rule for resolving this tension.",
+      "paper_fact": "Note that we only consider the TTFT deadline, as TBT deadlines are maintained by our dynamic chunking scheme.",
+      "premise": "Algorithm 1 computes min_decode_slack over all decodes and uses it to get the chunk budget C. The priority comparator uses only arrival, TTFT SLO and remaining prefill tokens. A smaller chunk lowers prefill throughput for the whole queue, including strict-TTFT requests.",
+      "inference": "TTFT and TTLT outcomes are influenced by decode-queue state that the priority function does not model. The priority ordering is therefore not by itself a fix for that effect. The chunk predictor is tuned to under-predict, which can further reduce prefill throughput.",
+      "toy_example": "Not a measurement: if one decode has 10ms of slack left, the budget C becomes small for that iteration. A Q1 request waiting on TTFT then gets few prefill tokens, even though it ranks first in the priority queue.",
+      "conditional_consequence": "Under heavy decode load with many near-deadline decodes, TTFT violations may arise from chunk starvation rather than queue order. Tuning α would not address this.",
+      "critical_link": "Priority is blind to the decode-slack term that sets the prefill budget.",
+      "necessary_conditions": [
+        "Many concurrent decodes have small slack.",
+        "Interactive requests are waiting in the prefill queue."
+      ],
+      "defeaters": [
+        "Slack across decodes is typically large, as in low-load and batch-dominated mixes.",
+        "Relegation removes the affected requests before the effect accumulates."
+      ],
+      "do_not_infer": [
+        "That QoServe is worse than EDF in this regime.",
+        "That TBT violations are common (the paper reports <0.1% average).",
+        "That the paper's overload results are invalid."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L4+L2",
+      "quotes": [
+        {
+          "text": "Note that we only consider the TTFT deadline, as TBT deadlines are maintained by our dynamic chunking scheme.",
+          "source": "paper §3.4",
+          "locator": "Hybrid Prioritization"
+        },
+        {
+          "text": "QoServe scheduling aims to minimize deadline violations while maximizing throughput.",
+          "source": "paper §3.2",
+          "locator": "QoS Classes and Deadlines"
+        },
+        {
+          "text": "We tune the model to err on the side of under-predicting chunk size.",
+          "source": "paper §3.6.1",
+          "locator": "Dynamic chunking batch predictor"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Algorithm 1 computes min_decode_slack over all decodes and uses it to get the chunk budget C. The priority comparator uses only arrival, TTFT SLO and remaining prefill tokens. A smaller chunk lowers prefill throughput for the whole queue, including strict-TTFT requests. TTFT and TTLT outcomes are influenced by decode-queue state that the priority function does not model. The priority ordering is therefore not by itself a fix for that effect. The chunk predictor is tuned to under-predict, which can further reduce prefill throughput."
+    },
+    {
+      "headline": "A min-slack chunk budget does not guarantee B TBT compliance",
+      "claim": "Capping the prefill chunk by the minimum decode slack keeps next-token deadlines only to the extent that the learned latency predictor is accurate and errs in one direction for the batch at hand. The paper's reported <10% error margin and its under-prediction bias are not shown to be a worst-case bound.",
+      "paper_fact": "We tune the model to err on the side of under-predicting chunk size.",
+      "premise": "A slack budget expressed in time must be converted into a token budget through a model. Any prediction error in that model translates directly into a possible deadline overshoot. A random forest trained on profiled latencies is not guaranteed to be one-sided on unseen combinations of batch size and context length.",
+      "inference": "The 'maintaining strict QoS guarantees' property of dynamic chunking is empirical, not structural. TBT violations remain bounded only where the predictor's bias stays on the safe side, so the safe side must hold for the tightest-slack batches. The <10% error figure is stated for chunk size, not as a one-sided bound on batch latency.",
+      "toy_example": "Illustrative only, not a measurement: if the minimum slack is 10 ms and the predictor under-estimates a batch's latency by 12 ms for an unusual context mix, the chunk is accepted and the strict decode misses its next-token deadline by 2 ms.",
+      "conditional_consequence": "If predictor error exceeds the slack margin in the over-prediction direction, for example on out-of-profile context lengths or on different hardware or kernels, TBT violations appear exactly when slack is thin. The under-prediction bias then buys safety at the cost of unrealized throughput.",
+      "critical_link": "Predicted batch latency stands in for true batch latency when converting minimum slack into a token budget.",
+      "necessary_conditions": [
+        "The predictor was profiled on the deployed model, hardware and parallelism configuration.",
+        "Serving-time batch compositions lie within the profiled range.",
+        "Slack is small enough that a ~10% error can exceed it."
+      ],
+      "defeaters": [
+        "Predictor bias is reliably on the under-prediction side across contexts.",
+        "A safety margin on slack absorbs the error.",
+        "The reported average TBT violations stay below 0.1% across schemes."
+      ],
+      "do_not_infer": [
+        "Do not infer that TBT violations are frequent; the paper reports under 0.1% on average.",
+        "Do not infer the predictor is inaccurate; only that no worst-case bound is shown.",
+        "Do not infer anything about hardware other than the profiled setups."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1/L4",
+      "quotes": [
+        {
+          "text": "We tune the model to err on the side of under-predicting chunk size.",
+          "source": "paper",
+          "locator": "Sec 3.6.1, Dynamic chunking batch predictor"
+        },
+        {
+          "text": "with < 10% error margin on chunk size prediction",
+          "source": "paper",
+          "locator": "Sec 3.6.1"
+        },
+        {
+          "text": "across all schemes, the average TBT violations was less than 0.1%",
+          "source": "paper",
+          "locator": "Sec 4.2, Latency"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A slack budget expressed in time must be converted into a token budget through a model. Any prediction error in that model translates directly into a possible deadline overshoot. A random forest trained on profiled latencies is not guaranteed to be one-sided on unseen combinations of batch size and context length. The 'maintaining strict QoS guarantees' property of dynamic chunking is empirical, not structural. TBT violations remain bounded only where the predictor's bias stays on the safe side, so the safe side must hold for the tightest-slack batches. The <10% error figure is stated for chunk size, not as a one-sided bound on batch latency."
+    },
+    {
+      "headline": "A <10% chunk-size error margin does not imply or guarantee TBT latency safety",
+      "claim": "The paper states the predictor's accuracy as a chunk-size error margin, but the safety constraint is a per-iteration batch latency bound (TBT). The paper never gives the relation between the two or any latency-error statistic.",
+      "paper_fact": "The prediction runs on the CPU and incurs a negligible overhead with < 10% error margin on chunk size prediction.",
+      "premise": "A random forest regresses batch execution time. The chunk size is then obtained by inverting that time model against the slack budget. How much a given chunk-size error moves latency depends on the local slope of latency in chunk size, which grows with attention and context length. Average error margins do not bound tail errors.",
+      "inference": "A 10% chunk-size error can correspond to a latency error larger or smaller than 10%, depending on batch composition. Tail behavior under contention or kernel variance is not characterized. The under-prediction bias helps only if the error is mostly one-sided.",
+      "toy_example": "Illustrative only, not a measurement: if the latency-vs-chunk curve is locally steep for a batch with long decode contexts, a +8% chunk-size error could use up more than the remaining slack, while the same error is harmless at short contexts.",
+      "conditional_consequence": "If the 10% margin is an average or median over profiled shapes rather than a tail bound, some iterations with large chunks can exceed the decode slack and cause TBT misses even though the predictor looks accurate.",
+      "critical_link": "Chunk-size error bound -> latency error bound on the TBT-critical batches (not stated in the paper).",
+      "necessary_conditions": [
+        "The error margin is a typical-case figure, not a per-batch worst case.",
+        "Latency is sufficiently nonlinear in chunk size or context length that chunk-size error maps to larger latency error.",
+        "Over-prediction cases exist despite the bias."
+      ],
+      "defeaters": [
+        "The margin is reported as a worst-case bound over the profiled space.",
+        "Latency is nearly linear and smooth in chunk size over the operating range.",
+        "The slack budget has a safety margin that absorbs the error."
+      ],
+      "do_not_infer": [
+        "Do not infer that the predictor causes TBT violations. The paper reports under 0.1% average TBT violations.",
+        "Do not infer that the 10% figure is wrong. It is only that its relation to latency is unspecified."
+      ],
+      "disclosure": "inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L3",
+      "quotes": [
+        {
+          "text": "The prediction runs on the CPU and incurs a negligible overhead with < 10% error margin on chunk size prediction.",
+          "source": "paper",
+          "locator": "Section 3.6.1, page 7"
+        },
+        {
+          "text": "The model is trained on latency profiles of MLP and attention operation collected at varying chunk sizes, batch sizes as well as context lengths.",
+          "source": "paper",
+          "locator": "Section 3.6.1, page 7"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A random forest regresses batch execution time. The chunk size is then obtained by inverting that time model against the slack budget. How much a given chunk-size error moves latency depends on the local slope of latency in chunk size, which grows with attention and context length. Average error margins do not bound tail errors. A 10% chunk-size error can correspond to a latency error larger or smaller than 10%, depending on batch composition. Tail behavior under contention or kernel variance is not characterized. The under-prediction bias helps only if the error is mostly one-sided."
+    },
+    {
+      "headline": "Offline Vidur profiles with locked GPU clocks do not imply or guarantee predictor accuracy under unlocked or drifting deployment conditions",
+      "claim": "The latency predictor is trained from per-configuration offline profiles. The appendix says clock locking is needed for reproducible measurements, so the predictor's validity plausibly depends on the clock state and kernels used when profiling. The paper does not say whether this holds in deployment.",
+      "paper_fact": "To collect this data, we use a lightweight harness exposed by an inference simulator Vidur [3], and collect profiles for each model, hardware, and parallelism configuration of interest.",
+      "premise": "Kernel execution time depends on GPU clock frequency, thermal state, kernel implementation and batch composition. A regression model trained on one operating point does not carry to another unless that variation is covered by the training data.",
+      "inference": "If clocks are unlocked or kernels differ from the profiled ones, the predictor's error can exceed the quoted 10% margin. Because the system enlarges chunks specifically when slack is available, such errors would matter most at exactly the iterations where chunks are enlarged. The recurring profiling cost per model, hardware and tensor-parallel setting is also shifted to operators.",
+      "toy_example": "Illustrative only, not a measurement: if a profile was collected at a locked clock but the serving GPU throttles by 10% under thermal load, every predicted batch time is optimistic by a similar amount, and chunk sizes would be chosen too large.",
+      "conditional_consequence": "If deployment clocks, kernels, or batch mixes differ from the profiling setup, then TBT violations may appear while the predictor still reports its nominal error, and re-profiling is needed.",
+      "critical_link": "Profiling-time conditions (locked clocks, kernels, trace distribution) -> deployment-time conditions.",
+      "necessary_conditions": [
+        "Deployment GPU clocks, thermal state, or kernels differ from the profiled ones.",
+        "The training data does not span the shifted regime.",
+        "The under-prediction bias is smaller than the induced shift."
+      ],
+      "defeaters": [
+        "Clocks are locked in deployment as in the experiments.",
+        "Profiles are re-collected per deployment.",
+        "The bias or slack safety margin exceeds the drift."
+      ],
+      "do_not_infer": [
+        "Do not infer that the reported results are not reproducible. The artifact notes clock locking as the mitigation.",
+        "Do not infer that the paper measured degradation under unlocked clocks. It does not."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L4",
+      "quotes": [
+        {
+          "text": "we use a lightweight harness exposed by an inference simulator Vidur [3], and collect profiles for each model, hardware, and parallelism configuration of interest.",
+          "source": "paper",
+          "locator": "Section 3.6.1, page 7"
+        },
+        {
+          "text": "GPU clock locking (described in README) is essential for reproducible measurements.",
+          "source": "paper",
+          "locator": "Appendix A.8, page 16"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Kernel execution time depends on GPU clock frequency, thermal state, kernel implementation and batch composition. A regression model trained on one operating point does not carry to another unless that variation is covered by the training data. If clocks are unlocked or kernels differ from the profiled ones, the predictor's error can exceed the quoted 10% margin. Because the system enlarges chunks specifically when slack is available, such errors would matter most at exactly the iterations where chunks are enlarged. The recurring profiling cost per model, hardware and tensor-parallel setting is also shifted to operators."
+    },
+    {
+      "headline": "Eq. 5's TTLT-based priority for non-interactive requests conflicts with Algorithm 1's TTFT_SLO comparator",
+      "claim": "The paper defines non-interactive priority with the TTLT deadline plus alpha*(prefill+decode). The Algorithm 1 comparator uses arrival_time + TTFT_SLO + alpha*rem_prefill_tokens for every job. The text does not say which form is implemented, or how non-interactive jobs, which have no TTFT SLO, are keyed.",
+      "paper_fact": "Non-interactive requests have a single TTLT (total latency) target, focused on overall completion.",
+      "premise": "A priority queue orders requests by whatever key the comparator computes. If the key omits the TTLT deadline and the decode term, 600s and 1800s tiers are not distinguished by their deadlines.",
+      "inference": "If the comparator is literal, a non-interactive job's TTFT_SLO is undefined or a placeholder, and the decode estimate of Eq. 5 never enters the ordering. Either the pseudocode is simplified or the evaluated ordering differs from Eq. 5. The origin of the discrepancy is unexplained. No code excerpts were provided to resolve it.",
+      "conditional_consequence": "If the comparator really uses TTFT_SLO for all jobs, the reported tier-level behavior (Figures 10 and 11) would reflect a different ordering than the one the paper describes for Q2 and Q3.",
+      "critical_link": "Which deadline field the comparator reads for non-interactive jobs.",
+      "necessary_conditions": [
+        "Algorithm 1 is a faithful description of the implemented comparator.",
+        "Non-interactive requests have TTFT_SLO unset, as Table 3 shows."
+      ],
+      "defeaters": [
+        "TTFT_SLO may be a generic field that stores the TTLT for non-interactive requests.",
+        "The pseudocode may be deliberately simplified.",
+        "The artifact's sequence.py (line 79) may implement Eq. 5."
+      ],
+      "do_not_infer": [
+        "Do not infer that the implementation is wrong.",
+        "Do not infer that the reported results are invalid.",
+        "Do not infer that the decode-length estimate is unused."
+      ],
+      "disclosure": "inferred",
+      "category_code": "mechanism_origin_unclear",
+      "lens": "L4",
+      "quotes": [
+        {
+          "text": "priority1 ←job1.arrival_time + job1.TTFT_SLO + 𝛼× job1.rem_prefill_tokens",
+          "source": "paper",
+          "locator": "Algorithm 1, COMPARATOR, line 30"
+        },
+        {
+          "text": "Non-interactive requests have a single TTLT (total latency) target, focused on overall completion.",
+          "source": "paper",
+          "locator": "Section 3.2"
+        },
+        {
+          "text": "Note that we only consider the TTFT deadline, as TBT deadlines are maintained by our dynamic chunking scheme.",
+          "source": "paper",
+          "locator": "Section 3.4"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A priority queue orders requests by whatever key the comparator computes. If the key omits the TTLT deadline and the decode term, 600s and 1800s tiers are not distinguished by their deadlines. If the comparator is literal, a non-interactive job's TTFT_SLO is undefined or a placeholder, and the decode estimate of Eq. 5 never enters the ordering. Either the pseudocode is simplified or the evaluated ordering differs from Eq. 5. The origin of the discrepancy is unexplained. No code excerpts were provided to resolve it."
+    },
+    {
+      "headline": "A two-standard-deviation over-approximation of per-application decode length does not guarantee an upper bound on a heavy-tailed decode distribution",
+      "claim": "The decode-length estimate used in the non-interactive priority (Eq. 5) and in the relegation test is a statistical margin over per-application history. It can still under-estimate the remaining work of long-decode requests when the output-length distribution is heavy-tailed.",
+      "paper_fact": "over-approximate it by two standard deviations",
+      "premise": "A bound of mean plus k standard deviations is a coverage rule that holds for light-tailed or near-Gaussian data. For skewed, heavy-tailed data, standard deviation is dominated by the tail, and the share of requests above the bound depends on the distribution's shape. The paper states only 'two standard deviations'; the mean offset is not spelled out in the quoted text and is inferred here.",
+      "inference": "The paper's Table 2 reports Azure Conv decode p50 of 41 against p90 of 342, which is strongly skewed. A fraction of requests will therefore exceed the estimate, and for those the Decode_rem term in Eq. 5 under-states the true remaining time. The paper's claim of 'sufficiently captures' therefore rests on TTLT slack being large, not on the estimate being a bound.",
+      "toy_example": "Illustrative only, not a measurement: suppose an application has mean 100 decode tokens and SD 150, so the estimate is 400 tokens. A request that ends up generating 1500 tokens is under-estimated by about 3.7x in remaining decode work.",
+      "conditional_consequence": "If a request's decode length exceeds the estimate and its TTLT slack is not large, its priority value in Eq. 5 is too lenient, and the relegation check may fire later than it should or not at all.",
+      "critical_link": "The estimate only needs to be a bound if slack is tight. The paper's argument that the TTLT deadline is 'typically much greater than the actual processing time' is what makes the error tolerable, so the safety margin comes from the SLO setting rather than from the 2-SD rule.",
+      "necessary_conditions": [
+        "The decode-length distribution of the application is skewed or heavy-tailed.",
+        "A non-trivial fraction of requests exceed the estimate.",
+        "TTLT slack is small relative to the under-estimated decode time."
+      ],
+      "defeaters": [
+        "TTLT targets are 600 s or 1800 s (Table 3), far above the processing time of most requests.",
+        "A small alpha makes the decode term a minor part of the priority, so the error has limited effect.",
+        "Eager relegation only triggers on actual or imminent violation, so some under-estimates are corrected at run time."
+      ],
+      "do_not_infer": [
+        "Do not infer that QoServe's reported goodput is wrong.",
+        "Do not infer that the estimate is worse than a decode-length predictor, since none is compared.",
+        "Do not infer that the rule fails on the evaluated traces; the authors report no failure."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1",
+      "quotes": [
+        {
+          "text": "over-approximate it by two standard deviations",
+          "source": "paper, Section 3.4 Hybrid Prioritization",
+          "locator": "page 6, after Eq. 5"
+        },
+        {
+          "text": "for non-interactive jobs, the TTLT deadline is typically much greater than the actual processing time.",
+          "source": "paper, Section 3.4",
+          "locator": "page 6"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A bound of mean plus k standard deviations is a coverage rule that holds for light-tailed or near-Gaussian data. For skewed, heavy-tailed data, standard deviation is dominated by the tail, and the share of requests above the bound depends on the distribution's shape. The paper states only 'two standard deviations'; the mean offset is not spelled out in the quoted text and is inferred here. The paper's Table 2 reports Azure Conv decode p50 of 41 against p90 of 342, which is strongly skewed. A fraction of requests will therefore exceed the estimate, and for those the Decode_rem term in Eq. 5 under-states the true remaining time. The paper's claim of 'sufficiently captures' therefore rests on TTLT slack being large, not on the estimate being a bound."
+    },
+    {
+      "headline": "A per-application running history of decode lengths conflicts with applications whose output-length distribution drifts or is bimodal",
+      "claim": "The decode estimate is built from a running history per application. That is only a good predictor of the next request if the application's output-length distribution is stationary. A prompt-template change, a model change, or a mixture of short and long modes breaks that assumption, and mis-estimation then feeds both priority ranking and eager relegation.",
+      "paper_fact": "we maintain a running history of token generation patterns per application to estimate the expected decode length",
+      "premise": "Estimators built from a history window lag behind a distribution shift. A mean-plus-SD summary of a bimodal distribution describes neither mode well.",
+      "inference": "In the evaluation, applications are created by splitting each dataset into three parts, so each 'application' is a sample from one trace distribution. Stationarity therefore holds by construction, and the evaluation does not test the failure mode.",
+      "toy_example": "Illustrative only, not a measurement: an application produces 20-token answers for 90% of requests and 2000-token answers for 10%, after a template change flips the ratio. Until the history adapts, the estimate reflects the old mix, so priority and relegation decisions for those requests are made with a stale value.",
+      "conditional_consequence": "If an application's output-length distribution drifts or is bimodal, jobs can be mis-ranked, and eager relegation may relegate requests that would have met their TTLT, or retain ones that will miss it.",
+      "critical_link": "Eq. 5 and the violation check consume the decode estimate directly. A stale or mismatched estimate therefore propagates into both scheduling and relegation, and the effect grows with alpha.",
+      "necessary_conditions": [
+        "The application's output-length distribution changes or is multi-modal.",
+        "The history window is slow to adapt, or the summary statistic is insensitive to the mode change.",
+        "TTLT slack is not large enough to absorb the error."
+      ],
+      "defeaters": [
+        "The history is a running one, so it may adapt quickly if the window is short; the paper does not specify the window.",
+        "Large TTLT slack in the Q2 and Q3 buckets tolerates moderate error.",
+        "Production applications may have stable output-length distributions, as the authors assume."
+      ],
+      "do_not_infer": [
+        "Do not infer that drift occurs in the paper's traces.",
+        "Do not infer a quantitative degradation; none is measured.",
+        "Do not infer that the history window is long; the paper does not state it."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L1+L5",
+      "quotes": [
+        {
+          "text": "we maintain a running history of token generation patterns per application to estimate the expected decode length",
+          "source": "paper, Section 3.6 Implementation",
+          "locator": "page 6"
+        },
+        {
+          "text": "we divide the dataset into three equal parts",
+          "source": "paper, Section 4 Workloads and QoS Tiers",
+          "locator": "page 8"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Estimators built from a history window lag behind a distribution shift. A mean-plus-SD summary of a bimodal distribution describes neither mode well. In the evaluation, applications are created by splitting each dataset into three parts, so each 'application' is a sample from one trace distribution. Stationarity therefore holds by construction, and the evaluation does not test the failure mode."
+    },
+    {
+      "headline": "Opportunistic servicing of the relegated queue does not guarantee eventual completion under sustained overload",
+      "claim": "The paper presents relegation as 'eventual completion without permanent rejection'. That guarantee only holds if load dips below capacity often and long enough to drain the relegated queue. If overload persists, relegated requests can wait indefinitely, which is de facto rejection.",
+      "paper_fact": "The relegated requests are serviced opportunistically during periods of lower system load, ensuring eventual completion without permanent rejection",
+      "premise": "A queue served only with spare capacity drains only if the arrival rate averaged over the relevant window is below capacity. Relegated jobs are also ordered behind every non-relegated job.",
+      "inference": "Algorithm 1's comparator places non-relegated jobs strictly ahead of relegated ones. Relegated requests therefore receive only the capacity left after all fresh work. If lower-load periods are absent, rare, or filled by newly arriving requests, 'eventual' has no time bound. The evaluated diurnal trace swings between QPS 2.0 and 5, so it contains low-load troughs. The reported maximum relegated latency of 3900s comes from that trace and does not show behavior under sustained overload.",
+      "toy_example": "Illustration only, not a measurement: if arrivals stay at 1.5x capacity for a long window and each new non-relegated request outranks any relegated one, the relegated backlog grows with every iteration and no relegated request is served in that window.",
+      "conditional_consequence": "If overload persists beyond the diurnal trough pattern, the relegated queue grows and the completion guarantee degrades into rejection. The 3900s maximum would then not be a bound.",
+      "critical_link": "The 'eventual completion' claim depends on load troughs actually occurring. The paper reports only a diurnal trace with 15-minute alternation, and no growth of relegated latency with trace duration or overload length.",
+      "necessary_conditions": [
+        "Offered load stays above capacity for a long window",
+        "Non-relegated requests keep strict priority over relegated ones (drop_status is the first comparator key)",
+        "No separate aging or timeout mechanism exists outside the excerpt"
+      ],
+      "defeaters": [
+        "Load reliably dips below capacity within the window, as in the evaluated diurnal trace",
+        "Admission control or autoscaling outside the described system bounds the backlog",
+        "Unreported aging of relegated jobs"
+      ],
+      "do_not_infer": [
+        "Do not infer that the paper's 3900s result is wrong",
+        "Do not infer that relegated requests are dropped in the evaluated traces",
+        "Do not infer that QoServe has no mechanism beyond the excerpt that bounds relegated waiting"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L7+L1",
+      "quotes": [
+        {
+          "text": "The relegated requests are serviced opportunistically during periods of lower system load, ensuring eventual completion without permanent rejection",
+          "source": "paper, Section 3.1 Overview",
+          "locator": "page 4, step 3"
+        },
+        {
+          "text": "return job1.drop_status < job2.drop_status",
+          "source": "paper, Algorithm 1 COMPARATOR",
+          "locator": "page 6, line 28"
+        },
+        {
+          "text": "For relegated requests in QoServe, the maximum latency observed was no more than 3900s",
+          "source": "paper, Section 4.3",
+          "locator": "page 12"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A queue served only with spare capacity drains only if the arrival rate averaged over the relevant window is below capacity. Relegated jobs are also ordered behind every non-relegated job. Algorithm 1's comparator places non-relegated jobs strictly ahead of relegated ones. Relegated requests therefore receive only the capacity left after all fresh work. If lower-load periods are absent, rare, or filled by newly arriving requests, 'eventual' has no time bound. The evaluated diurnal trace swings between QPS 2.0 and 5, so it contains low-load troughs. The reported maximum relegated latency of 3900s comes from that trace and does not show behavior under sustained overload."
+    },
+    {
+      "headline": "A per-iteration WILL_VIOLATE test does not imply that a request is doomed or that scheduling progresses once every queued job is relegated",
+      "claim": "The paper says relegation targets requests 'that we know will miss their deadlines'. The operative rule is a binary test for violation 'in the current iteration', and WILL_VIOLATE is not defined in the text. This is a weak proxy for eventual violation of a multi-chunk request. Algorithm 1 also pushes a violating job back and continues, which may not terminate if all queued jobs are relegated and violating.",
+      "paper_fact": "if a request has already violated its TTFT / TTLT deadline, or is about to violate it in the current iteration, then QoServe de-prioritizes this request into a relegated queue.",
+      "premise": "A multi-chunk prefill or a long decode can still meet its deadline even if one iteration looks tight. Conversely, a request can be doomed several iterations before the check fires. A loop that re-pushes the top element and continues, without consuming budget, makes no progress if the same element stays on top.",
+      "inference": "The test's definition and horizon are unspecified, so relegation accuracy is unknown. This could cause relegation of requests that were still salvageable, or too-late relegation of doomed ones. In Algorithm 1, a relegated top job that still satisfies WILL_VIOLATE is pushed back, and the prefill_token_count is not updated. If no non-relegated job is left, the while loop would not advance. The paper may handle this outside the shown pseudocode, which the excerpt does not show.",
+      "toy_example": "Illustration only, not a measurement: if every queued job is already relegated and past its deadline, WILL_VIOLATE returns true for the top job on every pass, so the loop pushes it back and continues without selecting anything.",
+      "conditional_consequence": "If the predicate is too myopic, relegation counts could mix salvageable and doomed requests. If the loop is as written, an all-relegated queue would stall batch creation unless an exit or fallback exists elsewhere.",
+      "critical_link": "Both concerns depend on the unseen WILL_VIOLATE definition and on whether any guard exists outside Algorithm 1. The excerpt does not settle either.",
+      "necessary_conditions": [
+        "WILL_VIOLATE uses only a current-iteration horizon, as the paper's wording suggests",
+        "No other exit or fallback exists outside the displayed pseudocode for an all-relegated violating queue"
+      ],
+      "defeaters": [
+        "The actual implementation has a lookahead estimate of completion time",
+        "Relegated jobs are skipped or handled in a separate path when the main queue is empty",
+        "Pseudocode simplification: the shipped scheduler code differs from Algorithm 1"
+      ],
+      "do_not_infer": [
+        "Do not infer that the released scheduler hangs; the code is not shown in the provided excerpts",
+        "Do not infer that relegation misclassifies many requests, since no misclassification rate is reported",
+        "Do not infer that Figure 5 or Figure 12 results are invalid"
+      ],
+      "disclosure": "inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1+L3",
+      "quotes": [
+        {
+          "text": "if a request has already violated its TTFT / TTLT deadline, or is about to violate it in the current iteration, then QoServe de-prioritizes this request into a relegated queue.",
+          "source": "paper, Section 3.4 Eager Relegation",
+          "locator": "page 6"
+        },
+        {
+          "text": "if WILL_VIOLATE(top_job) then",
+          "source": "paper, Algorithm 1 CREATE_BATCH",
+          "locator": "page 6, line 12"
+        },
+        {
+          "text": "job_queue.PUSH(top_job)",
+          "source": "paper, Algorithm 1 CREATE_BATCH",
+          "locator": "page 6, line 14"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A multi-chunk prefill or a long decode can still meet its deadline even if one iteration looks tight. Conversely, a request can be doomed several iterations before the check fires. A loop that re-pushes the top element and continues, without consuming budget, makes no progress if the same element stays on top. The test's definition and horizon are unspecified, so relegation accuracy is unknown. This could cause relegation of requests that were still salvageable, or too-late relegation of doomed ones. In Algorithm 1, a relegated top job that still satisfies WILL_VIOLATE is pushed back, and the prefill_token_count is not updated. If no non-relegated job is left, the while loop would not advance. The paper may handle this outside the shown pseudocode, which the excerpt does not show."
+    },
+    {
+      "headline": "Eventual completion of relegated requests does not guarantee bounded delay for low-priority users",
+      "claim": "The mechanism moves nearly all violations onto low-priority users. The paper says they eventually complete, but completion is opportunistic, and the reported 3900s maximum is one observation from one trace rather than a bound. The net benefit to the low tier is not quantified.",
+      "paper_fact": "The relegated requests are serviced opportunistically during periods of lower system load, ensuring eventual completion without permanent rejection; while enabling graceful degradation under overload conditions.",
+      "premise": "If requests are served only when load is low, their wait is set by how long overload lasts. Sustained overload, or a trace with fewer troughs than the 15-minute 2 QPS phases, would stretch the wait without any scheduler-imposed limit.",
+      "inference": "The diurnal trace returns to 2 QPS every 15 minutes, so relegated work gets regular drain windows. The paper reports a maximum relegated-request latency of 3900s there. With longer or deeper overload, relegated requests would wait longer, and the paper gives no cap. Whether this trade is acceptable depends on business value, which the paper does not measure. The 3900s figure is also well above the Q3 TTLT SLO of 1800s.",
+      "toy_example": "Not a measurement: if load stays above capacity for a long period, relegated requests receive no service until it ends, so their delay grows with the length of the overload.",
+      "conditional_consequence": "If sustained overload exceeds the troughs available for draining, relegated low-priority requests would wait without bound, and the 'graceful degradation' would become de facto denial for that tier.",
+      "critical_link": "Availability of low-load periods in which the relegated queue can drain.",
+      "necessary_conditions": [
+        "Overload is transient and periodic, as in the diurnal trace",
+        "Relegated requests are not starved by later arrivals",
+        "The relegated queue is served when load drops"
+      ],
+      "defeaters": [
+        "Sustained overload with no trough",
+        "Growing relegated queue across cycles",
+        "A low-priority share that is large relative to trough capacity"
+      ],
+      "do_not_infer": [
+        "That relegated requests are permanently rejected; the paper says they are not",
+        "That 3900s is a guaranteed upper bound; it is the maximum observed in one run"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L4/L6: the cost shifts entirely to the low tier, and its net value is unmeasured",
+      "quotes": [
+        {
+          "quote": "ensuring eventual completion without permanent rejection",
+          "source": "paper",
+          "locator": "§3.1 Overview"
+        },
+        {
+          "quote": "For relegated requests in QoServe, the maximum latency observed was no more than 3900s",
+          "source": "paper",
+          "locator": "§4.3"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§3.1 Overview",
+          "support_description": "ensuring eventual completion without permanent rejection"
+        },
+        {
+          "source_id": "paper",
+          "location": "§4.3",
+          "support_description": "For relegated requests in QoServe, the maximum latency observed was no more than 3900s"
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "If requests are served only when load is low, their wait is set by how long overload lasts. Sustained overload, or a trace with fewer troughs than the 15-minute 2 QPS phases, would stretch the wait without any scheduler-imposed limit. The diurnal trace returns to 2 QPS every 15 minutes, so relegated work gets regular drain windows. The paper reports a maximum relegated-request latency of 3900s there. With longer or deeper overload, relegated requests would wait longer, and the paper gives no cap. Whether this trade is acceptable depends on business value, which the paper does not measure. The 3900s figure is also well above the Q3 TTLT SLO of 1800s."
+    }
+  ],
+  "dropped_for_unverified_quotes": 0,
+  "chunk_count": 8,
+  "chunk_failures": 0,
+  "chunk_timings": [
+    {
+      "seconds": 49.225403618998826,
+      "attempts": 1
+    },
+    {
+      "seconds": 47.82485637185164,
+      "attempts": 1
+    },
+    {
+      "seconds": 41.75304017402232,
+      "attempts": 1
+    },
+    {
+      "seconds": 31.30734044406563,
+      "attempts": 1
+    },
+    {
+      "seconds": 41.50746212806553,
+      "attempts": 1
+    },
+    {
+      "seconds": 36.97240249509923,
+      "attempts": 1
+    },
+    {
+      "seconds": 44.51914143515751,
+      "attempts": 1
+    },
+    {
+      "seconds": 37.808594063157216,
+      "attempts": 1
+    }
+  ],
+  "inventory_seconds": 128.07553204684518,
+  "chunks_seconds": 124.00762619217858,
+  "merged_candidates": 0,
+  "unverified_kept": 21
+}
