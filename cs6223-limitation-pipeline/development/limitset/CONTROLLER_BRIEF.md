@@ -39,7 +39,7 @@ You are the controller (Claude Sonnet 5.5, medium). You dispatch, review, integr
 | LS-05 | Confidence model + report in software-testing terms (see below); `LIMITATIONS.md` and a case-level report; doc `docs/12_testing_course_mapping.md`. Calibration check on validation: reliability table; if n is too small, say so. | LS-02 (schema), parallel with LS-03/04 |
 | LS-06 | Run validation (tune on it only), freeze code + prompts + config by commit SHA, run test **once** (3 repeats), score, write `docs/13_limitset_results.md`. | all |
 
-Parallel limit: 3-4 Codex agents. Review each return block yourself (diff, tests, key scan) before you commit. Use a different session than the author for review of LS-02/LS-05 (Claude `claude-opus-5-5` medium via dispatch, or a second Codex review). Report to the user: after LS-00/01 (data + split), after validation run, after test run. Ask the user only for real decisions.
+Check each return block yourself (diff, tests, key scan) before you commit. No separate review mechanism (user decision 2026-11-23, overrides earlier review requirements). Parallel limit: 5 code agents. Report to the user: after LS-00/01 (data + split), after validation run, after test run. Ask the user only for real decisions.
 
 ## Confidence scoring (LS-05 content; software-testing mapping)
 

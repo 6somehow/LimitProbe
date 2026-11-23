@@ -36,6 +36,8 @@ Remote Codex is the default for remote or SSH work (UD-18 extension, 2026-11-14)
 
 ## Concurrency
 
+> Project override (user, 2026-11-23): limit is 5 code agents; no review step (see workflow.md).
+
 - Set one limit for the number of code agents that run at the same time (default 4). The limit follows the review capacity of the controller, not the number of accounts.
 - Memory is the second limit. Every heavy check runs under `mem_guard.sh` ([local-host.md](local-host.md)).
 - A dispatch scheduler (optional) waits for quota, keeps the agent limit, and continues a run after a usage limit. The controller acts only on its terminal events. See [workflow.md](workflow.md#dispatch).
