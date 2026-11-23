@@ -209,6 +209,8 @@ class Relay:
         RELAY_LOG.parent.mkdir(parents=True, exist_ok=True)
         renv = dict(os.environ)
         renv.update(SOCLAAS_API_KEY=self.e["SOCLAAS_API_KEY"], SOCLAAS_BASE_URL=self.e["SOCLAAS_BASE_URL"])
+        if self.e.get("SOCLAAS_EXTRA_KEYS"):
+            renv["SOCLAAS_EXTRA_KEYS"] = self.e["SOCLAAS_EXTRA_KEYS"]
         cmd = [sys.executable, "-m", "checklimits.relay", "--port", str(RELAY_PORT), "--log", str(RELAY_LOG),
                "--iface", self.e.get("SOCLAAS_IFACE", "eth0")]
         # cwd must be checklimits/ (from the pipeline root `-m checklimits` resolves to the directory)
@@ -239,6 +241,7 @@ def point_children_at_relay() -> None:
     """From here on, every process this one starts talks to the relay and holds only a placeholder key."""
     os.environ["SOCLAAS_BASE_URL"] = RELAY_URL
     os.environ["SOCLAAS_API_KEY"] = PLACEHOLDER_KEY
+    os.environ.pop("SOCLAAS_EXTRA_KEYS", None)   # extra real keys are for the relay only
     # P.env() reads .env with setdefault, so the real key in .env can no longer win
 
 
