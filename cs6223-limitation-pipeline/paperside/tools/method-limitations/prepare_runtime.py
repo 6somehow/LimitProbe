@@ -1,4 +1,4 @@
-"""Reuse a local AgentSwarm-Serve checkout without publishing its private source."""
+"""Materialize the CS6223 Pi runtime from its bundled or explicitly selected source."""
 import argparse
 import hashlib
 import json
@@ -7,17 +7,29 @@ import subprocess
 
 FILES=['agent.mjs','swarm.mjs','fork.mjs','coordination.mjs','runtime.mjs']
 PIN='6e46093badbbc109c5be7296c24fe2f09efb00ae'
+BUNDLED=Path(__file__).resolve().parent/'runtime-source'
 
 def prepare(source,out,revision=None):
-    assert not out.exists(),'Use a new runtime directory; do not overwrite provenance'
-    out.mkdir(parents=True)
-    commit=revision or subprocess.check_output(['git','-C',str(source),'rev-parse','HEAD'],text=True).strip()
-    hashes={}
-    for name in FILES:
-        data=(subprocess.check_output(['git','-C',str(source),'show',commit+':lab/pi_swarm/'+name],timeout=20)
-              if revision else (source/'lab/pi_swarm'/name).read_bytes())
+    if source is None:
+        manifest = json.loads((BUNDLED/'source.json').read_text())
+        commit = PIN
+        files = {name:(BUNDLED/name).read_bytes() for name in FILES}
+        expected = manifest['files']
+        if manifest['commit'] != commit:
+            raise ValueError('Bundled AgentSwarm-Serve revision does not match the runtime pin')
+    else:
+        commit = revision or subprocess.check_output(
+            ['git','-C',str(source),'rev-parse','HEAD'],text=True,timeout=20).strip()
+        git_files = {name:subprocess.check_output(
+            ['git','-C',str(source),'show',commit+':lab/pi_swarm/'+name],timeout=20) for name in FILES}
+        expected = {name:hashlib.sha256(data).hexdigest() for name,data in git_files.items()}
+        files = git_files if revision else {name:(source/'lab/pi_swarm'/name).read_bytes() for name in FILES}
+    hashes = {name:hashlib.sha256(data).hexdigest() for name,data in files.items()}
+    if source is None and hashes != expected:
+        raise ValueError('Bundled AgentSwarm-Serve runtime failed its SHA-256 check')
+    out.mkdir(parents=True, exist_ok=False)
+    for name,data in files.items():
         (out/name).write_bytes(data)
-        hashes[name]=hashlib.sha256(data).hexdigest()
     p=out/'agent.mjs';s=p.read_text();old="else if(m.role==='toolResult')messages.push({role:'tool',tool_call_id:m.toolCallId,content:text(m.content)});"
     assert s.count(old)==1,'Original boundary changed; review before adapting'
     s=s.replace(old,"""else if(m.role==='toolResult'){
@@ -33,9 +45,14 @@ def prepare(source,out,revision=None):
     s=p.read_text();old='const customTools=cfg.tools.map(t=>'
     assert s.count(old)==1,'Original role tool registration changed'
     p.write_text(s.replace(old,"const customTools=cfg.tools.filter(t=>!(parent&&cfg.paperOnlyWorkers&&['list_repo','search_repo','read_repo'].includes(t.name))).map(t=>"))
-    clean={name:hashlib.sha256(subprocess.check_output(['git','-C',str(source),'show',commit+':lab/pi_swarm/'+name])).hexdigest()==hashes[name] for name in FILES}
-    (out/'source.json').write_text(json.dumps(dict(origin='fzp0424/sglang-swarm',commit=commit,files=hashes,
-       working_tree_snapshot=revision is None,matches_git_commit=clean,adaptation='Original page images and declarative paper-only worker capabilities; source copied locally only'),indent=2)+'\n')
+    clean={name:expected[name]==hashes[name] for name in FILES}
+    (out/'source.json').write_text(json.dumps(dict(origin='AgentSwarm-Serve',commit=commit,files=hashes,
+       working_tree_snapshot=source is not None and revision is None,matches_git_commit=clean,
+       adaptation='Original page images and declarative paper-only worker capabilities'),indent=2)+'\n')
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--source',required=True,type=Path);p.add_argument('--out',type=Path,default=Path(__file__).resolve().parent/'vendor-pi-swarm');a=p.parse_args();prepare(a.source.resolve(),a.out.resolve())
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--source',type=Path)
+    parser.add_argument('--out',type=Path,default=Path(__file__).resolve().parent/'vendor-pi-swarm')
+    args=parser.parse_args()
+    prepare(args.source.resolve() if args.source else None,args.out.resolve())
