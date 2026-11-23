@@ -109,7 +109,9 @@ class RelayJudge:
     """Batch reviewer using a relay shared for the scoring run."""
     prompt_version = PROMPT_VERSION
 
-    def __init__(self, root, model_id, temperature=0.0, env=None, timeout=120, retries=2):
+    def __init__(self, root, model_id, temperature=0.0, env=None, timeout=None, retries=3):
+        import os
+        timeout = timeout or int(os.environ.get('LIMITSET_JUDGE_TIMEOUT', '420'))
         self.root, self.model_id, self.temperature = Path(root), model_id, temperature
         self.env = env
         self.timeout, self.retries = timeout, retries
