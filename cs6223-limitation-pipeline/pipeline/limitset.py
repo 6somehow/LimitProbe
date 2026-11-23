@@ -94,7 +94,7 @@ def run_generator(cmd, *, env, timeout, log):
         raise subprocess.CalledProcessError(code, cmd)
 
 
-def worker(case, repeat, out, raw, timeout, env, schema, swarm_template=None, enrich_llm=None, model=None, generator="paper-only", mechanism_version="paper-only-mech-v2", examples_path=None):
+def worker(case, repeat, out, raw, timeout, env, schema, swarm_template=None, enrich_llm=None, model=None, generator="paper-only", mechanism_version="paper-only-mech-v2", examples_path=None, mech_no_filter=False):
     run = out / 'runs' / case['case_id'] / f'r{repeat}'
     done = run / 'prediction.json'
     if done.is_file():
@@ -156,7 +156,7 @@ def worker(case, repeat, out, raw, timeout, env, schema, swarm_template=None, en
                     excerpt = ''.join(lines[node.lineno - 1:node.end_lineno])[:12000]
                     code_files[path] = code_files.get(path, '') + excerpt + '\n'
             stats = {}
-            candidates, critiques, dropped = mechanism_candidates(pdf_text(case_dir / 'paper.pdf'), code_files, enrich_llm, version=mechanism_version, examples_path=examples_path, stats=stats)
+            candidates, critiques, dropped = mechanism_candidates(pdf_text(case_dir / 'paper.pdf'), code_files, enrich_llm, version=mechanism_version, examples_path=examples_path, stats=stats, no_filter=mech_no_filter)
             findings = []
             for c in candidates:
                 findings.append({'claim': str(c.get('claim') or ''), 'category_code': c['category_code'],
@@ -254,12 +254,14 @@ def main(argv=None):
     r.add_argument('--dry-run', action='store_true')
     r.add_argument('--no-enrich', action='store_true')
     r.add_argument('--generator', choices=['paper-only', 'swarm', 'mechanism'], default='paper-only')
-    r.add_argument('--mechanism-version', choices=['paper-only-mech-v1', 'paper-only-mech-v2'], default='paper-only-mech-v2')
+    r.add_argument('--mech-version', choices=['v1', 'v2', 'v3'], default='v3')
+    r.add_argument('--mech-no-filter', action='store_true')
     r.add_argument('--mechanism-examples', type=Path)
     r.add_argument('--swarm-report', help='report path template containing {case}')
     a = p.parse_args(argv)
     if min(a.repeats, a.workers, a.timeout) < 1:
         p.error('repeats, workers and timeout must be positive')
+    a.mechanism_version = 'paper-only-mech-' + a.mech_version
     raw, out = safe_path(a.raw).resolve(), safe_path(a.out).resolve()
     cases = [json.loads(line) for line in (ROOT / 'data/limitset/cases.jsonl').read_text().splitlines() if line.strip()]
     ids = read(ROOT / 'data/limitset/splits.json')[a.split]
@@ -271,13 +273,13 @@ def main(argv=None):
     env = dict(os.environ)
     env['PYTHONPATH'] = os.pathsep.join(filter(None, [str(ROOT), env.get('PYTHONPATH')]))
     sha = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=ROOT, env=env, capture_output=True, text=True, check=True).stdout.strip()
-    manifest = {'git_sha': sha, 'model_id': env.get('PIPELINE_MODEL', 'x-test-2'), 'split': a.split, 'generator': a.generator, 'mechanism_version': a.mechanism_version, 'mechanism_examples': str(a.mechanism_examples) if a.mechanism_examples else None, 'repeats': a.repeats, 'started_at': now(), 'pdf_hashes': {c['case_id']: c['pdf_sha256'] for c in selected}}
+    manifest = {'git_sha': sha, 'model_id': env.get('PIPELINE_MODEL', 'x-test-2'), 'split': a.split, 'generator': a.generator, 'mechanism_version': a.mechanism_version, 'mech_no_filter': a.mech_no_filter, 'mechanism_examples': str(a.mechanism_examples) if a.mechanism_examples else None, 'repeats': a.repeats, 'started_at': now(), 'pdf_hashes': {c['case_id']: c['pdf_sha256'] for c in selected}}
     from pipeline.limitset_enrich import PROMPT_VERSION
     manifest['enrichment'] = {'enabled': not a.no_enrich, 'model_id': manifest['model_id'], 'prompt_version': PROMPT_VERSION}
     manifest_path = out / 'run_manifest.json'
     if manifest_path.is_file():
         previous = read(manifest_path)
-        if previous.get('generator', 'paper-only') != a.generator or (a.generator == 'mechanism' and (previous.get('mechanism_version', 'paper-only-mech-v1') != a.mechanism_version or previous.get('mechanism_examples') != manifest['mechanism_examples'])):
+        if previous.get('generator', 'paper-only') != a.generator or (a.generator == 'mechanism' and (previous.get('mechanism_version', 'paper-only-mech-v1') != a.mechanism_version or previous.get('mechanism_examples') != manifest['mechanism_examples'] or previous.get('mech_no_filter', False) != a.mech_no_filter)):
             p.error('output directory belongs to a different generator')
     manifest_path.write_text(json.dumps(manifest, indent=2) + '\n')
     jobs = [(c, n) for c in selected for n in range(1, a.repeats + 1)]
@@ -309,7 +311,7 @@ def main(argv=None):
                     from pipeline.limitset_enrich import RelayLLM
                     llm = None if a.no_enrich and a.generator != 'mechanism' else RelayLLM(manifest['model_id'], e2e.RELAY_PORT, timeout=900 if a.generator == 'mechanism' else 60)
                     with ThreadPoolExecutor(max_workers=a.workers) as pool:
-                        records = list(pool.map(lambda job: worker(*job, out, raw, a.timeout, env, schema, a.swarm_report, llm, manifest['model_id'], a.generator, a.mechanism_version, a.mechanism_examples), jobs))
+                        records = list(pool.map(lambda job: worker(*job, out, raw, a.timeout, env, schema, a.swarm_report, llm, manifest['model_id'], a.generator, a.mechanism_version, a.mechanism_examples, a.mech_no_filter), jobs))
         except Exception as exc:
             reason = f'Relay startup failed: {type(exc).__name__}: {exc}'
             for c, n in jobs:

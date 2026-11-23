@@ -60,3 +60,27 @@ def test_v2_two_steps_and_deduplication():
     assert len(calls) == 2 and 'selection' in calls[1]
     assert len(result) == 1 and len(critiques) == 1 and dropped == 1
     assert stats['merged_candidates'] == 1
+
+
+def test_v3_steps_filter_and_no_filter():
+    from checklimits.checklimits.paper_only import MECH_V3
+    paper = 'The method uses a fixed threshold for selection.'
+    item = {'headline': 'Selection does not guarantee success', 'category_code': 'method_shortcoming',
+            'paper_fact': paper, 'premise': 'Conditions change', 'inference': 'Selection may fail',
+            'necessary_conditions': ['change'], 'quotes': [paper]}
+    critique = dict(item, kind='evaluation_critique')
+    for no_filter in (False, True):
+        responses = [json.dumps({'mechanisms': [{'mechanism': 'selection'}]}),
+                     json.dumps({'sweep': [{'lens': 'L1'}]}),
+                     json.dumps({'candidates': [item, critique, dict(item, quotes=['invented quotation'])]})]
+        if not no_filter:
+            responses.append(json.dumps({'candidates': [item, dict(item, quotes=['invented quotation'])],
+                                         'evaluation_critiques': [critique]}))
+        calls = []
+        def ask(prompt):
+            calls.append(prompt)
+            return responses[len(calls) - 1]
+        result, critiques, dropped = mechanism_candidates(paper, {}, ask, version=MECH_V3, no_filter=no_filter)
+        assert len(calls) == (3 if no_filter else 4)
+        assert len(result) == len(critiques) == dropped == 1
+        assert result[0]['necessary_conditions'] == ['change']
