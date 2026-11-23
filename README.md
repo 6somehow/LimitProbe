@@ -1,34 +1,15 @@
 # AgentSwarm — gap-receipt swarm for paper method-limitation testing
 
-An independent development track for the CS6223 project "paper-guided testing of
-research-method limitations", built beside the existing pipeline. The project's primary
-metric is **coverage of diagnosed limitations**: how many papers receive at least a
-usable diagnosis (core or partial). The shipped method is s7, a two-phase depth+breadth
-swarm (one gap worker plus one breadth pass, six candidates, 9-10 requests).
+S7 proposes testable method limitations from a research paper and its pinned source repository. It traces one decision through the implementation, checks a gap with a worker, and adds candidates from other stages.
 
-| split | S s7 | A api_once | B single_agent |
-|---|---|---|---|
-| Dev (4) | **2 / 4** | 1 / 4 | 2 / 4 |
-| Test with source (4) | **4 / 4** | 3 / 4 | 2 / 4 |
-| Test paper-only (4) | 3 / 4 | **4 / 4** | 3 / 4 |
-| **All 12 (blind coverage)** | **9 / 12** | 8 / 12 | 7 / 12 |
+| Source-backed papers | S7 | A (one request) | B (one agent) |
+|---|---:|---:|---:|
+| Development, blinded | 2/4 | 1/4 | 2/4 |
+| Evaluation, blinded | 4/4 | 3/4 | 2/4 |
+| All eight, blinded | 6/8 | 4/8 | 4/8 |
+| All eight, strict | 4/8 | 3/8 | 0/8 |
 
-Test-with-source coverage is sample 1 of the s7 runs (sample 2: S 3/4 vs A 2/4; both
-samples favour S). On the strict holistic grader the overall ranking flips:
-A 7/12 > S 5/12 > B 1/12. The full per-paper matrix, cores and weighted scores are in
-[docs/full-matrix.md](docs/full-matrix.md); the coverage approach and sample-level test
-details are in [docs/coverage-primary.md](docs/coverage-primary.md) and
-[docs/test-results.md](docs/test-results.md).
-
-All rows use the blind grader; B here is the same single-agent workflow with up to 8
-replies. Archived official A grades give 0/4 on Dev. C/D (archived) cover 0/4 on Dev.
-Two caveats are part of the result: the grader choice
-decides the overall ranking (blind coverage favours S by one paper; the strict grader
-favours A), and the test papers were inspected during prompt development, so the test
-numbers are post-hoc rather than a clean held-out estimate.
-
-Details: [docs/results.md](docs/results.md) · [docs/report.md](docs/report.md) ·
-[out/board.html](out/board.html).
+A paper is covered if its best candidate earns a core or partial match to the reference diagnosis. On the four evaluation papers the strict grader puts A ahead of S7, 3/4 to 2/4. Some of these papers informed earlier prompt revisions. The [paper-side evaluation](docs/paper-side-evaluation.md) gives the per-paper grades, coverage figure, and full scoring details. The [complete exploratory matrix](docs/full-matrix.md) is also archived.
 
 ## The method (s7): depth first, breadth appended, measured handoffs
 
@@ -155,9 +136,8 @@ the same 10-request cell cap.
 * Probe categories (length/extension, position scaling, grouping, arrangement, input
   values) overlap the reference rubric's categories by construction; the probes never
   name a paper's diagnosis, but this is a design-coupling risk to review.
-* The Test split has S only; A/B/C/D were not re-run there.
-* Delegation currently verifies better than it discovers: the NNSmith core came from
-  the lead's own chain, with the worker returning an empty list on that cell.
+* The report matrix uses the completed A, B and S7 comparison. Earlier runs of C and D are exploratory.
+* In the S7 NNSmith run, the lead traced the retained input and the worker helped narrow the claim about the number of search attempts.
 
 ## Related docs
 
