@@ -1,0 +1,7 @@
+# Reference coverage scoring
+
+Run `conda run -n findlimit python -m scorer_limitset --pred predictions.jsonl --root DATASET --splits data/limitset/splits.json --out OUTPUT`. The default independent judge uses the pipeline relay and the dataset rubric; `--model` and `--temperature` select its recorded configuration. Each request contains only one reference, one finding, heuristic signals and the rubric, never generator logs. `--judge fake` is for offline tests only, not a semantic evaluation.
+
+Each JSONL record is one repeat for its case. Unsubmitted cases have no observations. A finding must be judged as matching the reference mechanism, conditions and consequence. Field coverage comes from the judge for one matched finding, chosen by most covered fields and then input order. Other findings are flagged for human review, not treated as errors. The JSON includes per-repeat decisions and deterministic overlap signals, case stability, and coverage by category and split. Wilson intervals use case-repeat observations; repeated measurements on a case are dependent, so these intervals are descriptive and should not be interpreted as independent-sample uncertainty. Empty groups have null fractions and intervals.
+
+The dataset's `score_annotations.py` aggregates human annotations and includes metrics outside this task's scope; it does not decide matches or field coverage. This scorer therefore does not reuse its aggregation. The selected references do not establish the validity of novel findings. Judge output is a review, not a verified scientific conclusion.
