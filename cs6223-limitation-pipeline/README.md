@@ -8,6 +8,7 @@
 - 给 Claude Code 的上下文：`CLAUDE.md`
 - 开发数据集（SparTA、MInference、InfiniGen、NNSmith）：`docs/05_dataset.md`
 - **步骤 2 + 3b 进度和结果（先看这个）：`docs/08_progress_step2_3b.md`，结果在 `results/`**
+- [AgentSwarm 实验与数据集](paperside/tools/agentswarm-study/README.md) 提供 Dev/Test 划分、A/B/S 复跑命令和 E2E 交接入口。
 
 ## 快速开始
 

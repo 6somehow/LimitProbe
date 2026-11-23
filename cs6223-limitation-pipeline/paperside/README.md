@@ -4,6 +4,8 @@
 
 交接时先看本页；后续 agent 看 [`CLAUDE.md`](CLAUDE.md)；安装、复跑和接口细节看 [`HANDOFF.md`](HANDOFF.md)。
 
+要复跑论文方法限制的 A/B/S 对照，先看 [AgentSwarm 实验与数据集](tools/agentswarm-study/README.md)。
+
 ## 先拿什么
 
 当前 FlexPrefill、NNSmith 在 `handoffs/paper-side-v2/<paper>/`；其余和历史结果在 `handoffs/paper-side-v1/<paper>/`。接手只需先看三个文件：
