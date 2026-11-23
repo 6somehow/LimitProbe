@@ -1,9 +1,9 @@
-# Prompt 模板：3b 代码 → 论文验证（问题 ①：文档里有没有写）
+# Prompt template: 3b code → paper verification (question ①: is it stated in the documentation?)
 
-> 这是最初的模板。实际使用的 prompt 在 `codeside/verify3b.py`，版本号是 `PROMPT_VERSION`。
+> This is the original template. The prompt used in practice is in `codeside/verify3b.py`; its version is `PROMPT_VERSION`.
 
-只负责判断"有没有写"。scope 和是否被评测由确定性代码判断，不交给 LLM。
-建议用与生成模型**不同家族**的模型执行（避免自我偏好），并对输出做逐字 quote 校验。
+It only determines whether the limitation is stated. Deterministic code decides scope and evaluation coverage; these are not delegated to the LLM.
+Use a model from a **different family** than the generation model to avoid self-preference, and check output quotes verbatim.
 
 ## System
 
@@ -11,7 +11,17 @@ You check whether a limitation found in a research prototype's code is stated an
 documentation. You must quote text verbatim. If no passage states it, answer "not_found".
 Do not infer that the authors "probably meant" something.
 
+**English translation (documentation only)**
+
+You check whether a limitation found in a research prototype's code is stated anywhere in its
+documentation. You must quote text verbatim. If no passage states it, answer "not_found".
+Do not infer that the authors "probably meant" something.
+
 ## User
+
+```
+
+**English translation (documentation only)**
 
 ```
 Paper: {paper_title}
@@ -47,8 +57,8 @@ Definitions:
 - not_found: none of the passages state it.
 ```
 
-## 后处理（代码里做，不靠 LLM）
+## Postprocessing (in code, not by the LLM)
 
-1. 每条 quote 必须是对应 passage 的子串，否则整条结果降级为 not_found 并记录。
-2. `documented_in` 由 passage 的来源字段决定。
-3. 写入 Verification(direction=code_to_paper, verifier="llm:<model>")。
+1. Each quote must be a substring of its corresponding passage; otherwise downgrade the whole result to not_found and record it.
+2. Set `documented_in` from the passage source field.
+3. Write Verification(direction=code_to_paper, verifier="llm:<model>").

@@ -1,10 +1,13 @@
-# Prompt 模板：动态分发解析（步骤 2 中 LLM 负责的部分）
+# Prompt template: dynamic dispatch resolution (the LLM portion of step 2)
 
-用途：静态调用解析追不到的调用（配置字符串选函数、字典分发、`getattr`、monkey patch）。
-LLM 只**提出**候选调用边；每条边必须指向仓库里真实存在的函数定义（由代码校验），
-否则丢弃。校验通过的边加入抽取器的调用图，provenance 记为 llm。
+Purpose: resolve calls that static call resolution cannot follow (configuration strings selecting functions, dictionary dispatch, `getattr`, and monkey patches).
+The LLM only **proposes** candidate call edges. Code checks that each edge points to a function definition that exists in the repository; otherwise it is discarded. Valid edges are added to the extractor call graph with provenance recorded as llm.
 
 ## User
+
+```
+
+**English translation (documentation only)**
 
 ```
 Repository: {repo_url} @ {commit}
