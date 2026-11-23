@@ -5,7 +5,9 @@ papers receive at least a usable diagnosis (core or partial) from the workflow. 
 core/partial/miss, core counts and a weighted score are secondary.
 
 Coverage is reported per independent sample; a sample is one run of each workflow on all
-four test papers. Test = Prompt Cache, SpinQuant, KVQuant, DX100.
+four test papers. Test = Prompt Cache, SpinQuant, KVQuant, DX100. The full 12-paper
+matrix (including paper-only papers and the B baseline) is in
+[docs/full-matrix.md](full-matrix.md).
 
 ## Test split: blind grading (primary)
 
