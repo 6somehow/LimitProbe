@@ -71,8 +71,9 @@ def main() -> None:
                      "<table><tr><th>paper</th><th>S s7</th><th>A one call</th></tr>"
                      + test_rows + "</table>"
                      "<p>Graded against reference rows 05/07/09/14. Conservative/holistic: S 0 core / 2 partial, "
-                     "A 1 core / 2 partial. Blind: S 1 core / 3 partial, A 2 core / 0 partial. Paired blind is "
-                     "1-1 but A has more cores, so S does not beat A on this split under the study rule.</p>")
+                     "A 1 core / 2 partial. Blind: S 1 core / 3 partial / 0 miss, A 2 core / 1 partial / 1 miss; "
+                     "coverage S 4/4 vs A 3/4, weighted 5-5, paired 1-1. S wins only under the coverage metric; "
+                     "under the study's paired/core rule it does not.</p>")
     if args.second_mapping and args.second_grades:
         second = rows(args.second_mapping, args.second_grades)
         hit = second.get(("nnsmith", "gap_receipt_swarm"))

@@ -57,7 +57,11 @@ same four test papers.
 |---|---|---|
 | holistic grader (`out/grades-test-v5`) | 0 core / 2 partial / 2 miss | 1 core / 2 partial / 1 miss |
 | conservative adjudication | 0 / 2 / 2 | 1 / 2 / 1 |
-| blind agent | 1 core / 3 partial / 0 miss | 2 core / 0 partial / 2 miss |
+| blind agent (`out/grades-blind-test-v5` / `-v4`) | 1 core / 3 partial / 0 miss | 2 core / 1 partial / 1 miss |
+| coverage (papers with at least partial), blind | **4 / 4** | 3 / 4 |
+| weighted score (core=2, partial=1), blind | 5 | 5 |
+| paired wins (blind) | 1 win, 1 loss, 2 ties | same |
+| core hits (blind) | 1 | 2 |
 
 Per paper (blind): Prompt Cache core (H3 cross-module masking; conservative partial),
 SpinQuant partial (B3 R1 shared by activation and KV consumers; the global-R1
@@ -65,9 +69,14 @@ compromise appears in a different record), KVQuant partial (B1 fixed 1% protecti
 budget), DX100 partial (H3 cross-iteration dependence, no time-share consequence).
 
 Paired blind comparison: Prompt Cache tie (core/core), SpinQuant A wins (core vs
-partial), KVQuant S wins (partial vs miss), DX100 tie (partial/partial) — 1 win, 1 loss,
-but A has more cores (2 vs 1). Under the study's rule S does **not** beat A on this
-split. Conservative and holistic grading favour A outright.
+partial), KVQuant S wins (partial vs miss), DX100 tie (partial/partial) — 1 win, 1 loss.
+A has more cores (2 vs 1), so under the study's paired/core rule S does **not** beat A.
+Conservative and holistic grading favour A outright.
+
+Under a **coverage** metric (papers with at least a partial diagnosis) the blind grades
+give S 4/4 vs A 3/4, and a weighted core=2/partial=1 score ties at 5. Coverage is the
+only reading under which S wins this split; it is a post-hoc choice and the test papers
+were inspected during development.
 
 ## Earlier test samples (for completeness)
 

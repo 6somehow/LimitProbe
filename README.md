@@ -37,9 +37,12 @@ v9 study conditions with their official grades; S is this track.
   grader partial. Both readings are kept.
 * Test split with the s7 depth+breadth method (same harness, A re-run as a one-call
   baseline): conservative/holistic S is 0 core / 2 partial vs A 1 core / 2 partial; the
-  blind agent gives S 1 core / 3 partial vs A 2 core / 0 partial. Paired blind is 1-1
-  but A keeps more cores, so **S does not beat A on this split** under the study rule.
-  The dev advantage did not transfer. See [docs/test-results.md](docs/test-results.md)
+  blind agent gives S 1 core / 3 partial / 0 miss vs A 2 core / 1 partial / 1 miss;
+  paired blind is 1-1 and A keeps more cores, so **S does not beat A under the study's
+  paired/core rule**. Under a coverage metric (at least partial per paper) blind S is
+  4/4 vs A 3/4, which is the only reading where S wins; weighted core=2/partial=1 ties
+  5-5. Coverage is a post-hoc choice, not the pre-registered rule. The dev advantage did
+  not transfer. See [docs/test-results.md](docs/test-results.md)
   for per-paper reasons and the breadth-vs-depth explanation. Test papers were inspected
   during prompt fixes, so these numbers are post-hoc, not clean held-out.
 * Every core listed above was also blind-graded by a separate agent that saw only the
