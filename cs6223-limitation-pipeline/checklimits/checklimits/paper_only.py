@@ -471,10 +471,16 @@ def mechanism_candidates(text, code_files, ask, *, version=MECH_V1, examples_pat
             source, quote, locator = q.get("source"), q.get("quote"), q.get("locator", "")
             if not isinstance(quote, str):
                 break
-            valid = (quote_in_text(quote, _flat(text)) if source == "paper" else
-                     source == "code" and locator in code_files and quote in code_files[locator])
-            if not valid:
-                break
+            # The model often omits or varies `source`: decide it from where the quote verbatim occurs.
+            if quote_in_text(quote, _flat(text)):
+                source = "paper"
+            elif source == "code" and locator in code_files and quote in code_files[locator]:
+                pass
+            else:
+                hit = next((path for path, body in code_files.items() if quote in body), None)
+                if hit is None:
+                    break
+                source, locator = "code", hit
             evidence.append({"source_id": source, "location": str(locator), "support_description": quote})
         if len(evidence) != len(quotes):
             dropped += 1
