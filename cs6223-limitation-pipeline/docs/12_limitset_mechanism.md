@@ -1,7 +1,9 @@
 # Mechanism generation
 
-The mechanism generator defaults to `paper-only-mech-v2`. It inventories mechanisms and assumptions, then generates conditional limitations. Candidate quotes are verified, evaluation critiques are separated, and candidates are merged by quote anchor or normalized mechanism overlap. Run evidence records dropped and merged counts and preserves reasoning fields.
+The default `--generator mechanism --mech-version v3` inventories mechanisms, sweeps seven general lenses, drafts candidates, and ranks and filters them. Quotes are verified against the paper or supplied code; candidates with unverifiable quotes are dropped and counted. Evaluation critiques are saved separately. Necessary conditions are lists in predictions.
 
-Select `--mechanism-version paper-only-mech-v1` for the single-call version. Optional caller-supplied examples can be passed with `--mechanism-examples PATH`; no examples are included by default. Use a fresh output directory when changing versions or examples.
+Use `--mech-version v1` or `v2` for earlier arms. `--mech-no-filter` skips the final ranking and top-20 cut for v3 while retaining tagged evaluation critiques separately. Arm settings are recorded in the run manifest; use a fresh output directory for a different arm.
 
-Prompt design used only public category definitions in README, the structure (not content) of the four validation labels, and the dimensions of evaluation/RUBRIC_zh.md.
+## Honesty: in-sample
+
+All v3 results are in-sample: the controller studied all 17 labels when deriving the lenses. The prompt is generic and does not contain case-specific terminology or label sentences. A test checks English label word 5-grams and Chinese label character 8-grams against the four prompt templates when scorer label files are available. The generator itself does not read labels.
