@@ -298,7 +298,7 @@ def main(argv=None):
                 # Relay's standard log paths are shared; keep this runner's logs in out.
                 with RunnerRelay(e2e, pipeline_run, e, out):
                     from pipeline.limitset_enrich import RelayLLM
-                    llm = None if a.no_enrich and a.generator != 'mechanism' else RelayLLM(manifest['model_id'], e2e.RELAY_PORT)
+                    llm = None if a.no_enrich and a.generator != 'mechanism' else RelayLLM(manifest['model_id'], e2e.RELAY_PORT, timeout=900 if a.generator == 'mechanism' else 60)
                     with ThreadPoolExecutor(max_workers=a.workers) as pool:
                         records = list(pool.map(lambda job: worker(*job, out, raw, a.timeout, env, schema, a.swarm_report, llm, manifest['model_id'], a.generator), jobs))
         except Exception as exc:
