@@ -18,7 +18,7 @@ CANDIDATE_KINDS = {
     "method_hypothesis": "method_shortcoming",
     "implementation_discrepancy": "method_shortcoming",
 }
-BLIND_DIRS = {"labels", "reference_material", "evaluator_evidence", "LLM_API_KEY"}
+BLIND_DIRS = {"labels", "reference_material", "evaluator_evidence", "LLM_API_KEY", "reference"}
 
 
 def input_path(path: Path) -> Path:
@@ -54,14 +54,16 @@ def _text(*values) -> str:
 
 
 def _evidence(candidate: dict, pages: list[str]) -> list[TextEvidence]:
-    citations = candidate.get("paper_evidence")
+    citations = candidate.get("paper_evidence") or candidate.get("paper_quotes")
     if not isinstance(citations, list) or not citations:
         raise ValueError("missing paper_evidence")
     evidence = []
     for citation in citations:
+        if isinstance(citation, str):
+            citation = {"quote": citation, "page": candidate.get("page", candidate.get("page_number"))}
         if not isinstance(citation, dict):
             raise ValueError("expected a paper citation with page and quote")
-        page, quote = citation.get("page"), citation.get("quote")
+        page, quote = citation.get("page", citation.get("page_number", citation.get("physical_page"))), citation.get("quote", citation.get("text", citation.get("excerpt")))
         if type(page) is not int or not 1 <= page <= len(pages):
             raise ValueError(f"invalid physical PDF page {page!r}")
         if not isinstance(quote, str) or not quote.strip() or " ".join(quote.split()) not in pages[page - 1]:
@@ -104,8 +106,10 @@ def convert(artifact_id: str, report: Path, pdf: Path, *, extractor: str = "pypd
             continue
         kind = _text(candidate.get("kind"))
         category = candidate.get("category") or (
-            kind if kind in CATEGORIES else CANDIDATE_KINDS.get(kind, "method_shortcoming"))
-        if category not in CATEGORIES:
+            kind if kind in CATEGORIES else CANDIDATE_KINDS.get(kind, None if data.get("origin") == "swarm-s7" else "method_shortcoming"))
+        if category == "unclassified":
+            category = None
+        if category is not None and category not in CATEGORIES:
             raise ValueError(f"candidate {cid}: unknown category {category!r}")
         try:
             evidence = _evidence(candidate, pages)
@@ -113,7 +117,7 @@ def convert(artifact_id: str, report: Path, pdf: Path, *, extractor: str = "pypd
             dropped.append({"id": cid, "reason": str(error)})
             continue
         effect = _text(candidate.get("consequence"), candidate.get("claim"), candidate.get("causal_argument"),
-                       candidate.get("limitation"), candidate.get("title"))
+                       candidate.get("limitation"), candidate.get("rule"), candidate.get("title"))
         if not effect:
             raise ValueError(f"candidate {cid}: missing consequence, claim or title")
         limitations.append(Limitation(
@@ -122,10 +126,10 @@ def convert(artifact_id: str, report: Path, pdf: Path, *, extractor: str = "pypd
                                               candidate.get("condition")) or "Unspecified",
             effect_type="other", effect_text=effect, paper_evidence=evidence, provenance="llm",
             swarm_category=category, swarm_provenance={**provenance, "candidate_id": cid, "candidate": candidate}))
-    handoff = {"schema_version": SCHEMA_VERSION, "origin": "swarm", "artifact_id": artifact_id,
+    handoff = {"schema_version": SCHEMA_VERSION, "origin": data.get("origin", "swarm"), "artifact_id": artifact_id,
                "claims": [], "scope": [], "eval_points": [], "bindings": [],
                "candidate_evidence": [e.model_dump(mode="json") for lim in limitations for e in lim.paper_evidence],
-               "provenance": provenance, "dropped": dropped}
+               "provenance": provenance, "dropped": dropped, "dropped_count": len(dropped)}
     return handoff, limitations
 
 

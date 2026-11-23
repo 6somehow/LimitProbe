@@ -14,7 +14,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 RAW = Path('/home/somehow6/lesson/CS6223/CS6223_Limitation_Testset')
-FORBIDDEN = {'labels', 'reference_material', 'evaluator_evidence'}
+FORBIDDEN = {'labels', 'reference_material', 'evaluator_evidence', 'reference'}
 
 
 def safe_path(path):
@@ -84,7 +84,7 @@ def run_generator(cmd, *, env, timeout, log):
         raise subprocess.CalledProcessError(code, cmd)
 
 
-def worker(case, repeat, out, raw, timeout, env, schema, swarm_template=None, enrich_llm=None, model=None):
+def worker(case, repeat, out, raw, timeout, env, schema, swarm_template=None, enrich_llm=None, model=None, generator="paper-only"):
     run = out / 'runs' / case['case_id'] / f'r{repeat}'
     done = run / 'prediction.json'
     if done.is_file():
@@ -101,6 +101,34 @@ def worker(case, repeat, out, raw, timeout, env, schema, swarm_template=None, en
         cmd = [sys.executable, str(ROOT / 'scripts/limitset/make_case_dir.py'), case['case_id'], '--out', str(case_dir), '--raw', str(raw)]
         subprocess.run(cmd, check=True, env=env, timeout=timeout, capture_output=True, text=True)
         assert {p.name for p in case_dir.iterdir()} == {'paper.pdf', 'case.json'}
+        if generator == 'swarm':
+            swarm_out = run / 'swarm'
+            if swarm_out.exists():
+                shutil.rmtree(swarm_out)
+            cmd = [sys.executable, str(ROOT / 'scripts/limitset/run_swarm_case.py'), str(case_dir), str(swarm_out)]
+            with (run / 'generator.log').open('w') as log:
+                run_generator(cmd, env=env, timeout=timeout, log=log)
+            from paperside_bridge.swarm_to_paper_side import convert
+            handoff, limitations = convert(case['case_id'], swarm_out / 'final.json', case_dir / 'paper.pdf')
+            findings = []
+            for lim in limitations:
+                candidate = lim.swarm_provenance['candidate']
+                findings.append({'claim': candidate.get('claim') or candidate.get('rule') or lim.effect_text,
+                                 'category_code': lim.swarm_category or 'unclassified', 'mechanism': candidate.get('causal_argument') or '',
+                                 'conditions': [lim.condition_text] if lim.condition_text != 'Unspecified' else [],
+                                 'evidence': [{'source_id': 'paper', 'location': e.locator, 'support_description': e.quote} for e in lim.paper_evidence],
+                                 'caveats': [], 'origin': 'swarm-s7'})
+            (run / 'conversion.json').write_text(json.dumps(handoff, ensure_ascii=False, indent=2) + '\n')
+            if enrich_llm is not None:
+                from pipeline.limitset_enrich import enrich
+                results = [enrich(f, out / 'enrich_cache', enrich_llm, model) for f in findings]
+                findings = [f for f, _ in results]
+                (run / 'enrichment.json').write_text(json.dumps({'errors': [{'finding_index': i, 'enrich_error': e} for i, (_, e) in enumerate(results) if e]}, indent=2) + '\n')
+            record = {'case_id': case['case_id'], 'repeat': repeat, 'findings': findings, 'sources': ['swarm-s7']}
+            validate(record, schema)
+            done.write_text(json.dumps(record, ensure_ascii=False, indent=2) + '\n')
+            (run / 'failure.json').unlink(missing_ok=True)
+            return record
         swarm = safe_path(Path(swarm_template.format(case=case['case_id']))).resolve() if swarm_template else None
         if swarm and not swarm.is_file():
             swarm = None
@@ -185,6 +213,7 @@ def main(argv=None):
     r.add_argument('--raw', type=Path, default=RAW)
     r.add_argument('--dry-run', action='store_true')
     r.add_argument('--no-enrich', action='store_true')
+    r.add_argument('--generator', choices=['paper-only', 'swarm'], default='paper-only')
     r.add_argument('--swarm-report', help='report path template containing {case}')
     a = p.parse_args(argv)
     if min(a.repeats, a.workers, a.timeout) < 1:
@@ -200,10 +229,15 @@ def main(argv=None):
     env = dict(os.environ)
     env['PYTHONPATH'] = os.pathsep.join(filter(None, [str(ROOT), env.get('PYTHONPATH')]))
     sha = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=ROOT, env=env, capture_output=True, text=True, check=True).stdout.strip()
-    manifest = {'git_sha': sha, 'model_id': env.get('PIPELINE_MODEL', 'x-test-2'), 'split': a.split, 'repeats': a.repeats, 'started_at': now(), 'pdf_hashes': {c['case_id']: c['pdf_sha256'] for c in selected}}
+    manifest = {'git_sha': sha, 'model_id': env.get('PIPELINE_MODEL', 'x-test-2'), 'split': a.split, 'generator': a.generator, 'repeats': a.repeats, 'started_at': now(), 'pdf_hashes': {c['case_id']: c['pdf_sha256'] for c in selected}}
     from pipeline.limitset_enrich import PROMPT_VERSION
     manifest['enrichment'] = {'enabled': not a.no_enrich, 'model_id': manifest['model_id'], 'prompt_version': PROMPT_VERSION}
-    (out / 'run_manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
+    manifest_path = out / 'run_manifest.json'
+    if manifest_path.is_file():
+        previous = read(manifest_path)
+        if previous.get('generator', 'paper-only') != a.generator:
+            p.error('output directory belongs to a different generator')
+    manifest_path.write_text(json.dumps(manifest, indent=2) + '\n')
     jobs = [(c, n) for c in selected for n in range(1, a.repeats + 1)]
     cached = {(c['case_id'], n) for c, n in jobs
               if (out / 'runs' / c['case_id'] / f'r{n}' / 'prediction.json').is_file()}
@@ -233,7 +267,7 @@ def main(argv=None):
                     from pipeline.limitset_enrich import RelayLLM
                     llm = None if a.no_enrich else RelayLLM(manifest['model_id'], e2e.RELAY_PORT)
                     with ThreadPoolExecutor(max_workers=a.workers) as pool:
-                        records = list(pool.map(lambda job: worker(*job, out, raw, a.timeout, env, schema, a.swarm_report, llm, manifest['model_id']), jobs))
+                        records = list(pool.map(lambda job: worker(*job, out, raw, a.timeout, env, schema, a.swarm_report, llm, manifest['model_id'], a.generator), jobs))
         except Exception as exc:
             reason = f'Relay startup failed: {type(exc).__name__}: {exc}'
             for c, n in jobs:

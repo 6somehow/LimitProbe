@@ -1,0 +1,150 @@
+# PaperTest Swarm
+
+PaperTest Swarm is a multi-agent method for finding test opportunities in research software from a paper and its pinned source repository. The lead agent traces a decision through the implementation and delegates an open link to a worker. The worker returns source evidence for the lead to check. A final pass adds test candidates from other stages. A candidate describes what to hold fixed, what input or condition to vary, and what outcome would support or refute the hypothesis.
+
+| Blinded diagnosis coverage | PaperTest Swarm | A (one request) | B (one agent) |
+|---|---:|---:|---:|
+| Development (4) | **2/4** | 1/4 | 2/4 |
+| Test with source (4) | **4/4** | 3/4 | 2/4 |
+
+A paper is covered if its best candidate earns a core or partial match to the reference diagnosis. This measures whether discovery finds an opportunity for a controlled test. On the four evaluation papers the strict grader puts A ahead of PaperTest Swarm, 3/4 to 2/4. Some of these papers informed earlier prompt revisions. The [paper-side evaluation](docs/paper-side-evaluation.md) gives the per-paper grades, coverage figure, and full scoring details.
+
+## How PaperTest Swarm discovers tests
+
+The evaluation uses the archived prompt version `s7/2026-11-23` and runner condition `gap_receipt_swarm`.
+
+```
+Phase 1 (depth)                           Phase 2 (breadth)
+paper + pinned repo (read-only tools)
+        |
+        v
+  LEAD: stage ledger -> complete one chain (produce -> save -> consume -> metric)
+        |                                  |
+        |  delegate_gap(question,           |  reopen the worker's cited spans
+        |    chain_summary, expected_signal) |  (receipts recorded)
+        v                                  v
+  WORKER: verdict + counts + candidate(s)  ->  LEAD deep report (first record frozen)
+                                                   |
+                                                   v
+                                     breadth pass (no tools): append 3 new
+                                     candidates from distinct stages
+                                     (admission/representation/sharing/evaluation)
+                                                   |
+                                                   v
+                                     merged JSON: deep record first, 6 max
+```
+
+Phase 1 is the s3 loop that produced the Dev cores. Phase 2 is one extra call that
+freezes the deep report and appends three breadth candidates, one per remaining stage;
+the deep first record is returned verbatim. Total budget 9-10 requests: up to 6 lead
+replies + one gap worker with 2 replies + one breadth pass.
+
+**Lead role contract** (`swarmlab/prompts.py`, `PROMPT_VERSION = "s7/2026-11-23"`):
+
+1. keep a stage ledger for every acceptance, selection, stopping, allocation or
+   shared-state decision: artifact, rule/budget, consumer;
+2. count `candidates_considered`, `candidates_kept`, `replay_count` for each artifact;
+3. complete one chain end to end with source spans for producer and consumer;
+4. delegate exactly once with a causal question and an expected support/refute signal,
+   then reopen and adjudicate the returned evidence;
+5. final report is graded on its single best record, so one complete chain outranks
+   several partial ones; incomplete records go to `known_boundaries`/`rejected`;
+6. if a stage produces a test input, cached state, stored witness or propagation
+   artifact, at least one retained candidate must follow that stage to its consumer.
+7. phase 2 appends three breadth candidates from distinct stages while the deep first
+   record is returned verbatim (the breadth pass cannot rewrite the chain).
+
+**Worker role contract**: restate the gap and artifact/consumer pair; read and quote
+pinned source; report `candidates_considered / candidates_kept / replay_count /
+consumer_count`; return a verdict (`supports`/`narrows`/`refutes`); if supports or
+narrows, return one or two testable candidates with the full chain and comparison; an
+empty list is allowed only with a verdict and what evidence would settle the question.
+
+**Handoff ledger** for every worker: `worker_found → parse_retained →
+delivered_to_lead → verified_span → cited_in_final` (`ledger.json`). The parser accepts
+field aliases, bare candidate lists, truncated JSON and a root object that closes early
+before `"candidates"`; it records every repair, so a structured candidate list is never
+dropped silently. Across v3–v6: 13 delegated gaps, 6 candidate
+sets returned, 6 parsed and delivered, 2 cited in a final report. With the s2/s3 role
+contracts (v10-v18): 9 of 9 handoffs returned candidates with a verdict (4 supports,
+5 narrows), 13 candidate records, all delivered, 16 spans re-read by the lead, but
+strict `origin_ids` citation is 0/13 (see the s4 negative result below). PaperTest Swarm uses one gap worker per paper and adds the breadth pass. On NNSmith the
+worker returned `nnsmith-single-witness-consumption` and
+`nnsmith-single-witness-first-feasible` with counts considered=2, kept=1, replay=1,
+consumer=1.
+
+## Repository layout
+
+```
+swarmlab/
+  evidence.py   frozen paper pages + pinned Git blobs, read receipts, no execution
+  contract.py   tolerant finding-list parsing, canonicalisation, validation
+  llm.py        streaming SoCLaaS client with total deadline; archives every request
+  prompts.py    role contracts and prompt texts (A, B, S, grader)
+  agents.py     lead/worker loops, budgets, compaction, forced delegation
+  cell.py       one cell: delegation tool, handoff ledger, archive
+  runner.py     prepare/run cells (concurrency 2)
+  grade.py      blinded packets, holistic grading, paired metrics
+  rubric.py     structured four-question grading (secondary opinion)
+inputs/         frozen dev + test papers and source packets (sha256-indexed)
+reference/      human rubric — evaluation only, never in generation inputs
+runs/           archived cells: requests, SSE, responses, tools, reads, ledger
+out/            packets, grades, handoff audit, board.html
+tests/          offline tests (mock provider, parser, ledger, budget)
+docs/           method, results, report, status, port notes
+```
+
+## Reproduce
+
+```sh
+python3 -m venv .venv && .venv/bin/pip install pytest
+.venv/bin/python scripts/prepare_inputs.py
+.venv/bin/python -m swarmlab.runner prepare runs/dev-v1 --inputs inputs
+.venv/bin/python -m swarmlab.runner run runs/dev-v1 --split dev \
+    --conditions gap_receipt_swarm            # S; add api_once single_agent for baselines
+.venv/bin/python -m swarmlab.grade packet runs/dev-v1 --out out/packets-dev \
+    --reference reference/reference-rubric-20261121.md
+.venv/bin/python -m swarmlab.grade grade out/packets-dev --out out/grades-dev
+.venv/bin/python scripts/build_board.py --help
+.venv/bin/python -m pytest -q
+```
+
+The runner reads `SOCLAAS_API_KEY` / `SOCLAAS_BASE_URL` from
+`~/.config/soclaas/soclaas.env`. Every cell archives the exact wire requests, raw SSE,
+responses, tool calls, read spans and usage; a cell never overwrites an existing
+archive. `runs/` and `out/` are git-ignored; code, prompts, inputs and docs are tracked.
+
+## Protocol
+
+Model `x-test-2` (backend `deepseek-v4.1-flash-1017`), thinking enabled with
+`reasoning_effort=max` during exploration, 32,768 output tokens, 10 HTTP requests and
+750,000 actual tokens per cell, 600 s per request, concurrency 2. The finalisation turn
+runs without thinking so a long final JSON is not truncated by reasoning tokens.
+Compaction is deterministic: older tool payloads are trimmed (last four kept) with a
+before/after estimate in `events.jsonl`.
+
+S budget split (s2 prompts): 7 lead replies + one worker with up to 3 replies, inside
+the same 10-request cell cap.
+
+## Grading provenance and caveats
+
+* Grading is semantic against the archived reference rubric. Three graders are
+  archived: holistic (`grade.py`), structured four-question (`rubric.py`, more lenient;
+  not used for the claim), and independent blind agents.
+* The reference is a human hypothesis set, not executed ground truth.
+* Probe categories (length/extension, position scaling, grouping, arrangement, input
+  values) overlap the reference rubric's categories by construction; the probes never
+  name a paper's diagnosis, but this is a design-coupling risk to review.
+* The report matrix uses the completed A, B and PaperTest Swarm comparison. Earlier runs of C and D are exploratory.
+* In the PaperTest Swarm NNSmith run, the lead traced the retained input and the worker helped narrow the claim about the number of search attempts.
+
+## Related docs
+
+* [docs/method.md](docs/method.md) — the S workflow and why it differs from C/D
+* [docs/results.md](docs/results.md) — per-paper grades, variance, in-harness baselines
+* [docs/report.md](docs/report.md) — full report with threats to validity
+* [docs/test-results.md](docs/test-results.md) — test-split S vs A, grader comparison
+* [docs/prompt-iterations.md](docs/prompt-iterations.md) — s1→s2→s3 changes and
+  measured role delivery
+* [docs/port-notes.md](docs/port-notes.md) — what to port into the main pipeline
+* [docs/status.md](docs/status.md) — run log

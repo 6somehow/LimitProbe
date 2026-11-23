@@ -1,0 +1,3 @@
+# Limitset swarm lane
+
+`python -m pipeline limitset run --split validation --generator swarm` runs the archived s7 gap-receipt swarm once per case and repeat. Use a separate output directory for each generator. The caller starts the local relay; each cell uses paper-only evidence and the `x-test-2` model. The runner bounds the process group by `--timeout`. Cell `result.json` records requests, available token usage and elapsed time; `final.json` contains the parsed report. The converter retains only candidates with quotes verified on the cited physical PDF page and records dropped candidates in `conversion.json`. Failures produce `failure.json` and are retried on resume. No reference diagnoses are used.

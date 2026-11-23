@@ -153,3 +153,18 @@ def test_pipeline_routes_swarm_3b_and_step4_to_separate_outputs(swarm_inputs, tm
     calls.clear()
     pipeline.run("toy", args)
     assert len(calls) == 1 and "scripts/run_step4.py" in calls[0]
+
+
+def test_s7_quotes_and_conditions(swarm_inputs):
+    pdf, report, candidate = swarm_inputs
+    quote = candidate.pop('paper_evidence')[0]['quote']
+    candidate.update(paper_quotes=[{'page_number': 1, 'quote': quote}],
+                     causal_argument='The fixed budget cannot adapt.', conditions='variable input')
+    candidate.pop('trigger')
+    report.write_text(json.dumps({'candidates': [candidate, {**candidate, 'id': 'bad',
+        'paper_quotes': [{'page_number': 2, 'quote': quote}]}]}))
+    handoff, limitations = convert('toy', report, pdf)
+    assert len(limitations) == 1
+    assert limitations[0].condition_text == 'variable input'
+    assert limitations[0].swarm_provenance['candidate']['causal_argument'] == 'The fixed budget cannot adapt.'
+    assert handoff['dropped_count'] == 1
