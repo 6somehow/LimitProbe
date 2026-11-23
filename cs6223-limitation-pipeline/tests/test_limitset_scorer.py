@@ -281,3 +281,29 @@ def test_multilabel_relay_requires_confidence(tmp_path, monkeypatch):
         'matches': [{'index': 0, 'matched': True, 'confidence': 0.7, 'coverage': {f: True for f in FIELDS}}]})
     assert judge.judge_batch(label, [finding], [{}])[0]['confidence'] == 0.7
     assert 'confidence' in prompts[0] and '[0,1]' in prompts[0]
+
+
+def test_judge_overrides_for_gpt6_omit_temperature(monkeypatch):
+    from scorer_limitset.scoring import RelayJudge
+    monkeypatch.setenv('LIMITSET_JUDGE_MODEL', 'gpt-6.1-terra')
+    monkeypatch.setenv('LIMITSET_JUDGE_RELAY_PORT', '8789')
+    j = RelayJudge('.', 'x-test-2')
+    assert j.model_id == 'gpt-6.1-terra' and j.port == 8789
+    assert j.temperature == 'default(1)' and j.prompt_version.endswith('-gpt61terra')
+    seen = {}
+    import urllib.request, json
+    class R:
+        def __enter__(s): return s
+        def __exit__(s, *a): return False
+        def read(s): return b'{}'
+    def fake(req, timeout=0):
+        seen['url'], seen['body'] = req.full_url, json.loads(req.data)
+        return type('X', (), {'__enter__': lambda s: s, '__exit__': lambda s, *a: False,
+                              'read': lambda s: b'', '__iter__': lambda s: iter(())})()
+    monkeypatch.setattr(urllib.request, 'urlopen', lambda req, timeout=0: (_ for _ in ()).throw(OSError('stop')) if seen.setdefault('url', req.full_url) and seen.setdefault('body', json.loads(req.data)) is not None else None)
+    try:
+        j._request('hi')
+    except Exception:
+        pass
+    assert seen['url'] == 'http://127.0.0.1:8789/v1/chat/completions'
+    assert 'temperature' not in seen['body'] and seen['body']['response_format'] == {'type': 'json_object'}
