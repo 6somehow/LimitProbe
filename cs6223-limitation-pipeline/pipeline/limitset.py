@@ -178,7 +178,7 @@ def worker(case, repeat, out, raw, timeout, env, schema, swarm_template=None, en
             for c in candidates:
                 findings.append({'claim': str(c.get('claim') or ''), 'category_code': c['category_code'],
                                  'mechanism': str(c.get('mechanism') or ''), 'conditions': _as_list(c.get('necessary_conditions') or c.get('conditions')),
-                                 'evidence': c['evidence'], 'caveats': [], 'origin': mechanism_version})
+                                 'evidence': c['evidence'], 'caveats': [], 'origin': mechanism_version, 'quote_verified': c.get('quote_verified', True)})
             (run / 'mechanism_evidence.json').write_text(json.dumps({'candidates': candidates, 'dropped_for_unverified_quotes': dropped, **stats}, ensure_ascii=False, indent=2) + '\n')
             (run / 'evaluation_critiques.json').write_text(json.dumps(critiques, ensure_ascii=False, indent=2) + '\n')
             record = {'case_id': case['case_id'], 'repeat': repeat, 'findings': findings, 'sources': [mechanism_version]}
