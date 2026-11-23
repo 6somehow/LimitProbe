@@ -86,6 +86,16 @@ def quote_in_text(quote: str, flat_text: str) -> bool:
     return len(q) >= 12 and q in flat_text
 
 
+def _alnum_quote_in(quote: str, text: str) -> bool:
+    """v3c: a quote counts as verbatim when its letters and digits occur in order in the paper text, ignoring case,
+    spacing, punctuation, hyphenation and ligature glyphs; an ellipsis splits it into segments that must each match."""
+    squash = lambda t: re.sub(r"[^0-9a-z]", "", t.lower())
+    haystack = squash(text)
+    segments = [squash(seg) for seg in re.split(r"\.\.\.|\u2026", quote)]
+    segments = [seg for seg in segments if seg]
+    return bool(segments) and all(len(seg) >= 20 and seg in haystack for seg in segments)
+
+
 # --------------------------------------------------------------------------- arithmetic check
 _OPS = {ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul, ast.Div: operator.truediv,
         ast.Pow: operator.pow, ast.USub: operator.neg}
@@ -472,7 +482,7 @@ def mechanism_candidates(text, code_files, ask, *, version=MECH_V1, examples_pat
             if not isinstance(quote, str):
                 break
             # The model often omits or varies `source`: decide it from where the quote verbatim occurs.
-            if quote_in_text(quote, _flat(text)):
+            if quote_in_text(quote, _flat(text)) or (version == MECH_V3C and _alnum_quote_in(quote, text)):
                 source = "paper"
             elif source == "code" and locator in code_files and quote in code_files[locator]:
                 pass
