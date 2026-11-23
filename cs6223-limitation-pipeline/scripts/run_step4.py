@@ -100,6 +100,12 @@ def main() -> None:
         ctx.effect_moves = {r["limitation_id"]: r for r in effect_checks if r["action"] == "moved"}
         findings, report = integrate(aid, code_lims, code_vers, paper_lims, checker, rules, ctx)
         report["effect_checks"] = effect_checks
+        report["inputs"] = input_fingerprint(code, pd)
+        committed = ROOT / "results/pipeline" / aid
+        if committed.resolve() != code.resolve() and (committed / "limitations.json").is_file():
+            if _sha(committed / "limitations.json") != _sha(code / "limitations.json"):
+                print(f"WARNING {aid}: --code-dir {a.code_dir} differs from the committed results/pipeline/{aid} "
+                      f"(limitations.json hash); the Findings will not match the committed step 4 output", flush=True)
         records = report.pop("llm_records")
         if llm is not None:
             from codeside.step4_llm import PROMPT_VERSION as P4
@@ -125,6 +131,19 @@ def main() -> None:
         print(aid, json.dumps({k: report[k] for k in ("findings", "pairs_judged_same", "by_category",
                                                         "by_priority", "witness_status")}))
     combine(ROOT / a.out, rules, usage)
+
+
+def _sha(p: Path) -> str:
+    import hashlib
+    return hashlib.sha256(p.read_bytes()).hexdigest()[:16]
+
+
+def input_fingerprint(code: Path, paper: Path) -> dict:
+    """Hashes of the files step 4 read, so a different result can be traced to a different input."""
+    files = {"code_limitations": code / "limitations.json", "code_3b": code / "3b.json",
+             "paper_limitations": paper / "limitations.json", "paper_side": paper / "paper_side.json",
+             "finding_candidates": paper / "finding_candidates.json", "conformance": paper / "conformance.json"}
+    return {k: _sha(f) for k, f in files.items() if f.is_file()}
 
 
 def process_context(aid: str, repo, roots, entries, graph=None) -> ProcessContext:
