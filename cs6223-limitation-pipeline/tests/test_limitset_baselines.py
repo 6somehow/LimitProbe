@@ -50,7 +50,9 @@ def test_rejects_case_outside_split():
         baseline.main(['--method', 'b2', '--split', 'validation', '--case', 'CS6223-12', '--dry-run'])
 
 
-def test_missing_b2_is_clear(tmp_path, capsys):
+def test_missing_b2_is_clear(tmp_path, capsys, monkeypatch):
+    import sys
+    monkeypatch.setitem(sys.modules, 'limitset_baselines.b2', None)  # simulate an uninstalled B2
     with pytest.raises(SystemExit):
         baseline.main(['--method', 'b2', '--split', 'validation', '--out', str(tmp_path)])
     assert 'b2 baseline is not installed' in capsys.readouterr().err
