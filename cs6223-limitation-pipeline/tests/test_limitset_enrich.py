@@ -58,3 +58,22 @@ def test_worker_records_error_without_failing(tmp_path, monkeypatch):
     assert result['findings'][0]['category_code'] == 'unclassified'
     errors = json.loads((out / 'runs/a/r1/enrichment.json').read_text())['errors']
     assert errors[0]['finding_index'] == 0 and errors[0]['enrich_error']
+
+
+def test_concurrent_enrich_one_call_per_key_and_equals_serial(tmp_path):
+    import json, threading, time
+    from concurrent.futures import ThreadPoolExecutor
+    from pipeline.limitset_enrich import enrich
+    resp = json.dumps({'category_code': 'method_shortcoming', 'mechanism': 'because', 'conditions': ['when x']})
+    calls, lock = [], threading.Lock()
+    def llm(prompt):
+        with lock:
+            calls.append(prompt)
+        time.sleep(0.05)
+        return resp
+    findings = [{'claim': f'c{i % 3}', 'evidence': [{'support_description': 'q'}]} for i in range(9)]
+    with ThreadPoolExecutor(max_workers=9) as pool:
+        par = list(pool.map(lambda f: enrich(f, tmp_path / 'cp', llm, 'm'), findings))
+    assert len(calls) == 3
+    ser = [enrich(f, tmp_path / 'cs', lambda p: resp, 'm') for f in findings]
+    assert par == ser and all(e is None for _, e in par)

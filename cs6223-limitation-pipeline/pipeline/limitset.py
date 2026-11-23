@@ -122,13 +122,11 @@ def worker(case, repeat, out, raw, timeout, env, schema, swarm_template=None, en
             sources.append('results/step4/infinigen')
         if enrich_llm is not None:
             from pipeline.limitset_enrich import enrich
-            errors = []
-            enriched = []
-            for i, finding in enumerate(findings):
-                result, error = enrich(finding, out / 'enrich_cache', enrich_llm, model)
-                enriched.append(result)
-                if error:
-                    errors.append({'finding_index': i, 'enrich_error': error})
+            from concurrent.futures import ThreadPoolExecutor
+            with ThreadPoolExecutor(max_workers=8) as pool:
+                results = list(pool.map(lambda f: enrich(f, out / 'enrich_cache', enrich_llm, model), findings))
+            enriched = [r for r, _ in results]
+            errors = [{'finding_index': i, 'enrich_error': e} for i, (_, e) in enumerate(results) if e]
             findings = enriched
             (run / 'enrichment.json').write_text(json.dumps({'errors': errors}, indent=2) + '\n')
         record = {'case_id': case['case_id'], 'repeat': repeat, 'findings': findings, 'sources': sources}
