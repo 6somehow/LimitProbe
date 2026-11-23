@@ -1,0 +1,1010 @@
+{
+  "candidates": [
+    {
+      "headline": "The single-element argument that Δ′≈Δ does not imply the same holds when the search scales every channel",
+      "claim": "The error-reduction derivation relies on the claim that scaling one weight rarely changes the group maximum. The search space s = s_X^α assigns a scale to every input channel, so many weights per group are scaled at once. The derivation's guarantee therefore does not transfer directly to the deployed search. Quality in that regime rests on the output-level search objective rather than on the analytic argument.",
+      "paper_fact": "Scaling up a single element w usually does not change the maximum value from the group w.",
+      "premise": "With absmax quantization, the step size Δ follows the maximum magnitude in a group. If several weights in the same group are scaled up, the group maximum is more likely to grow. Δ′ then exceeds Δ, which cancels part of the 1/s benefit, and for non-salient weights it increases error.",
+      "inference": "Table 2 only varies the 1% salient channels, where Δ′≠Δ in 2.8–21.2% of groups. The final method scales all channels by activation magnitude raised to α. Δ′/Δ in that regime is not reported, and neither is how far the Eq. 3 argument holds there. The α grid search against the layer output error (Eq. 4) can absorb this effect, but the analytic justification does not cover it.",
+      "toy_example": "Illustration only, not a measurement: a group with weights [1.0, 0.5, 0.4, 0.3]. Scaling only the second weight by 2 keeps the max at 1.0, so Δ′=Δ. Scaling the second weight by 4 gives a max of 2.0 and Δ′=2Δ. Scaling all four by 2 gives Δ′=2Δ, so the relative error ratio Δ′/Δ·1/s is 1 and no gain remains.",
+      "conditional_consequence": "As the fraction of scaled channels per group rises, the Δ′≈Δ assumption weakens and the gain bound from Eq. 3 shrinks. The observed result then depends on the empirical α search.",
+      "critical_link": "The group-maximum invariance holds for one or few scaled elements but not necessarily for the all-channel scale used by the α search.",
+      "necessary_conditions": [
+        "The scaled channels do not dominate the group max, or the scale spread within a group is modest.",
+        "The absmax group quantizer is used."
+      ],
+      "defeaters": [
+        "The α grid search selects a scale at which Δ′/Δ stays near 1.",
+        "Scales within a group are nearly uniform, which cancels in relative terms."
+      ],
+      "do_not_infer": [
+        "That AWQ's final perplexity gains are unreliable; Tables 3 and 4 report empirical gains.",
+        "That the α search fails; it is evaluated end to end.",
+        "That Δ′/Δ values for the all-channel scale were measured; the paper reports them only for the 1% salient channels."
+      ],
+      "disclosure": "inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L5+L7",
+      "quotes": [
+        {
+          "text": "Scaling up a single element w usually does not change the maximum value from the group w.",
+          "source": "paper",
+          "locator": "Section 3.2, Analyzing the quantization error"
+        },
+        {
+          "text": "we simply use a very simple search space:",
+          "source": "paper",
+          "locator": "Section 3.2, Searching to scale, before Eq. 5"
+        },
+        {
+          "text": "the ratio is larger than 1 for 21.2% of the channels under s = 4",
+          "source": "paper",
+          "locator": "Section 3.2, discussion of Table 2"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "With absmax quantization, the step size Δ follows the maximum magnitude in a group. If several weights in the same group are scaled up, the group maximum is more likely to grow. Δ′ then exceeds Δ, which cancels part of the 1/s benefit, and for non-salient weights it increases error. Table 2 only varies the 1% salient channels, where Δ′≠Δ in 2.8–21.2% of groups. The final method scales all channels by activation magnitude raised to α. Δ′/Δ in that regime is not reported, and neither is how far the Eq. 3 argument holds there. The α grid search against the layer output error (Eq. 4) can absorb this effect, but the analytic justification does not cover it."
+    },
+    {
+      "headline": "A roughly uniform rounding error does not guarantee the derived error ratio at very low bit-width",
+      "claim": "The analysis treats RoundErr as uniform with mean 0.25 and Δ and x as error-free. These are empirical regularities the authors call approximations, and they plausibly weaken when few quantization levels exist, as in INT2.",
+      "paper_fact": "the error is roughly uniformly distributed from [0,0.5], resulting in an average error of 0.25",
+      "premise": "Uniform rounding error is a good model when weights spread over many levels. With very few levels or non-uniform weight distributions, the residual is not uniform, and RoundErr(ws/Δ') need not equal RoundErr(w/Δ).",
+      "inference": "The cancellation RoundErr(ws/Δ') ≈ RoundErr(w/Δ) is only a heuristic. It is least secure in the INT2 setting, where the paper reports RTN fails and AWQ needs GPTQ added.",
+      "toy_example": "Illustration only, not a measurement: with 2-bit levels {-2,-1,0,1} and a weight that sits near a rounding boundary, scaling by s can move it from error 0.05 to 0.45 in units of Δ, so the expected error is not preserved for that element.",
+      "conditional_consequence": "If rounding error after scaling is not on average equal to that before, the 1/s gain in the relative error is overstated or understated for individual groups.",
+      "critical_link": "The empirical uniform-rounding assumption versus the low-level, non-uniform weights of INT2 quantization.",
+      "necessary_conditions": [
+        "Weights are spread over many quantization levels",
+        "Group sizes are large enough for the empirical distribution to apply"
+      ],
+      "defeaters": [
+        "INT2 or very small groups",
+        "Sparse or heavy-tailed weight groups"
+      ],
+      "do_not_infer": [
+        "Do not infer that the INT2 failure is caused by this assumption alone",
+        "Do not infer that INT3/INT4 results are unreliable, since those are measured directly",
+        "The paper does not test the assumption at INT2"
+      ],
+      "disclosure": "inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L5",
+      "quotes": [
+        {
+          "text": "As ∆and x are represented in FP16, they have no quantization error.",
+          "source": "paper",
+          "locator": "Sec 3.2, Analyzing the quantization error"
+        },
+        {
+          "text": "RTN completely fails, and AWQ brings significant perplexity improvement on top of GPTQ.",
+          "source": "paper",
+          "locator": "Sec 5.2 Extreme low-bit quantization"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Uniform rounding error is a good model when weights spread over many levels. With very few levels or non-uniform weight distributions, the residual is not uniform, and RoundErr(ws/Δ') need not equal RoundErr(w/Δ). The cancellation RoundErr(ws/Δ') ≈ RoundErr(w/Δ) is only a heuristic. It is least secure in the INT2 setting, where the paper reports RTN fails and AWQ needs GPTQ added."
+    },
+    {
+      "headline": "Absence of calibration overfitting does not imply Pile text calibration covers image-conditioned activation statistics",
+      "claim": "The paper argues that because AWQ uses no reconstruction or backpropagation, it applies directly to VLMs. That argument does not show that per-channel activation scales measured on text-only calibration data match the activation magnitudes the language tower sees when image tokens are in context.",
+      "paper_fact": "Since our method does not have the overfitting issue to the calibration set, it can be directly applied to VLMs",
+      "premise": "AWQ's scales come from the per-channel average activation magnitude s_X. Image-token embeddings come from a vision encoder and projector, so their per-channel magnitudes can differ in distribution from text-token activations. Avoiding regression-style overfitting limits how much the method fits to the calibration set, but it does not make the measured statistics modality-invariant.",
+      "inference": "If the VLM language tower is calibrated on Pile text (the paper states Pile calibration for AWQ in general but does not say what calibration data was used for the VLMs), channels that are salient only under image-token inputs may get too little scaling. The paper's robustness evidence (PubMed vs Enron) covers only shifts between text domains, so it does not test this case.",
+      "toy_example": "Not a measurement: suppose channel 17 has mean |x| of 0.1 on text but 5.0 on image tokens. A text-derived scale treats it as non-salient, and with s = s_X^alpha its weights get almost no protection exactly where image-conditioned inputs depend on it.",
+      "conditional_consequence": "If image-token activations have outlier or salient channels that are absent in text, Pile-calibrated scales under-protect them. Degradation would then be larger on vision-heavy tasks than the text-only perplexity robustness results suggest.",
+      "critical_link": "Whether the salient-channel ranking by mean activation magnitude is the same for image-conditioned and text-only inputs in the language tower.",
+      "necessary_conditions": [
+        "VLM calibration used text-only data, or data without image tokens",
+        "Image-token activations have a different channel-magnitude profile from text tokens",
+        "The benchmark depends enough on image-token pathways to expose the mismatch"
+      ],
+      "defeaters": [
+        "Calibration for the VLMs actually included image-conditioned inputs",
+        "Salient channels in the language tower are largely modality-independent",
+        "Group-wise INT4 error is small enough that scale misallocation does not matter (VILA results are close to FP16)"
+      ],
+      "do_not_infer": [
+        "That AWQ fails on VLMs: Tables 6 and 7 show small degradation at INT4",
+        "That the authors calibrated VLMs on text only: the excerpt does not state this",
+        "That the vision encoder's activations matter, since it is not quantized"
+      ],
+      "disclosure": "inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L3+L5 (calibration modality mismatch, salient-channel assumption)",
+      "quotes": [
+        {
+          "text": "Since our method does not have the overfitting issue to the calibration set, it can be directly applied to VLMs",
+          "source": "paper",
+          "locator": "Section 5.2, Quantization of multi-modal language models"
+        },
+        {
+          "text": "we used a small calibration set from the Pile (Gao et al., 2020) dataset in order not to overfit to a specific downstream domain.",
+          "source": "paper",
+          "locator": "Section 5.1, Quantization"
+        },
+        {
+          "text": "when using a different calibration distribution (PubMed-Enron, Enron-PubMed), AWQ only increases the perplexity by 0.5-0.6",
+          "source": "paper",
+          "locator": "Section 5.3, Robust to the calibration set distributions"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "AWQ's scales come from the per-channel average activation magnitude s_X. Image-token embeddings come from a vision encoder and projector, so their per-channel magnitudes can differ in distribution from text-token activations. Avoiding regression-style overfitting limits how much the method fits to the calibration set, but it does not make the measured statistics modality-invariant. If the VLM language tower is calibrated on Pile text (the paper states Pile calibration for AWQ in general but does not say what calibration data was used for the VLMs), channels that are salient only under image-token inputs may get too little scaling. The paper's robustness evidence (PubMed vs Enron) covers only shifts between text domains, so it does not test this case."
+    },
+    {
+      "headline": "Orthogonality to GPTQ does not imply that AWQ's calibration-robustness advantage survives in the combined pipeline",
+      "claim": "Table 9 shows that AWQ+GPTQ lowers INT2 WikiText-2 perplexity compared with GPTQ alone. This does not show that the combination keeps AWQ's cross-domain robustness. The paper credits that robustness to AWQ using no reconstruction, but the combined pipeline includes GPTQ's reconstruction step. The paper never tests the combination on shifted calibration or evaluation distributions.",
+      "paper_fact": "AWQ does not rely on any backpropagation or reconstruction",
+      "premise": "GPTQ fits quantized weights to calibration activations by layer-wise reconstruction. A pipeline that includes such a step inherits some exposure to the calibration distribution, whatever preprocessing precedes it.",
+      "inference": "AWQ's robustness argument depends on the absence of reconstruction. Once GPTQ reconstruction runs after AWQ scaling, that argument no longer applies. The robustness of the combined INT2 model is therefore untested rather than inherited. The paper's robustness experiment (Fig. 8) covers only AWQ versus GPTQ at INT3-g128 on OPT-6.7B.",
+      "toy_example": "Not a measurement: suppose the calibration set is emails and the evaluation set is biomedical abstracts. The combined model could score well on WikiText-2 yet degrade on the abstracts like GPTQ does, because the reconstruction step fits email activations.",
+      "conditional_consequence": "If the GPTQ stage of the combination overfits the calibration set, then the combined INT2 model would show a larger cross-domain perplexity gap than AWQ alone. The Table 9 gains would then be in-distribution gains only.",
+      "critical_link": "Whether GPTQ reconstruction applied after AWQ scaling reintroduces calibration-set overfitting measurable under distribution shift.",
+      "necessary_conditions": [
+        "The combined pipeline runs the full GPTQ reconstruction after AWQ scaling.",
+        "Calibration and evaluation distributions differ.",
+        "GPTQ's overfitting at INT3 carries over to INT2-g64."
+      ],
+      "defeaters": [
+        "AWQ scaling may reduce the reconstruction error GPTQ must fit, which would reduce overfitting.",
+        "The overfitting gap may shrink at INT2 because quantization noise dominates.",
+        "A larger or more diverse calibration set may remove the gap."
+      ],
+      "do_not_infer": [
+        "Do not infer that AWQ+GPTQ is worse than GPTQ alone out of distribution.",
+        "Do not infer that the Table 9 numbers are wrong.",
+        "Do not infer that the authors claim robustness for the combination."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L3+L6: statistics-based scaling combined with a reconstruction-based step",
+      "quotes": [
+        {
+          "text": "AWQ does not rely on any backpropagation or reconstruction",
+          "source": "paper abstract",
+          "locator": "page 1, abstract"
+        },
+        {
+          "text": "it may overfit the calibration set during reconstruction",
+          "source": "paper introduction",
+          "locator": "page 2, paragraph on GPTQ"
+        },
+        {
+          "text": "Our method is orthogonal to GPTQ: it further closes the performance gap under extreme low-bit quantization (INT2-g64) when combined with GPTQ.",
+          "source": "paper Table 9 caption",
+          "locator": "page 9, Table 9"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "GPTQ fits quantized weights to calibration activations by layer-wise reconstruction. A pipeline that includes such a step inherits some exposure to the calibration distribution, whatever preprocessing precedes it. AWQ's robustness argument depends on the absence of reconstruction. Once GPTQ reconstruction runs after AWQ scaling, that argument no longer applies. The robustness of the combined INT2 model is therefore untested rather than inherited. The paper's robustness experiment (Fig. 8) covers only AWQ versus GPTQ at INT3-g128 on OPT-6.7B."
+    },
+    {
+      "headline": "Orthogonality to GPTQ conflicts with an unexplained, non-monotonic gain across model scale",
+      "claim": "The paper offers 'orthogonal to GPTQ' as the explanation for the INT2 gains. It gives no mechanism for why AWQ helps on top of GPTQ. The gain pattern across OPT sizes is not what a simple additive effect would produce.",
+      "paper_fact": "Our method is orthogonal to GPTQ.",
+      "premise": "If two independent corrections each remove a separate error source, the combined benefit would usually vary smoothly with model size. A non-monotonic pattern suggests interaction or noise, which orthogonality does not explain.",
+      "inference": "From Table 9, the GPTQ-to-AWQ+GPTQ perplexity drop is 10.96 (1.3B), 2.45 (2.7B), 0.94 (6.7B), 3.49 (13B) and 0.37 (30B). The drop is not monotonic: 13B gains more than 6.7B. 'Orthogonal' is stated, not demonstrated, and the paper gives no ablation of why AWQ scaling helps GPTQ at INT2. The origin of the gain, and of the irregular pattern, is unclear. Each cell appears to be a single run, so seed variance is also unreported.",
+      "toy_example": "Not a measurement: if the 13B gain were mostly noise or a GPTQ reordering artifact for that model, orthogonality would not be the cause. The reported table could not tell the two apart.",
+      "conditional_consequence": "If the gain depends on model-specific interactions (such as GPTQ failing on particular OPT layers), then the orthogonality claim cannot be used to predict gains on other model families or sizes.",
+      "critical_link": "Whether the observed gain comes from independent error correction (orthogonality) or from model-specific interactions between AWQ scaling and GPTQ reconstruction.",
+      "necessary_conditions": [
+        "Table 9 values are single runs without variance reporting.",
+        "Only OPT models are tested at INT2.",
+        "No ablation separates AWQ scaling from clipping or other components."
+      ],
+      "defeaters": [
+        "The irregularity could come from known OPT-specific outlier behavior.",
+        "Repeated runs might show a smoother trend.",
+        "The authors may only mean 'compatible' rather than 'statistically independent'."
+      ],
+      "do_not_infer": [
+        "Do not infer that the combination fails on other families.",
+        "Do not infer that the 13B result is erroneous.",
+        "Do not infer that AWQ+GPTQ fails to beat GPTQ. It improves in every column of Table 9."
+      ],
+      "disclosure": "inferred",
+      "category_code": "mechanism_origin_unclear",
+      "lens": "L7: gain pattern across scale, with no stated mechanism",
+      "quotes": [
+        {
+          "text": "Our method is orthogonal to GPTQ.",
+          "source": "paper Section 5.2, Extreme low-bit quantization",
+          "locator": "page 10"
+        },
+        {
+          "text": "GPTQ\n46.67\n28.15\n16.65 16.74 11.75",
+          "source": "paper Table 9",
+          "locator": "page 9, Table 9, GPTQ row"
+        },
+        {
+          "text": "AWQ +GPTQ 35.71 25.70 15.71 13.25 11.38",
+          "source": "paper Table 9",
+          "locator": "page 9, Table 9, AWQ+GPTQ row"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "If two independent corrections each remove a separate error source, the combined benefit would usually vary smoothly with model size. A non-monotonic pattern suggests interaction or noise, which orthogonality does not explain. From Table 9, the GPTQ-to-AWQ+GPTQ perplexity drop is 10.96 (1.3B), 2.45 (2.7B), 0.94 (6.7B), 3.49 (13B) and 0.37 (30B). The drop is not monotonic: 13B gains more than 6.7B. 'Orthogonal' is stated, not demonstrated, and the paper gives no ablation of why AWQ scaling helps GPTQ at INT2. The origin of the gain, and of the irregular pattern, is unclear. Each cell appears to be a single run, so seed variance is also unreported."
+    },
+    {
+      "headline": "Per-channel activation saliency does not guarantee that salient channels are protected within their group-128 quantization scale",
+      "claim": "M1 ranks input channels by mean activation magnitude, but quantization error is set per group of 128 weights by that group's absolute maximum. How much a salient channel gains from protection therefore depends on which group it falls in and on how its scaling moves the group scale. The ranking alone does not fix this.",
+      "paper_fact": "Scaling up a single element w usually does not change the maximum value from the group w.",
+      "premise": "In group-wise quantization, every weight in a group shares one step size, set by the largest magnitude in that group. A channel-level importance ranking does not see group membership.",
+      "inference": "The paper's assumption that the step size stays unchanged (Delta' ~ Delta) is only approximate. Table 2 shows the share of changed Delta rising with s (2.8% to 21.2%). So the protection a salient channel receives, and the damage to its non-salient group neighbours, depends on how salient channels are spread across groups, not only on the channel ranking.",
+      "toy_example": "Not a measurement: if two salient channels share one group and are both scaled up, they can raise that group's maximum, which coarsens the step size for its non-salient neighbours. If the same two channels sit in separate groups, each group is affected less.",
+      "conditional_consequence": "If salient channels cluster inside a few groups, or sit next to large-weight neighbours, then the same channel ranking can give a smaller error reduction than the paper's average statistics suggest.",
+      "critical_link": "Channel-level activation ranking -> group-level shared step size, with the assumption Delta' ~ Delta holding only on average.",
+      "necessary_conditions": [
+        "Salient channels share groups with non-salient channels",
+        "The scaling step (M2) enlarges the group maximum for at least some groups",
+        "The number of such groups is large enough to affect output error"
+      ],
+      "defeaters": [
+        "Salient channels spread evenly across groups",
+        "Scale factors small enough (s <= 2) that Delta rarely changes",
+        "Per-layer search over alpha absorbs the effect, since it measures output error directly"
+      ],
+      "do_not_infer": [
+        "Do not infer that AWQ fails at group size 128.",
+        "Do not infer a measured per-group error breakdown; the paper reports none.",
+        "Do not infer that the FP16-retention results in Table 1 suffer from this mismatch in the same way, because those channels skip quantization entirely."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L3+L4",
+      "quotes": [
+        {
+          "quote": "Scaling up a single element w usually does not change the maximum value from the group w.",
+          "source": "paper, Section 3.2",
+          "locator": "Analyzing the quantization error, item (2)"
+        },
+        {
+          "quote": "the ratio is larger than 1 for 21.2% of the channels under s = 4",
+          "source": "paper, Section 3.2",
+          "locator": "paragraph after Table 2"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "Analyzing the quantization error, item (2)",
+          "support_description": "Scaling up a single element w usually does not change the maximum value from the group w."
+        },
+        {
+          "source_id": "paper",
+          "location": "paragraph after Table 2",
+          "support_description": "the ratio is larger than 1 for 21.2% of the channels under s = 4"
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "In group-wise quantization, every weight in a group shares one step size, set by the largest magnitude in that group. A channel-level importance ranking does not see group membership. The paper's assumption that the step size stays unchanged (Delta' ~ Delta) is only approximate. Table 2 shows the share of changed Delta rising with s (2.8% to 21.2%). So the protection a salient channel receives, and the damage to its non-salient group neighbours, depends on how salient channels are spread across groups, not only on the channel ranking."
+    },
+    {
+      "headline": "An equivalent per-channel scaling does not guarantee hardware-friendliness when s^-1 cannot be fused into a preceding operator",
+      "claim": "The mechanism avoids a mixed FP16/INT4 format by moving the compensation s^-1 onto the activations. The paper supports hardware-friendliness only through the statement that this inverse scale 'can usually' be fused. For input channels with no fusable predecessor, the hardware benefit is not established by the paper.",
+      "paper_fact": "for s−1 · X, it can usually be fused into the previous",
+      "premise": "A scale on the input activations of a linear layer is free only if some earlier operator (for example a norm layer or a linear layer's output) can absorb it into its own parameters. Otherwise it is a separate elementwise multiply executed at inference time.",
+      "inference": "Where no such operator exists, the equivalent transformation still keeps a uniform low-bit weight format but adds runtime work and a kernel launch. The paper's argument for hardware-friendliness over mixed precision then weakens for those layers. The text does not say which layers or architectures fall into this case.",
+      "toy_example": "Illustration only, not a measurement: a layer whose input comes from an operator that cannot absorb a per-channel scale. It needs one extra elementwise multiply of hidden-dimension size per token, which is a memory-bound op that is small in FLOPs but costs a launch.",
+      "conditional_consequence": "If s^-1 cannot be folded, the cost moves from mixed-precision kernel complexity to extra per-token operators. The hardware-friendly claim holds only to the extent that fusion is available.",
+      "critical_link": "Whether the layer's input is produced by an operator that can absorb a per-channel scale.",
+      "necessary_conditions": [
+        "A preceding operator exists whose parameters can absorb s^-1.",
+        "The scaled input channels all pass through that operator."
+      ],
+      "defeaters": [
+        "Layers whose inputs come from non-parametric or shared ops with no absorbable scale.",
+        "Architectures where several consumers share one producer but need different scales."
+      ],
+      "do_not_infer": [
+        "That AWQ is slower than FP16 in general.",
+        "That fusion fails in the reported models; the paper measures speedups on them.",
+        "That the quantization quality is affected by the fusion issue."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L1+L6",
+      "quotes": [
+        {
+          "text": "To avoid the hardware-inefficient mixed-precision implementation",
+          "source": "paper",
+          "locator": "Section 1, Introduction"
+        },
+        {
+          "text": "it can usually be fused into the previous",
+          "source": "paper",
+          "locator": "Section 3.2, after Eq. 4"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A scale on the input activations of a linear layer is free only if some earlier operator (for example a norm layer or a linear layer's output) can absorb it into its own parameters. Otherwise it is a separate elementwise multiply executed at inference time. Where no such operator exists, the equivalent transformation still keeps a uniform low-bit weight format but adds runtime work and a kernel launch. The paper's argument for hardware-friendliness over mixed precision then weakens for those layers. The text does not say which layers or architectures fall into this case."
+    },
+    {
+      "headline": "A smaller per-element relative error for a scaled salient weight does not imply lower layer output error",
+      "claim": "The closed-form ratio (Δ'/Δ)·(1/s) describes the relative rounding error of one scaled weight element. By itself it does not predict whether the output error of the layer or model falls, because output error also depends on the other elements in the group and on how Δ moves.",
+      "paper_fact": "Given ∆ ′ ≈∆and s > 1, the relative error is smaller for the salient weight w.",
+      "premise": "In absmax group quantization, Δ is shared by every element in a group. Any change in Δ changes the rounding error of all those elements, and output error sums contributions across elements and channels.",
+      "inference": "The ratio 1/s is a motivating quantity for one element under Δ'≈Δ. A monotone benefit in s for the whole network does not follow from it. The paper itself says non-salient channels must be considered separately.",
+      "toy_example": "Illustration only, not a measurement: a group has one salient element and 127 others. Scaling the salient element by s=4 halves its relative error twice over, but if that raises Δ by 20%, the 127 others each get about 20% more absolute error. The sum can then rise.",
+      "conditional_consequence": "If Δ' grows noticeably with s, the net output error can stop improving or get worse, even though the salient element's relative error keeps falling.",
+      "critical_link": "Relative error of a single element versus the output-level objective L(s) over all elements in the group.",
+      "necessary_conditions": [
+        "Δ' ≈ Δ holds for most groups",
+        "Non-salient elements contribute little extra error"
+      ],
+      "defeaters": [
+        "Δ changes in many groups as s grows",
+        "Non-salient channels carry non-trivial activation magnitude"
+      ],
+      "do_not_infer": [
+        "Do not infer that the scaling idea is wrong",
+        "Do not infer that the grid-searched α fails, since it optimizes the output objective directly",
+        "Do not infer a specific size of the gap"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L2",
+      "quotes": [
+        {
+          "text": "Therefore, we need to also consider the error from non-salient channels when protecting salient ones.",
+          "source": "paper",
+          "locator": "Sec 3.2, after Table 2"
+        },
+        {
+          "text": "Nonetheless, the best PPL actually appears at s = 2.",
+          "source": "paper",
+          "locator": "Sec 3.2, after Table 2"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "In absmax group quantization, Δ is shared by every element in a group. Any change in Δ changes the rounding error of all those elements, and output error sums contributions across elements and channels. The ratio 1/s is a motivating quantity for one element under Δ'≈Δ. A monotone benefit in s for the whole network does not follow from it. The paper itself says non-salient channels must be considered separately."
+    },
+    {
+      "headline": "The assumption that the maximum is unchanged conflicts with scaling many channels in the same group",
+      "claim": "The Δ'≈Δ step is justified for scaling a single element. In practice about 1% of input channels are scaled together, so a group can contain several scaled elements. Table 2 shows that the share of groups with changed Δ rises quickly with s.",
+      "paper_fact": "Scaling up a single element w usually does not change the maximum value from the group w.",
+      "premise": "A group's absmax can only stay fixed if no scaled element becomes the new maximum. The chance of a changed maximum rises with the number of scaled elements and with s.",
+      "inference": "The single-element argument is an approximation that gets worse as s increases or as more channels fall in one group. The paper's own statistics (Δ changes in 8.2% of groups at s=2 and 21.2% at s=4) show this.",
+      "toy_example": "Illustration only, not a measurement: if 1 of 128 weights is scaled by s=2 and its original magnitude is above half the group max, the max changes and Δ' = 2Δ·(max ratio). That raises every other element's step size.",
+      "conditional_consequence": "Where Δ' > Δ, the factor (Δ'/Δ)·(1/s) is no longer ≈ 1/s and the predicted error reduction shrinks. The non-salient elements in that group are also amplified.",
+      "critical_link": "Group-level absmax Δ versus a per-element argument.",
+      "necessary_conditions": [
+        "Scaled channels are small relative to the group maximum",
+        "s is modest (the paper says the changed share is small for s < 2)"
+      ],
+      "defeaters": [
+        "A clipped or learned-range quantizer, since weight clipping is applied in AWQ",
+        "Weights with heavy tails inside a group"
+      ],
+      "do_not_infer": [
+        "Do not infer that the assumption fails at the chosen s=2 for most groups",
+        "Do not infer that AWQ quality depends on this exact derivation, since the final scales come from a search"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L3",
+      "quotes": [
+        {
+          "text": "the ratio is larger than 1 for 21.2% of the channels under s = 4",
+          "source": "paper",
+          "locator": "Sec 3.2, after Table 2"
+        },
+        {
+          "text": "We further apply weight clipping to minimize the MSE error of quantization.",
+          "source": "paper",
+          "locator": "Sec 3.3 Searching to scale"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A group's absmax can only stay fixed if no scaled element becomes the new maximum. The chance of a changed maximum rises with the number of scaled elements and with s. The single-element argument is an approximation that gets worse as s increases or as more channels fall in one group. The paper's own statistics (Δ changes in 8.2% of groups at s=2 and 21.2% at s=4) show this."
+    },
+    {
+      "headline": "Minimizing layer-local output error does not imply or guarantee optimal end-to-end model quality",
+      "claim": "The α search is driven by a per-layer output-difference objective (Eq. 4). It never directly optimizes final perplexity or task quality, so a lower local error need not translate into a better final model.",
+      "paper_fact": "we choose to automatically search for an optimal (per input channel) scaling factor that minimizes the output difference after quantization for a certain layer.",
+      "premise": "Quantization errors from successive transformer layers interact and compound through the network. A per-layer objective can be minimized at every layer without minimizing the loss of the full model.",
+      "inference": "The selected α is the best of 20 grid points for each layer's local error on cached calibration inputs. Nothing in the objective constrains the cross-layer accumulated error, so the final-perplexity gap is not controlled by the search. The paper's own Table 3 shows the search does not always reach the mixed-precision reference: at OPT-13B, AWQ is 10.56 against 10.43 for 1% FP16.",
+      "toy_example": "Illustration only, not a measurement: suppose layer A's best local α slightly shifts its output in a direction that layer B amplifies. The local losses are both minimal, but the final logits are worse than with a slightly different α at A.",
+      "conditional_consequence": "If errors compound across layers, deeper models or lower bit widths could show a larger gap between the sum of local losses and final perplexity. This is untested in the paper.",
+      "critical_link": "Local layer output error is only a proxy for final perplexity, and the proxy gap is neither measured nor bounded.",
+      "necessary_conditions": [
+        "Layer-wise errors interact non-additively across depth",
+        "The local optimum α differs from the α that is best for the downstream loss"
+      ],
+      "defeaters": [
+        "Local errors are small and roughly additive, so the proxy is tight",
+        "Later layers are insensitive to the perturbations introduced by earlier layers",
+        "Empirical results show AWQ matches or beats the references (it does at 1.3B, 2.7B and 30B in Table 3)"
+      ],
+      "do_not_infer": [
+        "That AWQ performs worse than 1% FP16 at 30B: Table 3 shows 9.77 for AWQ against 9.85",
+        "That the compounding explanation accounts for the 13B result: the paper does not test it",
+        "That the small-model win versus large-model loss pattern is explained by non-salient channel adjustment: that is an unreported hypothesis"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L2",
+      "quotes": [
+        {
+          "quote": "minimizes the output difference after quantization for a certain layer",
+          "source": "paper, Section 3.2 Searching to scale",
+          "locator": "Searching to scale paragraph"
+        },
+        {
+          "quote": "achieves comparable performance as mixed-precision (1% FP16)",
+          "source": "paper, Table 3 caption",
+          "locator": "Table 3 caption (OPT 1.3B-30B rows give the numbers used)"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "Searching to scale paragraph",
+          "support_description": "minimizes the output difference after quantization for a certain layer"
+        },
+        {
+          "source_id": "paper",
+          "location": "Table 3 caption (OPT 1.3B-30B rows give the numbers used)",
+          "support_description": "achieves comparable performance as mixed-precision (1% FP16)"
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Quantization errors from successive transformer layers interact and compound through the network. A per-layer objective can be minimized at every layer without minimizing the loss of the full model. The selected α is the best of 20 grid points for each layer's local error on cached calibration inputs. Nothing in the objective constrains the cross-layer accumulated error, so the final-perplexity gap is not controlled by the search. The paper's own Table 3 shows the search does not always reach the mixed-precision reference: at OPT-13B, AWQ is 10.56 against 10.43 for 1% FP16."
+    },
+    {
+      "headline": "A single per-layer α does not imply or guarantee the optimal scale for every channel",
+      "claim": "The search fixes the scale shape to s = sX^α and tunes only one exponent per layer. Every channel is therefore forced onto a one-parameter family tied to its mean activation, even though the scale is applied per channel.",
+      "paper_fact": "we use a single hyper-parameter α to balance between the protection of salient and non-salient channels.",
+      "premise": "A one-dimensional family of per-channel scales is a strict subset of all per-channel scale vectors. Its optimum is generally no better than, and often worse than, the optimum over the full space.",
+      "inference": "The paper's Eq. 5 restricts search to α in [0,1] with a grid size of 20. The best α is a compromise across channels with possibly different saliency and quantization-error tradeoffs. Per-channel or per-group exponents are not tested, so any gain from them is unmeasured.",
+      "conditional_consequence": "If channels within a layer differ in how strongly they trade salient protection against non-salient error, a per-group α could achieve lower layer error at higher search cost. The paper does not test this.",
+      "critical_link": "The scale shape is fixed by the mean-activation function, and only a layer-wide exponent is learned.",
+      "necessary_conditions": [
+        "Optimal exponents vary across channels or groups within a layer",
+        "The layer's error is sensitive to that variation"
+      ],
+      "defeaters": [
+        "Mean activation magnitude already orders channels well enough that the single exponent is near-optimal",
+        "The weight clipping step absorbs the residual mismatch",
+        "Finer search overfits the small calibration set"
+      ],
+      "do_not_infer": [
+        "That per-group α would improve perplexity: no such experiment is reported",
+        "That the 20-point grid is too coarse",
+        "That the paper claims the per-layer α is globally optimal"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L3",
+      "quotes": [
+        {
+          "quote": "we use a single hyper-parameter α to balance between the protection of salient and non-salient channels",
+          "source": "paper, Section 3.2",
+          "locator": "Eq. 5 paragraph"
+        },
+        {
+          "quote": "We used a grid size of 20 to search for the optimal α in Equation 5.",
+          "source": "paper, Section 5.1",
+          "locator": "Quantization paragraph"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "Eq. 5 paragraph",
+          "support_description": "we use a single hyper-parameter α to balance between the protection of salient and non-salient channels"
+        },
+        {
+          "source_id": "paper",
+          "location": "Quantization paragraph",
+          "support_description": "We used a grid size of 20 to search for the optimal α in Equation 5."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "A one-dimensional family of per-channel scales is a strict subset of all per-channel scale vectors. Its optimum is generally no better than, and often worse than, the optimum over the full space. The paper's Eq. 5 restricts search to α in [0,1] with a grid size of 20. The best α is a compromise across channels with possibly different saliency and quantization-error tradeoffs. Per-channel or per-group exponents are not tested, so any gain from them is unmeasured."
+    },
+    {
+      "headline": "Average-activation saliency does not imply or guarantee protection of rarely but critically active channels",
+      "claim": "The scale family is built from the per-channel average activation magnitude. A channel that is important because of rare large activations could be under-scaled, because its mean is small.",
+      "paper_fact": "sX is the average magnitude of activation (per-channel)",
+      "premise": "A mean over calibration tokens can hide sparse, high-magnitude spikes. Importance for model output may depend on such spikes rather than on the mean.",
+      "inference": "The search can only choose how aggressively to apply the mean-based ordering through α. It cannot reorder channels or give a rarely active channel a larger scale than a frequently active one. The error objective is evaluated on actual X, which can partly reveal damage, but the candidate scales remain mean-based.",
+      "toy_example": "Illustration only, not a measurement: a channel is near zero on 99% of tokens and large on 1%. Its mean may rank below that of a moderately active channel, so it receives a smaller scale.",
+      "conditional_consequence": "If such channels matter for the downstream task, they may stay relatively unprotected, and any resulting loss would depend on the calibration set containing the rare events.",
+      "critical_link": "Saliency is operationalized as mean magnitude, so the scaling order is fixed regardless of tail behavior.",
+      "necessary_conditions": [
+        "Some channels are important mainly through rare large activations",
+        "The calibration set contains or misses those events in a way that makes the mean misleading"
+      ],
+      "defeaters": [
+        "Rare-spike channels are uncommon in the evaluated models",
+        "Clipping and the layer-error objective compensate",
+        "Mean magnitude correlates strongly enough with importance, as the paper's Table 1 selection experiment suggests"
+      ],
+      "do_not_infer": [
+        "That the paper observed this failure: it is not reported",
+        "That AWQ is unreliable in general: the paper reports broad gains",
+        "That a max- or percentile-based statistic would do better: untested"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L5",
+      "quotes": [
+        {
+          "quote": "sX is the average magnitude of activation (per-channel)",
+          "source": "paper, Section 3.2",
+          "locator": "Eq. 5 paragraph"
+        },
+        {
+          "quote": "It has minimal reliance on the calibration set since we only measure the average magnitude per channel",
+          "source": "paper, Section 3.2 Advantages",
+          "locator": "Advantages paragraph"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "Eq. 5 paragraph",
+          "support_description": "sX is the average magnitude of activation (per-channel)"
+        },
+        {
+          "source_id": "paper",
+          "location": "Advantages paragraph",
+          "support_description": "It has minimal reliance on the calibration set since we only measure the average magnitude per channel"
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "A mean over calibration tokens can hide sparse, high-magnitude spikes. Importance for model output may depend on such spikes rather than on the mean. The search can only choose how aggressively to apply the mean-based ordering through α. It cannot reorder channels or give a rarely active channel a larger scale than a frequently active one. The error objective is evaluated on actual X, which can partly reveal damage, but the candidate scales remain mean-based."
+    },
+    {
+      "headline": "Clipping to minimize quantization MSE does not guarantee lower layer-output error",
+      "claim": "The paper adds weight clipping 'to minimize the MSE error of quantization' on top of the scale search. The scale search itself targets output difference (Eq. 4). Weight-space MSE and output error are different objectives, so a clip that lowers MSE is not guaranteed to lower output error. In particular, it can cut outlier weights that multiply large activations, which is the case the paper's activation-aware argument says matters most.",
+      "paper_fact": "We further apply weight clipping to minimize the MSE error of quantization.",
+      "premise": "Output error is the sum over input channels of weight error times activation. A weight-space MSE treats all channels equally and ignores activation magnitude. Clipping an outlier weight adds a large error on that weight, which is exactly the error that large-activation channels amplify.",
+      "inference": "If the clipping objective is computed on weights, it could remove a salient outlier weight, lowering weight MSE while raising output error. This would work against the activation-aware principle. The paper does not say whether the MSE is taken on weights or on outputs, so this applies only under the weight-space reading.",
+      "toy_example": "Illustrative only, not a measurement. One group has weights [0.2, 0.3, 0.1, 1.0] and activations [1, 1, 1, 10]. Clipping 1.0 to 0.5 shrinks the step size, so rounding error on the three small weights falls. The clipped weight now has error 0.5, and times activation 10 this gives output error 5, far above the rounding-error savings.",
+      "conditional_consequence": "If the clip search minimizes weight-space MSE and the group contains an outlier weight on a high-activation channel, then output error and perplexity can get worse even as weight MSE improves.",
+      "critical_link": "Whether the clip threshold is chosen by weight MSE or by output error, which the text leaves unspecified.",
+      "necessary_conditions": [
+        "The clipping criterion is computed on weights rather than on layer outputs.",
+        "The group contains an outlier weight that sits on a high-activation channel."
+      ],
+      "defeaters": [
+        "The implementation computes the clip MSE on layer outputs using calibration activations.",
+        "Salient weights are rarely the group maximum, so clipping seldom touches them.",
+        "A clip-ratio search is validated against output error."
+      ],
+      "do_not_infer": [
+        "Do not infer that clipping hurts AWQ's reported results.",
+        "Do not infer that the authors computed MSE on weights; the text does not say.",
+        "Do not infer that the paper claims clipping has a guarantee."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L2+L3: weight-MSE objective versus the output-error objective and the activation-aware principle",
+      "quotes": [
+        {
+          "text": "We further apply weight clipping to minimize the MSE error of quantization.",
+          "source": "paper",
+          "locator": "page 5, end of 'Searching to scale'"
+        },
+        {
+          "text": "L(s) = ∥Q(W · diag(s))(diag(s)−1 · X) −WX∥",
+          "source": "paper",
+          "locator": "page 4, Eq. 4"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Output error is the sum over input channels of weight error times activation. A weight-space MSE treats all channels equally and ignores activation magnitude. Clipping an outlier weight adds a large error on that weight, which is exactly the error that large-activation channels amplify. If the clipping objective is computed on weights, it could remove a salient outlier weight, lowering weight MSE while raising output error. This would work against the activation-aware principle. The paper does not say whether the MSE is taken on weights or on outputs, so this applies only under the weight-space reading."
+    },
+    {
+      "headline": "Clipping outlier weights conflicts with the Δ′≈Δ assumption behind the scaling derivation",
+      "claim": "The scaling analysis assumes scaling one element does not change the group maximum, so Δ′≈Δ. Clipping directly changes the group maximum and therefore Δ. The text does not say whether clipping is applied before or after scale search, so it is unclear whether the derived error ratio Δ′/Δ·1/s still describes the deployed quantizer.",
+      "paper_fact": "Scaling up a single element w usually does not change the maximum value from the group w.",
+      "premise": "In absmax quantization, the step size Δ is set by the largest-magnitude weight in the group. Clipping lowers that maximum, so Δ shrinks, and scaling then interacts with the new Δ.",
+      "inference": "If scales are searched on unclipped weights and clipping is applied afterward, the chosen α was optimized for a different Δ than the one used at inference. If clipping comes first, the Δ′≈Δ analysis applies to the clipped weights. The text does not say which order is used.",
+      "conditional_consequence": "If clipping is applied after scale search and shrinks Δ for groups containing salient channels, the scale factor may be mis-tuned for the final quantizer. Whether this matters in practice cannot be judged from the text.",
+      "critical_link": "The order of the clipping and scaling stages, and whether α is re-searched after clipping.",
+      "necessary_conditions": [
+        "The clip is applied to groups where the maximum weight is reduced.",
+        "The scale search was run on a different weight state than the deployed one."
+      ],
+      "defeaters": [
+        "Clipping is nested inside the α grid search, so the loss sees the clipped quantizer.",
+        "The clip ratio is close to 1 for most groups, leaving Δ nearly unchanged."
+      ],
+      "do_not_infer": [
+        "Do not infer that the paper's Table 2 statistics were computed with clipping.",
+        "Do not infer that the implementation uses a specific order; no code was provided.",
+        "Do not infer a measured accuracy loss from this interaction."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L4: interaction of clipping with scaling through Δ and the unspecified ordering",
+      "quotes": [
+        {
+          "text": "Scaling up a single element w usually does not change the maximum value from the group w.",
+          "source": "paper",
+          "locator": "page 4, Section 3.2 'Analyzing the quantization error', point (2)"
+        },
+        {
+          "text": "We further apply weight clipping to minimize the MSE error of quantization.",
+          "source": "paper",
+          "locator": "page 5, end of 'Searching to scale'"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "In absmax quantization, the step size Δ is set by the largest-magnitude weight in the group. Clipping lowers that maximum, so Δ shrinks, and scaling then interacts with the new Δ. If scales are searched on unclipped weights and clipping is applied afterward, the chosen α was optimized for a different Δ than the one used at inference. If clipping comes first, the Δ′≈Δ analysis applies to the clipped weights. The text does not say which order is used."
+    },
+    {
+      "headline": "A batch-size-1 roofline derivation of a 4× W4A16 bound does not imply or guarantee the same benefit at larger batch sizes or long prompts",
+      "claim": "The case for weight-only 4-bit quantization is derived entirely in the batch-1, single-stream generation regime. The paper shows no analysis or measurement of how the benefit changes once batching or long prompts raise arithmetic intensity.",
+      "paper_fact": "We adopt an inference batch size of 1, catering for edge use cases",
+      "premise": "In a matrix-vector product each weight is read once per token, and with batching each weight read is reused across the batch. FLOPs per weight byte therefore grow roughly linearly with batch size, and a workload leaves the memory-bound regime once its intensity passes the device ridge point. Dequantization adds compute per weight, which is hidden behind memory time only while the kernel stays memory-bound.",
+      "inference": "Above some batch size or prompt length, memory traffic stops being the bottleneck. Weight-byte savings then buy less, and dequantization compute may become exposed. The paper's 'weight access dominates' conclusion is a batch-1 statement.",
+      "toy_example": "Illustration only, not a measurement. Take an idealized model that ignores activation traffic and dequantization compute. FP16 intensity is about B FLOPs/byte and W4A16 intensity is about 4B. This matches the paper's 1 and 4 at B=1. Against the 165 FLOPs/byte ridge point the paper quotes for the 4090, W4A16 would stop being memory-bound near B≈41. FP16 would stop near B≈165.",
+      "conditional_consequence": "If a deployment serves batches or long prompts beyond the break-even point, the 3-4× speedups reported at batch 1 should not be expected. W4A16 could even trail an FP16 kernel if dequantization overhead is no longer hidden. This last point is an inference, not something the paper reports.",
+      "critical_link": "The step from 'arithmetic intensity ≈ 1 at batch 1' to 'weight-only is the right design' assumes the workload stays memory-bound.",
+      "necessary_conditions": [
+        "Batch size is 1 and generation is single-stream.",
+        "Dequantization compute fits under memory time.",
+        "Activation and KV-cache traffic stay small relative to weight traffic."
+      ],
+      "defeaters": [
+        "Large batches, long prompts or speculative decoding raise arithmetic intensity.",
+        "Hardware with very low bandwidth relative to compute stays memory-bound longer.",
+        "Kernels that dequantize cheaply, for example via LUTs or tensor-core-friendly layouts, shift the break-even point."
+      ],
+      "do_not_infer": [
+        "Do not infer that AWQ is wrong for server serving; the paper only targets edge use.",
+        "Do not infer that W4A16 is slower than FP16 at any particular batch size; the paper does not measure this.",
+        "Do not infer that the paper claims the 4× bound holds beyond batch 1."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L5/L7: regime boundary, with the batch-size effect on the memory-bound assumption",
+      "quotes": [
+        {
+          "text": "We adopt an inference batch size of 1, catering for edge use cases",
+          "source": "paper, Sec. 4.1",
+          "locator": "page 5"
+        },
+        {
+          "text": "any workload with arithmetic intensity (the ratio of FLOPs to memory access) less than 165 is memory bounded on 4090 GPUs",
+          "source": "paper, Sec. 4.1 'Generation stage is memory-bound'",
+          "locator": "page 6"
+        },
+        {
+          "text": "Since weight-only quantization leads to a lower bit width for weights (and thus higher theoretical performance upper bound), it is natural for AWQ to follow this setting",
+          "source": "paper, Sec. 4.1",
+          "locator": "page 6"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "In a matrix-vector product each weight is read once per token, and with batching each weight read is reused across the batch. FLOPs per weight byte therefore grow roughly linearly with batch size, and a workload leaves the memory-bound regime once its intensity passes the device ridge point. Dequantization adds compute per weight, which is hidden behind memory time only while the kernel stays memory-bound. Above some batch size or prompt length, memory traffic stops being the bottleneck. Weight-byte savings then buy less, and dequantization compute may become exposed. The paper's 'weight access dominates' conclusion is a batch-1 statement."
+    },
+    {
+      "headline": "Fusing dequantization to avoid DRAM writes does not guarantee a net kernel speedup",
+      "claim": "Fusion removes the intermediate FP16 weight write to DRAM. It does not by itself ensure lower latency, because the per-weight ALU work stays in the main loop and costs about three times the useful FMA.",
+      "paper_fact": "dequantizing a single 4-bit weight involves 1 shift, 1 bitwise AND, and 1 FMA scaling operations, while the dequantized weight undergoes only 1 FMA computation",
+      "premise": "General knowledge: a kernel's latency is set by the slower of memory traffic and arithmetic. Trading bytes for extra instructions only helps while the arithmetic fits inside time already spent waiting on memory.",
+      "inference": "Fusion lowers the memory term and raises the ALU term. The net effect depends on whether the added instructions stay hidden under the memory time. The paper reports speedups only where the kernel is memory-bound.",
+      "toy_example": "Illustration only, not a measurement: if a tile needs 10 time units of ALU work after fusion but only 6 units of memory time, latency is set by the ALU and the byte savings are not visible.",
+      "conditional_consequence": "If ALU or SIMD throughput, not DRAM bandwidth, limits the kernel, the fused dequantization kernel will not deliver the bandwidth-derived speedup, and could be slower than a baseline with a cheaper dequantization path.",
+      "critical_link": "Whether the three-ops-per-weight dequantization cost stays hidden under memory latency.",
+      "necessary_conditions": [
+        "The workload is memory-bound with spare ALU capacity.",
+        "Dequantization instructions overlap with memory loads in the main loop."
+      ],
+      "defeaters": [
+        "SIMD-aware packing reduces the instruction count per weight (the paper reports up to 1.2x on ARM).",
+        "A GPU with large ALU headroom hides the extra work."
+      ],
+      "do_not_infer": [
+        "Do not infer that fusion is slower than writing FP16 weights to DRAM in the paper's reported batch-1 settings.",
+        "Do not infer that the authors claim fusion alone guarantees speedup. They say it 'remains expensive'."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1/L6",
+      "quotes": [
+        {
+          "text": "On-the-fly weight dequantization reduces intermediate DRAM access, but remains expensive.",
+          "source": "paper",
+          "locator": "Section 4.2, SIMD-aware weight packing"
+        },
+        {
+          "text": "dequantizing a single 4-bit weight involves 1 shift, 1 bitwise AND, and 1 FMA scaling operations, while the dequantized weight undergoes only 1 FMA computation",
+          "source": "paper",
+          "locator": "Section 4.2, SIMD-aware weight packing"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "General knowledge: a kernel's latency is set by the slower of memory traffic and arithmetic. Trading bytes for extra instructions only helps while the arithmetic fits inside time already spent waiting on memory. Fusion lowers the memory term and raises the ALU term. The net effect depends on whether the added instructions stay hidden under the memory time. The paper reports speedups only where the kernel is memory-bound."
+    },
+    {
+      "headline": "A 4x theoretical memory-bound speedup does not guarantee the realized speedup of fused dequantization kernels",
+      "claim": "The paper derives a roofline bound of about 4x for W4A16. Because dequantization must sit in the main loop and costs extra instructions, the realized speedup depends on weight layout and instruction set. It is not fixed by the 4x byte reduction.",
+      "paper_fact": "As a result, its dequantization must be incorporated into the primary computation loop for optimal performance, posing implementation challenges.",
+      "premise": "General knowledge: the roofline bound assumes traffic is the only cost. Any added instruction work in the main loop lowers the achievable fraction of that bound, especially on narrow-SIMD CPUs.",
+      "inference": "Fused dequantization is coupled to the packing layout. The paper's own CPU example needs a platform-specific layout (reported up to 1.2x) to cut unpacking to three SIMD instructions per 32 weights, versus three per weight in conventional packing. The fused kernel's benefit is therefore not a property of fusion alone.",
+      "toy_example": "Illustration only, not a measurement: a conventional layout needs 3 scalar ops per weight, so 32 weights cost 96 ops, versus 3 SIMD ops for the reordered layout.",
+      "conditional_consequence": "If a new hardware target lacks a matching packing layout, fused dequantization would fall further below the 4x bound, so reported GPU speedups of about 3.2-3.3x do not carry over to CPUs.",
+      "critical_link": "The match between the weight packing layout and the device's SIMD width and instruction set.",
+      "necessary_conditions": [
+        "A device-specific offline reordering is available.",
+        "The kernel is memory-bound enough to hide the residual unpacking cost."
+      ],
+      "defeaters": [
+        "Hardware with native INT4-FP16 multiply instructions would remove the need for the extra dequantization ops.",
+        "A generic layout that already aligns with the SIMD width."
+      ],
+      "do_not_infer": [
+        "Do not infer that the paper claims a measured 4x speedup. It reports about 3.2-3.3x on GPUs.",
+        "Do not infer that fusion without custom packing is useless."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L3/L4/L6",
+      "quotes": [
+        {
+          "text": "its dequantization must be incorporated into the primary computation loop for optimal performance, posing implementation challenges.",
+          "source": "paper",
+          "locator": "Section 4, opening"
+        },
+        {
+          "text": "This process is particularly costly on CPUs with SIMD architecture that favor vectorized instructions.",
+          "source": "paper",
+          "locator": "Section 4.2, SIMD-aware weight packing"
+        },
+        {
+          "text": "Quantizing the model weights to 4 bit integers will approximately increase the arithmetic intensity to 4 FLOPs/Byte, leading to a 4TFLOPS peak performance",
+          "source": "paper",
+          "locator": "Section 4.1, Weight access dominates memory traffic"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "General knowledge: the roofline bound assumes traffic is the only cost. Any added instruction work in the main loop lowers the achievable fraction of that bound, especially on narrow-SIMD CPUs. Fused dequantization is coupled to the packing layout. The paper's own CPU example needs a platform-specific layout (reported up to 1.2x) to cut unpacking to three SIMD instructions per 32 weights, versus three per weight in conventional packing. The fused kernel's benefit is therefore not a property of fusion alone."
+    },
+    {
+      "headline": "Platform-specific SIMD weight packing conflicts with a single portable quantized weight file",
+      "claim": "The packing order is tied to each device's SIMD width, and the GPU uses a different order from the ARM NEON one. A weight file packed for one platform therefore cannot be loaded directly on another. The AWQ quantization step is device-independent, but the packed layout is not.",
+      "paper_fact": "we suggest platform-specific weight packing tailored to the bitwidth of a device's SIMD units",
+      "premise": "A packed layout fixes which weight index sits in which register lane and nibble. A kernel that unpacks with a fixed mask and shift pattern is only correct for the layout it was written for.",
+      "inference": "The NEON order (w0, w16, w1, w17, ...) differs from the GPU order (w{0,2,4,6,1,3,5,7}). A file packed for one cannot be fed to the other's kernel without an offline repack. The number of stored layouts, or repack runs, then grows with the number of target platforms.",
+      "toy_example": "Illustrative only, not a measurement: with 3 target platforms (NEON CPU, a CUDA GPU, a wider-SIMD CPU) you would maintain or regenerate 3 packed variants of the same 4-bit model.",
+      "conditional_consequence": "If one model is distributed to several device types, then each device type needs its own packed copy, or an offline conversion step, before the fast kernel is valid.",
+      "critical_link": "The unpack kernel's correctness depends on a device-specific weight order produced offline.",
+      "necessary_conditions": [
+        "Target devices differ in SIMD register width or in the kernel's expected order",
+        "The fast unpack kernel assumes the packed order and has no layout-agnostic fallback"
+      ],
+      "defeaters": [
+        "A runtime repack at load time moves the cost out of distribution and into startup",
+        "Two platforms with the same SIMD width and kernel may share a layout",
+        "The authors may ship a generic slower path that accepts the unpacked order"
+      ],
+      "do_not_infer": [
+        "That the paper reports a repacking cost or a per-device file-size burden",
+        "That AWQ's quantized values or accuracy change across platforms",
+        "That the paper's PyTorch forward pass is not reusable; it states that code is reused across GPU architectures"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L3+L6 (SIMD-width coupling and offline repack/portability)",
+      "quotes": [
+        {
+          "text": "we suggest platform-specific weight packing tailored to the bitwidth of a device's SIMD units",
+          "source": "paper, Section 4.2 (SIMD-aware weight packing)",
+          "locator": "page 6"
+        },
+        {
+          "text": "On GPUs, we found it more efficient to pack each 8 weights into w{0,2,4,6,1,3,5,7} following (Kim et al., 2022).",
+          "source": "paper, Section 4.2",
+          "locator": "page 6"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A packed layout fixes which weight index sits in which register lane and nibble. A kernel that unpacks with a fixed mask and shift pattern is only correct for the layout it was written for. The NEON order (w0, w16, w1, w17, ...) differs from the GPU order (w{0,2,4,6,1,3,5,7}). A file packed for one cannot be fed to the other's kernel without an offline repack. The number of stored layouts, or repack runs, then grows with the number of target platforms."
+    },
+    {
+      "headline": "The stated general SIMD-width rule does not guarantee a ready packing for other widths or for INT3",
+      "claim": "The paper gives a rule for choosing the index offset for any 2^n-bit register. The mechanism is built and described for 4-bit weights, where two weights share a byte and an AND/shift extracts each. The paper also uses INT3 for quantization quality, but its packing and unpack description is only for 4-bit. Extending to INT3 or other non-power-of-two widths is left unaddressed.",
+      "paper_fact": "Generally, for 2n-bit SIMD registers, adjacent weights will have indices off by 1/8 × 2n, since each register can hold 1/8 × 2n 8-bit integers.",
+      "premise": "A nibble layout gives byte-aligned halves, so one mask and one shift separate the low and high weights. Bit widths that do not divide a byte evenly (such as 3) put weights across byte boundaries, so the same AND/shift pattern does not extract them.",
+      "inference": "The offset rule is derived from 8-bit lanes holding unpacked 4-bit values. It specifies where weights go within registers but does not address non-nibble widths. The paper states TinyChat is for 4-bit models, so INT3 models would not get this fast path as described.",
+      "toy_example": "Illustrative only, not a measurement: with 3-bit weights, 8 weights occupy 24 bits, so a weight can straddle a byte boundary and a single 0x0F-style mask cannot isolate it.",
+      "conditional_consequence": "If a deployment uses INT3 or another non-4-bit format, then the described mask-and-shift unpack and the 1/8 x 2^n offset rule cannot be applied as given, and a new layout and kernel would be needed.",
+      "critical_link": "The unpack trick relies on two 4-bit values per byte, which is specific to nibble-aligned widths.",
+      "necessary_conditions": [
+        "Weights are stored at a width that divides a byte evenly, as 4-bit does",
+        "The kernel unpacks with AND and shift on byte-aligned lanes"
+      ],
+      "defeaters": [
+        "A different packing scheme (for example bit-plane or lookup based) could handle INT3 efficiently",
+        "The authors may have unreported kernels for other widths, such as in the released repository"
+      ],
+      "do_not_infer": [
+        "That AWQ quantization itself fails for INT3; the paper reports INT3 accuracy results",
+        "That the SIMD packing is incorrect for 4-bit or for the platforms tested",
+        "That the paper claims the rule works for every bit width"
+      ],
+      "disclosure": "inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L5+L7 (bit-level regularity and changing SIMD widths)",
+      "quotes": [
+        {
+          "text": "Generally, for 2n-bit SIMD registers, adjacent weights will have indices off by 1/8 × 2n, since each register can hold 1/8 × 2n 8-bit integers.",
+          "source": "paper, Section 4.2",
+          "locator": "page 6"
+        },
+        {
+          "text": "an efficient and flexible inference framework tailored for 4-bit on-device LLM/VLMs",
+          "source": "paper, Abstract",
+          "locator": "page 1"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A nibble layout gives byte-aligned halves, so one mask and one shift separate the low and high weights. Bit widths that do not divide a byte evenly (such as 3) put weights across byte boundaries, so the same AND/shift pattern does not extract them. The offset rule is derived from 8-bit lanes holding unpacked 4-bit values. It specifies where weights go within registers but does not address non-nibble widths. The paper states TinyChat is for 4-bit models, so INT3 models would not get this fast path as described."
+    },
+    {
+      "headline": "Launch-overhead savings from kernel fusion at batch size 1 do not guarantee similar gains at larger batches or on slower kernels",
+      "claim": "The paper's justification for fusion is that individual FP16 kernels on the 4090 take about 0.01 ms, comparable to launch overhead, in a batch-1 decode benchmark. That justification is specific to this regime, and the same fusion should help less once per-kernel compute time grows.",
+      "paper_fact": "Notably, the computation time for each FP16 kernel is in the order of 0.01ms on the 4090 GPU, comparable to the GPU kernel launch overhead. Hence, reducing number of kernel calls through kernel fusion leads to direct speedups.",
+      "premise": "Launch overhead is roughly a fixed cost per kernel call, while kernel runtime grows with work. Larger batches or slower devices raise runtime and shrink the launch-overhead fraction. CUDA graphs or similar runtimes can also remove launch cost without fusing kernels.",
+      "inference": "Fusion's relative benefit is largest when kernel runtime is close to launch latency, which holds for tiny batch-1 kernels on a fast GPU. Outside that regime the savings are a smaller share of total latency, so the 1.2x Llama-2-7B fusion gain should not be assumed to transfer.",
+      "toy_example": "Illustrative only, not a measurement: with a fixed 0.01 ms launch cost, a 0.01 ms kernel spends half its time launching. A 0.1 ms kernel spends under 10% of its time launching, so removing launches gives a much smaller gain.",
+      "conditional_consequence": "If the workload moves to batched serving or the kernels become longer, the fusion share of the reported speedup would decrease. A baseline with CUDA graphs would also reduce it.",
+      "critical_link": "The paper's quantitative argument for fusion is tied to the 0.01 ms kernel time on the 4090 and to the batch-1 protocol. Neither is shown to hold elsewhere.",
+      "necessary_conditions": [
+        "Kernel compute time is comparable to launch latency.",
+        "The baseline pays per-kernel launch costs without graph capture or equivalent.",
+        "Decode is run at small batch size."
+      ],
+      "defeaters": [
+        "Quantized matmuls get faster, so non-matmul overhead becomes a larger fraction and fusion's value can rise even at the same batch size.",
+        "Fusion also removes intermediate DRAM traffic, which helps independently of launch overhead."
+      ],
+      "do_not_infer": [
+        "Do not infer that fusion is ineffective at larger batches; only that the paper does not show it.",
+        "Do not infer that Orin or 4070 kernels have a particular runtime; the paper gives the 0.01 ms figure only for the 4090.",
+        "Do not infer that the paper claims fusion helps at all batch sizes; it states the batch-1 protocol."
+      ],
+      "disclosure": "inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L5",
+      "quotes": [
+        {
+          "text": "Notably, the computation time for each FP16 kernel is in the order of 0.01ms on the 4090 GPU, comparable to the GPU kernel launch overhead.",
+          "source": "paper Sec. 4.2 Kernel fusion",
+          "locator": "page 6"
+        },
+        {
+          "text": "We perform batch size = 1 inference for all LLMs using a fixed prompt length of 4 tokens.",
+          "source": "paper Sec. 5.4 Settings",
+          "locator": "page 11"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Launch overhead is roughly a fixed cost per kernel call, while kernel runtime grows with work. Larger batches or slower devices raise runtime and shrink the launch-overhead fraction. CUDA graphs or similar runtimes can also remove launch cost without fusing kernels. Fusion's relative benefit is largest when kernel runtime is close to launch latency, which holds for tiny batch-1 kernels on a fast GPU. Outside that regime the savings are a smaller share of total latency, so the 1.2x Llama-2-7B fusion gain should not be assumed to transfer."
+    }
+  ],
+  "dropped_for_unverified_quotes": 0,
+  "chunk_count": 13,
+  "chunk_failures": 0,
+  "chunk_timings": [
+    {
+      "seconds": 39.11363854911178,
+      "attempts": 1
+    },
+    {
+      "seconds": 37.51797693106346,
+      "attempts": 1
+    },
+    {
+      "seconds": 28.820287348004058,
+      "attempts": 1
+    },
+    {
+      "seconds": 30.870116173056886,
+      "attempts": 1
+    },
+    {
+      "seconds": 36.48023971589282,
+      "attempts": 1
+    },
+    {
+      "seconds": 35.08372593880631,
+      "attempts": 1
+    },
+    {
+      "seconds": 40.51002109609544,
+      "attempts": 1
+    },
+    {
+      "seconds": 31.399624705081806,
+      "attempts": 1
+    },
+    {
+      "seconds": 32.350154381012544,
+      "attempts": 1
+    },
+    {
+      "seconds": 41.472669365117326,
+      "attempts": 1
+    },
+    {
+      "seconds": 46.34972363803536,
+      "attempts": 1
+    },
+    {
+      "seconds": 31.626788046211004,
+      "attempts": 1
+    },
+    {
+      "seconds": 37.06698178104125,
+      "attempts": 1
+    }
+  ],
+  "inventory_seconds": 100.92734828894027,
+  "chunks_seconds": 175.2428908040747,
+  "merged_candidates": 1,
+  "unverified_kept": 30
+}

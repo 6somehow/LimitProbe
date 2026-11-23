@@ -1,0 +1,483 @@
+{
+  "candidates": [
+    {
+      "category_code": "applicability_limitation",
+      "claim": "NNSmith is applicable only to systems that accept ONNX models and to operators that PyTorch can export to ONNX.",
+      "mechanism": "Implementation exports models to ONNX -> compiler under test must accept ONNX -> non-ONNX frontends or non-exportable operators cannot be tested.",
+      "conditions": "The system under test must support ONNX input, and the relevant operators must be exportable by PyTorch’s ONNX exporter.",
+      "consequence": "Native IRs, non-ONNX frontends, and operators unsupported by the exporter are outside the testable scope.",
+      "defeaters": "If the system has ONNX support or the study only targets ONNX-compatible compilers, this limitation is less relevant.",
+      "disclosure": "inferred",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "readily applicable to any systems with ONNX support",
+          "locator": "§7, p.12"
+        },
+        {
+          "source": "paper",
+          "quote": "export the model to the deployment-friendly ONNX [2] format using PyTorch’s exporter.",
+          "locator": "§4, p.7"
+        }
+      ],
+      "locator": "§4, p.7; §7, p.12",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§7, p.12",
+          "support_description": "readily applicable to any systems with ONNX support"
+        },
+        {
+          "source_id": "paper",
+          "location": "§4, p.7",
+          "support_description": "export the model to the deployment-friendly ONNX [2] format using PyTorch’s exporter."
+        }
+      ]
+    },
+    {
+      "category_code": "method_shortcoming",
+      "claim": "Using PyTorch as the differential-testing oracle can misattribute converter bugs and produce false positives when PyTorch itself is wrong.",
+      "mechanism": "Paper regards PyTorch results as the oracle -> if PyTorch’s converter is inconsistent, a disagreement may come from the converter or the compiler -> fault localization becomes uncertain.",
+      "conditions": "PyTorch’s converter can be wrong, and no independent oracle or O0 comparison fully resolves the disagreement.",
+      "consequence": "Some reported failures may be false alarms or may be attributed to the wrong component.",
+      "defeaters": "If PyTorch is correct for the tested model or an independent oracle confirms the compiler bug, this limitation is irrelevant.",
+      "disclosure": "reported_in_paper",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "we regard PyTorch’s results as the oracle",
+          "locator": "§4, p.7"
+        },
+        {
+          "source": "paper",
+          "quote": "In rare cases value inconsistency (1 out of 72 in our bug finding) can happen in PyTorch’s converter which makes it unclear whether the bug comes from the converter or the compiler.",
+          "locator": "§4, p.7"
+        }
+      ],
+      "locator": "§4, p.7",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§4, p.7",
+          "support_description": "we regard PyTorch’s results as the oracle"
+        },
+        {
+          "source_id": "paper",
+          "location": "§4, p.7",
+          "support_description": "In rare cases value inconsistency (1 out of 72 in our bug finding) can happen in PyTorch’s converter which makes it unclear whether the bug comes from the converter or the compiler."
+        }
+      ]
+    },
+    {
+      "category_code": "method_shortcoming",
+      "claim": "The high floating-point error tolerance used for differential testing can miss small semantic bugs while still allowing some false alarms.",
+      "mechanism": "Floating-point optimizations can change outputs -> paper uses a high error tolerance -> small real semantic differences may be accepted, while large relative changes can still trigger false alarms.",
+      "conditions": "Floating-point non-associativity or tolerance thresholds affect the compared outputs.",
+      "consequence": "The approach may produce both false negatives and false positives in bug detection.",
+      "defeaters": "If exact equivalence is available or the tolerance is carefully calibrated per operator, this limitation is reduced.",
+      "disclosure": "reported_in_paper",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "we use a high error tolerance in comparison.",
+          "locator": "§5.4, p.11"
+        },
+        {
+          "source": "paper",
+          "quote": "valid optimizations can lead to a large relative change in outputs and produce false alarms.",
+          "locator": "§5.4, p.11"
+        }
+      ],
+      "locator": "§5.4, p.11",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§5.4, p.11",
+          "support_description": "we use a high error tolerance in comparison."
+        },
+        {
+          "source_id": "paper",
+          "location": "§5.4, p.11",
+          "support_description": "valid optimizations can lead to a large relative change in outputs and produce false alarms."
+        }
+      ]
+    },
+    {
+      "category_code": "applicability_limitation",
+      "claim": "Models with no numerically valid inputs or with hard input search are skipped when the gradient-guided search exhausts its time budget.",
+      "mechanism": "Search throws an exception if the time budget is exhausted -> if no valid inputs exist, outputs cannot be compared -> the model is not tested.",
+      "conditions": "The generated model must have at least one numerically valid input assignment, and the search must find it within the budget.",
+      "consequence": "Some generated models are discarded, reducing effective coverage and potentially missing bugs.",
+      "defeaters": "If valid inputs are found quickly or the model is excluded from the intended test scope, this limitation is irrelevant.",
+      "disclosure": "reported_in_paper",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "The algorithm throws an exception (Line 16) if it does not terminate within the time budget.",
+          "locator": "§3.3, p.7"
+        },
+        {
+          "source": "paper",
+          "quote": "We found that the most common reason for the search algorithm failing was that the model has no valid inputs.",
+          "locator": "§3.3, p.7"
+        }
+      ],
+      "locator": "§3.3, p.7",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§3.3, p.7",
+          "support_description": "The algorithm throws an exception (Line 16) if it does not terminate within the time budget."
+        },
+        {
+          "source_id": "paper",
+          "location": "§3.3, p.7",
+          "support_description": "We found that the most common reason for the search algorithm failing was that the model has no valid inputs."
+        }
+      ]
+    },
+    {
+      "category_code": "mechanism_origin_unclear",
+      "claim": "The paper reports that the main search failure is models having no valid inputs, but it does not explain which graph structures or operator constraints cause this condition.",
+      "mechanism": "Generated model -> no valid input assignment exists -> gradient search fails -> the paper does not analyze the root cause -> generation cannot be directly guided to avoid such models.",
+      "conditions": "A generated model has no numerically valid input assignment under the implemented loss functions and search budget.",
+      "consequence": "Search failures remain poorly understood, and the generator may repeatedly produce untestable models.",
+      "defeaters": "If later analysis identifies the structural causes or the generator is changed to avoid them, this limitation is resolved.",
+      "disclosure": "reported_in_paper",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "We found that the most common reason for the search algorithm failing was that the model has no valid inputs.",
+          "locator": "§3.3, p.7"
+        }
+      ],
+      "locator": "§3.3, p.7",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§3.3, p.7",
+          "support_description": "We found that the most common reason for the search algorithm failing was that the model has no valid inputs."
+        }
+      ]
+    },
+    {
+      "category_code": "method_shortcoming",
+      "claim": "The gradient search assumes that each loss function is positive exactly when its predicate is violated, which may not hold for complex operators.",
+      "mechanism": "Loss functions approximate tensor inequalities -> if the approximation is not exact, the optimizer may not reduce the true violation -> search may fail to avoid NaN/Inf.",
+      "conditions": "The operator’s valid domain is not exactly captured by the chosen loss function or the positive-if-violated assumption fails.",
+      "consequence": "Numeric validity search can fail or converge to inputs that still produce exceptional values.",
+      "defeaters": "If loss functions exactly encode the operator domain, this limitation is irrelevant.",
+      "disclosure": "inferred",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "our design assumes that a loss function is positive if and only if its associated predicate is violated by the operator’s input",
+          "locator": "§3.3, p.7"
+        }
+      ],
+      "locator": "§3.3, p.7",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§3.3, p.7",
+          "support_description": "our design assumes that a loss function is positive if and only if its associated predicate is violated by the operator’s input"
+        }
+      ]
+    },
+    {
+      "category_code": "method_shortcoming",
+      "claim": "Proxy derivatives used for non-differentiable or zero-gradient operators can misguide the gradient search and reduce its success rate.",
+      "mechanism": "Actual gradients are unavailable or zero -> proxy derivatives are used -> the update direction may not reduce the true loss -> search becomes slower or fails.",
+      "conditions": "The graph contains operators such as Floor, Ceil, or ReLU regions where actual gradients are unavailable or zero.",
+      "consequence": "Numeric validity search may require more time or fail for models with many such operators.",
+      "defeaters": "If actual gradients are available or proxy derivatives are well calibrated, this limitation is reduced.",
+      "disclosure": "inferred",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "some operators are either undifferentiable for some inputs (e.g., Floor, Ceil, and other operators cannot be differentiated at integers) or have zero gradient in some region (e.g., ReLU has gradient 0 for all negative inputs), and this prevents backward propagation.",
+          "locator": "§3.3, p.7"
+        },
+        {
+          "source": "paper",
+          "quote": "For these functions, we use Proxy Derivative Functions [4] instead of actual derivatives during gradient propagation.",
+          "locator": "§3.3, p.7"
+        }
+      ],
+      "locator": "§3.3, p.7",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§3.3, p.7",
+          "support_description": "some operators are either undifferentiable for some inputs (e.g., Floor, Ceil, and other operators cannot be differentiated at integers) or have zero gradient in some region (e.g., ReLU has gradient 0 for all negative inputs), and this prevents backward propagation."
+        },
+        {
+          "source_id": "paper",
+          "location": "§3.3, p.7",
+          "support_description": "For these functions, we use Proxy Derivative Functions [4] instead of actual derivatives during gradient propagation."
+        }
+      ]
+    },
+    {
+      "category_code": "method_shortcoming",
+      "claim": "When attribute binning constraints make the solver unsatisfiable, NNSmith randomly drops half of them, which can reduce attribute diversity and miss boundary values.",
+      "mechanism": "Binning constraints are added -> the constraint system becomes unsatisfiable -> half the constraints are dropped -> attributes may collapse toward solver defaults -> less diverse operator instances are generated.",
+      "conditions": "The added binning constraints conflict with the graph’s existing constraints.",
+      "consequence": "Some attribute ranges and boundary values are under-explored, potentially missing bugs.",
+      "defeaters": "If specialized binning strategies avoid unsatisfiability or the dropped constraints are irrelevant, this limitation is reduced.",
+      "disclosure": "inferred",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "we randomly drop half of the constraints and retry, until it succeeds",
+          "locator": "§3.2, p.6"
+        },
+        {
+          "source": "paper",
+          "quote": "limiting the diversity of attributes in generated DNNs.",
+          "locator": "§3.2, p.5"
+        }
+      ],
+      "locator": "§3.2, p.5-6",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§3.2, p.6",
+          "support_description": "we randomly drop half of the constraints and retry, until it succeeds"
+        },
+        {
+          "source_id": "paper",
+          "location": "§3.2, p.5",
+          "support_description": "limiting the diversity of attributes in generated DNNs."
+        }
+      ]
+    },
+    {
+      "category_code": "method_shortcoming",
+      "claim": "SMT-based constraint solving introduces overhead that reduces the number of test cases generated within a fixed time budget.",
+      "mechanism": "Each insertion invokes constraint solving -> solving takes time -> fewer models are generated per hour -> fuzzing throughput is lower than generation without SMT.",
+      "conditions": "Constraint solving is a non-negligible cost relative to model execution and comparison.",
+      "consequence": "The approach may explore fewer models in the same wall-clock time, limiting coverage growth.",
+      "defeaters": "If the solver is fast or the generated models are much higher quality, the throughput loss may be acceptable.",
+      "disclosure": "reported_in_paper",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "with fewer test cases generated within the same time limit (mainly due to the overhead incurred by constraint solving)",
+          "locator": "§5.2, p.9"
+        }
+      ],
+      "locator": "§5.2, p.9",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§5.2, p.9",
+          "support_description": "with fewer test cases generated within the same time limit (mainly due to the overhead incurred by constraint solving)"
+        }
+      ]
+    },
+    {
+      "category_code": "applicability_limitation",
+      "claim": "NNSmith generates only fully connected computation graphs, so it cannot directly test disconnected or multi-graph model structures.",
+      "mechanism": "The generation algorithm maintains connectivity -> disconnected models are not produced -> any bug requiring disconnected graphs is outside the generated space.",
+      "conditions": "The target bug or model pattern requires disconnected components or multiple independent graphs.",
+      "consequence": "Coverage and bug detection are limited to connected graph structures.",
+      "defeaters": "If disconnected models are rare or irrelevant for the target compilers, this limitation is less important.",
+      "disclosure": "inferred",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "designed to ensure that generated computation graphs are fully connected, as is the case with most real-world models.",
+          "locator": "§3.2, p.5"
+        }
+      ],
+      "locator": "§3.2, p.5",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§3.2, p.5",
+          "support_description": "designed to ensure that generated computation graphs are fully connected, as is the case with most real-world models."
+        }
+      ]
+    },
+    {
+      "category_code": "method_shortcoming",
+      "claim": "The default generated graph size of 10 nodes may miss bugs that require larger or deeper computation graphs.",
+      "mechanism": "Default graph size is set to 10 -> generated models have limited depth and operator count -> deep optimization or cross-operator bugs may not be triggered.",
+      "conditions": "The target bug requires more than 10 nodes or a deeper interaction chain.",
+      "consequence": "Some compiler bugs may remain undetected under the default configuration.",
+      "defeaters": "If the graph size is configured larger or the target bugs are shallow, this limitation is reduced.",
+      "disclosure": "inferred",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "we set the default generated graph size of NNSmith and GraphFuzzer to be 10.",
+          "locator": "§5.1, p.8"
+        }
+      ],
+      "locator": "§5.1, p.8",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§5.1, p.8",
+          "support_description": "we set the default generated graph size of NNSmith and GraphFuzzer to be 10."
+        }
+      ]
+    },
+    {
+      "category_code": "method_shortcoming",
+      "claim": "Inferring compiler operator support from single-operator models may not reflect context-dependent support in multi-operator graphs.",
+      "mechanism": "Single-operator models are compiled to infer support -> the support set is assumed to hold in larger graphs -> context-dependent failures or supported combinations may be missed.",
+      "conditions": "Operator support depends on graph context, data types, or combinations with other operators.",
+      "consequence": "Generated graphs may hit Not-Implemented errors or may avoid operators that are actually supported in context.",
+      "defeaters": "If operator support is context-independent, this limitation is irrelevant.",
+      "disclosure": "inferred",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "we infer the set of operators supported by the compiler being tested by trying to compile single-operator models with different data types.",
+          "locator": "§4, p.7"
+        }
+      ],
+      "locator": "§4, p.7",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§4, p.7",
+          "support_description": "we infer the set of operators supported by the compiler being tested by trying to compile single-operator models with different data types."
+        }
+      ]
+    },
+    {
+      "category_code": "applicability_limitation",
+      "claim": "Coverage evaluation excludes TensorRT because it is closed-source, so coverage claims are limited to ONNXRuntime and TVM.",
+      "mechanism": "TensorRT is closed-source -> source-level instrumentation is unavailable -> it is excluded from coverage evaluation -> coverage results do not generalize to TensorRT.",
+      "conditions": "The evaluation relies on source-level branch coverage and the system is closed-source.",
+      "consequence": "The paper provides no coverage evidence for TensorRT, limiting generality of the coverage conclusions.",
+      "defeaters": "If other metrics or black-box coverage proxies are used, this limitation is reduced.",
+      "disclosure": "reported_in_paper",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "Since TensorRT is closed-sourced, we exclude it for coverage evaluation.",
+          "locator": "§5.1, p.8"
+        }
+      ],
+      "locator": "§5.1, p.8",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§5.1, p.8",
+          "support_description": "Since TensorRT is closed-sourced, we exclude it for coverage evaluation."
+        }
+      ]
+    },
+    {
+      "category_code": "applicability_limitation",
+      "claim": "The four-hour fuzzing budget may not reach long-tail coverage or bugs that require longer exploration.",
+      "mechanism": "Fuzzers run for 4 hours by default -> coverage curves are assumed to converge -> long-tail branches and rare bugs may not be reached -> results may understate the method’s potential.",
+      "conditions": "The target compiler has long-tail behavior or bugs that require more than four hours to discover.",
+      "consequence": "Coverage and bug findings may be incomplete relative to longer runs.",
+      "defeaters": "If coverage truly converges within four hours or longer runs do not change conclusions, this limitation is irrelevant.",
+      "disclosure": "inferred",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "we run fuzzers for 4 hours by default (following Tzer [31]) as we observe that code coverage curves generally converge before that point",
+          "locator": "§5.1, p.8"
+        }
+      ],
+      "locator": "§5.1, p.8",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§5.1, p.8",
+          "support_description": "we run fuzzers for 4 hours by default (following Tzer [31]) as we observe that code coverage curves generally converge before that point"
+        }
+      ]
+    },
+    {
+      "category_code": "method_shortcoming",
+      "claim": "Filtering false positives by known structural patterns may leave unknown false-positive patterns undetected.",
+      "mechanism": "Some false positives share recognizable structures -> manual or pattern-based filtering removes them -> false positives with unknown structures remain -> bug reports may still contain false alarms.",
+      "conditions": "False positives arise from patterns not covered by the known filters.",
+      "consequence": "The reported bug set may include uncaught false positives.",
+      "defeaters": "If an independent oracle or automated equivalence check is used, this limitation is reduced.",
+      "disclosure": "inferred",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "false positives share similar structural patterns (e.g., Sigmoid followed by Floor and Equal for float-pointing inputs) that we can easily filter.",
+          "locator": "§5.4, p.11"
+        }
+      ],
+      "locator": "§5.4, p.11",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§5.4, p.11",
+          "support_description": "false positives share similar structural patterns (e.g., Sigmoid followed by Floor and Equal for float-pointing inputs) that we can easily filter."
+        }
+      ]
+    },
+    {
+      "category_code": "mechanism_origin_unclear",
+      "claim": "The paper reports that optimizing for one operator can make another operator invalid, but it says this is rare without explaining the underlying cause.",
+      "mechanism": "Multiple vulnerable operators exist -> switching loss functions can create oscillation -> the paper observes this is rare but does not analyze why -> search reliability under such interactions remains uncertain.",
+      "conditions": "A model contains multiple vulnerable operators whose valid domains interact.",
+      "consequence": "The search may fail unpredictably on some models, and the paper does not provide a principled fix.",
+      "defeaters": "If later analysis explains the oscillation or the search is modified to handle it, this limitation is resolved.",
+      "disclosure": "reported_in_paper",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "optimizing for one operator leads to another producing invalid outputs and vice-versa, we found that this to be rare in practice (it occurred less than 1% of the time).",
+          "locator": "§3.3, p.7"
+        }
+      ],
+      "locator": "§3.3, p.7",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§3.3, p.7",
+          "support_description": "optimizing for one operator leads to another producing invalid outputs and vice-versa, we found that this to be rare in practice (it occurred less than 1% of the time)."
+        }
+      ]
+    },
+    {
+      "category_code": "method_shortcoming",
+      "claim": "NNSmith uses random model generation without coverage feedback, which can waste effort on already-covered behavior and miss hard branches.",
+      "mechanism": "Operators and insertion directions are chosen randomly -> no coverage feedback guides generation -> effort is not focused on uncovered branches -> coverage growth may be less efficient than coverage-guided fuzzing.",
+      "conditions": "The target compiler has hard-to-reach branches that require feedback-guided exploration.",
+      "consequence": "The fuzzer may achieve lower coverage or find fewer bugs per unit time than a coverage-guided approach.",
+      "defeaters": "If random generation is sufficient for the target or coverage feedback is added, this limitation is reduced.",
+      "disclosure": "inferred",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "NNSmith generates random models that are valid",
+          "locator": "§3, p.4"
+        },
+        {
+          "source": "paper",
+          "quote": "we choose between forward and backward at every insertion randomly with equal probability.",
+          "locator": "§5.1, p.8"
+        }
+      ],
+      "locator": "§3, p.4; §5.1, p.8",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§3, p.4",
+          "support_description": "NNSmith generates random models that are valid"
+        },
+        {
+          "source_id": "paper",
+          "location": "§5.1, p.8",
+          "support_description": "we choose between forward and backward at every insertion randomly with equal probability."
+        }
+      ]
+    }
+  ],
+  "dropped_for_unverified_quotes": 3
+}

@@ -30,3 +30,23 @@ Rules: CLAUDE.md (Chinese; read it) and AGENTS.md. Never read or print anything 
 ## Checks
 - conda run -n findlimit python scripts/limitset/reproduce_tables.py --root results/limitset_final --out /tmp/codex-AR-5-1/tables.md -> exit 0, tables match the committed score.json numbers
 - /home/somehow6/miniconda3/envs/findlimit/bin/python -m pytest -q tests/test_limitset_bundle.py -> pass
+
+STATUS: BLOCKED
+COMMITS: pending controller commit
+EXECUTOR: codex; requested medium -> actual model id unavailable; effort unavailable
+SUMMARY: Added an allowlisted, pre-copy scanning bundler and offline table generator with a synthetic test. The bundler rejects the first source predictions file because it contains the forbidden literal sk-; it copies no files. Bundle, labels, and README remain undelivered. Total bundle size: 0 bytes (directory absent); all systems skipped because the scan aborted.
+CHECKS: conda run -n findlimit python scripts/limitset/bundle_results.py; BLOCKED (forbidden marker in out/limitset2/b1/predictions.jsonl; no copied files). conda run -n findlimit python scripts/limitset/reproduce_tables.py --root results/limitset_final --out /tmp/codex-AR-5-1/tables.md; INVALID_RUN (exit 0 but bundle absent, so no scores to match). conda run -n findlimit python -m pytest -q tests/test_limitset_bundle.py --basetemp=/tmp/codex-AR-5-1/pytest; PARTIAL (1 passed, 1 skipped because bundle absent). git status --short; PASS. git diff --check; PASS.
+GPU: none
+SELF-REVIEW: Scope: only allowed files and this return block changed. Safety: pre-copy scan rejected forbidden marker before writes; no input directories, PDFs or logs copied. Reproduction: synthetic case passes; real score verification blocked by absent bundle. Determinism and complete source coverage remain unverified on real data.
+RISKS: Source marker may be benign, but package explicitly requires failure on any occurrence; controller must resolve source content or change the requirement. README, labels, actual bundle and real-data checks still required. Bundler and table changes have not been validated against real output.
+
+CONTROLLER NOTE (retry AR-5b, same worktree): the bundler aborted because the literal 'sk-' occurs inside ordinary words of model output (for example 'task-independent'), not a key. Change the secret scan to key-SHAPED patterns only: regex sk-[A-Za-z0-9_-]{20,}, 'Bearer [A-Za-z0-9._-]{20,}', 'api[_-]?key["\x27 :=]+[A-Za-z0-9_-]{16,}', and the exact environment variable assignment pattern SOCLAAS_API_KEY=; still fail on any hit and print file:line of hits (never the matched secret text; print only the first 4 characters). Then finish ALL remaining deliverables: run the bundler, results/limitset_final/README.md, copy labels_en files, real-data test, report size. Source run outputs are in /home/somehow6/lesson/CS6223/cs6223-limitation-pipeline/out/ (read-only absolute paths).
+
+STATUS: PARTIAL
+COMMITS: pending controller commit
+EXECUTOR: codex; requested medium -> actual model id unavailable; effort unavailable
+SUMMARY: Bundled all 12 systems and scorer-only English labels after key-shaped and PDF scanning; added offline tables, tests, and README. Bundle size: 7,955,109 bytes; no systems skipped. Scanner aborts before copying on a match and reports only its first four characters and location.
+CHECKS: conda run -n findlimit python scripts/limitset/bundle_results.py; PASS (82 files). conda run -n findlimit python scripts/limitset/reproduce_tables.py --root results/limitset_final --out /tmp/codex-AR-5b-1/tables.md; PASS. conda run -n findlimit python -m pytest -q tests/test_limitset_bundle.py --basetemp=/tmp/codex-AR-5b-1/pytest; PASS (2 tests). git status --short; PASS. git diff --check; PASS.
+GPU: none
+SELF-REVIEW: Scope: changed only allowed paths and this return block. Safety: allowlisted files scanned before any copy; inputs, PDFs and logs excluded. Reproduction: synthetic bundle and real score counts tested; tables generated offline. No runtime pipeline behavior changed.
+RISKS: README lacks the requested real re-scoring command lines: the task limits reading to named files and does not name the scorer or its CLI, so those commands could not be verified without exceeding scope. Validation test checks repeat totals but does not bind each total to its row. Controller should supply verified re-scoring instructions.

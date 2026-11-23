@@ -1,0 +1,1022 @@
+{
+  "candidates": [
+    {
+      "headline": "Fine-grained QoS classes do not guarantee fairness across request lengths.",
+      "claim": "Defining interactive and non-interactive QoS classes with per-request deadlines does not ensure fair SLO attainment across short and long requests; fairness depends on hybrid prioritization, alpha, and relegation.",
+      "paper_fact": "As 𝛼 increases, the system increasingly deprioritizes longer requests. This significantly reduces median latency for all requests but comes at the cost of violating deadlines for most long requests.",
+      "premise": "QoS classes encode latency targets, not a fairness policy; scheduling priority and overload handling determine which requests actually meet those targets.",
+      "inference": "Because QoServe's priority formula includes an alpha-weighted remaining-work term and relegation can drop requests, fine-grained classes alone cannot guarantee fair treatment; the paper's own alpha sweep shows a median-vs-long-request tradeoff.",
+      "toy_example": "Not a measurement: two requests share a QoS class but have different remaining prefill lengths; with a large alpha, the shorter one is scheduled first and the longer one may miss its deadline.",
+      "conditional_consequence": "Under overload or aggressive alpha tuning, long requests in a class may be deprioritized even though the class's SLO is nominally the same.",
+      "critical_link": "The link is that QoS class -> deadline does not specify a tie-break or fairness rule; the scheduler's alpha and relegation policy fill that gap and can shift violations toward long requests.",
+      "necessary_conditions": [
+        "Alpha is tuned for load",
+        "Priority hints are available for relegation",
+        "Fairness is evaluated separately from median latency",
+        "Long and short requests share QoS classes"
+      ],
+      "defeaters": [
+        "Paper reports QoServe does not deprioritize long requests under normal conditions",
+        "Paper reports QoServe balances EDF and SRPF extremes",
+        "Alpha is load-adaptive"
+      ],
+      "do_not_infer": [
+        "Do not infer that QoServe is unfair overall",
+        "Do not infer that QoS classes cause unfairness",
+        "Author boundary: the paper does not claim fine-grained QoS classes alone guarantee fairness"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L6_shifted_cost_threshold",
+      "quotes": [
+        {
+          "quote": "As 𝛼 increases, the system increasingly deprioritizes longer requests. This significantly reduces median latency for all requests but comes at the cost of violating deadlines for most long requests.",
+          "source": "paper",
+          "locator": "page 12, §4.4.1"
+        },
+        {
+          "quote": "QoServe proactively relegates high-priority requests that have violated their deadlines to prevent cascading deadline violations.",
+          "source": "paper",
+          "locator": "page 6, §3.4"
+        },
+        {
+          "quote": "It does not deprioritize long requests under normal conditions. During overload, it adjusts the 𝛼 parameter (§3) to incorporate SRPF-like behavior.",
+          "source": "paper",
+          "locator": "page 11, §4.2"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "page 12, §4.4.1",
+          "support_description": "As 𝛼 increases, the system increasingly deprioritizes longer requests. This significantly reduces median latency for all requests but comes at the cost of violating deadlines for most long requests."
+        },
+        {
+          "source_id": "paper",
+          "location": "page 6, §3.4",
+          "support_description": "QoServe proactively relegates high-priority requests that have violated their deadlines to prevent cascading deadline violations."
+        },
+        {
+          "source_id": "paper",
+          "location": "page 11, §4.2",
+          "support_description": "It does not deprioritize long requests under normal conditions. During overload, it adjusts the 𝛼 parameter (§3) to incorporate SRPF-like behavior."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "QoS classes encode latency targets, not a fairness policy; scheduling priority and overload handling determine which requests actually meet those targets. Because QoServe's priority formula includes an alpha-weighted remaining-work term and relegation can drop requests, fine-grained classes alone cannot guarantee fair treatment; the paper's own alpha sweep shows a median-vs-long-request tradeoff."
+    },
+    {
+      "headline": "Eager relegation does not imply or guarantee bounded completion latency for relegated requests.",
+      "claim": "Eager relegation's opportunistic service does not imply or guarantee bounded completion latency for relegated requests.",
+      "paper_fact": "The relegated requests are serviced opportunistically during periods of lower system load, ensuring eventual completion without permanent rejection",
+      "premise": "Opportunistic service depends on future idle capacity; without a capacity reservation or admission bound, a queue can grow without a finite completion bound.",
+      "inference": "The paper's 'eventual completion' is conditional on lower-load periods; it is not a bounded-latency guarantee for relegated requests.",
+      "toy_example": "Not a measurement: a queue receives 100 requests/s and serves 90/s only when no overload; if overload never drops, the queue grows by 10/s.",
+      "conditional_consequence": "If overload persists and no lower-load periods occur, relegated requests can wait arbitrarily long or until admission/queue limits intervene.",
+      "critical_link": "The link is 'opportunistically during periods of lower system load' versus 'ensuring eventual completion'; eventual completion requires future capacity, not just queueing.",
+      "necessary_conditions": [
+        "Load eventually drops below capacity or capacity is reserved for relegated requests",
+        "Relegated queue is bounded or admission control prevents unbounded growth",
+        "Requests remain in system and are not permanently rejected"
+      ],
+      "defeaters": [
+        "Reserved capacity for relegated queue",
+        "Bounded queue with admission control",
+        "Guaranteed lower-load periods or deadline for relegated requests"
+      ],
+      "do_not_infer": [
+        "Do not infer the paper guarantees bounded latency for relegated requests",
+        "Do not infer relegated requests are permanently rejected",
+        "Do not infer the 3900s observed maximum is a general bound"
+      ],
+      "author_boundaries": [
+        "Paper reports eventual completion, not a bounded-latency guarantee.",
+        "Paper's 3900s is an observed maximum in one transient-overload experiment, not a general bound."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L7_bottleneck_over_scale_time",
+      "quotes": [
+        {
+          "quote": "The relegated requests are serviced opportunistically during periods of lower system load, ensuring eventual completion without permanent rejection",
+          "source": "paper",
+          "locator": "§3.1, p.4"
+        },
+        {
+          "quote": "For relegated requests in QoServe, the maximum latency observed was no more than 3900s",
+          "source": "paper",
+          "locator": "§4.3, p.12"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§3.1, p.4",
+          "support_description": "The relegated requests are serviced opportunistically during periods of lower system load, ensuring eventual completion without permanent rejection"
+        },
+        {
+          "source_id": "paper",
+          "location": "§4.3, p.12",
+          "support_description": "For relegated requests in QoServe, the maximum latency observed was no more than 3900s"
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Opportunistic service depends on future idle capacity; without a capacity reservation or admission bound, a queue can grow without a finite completion bound. The paper's 'eventual completion' is conditional on lower-load periods; it is not a bounded-latency guarantee for relegated requests."
+    },
+    {
+      "headline": "A current-iteration will-violate check does not imply or guarantee accurate prediction of all future deadline violations.",
+      "claim": "A per-iteration will-violate check does not imply or guarantee accurate prediction of all future deadline violations.",
+      "paper_fact": "The violation checker module validates that the chosen request has not already violated (or will not violate) its QoS targets in the current iteration.",
+      "premise": "A per-iteration deadline check is a local proxy; it cannot by itself guarantee future deadline satisfaction when execution time, load, or queue state changes.",
+      "inference": "The will-violate check can miss future violators or relegate based on current-iteration prediction; it is not a guarantee of zero future violations.",
+      "toy_example": "Not a measurement: a request passes the current-iteration check, then a longer-than-predicted decode causes a later TTLT miss.",
+      "conditional_consequence": "If per-iteration execution time or load changes after the check, a request not relegated may later violate its deadline.",
+      "critical_link": "The link is 'in the current iteration'—the check's scope is local, while deadline satisfaction is over the request's remaining lifetime.",
+      "necessary_conditions": [
+        "The per-iteration violation check is the only mechanism deciding relegation",
+        "Future execution time and load are not perfectly known at check time",
+        "No later re-evaluation corrects a missed future violation"
+      ],
+      "defeaters": [
+        "Conservative check that over-relegates",
+        "Accurate predictor with feedback",
+        "Re-evaluation each iteration catches future violations"
+      ],
+      "do_not_infer": [
+        "Do not infer the check is useless",
+        "Do not infer the paper claims perfect future-violation prediction",
+        "Do not infer all future violations are missed"
+      ],
+      "author_boundaries": [
+        "Paper reports a current-iteration violation check, not a perfect future-deadline predictor.",
+        "Paper's evaluation does not claim zero future violations from the check alone."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1_proxy_guarantee",
+      "quotes": [
+        {
+          "quote": "The violation checker module validates that the chosen request has not already violated (or will not violate) its QoS targets in the current iteration.",
+          "source": "paper",
+          "locator": "§3.1, p.4"
+        },
+        {
+          "quote": "if a request has already violated its TTFT / TTLT deadline, or is about to violate it in the current iteration, then QoServe de-prioritizes this request into a relegated queue.",
+          "source": "paper",
+          "locator": "§3.4, p.6"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§3.1, p.4",
+          "support_description": "The violation checker module validates that the chosen request has not already violated (or will not violate) its QoS targets in the current iteration."
+        },
+        {
+          "source_id": "paper",
+          "location": "§3.4, p.6",
+          "support_description": "if a request has already violated its TTFT / TTLT deadline, or is about to violate it in the current iteration, then QoServe de-prioritizes this request into a relegated queue."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "A per-iteration deadline check is a local proxy; it cannot by itself guarantee future deadline satisfaction when execution time, load, or queue state changes. The will-violate check can miss future violators or relegate based on current-iteration prediction; it is not a guarantee of zero future violations."
+    },
+    {
+      "headline": "Selective preemption of prefill only conflicts with a guarantee of minimal KV-cache memory pressure.",
+      "claim": "Pausing a prefill request for an iteration can extend its KV-cache residency, so selective preemption does not by itself ensure the shortest necessary KV-cache duration or minimal memory pressure.",
+      "paper_fact": "This also ensures that the KV-cache for each request remains in the GPU for the shortest necessary duration, thereby minimizing memory pressure.",
+      "premise": "A partially prefilled request's KV cache must remain allocated to resume without recomputation; pausing its prefill extends cache residency.",
+      "inference": "Therefore selective preemption can increase memory pressure for preempted prefill requests, and the paper's memory-minimization statement is not guaranteed by the prefill-only rule.",
+      "toy_example": "Toy example (not a measurement): a long prefill with 2K cached tokens is paused for several iterations to admit an urgent request; its KV cache stays resident while other requests also hold cache, increasing memory pressure.",
+      "conditional_consequence": "If preempted prefill requests retain large KV caches and preemption is frequent, then memory pressure can rise rather than fall.",
+      "critical_link": "The memory benefit would require freeing, swapping, or recomputing the preempted request's KV cache, or ensuring preempted requests have negligible cache.",
+      "necessary_conditions": [
+        "KV cache is retained across preemption",
+        "Preempted prefill has allocated cache",
+        "Memory pressure matters in the workload"
+      ],
+      "defeaters": [
+        "Implementation frees or swaps KV cache on preemption",
+        "Preempted requests have negligible cache",
+        "Preemption is rare enough that residency change is negligible"
+      ],
+      "do_not_infer": [
+        "Do not infer the authors claim memory always increases",
+        "Do not infer selective preemption is useless for memory",
+        "Do not infer the paper measured increased memory pressure from preemption",
+        "Author boundary: the paper states a memory-minimization benefit; it does not provide a per-preemption KV-cache residency analysis."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L6_shifted_cost_threshold",
+      "quotes": [
+        {
+          "quote": "This also ensures that the KV-cache for each request remains in the GPU for the shortest necessary duration, thereby minimizing memory pressure.",
+          "source": "QoServe paper",
+          "locator": "§3.4 Selective Preemption, p. 6"
+        },
+        {
+          "quote": "QoServe uses selective preemption, where we preempt a request to accommodate another with a higher priority only if (1) the in-flight request is in the prefill queue (i.e., requests in the decode queue are never preempted), and (2) preempting that request for an iteration does not lead to deadline violation.",
+          "source": "QoServe paper",
+          "locator": "§3.4 Selective Preemption, p. 6"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§3.4 Selective Preemption, p. 6",
+          "support_description": "This also ensures that the KV-cache for each request remains in the GPU for the shortest necessary duration, thereby minimizing memory pressure."
+        },
+        {
+          "source_id": "paper",
+          "location": "§3.4 Selective Preemption, p. 6",
+          "support_description": "QoServe uses selective preemption, where we preempt a request to accommodate another with a higher priority only if (1) the in-flight request is in the prefill queue (i.e., requests in the decode queue are never preempted), and (2) preempting that request for an iteration does not lead to deadline violation."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "A partially prefilled request's KV cache must remain allocated to resume without recomputation; pausing its prefill extends cache residency. Therefore selective preemption can increase memory pressure for preempted prefill requests, and the paper's memory-minimization statement is not guaranteed by the prefill-only rule."
+    },
+    {
+      "headline": "Eager relegation in greedy batch creation does not imply or guarantee bounded latency or deadline attainment for relegated requests.",
+      "claim": "The WILL_VIOLATE relegation path in greedy batch creation can stabilize service for the majority, but it does not guarantee that relegated requests meet deadlines or have bounded latency; they are only serviced opportunistically.",
+      "paper_fact": "The relegated requests are serviced opportunistically during periods of lower system load, ensuring eventual completion without permanent rejection; while enabling graceful degradation under overload conditions.",
+      "premise": "Opportunistic servicing under overload has no deadline guarantee; eventual completion is weaker than bounded latency or SLO attainment.",
+      "inference": "Inferred consequence: relegation trades per-request guarantees for system stability; eventual completion does not imply bounded latency or deadline attainment for relegated requests.",
+      "toy_example": "Not a measurement: if 5% of requests are relegated during a 10-minute overload, they may wait until the next low-load window; eventual completion does not bound that wait.",
+      "conditional_consequence": "If overload persists or low-priority requests accumulate, relegated requests can experience very high latency or starvation; if the application requires bounded completion, additional admission control or dedicated capacity is needed.",
+      "critical_link": "The critical link is WILL_VIOLATE -> UPDATE_RELEGATE_STATUS and the relegated queue's opportunistic service; the mechanism removes violating jobs from the greedy fill, so their latency depends on future low-load opportunities.",
+      "necessary_conditions": [
+        "Overload conditions create requests that WILL_VIOLATE.",
+        "Relegated requests are only serviced when load permits.",
+        "No separate deadline guarantee is attached to the relegated queue."
+      ],
+      "defeaters": [
+        "The paper only claims eventual completion and graceful degradation, not bounded latency.",
+        "If overload is transient, relegated requests may complete within acceptable time.",
+        "If priority hints relegate only low-importance requests, high-priority SLOs may still hold."
+      ],
+      "do_not_infer": [
+        "Do not infer relegated requests are permanently rejected.",
+        "Do not infer QoServe guarantees all requests meet SLOs.",
+        "Do not infer the maximum observed 3900s is a general bound."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "graceful_degradation_vs_per_request_guarantee",
+      "quotes": [
+        {
+          "quote": "The relegated requests are serviced opportunistically during periods of lower system load, ensuring eventual completion without permanent rejection; while enabling graceful degradation under overload conditions.",
+          "source": "paper",
+          "locator": "§3.1, p.4"
+        },
+        {
+          "quote": "For relegated requests in QoServe, the maximum latency observed was no more than 3900s, while the maximum latency in baselines reached 5582s.",
+          "source": "paper",
+          "locator": "§4.3, p.12"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§3.1, p.4",
+          "support_description": "The relegated requests are serviced opportunistically during periods of lower system load, ensuring eventual completion without permanent rejection; while enabling graceful degradation under overload conditions."
+        },
+        {
+          "source_id": "paper",
+          "location": "§4.3, p.12",
+          "support_description": "For relegated requests in QoServe, the maximum latency observed was no more than 3900s, while the maximum latency in baselines reached 5582s."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Opportunistic servicing under overload has no deadline guarantee; eventual completion is weaker than bounded latency or SLO attainment. Inferred consequence: relegation trades per-request guarantees for system stability; eventual completion does not imply bounded latency or deadline attainment for relegated requests."
+    },
+    {
+      "headline": "Per-request deadline translation does not guarantee actual SLO attainment.",
+      "claim": "QoServe maps QoS classes to per-request deadlines, but deadline compliance is only a proxy for TTFT/TBT/TTLT SLO attainment; it does not by itself guarantee that user-perceived latency targets are met.",
+      "paper_fact": "The deadline for each request is determined based on its QoS class.",
+      "premise": "A deadline is a scheduling abstraction; actual latency includes queueing, execution time, and prediction error, so meeting a computed deadline is not identical to meeting the original SLO.",
+      "inference": "Because QoServe uses a predictor and dynamic chunking to enforce deadlines, errors or workload shifts can make deadline checks pass while actual TTFT/TBT/TTLT exceeds the SLO; the mechanism therefore does not guarantee SLO attainment independent of those components.",
+      "toy_example": "Not a measurement: two requests have the same computed deadline, but one has a longer decode; a deadline check can pass while its TBT exceeds the target.",
+      "conditional_consequence": "If the chunk-size predictor under- or over-estimates execution time, or if queueing changes after deadline computation, deadline compliance may diverge from SLO compliance.",
+      "critical_link": "The link is the proxy relationship: SLO -> deadline -> scheduling decision -> actual latency. The mechanism controls the middle steps, not the final equality.",
+      "necessary_conditions": [
+        "SLOs are correctly translated into deadlines",
+        "Execution-time predictor is accurate enough",
+        "Scheduler enforces deadlines under current load",
+        "Actual latency is measured against the same SLO definition"
+      ],
+      "defeaters": [
+        "Paper reports zero deadline violations in cluster-scale experiment",
+        "Predictor is tuned to under-predict chunk size",
+        "Dynamic chunking uses slack to maintain TBT"
+      ],
+      "do_not_infer": [
+        "Do not infer that QoServe fails its SLOs in the reported experiments",
+        "Do not infer that deadline translation is useless",
+        "Author boundary: the paper does not claim deadline compliance alone is a formal SLO guarantee"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1_proxy_guarantee",
+      "quotes": [
+        {
+          "quote": "The deadline for each request is determined based on its QoS class.",
+          "source": "paper",
+          "locator": "page 5, §3.2"
+        },
+        {
+          "quote": "QoServe scheduling aims to minimize deadline violations while maximizing throughput.",
+          "source": "paper",
+          "locator": "page 5, §3.2"
+        },
+        {
+          "quote": "The prediction runs on the CPU and incurs a negligible overhead with < 10% error margin on chunk size prediction.",
+          "source": "paper",
+          "locator": "page 7, §3.6.1"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "page 5, §3.2",
+          "support_description": "The deadline for each request is determined based on its QoS class."
+        },
+        {
+          "source_id": "paper",
+          "location": "page 5, §3.2",
+          "support_description": "QoServe scheduling aims to minimize deadline violations while maximizing throughput."
+        },
+        {
+          "source_id": "paper",
+          "location": "page 7, §3.6.1",
+          "support_description": "The prediction runs on the CPU and incurs a negligible overhead with < 10% error margin on chunk size prediction."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "A deadline is a scheduling abstraction; actual latency includes queueing, execution time, and prediction error, so meeting a computed deadline is not identical to meeting the original SLO. Because QoServe uses a predictor and dynamic chunking to enforce deadlines, errors or workload shifts can make deadline checks pass while actual TTFT/TBT/TTLT exceeds the SLO; the mechanism therefore does not guarantee SLO attainment independent of those components."
+    },
+    {
+      "headline": "Co-scheduling multiple QoS classes does not guarantee QoS for every request; it can rely on relegating a subset.",
+      "claim": "Co-scheduling multiple QoS classes on shared infrastructure does not by itself guarantee all requests meet their SLOs; QoServe's overload behavior intentionally relegates/drops a small fraction to protect the majority.",
+      "paper_fact": "by relegating just 5% of the requests, we can maintain latency SLOs even under very high overload conditions.",
+      "premise": "A system that maintains SLOs for a majority by relegating a minority is not providing per-request QoS guarantee for all requests.",
+      "inference": "The mechanism's QoS guarantee is aggregate/priority-weighted, not universal; under overload, some requests are deliberately degraded.",
+      "toy_example": "Toy example, not a measurement: a queue that serves 95% on time and parks 5% is not a guarantee that every arrival is on time.",
+      "conditional_consequence": "If the application requires every request to meet its deadline, co-scheduling with eager relegation is insufficient; if it permits graceful degradation of low-priority or already-doomed requests, it can be acceptable.",
+      "critical_link": "The link is the definition of QoS guarantee: paper reports SLO attainment for majority and zero important-task misses, not zero misses overall.",
+      "necessary_conditions": [
+        "Overload or impending violation triggers relegation",
+        "Application hints or priority fields identify low-priority requests",
+        "Relegated requests are serviced opportunistically later"
+      ],
+      "defeaters": [
+        "QoServe achieves zero deadline violations for all requests under all evaluated loads",
+        "Relegation is disabled and all requests still meet SLOs",
+        "Paper defines QoS guarantee as majority-only and not per-request"
+      ],
+      "do_not_infer": [
+        "Do not infer QoServe violates SLOs for important requests in the reported transient overload",
+        "Do not infer relegation is permanent rejection",
+        "Do not infer co-scheduling is useless for per-request QoS"
+      ],
+      "author_boundaries": [
+        "Authors report zero important-task misses and 8.75% overall misses in transient overload",
+        "Authors describe relegation as graceful degradation, not permanent rejection"
+      ],
+      "inferred_consequences": [
+        "Per-request QoS is not guaranteed under overload",
+        "QoS claims should be read as majority/priority-weighted"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1_proxy_guarantee",
+      "quotes": [
+        {
+          "quote": "by relegating just 5% of the requests, we can maintain latency SLOs even under very high overload conditions.",
+          "source": "paper",
+          "locator": "p. 6, §3.4"
+        },
+        {
+          "quote": "QoServe misses deadlines for no important tasks and only 8.75% of all requests.",
+          "source": "paper",
+          "locator": "p. 11, §4.3"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p. 6, §3.4",
+          "support_description": "by relegating just 5% of the requests, we can maintain latency SLOs even under very high overload conditions."
+        },
+        {
+          "source_id": "paper",
+          "location": "p. 11, §4.3",
+          "support_description": "QoServe misses deadlines for no important tasks and only 8.75% of all requests."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "A system that maintains SLOs for a majority by relegating a minority is not providing per-request QoS guarantee for all requests. The mechanism's QoS guarantee is aggregate/priority-weighted, not universal; under overload, some requests are deliberately degraded."
+    },
+    {
+      "headline": "The 23% fewer GPUs result does not imply co-scheduling alone guarantees the capacity gain.",
+      "claim": "The reported 23% capacity improvement does not isolate co-scheduling as the cause; the paper attributes benefits to a combination of dynamic chunking, hybrid prioritization, and eager relegation.",
+      "paper_fact": "These performance benefits stem from a combination of dynamic chunking, hybrid prioritization, and eager relegation.",
+      "premise": "A bundled system result cannot be attributed to one component without ablation or isolation.",
+      "inference": "Co-scheduling is a necessary architectural context but not a sufficient standalone explanation for the 23% gain; the gain is confounded with scheduling and chunking techniques.",
+      "toy_example": "Toy example, not a measurement: a car's lap time is not caused by the chassis alone when engine and tires also changed.",
+      "conditional_consequence": "If a deployment adopts co-scheduling without dynamic chunking/hybrid prioritization/relegation, the 23% gain should not be expected; if it adopts the full bundle, the paper's reported gain is the relevant evidence.",
+      "critical_link": "The link is ablation: Table 5 shows dynamic chunking +20%, eager relegation +9%, hybrid prioritization marginal at optimal load but significant at high load, so the bundle matters.",
+      "necessary_conditions": [
+        "Dynamic chunking enabled",
+        "Hybrid prioritization enabled",
+        "Eager relegation enabled",
+        "QoS-aware scheduler and shared cluster with round-robin load balancing"
+      ],
+      "defeaters": [
+        "An ablation shows co-scheduling alone yields the full 23% gain",
+        "Paper explicitly attributes 23% to co-scheduling alone",
+        "Other components are disabled in the 23% experiment"
+      ],
+      "do_not_infer": [
+        "Do not infer co-scheduling contributes nothing",
+        "Do not infer the 23% result is invalid",
+        "Do not infer dynamic chunking alone explains all gains"
+      ],
+      "author_boundaries": [
+        "Authors report 23% fewer GPUs with comparable p99 and no deadline violations",
+        "Authors attribute benefits to a combination of techniques"
+      ],
+      "inferred_consequences": [
+        "The 23% gain is a bundle-level result, not a co-scheduling-only result",
+        "Component-level attribution requires ablation"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "mechanism_origin_unclear",
+      "lens": "L4_coupling",
+      "quotes": [
+        {
+          "quote": "QoServe achieves comparable p99 latencies and no deadline violations with 23% fewer GPUs.",
+          "source": "paper",
+          "locator": "p. 8, §4.1.1"
+        },
+        {
+          "quote": "These performance benefits stem from a combination of dynamic chunking, hybrid prioritization, and eager relegation.",
+          "source": "paper",
+          "locator": "p. 9, §4.1.2"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p. 8, §4.1.1",
+          "support_description": "QoServe achieves comparable p99 latencies and no deadline violations with 23% fewer GPUs."
+        },
+        {
+          "source_id": "paper",
+          "location": "p. 9, §4.1.2",
+          "support_description": "These performance benefits stem from a combination of dynamic chunking, hybrid prioritization, and eager relegation."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "A bundled system result cannot be attributed to one component without ablation or isolation. Co-scheduling is a necessary architectural context but not a sufficient standalone explanation for the 23% gain; the gain is confounded with scheduling and chunking techniques."
+    },
+    {
+      "headline": "Per-configuration profiling does not guarantee generalization to unprofiled model, hardware, or parallelism settings.",
+      "claim": "The random-forest predictor's accuracy and safe chunking are bounded by Vidur profiles collected for each model, hardware, and parallelism configuration; they are not guaranteed for unprofiled configurations or shifted attention/workload behavior.",
+      "paper_fact": "To collect this data, we use a lightweight harness exposed by an inference simulator Vidur [3], and collect profiles for each model, hardware, and parallelism configuration of interest.",
+      "premise": "A supervised latency model trained on fixed configuration profiles can interpolate within that configuration but may not extrapolate to new GPUs, TP degrees, attention mechanisms, context-length distributions, or software versions without new profiling.",
+      "inference": "The paper reports per-configuration profiling and evaluates across several configurations; it does not claim zero-shot generalization. The consequence that unprofiled settings may lose the <10% margin is inferred, not measured by the quoted sentence.",
+      "conditional_consequence": "If deployments stay within profiled configurations and workload distributions, the predictor can be used as reported; if configuration or workload shifts, retraining or recalibration is needed before relying on the same error bound.",
+      "critical_link": "The predictor's regularity comes from hardware/model latency profiles; changing the origin of those profiles changes the learned mapping.",
+      "necessary_conditions": [
+        "Profiles match deployed model, GPU, TP degree, attention mechanism, and software stack",
+        "Workload context/batch distribution is represented in training profiles",
+        "Retraining or calibration after configuration changes"
+      ],
+      "defeaters": [
+        "Profiles are broad enough to cover the new configuration",
+        "Online adaptation updates the model",
+        "Evaluation shows <10% error on the unprofiled setting"
+      ],
+      "do_not_infer": [
+        "Do not infer that the predictor generalizes zero-shot to any model or hardware",
+        "Do not infer that the paper's multi-config evaluation proves unprofiled-config safety",
+        "Do not infer that profiling cost is zero"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L5_regularity_origin_change",
+      "quotes": [
+        {
+          "quote": "To collect this data, we use a lightweight harness exposed by an inference simulator Vidur [3], and collect profiles for each model, hardware, and parallelism configuration of interest.",
+          "source": "paper",
+          "locator": "p.7 §3.6.1"
+        },
+        {
+          "quote": "The model is trained on latency profiles of MLP and attention operation collected at varying chunk sizes, batch sizes as well as context lengths.",
+          "source": "paper",
+          "locator": "p.7 §3.6.1"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "author_boundary": "Authors report profiling per model/hardware/parallelism and evaluate several configurations; they do not claim zero-shot generalization to unprofiled settings.",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p.7 §3.6.1",
+          "support_description": "To collect this data, we use a lightweight harness exposed by an inference simulator Vidur [3], and collect profiles for each model, hardware, and parallelism configuration of interest."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.7 §3.6.1",
+          "support_description": "The model is trained on latency profiles of MLP and attention operation collected at varying chunk sizes, batch sizes as well as context lengths."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "A supervised latency model trained on fixed configuration profiles can interpolate within that configuration but may not extrapolate to new GPUs, TP degrees, attention mechanisms, context-length distributions, or software versions without new profiling. The paper reports per-configuration profiling and evaluates across several configurations; it does not claim zero-shot generalization. The consequence that unprofiled settings may lose the <10% margin is inferred, not measured by the quoted sentence."
+    },
+    {
+      "headline": "Hybrid prioritization does not imply or guarantee accurate priority ordering; non-interactive decode length is estimated.",
+      "claim": "The SRPF-like component of hybrid prioritization for non-interactive requests relies on estimated decode length, so priority ordering is approximate and can be affected by prediction error.",
+      "paper_fact": "Since decode length is unknown in LLM inference, this introduces a challenge in modeling the priority of non-interactive requests.",
+      "premise": "Priority ordering based on estimated remaining work inherits estimation error; over-approximation can misrank jobs when actual decode lengths vary.",
+      "inference": "Therefore the hybrid mechanism's non-interactive priority scores are not exact and their fairness/SLO effects depend on the decode-length estimate.",
+      "toy_example": "Toy example (not a measurement): a non-interactive job estimated at 100 decode tokens but actually 1000 gets a priority score based on 100, so it may be scheduled as if shorter than it is.",
+      "conditional_consequence": "If actual decode length deviates from the two-sigma estimate, non-interactive priority scores can be misordered, potentially affecting SLO violations and fairness.",
+      "critical_link": "The critical link is the estimated Decode_rem term in Eq. 5; unknown decode length is replaced by a historical two-sigma over-approximation.",
+      "necessary_conditions": [
+        "Request is non-interactive with a TTLT deadline.",
+        "Decode length is unknown at scheduling time.",
+        "Historical per-application decode-token data exists.",
+        "Two-standard-deviation over-approximation is used in Eq. 5."
+      ],
+      "defeaters": [
+        "Paper states the simple prediction sufficiently captures the priority of non-interactive jobs.",
+        "Interactive requests use known TTFT deadline and remaining prefill, not decode-length estimate.",
+        "Prediction error may be tolerable because TTLT is typically much greater than processing time."
+      ],
+      "do_not_infer": [
+        "Do not infer priority ordering is always wrong.",
+        "Do not infer decode length is known.",
+        "Do not infer artifact uses a different predictor without code evidence.",
+        "Author boundary: authors acknowledge unknown decode length and use an over-approximation; they do not claim exact decode-length knowledge."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "decode_length_estimation_error",
+      "quotes": [
+        {
+          "quote": "Since decode length is unknown in LLM inference, this introduces a challenge in modeling the priority of non-interactive requests.",
+          "source": "paper",
+          "locator": "§3.4, p.6"
+        },
+        {
+          "quote": "For non-interactive requests, we maintain a running history of token generation patterns per application to estimate the expected decode length.",
+          "source": "paper",
+          "locator": "§3.6, p.7"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§3.4, p.6",
+          "support_description": "Since decode length is unknown in LLM inference, this introduces a challenge in modeling the priority of non-interactive requests."
+        },
+        {
+          "source_id": "paper",
+          "location": "§3.6, p.7",
+          "support_description": "For non-interactive requests, we maintain a running history of token generation patterns per application to estimate the expected decode length."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Priority ordering based on estimated remaining work inherits estimation error; over-approximation can misrank jobs when actual decode lengths vary. Therefore the hybrid mechanism's non-interactive priority scores are not exact and their fairness/SLO effects depend on the decode-length estimate."
+    },
+    {
+      "headline": "Priority hints do not imply or guarantee that high-priority requests are never relegated.",
+      "claim": "Application priority hints do not imply or guarantee that high-priority requests are never relegated under overload.",
+      "paper_fact": "Only when there are no more low-priority requests, QoServe proactively relegates high-priority requests that have violated their deadlines to prevent cascading deadline violations.",
+      "premise": "Priority hints order requests; they do not create capacity. If all remaining requests are high priority, some high-priority request must be sacrificed under overload.",
+      "inference": "High-priority requests are not immune; they can be relegated after low-priority candidates are exhausted.",
+      "toy_example": "Not a measurement: two high-priority requests and zero low-priority requests under overload; one must be relegated.",
+      "conditional_consequence": "If a workload has no low-priority requests, eager relegation can relegate high-priority requests under overload.",
+      "critical_link": "The link is 'Only when there are no more low-priority requests'—this explicitly permits high-priority relegation.",
+      "necessary_conditions": [
+        "Overload exceeds capacity",
+        "No low-priority requests remain eligible for relegation",
+        "High-priority request has already violated or is about to violate its deadline"
+      ],
+      "defeaters": [
+        "Strict no-relegation policy for high-priority requests",
+        "Admission control rejects excess high-priority requests instead",
+        "Reserved capacity for high-priority class"
+      ],
+      "do_not_infer": [
+        "Do not infer high-priority requests are always protected",
+        "Do not infer low-priority requests are always relegated first in all cases",
+        "Do not infer priority hints are ignored"
+      ],
+      "author_boundaries": [
+        "Paper reports preferential relegation of low-priority requests, not absolute immunity for high-priority requests.",
+        "Paper's priority hints are application-provided, not a hard isolation guarantee."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L4_coupling",
+      "quotes": [
+        {
+          "quote": "Only when there are no more low-priority requests, QoServe proactively relegates high-priority requests that have violated their deadlines to prevent cascading deadline violations.",
+          "source": "paper",
+          "locator": "§3.4, p.6"
+        },
+        {
+          "quote": "In multi-tenant deployments, we also use application hints such as free vs paid tier to preferentially relegate low-priority requests to ensure stability of service to the high priority ones.",
+          "source": "paper",
+          "locator": "§3.4, p.6"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§3.4, p.6",
+          "support_description": "Only when there are no more low-priority requests, QoServe proactively relegates high-priority requests that have violated their deadlines to prevent cascading deadline violations."
+        },
+        {
+          "source_id": "paper",
+          "location": "§3.4, p.6",
+          "support_description": "In multi-tenant deployments, we also use application hints such as free vs paid tier to preferentially relegate low-priority requests to ensure stability of service to the high priority ones."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Priority hints order requests; they do not create capacity. If all remaining requests are high priority, some high-priority request must be sacrificed under overload. High-priority requests are not immune; they can be relegated after low-priority candidates are exhausted."
+    },
+    {
+      "headline": "Selective preemption of prefill only does not guarantee strict TBT for all decode requests.",
+      "claim": "The no-decode-preemption rule removes one source of TBT disruption, but it is not sufficient to ensure TBT SLOs because batch latency and chunk sizing still determine decode token spacing.",
+      "paper_fact": "We do not preempt requests in the decode queue as TBT targets are typically strict (10s of ms), and thus preempting them significantly increases the chances of TBT violation.",
+      "premise": "TBT is affected by total batch execution time, including prefill chunk size, attention overhead, and predictor error; avoiding decode preemption is only one factor.",
+      "inference": "Therefore selective preemption can coexist with TBT violations; the paper's rule is a safeguard, not a guarantee.",
+      "toy_example": "Toy example (not a measurement): a decode request with a 50 ms TBT target shares a batch with a prefill chunk whose predicted latency is 45 ms; if the predictor under-estimates by 10%, the decode interval can exceed 50 ms even though the decode request was never preempted.",
+      "conditional_consequence": "If batch latency is underpredicted or attention overhead grows, then TBT SLOs can be missed even though decode requests are never preempted.",
+      "critical_link": "The guarantee would require accurate batch-latency prediction and chunk sizing, not just a no-decode-preemption rule.",
+      "necessary_conditions": [
+        "TBT SLO is tight relative to batch execution time",
+        "Prefill chunk or batch composition can affect decode latency",
+        "Predictor error or attention overhead can occur"
+      ],
+      "defeaters": [
+        "Predictor always under-predicts chunk size enough to keep TBT",
+        "Chunk size is fixed small enough for strictest TBT",
+        "TBT violations are dominated by decode preemption, which is absent"
+      ],
+      "do_not_infer": [
+        "Do not infer the authors claim prefill-only preemption is sufficient for TBT SLOs",
+        "Do not infer selective preemption is ineffective",
+        "Do not infer TBT violations are common in the paper's evaluation",
+        "Author boundary: the paper only states decode requests are never preempted; it does not claim this alone guarantees TBT."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1_proxy_guarantee",
+      "quotes": [
+        {
+          "quote": "We do not preempt requests in the decode queue as TBT targets are typically strict (10s of ms), and thus preempting them significantly increases the chances of TBT violation.",
+          "source": "QoServe paper",
+          "locator": "§3.4 Selective Preemption, p. 6"
+        },
+        {
+          "quote": "A lightweight predictor is then used to estimate the latency of the batch to make sure that the QoS targets are not violated, while maximizing the chunk size for efficiency.",
+          "source": "QoServe paper",
+          "locator": "§3.1 Overview, p. 4"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§3.4 Selective Preemption, p. 6",
+          "support_description": "We do not preempt requests in the decode queue as TBT targets are typically strict (10s of ms), and thus preempting them significantly increases the chances of TBT violation."
+        },
+        {
+          "source_id": "paper",
+          "location": "§3.1 Overview, p. 4",
+          "support_description": "A lightweight predictor is then used to estimate the latency of the batch to make sure that the QoS targets are not violated, while maximizing the chunk size for efficiency."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "TBT is affected by total batch execution time, including prefill chunk size, attention overhead, and predictor error; avoiding decode preemption is only one factor. Therefore selective preemption can coexist with TBT violations; the paper's rule is a safeguard, not a guarantee."
+    },
+    {
+      "headline": "O(log N) priority-queue selection does not imply or guarantee O(log N) total batch-creation cost or global optimality.",
+      "claim": "The paper's O(log N) bound for choosing prefill tokens from the priority queue is a selection bound, not a guarantee that the full greedy CREATE_BATCH loop is globally optimal or that total per-iteration scheduling cost is O(log N).",
+      "paper_fact": "In comparison, QoServe requires O(log(𝑁𝑛𝑒𝑤)) time to choose the prefill tokens to schedule from the priority queue.",
+      "premise": "A heap gives O(log N) for one top extraction or insertion, but a loop that repeatedly inspects, reinserts, or skips jobs can perform multiple heap operations; greedy heuristics do not solve a global knapsack or optimization problem.",
+      "inference": "Inferred consequence: the O(log N) statement covers selecting from the priority queue, not the entire greedy batch-creation procedure, and it does not establish global optimality of the constructed batch.",
+      "toy_example": "Not a measurement: a heap with 100 jobs may pop 10 jobs to fill a chunk budget; each pop is O(log 100), but the loop also calls WILL_VIOLATE and may reinsert skipped jobs, so total work is not one O(log N) operation.",
+      "conditional_consequence": "If many queued jobs are skipped or relegated, or if the comparator, WILL_VIOLATE, and predictor are costly, per-iteration overhead can exceed the single-selection O(log N) bound and the greedy fill may be suboptimal or underfill the chunk budget C.",
+      "critical_link": "The critical link is between the priority-queue selection bound and the full greedy batch-creation loop; the paper's O(log N) claim covers choosing prefill tokens from the queue, not the entire CREATE_BATCH procedure or its optimality.",
+      "necessary_conditions": [
+        "Heap operations are O(log N) and the comparator is O(1).",
+        "The O(log N) claim is interpreted as per top selection, not total loop cost.",
+        "Greedy fill is being evaluated against a global optimum or total-cost claim."
+      ],
+      "defeaters": [
+        "The paper may only claim selection complexity, not total scheduling complexity.",
+        "If each job is popped at most once and WILL_VIOLATE is O(1), total loop cost may be O(k log N) for k selected jobs.",
+        "If the claim is only about asymptotic selection, global optimality is not asserted."
+      ],
+      "do_not_infer": [
+        "Do not infer that CREATE_BATCH is globally optimal.",
+        "Do not infer that total per-iteration scheduling cost is exactly O(log N).",
+        "Do not infer that the paper claims global optimality."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "selection_bound_vs_end_to_end_cost",
+      "quotes": [
+        {
+          "quote": "In comparison, QoServe requires O(log(𝑁𝑛𝑒𝑤)) time to choose the prefill tokens to schedule from the priority queue.",
+          "source": "paper",
+          "locator": "§4.5.3, p.13"
+        },
+        {
+          "quote": "job_queue ←PRIORITY_QUEUE(COMPARATOR)",
+          "source": "paper",
+          "locator": "Algorithm 1, p.6"
+        },
+        {
+          "quote": "while prefill_token_count < 𝐶do",
+          "source": "paper",
+          "locator": "Algorithm 1, p.6"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§4.5.3, p.13",
+          "support_description": "In comparison, QoServe requires O(log(𝑁𝑛𝑒𝑤)) time to choose the prefill tokens to schedule from the priority queue."
+        },
+        {
+          "source_id": "paper",
+          "location": "Algorithm 1, p.6",
+          "support_description": "job_queue ←PRIORITY_QUEUE(COMPARATOR)"
+        },
+        {
+          "source_id": "paper",
+          "location": "Algorithm 1, p.6",
+          "support_description": "while prefill_token_count < 𝐶do"
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "A heap gives O(log N) for one top extraction or insertion, but a loop that repeatedly inspects, reinserts, or skips jobs can perform multiple heap operations; greedy heuristics do not solve a global knapsack or optimization problem. Inferred consequence: the O(log N) statement covers selecting from the priority queue, not the entire greedy batch-creation procedure, and it does not establish global optimality of the constructed batch."
+    },
+    {
+      "headline": "Available deadline slack does not guarantee dynamic chunking gains under high load or tight TBT.",
+      "claim": "Dynamic chunking's throughput benefit depends on accumulated deadline slack; when load is high or TBT is strict, slack is exhausted and chunk size reverts toward the smaller latency-safe value.",
+      "paper_fact": "QoServe benefits from dynamically increasing chunk size by exploiting any deadline slack of the non-interactive QoS requests as well as any slack of interactive requests during lower load.",
+      "premise": "Slack is the difference between a request's next-token deadline and current time; high load and strict TBT reduce slack, so chunk-size increases are regime-dependent rather than universal.",
+      "inference": "An artifact run at high load or with tight TBT may show smaller dynamic-chunking gains than the paper's 20% result, and those gains should not be generalized to all load regimes.",
+      "toy_example": "Toy example (not a measurement): with 50 ms TBT and little slack, a larger chunk may consume the budget; with large accumulated slack, the same policy can grow the chunk safely.",
+      "conditional_consequence": "If the artifact evaluates dynamic chunking under high load or strict TBT, then expect smaller chunks and lower chunking benefit; do not infer a mechanism failure from load-dependent gains alone.",
+      "critical_link": "The critical link is slack availability: the mechanism converts deadline slack into larger prefill chunks, so without slack there is no safe room to increase chunk size.",
+      "necessary_conditions": [
+        "deadline slack exists",
+        "chunk size can be increased without violating TBT, TTFT, or TTLT",
+        "the workload has relaxed or non-interactive requests",
+        "load is not so high that slack is exhausted"
+      ],
+      "defeaters": [
+        "the workload has large accumulated slack even at high load",
+        "TBT SLOs are relaxed",
+        "non-interactive TTLT dominates and slack remains",
+        "chunk size reaches its maximum independent of slack"
+      ],
+      "do_not_infer": [
+        "Do not infer that dynamic chunking always improves throughput; the authors scope slack exploitation to available slack and lower load.",
+        "Do not infer that high-load QoS is solely from chunking; hybrid prioritization and eager relegation also contribute.",
+        "Do not infer an artifact mismatch from load-dependent gains alone."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "load regime and TBT tightness",
+      "quotes": [
+        {
+          "quote": "QoServe benefits from dynamically increasing chunk size by exploiting any deadline slack of the non-interactive QoS requests as well as any slack of interactive requests during lower load.",
+          "source": "QoServe paper",
+          "locator": "p. 9, §4.1.1"
+        },
+        {
+          "quote": "When the interactive job A enters its decode phase, we revert to the original smaller chunk size necessary to meet its TBT, though we still exploit slack accumulated if decoding completes faster than predicted.",
+          "source": "QoServe paper",
+          "locator": "p. 7, §3.5"
+        },
+        {
+          "quote": "As shown, when high slack accumulates across requests, QoServe uses an increased chunk size until slack is exhausted.",
+          "source": "QoServe paper",
+          "locator": "p. 10, §4.1.4"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 2,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p. 9, §4.1.1",
+          "support_description": "QoServe benefits from dynamically increasing chunk size by exploiting any deadline slack of the non-interactive QoS requests as well as any slack of interactive requests during lower load."
+        },
+        {
+          "source_id": "paper",
+          "location": "p. 7, §3.5",
+          "support_description": "When the interactive job A enters its decode phase, we revert to the original smaller chunk size necessary to meet its TBT, though we still exploit slack accumulated if decoding completes faster than predicted."
+        },
+        {
+          "source_id": "paper",
+          "location": "p. 10, §4.1.4",
+          "support_description": "As shown, when high slack accumulates across requests, QoServe uses an increased chunk size until slack is exhausted."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Slack is the difference between a request's next-token deadline and current time; high load and strict TBT reduce slack, so chunk-size increases are regime-dependent rather than universal. An artifact run at high load or with tight TBT may show smaller dynamic-chunking gains than the paper's 20% result, and those gains should not be generalized to all load regimes."
+    },
+    {
+      "headline": "Conservative underprediction of chunk size does not guarantee end-to-end QoS safety.",
+      "claim": "Tuning the predictor to under-predict chunk size reduces over-prediction risk and throughput, but it does not by itself guarantee that all requests meet TTFT/TBT/TTLT deadlines under prediction error, queueing, or profile drift.",
+      "paper_fact": "We tune the model to err on the side of under-predicting chunk size.",
+      "premise": "A conservative bias in one control variable can reduce one failure mode while leaving other latency sources (decode queue, scheduling, prefill backlog, model error) able to violate deadlines; safety requires the bias to dominate all relevant errors.",
+      "inference": "The paper reports a deliberate underprediction bias and says it avoids inadvertent latency increase from over-prediction. That supports a risk-reduction claim, not a guarantee of QoS; the guarantee would require bounded residual error and deadline enforcement beyond the quoted design choice.",
+      "toy_example": "Toy example (not a measurement): if the predictor under-predicts chunk size by 10% but the decode queue adds a large delay, the batch can still miss its TBT deadline despite the conservative chunk choice.",
+      "conditional_consequence": "If underprediction margin exceeds execution-time error and the scheduler accounts for decode slack and queueing, the bias can protect latency; if not, QoS can still fail.",
+      "critical_link": "The bias changes the chosen chunk size, but deadline compliance is determined by actual batch latency plus queueing and decode constraints; the link from bias to QoS is conditional.",
+      "necessary_conditions": [
+        "Underprediction margin covers execution-time model error",
+        "Decode slack and queueing are accurately modeled",
+        "Scheduler enforces deadlines for all QoS classes",
+        "Profiles remain valid"
+      ],
+      "defeaters": [
+        "Measured SLO violations remain zero across error regimes",
+        "Scheduler has independent deadline guard that shrinks batches",
+        "Underprediction is large enough to dominate all latency variance"
+      ],
+      "do_not_infer": [
+        "Do not infer that underprediction alone guarantees SLOs",
+        "Do not infer that throughput loss is negligible",
+        "Do not infer that the bias handles profile drift"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L2_objective_stopping_vs_goal",
+      "quotes": [
+        {
+          "quote": "We tune the model to err on the side of under-predicting chunk size.",
+          "source": "paper",
+          "locator": "p.7 §3.6.1"
+        },
+        {
+          "quote": "While this may scarcely miss on fully maximizing throughput; it ensures no inadvertent latency increase due to over-prediction.",
+          "source": "paper",
+          "locator": "p.7 §3.6.1"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 2,
+      "author_boundary": "Authors report a deliberate underprediction bias to avoid over-prediction latency; they do not claim the bias alone guarantees QoS.",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p.7 §3.6.1",
+          "support_description": "We tune the model to err on the side of under-predicting chunk size."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.7 §3.6.1",
+          "support_description": "While this may scarcely miss on fully maximizing throughput; it ensures no inadvertent latency increase due to over-prediction."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "A conservative bias in one control variable can reduce one failure mode while leaving other latency sources (decode queue, scheduling, prefill backlog, model error) able to violate deadlines; safety requires the bias to dominate all relevant errors. The paper reports a deliberate underprediction bias and says it avoids inadvertent latency increase from over-prediction. That supports a risk-reduction claim, not a guarantee of QoS; the guarantee would require bounded residual error and deadline enforcement beyond the quoted design choice."
+    },
+    {
+      "headline": "Hybrid prioritization does not imply or guarantee overload SLO attainment; eager relegation is a separate necessary mechanism.",
+      "claim": "Hybrid prioritization alone does not guarantee QoS under overload; the paper's overload results depend on eager relegation to prevent cascading deadline violations.",
+      "paper_fact": "Our hybrid prioritization strikes a balance between minimizing deadline violations and fairness. However, as shown in Figure 5, under overload conditions, QoServe (or any scheduling policy) still cannot service all incoming requests at the desired QoS SLOs.",
+      "premise": "Scheduling heuristics alone cannot create capacity; when demand exceeds service rate, some requests must be dropped, delayed, or relegated.",
+      "inference": "Therefore hybrid prioritization is not sufficient by itself for overload SLOs; the paper couples it with eager relegation to maintain service for the majority.",
+      "toy_example": "Toy example (not a measurement): if 10 jobs arrive per second and capacity is 8, a priority order alone cannot serve all 10; relegating 2 prevents queue cascade.",
+      "conditional_consequence": "If overload exceeds capacity and relegation is disabled or ineffective, hybrid prioritization cannot by itself maintain SLOs for all requests.",
+      "critical_link": "The critical link is capacity: hybrid prioritization orders work but does not reduce total work; relegation removes or deprioritizes requests to prevent cascading violations.",
+      "necessary_conditions": [
+        "Demand exceeds service capacity.",
+        "Eager relegation is enabled and can move requests to the relegated queue.",
+        "Priority hints or drop status are available for multi-tenant relegation.",
+        "Relegated requests are serviced opportunistically later."
+      ],
+      "defeaters": [
+        "Paper reports hybrid prioritization plus eager relegation maintains SLOs for important requests under transient overload.",
+        "At low load, hybrid prioritization may meet SLOs without relegation.",
+        "The quote says QoServe or any scheduling policy cannot service all under overload, not that hybrid is uniquely insufficient."
+      ],
+      "do_not_infer": [
+        "Do not infer hybrid prioritization is useless.",
+        "Do not infer eager relegation is required at all loads.",
+        "Do not infer artifact omits relegation.",
+        "Author boundary: authors present hybrid prioritization and eager relegation as separate techniques; they do not claim hybrid alone solves overload."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "overload_capacity_coupling",
+      "quotes": [
+        {
+          "quote": "Our hybrid prioritization strikes a balance between minimizing deadline violations and fairness. However, as shown in Figure 5, under overload conditions, QoServe (or any scheduling policy) still cannot service all incoming requests at the desired QoS SLOs.",
+          "source": "paper",
+          "locator": "§3.4, p.6"
+        },
+        {
+          "quote": "As shown in Figure 5, by relegating just 5% of the requests, we can maintain latency SLOs even under very high overload conditions.",
+          "source": "paper",
+          "locator": "§3.4, p.6"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 2,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§3.4, p.6",
+          "support_description": "Our hybrid prioritization strikes a balance between minimizing deadline violations and fairness. However, as shown in Figure 5, under overload conditions, QoServe (or any scheduling policy) still cannot service all incoming requests at the desired QoS SLOs."
+        },
+        {
+          "source_id": "paper",
+          "location": "§3.4, p.6",
+          "support_description": "As shown in Figure 5, by relegating just 5% of the requests, we can maintain latency SLOs even under very high overload conditions."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Scheduling heuristics alone cannot create capacity; when demand exceeds service rate, some requests must be dropped, delayed, or relegated. Therefore hybrid prioritization is not sufficient by itself for overload SLOs; the paper couples it with eager relegation to maintain service for the majority."
+    }
+  ],
+  "dropped_for_unverified_quotes": 0,
+  "chunk_count": 8,
+  "chunk_failures": 0,
+  "chunk_timings": [
+    {
+      "seconds": 178.29047876805998,
+      "attempts": 1
+    },
+    {
+      "seconds": 191.920693365857,
+      "attempts": 1
+    },
+    {
+      "seconds": 197.2776019158773,
+      "attempts": 1
+    },
+    {
+      "seconds": 208.29005802515894,
+      "attempts": 1
+    },
+    {
+      "seconds": 169.00216432800516,
+      "attempts": 1
+    },
+    {
+      "seconds": 203.0793570599053,
+      "attempts": 1
+    },
+    {
+      "seconds": 208.81724468199536,
+      "attempts": 1
+    },
+    {
+      "seconds": 187.73699331190437,
+      "attempts": 1
+    }
+  ],
+  "inventory_seconds": 527.1200470121112,
+  "chunks_seconds": 574.320002787048,
+  "merged_candidates": 5,
+  "unverified_kept": 0
+}
