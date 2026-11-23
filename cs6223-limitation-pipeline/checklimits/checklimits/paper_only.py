@@ -280,8 +280,7 @@ MECH_INVENTORY = '''In English, list core mechanisms and implicit assumptions pe
 Return JSON {{"mechanisms": [{{"mechanism": "...", "assumptions": [], "quotes": ["verbatim quote"], "locator": "..."}}]}}.
 PAPER TEXT\n{text}\nCODE EXCERPTS\n{code}'''
 MECH_ANALYSIS = '''In English, produce 20-30 distinct conditional method limitations from the inventory.
-Consider grouped/multi-query attention sharing, quantization, unstructured vs structured sparsity, scale,
-hardware differences, workload shift, input distribution shift, batching, and dynamic vs static shapes.
+Consider proxy properties, objective mismatch, granularity, coupling, origins of structure, shifted costs, and changes over scale or time.
 Return JSON {{"candidates": [...]}} with category_code (applicability_limitation, mechanism_origin_unclear,
 or method_shortcoming), claim, mechanism, reasoning_chain (list containing paper_fact, analysis_premise,
 inference, optional simplified_example, conditional_consequence), critical_link, necessary_conditions,
@@ -307,7 +306,24 @@ CODE EXCERPTS
 {code}"""
 
 
-def mechanism_candidates(text, code_files, ask, *, version=MECH_V1, examples_path=None, stats=None):
+MECH_V3 = "paper-only-mech-v3"
+V3_INVENTORY = """In English, inventory 8-15 core mechanisms or design decisions. For each provide verbatim quote anchors, what it optimizes, its unit and granularity, assumptions about workload, model and hardware, the regularity it exploits, and where its cost goes. Return JSON with a mechanisms list. Quotes may cite paper or supplied code; code quotes must include their file path.
+PAPER TEXT\n{text}\nCODE EXCERPTS\n{code}"""
+V3_SWEEP = """For EVERY mechanism apply all seven lenses, asking one short question per lens: L1 does a proxy guarantee the target property? L2 does the objective or stopping rule match the real goal? L3 do interacting mechanisms use compatible units? L4 are independent choices unnecessarily coupled? L5 where does exploited regularity originate and what change moves it? L6 where does cost move and what threshold determines net benefit? L7 does the bottleneck change over scale or time? Keep pairs where a general premise yields a non-obvious conditional consequence. Turn each unexplained observation into a causal hypothesis: why, when worse, and what refutes it. Return JSON with a sweep list.
+INVENTORY\n{inventory}\nPAPER TEXT\n{text}\nCODE EXCERPTS\n{code}"""
+V3_WRITE = """Write 25-30 candidates in English from the sweep. Return JSON with candidates. Each has headline in the form A does not imply or guarantee B, or A conflicts with B; claim; paper_fact (verbatim quote); premise (general knowledge); inference; optional toy_example explicitly marked not a measurement; conditional consequence; critical_link; necessary_conditions, defeaters and do_not_infer as lists; disclosure (reported, mechanism_reported_consequence_inferred, or inferred); category_code; lens; and quotes (1-3 verbatim paper or code quotes with source and locator). Use applicability_limitation for environmental conditions, mechanism_origin_unclear for unexplained origins, and method_shortcoming for design or objective limits. Include both explicit author boundaries and inferred consequences. Tag first-order evaluation critiques kind=evaluation_critique.
+SWEEP\n{sweep}\nINVENTORY\n{inventory}\nPAPER TEXT\n{text}\nCODE EXCERPTS\n{code}"""
+V3_FILTER = """Self-filter and rank these candidates by non-obviousness, causal clarity, and conditionality. Deduplicate by mechanism and keep the top 20 method candidates. Move first-order items such as evaluation scope and missing error bars to a separate evaluation_critiques list, marking each kind=evaluation_critique. Preserve all fields and verbatim quotes. Return JSON with candidates and evaluation_critiques lists.
+CANDIDATES\n{candidates}"""
+
+
+def _json_object(response):
+    match = re.search(r"\{.*\}", response, re.S)
+    if not match:
+        raise ValueError("no JSON object in the answer")
+    return json.loads(match.group())
+
+def mechanism_candidates(text, code_files, ask, *, version=MECH_V1, examples_path=None, stats=None, no_filter=False):
     """Generate and verify candidates; return mechanisms, critiques and dropped count."""
     code = "\n\n".join(f"FILE {path}\n{content}" for path, content in code_files.items())
     if version == MECH_V1:
@@ -322,6 +338,23 @@ def mechanism_candidates(text, code_files, ask, *, version=MECH_V1, examples_pat
             raise ValueError("no mechanisms list in inventory")
         examples = Path(examples_path).read_text(encoding="utf-8") if examples_path else "None"
         response = ask(MECH_ANALYSIS.format(inventory=json.dumps(inventory), text=text[:MAX_TEXT_CHARS], code=code, examples=examples))
+    elif version == MECH_V3:
+        inventory = _json_object(ask(V3_INVENTORY.format(text=text[:MAX_TEXT_CHARS], code=code)))
+        if not isinstance(inventory.get("mechanisms"), list):
+            raise ValueError("no mechanisms list in inventory")
+        sweep = _json_object(ask(V3_SWEEP.format(inventory=json.dumps(inventory), text=text[:MAX_TEXT_CHARS], code=code)))
+        if not isinstance(sweep.get("sweep"), list):
+            raise ValueError("no sweep list")
+        draft = _json_object(ask(V3_WRITE.format(sweep=json.dumps(sweep), inventory=json.dumps(inventory), text=text[:MAX_TEXT_CHARS], code=code)))
+        if not isinstance(draft.get("candidates"), list):
+            raise ValueError("no candidates list")
+        if no_filter:
+            response = json.dumps(draft)
+        else:
+            filtered = _json_object(ask(V3_FILTER.format(candidates=json.dumps(draft))))
+            if not isinstance(filtered.get("candidates"), list) or not isinstance(filtered.get("evaluation_critiques"), list):
+                raise ValueError("missing filtered candidate lists")
+            response = json.dumps({"candidates": filtered["candidates"][:20] + [dict(c, kind="evaluation_critique") for c in filtered["evaluation_critiques"] if isinstance(c, dict)]})
     else:
         raise ValueError(f"unknown mechanism version: {version}")
     match = re.search(r"\{.*\}", response, re.S)
@@ -332,10 +365,10 @@ def mechanism_candidates(text, code_files, ask, *, version=MECH_V1, examples_pat
         raise ValueError("no candidates list")
     mechanisms, critiques, dropped = [], [], 0
     merged = 0
-    for c in candidates[:30 if version == MECH_V2 else 20]:
+    for c in (candidates if version == MECH_V3 else candidates[:30 if version == MECH_V2 else 20]):
         if not isinstance(c, dict):
             continue
-        quotes = c.get("quotes")
+        quotes = c.get("quotes") or ([c["paper_fact"]] if isinstance(c.get("paper_fact"), str) else None)
         if not isinstance(quotes, list) or not 1 <= len(quotes) <= 3:
             dropped += 1
             continue
@@ -357,6 +390,9 @@ def mechanism_candidates(text, code_files, ask, *, version=MECH_V1, examples_pat
             dropped += 1
             continue
         item = {**c, "evidence": evidence}
+        if version == MECH_V3:
+            item["claim"] = c.get("claim") or c.get("headline") or ""
+            item["mechanism"] = c.get("mechanism") or " ".join(str(c.get(k) or "") for k in ("premise", "inference", "consequence")).strip()
         if c.get("kind") != "evaluation_critique" and c.get("category_code") in MECHANISM_KINDS:
             if version == MECH_V2:
                 words = set(re.findall(r"\w+", str(c.get("mechanism") or "").lower()))
