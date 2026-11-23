@@ -35,11 +35,13 @@ v9 study conditions with their official grades; S is this track.
 * s3 adds the first InfiniGen candidate naming the GQA shared key representation and
   the per-head column/basis conflict (H4); the blind grader calls it core, the holistic
   grader partial. Both readings are kept.
-* Test split: the s1 prompt reached SpinQuant **core**, Prompt Cache partial, KVQuant
-  partial, DX100 miss. The s2 prompt regressed there (all four miss) because it demoted
-  the author-disclosed R1 compromise to `known_boundaries`; s3 fixes that rule, but the
-  post-hoc s3 SpinQuant run (partial) is not held-out because the paper was inspected
-  during the fix. Test numbers are reported with that caveat.
+* Test split (s3 method vs the one-call baseline, same harness): S is **partial** on
+  Prompt Cache, SpinQuant and KVQuant and miss on DX100; A is **core** on Prompt Cache,
+  partial on SpinQuant and DX100 and miss on KVQuant. Under conservative adjudication
+  the dev advantage does **not** transfer to this split (S 0 core / 2 partial,
+  A 1 core / 2 partial) — see [docs/test-results.md](docs/test-results.md) for the three grader
+  readings, per-paper reasons and the breadth-vs-depth explanation. Test papers were
+  inspected during the s2->s3 fix, so these numbers are post-hoc, not clean held-out.
 * Every core listed above was also blind-graded by a separate agent that saw only the
   frozen final and the rubric.
 
@@ -163,6 +165,7 @@ the same 10-request cell cap.
 * [docs/method.md](docs/method.md) — the S workflow and why it differs from C/D
 * [docs/results.md](docs/results.md) — per-paper grades, variance, in-harness baselines
 * [docs/report.md](docs/report.md) — full report with threats to validity
+* [docs/test-results.md](docs/test-results.md) — test-split S vs A, grader comparison
 * [docs/prompt-iterations.md](docs/prompt-iterations.md) — s1→s2→s3 changes and
   measured role delivery
 * [docs/port-notes.md](docs/port-notes.md) — what to port into the main pipeline

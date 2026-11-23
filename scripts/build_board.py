@@ -64,12 +64,15 @@ def main() -> None:
         labels = {"prompt-cache": "Prompt Cache", "spinquant": "SpinQuant",
                   "kvquant": "KVQuant", "dx100": "DX100"}
         test_rows = "".join(
-            f"<tr><th>{label}</th>{match_cell(tests.get((slug, 'gap_receipt_swarm'), '—'))}</tr>"
+            f"<tr><th>{label}</th>{match_cell(tests.get((slug, 'gap_receipt_swarm'), '—'))}"
+            f"{match_cell(tests.get((slug, 'api_once'), '—'))}</tr>"
             for slug, label in labels.items())
-        test_html = ("<h2>Held-out test split (S, frozen method)</h2>"
-                     "<table><tr><th>paper</th><th>S</th></tr>" + test_rows + "</table>"
-                     "<p>No tuning on these papers. SpinQuant core; Prompt Cache and KVQuant partial; "
-                     "DX100 miss by the conservative adjudication.</p>")
+        test_html = ("<h2>Test split (s3 method vs one-call baseline)</h2>"
+                     "<table><tr><th>paper</th><th>S s3</th><th>A one call</th></tr>"
+                     + test_rows + "</table>"
+                     "<p>Graded against reference rows 05/07/09/14. Conservative adjudication: S 0 core / "
+                     "2 partial, A 1 core / 2 partial; blind adjudication is more generous to both "
+                     "(S 2 core, A 2 core). The dev advantage does not clearly transfer to this split.</p>")
     if args.second_mapping and args.second_grades:
         second = rows(args.second_mapping, args.second_grades)
         hit = second.get(("nnsmith", "gap_receipt_swarm"))
