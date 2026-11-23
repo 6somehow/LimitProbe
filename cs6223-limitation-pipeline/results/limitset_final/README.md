@@ -30,7 +30,7 @@ python -m scorer_limitset --pred results/limitset_final/limitset2/b1/predictions
   --out /tmp/rescore_b1 --judge relay --workers 8
 
 # development cases (4 cases; Chinese labels translated to English, scorer-only)
-python -m scorer_limitset --pred results/limitset_final/validation/b1/predictions.jsonl \
+python -m scorer_limitset --pred results/limitset_final/validation/b1_val/predictions.jsonl \
   --root <path-to-CS6223_Limitation_Testset> --splits data/limitset/splits.json \
   --out /tmp/rescore_val_b1 --judge relay --labels-en data/limitset/labels_en.jsonl --workers 4
 ```
