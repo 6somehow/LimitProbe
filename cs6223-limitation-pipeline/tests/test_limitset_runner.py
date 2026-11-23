@@ -113,3 +113,9 @@ def test_worker_uses_swarm_results_and_origin(tmp_path, monkeypatch):
     result = L.worker(case, 1, out, tmp_path, 10, {}, {}, str(tmp_path / '{case}.txt'))
     assert result['sources'] == ['swarm']
     assert result['findings'][0]['origin'] == 'swarm'
+
+
+def test_mapping_mechanism_fields():
+    record = {'finding': {'summary': 'claim'}, 'analysis': {'reasoning': 'chain', 'kind_code': 'method_shortcoming', 'mechanism': 'why', 'conditions': ['when']}}
+    result = L.mapping(record)
+    assert (result['claim'], result['category_code'], result['mechanism'], result['conditions']) == ('claim', 'method_shortcoming', 'why', ['when'])

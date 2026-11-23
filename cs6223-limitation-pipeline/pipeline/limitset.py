@@ -41,7 +41,11 @@ def mapping(record):
         for e in lim.get('code_evidence', []):
             evidence.append({'source_id': 'code', 'location': str(e.get('file') or '') + ':' + str(e.get('line_start') or '')})
     caveats = [str(x) for x in (a.get('tier_note'), f.get('review_note')) if x]
-    return {'claim': str(claim), 'category_code': 'unclassified', 'mechanism': str(a.get('reasoning') or f.get('summary') or ''), 'conditions': conditions, 'evidence': evidence, 'caveats': caveats}
+    kind = a.get('kind_code')
+    if kind in ('applicability_limitation', 'mechanism_origin_unclear', 'method_shortcoming'):
+        claim = f.get('summary') or claim
+        conditions = a.get('conditions') if isinstance(a.get('conditions'), list) else conditions
+    return {'claim': str(claim), 'category_code': kind or 'unclassified', 'mechanism': str(a.get('mechanism') or ('' if kind else a.get('reasoning') or f.get('summary') or '')), 'conditions': conditions, 'evidence': evidence, 'caveats': caveats}
 
 
 def validate(record, schema):
