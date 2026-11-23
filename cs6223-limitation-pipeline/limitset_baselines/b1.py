@@ -65,6 +65,7 @@ def run_case(case, input_dir, out_dir, env, repeat):
                'messages': [{'role': 'user', 'content': prompt}]}
     if env.get('LIMITSET_GEN_OMIT_SAMPLING'):  # e.g. Claude Sonnet 5.5 rejects `temperature`
         payload.pop('temperature')
+        payload['max_tokens'] = 16000  # the Anthropic API requires max_tokens
     write_json(out_dir / 'request.json', payload)
     write_json(out_dir / 'input_info.json', {'code': code_status, 'paper_characters': len(paper), 'character_budget': CHAR_BUDGET})
     write_json(out_dir / 'cost.json', {'calls': 1, 'prompt_tokens': None,
