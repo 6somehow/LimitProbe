@@ -20,7 +20,7 @@ def _records(path: Path):
 
 # Limitset inputs and evaluator material have their own formats.
 # pipeline.json is run config (written by `pipeline init --package-root`).
-PROJECT_RECORDS = sorted(path for directory in DATA.iterdir() if directory.name != "limitset"
+PROJECT_RECORDS = sorted(path for directory in DATA.iterdir() if directory.name not in ("limitset", "limitset2")
                          for path in directory.rglob("*.json") if path.name != "pipeline.json")
 
 
