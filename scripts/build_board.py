@@ -67,12 +67,12 @@ def main() -> None:
             f"<tr><th>{label}</th>{match_cell(tests.get((slug, 'gap_receipt_swarm'), '—'))}"
             f"{match_cell(tests.get((slug, 'api_once'), '—'))}</tr>"
             for slug, label in labels.items())
-        test_html = ("<h2>Test split (s3 method vs one-call baseline)</h2>"
-                     "<table><tr><th>paper</th><th>S s3</th><th>A one call</th></tr>"
+        test_html = ("<h2>Test split (s7 depth+breadth vs one-call baseline)</h2>"
+                     "<table><tr><th>paper</th><th>S s7</th><th>A one call</th></tr>"
                      + test_rows + "</table>"
-                     "<p>Graded against reference rows 05/07/09/14. Conservative adjudication: S 0 core / "
-                     "2 partial, A 1 core / 2 partial; blind adjudication is more generous to both "
-                     "(S 2 core, A 2 core). The dev advantage does not clearly transfer to this split.</p>")
+                     "<p>Graded against reference rows 05/07/09/14. Conservative/holistic: S 0 core / 2 partial, "
+                     "A 1 core / 2 partial. Blind: S 1 core / 3 partial, A 2 core / 0 partial. Paired blind is "
+                     "1-1 but A has more cores, so S does not beat A on this split under the study rule.</p>")
     if args.second_mapping and args.second_grades:
         second = rows(args.second_mapping, args.second_grades)
         hit = second.get(("nnsmith", "gap_receipt_swarm"))

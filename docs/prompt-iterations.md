@@ -40,6 +40,21 @@ when one exists, and one from a shared artifact whose consumers have conflicting
 That balance produced the first InfiniGen candidate that names the GQA shared key
 representation and the per-head column/basis conflict (H4), blind-graded core.
 
+## Depth + breadth iterations (s5-s9)
+
+| version | design | dev outcome |
+|---|---|---|
+| s5 | single phase; lead 6 turns, two gap delegations, breadth stages required | all four miss; only one delegation happened and the deep chain was diluted |
+| s6/s6b | two phase: early deep report (turn 4), then breadth append | NNSmith partial/core, MInference no candidates, Sparta deep JSON empty; brittle |
+| s7 | phase 1 = the proven s3 loop; phase 2 = one breadth-append call (3 new candidates from distinct stages); 6 candidates total | NNSmith core, MInference partial; six candidates with diverse stages on every dev paper |
+| s8 | s7 + consequence framing (state output-quality consequence, not metric blindness) | NNSmith partial, others miss in this sample |
+| s9 | s7 + mitigation/free-degree check (per-layer/per-head/recompute/joint caching) | NNSmith miss in this sample; the free-degree paragraph further diluted the deep chain. Not shipped |
+
+s7 is the depth+breadth variant that kept the dev core and added breadth, and it is the
+shipped multi-agent configuration (one gap worker + one breadth pass). Its test run
+(test-v5) did not beat the one-call baseline: blind 1 core/3 partial vs 2 core/0 partial,
+conservative 0/2 vs 1/2. Details in docs/test-results.md.
+
 ## The s4 negative result
 
 Forcing `origin_ids` on every candidate made the lead adopt the worker's candidates

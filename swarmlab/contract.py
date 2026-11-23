@@ -217,6 +217,7 @@ def normalize_record(raw, index: int) -> dict:
         "id": str(_get(raw, ("id", "candidate_id", "key")) or f"W{index}"),
         "title": _get(raw, ("title", "name", "summary", "headline")) or "",
         "kind": _get(raw, ("kind", "type")) or "method_hypothesis",
+        "stage": raw.get("stage"),
         "rule": _get(raw, ("rule", "causal_argument", "claim", "mechanism")) or "",
         "trigger": _get(raw, ("trigger", "conditions", "condition", "preconditions")) or "",
         "mitigation": _get(raw, ("mitigation", "existing_mitigation", "safeguard")) or "",

@@ -47,6 +47,28 @@ Two of three graders favour A on this split; the blind grader is more generous t
 intra-module Prompt Cache record and to S's SpinQuant record. No reading supports a
 claim that S beats A on these four test papers.
 
+## s7 depth+breadth test run (test-v5)
+
+The s7 method (phase 1 = the s3 deep loop; phase 2 = one breadth-append call producing
+three extra candidates from distinct stages; six candidates total) was run once on the
+same four test papers.
+
+| metric | S s7 | A one call |
+|---|---|---|
+| holistic grader (`out/grades-test-v5`) | 0 core / 2 partial / 2 miss | 1 core / 2 partial / 1 miss |
+| conservative adjudication | 0 / 2 / 2 | 1 / 2 / 1 |
+| blind agent | 1 core / 3 partial / 0 miss | 2 core / 0 partial / 2 miss |
+
+Per paper (blind): Prompt Cache core (H3 cross-module masking; conservative partial),
+SpinQuant partial (B3 R1 shared by activation and KV consumers; the global-R1
+compromise appears in a different record), KVQuant partial (B1 fixed 1% protection
+budget), DX100 partial (H3 cross-iteration dependence, no time-share consequence).
+
+Paired blind comparison: Prompt Cache tie (core/core), SpinQuant A wins (core vs
+partial), KVQuant S wins (partial vs miss), DX100 tie (partial/partial) — 1 win, 1 loss,
+but A has more cores (2 vs 1). Under the study's rule S does **not** beat A on this
+split. Conservative and holistic grading favour A outright.
+
 ## Earlier test samples (for completeness)
 
 | run | prompt | result |

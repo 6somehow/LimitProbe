@@ -92,7 +92,9 @@ PROTOCOL = {
     "per_request_timeout_seconds": 30,
     "per_cell_wall_seconds": 300,
     "lead_turns": 6,
-    "worker_count": 2,
+    "worker_count": 1,
+    "worker_replies": 1,
+    "max_delegations": 1,
     "single_agent_turns": 8,
     "max_report_candidates": 3,
 }
@@ -110,14 +112,14 @@ def test_swarm_handoff_ledger_end_to_end(tmp_path):
     assert result["validation"]["json_parsed"], result["validation"]
     assert result["validation"]["issues"] == [], result["validation"]
     ledger = result["ledger"]
-    assert len(ledger["workers"]) == 2
+    assert len(ledger["workers"]) == 1
     for row in ledger["workers"]:
         assert row["worker_found"] == 1
         assert row["parse_retained"] == ["W1"]
         assert row["delivered_to_lead"] is True
         assert row["cited_in_final"] == ["W1"]
-    # 3 lead requests + 1 request per worker
-    assert result["requests"] == 5
+    # 3 lead requests + 1 worker request
+    assert result["requests"] == 4
 
 
 def test_budget_limits_workers_to_one(tmp_path):

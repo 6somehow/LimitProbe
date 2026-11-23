@@ -98,7 +98,7 @@ class LoopResult:
 
 
 def run_lead(cell, evidence, client, task_message: str, compactor: Compactor | None = None,
-             delegate=None, max_turns: int = 6) -> LoopResult:
+             delegate=None, max_turns: int = 6, final_note: str | None = None) -> LoopResult:
     system = prompts.HANDOFF_SYSTEM
     messages = [
         {"role": "system", "content": system},
@@ -126,22 +126,27 @@ def run_lead(cell, evidence, client, task_message: str, compactor: Compactor | N
             messages.append({"role": "user", "content":
                              "Now test these gaps against the pinned source with the tools. Keep the map updated in your notes."})
             continue
-        must_delegate = (not cell.delegated and not final_now and turns >= 3
-                         and remaining >= 4 and cell.delegate_prompts < 2
-                         and turns >= int(cell.protocol.get("delegate_from_turn", 4)))
+        max_delegations = int(cell.protocol.get("max_delegations", 2))
+        must_delegate = (cell.delegations < max_delegations and not final_now and turns >= 3
+                         and remaining >= 2 and cell.delegate_prompts < 3
+                         and turns >= int(cell.protocol.get("delegate_from_turn", 3)))
         if final_now:
-            note = prompts.FINAL_NOTE
+            note = final_note or prompts.FINAL_NOTE
         else:
             note = prompts.BUDGET_NOTE.format(
                 used=client.requests + 1, cap=cell.budget.request_cap, tokens=client.tokens)
             if must_delegate:
                 note += "\n\n" + prompts.DELEGATE_REQUIRED
                 cell.delegate_prompts += 1
+        force_gap = (not final_now and cell.delegations < max_delegations
+                     and turns >= max_turns - 1 and remaining >= 2)
         tools = prompts.LEAD_TOOLS
         if final_now:
             tools = []
-        elif must_delegate and cell.delegate_prompts >= 2:
+        elif force_gap or (must_delegate and cell.delegate_prompts >= 2):
             tools = [prompts.DELEGATE_TOOL]
+        if force_gap:
+            note += "\n\n" + prompts.DELEGATE_REQUIRED
         response = client.chat(
             messages + [{"role": "user", "content": note}],
             tools=tools,
@@ -170,7 +175,7 @@ def run_lead(cell, evidence, client, task_message: str, compactor: Compactor | N
                 if name == "delegate_gap":
                     require(delegate is not None, "delegation is not available in this condition")
                     result = delegate(args.get("question", ""), args.get("chain_summary", ""), turns,
-                                      args.get("expected_signal", ""))
+                                      args.get("expected_signal", ""), args.get("stage_lens", "admission"))
                 else:
                     try:
                         result = execute_tool(evidence, "root", name, args)
@@ -183,6 +188,8 @@ def run_lead(cell, evidence, client, task_message: str, compactor: Compactor | N
         if final_now:
             return LoopResult(text, messages, turns)
         if looks_like_final(text):
+            if force_gap:
+                continue
             if must_delegate and cell.delegate_prompts < 2:
                 continue
             return LoopResult(text, messages, turns)
@@ -193,11 +200,12 @@ def run_lead(cell, evidence, client, task_message: str, compactor: Compactor | N
 
 
 def run_worker(cell, evidence, client, worker_id: str, question: str, chain_summary: str,
-               paper_text: str, expected_signal: str = "", max_requests: int = 3) -> dict:
+               paper_text: str, expected_signal: str = "", stage_lens: str = "admission",
+               max_requests: int = 2) -> dict:
     system = prompts.WORKER_SYSTEM
     user = (
         f"Paper ID: {evidence.meta['paper_id']}\nPinned repository commit: {evidence.commit}\n\n"
-        f"LEAD QUESTION\n{question}\n\nLEAD CHAIN SUMMARY\n{chain_summary}\n\n"
+        f"STAGE LENS\n{stage_lens}\n\nLEAD QUESTION\n{question}\n\nLEAD CHAIN SUMMARY\n{chain_summary}\n\n"
         f"EXPECTED SIGNAL\n{expected_signal or 'State what would support the link and what would refute it.'}\n\n"
         f"ORIGINAL PAPER BEGIN\n{paper_text}\nORIGINAL PAPER END\n\n"
         "Answer the assigned question. Read the pinned source with the tools before citing it."

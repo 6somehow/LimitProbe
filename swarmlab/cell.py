@@ -48,20 +48,19 @@ class Cell:
                              protocol["per_cell_wall_seconds"])
         self.compactor = Compactor(self.out)
         self.handoffs: list = []
-        self.delegated = False
+        self.delegations = 0
         self.delegate_prompts = 0
 
     # ------------------------------------------------------------- delegation ---
     def delegate(self, question: str, chain_summary: str, lead_turn: int,
-                 expected_signal: str = "") -> str:
+                 expected_signal: str = "", stage_lens: str = "admission") -> str:
         require(8 <= len(question) <= 1200, "delegate_gap needs one precise question")
         remaining = self.budget.remaining(self.client)
-        wanted = int(self.protocol.get("worker_count", 1))
-        workers = wanted if remaining >= 2 + 2 * wanted else 1
         require(remaining >= 2, "No request budget left for delegation")
+        workers = 1
         append_jsonl(self.out / "events.jsonl", {
             "kind": "delegate_requested", "lead_turn": lead_turn, "workers": workers,
-            "remaining_requests": remaining,
+            "stage_lens": stage_lens, "remaining_requests": remaining,
         })
         paper_text = self.evidence.paper_header()
         results = []
@@ -71,8 +70,8 @@ class Cell:
             worker_id = f"worker{index + 1}"
             result = run_worker(self, self.evidence, self.client, worker_id,
                                 question, chain_summary, paper_text,
-                                expected_signal=expected_signal,
-                                max_requests=int(self.protocol.get("worker_replies", 3)))
+                                expected_signal=expected_signal, stage_lens=stage_lens,
+                                max_requests=int(self.protocol.get("worker_replies", 2)))
             report = {"worker": worker_id, "raw_text": result["final_text"],
                       "turns": result["turns"]}
             repairs: list = []
@@ -95,7 +94,7 @@ class Cell:
                 "parsed": report["parsed"], "raw_candidates": report.get("raw_candidate_count"),
             })
         handoff = {"question": question, "chain_summary": chain_summary,
-                   "expected_signal": expected_signal,
+                   "expected_signal": expected_signal, "stage_lens": stage_lens,
                    "lead_turn": lead_turn, "workers": results, "delivered_text": ""}
         payload = {
             "question": question,
@@ -111,7 +110,7 @@ class Cell:
         text = json.dumps(payload, ensure_ascii=False)
         handoff["delivered_text"] = text
         self.handoffs.append(handoff)
-        self.delegated = True
+        self.delegations += 1
         dump(self.out / "handoff.json", self.handoffs)
         return text
 
@@ -138,11 +137,63 @@ class Cell:
         return _single_loop(self, messages, prompts.TOOLS, self.protocol["single_agent_turns"])
 
     def run_swarm(self) -> str:
-        result = run_lead(self, self.evidence, self.client,
-                          task_message(self.evidence, include_packet=False, task=prompts.HANDOFF_TASK),
-                          compactor=self.compactor, delegate=self.delegate,
-                          max_turns=self.protocol["lead_turns"])
-        return result.final
+        if not self.protocol.get("two_phase"):
+            result = run_lead(self, self.evidence, self.client,
+                              task_message(self.evidence, include_packet=False, task=prompts.HANDOFF_TASK),
+                              compactor=self.compactor, delegate=self.delegate,
+                              max_turns=self.protocol["lead_turns"])
+            return result.final
+        return self.run_two_phase()
+
+    def run_two_phase(self) -> str:
+        """Phase 1 runs the proven s3 loop (depth); phase 2 appends breadth candidates."""
+        from .contract import parse_json
+
+        deep_text = run_lead(self, self.evidence, self.client,
+                             task_message(self.evidence, include_packet=False, task=prompts.HANDOFF_TASK),
+                             compactor=self.compactor, delegate=self.delegate,
+                             max_turns=int(self.protocol.get("lead_turns", 6))).final
+        try:
+            deep = parse_json(deep_text)
+        except ValueError:
+            append_jsonl(self.out / "events.jsonl", {"kind": "deep_parse_failed", "chars": len(deep_text)})
+            return deep_text
+        deep_candidates = [c for c in (deep.get("candidates") or []) if isinstance(c, dict)]
+        if not deep_candidates:
+            append_jsonl(self.out / "events.jsonl", {"kind": "deep_no_candidates"})
+            return deep_text
+        dump(self.out / "deep-report.json", deep)
+        if self.budget.remaining(self.client) < 1:
+            return deep_text
+        note = prompts.BREADTH_APPEND.format(deep=json.dumps(deep_candidates, ensure_ascii=False))
+        response = self.client.chat(
+            [{"role": "system", "content": prompts.HANDOFF_SYSTEM},
+             {"role": "user", "content": note}],
+            tools=[], max_tokens=self.protocol["max_output_tokens"], thinking=False)
+        text = response["message"].get("content") or ""
+        try:
+            breadth = parse_json(text).get("candidates") or []
+        except ValueError:
+            append_jsonl(self.out / "events.jsonl", {"kind": "breadth_parse_failed"})
+            return deep_text
+        existing_ids = {str(c.get("id")) for c in deep_candidates}
+        added = []
+        for candidate in breadth:
+            if not isinstance(candidate, dict):
+                continue
+            cid = str(candidate.get("id") or f"B{len(added) + 1}")
+            if cid in existing_ids:
+                cid = f"B{len(added) + 1}"
+            candidate["id"] = cid
+            existing_ids.add(cid)
+            added.append(candidate)
+        merged = dict(deep)
+        merged["candidates"] = (deep_candidates + added)[:6]
+        append_jsonl(self.out / "events.jsonl", {
+            "kind": "breadth_appended", "deep_records": len(deep_candidates),
+            "breadth_added": len(added),
+            "stages": [c.get("stage") for c in merged["candidates"]]})
+        return json.dumps(merged, ensure_ascii=False)
 
     # -------------------------------------------------------------------- main ---
     def run(self) -> dict:

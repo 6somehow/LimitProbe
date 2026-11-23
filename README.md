@@ -35,13 +35,13 @@ v9 study conditions with their official grades; S is this track.
 * s3 adds the first InfiniGen candidate naming the GQA shared key representation and
   the per-head column/basis conflict (H4); the blind grader calls it core, the holistic
   grader partial. Both readings are kept.
-* Test split (s3 method vs the one-call baseline, same harness): S is **partial** on
-  Prompt Cache, SpinQuant and KVQuant and miss on DX100; A is **core** on Prompt Cache,
-  partial on SpinQuant and DX100 and miss on KVQuant. Under conservative adjudication
-  the dev advantage does **not** transfer to this split (S 0 core / 2 partial,
-  A 1 core / 2 partial) — see [docs/test-results.md](docs/test-results.md) for the three grader
-  readings, per-paper reasons and the breadth-vs-depth explanation. Test papers were
-  inspected during the s2->s3 fix, so these numbers are post-hoc, not clean held-out.
+* Test split with the s7 depth+breadth method (same harness, A re-run as a one-call
+  baseline): conservative/holistic S is 0 core / 2 partial vs A 1 core / 2 partial; the
+  blind agent gives S 1 core / 3 partial vs A 2 core / 0 partial. Paired blind is 1-1
+  but A keeps more cores, so **S does not beat A on this split** under the study rule.
+  The dev advantage did not transfer. See [docs/test-results.md](docs/test-results.md)
+  for per-paper reasons and the breadth-vs-depth explanation. Test papers were inspected
+  during prompt fixes, so these numbers are post-hoc, not clean held-out.
 * Every core listed above was also blind-graded by a separate agent that saw only the
   frozen final and the rubric.
 
