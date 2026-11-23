@@ -404,7 +404,7 @@ def mechanism_candidates(text, code_files, ask, *, version=MECH_V1, examples_pat
             start = time.monotonic()
             for attempt in range(2):
                 try:
-                    result = _ask_json(ask, V3C_WRITE.format(mechanism=json.dumps(entry), text=text[:MAX_TEXT_CHARS], code=code), tries=2, max_tokens=14000, timeout=600)
+                    result = _ask_json(ask, V3C_WRITE.format(mechanism=json.dumps(entry), text=text[:MAX_TEXT_CHARS], code=code), tries=1, max_tokens=14000, timeout=600)
                     if not isinstance(result.get("candidates"), list):
                         raise ValueError("no candidates list")
                     return result["candidates"][:3], {"seconds": time.monotonic() - start, "attempts": attempt + 1}

@@ -93,7 +93,7 @@ def test_v3c_chunks_retry_rank_and_failure(monkeypatch):
     calls = []
     def ask(prompt, *, timeout, max_tokens):
         calls.append((prompt, timeout, max_tokens))
-        if max_tokens == 6000:
+        if max_tokens == 18000:
             return json.dumps({'mechanisms': [{'mechanism': x} for x in ('first', 'second', 'failure')]})
         if '"failure"' in prompt:
             raise RuntimeError('chunk failed')
@@ -110,14 +110,14 @@ def test_v3c_chunks_retry_rank_and_failure(monkeypatch):
     assert len(critiques) == 2 and dropped == 0
     assert stats['chunk_count'] == 3 and stats['chunk_failures'] == 1
     assert len(calls) == 5 and all(timeout == 300 for _, timeout, _ in calls)
-    assert sorted(max_tokens for _, _, max_tokens in calls) == [4000] * 4 + [6000]
+    assert sorted(max_tokens for _, _, max_tokens in calls) == [14000] * 4 + [18000]
 
 
 def test_v3c_all_chunks_fail():
     from checklimits.checklimits.paper_only import MECH_V3C
     import pytest
     def ask(prompt, *, timeout, max_tokens):
-        if max_tokens == 6000:
+        if max_tokens == 18000:
             return json.dumps({'mechanisms': [{'mechanism': 'x'}]})
         raise RuntimeError('failed')
     with pytest.raises(ValueError, match='all mechanism chunks failed'):
