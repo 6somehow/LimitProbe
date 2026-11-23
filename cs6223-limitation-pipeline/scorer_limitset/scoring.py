@@ -93,7 +93,7 @@ class FakeJudge:
         if self.results is not None:
             with self._lock:
                 return next(self.results)
-        return {"matched": bool(signals["mechanism"] and signals["conditions"]), "coverage": dict(signals)}
+        return {"matched": bool(signals["mechanism"] and signals["conditions"]), "coverage": dict(signals), **({"confidence": 1.0} if "label_id" in label else {})}
 
     def judge_batch(self, label, findings, signal_list):
         with self._lock:
@@ -149,7 +149,7 @@ class RelayJudge:
     def judge(self, label, finding, signals):
         prompt = ("Assess this prediction against the reference. Matching requires the same mechanism, "
                   "triggering conditions and consequence. Return only JSON with boolean matched and coverage "
-                  "containing boolean fields " + ", ".join(FIELDS) + ".\n" +
+                  "containing boolean fields " + ", ".join(FIELDS) + (" and confidence in [0,1]" if "label_id" in label else "") + ".\n" +
                   json.dumps({"reference": label, "prediction": finding}, ensure_ascii=False))
         return self._request(prompt)
 
@@ -165,7 +165,7 @@ class RelayJudge:
             predictions.append({"index": i, "finding": item})
         prompt = ("Independently assess each prediction against the single reference. Matching requires the same "
                   "mechanism, triggering conditions and consequence; topic overlap is insufficient. Return only JSON: {\"matches\":[{\"index\":i,\"matched\":boolean,"
-                  "\"coverage\":{field:boolean}}]}; include every index once and all coverage fields: " +
+                  "\"coverage\":{field:boolean}" + (",\"confidence\":number" if "label_id" in label else "") + "}]}; " + ("confidence must be in [0,1]; " if "label_id" in label else "") + "include every index once and all coverage fields: " +
                   ", ".join(FIELDS) + ".\n" + json.dumps({"reference": label, "predictions": predictions}, ensure_ascii=False))
         result = self._request(prompt)
         matches = result.get("matches") if isinstance(result, dict) else None
@@ -173,18 +173,20 @@ class RelayJudge:
             raise ValueError("invalid batch")
         indexed = {}
         for item in matches:
-            if not isinstance(item, dict) or type(item.get("index")) is not int or item["index"] in indexed or not valid_decision(item):
+            if not isinstance(item, dict) or type(item.get("index")) is not int or item["index"] in indexed or not valid_decision(item, "label_id" in label):
                 raise ValueError("invalid batch")
-            indexed[item["index"]] = {"matched": item["matched"], "coverage": item["coverage"]}
+            indexed[item["index"]] = {k: item[k] for k in ("matched", "coverage", "confidence") if k in item}
         if set(indexed) != set(range(len(findings))):
             raise ValueError("invalid batch")
         return [indexed[i] for i in range(len(findings))]
 
 
-def valid_decision(result):
+def valid_decision(result, require_confidence=False):
     return (isinstance(result, dict) and type(result.get("matched")) is bool and
             isinstance(result.get("coverage"), dict) and
-            all(type(result["coverage"].get(f)) is bool for f in FIELDS))
+            all(type(result["coverage"].get(f)) is bool for f in FIELDS) and
+            (not require_confidence or (type(result.get("confidence")) in (int, float) and
+             math.isfinite(result["confidence"]) and 0 <= result["confidence"] <= 1)))
 
 
 def wilson(success, total):
@@ -200,7 +202,7 @@ def wilson(success, total):
 
 def score(labels, predictions, splits, judge, label_schema=None, prediction_schema=None, workers=4, labels_en=None):
     with judge if hasattr(judge, "__enter__") else nullcontext():
-        return _score(labels, predictions, splits, judge, label_schema, prediction_schema, workers, labels_en)
+        return _score_multi(labels, predictions, splits, judge, label_schema, prediction_schema, workers, labels_en) if any("label_id" in label for label in labels) else _score(labels, predictions, splits, judge, label_schema, prediction_schema, workers, labels_en)
 
 
 def _score(labels, predictions, splits, judge, label_schema, prediction_schema, workers, labels_en):
@@ -244,22 +246,22 @@ def _score(labels, predictions, splits, judge, label_schema, prediction_schema, 
         sigs = [signals(reference, f) for f in findings]
         sigs_zh = [signals(label, f) for f in findings]
         evaluations = []
-        for start in range(0, len(findings), 30 if len(findings) > 60 else max(1, len(findings))):
-            chunk = findings[start:start + (30 if len(findings) > 60 else len(findings))]
+        for start in range(0, len(findings), 30 if "label_id" in label or len(findings) > 60 else max(1, len(findings))):
+            chunk = findings[start:start + (30 if "label_id" in label or len(findings) > 60 else len(findings))]
             chunk_sigs = sigs[start:start + len(chunk)]
             try:
                 results = judge.judge_batch(reference, chunk, chunk_sigs)
-                if not isinstance(results, list) or len(results) != len(chunk) or not all(valid_decision(r) for r in results):
+                if not isinstance(results, list) or len(results) != len(chunk) or not all(valid_decision(r, "label_id" in label) for r in results):
                     raise ValueError("invalid batch")
             except (ValueError, KeyError, TypeError, json.JSONDecodeError):
                 results = []
                 for finding, sig in zip(chunk, chunk_sigs):
                     try:
                         result = judge.judge(reference, finding, sig)
-                        if not valid_decision(result):
+                        if not valid_decision(result, "label_id" in label):
                             raise ValueError("judge must return boolean matched and all coverage fields")
                         results.append(result)
-                    except (JudgeUnavailable, TimeoutError, ConnectionError):
+                    except (JudgeUnavailable, TimeoutError, ConnectionError, ValueError, KeyError, TypeError, json.JSONDecodeError):
                         results.append(None)
             except (JudgeUnavailable, TimeoutError, ConnectionError):
                 results = [None] * len(chunk)
@@ -312,3 +314,99 @@ def _score(labels, predictions, splits, judge, label_schema, prediction_schema, 
                 "mean_per_repeat_rate": sum(repeat_rates) / len(repeat_rates) if repeat_rates else None, "fields": fields}
     return {"judge": {"model_id": judge.model_id, "prompt_version": judge.prompt_version, "temperature": judge.temperature, "calls": judge.calls},
             "cases": cases, "invalid_records": invalid, "aggregate": aggregate}
+
+
+def _score_multi(labels, predictions, splits, judge, label_schema, prediction_schema, workers, labels_en):
+    if labels_en is not None:
+        raise ValueError("multi-label references must already be English")
+    grouped = defaultdict(list)
+    seen = set()
+    for label in labels:
+        key = (label.get("case_id"), label.get("label_id"))
+        if not all(isinstance(x, str) and x for x in key) or key in seen:
+            raise ValueError("labels require unique case_id and label_id")
+        seen.add(key)
+        grouped[key[0]].append(label)
+    # Score each label with the established validation and judge behavior.
+    results = {}
+    for cid, refs in grouped.items():
+        records = [p for p in predictions if isinstance(p, dict) and p.get("case_id") == cid]
+        split = next((s for s in ("validation", "test") if cid in splits.get(s, [])), None)
+        if split is None:
+            raise ValueError(f"missing split case: {cid}")
+        for ref in refs:
+            sub = _score([ref], records, {"validation": [cid] if split == "validation" else [], "test": [cid] if split == "test" else []}, judge, label_schema, prediction_schema, workers, None)
+            results[(cid, ref["label_id"])] = sub["cases"][0]
+    if set(sum((splits.get(s, []) for s in ("validation", "test")), [])) != set(grouped) or sum(len(splits.get(s, [])) for s in ("validation", "test")) != len(grouped):
+        raise ValueError("splits must cover all labels exactly once")
+    if any(not isinstance(p, dict) or p.get("case_id") not in grouped for p in predictions):
+        raise ValueError("unknown prediction case")
+    cases = []
+    for cid, refs in grouped.items():
+        rows = [results[(cid, ref["label_id"])] for ref in refs]
+        for ri in range(max((len(row["repeats"]) for row in rows), default=0)):
+            candidates = []
+            for li, row in enumerate(rows):
+                if ri >= len(row["repeats"]):
+                    continue
+                for e in row["repeats"][ri]["evaluations"]:
+                    if e["matched"] is True and not row["repeats"][ri]["judge_unavailable"]:
+                        confidence = e.get("confidence")
+                        confidence = confidence if isinstance(confidence, (int, float)) and not isinstance(confidence, bool) and math.isfinite(confidence) else 0
+                        candidates.append((-confidence, li, e["index"], e))
+            assigned, used = {}, set()
+            for _, li, index, e in sorted(candidates, key=lambda x: x[:3]):
+                if li not in assigned and index not in used:
+                    assigned[li] = e
+                    used.add(index)
+            for li, row in enumerate(rows):
+                if ri >= len(row["repeats"]):
+                    continue
+                repeat = row["repeats"][ri]
+                match = assigned.get(li)
+                repeat["found"] = True if match else None if repeat["judge_unavailable"] else False
+                repeat["matched_prediction_index"] = match["index"] if match else None
+                repeat["coverage"] = match["coverage"] if match else {f: None if repeat["judge_unavailable"] else False for f in FIELDS}
+        for ref, row in zip(refs, rows):
+            repeats = row["repeats"]
+            known = [r for r in repeats if r["found"] is not None]
+            row["found"] = True if any(r["found"] is True for r in repeats) else None if any(r["found"] is None for r in repeats) or not known else False
+            selected = max(repeats, key=lambda r: (r["found"] is True, sum(v is True for v in r["coverage"].values())), default=None)
+            row["fields"] = selected["coverage"] if selected else {f: None for f in FIELDS}
+            row["stability"] = wilson(sum(r["found"] is True for r in known), len(known))
+            row["label_id"] = ref["label_id"]
+            row["category"] = ref.get("category_code")
+        # Case repeats preserve the existing comparison interface.
+        repeats = []
+        for ri in range(max((len(row["repeats"]) for row in rows), default=0)):
+            rs = [row["repeats"][ri] for row in rows if ri < len(row["repeats"])]
+            available = [r for r in rs if not r["judge_unavailable"] and r["found"] is not None]
+            found = any(r["found"] is True for r in available) if available else None
+            repeats.append({"found": found, "judge_unavailable": not available and any(r["judge_unavailable"] for r in rs)})
+        known = [r for r in repeats if r["found"] is not None]
+        available_labels = [r for r in rows if not r["judge_unavailable"] and r["found"] is not None]
+        found = any(r["found"] is True for r in available_labels) if available_labels else None
+        case = dict(rows[0], found=found, labels=rows, repeats=repeats,
+                    judge_unavailable=not available_labels and any(r["judge_unavailable"] for r in rows),
+                    stability=wilson(sum(r["found"] is True for r in known), len(known)))
+        cases.append(case)
+    aggregate = {}
+    for dimension in ("category", "split"):
+        aggregate[dimension] = {}
+        values = sorted({(r[dimension] or "unknown") for c in cases for r in c["labels"]})
+        for value in values:
+            label_rows = [r for c in cases for r in c["labels"] if (r[dimension] or "unknown") == value]
+            case_rows = []
+            for c in cases:
+                relevant = [r for r in c["labels"] if (r[dimension] or "unknown") == value]
+                if relevant:
+                    available = [r for r in relevant if not r["judge_unavailable"] and r["found"] is not None]
+                    found = any(r["found"] is True for r in available) if available else None
+                    case_rows.append(dict(c, found=found, judge_unavailable=not available and any(r["judge_unavailable"] for r in relevant)))
+            def summary(rows):
+                available = [r for r in rows if r["found"] is not None and not r["judge_unavailable"]]
+                return wilson(sum(r["found"] is True for r in available), len(available))
+            fields = {f: wilson(sum(r["fields"][f] is True for r in label_rows if not r["judge_unavailable"] and r["fields"][f] is not None), sum(not r["judge_unavailable"] and r["fields"][f] is not None for r in label_rows)) for f in FIELDS}
+            rates = [r["stability"]["fraction"] for r in label_rows if r["stability"]["fraction"] is not None]
+            aggregate[dimension][value] = {"found": summary(case_rows), "cases": summary(case_rows), "labels": summary(label_rows), "judge_unavailable_cases": sum(c["judge_unavailable"] for c in case_rows), "judge_unavailable_labels": sum(r["judge_unavailable"] for r in label_rows), "fields": fields, "mean_per_repeat_rate": sum(rates)/len(rates) if rates else None}
+    return {"judge": {"model_id": judge.model_id, "prompt_version": judge.prompt_version, "temperature": judge.temperature, "calls": judge.calls}, "cases": cases, "invalid_records": [], "aggregate": aggregate}
