@@ -395,7 +395,7 @@ def mechanism_candidates(text, code_files, ask, *, version=MECH_V1, examples_pat
         response = ask(MECH_ANALYSIS.format(inventory=json.dumps(inventory), text=text[:MAX_TEXT_CHARS], code=code, examples=examples))
     elif version == MECH_V3C:
         started = time.monotonic()
-        inventory = _ask_json(ask, V3C_INVENTORY.format(text=text[:MAX_TEXT_CHARS], code=code), max_tokens=6000, timeout=300)
+        inventory = _ask_json(ask, V3C_INVENTORY.format(text=text[:MAX_TEXT_CHARS], code=code), max_tokens=18000, timeout=600  # the reasoning model spends the budget on thinking first: 6000 gave an empty answer)
         entries = inventory.get("mechanisms")
         if not isinstance(entries, list) or not entries:
             raise ValueError("no mechanisms list in inventory")
@@ -404,7 +404,7 @@ def mechanism_candidates(text, code_files, ask, *, version=MECH_V1, examples_pat
             start = time.monotonic()
             for attempt in range(2):
                 try:
-                    result = _ask_json(ask, V3C_WRITE.format(mechanism=json.dumps(entry), text=text[:MAX_TEXT_CHARS], code=code), tries=2, max_tokens=4000, timeout=300)
+                    result = _ask_json(ask, V3C_WRITE.format(mechanism=json.dumps(entry), text=text[:MAX_TEXT_CHARS], code=code), tries=2, max_tokens=14000, timeout=600)
                     if not isinstance(result.get("candidates"), list):
                         raise ValueError("no candidates list")
                     return result["candidates"][:3], {"seconds": time.monotonic() - start, "attempts": attempt + 1}
