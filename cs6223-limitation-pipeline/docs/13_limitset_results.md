@@ -29,7 +29,39 @@ Generator models: `x-test-2` (alias of the SoCLaaS relay; user-confirmed backend
 
 ## Results
 
-<!--TABLES-->
+### limitset2 (11 papers, 22 human-reviewed labels, judge gpt-6.1-terra, 1 repeat)
+
+| System | Labels hit [Wilson 95%] | Papers with >=1 hit | Findings/paper | Verified-quote rate | Labels with conditions / defeaters covered | Cost |
+|---|---|---|---|---|---|---|
+| B1 (x-test-2) | 3/22 [0.05, 0.33] | 3/11 [0.10, 0.57] | 12.1 (2 failed) | n/a (not checked) | 3/22 / 1/22 | 11 calls, 211k+89k tok, 130s/case |
+| B1 x2 (x-test-2, two runs merged) | 5/22 [0.10, 0.43] | 4/11 [0.15, 0.65] | 21.0 (0 failed) | n/a (not checked) | 5/22 / 3/22 | n/a |
+| v3c (x-test-2) | 7/22 [0.16, 0.53] | 6/11 [0.28, 0.79] | 17.2 (0 failed) | 110/189 | 6/22 / 4/22 | 134 calls, tokens n/a, 1038s/case |
+| v3c + B1 (x-test-2) | 8/22 [0.20, 0.57] | 6/11 [0.28, 0.79] | 27.1 (0 failed) | 110/189 | 7/22 / 5/22 | n/a |
+| B1 (Claude Sonnet 5.5) | 5/22 [0.10, 0.43] | 4/11 [0.15, 0.65] | 7.4 (1 failed) | n/a (not checked) | 5/22 / 0/22 | 11 calls, 402k+33k tok, 38s/case |
+| v3c (Claude Sonnet 5.5) | 12/22 [0.35, 0.73] | 9/11 [0.52, 0.95] | 15.3 (0 failed) | 19/168 | 11/22 / 2/22 | 115 calls, tokens n/a, 274s/case |
+| v3c + B1 (Claude Sonnet 5.5) | 15/22 [0.47, 0.84] | 10/11 [0.62, 0.98] | 22.0 (0 failed) | 19/168 | 13/22 / 2/22 | n/a |
+
+### Validation (4 development cases CS6223-01..04, judge gpt-6.1-terra, 2 repeats where run)
+
+| System | Cases found [Wilson 95%] and which | Repeats found |
+|---|---|---|
+| Pipeline v1 (paper-only + enrichment) | 0/4 [0.00, 0.49] [] | 0/8 |
+| Pipeline + swarm | 0/4 [0.00, 0.49] [] | 0/8 |
+| Mechanism v1 | 0/4 [0.00, 0.49] [] | 0/8 |
+| B1 | 0/4 [0.00, 0.49] [] | 0/8 |
+| B2 (opencode) | 1/4 [0.05, 0.70] ['CS6223-04'] | 1/8 |
+
+### Reading the tables (descriptive, not a significance claim)
+
+- **Claude Sonnet 5.5 as generator (limitset2):** v3c covers 12 of 22 labels (9 of 11 papers) against 5 of 22 (4 of 11) for B1 with the same model. The 95% intervals ([0.35, 0.73] and [0.10, 0.43]) only just overlap, so this is the clearest difference in the study, but it is one run on 11 papers with Claude-drafted labels (threat 3).
+- **x-test-2 as generator (limitset2):** v3c 7 of 22 (6 of 11 papers), B1 3 of 22, B1 x2 5 of 22. The intervals overlap heavily; the ordering is suggestive only.
+- **Union (v3c + B1):** adds 1 label (x-test-2: 8 of 22) and 3 labels (Sonnet: 15 of 22) over v3c alone. Against the matched control B1 x2 (21.0 findings per paper, 5 of 22) the x-test-2 union (27.1 findings per paper, 8 of 22) is higher, which is in line with the diverse-generators idea, but 3 labels on 22 is within noise.
+- **Findings per paper and verification:** v3c produces 15 to 17 findings per paper with a category, conditions and defeaters; B1 produces 7 to 12. The quotes of v3c findings verify (letters and digits, normalized) for 110 of 189 findings with x-test-2 but only 19 of 168 with Claude Sonnet 5.5. A covered label therefore does not imply verified evidence: most Sonnet findings are hypotheses argued from the model's reading.
+- **Failed papers are counted as misses.** B1 on x-test-2 failed on 2 papers and B1 on Sonnet on 1 paper (service errors); those labels are in the denominator as not covered, which slightly lowers B1 and B1 x2 relative to a complete run.
+- **Development cases (validation table):** no system covers more than 1 of 4 cases (only B2 on CS6223-04, 1 of 8 repeats); the 4-case numbers do not separate the systems, and they were used during development.
+- **Cost:** v3c makes 104 to 134 model calls for 11 papers (about 10 per paper) against 11 for B1; wall time per paper is dominated by the shared model service (x-test-2 about 1000 s per paper for v3c under load, Sonnet about 270 s). Token counts for v3c are not recorded by the relay path; B1 tokens come from the API usage field.
+- **No evidence tier or confidence band is available for any row** (capability difference; see status of goal (c)). Confidence for these findings would have to come from running the test lane on each finding, which was not done.
+
 
 Columns: *Labels hit* counts reference limits judged as covered (Wilson 95% interval in brackets, n is tiny). *Papers with >=1 hit* counts papers with at least one covered label. *Findings/paper* is the mean over papers with a prediction; papers whose generation failed are counted as misses in the hit counts and listed as failed in that column. *Verified-quote rate* is the share of findings whose cited quote matches the paper text after normalization (letters and digits only, ignoring case, spacing, punctuation and hyphenation); `n/a` means the system does not check quotes at all (B1 asks for quotes but nothing verifies them). *Conditions / defeaters* count labels where the judge found the label's conditions or defeaters covered.
 

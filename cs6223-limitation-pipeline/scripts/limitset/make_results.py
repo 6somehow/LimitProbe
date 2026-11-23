@@ -46,14 +46,16 @@ def row(name, score_dir, pred_file, run_dir=None, multi=True):
     failed = len(recs) - len(ok)
     cost = 'n/a'
     if run_dir:
-        rd = Path(run_dir)
+        dirs = [Path(x) for x in (run_dir if isinstance(run_dir, list) else [run_dir])]
+        rd = dirs[0]
         cj = rd / 'cost.jsonl'
         if cj.exists():
             rows = [json.loads(l) for l in cj.read_text().splitlines() if l.strip()]
             pt = sum(r.get('prompt_tokens') or 0 for r in rows); ct = sum(r.get('completion_tokens') or 0 for r in rows)
             cost = f"{len(rows)} calls, {pt//1000}k+{ct//1000}k tok, {sum(r.get('wall_seconds') or 0 for r in rows)/max(1,len(rows)):.0f}s/case"
         else:
-            ev = [load(p) for p in sorted(rd.glob('runs/*/r*/mechanism_evidence.json'))]
+            ev = [load(p) for d_ in dirs for p in sorted(d_.glob('runs/*/r*/mechanism_evidence.json'))
+                  if not (d_ == dirs[0] and len(dirs) > 1 and p.parts[-3] in ('LS2-05', 'LS2-09', 'LS2-11'))]  # failed first attempts are replaced by the retries
             if ev:
                 calls = sum(1 + e.get('chunk_count', 0) for e in ev)
                 secs = sum((e.get('inventory_seconds') or 0) + (e.get('chunks_seconds') or 0) for e in ev) / len(ev)
@@ -76,7 +78,7 @@ if __name__ == '__main__':
     out.append('|---|---|---|---|---|---|---|')
     L2 = [('B1 (x-test-2)', 'out/limitset2/g_b1', 'out/limitset2/b1/predictions.jsonl', 'out/limitset2/b1'),
           ('B1 x2 (x-test-2, two runs merged)', 'out/limitset2/g_b1x2', 'out/limitset2/b1x2.jsonl', None),
-          ('v3c (x-test-2)', 'out/limitset2/g_a1c', 'out/limitset2/a1c/predictions.jsonl', 'out/limitset2/a1c'),
+          ('v3c (x-test-2)', 'out/limitset2/g_a1c', 'out/limitset2/a1c_full.jsonl', ['out/limitset2/a1c', 'out/limitset2/a1c_retry2_LS2-05', 'out/limitset2/a1c_retry2_LS2-09', 'out/limitset2/a1c_retry2_LS2-11']),
           ('v3c + B1 (x-test-2)', 'out/limitset2/g_union', 'out/limitset2/union.jsonl', None),
           ('B1 (Claude Sonnet 5.5)', 'out/limitset2/g_b1_sonnet', 'out/limitset2/b1_sonnet/predictions.jsonl', 'out/limitset2/b1_sonnet'),
           ('v3c (Claude Sonnet 5.5)', 'out/limitset2/g_a1c_sonnet', 'out/limitset2/a1c_sonnet/predictions.jsonl', 'out/limitset2/a1c_sonnet'),
