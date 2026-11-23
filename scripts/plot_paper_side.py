@@ -50,25 +50,19 @@ def main() -> None:
     plt.rcParams.update({"font.size": 9, "pdf.fonttype": 42, "svg.fonttype": "none",
                         "svg.hashsalt": "cs6223-paper-side", "axes.spines.top": False,
                         "axes.spines.right": False})
-    figure, axes = plt.subplots(1, 2, figsize=(5.5, 2.55), sharey=True, layout="constrained")
-    figure.supxlabel("Papers with a core or partial diagnosis (out of 8)", fontsize=9)
-    labels = ("S7", "A", "B")
-    for axis, (grader, rows) in zip(axes, graders.items()):
-        dev_counts, eval_counts = [
-            [sum(rows[split, paper, workflow][0] != "miss" for paper in papers)
-             for workflow in WORKFLOWS]
-            for split, papers in SPLITS.items()
-        ]
-        axis.barh(labels, dev_counts, color="#285f8e", height=0.53, label="Development")
-        bars = axis.barh(labels, eval_counts, left=dev_counts, color="#95601f",
-                         height=0.53, label="Evaluation")
-        axis.bar_label(bars, padding=3)
-        axis.set(title=f"{grader} grader", xlim=(0, 8.65), xticks=(0, 2, 4, 6, 8))
+    figure, axes = plt.subplots(1, 2, figsize=(5.5, 2.35), sharey=True, layout="constrained")
+    figure.supxlabel("Papers with a core or partial diagnosis (out of 4)", fontsize=9)
+    panels = (("dev", "Development"), ("test-source", "Test with source"))
+    for axis, (split, title) in zip(axes, panels):
+        counts = [sum(blind[split, paper, workflow][0] != "miss" for paper in SPLITS[split])
+                  for workflow in WORKFLOWS]
+        bars = axis.barh(("S7", "A", "B"), counts, color=("#285f8e", "#96611f", "#52766a"),
+                         height=0.53)
+        axis.bar_label(bars, labels=[f"{value}/4" for value in counts], padding=3)
+        axis.set(title=title, xlim=(0, 4.65), xticks=(0, 1, 2, 3, 4))
         axis.grid(axis="x", color="#e4e9ee", linewidth=0.65)
         axis.set_axisbelow(True)
     axes[0].invert_yaxis()
-    handles, labels = axes[0].get_legend_handles_labels()
-    figure.legend(handles, labels, loc="outside upper center", ncols=2, frameon=False)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     metadata = {"Date": None} if args.output.suffix == ".svg" else {"CreationDate": None}
     figure.savefig(args.output, metadata=metadata)

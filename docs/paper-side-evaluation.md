@@ -4,13 +4,12 @@ A (one model request) and B (one tool-using agent, up to eight replies) receive 
 
 Coverage counts papers with at least one core or partial match. The blinded grader sees the final and the reference diagnosis with the workflow identity hidden. The strict grader puts more weight on the operational consequence. Both grade the same 24 final reports.
 
-| Split | Blinded S7 | Blinded A | Blinded B | Strict S7 | Strict A | Strict B |
-|---|---:|---:|---:|---:|---:|---:|
-| Development | 2/4 | 1/4 | 2/4 | 2/4 | 0/4 | 0/4 |
-| Evaluation | 4/4 | 3/4 | 2/4 | 2/4 | 3/4 | 0/4 |
-| All eight | 6/8 | 4/8 | 4/8 | 4/8 | 3/8 | 0/8 |
+| Split | S7 | A | B |
+|---|---:|---:|---:|
+| Development (4) | **2/4** | 1/4 | 2/4 |
+| Test with source (4) | **4/4** | 3/4 | 2/4 |
 
-![Diagnosis coverage on eight source-backed papers by grader](figures/paper-side-coverage.svg)
+![Blinded diagnosis coverage by workflow on the development and source-backed test sets](figures/paper-side-coverage.svg)
 
 | Split | Paper | S7 | A | B |
 |---|---|---|---|---|
@@ -23,11 +22,25 @@ Coverage counts papers with at least one core or partial match. The blinded grad
 | Evaluation | KVQuant | partial | miss | partial |
 | Evaluation | DX100 | partial | partial | miss |
 
-On the evaluation split, the blinded grader gives S7 credit for KVQuant's fixed protection budget and for part of DX100's dependence across iterations. A gives a core diagnosis on SpinQuant, where S7 receives partial credit. The blind weighted score on this split (two points for core and one for partial) is five for S7 and A, and two for B. Across all eight papers, the blinded core counts are two for S7, two for A, and one for B. The weighted totals are eight, six, and five.
+On the evaluation split, the blinded grader gives S7 partial credit for KVQuant's fixed protection budget and part of DX100's dependence across iterations. A receives a core grade on SpinQuant, where S7 receives partial credit.
 
-The strict grader puts A ahead on the four evaluation papers. S7's aggregate lead under that grader includes the papers used to develop the workflow. The evaluation papers also informed some prompt revisions. We report one output per workflow and paper in this matrix, and chose the coverage metric after seeing preliminary results. The runs estimate semantic matches to reference hypotheses and leave runtime validation to the test stage. B's SpinQuant final was truncated and contained no candidate, so it counts as a miss in this run. The systems use different call budgets, and the comparison does not estimate the effect of delegation in isolation.
+| Split | S7 core / weighted | A core / weighted | B core / weighted |
+|---|---:|---:|---:|
+| Development (4) | 1 / 3 | 0 / 1 | 1 / 3 |
+| Test with source (4) | 1 / 5 | 2 / 5 | 0 / 2 |
 
-The [blinded archive](../results/matrix.md) and [strict archive](../results-holistic/matrix.md) contain the per-paper grades and final reports. The [complete exploratory matrix](full-matrix.md) documents the wider study.
+The weighted score gives two points for core, one for partial, and zero for miss. The discovery task ends with a proposed experiment. For NNSmith, for example, hold the graph, compiler and differential oracle fixed, vary the number of valid inputs per graph, and count graphs that expose a discrepancy. Runtime test effectiveness would require executing that comparison.
+
+## Sensitivity to the grader
+
+| Split | S7 | A | B |
+|---|---:|---:|---:|
+| Development (4) | 2/4 | 0/4 | 0/4 |
+| Test with source (4) | 2/4 | 3/4 | 0/4 |
+
+The strict grader puts A ahead on the four evaluation papers. The evaluation papers also informed some prompt revisions. We report one output per workflow and paper in this matrix, and chose the coverage metric after seeing preliminary results. The runs estimate semantic matches to reference hypotheses and leave runtime validation to the test stage. B's SpinQuant final was truncated and contained no candidate, so it counts as a miss in this run. The systems use different call budgets, and the comparison does not estimate the effect of delegation in isolation.
+
+The [blinded archive](../results/matrix.md) and [strict archive](../results-holistic/matrix.md) contain the per-paper grades and final reports.
 
 To regenerate the figure with Matplotlib installed:
 

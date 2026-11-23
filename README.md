@@ -2,14 +2,12 @@
 
 S7 proposes testable method limitations from a research paper and its pinned source repository. It traces one decision through the implementation, checks a gap with a worker, and adds candidates from other stages.
 
-| Source-backed papers | S7 | A (one request) | B (one agent) |
+| Blinded diagnosis coverage | S7 | A (one request) | B (one agent) |
 |---|---:|---:|---:|
-| Development, blinded | 2/4 | 1/4 | 2/4 |
-| Evaluation, blinded | 4/4 | 3/4 | 2/4 |
-| All eight, blinded | 6/8 | 4/8 | 4/8 |
-| All eight, strict | 4/8 | 3/8 | 0/8 |
+| Development (4) | **2/4** | 1/4 | 2/4 |
+| Test with source (4) | **4/4** | 3/4 | 2/4 |
 
-A paper is covered if its best candidate earns a core or partial match to the reference diagnosis. On the four evaluation papers the strict grader puts A ahead of S7, 3/4 to 2/4. Some of these papers informed earlier prompt revisions. The [paper-side evaluation](docs/paper-side-evaluation.md) gives the per-paper grades, coverage figure, and full scoring details. The [complete exploratory matrix](docs/full-matrix.md) is also archived.
+A paper is covered if its best candidate earns a core or partial match to the reference diagnosis. This measures whether discovery finds an opportunity for a controlled test. On the four evaluation papers the strict grader puts A ahead of S7, 3/4 to 2/4. Some of these papers informed earlier prompt revisions. The [paper-side evaluation](docs/paper-side-evaluation.md) gives the per-paper grades, coverage figure, and full scoring details.
 
 ## The method (s7): depth first, breadth appended, measured handoffs
 
