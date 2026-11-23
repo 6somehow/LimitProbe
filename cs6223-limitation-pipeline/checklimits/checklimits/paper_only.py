@@ -23,6 +23,8 @@ from .analysis import ANALYSIS_VERSION, chat
 from .testreport import NotRun, TestRecord, not_run_record, now_iso
 
 PROMPT_VERSION = "paper-only-v1"
+MECHANISM_PROMPT_VERSION = "paper-only-v2"
+MECHANISM_KINDS = ("applicability_limitation", "mechanism_origin_unclear", "method_shortcoming")
 MAX_CANDIDATES = 12
 MAX_TEXT_CHARS = 140_000
 KINDS = ("assumption", "evaluation_scope", "unsupported_claim", "internal_inconsistency", "missing_comparison",
@@ -46,6 +48,18 @@ For each give:
 "expect": "<what the paper's claim requires, e.g. 'about 2.3'>", "meaning": "<15 words>"}}
   "would_confirm": one sentence: what experiment or code access would settle it
 Rank by how much a reader's trust in the headline result depends on it. Return {{"candidates": [...]}}.
+
+PAPER TEXT
+{text}"""
+
+
+MECHANISM_TASK = """Analyze the paper's core mechanisms, design choices, objectives, stopping rules and assumptions.
+For each, reason about what it optimizes versus what it leaves unconstrained, when assumptions or scope
+conditions fail, and observed effects whose causes the paper does not explain. Return up to {n} candidates
+as a JSON object with a candidates list. Each candidate has kind (one of {kinds}), claim, mechanism
+(why it arises, 1-3 sentences), conditions (list of necessary conditions for the limit to bite),
+defeaters (list), reasoning (paper fact -> analysis premise -> inference), quotes (1-3 EXACT quotes
+copied word for word, each <= 300 characters), and locator (section or page).
 
 PAPER TEXT
 {text}"""
@@ -132,7 +146,7 @@ def build_records(artifact_id: str, cands: list[dict[str, Any]], flat_text: str,
         if not good or len(good) < len(quotes):
             dropped += 1                              # an invented or altered quote: the whole candidate is dropped
             continue
-        kind = c.get("kind") if c.get("kind") in KINDS else "other"
+        kind = c.get("kind") if c.get("kind") in KINDS + MECHANISM_KINDS else "other"
         chk = run_check(c.get("check"), good)
         fid = f"{artifact_id}-P{len(recs) + 1:03d}"
         an = {"version": ANALYSIS_VERSION, "kind": "analysis_only", "tier": "A1",
@@ -141,6 +155,9 @@ def build_records(artifact_id: str, cands: list[dict[str, Any]], flat_text: str,
               "hardware_needed": False, "would_confirm": str(c.get("would_confirm") or "")[:300],
               "static": {"cited": 0, "grounded": False, "items": []}, "probes": [], "model": model, "error": None,
               "arithmetic_check": chk, "paper_only": True}
+        if kind in MECHANISM_KINDS:
+            an.update(kind_code=kind, mechanism=c.get("mechanism"), conditions=c.get("conditions"),
+                      defeaters=c.get("defeaters"), reasoning=str(c.get("reasoning") or "")[:600])
         recs.append(TestRecord(
             finding_id=fid, artifact_id=artifact_id, status="not_run",
             not_run=NotRun(code="no_code_location", reason="no public code: the candidate is a reading of the paper text"),
@@ -156,28 +173,44 @@ def build_records(artifact_id: str, cands: list[dict[str, Any]], flat_text: str,
 def run_paper_only(artifact_id: str, pdf: Path, *, title: str, venue: str, results_root: Path, model: str,
                    base_url: str, key: str, ask: Optional[Callable[[str], str]] = None) -> dict[str, Any]:
     text = pdf_text(pdf)[:MAX_TEXT_CHARS]
-    prompt = TASK.format(n=MAX_CANDIDATES, kinds=", ".join(KINDS), text=text)
     tdir = results_root / "tests" / artifact_id
     tdir.mkdir(parents=True, exist_ok=True)
-    ck = hashlib.sha256((PROMPT_VERSION + model + prompt).encode()).hexdigest()[:20]
-    cache = tdir / "analysis_cache" / f"paper-only-{ck}.json"
-    if cache.exists():
-        cands = json.loads(cache.read_text())
-    else:
-        fn = ask or (lambda p: chat(p, model, base_url, key, timeout=900, max_tokens=40000).strip())
-        cands = None
-        for attempt in range(2):
-            try:
-                cands = parse_candidates(fn(prompt))
-                break
-            except (ValueError, KeyError):
-                if attempt:
-                    raise
-        cache.parent.mkdir(parents=True, exist_ok=True)
-        cache.write_text(json.dumps(cands, indent=1, ensure_ascii=False))
+    fn = ask or (lambda p: chat(p, model, base_url, key, timeout=900, max_tokens=40000).strip())
     sha = hashlib.sha256(pdf.read_bytes()).hexdigest()
-    prov = {"pdf_sha256": sha, "model": model, "prompt_version": PROMPT_VERSION, "generated_at": now_iso()}
-    recs, dropped = build_records(artifact_id, cands, _flat(text), model, prov)
+    recs, dropped = [], 0
+    passes = ((PROMPT_VERSION, TASK.format(n=MAX_CANDIDATES, kinds=", ".join(KINDS), text=text)),
+              (MECHANISM_PROMPT_VERSION, MECHANISM_TASK.format(n=MAX_CANDIDATES, kinds=", ".join(MECHANISM_KINDS), text=text)))
+    for version, prompt in passes:
+        ck = hashlib.sha256((version + model + prompt).encode()).hexdigest()[:20]
+        cache = tdir / "analysis_cache" / f"paper-only-{ck}.json"
+        if cache.exists():
+            cands = json.loads(cache.read_text())
+        else:
+            for attempt in range(2):
+                try:
+                    cands = parse_candidates(fn(prompt))
+                    break
+                except (ValueError, KeyError):
+                    if attempt:
+                        raise
+            cache.parent.mkdir(parents=True, exist_ok=True)
+            cache.write_text(json.dumps(cands, indent=1, ensure_ascii=False))
+        prov = {"pdf_sha256": sha, "model": model, "prompt_version": version,
+                "origin": version, "generated_at": now_iso()}
+        new, count = build_records(artifact_id, cands, _flat(text), model, prov)
+        dropped += count
+        for record in new:
+            quotes = [_flat(e["quote"]) for e in record.evidence["paper"]]
+            duplicate = next((i for i, old in enumerate(recs) if any(
+                q in _flat(e["quote"]) or _flat(e["quote"]) in q
+                for q in quotes for e in old.evidence["paper"])), None)
+            if duplicate is not None:
+                if version == MECHANISM_PROMPT_VERSION and record.analysis.get("kind_code"):
+                    record.finding_id = recs[duplicate].finding_id
+                    recs[duplicate] = record
+                continue
+            record.finding_id = f"{artifact_id}-P{len(recs) + 1:03d}"
+            recs.append(record)
     return _write_paper_report(artifact_id, pdf, title, venue, results_root, sha, recs, dropped)
 
 

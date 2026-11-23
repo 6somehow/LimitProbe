@@ -77,3 +77,11 @@ def test_concurrent_enrich_one_call_per_key_and_equals_serial(tmp_path):
     assert len(calls) == 3
     ser = [enrich(f, tmp_path / 'cs', lambda p: resp, 'm') for f in findings]
     assert par == ser and all(e is None for _, e in par)
+
+
+def test_enrichment_preserves_mechanism_pass_values(tmp_path):
+    original = {**finding(), 'category_code': 'method_shortcoming', 'mechanism': 'original', 'conditions': ['when']}
+    llm = FakeLLM(json.dumps({'category_code': 'applicability_limitation', 'mechanism': 'replacement', 'conditions': ['other']}))
+    result, error = enrich(original, tmp_path, llm, 'm')
+    assert error is None
+    assert (result['category_code'], result['mechanism'], result['conditions']) == ('method_shortcoming', 'original', ['when'])
