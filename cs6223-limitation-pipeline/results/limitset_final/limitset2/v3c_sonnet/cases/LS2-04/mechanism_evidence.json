@@ -1,0 +1,992 @@
+{
+  "candidates": [
+    {
+      "headline": "Pruning after profiling does not reduce profiling cost, which the neighborhood bound was introduced to limit",
+      "claim": "Tbase pruning shrinks only the MILP, which already solves in seconds. It cannot reduce the profiling cost, which is set by candidate generation and by deduplication of repeated chunk specifications.",
+      "paper_fact": "Pruning removes all candidate pairs whose post-overlap cost exceeds Tbase, reducing the effective problem size by roughly 3–5×.",
+      "premise": "Discarding a pair because its profiled cost exceeds Tbase requires that cost to have been measured already. The decision therefore comes after the expensive step.",
+      "inference": "Pruning acts only after profiling, so it removes MILP variables but not profiling work. Table 4 shows all MILP solves take 0.34-4.22 s, versus profiling that peaks near 3,050 s. The tractability benefit of pruning is therefore small compared with the cost it does not touch, and the profiling budget depends on K and on structural deduplication.",
+      "toy_example": "Illustrative only, not a measurement: if 10,000 pairs are profiled and 7,000 are then pruned, profiling time is still that of 10,000 pairs. Only the solver sees 3,000 variables.",
+      "conditional_consequence": "If vp or the number of distinct chunk types grows, pair count scales as K^2 per edge. The profiling budget could be exceeded even though pruning keeps the MILP small.",
+      "critical_link": "Whether profiling cost, not MILP size, is the scaling bottleneck as K and vp grow.",
+      "necessary_conditions": [
+        "Pairs are pruned only after their post-overlap cost has been profiled.",
+        "Profiling time dominates solve time in the target configuration."
+      ],
+      "defeaters": [
+        "Deduplication keeps the distinct-pair count small, as reported for the tested models (237-637 pairs).",
+        "Profiling can be parallelized across reference device groups."
+      ],
+      "do_not_infer": [
+        "That current profiling exceeds the one-hour budget; the paper reports about 3,050 s at most.",
+        "That pruning is useless; it still reduces the MILP size.",
+        "That the planner is slow at the tested scales."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1/L7: guarantee scope, and cost location at larger scale",
+      "quotes": [
+        {
+          "source": "paper §3.1.3",
+          "locator": "Complexity and Profile-Guided Pruning",
+          "text": "any candidate pair whose pro-\nfiled cost exceeds Tbase is discarded, since selecting it cannot\nimprove upon the baseline."
+        },
+        {
+          "source": "paper §6.7",
+          "locator": "Table 4 discussion",
+          "text": "All tested configurations are solved within five seconds on a 64-core server."
+        },
+        {
+          "source": "paper §6.7",
+          "locator": "profiling paragraph",
+          "text": "Measured profil-\ning time grows with sequence length and peaks at about 3,050\nseconds at 128K for the trillion-scale PP8-C2 case, still below\none hour."
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Discarding a pair because its profiled cost exceeds Tbase requires that cost to have been measured already. The decision therefore comes after the expensive step. Pruning acts only after profiling, so it removes MILP variables but not profiling work. Table 4 shows all MILP solves take 0.34-4.22 s, versus profiling that peaks near 3,050 s. The tractability benefit of pruning is therefore small compared with the cost it does not touch, and the profiling budget depends on K and on structural deduplication."
+    },
+    {
+      "headline": "A backbone order fixed offline by the list scheduler conflicts with routing-varied task durations that runtime bubble filling cannot reorder",
+      "claim": "The backbone-first alignment is computed from offline-profiled stable durations. At runtime, the Dynamic Bubble Optimizer moves only movable tasks and leaves the planned backbone order unchanged. Routing skew can therefore turn the statically chosen gap-fit alignment into a suboptimal one that nothing corrects.",
+      "paper_fact": "a Dynamic Bubble Optimizer fills routing-induced idle slots with eligible movable tasks, without changing partition boundaries or the planned order of backbone tasks",
+      "premise": "A gap-fit heuristic's choices depend on the durations of the tasks it aligns. If MoE kernel durations shift per iteration, the best backbone interleaving can shift too.",
+      "inference": "Static planning uses durations from an offline profile, and §6.4 isolates static plans with a mock router that uniformly distributes tokens. §3.2 says routing changes task durations and shifts idle slots in ways no static plan can predict. Only movable tasks such as Wgrad are re-placed at runtime, so any mis-alignment among backbone tasks from the fixed list-scheduler order persists. The 'within ~1% of ILP' result is evaluated on profiled durations only, not on this runtime regime.",
+      "toy_example": "Illustration only, not a measurement: the plan aligns a forward combine (A2A) with a backward attention task on the assumption of balanced routing. If routing makes the hot-expert MLP 30% longer, the planned pairing leaves the comm stream idle, and a different backbone order would have filled it. DBO can insert a Wgrad task into the gap but cannot reorder the backbone.",
+      "conditional_consequence": "Where routing skew is large, e.g., with sparse top-10-of-512 routing, the static scheduler's quality advantage over simpler alignment may be partly lost. Recovery is limited to what movable tasks can fill.",
+      "critical_link": "Whether the optimal backbone order changes materially under realistic per-iteration token-load variation.",
+      "necessary_conditions": [
+        "Task durations used by the scheduler come from offline profiles under assumed routing",
+        "Backbone order is fixed after static planning",
+        "Runtime duration variation is large enough to change the best alignment"
+      ],
+      "defeaters": [
+        "The backbone order is robust to the observed duration variation",
+        "Pool of movable tasks is large enough to absorb most idle slots, as the paper says the pool is typically well-provisioned in production",
+        "Deferral and DBO gains in production (e.g., 3.4–5.4%) already capture most of the loss"
+      ],
+      "do_not_infer": [
+        "That DBO is ineffective, since the paper reports measured iteration-time gains",
+        "That the static plan is unusable in production",
+        "That runtime backbone reordering would be cheap or safe"
+      ],
+      "disclosure": "inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L5",
+      "quotes": [
+        {
+          "source": "paper §3",
+          "locator": "Tessera Design intro",
+          "text": "a Dynamic Bubble Optimizer fills routing-induced idle slots with eligible movable tasks, without changing partition boundaries or the planned order of backbone tasks"
+        },
+        {
+          "source": "paper §3.2",
+          "locator": "Dynamic Bubble Optimization intro",
+          "text": "At runtime, MoE routing variation changes task durations, shifting the size and location of idle slots in ways that no static plan can predict."
+        },
+        {
+          "source": "paper §6.4",
+          "locator": "Co-optimizing Partitioning and Overlap",
+          "text": "we employ a mock router that uniformly distributes tokens and disable DBO, isolating static plan efficiency from dynamic runtime variance."
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A gap-fit heuristic's choices depend on the durations of the tasks it aligns. If MoE kernel durations shift per iteration, the best backbone interleaving can shift too. Static planning uses durations from an offline profile, and §6.4 isolates static plans with a mock router that uniformly distributes tokens. §3.2 says routing changes task durations and shifts idle slots in ways no static plan can predict. Only movable tasks such as Wgrad are re-placed at runtime, so any mis-alignment among backbone tasks from the fixed list-scheduler order persists. The 'within ~1% of ILP' result is evaluated on profiled durations only, not on this runtime regime."
+    },
+    {
+      "headline": "Avoiding kernel fragmentation does not imply a simpler planning problem; inter-microbatch overlap conflicts with independent partitioning",
+      "claim": "Choosing inter-microbatch coupling moves the difficulty from kernels to the planner. Which chunks pair up depends on the partition, and the post-overlap cost of each pair can only be known by scheduling it and measuring it on hardware. This produces the partition-overlap cycle that the paper then has to resolve. Intra-microbatch fusion would not create this cycle.",
+      "paper_fact": "avoids this fragmentation but shifts the hard problem",
+      "premise": "When overlap partners come from different chunks, partition boundaries decide which pairs co-execute. The cost of a stage then depends on its partners and cannot be summed in isolation.",
+      "inference": "The cyclic dependency and the profiling and MILP machinery follow from the inter-microbatch design choice. Tessera's planner contribution is partly a cost of that choice, not only a response to heterogeneity.",
+      "conditional_consequence": "For homogeneous models the planner adds machinery with little gain beyond boundary chunks. The paper's own Qwen3 gains lean on overlap and DBO, with the partitioner contributing mainly through non-uniform boundary chunks.",
+      "critical_link": "Inter-microbatch pairing makes the stage cost pair-dependent, which requires profile-then-partition planning.",
+      "necessary_conditions": [
+        "Overlap partners are chosen across chunks by the pipeline schedule.",
+        "Overlap efficiency varies across pairs, as in heterogeneous layer mixes."
+      ],
+      "defeaters": [
+        "Planning cost is reported as bounded: profiling takes under an hour and the MILP solves in seconds.",
+        "In heterogeneous models the paper shows large gains from overlap-aware partitioning, so the planner is needed there."
+      ],
+      "do_not_infer": [
+        "Do not infer that planning cost is prohibitive.",
+        "Do not infer that intra-microbatch fusion would handle heterogeneity better.",
+        "Do not infer that the partitioner is useless on Qwen3."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L4/L6: coupling and shifted cost",
+      "quotes": [
+        {
+          "source": "paper §2.2",
+          "text": "avoids this fragmentation but shifts the hard problem"
+        },
+        {
+          "source": "paper §1",
+          "text": "Choosing a good partition, however, requires accurately estimating each combination’s post-overlap cost"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "When overlap partners come from different chunks, partition boundaries decide which pairs co-execute. The cost of a stage then depends on its partners and cannot be summed in isolation. The cyclic dependency and the profiling and MILP machinery follow from the inter-microbatch design choice. Tessera's planner contribution is partly a cost of that choice, not only a response to heterogeneity."
+    },
+    {
+      "headline": "The fixed template's benefit at current scale does not guarantee the co-optimization gains persist when microbatches per pipeline shrink",
+      "claim": "Warmup/cooldown cost is structural to the template, and exposed EP communication in those phases is not recovered by steady-state overlap. If scaling reduces microbatches per pipeline, that fixed share grows. The paper reports no experiment that varies microbatches per pipeline rank at fixed model and template.",
+      "paper_fact": "Even in the favorable regime (the top bar of Fig. 10), 27% of EP communication remains exposed (819 ms), over 40% of which originates from warmup and cooldown phases.",
+      "premise": "In interleaved 1F1B the bubble fraction scales roughly as (p-1)/(v·m), where p is the number of pipeline ranks, v the virtual stages per rank, and m the microbatches per rank. Warmup/cooldown work has few concurrent pairs to overlap. The M-divisible-by-K constraint also ties m to global batch size.",
+      "inference": "At larger scale with fewer microbatches per rank, the steady-state phase that Tessera optimizes best shrinks as a share of iteration time, and the template's structural cost grows. Gains from the partitioner and overlap scheduler may then saturate. This is not tested. The paper does not report microbatch counts for the Table 2 workloads, so the effect cannot be checked from the text.",
+      "toy_example": "Not a measurement: if warmup plus cooldown costs a fixed 0.9 s and steady state costs 9 s at m=16, halving m to 8 gives steady state 4.5 s, so the fixed part rises from about 9% to 17% of iteration time.",
+      "conditional_consequence": "If m per pipeline falls with cluster size, the relative speedup from steady-state overlap and partitioning would fall, even though Tessera's planning cost stays flat.",
+      "critical_link": "Steady-state improvements act on a share of iteration time that depends on m. The paper's evidence does not vary m.",
+      "necessary_conditions": [
+        "Microbatches per pipeline rank decrease as scale increases",
+        "Warmup/cooldown cost does not shrink in proportion"
+      ],
+      "defeaters": [
+        "Data-parallel scaling can keep m constant",
+        "Interleaving depth (vp) can be raised to cut the bubble",
+        "The padding mechanism may support large m through global batch size choices",
+        "Qwen3-Next-XL's largest gain at 12,288 GPUs argues against a simple saturation story, though the paper does not isolate the cause"
+      ],
+      "do_not_infer": [
+        "Do not infer that gains have already saturated",
+        "Do not infer that the 20-33% results are overstated",
+        "Do not infer that m is small in the paper's workloads"
+      ],
+      "disclosure": "inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L2 x L7 scale and time",
+      "quotes": [
+        {
+          "source": "paper §6.2",
+          "text": "over 40% of which originates from warmup and cooldown phases",
+          "locator": "§6.2 Gap to Ideal Execution"
+        },
+        {
+          "source": "paper §5",
+          "text": "theoretically mandates that the number of microbatches (M) per iteration must be perfectly divisible by the pipeline parallel size (K)",
+          "locator": "§5 Decoupling System Constraints via Padding"
+        },
+        {
+          "source": "paper §6.2",
+          "text": "Despite this, Tessera delivers 20.0%–32.8% MFU gains",
+          "locator": "§6.2 Performance Consistency"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "In interleaved 1F1B the bubble fraction scales roughly as (p-1)/(v·m), where p is the number of pipeline ranks, v the virtual stages per rank, and m the microbatches per rank. Warmup/cooldown work has few concurrent pairs to overlap. The M-divisible-by-K constraint also ties m to global batch size. At larger scale with fewer microbatches per rank, the steady-state phase that Tessera optimizes best shrinks as a share of iteration time, and the template's structural cost grows. Gains from the partitioner and overlap scheduler may then saturate. This is not tested. The paper does not report microbatch counts for the Table 2 workloads, so the effect cannot be checked from the text."
+    },
+    {
+      "headline": "An unchanged computation graph does not guarantee unchanged reduction order when Wgrad runs on a background thread at runtime-chosen times",
+      "claim": "The 'by construction' bitwise-equivalence argument assumes that moving tasks on the timeline cannot change floating-point accumulation order. Deferred Wgrad tasks run on a separate thread and are placed at runtime. If they accumulate into shared gradient buffers, the accumulation order could depend on timing. The paper's evidence is one deterministic-mode run, not an argument that covers every case.",
+      "paper_fact": "Tessera modifies only when and where tasks execute on the device timeline; the computation graph, operator semantics, and reduction order are unchanged.",
+      "premise": "Floating-point addition is not associative. Accumulating partial gradients into a shared buffer in a different order can change the result bitwise. Deterministic mode typically fixes ordering in a given configuration, and what it fixes depends on the implementation.",
+      "inference": "If a deferred Wgrad task and another contribution (for example, another microbatch's Wgrad or a gradient reduction) write to the same buffer, then the time at which each runs could affect the order of accumulation. The paper does not say whether Wgrad accumulation targets are ordered by explicit dependencies or by timing. It also does not say whether the dynamic optimizer's runtime choices were active in the verification run. Without that, 'by construction' is not established for the dynamic path.",
+      "toy_example": "Illustration only, not a measurement: in fp32, (1e8 + 1) + (-1e8) = 0, but (1e8 + (-1e8)) + 1 = 1. Two gradient contributions applied to a shared buffer in swapped order can therefore differ bitwise.",
+      "conditional_consequence": "If deferred Wgrad accumulates into a shared buffer without an order-fixing dependency, then runs with different dynamic placements could produce bit-different gradients. The bit-identical result would then hold only for the configuration that was verified.",
+      "critical_link": "Whether deferred or concurrent Wgrad writes to shared accumulators have an enforced order that is independent of runtime timing.",
+      "necessary_conditions": [
+        "Wgrad or gradient-reduction tasks from different microbatches write to the same buffer",
+        "The accumulation order is determined by execution timing rather than by an explicit dependency",
+        "Runtime placement of movable tasks varies between runs"
+      ],
+      "defeaters": [
+        "Per-task output buffers are reduced later in a fixed order",
+        "Stream or event dependencies serialize the accumulation in plan order",
+        "The verification run already exercised dynamic bubble filling and showed identical trajectories"
+      ],
+      "do_not_infer": [
+        "Do not infer that the reported bit-identical loss trajectories are wrong",
+        "Do not infer that Tessera changes model quality",
+        "Do not infer that numerical divergence has been observed"
+      ],
+      "disclosure": "inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1",
+      "quotes": [
+        {
+          "source": "paper §6.2",
+          "text": "Tessera modifies only when and where tasks execute on the device timeline; the computation graph, operator semantics, and reduction order are unchanged."
+        },
+        {
+          "source": "paper §6.2",
+          "text": "We verify this empirically on a trillion-scale Qwen3-Next workload by comparing runs with and without Tessera's optimizations under deterministic mode."
+        },
+        {
+          "source": "paper §4",
+          "text": "an additional background thread processes movable tasks registered with the engine, such as Wgrad, according to the execution plan."
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Floating-point addition is not associative. Accumulating partial gradients into a shared buffer in a different order can change the result bitwise. Deterministic mode typically fixes ordering in a given configuration, and what it fixes depends on the implementation. If a deferred Wgrad task and another contribution (for example, another microbatch's Wgrad or a gradient reduction) write to the same buffer, then the time at which each runs could affect the order of accumulation. The paper does not say whether Wgrad accumulation targets are ordered by explicit dependencies or by timing. It also does not say whether the dynamic optimizer's runtime choices were active in the verification run. Without that, 'by construction' is not established for the dynamic path."
+    },
+    {
+      "headline": "Shadow actions that satisfy schedule structure do not guarantee that the profiled overlap plan and balanced partition still hold for padded microbatches",
+      "claim": "Tessera's partition and overlap schedule are chosen from profiled post-overlap costs of pairs in which both chunks run real computation. A shadow action skips computation. When padding places a shadow action opposite a real chunk in an overlap pair, the pair no longer has the profiled compute-communication profile. The plan's steady-state balance and the dynamic bubble optimizer's assumptions may be affected in the padded portion of the iteration.",
+      "paper_fact": "Under the fixed template, Tessera targets the steady-state overlap opportunities that recur across microbatches: a selected edge with high profiled post-overlap cost would repeatedly expose a straggler.",
+      "premise": "Overlap hides communication behind computation from another in-flight microbatch. A null operation supplies no computation to hide behind and sends only pseudo-tensors. Per-pair cost therefore depends on both sides being real work.",
+      "inference": "For padded slots, the overlap pairs formed with shadow actions were presumably not among those profiled (the paper profiles real chunk pairs), so the plan's cost model does not describe them. Whether this matters depends on where in the schedule the padding lands and on how many such slots exist. The paper does not discuss interaction between padding and overlap-aware planning or the dynamic bubble optimizer.",
+      "toy_example": "Illustration only, not a measurement: if a backward chunk's All-to-All is meant to hide behind a forward chunk's compute, but the forward counterpart is a shadow action, then the All-to-All has nothing to overlap with and is exposed for that slot. The net effect could be small if few slots are padded.",
+      "conditional_consequence": "If padded slots are concentrated in warmup or cooldown regions, or are few, the effect on the profile-based plan is negligible and consistent with the ~0.5% overhead. If padding is substantial, imbalance or exposed communication in those slots could erode the gains of the overlap-aware plan.",
+      "critical_link": "The profiled post-overlap costs are assumed to describe all slots, but shadow actions create pair types that profiling did not measure.",
+      "necessary_conditions": [
+        "Shadow actions are scheduled in positions where they form overlap pairs with real chunks",
+        "The execution plan's per-pair schedules were synthesized and profiled only for real chunk pairs",
+        "The number of padded slots is non-negligible"
+      ],
+      "defeaters": [
+        "Shadow actions are placed only where no overlap pair is formed, such as pipeline ends",
+        "The plan file for padded configurations is profiled with shadow actions included",
+        "The ~0.5% overhead already reflects any such loss"
+      ],
+      "do_not_infer": [
+        "Do not infer that padding degrades throughput by more than the reported 0.5%",
+        "Do not infer that the plan is invalid under padding",
+        "Do not infer where the paper places shadow actions in the schedule; this is not stated"
+      ],
+      "disclosure": "inferred",
+      "category_code": "method_shortcoming",
+      "lens": "Interaction between a structural-padding mechanism and a planner whose cost model assumes real work on both sides of each overlap pair",
+      "quotes": [
+        {
+          "source": "paper §5 (Decoupling System Constraints via Padding)",
+          "text": "We inject shadow actions, null operations that skip computation but perform necessary pipeline communication (sending pseudo-tensors), to satisfy structural dependencies without altering the mathematical equivalence of the batch.",
+          "locator": "§5, padding paragraph"
+        },
+        {
+          "source": "paper §3.1.3 (Step 3: Overlap-Aware Partition Selection)",
+          "text": "Under the fixed template, Tessera targets the steady-state overlap opportunities that recur across microbatches",
+          "locator": "§3.1.3, first paragraph"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Overlap hides communication behind computation from another in-flight microbatch. A null operation supplies no computation to hide behind and sends only pseudo-tensors. Per-pair cost therefore depends on both sides being real work. For padded slots, the overlap pairs formed with shadow actions were presumably not among those profiled (the paper profiles real chunk pairs), so the plan's cost model does not describe them. Whether this matters depends on where in the schedule the padding lands and on how many such slots exist. The paper does not discuss interaction between padding and overlap-aware planning or the dynamic bubble optimizer."
+    },
+    {
+      "headline": "Profiling post-overlap cost on a 64-GPU reference group does not guarantee that the selected bottleneck edge is the real bottleneck at 8K-12K GPUs",
+      "claim": "The partitioner picks the partition that minimizes the maximum profiled pair cost. The pair costs come from a small reference group, so the selection is only as valid as the profile is representative of production conditions.",
+      "paper_fact": "Network congestion and switch contention cause stochastic variation in pipeline communication latency, both across iterations and across ranks.",
+      "premise": "A MILP that minimizes a maximum over measured edge costs is sensitive to the relative ordering of those costs. Congestion, routing skew, or EP width that differ from the profiling environment can change this ordering. Even a few percent of error on one pair can change which edge is the maximum.",
+      "inference": "A pair profiled as the cheapest or most balanced on the 64-GPU group could run slower under production jitter or skew. The chosen partition would then be balanced against a stale cost table.",
+      "toy_example": "Illustrative only, not a measurement: edges X and Y are profiled at 100 ms and 98 ms. Production jitter adds 5% to the communication-heavy pair Y, so Y becomes 103 ms and is the true bottleneck, while the solver treated X as the bottleneck.",
+      "conditional_consequence": "If production contention or skew differs from the reference-group profile, then the selected bottleneck edge and partition boundary may be suboptimal. The measured gains would then be a lower bound only if the profile happens to be representative.",
+      "critical_link": "The profile taken on the 64-GPU group must preserve the ranking of the pairs that are near the maximum in production.",
+      "necessary_conditions": [
+        "Production network noise or routing skew differs enough from the reference group to change pair costs by more than the gaps between near-maximum edges.",
+        "The perturbed pairs lie on or near the bottleneck of the MILP."
+      ],
+      "defeaters": [
+        "Dynamic Bubble Optimizer absorbs part of the residual mismatch at runtime.",
+        "Cost gaps between the top candidate partitions are larger than the jitter-induced error.",
+        "Overlap efficiency is a stable property of a pair across scales."
+      ],
+      "do_not_infer": [
+        "Do not infer that the reported 20%-33% gains are wrong.",
+        "Do not infer that the profiling approach performs worse than analytic estimation.",
+        "Do not infer that the paper measured the reference-to-production mismatch."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L1/L5/L7",
+      "quotes": [
+        {
+          "source": "paper §6.7",
+          "locator": "Planning Overhead Analysis, first paragraph",
+          "text": "Profiling runs on a 64-GPU reference device group."
+        },
+        {
+          "source": "paper §5",
+          "locator": "Infrastructure Jitter",
+          "text": "Network congestion and switch contention cause stochastic variation in pipeline communication latency, both across iterations and across ranks."
+        },
+        {
+          "source": "paper §5",
+          "locator": "Granularity of Cost Profiling",
+          "text": "a few misestimated overlap pairs can change the selected bottleneck edge or partition boundary."
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A MILP that minimizes a maximum over measured edge costs is sensitive to the relative ordering of those costs. Congestion, routing skew, or EP width that differ from the profiling environment can change this ordering. Even a few percent of error on one pair can change which edge is the maximum. A pair profiled as the cheapest or most balanced on the 64-GPU group could run slower under production jitter or skew. The chosen partition would then be balanced against a stale cost table."
+    },
+    {
+      "headline": "Balancing the maximum steady-state post-overlap pair cost does not imply minimizing end-to-end iteration time",
+      "claim": "The planner's objective covers only the steady-state overlap edges. Warmup and cooldown exposure is outside the optimized quantity, even though the paper shows it is a large part of the residual exposed communication.",
+      "paper_fact": "Tessera therefore uses the maximum selected post-overlap edge cost as a surrogate objective for partition selection.",
+      "premise": "Interleaved 1F1B has warmup and cooldown phases whose structure depends on the number of microbatches and the stage layout. A fixed per-pair maximum does not model these phases. As the number of microbatches shrinks, their share of the iteration grows.",
+      "inference": "Two partitions with equal steady-state bottleneck cost can differ in warmup and cooldown cost, and the objective cannot tell them apart. With fewer microbatches per iteration, the surrogate will mis-rank partitions more often.",
+      "toy_example": "Illustrative only, not a measurement: partitions P and Q both have a 100 ms maximum pair cost. P has 30 ms more warmup and cooldown exposure than Q. The MILP treats them as equal.",
+      "conditional_consequence": "If warmup and cooldown share rises, for example with fewer microbatches at larger scale, then the partition chosen by the steady-state surrogate may sit further from the true optimum.",
+      "critical_link": "The partition's effect on warmup and cooldown exposure must be uncorrelated with, or ignored by, its steady-state maximum pair cost.",
+      "necessary_conditions": [
+        "Warmup and cooldown exposure differs among partitions that tie or nearly tie on the steady-state maximum.",
+        "The warmup and cooldown share of the iteration is non-negligible."
+      ],
+      "defeaters": [
+        "The partitions near the optimum have similar warmup and cooldown structure.",
+        "The microbatch count stays large, which keeps the steady-state share dominant."
+      ],
+      "do_not_infer": [
+        "Do not infer that the paper's partitions are bad.",
+        "Do not infer a specific magnitude of loss.",
+        "Do not infer that warmup and cooldown exposure could be removed by partitioning."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L2/L7",
+      "quotes": [
+        {
+          "source": "paper §3.1.3",
+          "locator": "Step 3, first paragraph",
+          "text": "Tessera therefore uses the maximum selected post-overlap edge cost as a surrogate objective for partition selection."
+        },
+        {
+          "source": "paper §3.1.3",
+          "locator": "Step 3, first paragraph",
+          "text": "Pipeline iteration time depends on the full critical path through the fixed schedule."
+        },
+        {
+          "source": "paper §6.2",
+          "locator": "Gap to Ideal Execution",
+          "text": "over 40% of which originates from warmup and cooldown phases"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Interleaved 1F1B has warmup and cooldown phases whose structure depends on the number of microbatches and the stage layout. A fixed per-pair maximum does not model these phases. As the number of microbatches shrinks, their share of the iteration grows. Two partitions with equal steady-state bottleneck cost can differ in warmup and cooldown cost, and the objective cannot tell them apart. With fewer microbatches per iteration, the surrogate will mis-rank partitions more often."
+    },
+    {
+      "headline": "Minimizing the maximum post-overlap edge cost does not guarantee minimizing pipeline iteration time",
+      "claim": "The MILP minimizes Tdom, the largest single overlap-edge cost. The authors state that iteration time depends on the full critical path. A partition with the lowest max edge can therefore still have a longer iteration than another feasible partition.",
+      "paper_fact": "Pipeline iteration time depends on the full critical path through the fixed schedule.",
+      "premise": "A min-max objective over individual edges does not account for how edge costs accumulate along the dependency chain. It also does not account for cross-rank waits, or for warmup and cooldown phases where few edges recur.",
+      "inference": "Two partitions can have the same or a better Tdom and still differ in iteration time. This happens when the non-bottleneck edges, stage imbalance outside the pairs, or the warmup/cooldown path differ between them. The paper reports no check that Tdom ranks candidate partitions in the same order as measured iteration time.",
+      "toy_example": "Illustration only, not a measurement: partitions P and Q both have a max edge of 10 ms. P's other edges are 2 ms each and Q's are 9 ms each. A critical path crossing many edges is longer under Q, but the objective ranks them equal.",
+      "conditional_consequence": "If warmup/cooldown or cross-rank waits take a large share of iteration time, a Tdom-optimal plan may leave a large part of the available gain unrealized.",
+      "critical_link": "Whether the single worst steady-state edge tracks the whole critical path across candidate partitions.",
+      "necessary_conditions": [
+        "Candidate partitions differ in non-bottleneck edge costs or in stage-level imbalance.",
+        "Warmup, cooldown, or cross-rank waits are a non-trivial share of iteration time."
+      ],
+      "defeaters": [
+        "The bottleneck edge dominates the critical path in the target regime, so ranking by Tdom matches ranking by iteration time.",
+        "The candidate neighborhood is so small that all candidates share nearly the same non-bottleneck structure."
+      ],
+      "do_not_infer": [
+        "Do not infer that the surrogate performs poorly in practice. The paper reports end-to-end gains.",
+        "Do not infer that an alternative objective such as a sum or a critical-path model would do better."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1",
+      "quotes": [
+        {
+          "source": "paper §3.1.3",
+          "locator": "Step 3 text",
+          "text": "Tessera therefore uses the maximum selected post-overlap edge cost as a surrogate objective for partition selection."
+        },
+        {
+          "source": "paper §3.1.3",
+          "locator": "Step 3 text",
+          "text": "Pipeline iteration time depends on the full critical path through the fixed schedule."
+        },
+        {
+          "source": "paper §6.2",
+          "locator": "Gap to Ideal Execution",
+          "text": "split between residual stage imbalance (366 ms) and structural warmup/cooldown cost (469 ms) inherent to interleaved 1F1B."
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A min-max objective over individual edges does not account for how edge costs accumulate along the dependency chain. It also does not account for cross-rank waits, or for warmup and cooldown phases where few edges recur. Two partitions can have the same or a better Tdom and still differ in iteration time. This happens when the non-bottleneck edges, stage imbalance outside the pairs, or the warmup/cooldown path differ between them. The paper reports no check that Tdom ranks candidate partitions in the same order as measured iteration time."
+    },
+    {
+      "headline": "A max-edge-optimal partition does not carry over when the pipeline schedule template changes",
+      "claim": "The overlap graph, the overlap edges, and the steady-state recurrence assumption are all derived from a fixed schedule template. The partition selected for one template is therefore optimal only for that template.",
+      "paper_fact": "Tessera fixes the high-level pipeline schedule (e.g., interleaved 1F1B) and co-optimizes partitioning and overlap scheduling within it.",
+      "premise": "In a graph-labeling formulation, the edge set E and the edge costs depend on which operations the schedule places concurrently on a rank. Changing the schedule, the number of virtual stages, or the microbatch regime changes the graph and the costs, so the old optimum is no longer an optimum of the new problem.",
+      "inference": "Template parameters such as virtual stages per rank or the schedule type are outside the joint optimization. A partition tuned for one setting may be suboptimal after such a change. If the number of microbatches is too small for steady-state edges to recur, the surrogate's recurrence assumption also weakens.",
+      "conditional_consequence": "If vp, the schedule, or the microbatch count changes after planning, the profile-then-partition pipeline must be re-run. The paper only describes the planner for a given template.",
+      "critical_link": "Whether the overlap graph and the recurring steady-state edges remain the same after the template changes.",
+      "necessary_conditions": [
+        "The template change alters which operations overlap on a rank, or changes the number of virtual stages.",
+        "The old partition was selected using edge costs from the old template."
+      ],
+      "defeaters": [
+        "The template change leaves the overlap graph and the profiled pair costs unchanged.",
+        "The profile cache already contains the new pairs, so re-planning is cheap. The paper reports MILP solves of 0.34-4.22 s and profiling under an hour."
+      ],
+      "do_not_infer": [
+        "Do not infer that Tessera cannot handle other templates. The paper says only that planning is done within a given template.",
+        "Do not infer that re-planning is expensive."
+      ],
+      "disclosure": "inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L4",
+      "quotes": [
+        {
+          "source": "paper §3",
+          "locator": "opening paragraph",
+          "text": "Tessera fixes the high-level pipeline schedule (e.g., interleaved 1F1B) and co-optimizes partitioning and overlap scheduling within it."
+        },
+        {
+          "source": "paper §3.1.1",
+          "locator": "Step 1",
+          "text": "The pipeline schedule template determines a set of virtual stages and which of them may execute microbatch operations concurrently on the same rank."
+        },
+        {
+          "source": "paper §3.1.3",
+          "locator": "Step 3 text",
+          "text": "Under the fixed template, Tessera targets the steady-state overlap opportunities that recur across microbatches"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "In a graph-labeling formulation, the edge set E and the edge costs depend on which operations the schedule places concurrently on a rank. Changing the schedule, the number of virtual stages, or the microbatch regime changes the graph and the costs, so the old optimum is no longer an optimum of the new problem. Template parameters such as virtual stages per rank or the schedule type are outside the joint optimization. A partition tuned for one setting may be suboptimal after such a change. If the number of microbatches is too small for steady-state edges to recur, the surrogate's recurrence assumption also weakens."
+    },
+    {
+      "headline": "Safety of Tbase pruning does not imply optimality of the returned partition",
+      "claim": "Profile-guided pruning is safe only relative to Tbase and to the candidate neighborhood fixed beforehand. The returned partition is optimal only inside that neighborhood around the serial-balanced baseline, not over all contiguous partitions.",
+      "paper_fact": "In practice, this significantly reduces the MILP size while preserving all solutions with Tdom ≤Tbase.",
+      "premise": "A MILP only finds the optimum of the candidate set it is given. If candidates are generated by perturbing a baseline, any better partition outside the perturbation radius is never evaluated or profiled.",
+      "inference": "Pruning removes only pairs worse than the baseline, and candidate generation removes everything outside the neighborhood. The reported gain is therefore a lower bound on what the overlap-aware objective could achieve. The paper does not say how close the neighborhood optimum is to the global one.",
+      "toy_example": "Illustrative only, not a measurement: suppose the best partition shifts a stage boundary by 6 layers but candidates are limited to ±2. The solver returns the best ±2 plan, and the 6-shift plan is never profiled.",
+      "conditional_consequence": "If the best overlap-aware partition lies outside the neighborhood, for example under extreme attention asymmetry, Tessera returns a baseline-adjacent plan and its reported gain understates the achievable one.",
+      "critical_link": "Whether good overlap-aware partitions lie within the bounded neighborhood of the serial-balanced baseline.",
+      "necessary_conditions": [
+        "The best post-overlap partition differs from the serial-balanced baseline by more than the candidate perturbation range.",
+        "No candidate inside the neighborhood has an equal or lower Tdom."
+      ],
+      "defeaters": [
+        "The neighborhood is wide enough to contain the global optimum for the tested models.",
+        "Repeated model structure makes good partitions local to the baseline."
+      ],
+      "do_not_infer": [
+        "That the reported 20-33% gains are wrong.",
+        "That the chosen partitions are poor.",
+        "That a global optimum exists far from the baseline in the tested workloads."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L2/L5: objective vs goal, and the origin of the locality regularity",
+      "quotes": [
+        {
+          "source": "paper §3.1.1",
+          "locator": "Step 1 candidate space",
+          "text": "Tessera restricts candidates to a bounded neighborhood around the baseline to keep overlap scheduling and profiling tractable."
+        },
+        {
+          "source": "paper §3.1.3",
+          "locator": "Complexity and Profile-Guided Pruning",
+          "text": "In practice, this significantly reduces the MILP size while preserving all solutions with Tdom ≤Tbase."
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A MILP only finds the optimum of the candidate set it is given. If candidates are generated by perturbing a baseline, any better partition outside the perturbation radius is never evaluated or profiled. Pruning removes only pairs worse than the baseline, and candidate generation removes everything outside the neighborhood. The reported gain is therefore a lower bound on what the overlap-aware objective could achieve. The paper does not say how close the neighborhood optimum is to the global one."
+    },
+    {
+      "headline": "A schedule that minimizes analytical two-resource makespan does not guarantee the lowest measured post-overlap cost",
+      "claim": "The scheduler, and the ILP it is compared with, optimize a clean two-resource (Comp/Comm) model. The paper itself reports that real execution deviates from that model through SM contention and coarse tasks. Being close to the ILP in measured cost therefore says little about closeness to the best measured schedule.",
+      "paper_fact": "Across Qwen3-Next pre-training workloads, the theoretical cost underestimates measured overlapped execution in most cases, with an average deviation of around 5%.",
+      "premise": "Ranking schedules by a model is reliable only when the model's error is uniform across the candidates being compared. Interference from SM contention depends on which kernels overlap, so it can differ between schedules.",
+      "inference": "Both the heuristic and the ILP are model-optimal, not measurement-optimal. A small heuristic-vs-ILP gap in measured cost shows the two model-derived schedules behave similarly. It does not show either one is near the best achievable measured schedule. If a task mixes comm and compute kernels, the resource model mis-predicts which overlaps are possible.",
+      "toy_example": "Illustration only, not a measurement: schedule X overlaps an attention task with an A2A task and has analytical makespan 100. Schedule Y has makespan 102 but overlaps the A2A with a lighter MLP task. Under a 10–20% SM-contention slowdown on X's overlap, Y could measure faster even though the model ranks X first.",
+      "conditional_consequence": "If contention penalties vary by pairing, the heuristic-vs-ILP measured gap could mask a larger gap to a contention-aware scheduler. This matters most where overlap windows are tight.",
+      "critical_link": "Whether the contention and coarse-task error is roughly uniform across candidate schedules for the same overlap pair.",
+      "necessary_conditions": [
+        "Scheduling decisions are made on analytical durations and a two-resource model",
+        "Measured interference varies with which tasks are co-scheduled"
+      ],
+      "defeaters": [
+        "The contention slowdown is nearly constant across schedules, so the model ordering is preserved",
+        "Measured CDFs track analytical ones closely; the paper reports this for the aggregate distribution"
+      ],
+      "do_not_infer": [
+        "That the scheduler's measured results are wrong",
+        "That the profiled post-overlap costs used for partitioning are model-based, since they are measured on hardware",
+        "That a contention-aware scheduler would necessarily win by a large margin"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1+L3",
+      "quotes": [
+        {
+          "source": "paper §3.1.2",
+          "locator": "Step 2: Overlap Scheduling and Profiling",
+          "text": "Tessera uses an event-driven list scheduler (Algorithm 1) to minimize the pair's makespan on two resources (Comp, Comm)."
+        },
+        {
+          "source": "paper §5",
+          "locator": "Theoretical Overlap vs. Silicon Reality",
+          "text": "EP communication kernels reserve ∼20 SMs for All-to-All dispatch and combine, causing a stable 10–20% slowdown when they overlap with Attention or MoE-MLP kernels."
+        },
+        {
+          "source": "paper §5",
+          "locator": "Theoretical Overlap vs. Silicon Reality",
+          "text": "We also observe that each task is a coarse scheduling unit rather than a single kernel (e.g., a communication-dominant task may contain small compute kernels)"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Ranking schedules by a model is reliable only when the model's error is uniform across the candidates being compared. Interference from SM contention depends on which kernels overlap, so it can differ between schedules. Both the heuristic and the ILP are model-optimal, not measurement-optimal. A small heuristic-vs-ILP gap in measured cost shows the two model-derived schedules behave similarly. It does not show either one is near the best achievable measured schedule. If a task mixes comm and compute kernels, the resource model mis-predicts which overlaps are possible."
+    },
+    {
+      "headline": "Matching GPU type and interconnect pattern does not guarantee that cached reference-group costs hold on congested production ranks",
+      "claim": "Tessera reuses post-overlap costs profiled on a 64-GPU reference group for all ranks and replicas with matching GPU type and interconnect pattern. That matching condition does not by itself ensure the costs reflect production conditions such as fabric congestion or non-uniform routing load. The profiled costs drive MILP partition selection, so any bias in them can shift the chosen partition.",
+      "paper_fact": "Results are cached by device-mesh class and chunk specification for reuse across ranks and replicas with matching GPU type and interconnect pattern.",
+      "premise": "All-to-All latency depends on live fabric load and on token-routing skew. A dedicated, quiet reference group measures neither of these in the way a production rank experiences them.",
+      "inference": "The cache key as described (device-mesh class, chunk specification, pass directions, topology) does not include congestion state or routing load. A cached cost is therefore a quiet-fabric, uniform-routing measurement. For communication-heavy pairs, A2A time may be systematically underestimated, which can change which edge looks like the bottleneck.",
+      "toy_example": "Not a measurement: suppose two candidate pairs profile at 100 ms and 104 ms on the reference group, and congestion adds 8 ms only to the pair with more A2A volume. The ranking that the MILP used would then be reversed in production.",
+      "conditional_consequence": "If production A2A latency or routing skew differs from the reference-group conditions, cached costs for comm-heavy pairs are biased. The selected bottleneck edge or partition boundary may then differ from the true optimum.",
+      "critical_link": "Whether the reference-group measurement stays rank-equivalent when fabric congestion or routing skew differs from profiling conditions.",
+      "necessary_conditions": [
+        "Production A2A latency or routing load differs from the reference-group conditions.",
+        "The difference affects candidate pairs unevenly, enough to change their relative order or the argmax edge.",
+        "The MILP's choice is sensitive to those small relative differences."
+      ],
+      "defeaters": [
+        "Fabric congestion is negligible relative to the gaps between candidate pairs' costs.",
+        "Chosen partitions are robust, with a large margin between the best candidate and the runner-up.",
+        "Profiling already ran under realistic congestion and routing load."
+      ],
+      "do_not_infer": [
+        "Do not infer that the deployed 20%-33% gains are invalid.",
+        "Do not infer that reference-group profiling is inaccurate in general.",
+        "Do not infer a measured magnitude of bias; the paper reports none."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L1/L3 proxy and units: 64-GPU quiet reference group versus 8K+ GPU production rank, with uniform or unspecified routing in profiling",
+      "quotes": [
+        {
+          "source": "paper §3.1.2",
+          "locator": "Step 2, last paragraph",
+          "text": "Results are cached by device-mesh class and chunk specification for reuse across ranks and replicas with matching GPU type and interconnect pattern."
+        },
+        {
+          "source": "paper §5",
+          "locator": "Infrastructure Jitter",
+          "text": "Network congestion and switch contention cause stochastic variation in pipeline communication latency, both across iterations and across ranks."
+        },
+        {
+          "source": "paper §6.4",
+          "locator": "first paragraph",
+          "text": "we employ a mock router that uniformly distributes tokens"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "All-to-All latency depends on live fabric load and on token-routing skew. A dedicated, quiet reference group measures neither of these in the way a production rank experiences them. The cache key as described (device-mesh class, chunk specification, pass directions, topology) does not include congestion state or routing load. A cached cost is therefore a quiet-fabric, uniform-routing measurement. For communication-heavy pairs, A2A time may be systematically underestimated, which can change which edge looks like the bottleneck."
+    },
+    {
+      "headline": "Profiling finishing within one hour on today's models does not guarantee chunk-pair profiling stays affordable for less repetitive architectures",
+      "claim": "The paper says chunk-pair profiling is affordable because repeated model structure bounds the number of distinct overlap pairs. The longest reported run is about 3,050 s, and the distinct-pair count depends on structural repetition. The one-hour result is therefore specific to these repetitive Qwen architectures, and its margin is not large.",
+      "paper_fact": "Measured profiling time grows with sequence length and peaks at about 3,050 seconds at 128K for the trillion-scale PP8-C2 case, still below one hour.",
+      "premise": "Total profiling time is roughly the number of distinct pairs times the per-pair cost, and the per-pair cost grows with sequence length. The number of distinct pairs grows when more layer types or more varied chunk boundaries create new chunk specifications.",
+      "inference": "The reported worst case is about 85% of an hour. The one-hour claim rests on a pair count of at most 637 for the tested models, and that count depends on repetition. A model with more distinct layer types, more chunks per rank, or a wider candidate neighborhood could push the count up and exceed the budget, forcing the less accurate fallback.",
+      "toy_example": "Not a measurement: if distinct pairs doubled from 600 to 1,200 at constant per-pair cost, the 3,050 s profile would reach about 6,100 s, well above one hour.",
+      "conditional_consequence": "For architectures with less repetition, or with more candidates per stage, chunk-pair profiling may exceed the hour-scale budget. The system would then need the primitive-level fallback and its tail errors.",
+      "critical_link": "The count of distinct overlap pairs, which depends on structural repetition, against the profiling-time budget.",
+      "necessary_conditions": [
+        "The target model has more distinct chunk types or candidate stage assignments than the tested Qwen models.",
+        "Per-pair profiling cost is similar to that of the tested cases, or grows with sequence length.",
+        "The operator treats a roughly one-hour profile as the budget."
+      ],
+      "defeaters": [
+        "Operators accept multi-hour offline profiling.",
+        "Profiling can be parallelized across several reference groups.",
+        "Cached profiles are reusable across models with shared chunk specifications."
+      ],
+      "do_not_infer": [
+        "Do not infer that the tested workloads exceed the budget.",
+        "Do not infer that profiling cost scales linearly with model size.",
+        "Do not infer that the paper claims generality beyond repetitive structures."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L5/L7 regularity origin and scale: repeated structure bounds the pair count, and time grows with sequence length",
+      "quotes": [
+        {
+          "source": "paper §5",
+          "locator": "Granularity of Cost Profiling",
+          "text": "even for trillion-scale models, profiling completes within one hour because repeated model structure bounds the number of distinct overlap pairs."
+        },
+        {
+          "source": "paper §6.7",
+          "locator": "Planning Overhead Analysis",
+          "text": "Measured profiling time grows with sequence length and peaks at about 3,050 seconds at 128K for the trillion-scale PP8-C2 case, still below one hour."
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Total profiling time is roughly the number of distinct pairs times the per-pair cost, and the per-pair cost grows with sequence length. The number of distinct pairs grows when more layer types or more varied chunk boundaries create new chunk specifications. The reported worst case is about 85% of an hour. The one-hour claim rests on a pair count of at most 637 for the tested models, and that count depends on repetition. A model with more distinct layer types, more chunks per rank, or a wider candidate neighborhood could push the count up and exceed the budget, forcing the less accurate fallback."
+    },
+    {
+      "headline": "Inter-microbatch overlap opportunities do not guarantee availability under every pipeline configuration",
+      "claim": "The mechanism takes its overlap opportunities from the pipeline schedule, and Tessera fixes an interleaved 1F1B template. With a single pipeline stage, or too few virtual stages, adjacent operations from different microbatches may not exist. The reported evidence comes from interleaved settings only, such as PP=4 with interleave 2 in §6.4.",
+      "paper_fact": "fixes the high-level pipeline schedule (e.g., interleaved 1F1B)",
+      "premise": "Overlap between microbatches needs two chunks in flight on a rank. That depends on pipeline depth, virtual stage count, and enough memory to hold concurrent activations.",
+      "inference": "The benefit of the approach is conditional on the schedule providing overlap edges. It is not a property of heterogeneous MoE models alone.",
+      "conditional_consequence": "With PP=1 or few virtual stages, the overlap graph is nearly empty. The scheduler and partitioner then have little to optimize, and the advantage over fusion-based methods could vanish.",
+      "critical_link": "Pipeline schedule determines overlap-graph edges, which determines how much A2A can be hidden.",
+      "necessary_conditions": [
+        "An interleaved schedule with multiple virtual stages per rank.",
+        "Memory headroom for concurrent microbatches.",
+        "Enough compute per pair to cover the A2A."
+      ],
+      "defeaters": [
+        "Production deployments use interleaved 1F1B at scale, so the condition is usually met there.",
+        "The paper notes that short GEMMs leave insufficient computation to hide A2A, as in the Qwen3-Next-M run, so even available edges may hide little."
+      ],
+      "do_not_infer": [
+        "Do not infer that Tessera fails without pipeline parallelism.",
+        "Do not infer a measured degradation.",
+        "Do not infer that the authors claim generality beyond interleaved 1F1B."
+      ],
+      "disclosure": "inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L5: regularity origin",
+      "quotes": [
+        {
+          "source": "paper §3",
+          "text": "fixes the high-level pipeline schedule (e.g., interleaved 1F1B)"
+        },
+        {
+          "source": "paper §6.4",
+          "text": "a pipeline-parallel size of 4 with an interleave size of 2"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Overlap between microbatches needs two chunks in flight on a rank. That depends on pipeline depth, virtual stage count, and enough memory to hold concurrent activations. The benefit of the approach is conditional on the schedule providing overlap edges. It is not a property of heterogeneous MoE models alone."
+    },
+    {
+      "headline": "An offline-profiled token-to-duration mapping does not guarantee accurate idle-window sizes under hardware interference",
+      "claim": "Slot sizing combines observed token counts with an offline-profiled schedule. The paper itself reports that the idealized schedule deviates from silicon, so a sizing error can arise that is invisible to the count exchange and is not quantified for DBO.",
+      "paper_fact": "Using the observed token distribution and the offline-profiled static schedule, Tessera estimates the fillable idle window bβ at each pre-annotated target slot β.",
+      "premise": "A duration estimate derived from a profile is only as accurate as the profile's match to runtime conditions such as SM contention, kernel versions, and interference. Overestimating a window leads to injecting a task that does not fit, which extends the critical path.",
+      "inference": "The paper reports an average ~5% theory-to-silicon deviation for overlap pairs, and primitive-level profiling reaches 15% in tail cases. The same kind of error plausibly affects slot sizes. No slot-size prediction error is reported, so the margin before a task overruns its slot is unknown.",
+      "toy_example": "Not a measurement: if an estimated 1.0 ms window is really 0.85 ms and a 0.95 ms Wgrad task is injected, the pair's makespan grows by 0.1 ms.",
+      "conditional_consequence": "If the mapping drifts (new kernels, a different EP width, or different contention), predicted windows are wrong, and the scheduler either wastes slots or lengthens the iteration.",
+      "critical_link": "The offline profile's token-count-to-time function is assumed to hold at runtime without a validated error bound.",
+      "necessary_conditions": [
+        "Runtime interference or kernel behavior differs from the profiled configuration.",
+        "The task selection has no safety margin against estimate error."
+      ],
+      "defeaters": [
+        "The profile is taken on a reference group with the same TP/EP topology and re-profiled on change.",
+        "The deadline-based guaranteed-execution fallback and the 1% always-keep overhead bound the downside.",
+        "The paper's deviation figures are for overlap-pair costs, not slot sizes."
+      ],
+      "do_not_infer": [
+        "Do not infer that slot sizing is inaccurate in production; no figure is shown either way.",
+        "Do not infer that the 5% or 15% figures apply directly to DBO slot estimates."
+      ],
+      "disclosure": "inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1/L5",
+      "quotes": [
+        {
+          "source": "paper §3.2.1",
+          "text": "Using the observed token distribution and the offline-profiled static schedule, Tessera estimates the fillable idle window bβ at each pre-annotated target slot β."
+        },
+        {
+          "source": "paper §5",
+          "text": "Across Qwen3-Next pre-training workloads, the theoretical cost underestimates measured overlapped execution in most cases, with an average deviation of around 5%."
+        },
+        {
+          "source": "paper §3.1.2",
+          "text": "Physical profiling is necessary because real hardware interference causes the true overlapped cost to deviate from analytical estimates (§5)."
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A duration estimate derived from a profile is only as accurate as the profile's match to runtime conditions such as SM contention, kernel versions, and interference. Overestimating a window leads to injecting a task that does not fit, which extends the critical path. The paper reports an average ~5% theory-to-silicon deviation for overlap pairs, and primitive-level profiling reaches 15% in tail cases. The same kind of error plausibly affects slot sizes. No slot-size prediction error is reported, so the margin before a task overruns its slot is unknown."
+    },
+    {
+      "headline": "Routing-count-based bubble prediction conflicts with the infrastructure-jitter bubbles the authors observe at 10,000+ GPUs",
+      "claim": "The counts-based predictor sees only routing load within an EP group. The paper names network and switch jitter as a persistent additional source of bubbles, and its proposed extension to cover jitter is explicitly not validated.",
+      "paper_fact": "Systematic validation of this extension under controlled jitter conditions remains future work.",
+      "premise": "Per-expert token counts carry no information about communication latency variation caused by congestion or switch contention, and EP-local counts cannot reveal cross-group PP stalls. A bubble from such causes appears with no change in the counts.",
+      "inference": "At production scale some idle slots will not be forecast by the count exchange. They are either left unfilled or sized by the unvalidated moving-average predictor, so DBO's reported production gains cover only the routing-induced share of bubbles.",
+      "toy_example": "Not a measurement: a PP receive delayed by switch congestion leaves the local per-expert counts unchanged, so the sizing step reports a zero or stale window.",
+      "conditional_consequence": "If jitter dominates the bubbles on a given cluster, DBO's benefit shrinks toward the always-keep overhead case.",
+      "critical_link": "The predictor's input (routing counts) does not span the full set of causes of bubble size.",
+      "necessary_conditions": [
+        "Jitter or cross-EP-group skew contributes a significant share of the idle slots.",
+        "No history-based predictor is enabled."
+      ],
+      "defeaters": [
+        "Jitter has short-term temporal correlation, so the moving-average extension may capture it.",
+        "The deployed 39.0% MFU and the 3.4% gain on Qwen3-L show routing-induced bubbles alone are worth filling."
+      ],
+      "do_not_infer": [
+        "Do not infer that DBO fails on jitter; the paper says only that validation is future work.",
+        "Do not infer the magnitude of the jitter share of bubbles."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L2/L7",
+      "quotes": [
+        {
+          "source": "paper §5",
+          "text": "Network congestion and switch contention cause stochastic variation in pipeline communication latency, both across iterations and across ranks."
+        },
+        {
+          "source": "paper §5",
+          "text": "Systematic validation of this extension under controlled jitter conditions remains future work."
+        },
+        {
+          "source": "paper §3.2.1",
+          "text": "Because the exchange is scoped to the EP group and carries scalar counts rather than tensor payloads, it introduces no cluster-wide synchronization."
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Per-expert token counts carry no information about communication latency variation caused by congestion or switch contention, and EP-local counts cannot reveal cross-group PP stalls. A bubble from such causes appears with no change in the counts. At production scale some idle slots will not be forecast by the count exchange. They are either left unfilled or sized by the unvalidated moving-average predictor, so DBO's reported production gains cover only the routing-induced share of bubbles."
+    },
+    {
+      "headline": "Asynchronous, prediction-based slot sizing does not guarantee that injected tasks avoid stalling the backbone",
+      "claim": "The slot-fit check `σ.duration ≤ bβ` uses an estimated window. The paper reports no bound on estimation error or on how often a misprediction delays the backbone, so the 'does not stall' goal is only as good as the estimate.",
+      "paper_fact": "To ensure that task injection does not stall the training pipeline, Tessera must estimate slot sizes asynchronously.",
+      "premise": "A fit check against a predicted window is safe only when the prediction is not larger than the real idle window. Real windows depend on kernel timing, SM contention, and the opposite chunk's token load, which the estimate only partly captures.",
+      "inference": "The estimate is built from the offline-profiled static schedule plus observed token counts. The paper says such theoretical schedule costs deviate from measured overlapped cost by about 5% on average. If the real window is shorter than bβ, a task admitted by the check runs past the window and delays backbone work. The paper gives no frequency or magnitude for this.",
+      "toy_example": "Illustrative only, not a measurement: bβ is estimated at 1.00 ms and a 0.98 ms Wgrad task is admitted. If the real window is 0.90 ms, the backbone waits 0.08 ms. Repeated across many slots and iterations, such delays could eat into the gain without showing up as a failure.",
+      "conditional_consequence": "If slot-size error is correlated with routing skew (largest when the window fluctuates most), the slots that look most attractive to fill are the ones most likely to be overfilled.",
+      "critical_link": "The `σ.duration ≤ bβ` check uses a predicted value, and the paper does not measure how well that prediction tracks the true idle window.",
+      "necessary_conditions": [
+        "Estimate error is not systematically one-sided toward under-estimation.",
+        "Injected Wgrad runs on a path where overrunning the window delays backbone kernels, rather than being fully hidden by concurrency or stream priority.",
+        "The tested configuration does not already absorb these delays within the reported net gain."
+      ],
+      "defeaters": [
+        "The reported end-to-end gains (e.g. 4.4% to 5.4% on Qwen3-Next-M) already include any misprediction cost.",
+        "Deadline-based guaranteed execution only protects correctness; it does not bound misprediction cost.",
+        "The paper's sub-10 µs overhead claim concerns decision time, not window accuracy."
+      ],
+      "do_not_infer": [
+        "Do not infer that DBO produces net slowdowns; the reported net gains are positive.",
+        "Do not infer a particular misprediction rate.",
+        "Do not infer the paper claims a formal no-stall guarantee; it states a design goal."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1",
+      "quotes": [
+        {
+          "source": "paper §3.2.1",
+          "locator": "Target Slot Sizing",
+          "text": "To ensure that task injection does not stall the training pipeline, Tessera must estimate slot sizes asynchronously."
+        },
+        {
+          "source": "paper §3.2.1",
+          "locator": "Target Slot Sizing",
+          "text": "Tessera estimates the fillable idle window bβ at each pre-annotated target slot β."
+        },
+        {
+          "source": "paper §5",
+          "locator": "Theoretical Overlap vs. Silicon Reality",
+          "text": "the theoretical cost underestimates measured overlapped execution in most cases, with an average deviation of around 5%"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A fit check against a predicted window is safe only when the prediction is not larger than the real idle window. Real windows depend on kernel timing, SM contention, and the opposite chunk's token load, which the estimate only partly captures. The estimate is built from the offline-profiled static schedule plus observed token counts. The paper says such theoretical schedule costs deviate from measured overlapped cost by about 5% on average. If the real window is shorter than bβ, a task admitted by the check runs past the window and delays backbone work. The paper gives no frequency or magnitude for this."
+    },
+    {
+      "headline": "Per-slot greedy scoring does not imply a good global assignment of Wgrad tasks to slots",
+      "claim": "DBO picks the highest-scored feasible task for each slot independently as slots arrive. It does not optimize the assignment of the whole movable pool to all slots in an iteration, and the paper does not compare DBO's greedy rule with a global solver.",
+      "paper_fact": "The dynamic scheduler employs a greedy heuristic (Algorithm 2) to scan the pool and select the feasible task σ with the highest score S(σ,bβ), which prioritizes tight duration fit and small deadline slack.",
+      "premise": "Online greedy packing of items into bins of differing sizes can be suboptimal. Taking an item now can remove the only item that would fit a later bin, and urgency terms in the score can override fit.",
+      "inference": "Because the score mixes duration fit with deadline slack, an urgent small task can occupy a large slot that a large, less urgent task would have filled well. A later slot that only the large task fits then stays empty ('the slot remains empty'). The paper's ILP comparison (§6.5) covers the static overlap scheduler, not Algorithm 2.",
+      "toy_example": "Illustrative only, not a measurement: slot 1 is 6 ms and slot 2 is 2 ms. Task X (2 ms) is more urgent, task Y (6 ms) less urgent. If the score favors X for slot 1, then Y has no slot that fits and slot 2 is left empty, so 2 ms of idle time is filled instead of 8 ms.",
+      "conditional_consequence": "If slot sizes vary widely within an iteration and the pool holds tasks of heterogeneous durations, the filled fraction of idle time may fall below what a global assignment would reach.",
+      "critical_link": "Greedy per-slot selection by a local score is not shown to approximate a global fill of the idle time; the ILP comparison applies to the static scheduler only.",
+      "necessary_conditions": [
+        "Slot sizes in an iteration are heterogeneous.",
+        "The movable pool contains tasks of varied duration and deadline.",
+        "Score ties or urgency terms can override best-fit."
+      ],
+      "defeaters": [
+        "Wgrad tasks may be of similar size, making greedy near-optimal.",
+        "Pool cap (8 in the ablation) is small, limiting the choice set and the room for bad choices.",
+        "Greedy gains are already measured end-to-end (3.4% to 5.4%), so any loss is relative to an unmeasured optimum."
+      ],
+      "do_not_infer": [
+        "Do not infer that the heuristic performs materially worse than optimal; the paper does not measure this.",
+        "Do not infer that the score formula is unreasonable; it is only partially specified.",
+        "Do not infer anything about the static overlap scheduler, which was compared to ILP within about 1%."
+      ],
+      "disclosure": "inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L2",
+      "quotes": [
+        {
+          "source": "paper §3.2.2",
+          "locator": "Bubble-Filling Policy",
+          "text": "which prioritizes tight duration fit and small deadline slack"
+        },
+        {
+          "source": "paper §3.2.2",
+          "locator": "Bubble-Filling Policy",
+          "text": "If no suitable task is found, the slot remains empty."
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Online greedy packing of items into bins of differing sizes can be suboptimal. Taking an item now can remove the only item that would fit a later bin, and urgency terms in the score can override fit. Because the score mixes duration fit with deadline slack, an urgent small task can occupy a large slot that a large, less urgent task would have filled well. A later slot that only the large task fits then stays empty ('the slot remains empty'). The paper's ILP comparison (§6.5) covers the static overlap scheduler, not Algorithm 2."
+    },
+    {
+      "headline": "A per-GPU task-count cap on the movable-task pool does not guarantee a bound on deferred-activation memory",
+      "claim": "The cap of 8 limits how many movable tasks can be deferred. It does not by itself fix how many bytes of activations and gradients those tasks keep live, because task sizes can differ. Memory safety then depends on the separate headroom bound and on how the cap was tuned for each workload.",
+      "paper_fact": "The pool is bounded by a configurable per-GPU capacity and the available memory headroom.",
+      "premise": "A Wgrad task keeps its input activations and gradients alive until it runs, and those tensors differ in size across layer types (e.g., GDN, softmax attention, MoE blocks) and with routed token counts. A count of tasks is therefore not a count of bytes.",
+      "inference": "Eight deferred tasks could hold very different amounts of memory depending on which layers they come from. A count cap that was safe on one model or partition could still permit an OOM on another unless the headroom check is byte-accurate or the cap is re-tuned. The paper's own handling of OOM (a cap 'configured from observed memory headroom') implies per-workload tuning.",
+      "toy_example": "Illustration only, not a measurement: if 8 deferred tasks from small layers hold 8 units each (64 total) but 8 from large layers hold 20 units each (160 total), the same cap of 8 corresponds to a 2.5x difference in live memory.",
+      "conditional_consequence": "If the runtime headroom check is coarse or stale and the planner places a workload close to its memory limit, a pool that is full by count can still push peak memory over the budget.",
+      "critical_link": "Whether the runtime 'available memory headroom' bound is evaluated in bytes at injection time. If it is, the count cap is only a secondary limit; if it is not, the count cap is the only effective protection.",
+      "necessary_conditions": [
+        "Movable tasks differ in the bytes of activations and gradients they keep live.",
+        "The workload runs close to the per-GPU memory limit.",
+        "The headroom bound is not enforced in bytes at each deferral decision."
+      ],
+      "defeaters": [
+        "The runtime checks free memory in bytes before each deferral and keeps tasks at their original positions when memory is short.",
+        "The cap is re-tuned per workload from observed headroom, as the paper states.",
+        "Task sizes within a given model are nearly uniform."
+      ],
+      "do_not_infer": [
+        "Do not infer that OOM occurs with the cap of 8 in place. The paper reports OOM only for 'aggressive bubble filling' without the bounded pool.",
+        "Do not infer that the headroom bound is absent. The paper states it exists.",
+        "Do not infer that task sizes are measured to vary. This is a premise from general knowledge."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L3",
+      "quotes": [
+        {
+          "source": "paper §3.2.2",
+          "locator": "Movable Task Pool paragraph",
+          "text": "The pool is bounded by a configurable per-GPU capacity and the available memory headroom."
+        },
+        {
+          "source": "paper §5",
+          "locator": "Memory Pressure Trade-off",
+          "text": "In practice, we rely on the bounded movable-task pool described in §3.2.2, configuring its per-GPU cap from observed memory headroom."
+        },
+        {
+          "source": "paper §5",
+          "locator": "Memory Pressure Trade-off",
+          "text": "This cap limits how many deferred tasks can keep activations and gradients live at once."
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A Wgrad task keeps its input activations and gradients alive until it runs, and those tensors differ in size across layer types (e.g., GDN, softmax attention, MoE blocks) and with routed token counts. A count of tasks is therefore not a count of bytes. Eight deferred tasks could hold very different amounts of memory depending on which layers they come from. A count cap that was safe on one model or partition could still permit an OOM on another unless the headroom check is byte-accurate or the cap is re-tuned. The paper's own handling of OOM (a cap 'configured from observed memory headroom') implies per-workload tuning."
+    }
+  ],
+  "dropped_for_unverified_quotes": 0,
+  "chunk_count": 12,
+  "chunk_failures": 0,
+  "chunk_timings": [
+    {
+      "seconds": 38.564535510959104,
+      "attempts": 1
+    },
+    {
+      "seconds": 34.68494761688635,
+      "attempts": 1
+    },
+    {
+      "seconds": 35.4581742270384,
+      "attempts": 1
+    },
+    {
+      "seconds": 41.3166096881032,
+      "attempts": 1
+    },
+    {
+      "seconds": 34.75842674984597,
+      "attempts": 1
+    },
+    {
+      "seconds": 37.44611133309081,
+      "attempts": 1
+    },
+    {
+      "seconds": 36.74112414289266,
+      "attempts": 1
+    },
+    {
+      "seconds": 45.778159823967144,
+      "attempts": 1
+    },
+    {
+      "seconds": 42.97533958591521,
+      "attempts": 1
+    },
+    {
+      "seconds": 33.81842625699937,
+      "attempts": 1
+    },
+    {
+      "seconds": 32.16219502710737,
+      "attempts": 1
+    },
+    {
+      "seconds": 44.49997031595558,
+      "attempts": 1
+    }
+  ],
+  "inventory_seconds": 120.0552468560636,
+  "chunks_seconds": 166.2822742999997,
+  "merged_candidates": 0,
+  "unverified_kept": 36
+}

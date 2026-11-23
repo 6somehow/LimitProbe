@@ -1,0 +1,398 @@
+[
+  {
+    "headline": "Simulated SLO attainment does not imply or guarantee real SLO attainment under workload drift.",
+    "claim": "The placement search's simulated SLO attainment is based on an assumed workload distribution; it does not by itself guarantee real SLO attainment when arrival or length distributions shift or burstiness occurs.",
+    "paper_fact": "We thus resort to building a simulator to estimate the SLO attainment, assuming prior knowledge of the workload’s arrival process and input and output length distributions.",
+    "premise": "Simulators approximate queueing and execution; distribution shift changes arrival and length mix, and burstiness can overload buffers.",
+    "inference": "Binary search over simulated SLO gives a maximum rate for the assumed distribution, not a robust guarantee for future traffic; periodic replanning is needed.",
+    "toy_example": "Not a measurement: a plan tuned for average input 512 and Poisson arrivals may not meet the same SLO when a burst of 2048-token prompts arrives.",
+    "conditional_consequence": "If workload drifts or bursts, the simulated guarantee decays; condition on profiler detection and replan frequency, and validate with real traces.",
+    "critical_link": "The critical link is the simulator's workload model and its SLO estimate, which the binary search treats as the objective.",
+    "necessary_conditions": [
+      "stable or predictable workload distribution",
+      "accurate simulator for arrival and length distributions",
+      "replanning when pattern shifts"
+    ],
+    "defeaters": [
+      "workload is stationary",
+      "simulator is validated on the target distribution",
+      "conservative SLO target absorbs drift"
+    ],
+    "do_not_infer": [
+      "do not infer simulator output is a real SLO guarantee",
+      "do not infer binary search result is robust to burstiness",
+      "do not infer one placement remains optimal after workload change"
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L1+L5",
+    "quotes": [
+      {
+        "quote": "We thus resort to building a simulator to estimate the SLO attainment, assuming prior knowledge of the workload’s arrival process and input and output length distributions.",
+        "source": "paper",
+        "locator": "p.7 §4.1"
+      },
+      {
+        "quote": "The resource and parallelism plan in DistServe is optimized for a specific workload pattern, which may become suboptimal if the workload pattern changes over time.",
+        "source": "paper",
+        "locator": "p.8 §4.3"
+      },
+      {
+        "quote": "Burstiness in workloads can cause a deluge of KV caches to transfer from prefill to decoding instances, risking memory overload on decoding instances.",
+        "source": "paper",
+        "locator": "p.8 §4.3"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 4,
+    "author_boundaries": [
+      "Authors state the simulator assumes prior knowledge of arrival process and length distributions.",
+      "Authors implement periodic replanning and a pull-based KV transfer for burstiness; they do not claim a one-time plan is robust to all drift."
+    ],
+    "inferred_consequences": [
+      "Simulator accuracy on tested workloads is not a universal guarantee.",
+      "Replanning frequency becomes part of the mechanism's effective guarantee."
+    ],
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p.7 §4.1",
+        "support_description": "We thus resort to building a simulator to estimate the SLO attainment, assuming prior knowledge of the workload’s arrival process and input and output length distributions."
+      },
+      {
+        "source_id": "paper",
+        "location": "p.8 §4.3",
+        "support_description": "The resource and parallelism plan in DistServe is optimized for a specific workload pattern, which may become suboptimal if the workload pattern changes over time."
+      },
+      {
+        "source_id": "paper",
+        "location": "p.8 §4.3",
+        "support_description": "Burstiness in workloads can cause a deluge of KV caches to transfer from prefill to decoding instances, risking memory overload on decoding instances."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Simulators approximate queueing and execution; distribution shift changes arrival and length mix, and burstiness can overload buffers. Binary search over simulated SLO gives a maximum rate for the assumed distribution, not a robust guarantee for future traffic; periodic replanning is needed."
+  },
+  {
+    "headline": "Low node-affinity placement does not guarantee higher goodput than high node-affinity placement",
+    "claim": "Low node-affinity placement is a constrained fallback for limited cross-node bandwidth; it does not guarantee better goodput than high node-affinity placement when high-affinity placement is feasible.",
+    "paper_fact": "In contrast, \"DistLLM-High\" can achieve further improvements over \"DistLLM-Low\" because it is not constrained by the deployment constraint that the prefill and decoding instance on one node should share the same model stage.",
+    "premise": "Adding placement constraints cannot expand the feasible set; a constrained optimum can be worse than an unconstrained optimum.",
+    "inference": "The paper's ablation shows DistServe-High can improve over DistServe-Low, so low-affinity placement is not a universal goodput win.",
+    "toy_example": "Not a measurement: a 175B model may not fit a prefill-decode pair in an 8-GPU node, making low-affinity necessary; a 13B model that fits may do better with high-affinity placement.",
+    "conditional_consequence": "If cross-node bandwidth is high or the model fits, high-affinity may yield higher goodput; if cross-node bandwidth is limited and the model is too large, low-affinity may be necessary.",
+    "critical_link": "Feasibility of high-affinity placement and the available cross-node bandwidth.",
+    "necessary_conditions": [
+      "limited cross-node bandwidth",
+      "model too large for a same-node prefill-decode pair",
+      "NVLINK available inside nodes",
+      "placement search feasible under the added constraints"
+    ],
+    "defeaters": [
+      "high cross-node bandwidth",
+      "small model that fits in one node",
+      "high-affinity placement feasible",
+      "workload not latency-sensitive"
+    ],
+    "do_not_infer": [
+      "low-affinity is always better",
+      "disaggregation alone guarantees goodput",
+      "high-affinity placement is never useful"
+    ],
+    "disclosure": "reported",
+    "category_code": "method_shortcoming",
+    "lens": "L4+L6",
+    "quotes": [
+      {
+        "quote": "In contrast, \"DistLLM-High\" can achieve further improvements over \"DistLLM-Low\" because it is not constrained by the deployment constraint that the prefill and decoding instance on one node should share the same model stage.",
+        "source": "DistServe paper",
+        "locator": "§6.4, p. 12"
+      },
+      {
+        "quote": "the latter introduces additional constraints",
+        "source": "DistServe paper",
+        "locator": "§4, p. 6"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 4,
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "§6.4, p. 12",
+        "support_description": "In contrast, \"DistLLM-High\" can achieve further improvements over \"DistLLM-Low\" because it is not constrained by the deployment constraint that the prefill and decoding instance on one node should share the same model stage."
+      },
+      {
+        "source_id": "paper",
+        "location": "§4, p. 6",
+        "support_description": "the latter introduces additional constraints"
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Adding placement constraints cannot expand the feasible set; a constrained optimum can be worse than an unconstrained optimum. The paper's ablation shows DistServe-High can improve over DistServe-Low, so low-affinity placement is not a universal goodput win."
+  },
+  {
+    "headline": "Low simulator SLO-attainment error does not guarantee the selected placement is goodput-optimal on the real system.",
+    "claim": "The reported <2% simulator error does not guarantee that the placement selected by simulated goodput is the real-system goodput optimum, because the search ranks configurations by simulated SLO attainment and stops at a simulated boundary.",
+    "paper_fact": "DistServe simply enumerates the placements and finds the maximum rate that meets the SLO attainment target with binary search and simulation trials.",
+    "premise": "A small absolute error in SLO attainment at tested rates does not ensure correct ordering among near-tied placements; optimization can amplify small ranking errors.",
+    "inference": "Simulator accuracy is necessary but not sufficient for placement optimality; the selected placement may be suboptimal if simulator bias varies by configuration or if the decision boundary is near-tied.",
+    "toy_example": "Toy example, not a measurement: two placements simulate at 90.1% and 90.2% SLO attainment; a 2% simulator error can swap their ranking even though both are near the target.",
+    "conditional_consequence": "If candidate placements have similar simulated goodput or simulator bias differs across parallelism choices, the real system may prefer a different placement than the one selected.",
+    "critical_link": "Placement search uses simulated goodput as the proxy objective and binary search as the stopping rule, so real optimality depends on unbiased simulator ranking, not just low average error.",
+    "necessary_conditions": [
+      "Simulator error is small and unbiased across all candidate placements",
+      "Tested rates bracket the real SLO-attainment decision boundary",
+      "Latency-model coefficients remain valid for each candidate configuration"
+    ],
+    "defeaters": [
+      "End-to-end experiments show real goodput gains",
+      "Ablation shows placement search improves over default",
+      "Near-tied placements have similar real performance"
+    ],
+    "do_not_infer": [
+      "Do not infer the selected placements are suboptimal in the paper's experiments",
+      "Do not infer simulation cannot guide placement search",
+      "Do not infer the paper lacks real-system validation"
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L2+L6",
+    "quotes": [
+      {
+        "quote": "DistServe simply enumerates the placements and finds the maximum rate that meets the SLO attainment target with binary search and simulation trials.",
+        "source": "paper",
+        "locator": "p.7 §4.1"
+      },
+      {
+        "quote": "The error is less than 2% in all cases, verifying the accuracy of our simulator.",
+        "source": "paper",
+        "locator": "p.12 §6.4"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 4,
+    "author_boundary": "Authors report simulator-vs-real SLO attainment in Table 2 and end-to-end gains; they do not claim the simulator proves global real-system optimality.",
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p.7 §4.1",
+        "support_description": "DistServe simply enumerates the placements and finds the maximum rate that meets the SLO attainment target with binary search and simulation trials."
+      },
+      {
+        "source_id": "paper",
+        "location": "p.12 §6.4",
+        "support_description": "The error is less than 2% in all cases, verifying the accuracy of our simulator."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "A small absolute error in SLO attainment at tested rates does not ensure correct ordering among near-tied placements; optimization can amplify small ranking errors. Simulator accuracy is necessary but not sufficient for placement optimality; the selected placement may be suboptimal if simulator bias varies by configuration or if the decision boundary is near-tied."
+  },
+  {
+    "headline": "Meeting >90% SLO attainment does not guarantee meeting stricter tail SLOs or per-request latency.",
+    "claim": "The per-GPU goodput proxy depends on the SLO attainment target; achieving >90% attainment does not establish 99% attainment or per-request latency guarantees.",
+    "paper_fact": "Our evaluations show that on various popular LLMs, applications, and latency requirements, DistServe can serve 7.4× more requests or 12.6× tighter SLO, compared to state-of-the-art systems, while staying within latency constraints for > 90% of requests.",
+    "premise": "Aggregate SLO attainment allows a fraction of requests to violate latency; a 90% target can hide tail violations that a 99% target would expose.",
+    "inference": "Capacity claims at 90% attainment may overstate capacity for applications needing 99% or tail guarantees; the target must be reported and evaluated.",
+    "toy_example": "Toy example (not a measurement): with 100 requests, 90% attainment permits 10 TPOT violations; a 99% target permits 1, so the same configuration can pass one target and fail the other.",
+    "conditional_consequence": "If the application requires 99% attainment or strict tail latency, the 90%-target goodput may not transfer; condition on SLO attainment target and tail distribution.",
+    "critical_link": "The proxy's validity depends on the chosen SLO attainment target matching deployment requirements and on tail behavior, not just aggregate percentage.",
+    "necessary_conditions": [
+      "Report the SLO attainment target",
+      "Evaluate at the deployment target",
+      "Include tail latency or per-request violation distribution",
+      "Use representative workload and arrival process"
+    ],
+    "defeaters": [
+      "Paper includes 99% results in Appendix C",
+      "Deployment target is 90%",
+      "Tail distribution is acceptable for the application",
+      "Per-request guarantees are not required"
+    ],
+    "do_not_infer": [
+      "Do not infer DistServe fails 99% SLOs; the paper reports 99% results",
+      "Do not infer 90% attainment is meaningless",
+      "Do not infer per-request guarantee from aggregate attainment"
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L2+L3",
+    "quotes": [
+      {
+        "source": "paper",
+        "locator": "p. 1, Abstract",
+        "quote": "Our evaluations show that on various popular LLMs, applications, and latency requirements, DistServe can serve 7.4× more requests or 12.6× tighter SLO, compared to state-of-the-art systems, while staying within latency constraints for > 90% of requests."
+      },
+      {
+        "source": "paper",
+        "locator": "p. 10, §6.1",
+        "quote": "We are particularly interested in an SLO attainment of 90% (indicated by the vertical lines in all curve plots), but will also vary the rate and latency requirements to observe how the SLO attainment changes. We also include the results in the Appendix for an SLO attainment of 99% to show the system performance under a more stringent SLO attainment target."
+      },
+      {
+        "source": "paper",
+        "locator": "p. 11, §6.2",
+        "quote": "The results above are all under the 90% SLO attainment target. We observe that DistServe can have better performance under a more stringent attainment target (say, 99%) and present the results in Appendix C."
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p. 1, Abstract",
+        "support_description": "Our evaluations show that on various popular LLMs, applications, and latency requirements, DistServe can serve 7.4× more requests or 12.6× tighter SLO, compared to state-of-the-art systems, while staying within latency constraints for > 90% of requests."
+      },
+      {
+        "source_id": "paper",
+        "location": "p. 10, §6.1",
+        "support_description": "We are particularly interested in an SLO attainment of 90% (indicated by the vertical lines in all curve plots), but will also vary the rate and latency requirements to observe how the SLO attainment changes. We also include the results in the Appendix for an SLO attainment of 99% to show the system performance under a more stringent SLO attainment target."
+      },
+      {
+        "source_id": "paper",
+        "location": "p. 11, §6.2",
+        "support_description": "The results above are all under the 90% SLO attainment target. We observe that DistServe can have better performance under a more stringent attainment target (say, 99%) and present the results in Appendix C."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Aggregate SLO attainment allows a fraction of requests to violate latency; a 90% target can hide tail violations that a 99% target would expose. Capacity claims at 90% attainment may overstate capacity for applications needing 99% or tail guarantees; the target must be reported and evaluated."
+  },
+  {
+    "headline": "Simulated phase goodput does not imply or guarantee real-system SLO attainment.",
+    "claim": "DistServe's simulator-based co-optimization of phase resource allocation and parallelism does not guarantee real-system SLO attainment under workload or environment shift.",
+    "paper_fact": "The error is less than 2% in all cases, verifying the accuracy of our simulator.",
+    "premise": "Simulation-based optimization is only as reliable as its model and input distribution; distribution shift and unmodeled effects can invalidate the chosen optimum.",
+    "inference": "Therefore, DistServe's co-optimized placement does not by itself guarantee real SLO attainment; the guarantee is conditional on simulator fidelity and workload stationarity.",
+    "toy_example": "Toy example (not a measurement): if real prompts are twice as long as the fitted distribution, a simulator-selected prefill parallelism may miss TTFT even though simulated goodput was optimal.",
+    "conditional_consequence": "If real arrival/length distribution or network/hardware behavior differs from the simulator's assumptions, the co-optimized placement may miss the target SLO; condition on simulator fidelity and workload stationarity.",
+    "critical_link": "Placement selection is driven by simulated SLO attainment; real SLO attainment depends on actual execution and queuing not fully captured by the simulator.",
+    "necessary_conditions": [
+      "Simulator captures arrival process and input/output length distributions.",
+      "Hardware, communication, and scheduling effects are modeled or stable.",
+      "Placement is re-evaluated when workload shifts."
+    ],
+    "defeaters": [
+      "Real-system validation across target workloads shows simulator error small.",
+      "Workload distribution is stationary and matches fitted history.",
+      "Replanning catches shifts before SLO violations."
+    ],
+    "do_not_infer": [
+      "Do not infer the simulator is inaccurate in general.",
+      "Do not infer DistServe guarantees SLO under arbitrary workload shift.",
+      "Do not infer the reported <2% error applies outside tested workloads/testbed."
+    ],
+    "author_boundaries": [
+      "Paper validates simulator on its testbed and workloads; it does not claim simulator accuracy for all clusters or distributions.",
+      "Paper reports replanning but does not guarantee SLO under arbitrary distribution shift."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L1+L2",
+    "quotes": [
+      {
+        "quote": "We thus resort to building a simulator to estimate the SLO attainment, assuming prior knowledge of the workload’s arrival process and input and output length distributions.",
+        "source": "DistServe paper",
+        "locator": "p. 7, §4.1"
+      },
+      {
+        "quote": "The error is less than 2% in all cases, verifying the accuracy of our simulator.",
+        "source": "DistServe paper",
+        "locator": "p. 12, §6.4"
+      },
+      {
+        "quote": "If a significant pattern shift is detected, DistServe will trigger a rerun of the placement algorithm based on recent historical data.",
+        "source": "DistServe paper",
+        "locator": "p. 8, §4.3"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p. 7, §4.1",
+        "support_description": "We thus resort to building a simulator to estimate the SLO attainment, assuming prior knowledge of the workload’s arrival process and input and output length distributions."
+      },
+      {
+        "source_id": "paper",
+        "location": "p. 12, §6.4",
+        "support_description": "The error is less than 2% in all cases, verifying the accuracy of our simulator."
+      },
+      {
+        "source_id": "paper",
+        "location": "p. 8, §4.3",
+        "support_description": "If a significant pattern shift is detected, DistServe will trigger a rerun of the placement algorithm based on recent historical data."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Simulation-based optimization is only as reliable as its model and input distribution; distribution shift and unmodeled effects can invalidate the chosen optimum. Therefore, DistServe's co-optimized placement does not by itself guarantee real SLO attainment; the guarantee is conditional on simulator fidelity and workload stationarity."
+  },
+  {
+    "headline": "Maximizing per-GPU goodput under latency SLOs conflicts with maximizing overall throughput in offline latency-insensitive workloads.",
+    "claim": "The per-GPU goodput objective is request rate per GPU subject to TTFT/TPOT SLO attainment, not tokens per second or maximum GPU utilization; in offline latency-insensitive settings the paper itself says chunked-prefill may be preferred.",
+    "paper_fact": "In offline applications that are not latency-sensitive, users typically have lower requirements for response time [45]. This allows serving systems to shift focus towards maximizing overall throughput instead of goodput and the effectiveness of DistServe may be compromised.",
+    "premise": "Latency-constrained goodput and throughput are different objectives; filling batches to compute-bound thresholds can raise tokens/s while increasing per-request latency.",
+    "inference": "If the workload is offline and cost is measured by throughput rather than SLO-constrained request rate, a placement that maximizes per-GPU goodput can be suboptimal compared with chunked-prefill or other throughput-oriented batching.",
+    "toy_example": "Not a measurement: an offline summarization batch job may prefer a chunked-prefill configuration that fills each batch to the compute-bound threshold, even if its TTFT/TPOT would be worse than a DistServe goodput placement.",
+    "conditional_consequence": "For offline, latency-insensitive serving, per-GPU goodput optimization may sacrifice throughput and therefore may not minimize cost per token; condition on whether latency SLOs are binding.",
+    "critical_link": "The objective's SLO constraints make it a latency-aware rate objective; throughput maximization can trade latency for utilization, so the two objectives need not coincide.",
+    "necessary_conditions": [
+      "Workload is offline or latency-insensitive.",
+      "Cost is measured by throughput or tokens/s rather than SLO-constrained requests per GPU.",
+      "A throughput-oriented batching method such as chunked-prefill is available."
+    ],
+    "defeaters": [
+      "If latency still matters, goodput is the relevant objective.",
+      "If chunked-prefill cannot meet any required latency bound, throughput-only comparison is inapplicable.",
+      "The paper's claim is about effectiveness being compromised, not a measured universal regression."
+    ],
+    "do_not_infer": [
+      "Do not infer DistServe is worse for all offline workloads.",
+      "Do not infer per-GPU goodput equals throughput.",
+      "Do not infer the paper measured a throughput-optimized baseline in every offline setting."
+    ],
+    "author_boundaries": [
+      "The paper explicitly limits its focus to the goodput-optimized setting and says a one-size-fits-all solution is impossible.",
+      "The paper does not claim per-GPU goodput is the right objective for offline throughput-oriented serving."
+    ],
+    "inferred_consequences": [
+      "Using goodput placement for offline batch inference can leave throughput on the table.",
+      "Cost comparisons must specify whether cost is per SLO-satisfied query or per token."
+    ],
+    "disclosure": "reported",
+    "category_code": "method_shortcoming",
+    "lens": "L2+L6",
+    "quotes": [
+      {
+        "quote": "In offline applications that are not latency-sensitive, users typically have lower requirements for response time [45]. This allows serving systems to shift focus towards maximizing overall throughput instead of goodput and the effectiveness of DistServe may be compromised.",
+        "source": "paper",
+        "locator": "p. 12, §7"
+      },
+      {
+        "quote": "In this case, techniques such as chunked-prefill with piggyback [3,9] may be preferred since it can fill each batch to the compute-bound threshold, thereby maintaining higher GPU utilization in every iteration.",
+        "source": "paper",
+        "locator": "p. 12, §7"
+      },
+      {
+        "quote": "maximize per-GPU goodput, defined as the maximum request rate that can be served adhering to the SLO attainment goal (say, 90%) for each GPU provisioned – higher per-GPU goodput directly translates into lower cost per query.",
+        "source": "paper",
+        "locator": "p. 2, §1"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 2,
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p. 12, §7",
+        "support_description": "In this case, techniques such as chunked-prefill with piggyback [3,9] may be preferred since it can fill each batch to the compute-bound threshold, thereby maintaining higher GPU utilization in every iteration."
+      },
+      {
+        "source_id": "paper",
+        "location": "p. 2, §1",
+        "support_description": "maximize per-GPU goodput, defined as the maximum request rate that can be served adhering to the SLO attainment goal (say, 90%) for each GPU provisioned – higher per-GPU goodput directly translates into lower cost per query."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Latency-constrained goodput and throughput are different objectives; filling batches to compute-bound thresholds can raise tokens/s while increasing per-request latency. If the workload is offline and cost is measured by throughput rather than SLO-constrained request rate, a placement that maximizes per-GPU goodput can be suboptimal compared with chunked-prefill or other throughput-oriented batching."
+  }
+]

@@ -1,0 +1,808 @@
+{
+  "candidates": [
+    {
+      "headline": "A single fixed τ=0.1 does not guarantee a stable number of Query-Aware heads across tasks, lengths and thresholds",
+      "claim": "The paper fixes tau=0.1 for every model, but its own Figure 8 shows the Query-Aware head count varying from 1 to 19 across task and length. Doubling tau to 0.2 raises the count by 6x to 18x. How many heads use the more expensive and less structured Query-Aware path is therefore data-dependent. It is also sensitive to a threshold that was never calibrated per model.",
+      "paper_fact": "The sparse pattern threshold τ is set to 0.1 for all models.",
+      "premise": "D_JS is a continuous quantity compared against a hard cutoff. If many heads have D_JS clustered near the cutoff, small changes in task, length or tau flip many heads. Pooled-estimate accuracy generally depends on the attention distribution, which depends on content and length.",
+      "inference": "Fig. 8 reports Query-Aware counts of 13, 2, 19 and 1 at tau=0.1 for the four task/length panels (a)–(d). At tau=0.2 the panels (e)–(h) read 111, 11, 58 and 18. The same threshold therefore yields very different head mixes by input. Table 6 shows LLaMA at tau=0.3 dropping to 88.38 average and 75.96 at 128k, against 89.18 and 79.09 at tau=0.1. The authors attribute this to admitting heads with inaccurate estimates. Model-specific transfer of 0.1 is likewise unverified.",
+      "toy_example": "Illustration only, not a measurement: suppose 40 heads have D_JS between 0.1 and 0.2 on prompt type A and 5 on type B. Raising tau from 0.1 to 0.2 would then move 40 heads to Query-Aware on A but only 5 on B.",
+      "conditional_consequence": "If many heads lie near the cutoff, the per-input Query-Aware fraction shifts with prompt and context length. Cost and accuracy then vary in ways a single tau does not control. The block-map overhead of Query-Aware heads also varies.",
+      "critical_link": "The step from 'tau=0.1 works on the reported benchmarks' to 'tau=0.1 gives a stable, appropriate head split elsewhere' is untested.",
+      "necessary_conditions": [
+        "D_JS values of many heads fall near 0.1 to 0.2.",
+        "Deployment inputs differ from RULER and InfiniteBench in task type or length distribution.",
+        "Per-model attention statistics differ enough that 0.1 is not equivalently strict."
+      ],
+      "defeaters": [
+        "At tau=0.1 Query-Aware heads are few and concentrated in early layers, so the cost impact may be small.",
+        "Table 6 shows tau=0.1 to 0.2 changes average accuracy by at most about 0.3 for LLaMA, GLM and Yi (GLM +0.36), and by -0.96 for Qwen.",
+        "The Figure 8 caption does not state the model. If it is LLaMA (32 layers, 32 heads), 111 heads is about 11% of 1024."
+      ],
+      "do_not_infer": [
+        "Do not infer that tau=0.1 is a poor choice. It scored best or near-best in most Table 6 rows.",
+        "Do not infer the head split for other models. Figure 8's model is not stated in the extracted caption.",
+        "Do not infer a cost increase. The paper gives no latency per head count."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L5_regularity_origin_change (with L4 and L7)",
+      "quotes": [
+        {
+          "text": "The sparse pattern threshold τ is set to 0.1 for all models.",
+          "source": "paper",
+          "locator": "Section 4.1, Implementation Details"
+        },
+        {
+          "text": "Query-Aware Heads Count: 13",
+          "source": "paper",
+          "locator": "Figure 8(a), Task A, 128k, τ = 0.1"
+        },
+        {
+          "text": "Query-Aware Heads Count: 111",
+          "source": "paper",
+          "locator": "Figure 8(e), Task A, 128k, τ = 0.2"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "D_JS is a continuous quantity compared against a hard cutoff. If many heads have D_JS clustered near the cutoff, small changes in task, length or tau flip many heads. Pooled-estimate accuracy generally depends on the attention distribution, which depends on content and length. Fig. 8 reports Query-Aware counts of 13, 2, 19 and 1 at tau=0.1 for the four task/length panels (a)–(d). At tau=0.2 the panels (e)–(h) read 111, 11, 58 and 18. The same threshold therefore yields very different head mixes by input. Table 6 shows LLaMA at tau=0.3 dropping to 88.38 average and 75.96 at 128k, against 89.18 and 79.09 at tau=0.1. The authors attribute this to admitting heads with inaccurate estimates. Model-specific transfer of 0.1 is likewise unverified."
+    },
+    {
+      "headline": "A single global flattened coverage threshold does not guarantee the per-query coverage that Equation 3 specifies",
+      "claim": "Algorithm 4 ranks all (query-block x key-block) scores in one flattened list and stops when the global sum reaches gamma. Equation 3 and its Appendix A rationale require coverage of at least gamma for every query position. These are different stopping rules, so individual query blocks can be left below gamma.",
+      "paper_fact": "In Algorithm 4, we flatten and normalize the estimated attention map, then identify the minimum computational budget required for the sum of scores to exceed a given threshold γ.",
+      "premise": "If rows of the pooled map are each softmax-normalized and then jointly renormalized, every row carries equal mass. Selecting the largest entries globally still favors rows with peaked distributions. Rows with flat distributions have small per-entry values and are picked last.",
+      "inference": "With a global cutoff, a peaked query block can reach full coverage using few key blocks. A flat query block may get only a fraction of the blocks it needs to reach gamma. This is a different optimization target from the per-query one in Eq. 3.",
+      "toy_example": "Illustrative arithmetic, NOT a measurement. Two query blocks, four key blocks each, rows already softmaxed. Row A = [0.85, 0.05, 0.05, 0.05]. Row B = [0.25, 0.25, 0.25, 0.25]. After global normalization (divide by 2), A = [0.425, 0.025, 0.025, 0.025] and B = 0.125 each. With gamma = 0.5, the global rule picks A1 (0.425) and one B entry (0.125), which totals 0.55. Row B then has only 25% of its own mass covered, while a per-row rule at 0.5 would need 2 of B's blocks.",
+      "conditional_consequence": "If query blocks in a Query-Aware head differ strongly in how peaked their pooled distributions are, flat query blocks receive less coverage than gamma. This could matter more for tasks that need per-position fidelity than for needle-style retrieval.",
+      "critical_link": "Ranking by absolute normalized block score across all rows, rather than within each row, decides which query blocks are starved.",
+      "necessary_conditions": [
+        "Query blocks in the head have heterogeneous peakedness.",
+        "The cutoff gamma is low enough that the global cumulative sum stops before flat rows are reached.",
+        "Floor mechanisms (first/last key blocks, 1024-token minimum) do not already cover the flat rows' needs."
+      ],
+      "defeaters": [
+        "The authors report that a per-query-block variant performs comparably on RULER.",
+        "The first and last key blocks of each query block are always retained, and each head computes at least 1024 tokens.",
+        "Most heads use the Vertical-Slash path, so few heads are affected at tau = 0.1."
+      ],
+      "do_not_infer": [
+        "Do not infer that the global version loses accuracy overall; the paper reports comparable RULER scores.",
+        "Do not infer that all query blocks are starved; the effect depends on row heterogeneity.",
+        "Do not infer anything about code or math tasks; no per-task Table 9 evidence is shown."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L2+L3 (objective vs goal; per-token vs block-global unit)",
+      "quotes": [
+        {
+          "text": "Our sparse attention mechanism aims to select the smallest possible subsets Si for each query position i while ensuring that the sum of normalized attention scores within each subset meets a predefined cumulative attention threshold γ.",
+          "source": "paper",
+          "locator": "Section 3, Cumulative-Attention Based Index Selection"
+        },
+        {
+          "text": "In this approach, the cumulative attention scores of selected key blocks exceed γ for each query block. As shown in Table 9, this alternative achieves comparable performance.",
+          "source": "paper",
+          "locator": "Appendix F.4"
+        },
+        {
+          "text": "we retain the first and last key blocks of each query block, while also requiring each attention head to compute at least 1024 tokens.",
+          "source": "paper",
+          "locator": "Section 4.1, Implementation Details"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "If rows of the pooled map are each softmax-normalized and then jointly renormalized, every row carries equal mass. Selecting the largest entries globally still favors rows with peaked distributions. Rows with flat distributions have small per-entry values and are picked last. With a global cutoff, a peaked query block can reach full coverage using few key blocks. A flat query block may get only a fraction of the blocks it needs to reach gamma. This is a different optimization target from the per-query one in Eq. 3."
+    },
+    {
+      "headline": "Selecting few vertical and slash tokens does not imply a proportionally small sparse-kernel workload",
+      "claim": "The Vertical-Slash fallback chooses lines at token granularity, but the kernel runs on 128-sized blocks. Scattered vertical columns or slash offsets can therefore touch many more blocks than the token count suggests, so the real compute fraction can exceed the line budget. The paper reports no measure of block-level versus token-level density for this path.",
+      "paper_fact": "Extend selected lines to the entire attention matrix, forming the sparse index set S.",
+      "premise": "Block-sparse GPU kernels typically compute a whole tile whenever any selected (query, key) position falls inside it. Isolated token columns and diagonals that cross many tiles therefore activate many tiles.",
+      "inference": "Because lines are scored per token while the Triton kernel works with block_size = 128, the realized fraction of computed blocks can be well above the fraction of selected tokens. The O(αn²d) cost model in the appendix does not say which granularity α refers to.",
+      "toy_example": "Not a measurement: if 8 isolated vertical columns fall in 8 different 128-wide key blocks, 8 tokens of budget per row force 8 full block columns, i.e. up to 1024 key positions per query row.",
+      "conditional_consequence": "If a head's selected verticals are spread across many key blocks, its latency gain over dense attention will be smaller than its token-level sparsity suggests. Heads with clustered lines would not show this gap.",
+      "critical_link": "Token-level line selection is mapped onto a 128-block kernel without any reported accounting of rounding inflation.",
+      "necessary_conditions": [
+        "Selected vertical columns are not clustered within the same key blocks.",
+        "The kernel computes whole blocks when any token in the block is selected.",
+        "Reported sparsity or alpha is counted at token level."
+      ],
+      "defeaters": [
+        "Selected lines concentrate in sink or local blocks, which are already retained.",
+        "The kernel masks within a block and skips the masked work.",
+        "Alpha in the paper is already measured at block granularity."
+      ],
+      "do_not_infer": [
+        "Do not infer that the reported speedups are wrong; the end-to-end latency tables are measured.",
+        "Do not infer that block rounding is large for the heads actually selected in the experiments.",
+        "Do not infer that Query-Aware heads share this effect."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L3_unit_compatibility",
+      "quotes": [
+        {
+          "text": "Extend selected lines to the entire attention matrix, forming the sparse index set S.",
+          "source": "paper, Cumulative-Attention Based Index Selection",
+          "locator": "page 5"
+        },
+        {
+          "text": "uses a block_size = 128 in all experiments",
+          "source": "paper, Implementation Details",
+          "locator": "page 7"
+        },
+        {
+          "text": "approximately O(αn2d), where α is the sparsity factor",
+          "source": "paper, Appendix G",
+          "locator": "page 25"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Block-sparse GPU kernels typically compute a whole tile whenever any selected (query, key) position falls inside it. Isolated token columns and diagonals that cross many tiles therefore activate many tiles. Because lines are scored per token while the Triton kernel works with block_size = 128, the realized fraction of computed blocks can be well above the fraction of selected tokens. The O(αn²d) cost model in the appendix does not say which granularity α refers to."
+    },
+    {
+      "headline": "Per-input dynamic budgets do not guarantee a latency that depends on length alone",
+      "claim": "Because the budget varies with the prompt, attention compute at the same context length differs by task. The reported latency figures are averages over a single attention head and over lengths, so they do not show whether the average speedup survives in batched serving tail latency.",
+      "paper_fact": "Figure 10 shows that samples with different difficulties require varying sparsity rates and have inconsistent sparsity distributions across attention heads.",
+      "premise": "In a batched or pipelined server, step time is set by the slowest request or the most loaded head or kernel. Averages of per-call latency do not bound p99.",
+      "inference": "Figure 10 reports total sparsity of 79.83 for 64k task A and 85.72 for 64k task B, at the same context length. If sparsity is 20 and 14 percent density respectively, that is roughly a 1.4x difference in computed attention at a fixed length. Together with per-head variation, this implies content-dependent latency and possible load imbalance. The paper reports only per-head averages, so tail behavior under mixed prompts is not characterized.",
+      "toy_example": "Illustrative only, not a measurement: a batch of four 64k requests includes one hard prompt at density 0.20 and three easy prompts at density 0.14. The batch's attention step is paced by the hard request, so the batch speedup is closer to the hard request's than to the mean.",
+      "conditional_consequence": "If a serving system batches prompts of mixed difficulty or synchronizes across heads, FlexPrefill's reported average speedups may translate to smaller tail-latency gains.",
+      "critical_link": "Content-dependent sparsity makes per-request compute variable, while the evidence reports only averaged single-head latency.",
+      "necessary_conditions": [
+        "requests of differing difficulty are batched or share a synchronization point",
+        "per-head kernel launches are unevenly loaded",
+        "tail latency (p99 TTFT) is the metric of interest"
+      ],
+      "defeaters": [
+        "A single-request deployment, where only mean prefill time matters",
+        "Variation of about 1.4x in compute may be small relative to the 2-9x speedup over dense attention",
+        "Schedulers can sort or bucket requests by predicted difficulty"
+      ],
+      "do_not_infer": [
+        "Do not infer that p99 latency is worse than full attention",
+        "Do not infer that the paper's speedups are wrong",
+        "Do not infer a specific tail-latency number"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L5_regularity_origin_change",
+      "quotes": [
+        {
+          "text": "Figure 10 shows that samples with different difficulties require varying sparsity rates and have inconsistent sparsity distributions across attention heads.",
+          "source": "paper, Appendix J, Sparsity Ratio",
+          "locator": "page 26"
+        },
+        {
+          "text": "In Figure 4, we plot model performance against the average prefill time for a single attention head.",
+          "source": "paper, Appendix E",
+          "locator": "page 22"
+        },
+        {
+          "text": "total sparsity: 79.83",
+          "source": "paper, Figure 10(a), 64k context, task A",
+          "locator": "page 27"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "In a batched or pipelined server, step time is set by the slowest request or the most loaded head or kernel. Averages of per-call latency do not bound p99. Figure 10 reports total sparsity of 79.83 for 64k task A and 85.72 for 64k task B, at the same context length. If sparsity is 20 and 14 percent density respectively, that is roughly a 1.4x difference in computed attention at a fixed length. Together with per-head variation, this implies content-dependent latency and possible load imbalance. The paper reports only per-head averages, so tail behavior under mixed prompts is not characterized."
+    },
+    {
+      "headline": "Reaching gamma on the flattened block-pooled attention map does not guarantee gamma coverage for each query row",
+      "claim": "Eq. 3 states the coverage constraint per query position (for all i). The Query-Aware implementation (Algorithm 4) flattens the whole block-pooled map and stops once the global sum reaches gamma. That does not ensure each query block's own mass reaches gamma, so the per-row premise of the Appendix A error bound is not enforced by the code path.",
+      "paper_fact": "Our sparse attention mechanism aims to select the smallest possible subsets Si for each query position i while ensuring that the sum of normalized attention scores within each subset meets a predefined cumulative attention threshold γ.",
+      "premise": "In general, a global cumulative-mass cutoff over a matrix normalized to sum to 1 places no lower bound on the mass captured within any single row. Rows that hold little of the total pooled mass can be left under-covered while rows that hold more are over-covered.",
+      "inference": "Algorithm 4 flattens and normalizes the pooled map over all (query block, key block) pairs and takes the top entries until the global sum reaches gamma. Row-level coverage is therefore not guaranteed, and the per-row bound (1 - a_S) * sum|v_j| need not hold for every query block. Block-level mass is also not token-level mass.",
+      "toy_example": "Illustration only, not a measurement: two query blocks with pooled mass 0.8 and 0.2 of the flattened total. With gamma = 0.8, selecting every entry of block 1 satisfies the threshold. Block 2 then has zero selected pooled mass from this step, apart from the forced first/last key blocks and the 1024-token floor.",
+      "conditional_consequence": "If attention mass is concentrated in a few query blocks, so that row masses in the pooled map are very uneven, then the flattened threshold can leave low-mass query blocks poorly covered. In that case the per-row error guarantee does not carry over.",
+      "critical_link": "The per-row constraint in Eq. 3 and the single global cumulative sum in Algorithm 4 are treated as the same objective. Only the first is what the Appendix A bound assumes.",
+      "necessary_conditions": [
+        "Row masses in the pooled map are uneven across query blocks",
+        "The 1024-token minimum and the retained first/last key blocks do not already supply adequate coverage for the under-covered rows",
+        "The head takes the Query-Aware path, not the Vertical-Slash path"
+      ],
+      "defeaters": [
+        "Row masses are roughly uniform, so the global and per-row cutoffs nearly coincide",
+        "The minimum-budget floor and forced blocks give enough coverage to the under-covered rows",
+        "The paper's query-wise alternative (F.4) reports comparable performance, so the practical impact on the tested benchmarks may be small"
+      ],
+      "do_not_infer": [
+        "Do not infer that the flatten variant performs worse than the query-wise variant; the paper reports comparable accuracy",
+        "Do not infer that the paper claims row-level guarantees for Algorithm 4",
+        "Do not infer anything about Vertical-Slash heads, which use a different selection unit"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L3_unit_compatibility",
+      "quotes": [
+        {
+          "text": "Flatten and normalize attention map",
+          "source": "paper, Algorithm 4 (Query Aware Index Search)",
+          "locator": "page 6"
+        },
+        {
+          "text": "As shown in Table 9, this alternative achieves comparable performance.",
+          "source": "paper, Appendix F.4",
+          "locator": "page 23"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "In general, a global cumulative-mass cutoff over a matrix normalized to sum to 1 places no lower bound on the mass captured within any single row. Rows that hold little of the total pooled mass can be left under-covered while rows that hold more are over-covered. Algorithm 4 flattens and normalizes the pooled map over all (query block, key block) pairs and takes the top entries until the global sum reaches gamma. Row-level coverage is therefore not guaranteed, and the per-row bound (1 - a_S) * sum|v_j| need not hold for every query block. Block-level mass is also not token-level mass."
+    },
+    {
+      "headline": "A fixed cumulative-attention threshold gamma does not imply or guarantee a bounded output error at longer contexts",
+      "claim": "The Appendix A reduction only shows that maximizing captured mass shrinks an upper bound of the form (1 - a_S) * sum_j |v_j|. That bound has a factor summed over all L keys, so for a fixed gamma it can grow with context length. The paper's derivation therefore does not certify that gamma = 0.9 or 0.95 keeps output error controlled at 512k as it does at 8k.",
+      "paper_fact": "we obtain an upper bound for the absolute difference between full and sparse attention",
+      "premise": "A bound of the form (1 - a_S) * sum over L terms of |v_j| increases with L when per-token value norms are roughly constant and a_S is fixed. Monotonicity in a_S is the only property the bound provides.",
+      "inference": "Under the worst-case bound, a fixed gamma gives a weaker guarantee at longer L, and the bound is not tight, so it cannot explain why accuracy holds at a given gamma. Any retained accuracy at long context must come from empirical regularities (value and softmax-mass misalignment, sparsity), which the appendix does not analyse.",
+      "toy_example": "Illustration only, not a measurement: with every |v_j| = 1 and a_S = 0.95, the bound is 0.05 * L, which is 50 at L = 1,000 and 5,000 at L = 100,000.",
+      "conditional_consequence": "If a constant worst-case output error were required across lengths, the bound implies gamma would have to tighten as L grows (1 - gamma proportional to 1/L).",
+      "critical_link": "The bound's dependence on sum|v_j| over all L keys is what makes a fixed gamma give a length-dependent worst-case guarantee.",
+      "necessary_conditions": [
+        "The bound is used as the justification for the gamma-based selection rule.",
+        "Value norms do not shrink with L.",
+        "The worst case is what is being judged."
+      ],
+      "defeaters": [
+        "Empirical accuracy can be fine because value vectors and softmax mass are not adversarially aligned.",
+        "Real attention is highly concentrated, so the bound is very loose.",
+        "The authors present the appendix as motivation, not as a guarantee."
+      ],
+      "do_not_infer": [
+        "Do not infer that accuracy actually degrades with L at fixed gamma.",
+        "Do not infer the method is unsound.",
+        "Do not infer a particular length-dependent gamma schedule is needed in practice."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1_proxy_guarantee x L7_bottleneck_over_scale",
+      "quotes": [
+        {
+          "text": "To minimize the upper bound of the error, we can maximize the sum of normalized attention scores",
+          "source": "Appendix A, Rationale",
+          "locator": "page 19, after Eq. (6)"
+        },
+        {
+          "text": "we obtain an upper bound for the absolute difference between full and sparse attention",
+          "source": "Appendix A, Rationale",
+          "locator": "page 19, before Eq. (6)"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A bound of the form (1 - a_S) * sum over L terms of |v_j| increases with L when per-token value norms are roughly constant and a_S is fixed. Monotonicity in a_S is the only property the bound provides. Under the worst-case bound, a fixed gamma gives a weaker guarantee at longer L, and the bound is not tight, so it cannot explain why accuracy holds at a given gamma. Any retained accuracy at long context must come from empirical regularities (value and softmax-mass misalignment, sparsity), which the appendix does not analyse."
+    },
+    {
+      "headline": "A proof about true attention mass does not imply or guarantee that estimated-score selection meets gamma",
+      "claim": "The Appendix A bound is written in terms of the true normalized attention mass a_S. The algorithms select indices using pooled-query/key block estimates (Query-Aware heads) or scores from only the last block_size queries (Vertical-Slash heads). The theorem therefore transfers to the deployed method only to the extent that estimated mass matches true mass, a link the appendix does not analyse.",
+      "paper_fact": "Estimate the block-wise attention scores by first average-pooling the queries and keys, then computing the attention.",
+      "premise": "Average-pooled Q and K scores are not the same as the average of true softmax scores, and a subset of queries is not the full set of rows. A cumulative sum computed on estimates can differ from the true cumulative mass of the same selected set.",
+      "inference": "The 'sum >= gamma' condition is verified on estimated scores. The true mass a_S in the bound can be lower, so the bound's premise is not checked by the system. The paper's own ablation shows the estimation source matters.",
+      "conditional_consequence": "If the estimate is poorly aligned with true attention (large JS distance heads, or a non-representative query subset), the realized a_S can fall below gamma and the bound loosens accordingly.",
+      "critical_link": "The deployed constraint is on estimated scores, while the bound is stated for true a_S.",
+      "necessary_conditions": [
+        "Selection is performed on pooled or subset estimates.",
+        "The estimate-to-true gap is not bounded in the appendix."
+      ],
+      "defeaters": [
+        "The JSD test with threshold tau routes poorly estimated heads to Vertical-Slash.",
+        "Estimated and true mass may be close for most heads in practice.",
+        "Benchmarks show accuracy is largely preserved."
+      ],
+      "do_not_infer": [
+        "Do not infer the estimates are inaccurate on average.",
+        "Do not infer the reported benchmark results are wrong.",
+        "Do not infer the Vertical-Slash fallback fails."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1_proxy_guarantee x L3_unit_compatibility",
+      "quotes": [
+        {
+          "text": "Estimate the block-wise attention scores by first average-pooling the queries and keys, then computing the attention.",
+          "source": "Section 3, Cumulative-Attention Based Index Selection",
+          "locator": "page 5, Query-Aware head"
+        },
+        {
+          "text": "However, replacing the subset for vertical slash sparse index selection significantly reduces performance.",
+          "source": "Appendix F.3",
+          "locator": "page 23"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Average-pooled Q and K scores are not the same as the average of true softmax scores, and a subset of queries is not the full set of rows. A cumulative sum computed on estimates can differ from the true cumulative mass of the same selected set. The 'sum >= gamma' condition is verified on estimated scores. The true mass a_S in the bound can be lower, so the bound's premise is not checked by the system. The paper's own ablation shows the estimation source matters."
+    },
+    {
+      "headline": "A per-query mass constraint in Eq. (3) conflicts with the globally flattened budget in the Query-Aware selection",
+      "claim": "The rationale derives a per-query constraint and aggregates it over rows. Algorithm 4 instead flattens the whole block-level map and stops when the global sum reaches gamma, so the budget is shared across query blocks. The per-row guarantee the proof supports is therefore not what this head type implements.",
+      "paper_fact": "The general objective for all query positions, as shown in Equation (3), can be obtained by aggregating the objectives for individual query positions (Equation (8)) across all i ∈[n]",
+      "premise": "A single global cumulative threshold over a flattened map can be met by concentrating selections on a few rows with large mass while leaving other rows below gamma. Row-wise normalization of the bound is lost.",
+      "inference": "Under flattening, individual query rows may capture less than gamma of their own mass, so the per-row error bound does not apply row by row. The aggregated objective is only a surrogate for what the code optimizes.",
+      "toy_example": "Illustration only, not a measurement: with two query blocks of equal total mass, a global selection that covers 100% of block 1 and 80% of block 2 reaches 90% overall, yet block 2 is below 0.9.",
+      "conditional_consequence": "If rows differ strongly in how concentrated their attention is, flattened selection may starve diffuse rows. The proof gives no protection for those rows.",
+      "critical_link": "Global normalization over the flattened map (Algorithm 4) replaces the per-row constraint of Eq. (3) that the proof assumes.",
+      "necessary_conditions": [
+        "The Query-Aware path uses the flatten variant.",
+        "Rows differ in the concentration of their estimated attention."
+      ],
+      "defeaters": [
+        "The authors report the query-wise alternative achieves comparable performance.",
+        "Query-Aware heads are a minority.",
+        "Minimum and boundary block budgets add protection."
+      ],
+      "do_not_infer": [
+        "Do not infer flattening hurts accuracy; the paper reports parity.",
+        "Do not infer the Vertical-Slash path has the same issue.",
+        "Do not infer the proof is wrong for the per-row alternative."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L4_coupling",
+      "quotes": [
+        {
+          "text": "# Flatten and normalize attention map",
+          "source": "Algorithm 4, Query Aware Index Search",
+          "locator": "page 6"
+        },
+        {
+          "text": "In this approach, the cumulative attention scores of selected key blocks exceed γ for each query block.",
+          "source": "Appendix F.4",
+          "locator": "page 23"
+        },
+        {
+          "text": "across all i ∈[n]",
+          "source": "Appendix A, Rationale",
+          "locator": "page 20, last sentence"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A single global cumulative threshold over a flattened map can be met by concentrating selections on a few rows with large mass while leaving other rows below gamma. Row-wise normalization of the bound is lost. Under flattening, individual query rows may capture less than gamma of their own mass, so the per-row error bound does not apply row by row. The aggregated objective is only a surrogate for what the code optimizes."
+    },
+    {
+      "headline": "A JS test on the last block does not imply the pooled estimate is accurate for earlier queries",
+      "claim": "The JS test measures agreement between pooled and true attention only for the last 128 queries. The paper then applies the Query-Aware decision to every query in the head. The test is therefore a proxy whose validity for earlier queries is assumed, not checked.",
+      "paper_fact": "Consequently, we calculate ¯a for all queries, enabling query-aware sparse index selection.",
+      "premise": "Under a causal mask, the last block of queries attends to every key. Earlier query blocks attend to progressively fewer keys, and their attention may be distributed differently. Pooling quality can also vary with position and with the content of the final tokens.",
+      "inference": "A small D_JS on the last block shows that pooling matches true attention for those queries. It does not show the same for queries earlier in the sequence. If a prompt's final block differs in kind from the rest (for example, a short question appended after a long document), a head could be labeled Query-Aware, or kept Vertical-Slash, on evidence that is unrepresentative.",
+      "toy_example": "Illustration only, not a measurement: a head's final 128 queries all focus on one retrieved passage, so pooled and true attention agree and D_JS is small. Mid-document queries in the same head scatter across many blocks, so their pooled estimate would be poor. The head is still labeled Query-Aware for all queries.",
+      "conditional_consequence": "If the final block is not representative of earlier queries for some head and prompt, the Query-Aware label can select blocks poorly for the earlier queries. This would lower accuracy at a given γ for that head.",
+      "critical_link": "The step from 'pooled estimate matches true attention on the last 128 queries' to 'pooled estimate is adequate for all queries' is assumed, not tested.",
+      "necessary_conditions": [
+        "The head's query-to-key attention differs between the last block and earlier blocks.",
+        "The head is classified Query-Aware, or kept Vertical-Slash, based on the last block alone.",
+        "The mismatch affects the blocks that carry task-relevant information."
+      ],
+      "defeaters": [
+        "Table 8 reports that moving the pattern-determination subset from the end to the middle gives 89.02 vs 89.18 average on LLaMA (RULER). The authors read this as no significant effect.",
+        "Few heads are Query-Aware (Fig. 8), so any misclassification may touch few heads.",
+        "The prompt formats in RULER and InfiniteBench may keep the last block roughly representative."
+      ],
+      "do_not_infer": [
+        "Do not infer that the test is wrong in practice. The paper's own Table 8 shows little sensitivity on RULER with LLaMA.",
+        "Do not infer that a different representative subset would improve accuracy.",
+        "Do not infer the degree of misclassification on other benchmarks or prompt formats."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1_proxy_guarantee (with L5)",
+      "quotes": [
+        {
+          "text": "We select the last block_size query vectors",
+          "source": "paper",
+          "locator": "Section 3, Query-Aware Sparse Pattern Determination, step 1"
+        },
+        {
+          "text": "Consequently, we calculate ¯a for all queries, enabling query-aware sparse index selection.",
+          "source": "paper",
+          "locator": "Section 3, step 4 Adaptive Decision"
+        },
+        {
+          "text": "Results in Table 8 show that replacing the subset for sparse pattern determination has no significant effect on model performance.",
+          "source": "paper",
+          "locator": "Appendix F.3"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Under a causal mask, the last block of queries attends to every key. Earlier query blocks attend to progressively fewer keys, and their attention may be distributed differently. Pooling quality can also vary with position and with the content of the final tokens. A small D_JS on the last block shows that pooling matches true attention for those queries. It does not show the same for queries earlier in the sequence. If a prompt's final block differs in kind from the rest (for example, a short question appended after a long document), a head could be labeled Query-Aware, or kept Vertical-Slash, on evidence that is unrepresentative."
+    },
+    {
+      "headline": "A last-block proxy that works on RULER does not imply a representative query block for prompts that put the key content earlier",
+      "claim": "FlexPrefill scores vertical and slash lines using only the final 128 queries. The paper validates this choice on RULER, whose prompts presumably have a particular layout. The evidence therefore supports the last block as a proxy only for that layout. It does not show the block is representative when the decisive content is not near the end.",
+      "paper_fact": "We choose the last block_size query vector as the representative query set ˆQ for both sparse pattern determination and Vertical-Slash sparse index selection",
+      "premise": "Vertical and slash scores computed from a row subset only reflect what those rows attend to. In a causal prefill, KV states for early tokens are computed from the sparse pattern chosen for the queries at those early positions.",
+      "inference": "If the last 128 queries attend to different keys than earlier queries do (for example, filler at the end and an instruction earlier), the selected vertical lines will favor keys the filler needs. Keys that earlier queries need get lower scores and may be dropped for all rows. The paper evaluates only RULER and InfiniteBench, so this case is untested.",
+      "toy_example": "Illustration only, not a measurement: a 100k-token prompt has a key instruction at token 20k and 128 tokens of boilerplate at the end. If the boilerplate attends mostly to the sink token and local offsets, the vertical-slash set may exclude the 20k region for queries that depend on it.",
+      "conditional_consequence": "If the tail queries' attention mass is not representative of mid-prompt queries' mass, then the cumulative-attention guarantee γ holds only for the tail rows. Quality at other positions can degrade without any visible signal in the pattern-search step.",
+      "critical_link": "Whether tail-query attention mass over keys correlates with the attention mass of the queries that actually need those keys.",
+      "necessary_conditions": [
+        "The prompt layout places the decisive or most-attended content away from the final block.",
+        "The affected head is classified as Vertical-Slash, which the paper says is most heads.",
+        "Downstream outputs depend on KV states of the affected early or middle tokens."
+      ],
+      "defeaters": [
+        "Attention sinks and local slashes are largely content-independent, so the tail may still cover most needed keys.",
+        "The minimum budget of 1024 tokens and the retained first and last key blocks could mask some of the loss.",
+        "Dense decoding after prefill may recover some information."
+      ],
+      "do_not_infer": [
+        "Do not infer the paper measured any failure on question-first or multi-turn prompts.",
+        "Do not infer the method fails on all non-RULER layouts."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L5+L1",
+      "quotes": [
+        {
+          "text": "which allows the representative attention score to be computed only once and reused in both attention pattern determination and sparse index selection",
+          "source": "paper",
+          "locator": "Section 4.1, Implementation Details"
+        },
+        {
+          "text": "This demonstrates the rationale for choosing the last block_size query vectors as the representative query subset.",
+          "source": "paper",
+          "locator": "Appendix F.3"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Vertical and slash scores computed from a row subset only reflect what those rows attend to. In a causal prefill, KV states for early tokens are computed from the sparse pattern chosen for the queries at those early positions. If the last 128 queries attend to different keys than earlier queries do (for example, filler at the end and an instruction earlier), the selected vertical lines will favor keys the filler needs. Keys that earlier queries need get lower scores and may be dropped for all rows. The paper evaluates only RULER and InfiniteBench, so this case is untested."
+    },
+    {
+      "headline": "The Appendix G O(n log n) index-construction cost does not describe the Query-Aware path's pooled-map estimation and sort",
+      "claim": "Algorithm 4 builds and sorts a pooled block map with (n/b)^2 entries. Appendix G's complexity list gives index construction as O(n log n) and attributes it to the representative attention scores, which is the Vertical-Slash route. The listed complexity therefore does not cover the Query-Aware path, and its extra cost grows quadratically in n/b.",
+      "paper_fact": "Sparse Index Construction: approximately O(n log n)",
+      "premise": "A pooled map over n/b blocks per side has (n/b)^2 entries, and sorting it costs at least that many operations. This quantity grows quadratically with sequence length. It is not O(n log n) for fixed block size b.",
+      "inference": "For heads routed to the Query-Aware path, index construction cost scales with (n/b)^2 rather than n log n. The Appendix G overhead summary and the Figure 6 latency share therefore apply to the mixed head population, not to this path in isolation.",
+      "toy_example": "Illustrative arithmetic, NOT a measurement. With b = 128 and n = 512k, there are 4096 blocks per side, so about 16.8M pooled scores per head (roughly half under a causal mask). That is about 32x the 524k tokens that an O(n log n) description would suggest. The pooled-QK FLOPs are only about 1/b^2 of dense QK, so the open question is the sort and memory traffic, not the matmul.",
+      "conditional_consequence": "If many heads take the Query-Aware path at very long context (for example a larger tau), the sort over the pooled map could take a noticeable share of prefill time. Speedup ratios measured on head populations dominated by Vertical-Slash would then not transfer.",
+      "critical_link": "The fraction of heads routed to the Query-Aware path, set by tau and the input, determines whether the quadratic-in-blocks term matters.",
+      "necessary_conditions": [
+        "A non-trivial fraction of heads take the Query-Aware path.",
+        "Context is long enough that (n/b)^2 is large relative to the attention being skipped.",
+        "The sort is not fused or cheaply implemented on the GPU."
+      ],
+      "defeaters": [
+        "At tau = 0.1 the paper's Figure 8 shows only a handful of Query-Aware heads per sample (13, 2, 19, 1).",
+        "Pooled-map FLOPs are about 1/b^2 of dense QK, so matmul cost is negligible.",
+        "Figure 6 reports that the index-search share of latency decreases as context grows."
+      ],
+      "do_not_infer": [
+        "Do not infer that Query-Aware estimation dominates latency; no per-path measurement is shown.",
+        "Do not infer that the reported speedups are wrong.",
+        "Do not infer that Figure 6's breakdown is wrong; it describes the head mix actually used."
+      ],
+      "disclosure": "inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L6+L7 (shifted cost; bottleneck over scale)",
+      "quotes": [
+        {
+          "text": "Sparse Index Construction: approximately O(n log n)",
+          "source": "paper",
+          "locator": "Appendix G, complexity list"
+        },
+        {
+          "text": "As input length increases, index search construction time grows, but its percentage gradually decreases.",
+          "source": "paper",
+          "locator": "Appendix G, Figure 6 discussion"
+        },
+        {
+          "text": "Query-Aware Heads Count: 111",
+          "source": "paper",
+          "locator": "Figure 8(e), Task A, 128k, tau = 0.2"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A pooled map over n/b blocks per side has (n/b)^2 entries, and sorting it costs at least that many operations. This quantity grows quadratically with sequence length. It is not O(n log n) for fixed block size b. For heads routed to the Query-Aware path, index construction cost scales with (n/b)^2 rather than n log n. The Appendix G overhead summary and the Figure 6 latency share therefore apply to the mixed head population, not to this path in isolation."
+    },
+    {
+      "headline": "Failing the pooled-estimate test does not imply a head has Vertical-Slash structure",
+      "claim": "A head is routed to the Vertical-Slash path whenever its pooled block-attention estimate diverges from the true distribution by at least τ. That test measures estimate reliability, not whether the head's attention is vertical or diagonal. Heads with diffuse, non-line attention can end up with lines imposed on them.",
+      "paper_fact": "Otherwise, the approximation is inadequate, we fall back to a more conservative approach.",
+      "premise": "A large Jensen-Shannon distance between pooled and true block attention can come from many causes, such as fine-grained intra-block structure or flat distributions. Only some of these causes produce vertical or slash lines.",
+      "inference": "The routing rule is a binary comparison of dJS against τ, with the else branch set to vertical_slash. The paper's Figure 8 finding that most heads use Vertical-Slash is therefore partly a product of the routing rule. It is not independent evidence that those heads have line structure. The paper itself notes Query-Aware heads can also look vertical-slash, so the correspondence between the label and the structure is loose in both directions.",
+      "conditional_consequence": "For a head with weak line structure that also fails the pooled test, line selection must meet γ with many lines or lose mass. Either outcome erodes the sparsity or accuracy that the fallback is meant to protect.",
+      "critical_link": "The fallback is chosen by estimator failure, with no check that line structure actually explains the head's attention.",
+      "necessary_conditions": [
+        "Some heads fail the pooled test for reasons unrelated to line structure.",
+        "Those heads have attention spread beyond a few verticals and slashes.",
+        "The head matters for the task output."
+      ],
+      "defeaters": [
+        "Most failing heads do have strong sink and local-offset structure, as the paper's Figure 8 suggests.",
+        "The γ rule adaptively adds lines to compensate for diffuse heads.",
+        "The 1024-token floor protects extremely sparse heads."
+      ],
+      "do_not_infer": [
+        "Do not infer that many heads are misrouted; the paper reports no such count.",
+        "Do not infer that the pooled test is a poor estimator of attention quality.",
+        "Do not infer a specific accuracy loss from this mechanism."
+      ],
+      "disclosure": "inferred",
+      "category_code": "mechanism_origin_unclear",
+      "lens": "L5_regularity_origin_change",
+      "quotes": [
+        {
+          "text": "Otherwise, the approximation is inadequate, we fall back to a more conservative approach.",
+          "source": "paper, Query-Aware Sparse Pattern Determination",
+          "locator": "page 4"
+        },
+        {
+          "text": "Figure 8 shows most attention heads use Vertical-Slash patterns, with fewer Query-Aware patterns mainly in the model’s first layer.",
+          "source": "paper, Appendix H",
+          "locator": "page 26"
+        },
+        {
+          "text": "The Diverse patterns (a) show scattered attention with independent blocks across query positions",
+          "source": "paper, Figure 2 caption",
+          "locator": "page 3"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A large Jensen-Shannon distance between pooled and true block attention can come from many causes, such as fine-grained intra-block structure or flat distributions. Only some of these causes produce vertical or slash lines. The routing rule is a binary comparison of dJS against τ, with the else branch set to vertical_slash. The paper's Figure 8 finding that most heads use Vertical-Slash is therefore partly a product of the routing rule. It is not independent evidence that those heads have line structure. The paper itself notes Query-Aware heads can also look vertical-slash, so the correspondence between the label and the structure is loose in both directions."
+    },
+    {
+      "headline": "A minimum-budget floor does not imply a gain at every gamma",
+      "claim": "In Table 10 the 1024-token floor gives a large gain at gamma 0.9 but is neutral or negative on average for LLaMA at gamma 0.95. Several long-context cells at 0.95 are worse with the floor. The floor therefore looks like a gamma-coupled rescue mechanism, not a uniform improvement.",
+      "paper_fact": "Table 10 demonstrates that when γ is high, the model effectively captures most of the important tokens, making a minimum budget limit unnecessary.",
+      "premise": "A per-head token floor only changes the computation for heads whose cumulative-attention selection would otherwise fall below the floor. When gamma is high, fewer heads fall below it.",
+      "inference": "Table 10 shows a large floor effect at gamma 0.9 (LLaMA avg 84.78 without floor vs 88.38 with 1024; GLM 85.26 vs 88.58). At gamma 0.95 the effect is small and mixed. LLaMA avg is 89.42 without floor vs 89.18 with 1024, with 32k at 92.31 vs 89.42 and 64k at 85.34 vs 82.93. GLM avg is 88.82 vs 89.34. The Section 4.3 phrase 'enhances performance' is stated without the gamma boundary that Appendix F.5 gives.",
+      "toy_example": "Illustration only, not a measurement: if 2 of 1000 heads need fewer than 1024 tokens to reach gamma, the floor changes 0.2% of heads and the accuracy change is mostly noise. If 150 of 1000 heads need fewer, the floor changes the computation of many heads and can matter.",
+      "conditional_consequence": "If the floor acts through heads that fall below 1024 tokens, a user who lowers gamma below 0.9 for speed should expect the floor to matter more, not less. This regime is not tested in Table 10, which only covers gamma 0.95 and 0.9.",
+      "critical_link": "The inference needs the number of heads under the floor to grow as gamma falls. The paper states this qualitatively but does not report per-head budgets or counts of floored heads.",
+      "necessary_conditions": [
+        "The floor binds on a fraction of heads that grows as gamma decreases.",
+        "Per-cell differences of a few points at gamma 0.95 are noise-level, so the sign of the 0.95 effect is uncertain."
+      ],
+      "defeaters": [
+        "The 32k and 64k gaps at 0.95 may be sampling variance, as the mechanism notes suggest. The paper does not explain them.",
+        "The floor may change which heads are re-ranked, which would add an interaction beyond simple budget increase.",
+        "Only two models and one benchmark (RULER) are tested."
+      ],
+      "do_not_infer": [
+        "That the floor hurts accuracy at high gamma.",
+        "That the floor is useless at gamma 0.95. GLM avg improves from 88.82 to 89.34.",
+        "Any behavior for gamma below 0.9, which is not in Table 10.",
+        "That the unexplained 32k and 64k differences have a known cause."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L4_coupling",
+      "quotes": [
+        {
+          "source": "paper",
+          "locator": "Appendix F.5, minimum budget limit paragraph",
+          "text": "Table 10 demonstrates that when γ is high, the model effectively captures most of the important tokens, making a minimum budget limit unnecessary."
+        },
+        {
+          "source": "paper",
+          "locator": "Section 4.3, Minimum Budget Limit",
+          "text": "Our findings reveal that setting a minimum budget threshold enhances performance and prevents the collapse of attention heads with extremely high sparsity ratios."
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A per-head token floor only changes the computation for heads whose cumulative-attention selection would otherwise fall below the floor. When gamma is high, fewer heads fall below it. Table 10 shows a large floor effect at gamma 0.9 (LLaMA avg 84.78 without floor vs 88.38 with 1024; GLM 85.26 vs 88.58). At gamma 0.95 the effect is small and mixed. LLaMA avg is 89.42 without floor vs 89.18 with 1024, with 32k at 92.31 vs 89.42 and 64k at 85.34 vs 82.93. GLM avg is 88.82 vs 89.34. The Section 4.3 phrase 'enhances performance' is stated without the gamma boundary that Appendix F.5 gives."
+    },
+    {
+      "headline": "Meeting a cumulative attention-mass threshold gamma does not guarantee that a head still works",
+      "claim": "The dynamic budget is chosen per head and per prompt as the smallest set whose estimated attention mass reaches gamma. Reaching that mass does not ensure the head's function is preserved. The paper itself needs an extra minimum-budget floor to stop some heads from collapsing at lower gamma.",
+      "paper_fact": "Our findings reveal that setting a minimum budget threshold enhances performance and prevents the collapse of attention heads with extremely high sparsity ratios.",
+      "premise": "Attention-mass coverage is a proxy for output fidelity. The Appendix A bound, (1 - a_S) * sum|v_j|, is only an upper bound, and it grows with context length. In Algorithm 3, mass is estimated from the last block_size queries, not from every query.",
+      "inference": "If mass coverage were sufficient, the minimum-budget floor would not be needed. Because a floor is needed when gamma is small, the mass criterion alone can leave some heads under-provisioned. Gamma therefore bounds estimated coverage, not per-prompt accuracy.",
+      "toy_example": "Illustrative only, not a measurement: a head whose attention is concentrated on a few sink tokens reaches 0.9 mass with a handful of tokens. If a retrieval-critical but low-mass key is then dropped, the head's output changes in a way the mass criterion does not register.",
+      "conditional_consequence": "If gamma is lowered to gain speed (Table 5 shows 128k speedups rising from 2.43x at 0.95 to 9.81x at 0.6), per-prompt accuracy can fall. The mass criterion gives no warning when this happens.",
+      "critical_link": "The estimated mass reaching gamma does not mean the sparse head output stays close to the dense output.",
+      "necessary_conditions": [
+        "gamma is small enough that some heads fall below a workable token count",
+        "the selected indices are evaluated against the true attention mass, not the block-pooled or representative-query estimate",
+        "no minimum-budget floor is applied"
+      ],
+      "defeaters": [
+        "At gamma=0.95 with the 1024-token floor, accuracy stays close to full attention (89.18 vs 88.70 average on LLaMA)",
+        "A large minimum budget, plus the first and last key blocks being always kept, may mask the issue in practice",
+        "The paper says that at high gamma a floor is unnecessary"
+      ],
+      "do_not_infer": [
+        "Do not infer that the method is inaccurate at the recommended gamma",
+        "Do not infer that the floor is the only guard against collapse",
+        "Do not infer that the Appendix A bound is wrong"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1_proxy_guarantee",
+      "quotes": [
+        {
+          "text": "while ensuring that the sum of normalized attention scores within each subset meets a predefined cumulative attention threshold γ",
+          "source": "paper, Section 3, Cumulative-Attention Based Index Selection",
+          "locator": "page 5"
+        },
+        {
+          "text": "setting a minimum budget threshold enhances performance and prevents the collapse of attention heads with extremely high sparsity ratios",
+          "source": "paper, Section 4.3, Minimum Budget Limit",
+          "locator": "page 9"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Attention-mass coverage is a proxy for output fidelity. The Appendix A bound, (1 - a_S) * sum|v_j|, is only an upper bound, and it grows with context length. In Algorithm 3, mass is estimated from the last block_size queries, not from every query. If mass coverage were sufficient, the minimum-budget floor would not be needed. Because a floor is needed when gamma is small, the mass criterion alone can leave some heads under-provisioned. Gamma therefore bounds estimated coverage, not per-prompt accuracy."
+    },
+    {
+      "headline": "A per-model gamma fixed at 0.9 or 0.95 does not imply or guarantee a bounded accuracy loss relative to full attention",
+      "claim": "The paper fixes gamma per model (0.9 for Yi and Qwen, 0.95 for LLaMA and GLM) and presents it as a speed-accuracy knob. Gamma only sets a target for retained attention mass. The paper never states an accuracy-loss tolerance that the chosen gamma is meant to satisfy. How the values were selected is not described. Whether they transfer to other models, tasks or lengths is not tested.",
+      "paper_fact": "We set γ = 0.9 for Yi-9B-200k and Qwen2-7B-Instruct model, and 0.95 for the other models.",
+      "premise": "A cumulative-attention-mass threshold is a proxy for output fidelity. The paper's own bound in Appendix A scales as (1 - a_S) times the sum of |v_j| over all L positions, so the same retained mass can allow a larger worst-case error as L grows or as value norms change. How much task-relevant signal sits in the dropped mass depends on the model and the task.",
+      "inference": "A gamma that gives near-parity on one model may give a larger loss on another. Table 1 is consistent with this. At gamma 0.9, Yi scores 76.32 against 79.49 for full attention (about 3.2 points lower). GLM at gamma 0.9 is 88.58 against 89.06 (Table 3), and LLaMA at 0.9 is 88.38 against 88.70. Because no loss target is stated, 'near full attention' is not defined by the paper. The values are consistent with having been picked on the reporting benchmark, but the paper does not say how they were picked.",
+      "toy_example": "Illustration only, not a measurement: suppose model P has heads where 0.9 of the mass sits on a few tokens, and model Q has flatter heads where the last 0.1 of the mass is spread over many tokens, some of them task-critical. The same gamma = 0.9 would then drop a few irrelevant tokens in P and many relevant ones in Q.",
+      "conditional_consequence": "If a new model or task has flatter or more task-critical attention tails than LLaMA, then reusing gamma = 0.9 or 0.95 can cost more accuracy than the Table 5 sweep suggests. The user then has to re-tune gamma.",
+      "critical_link": "Equating attention-mass coverage (gamma) with preserved task accuracy, across models and tasks.",
+      "necessary_conditions": [
+        "The model's attention concentration differs from that of the model on which the gamma sweep was run (LLaMA-3.1).",
+        "Task-relevant information lies in the tail of the attention distribution that gamma discards."
+      ],
+      "defeaters": [
+        "Appendix D shows LLaMA-3 variants at gamma 0.9 and 0.95 with averages near full attention (84.78 and 85.74 against 85.42), so some models are tolerant.",
+        "Gamma 0.95 gives about full-attention averages for LLaMA and GLM in Table 3.",
+        "The authors may have chosen gamma by a procedure not described in the paper."
+      ],
+      "do_not_infer": [
+        "Do not infer that gamma was tuned on the test set. The paper does not say how it was selected.",
+        "Do not infer that FlexPrefill fails on other models. Only the lack of a guarantee is argued.",
+        "Do not infer any accuracy number for models or lengths that were not evaluated."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1_proxy_guarantee + L2_objective_vs_goal",
+      "quotes": [
+        {
+          "text": "We set γ = 0.9 for Yi-9B-200k and Qwen2-7B-Instruct model, and 0.95 for the other models.",
+          "source": "paper, Section 4.1 Implementation Details",
+          "locator": "page 7"
+        },
+        {
+          "text": "In practice, γ can be flexibly adjusted to meet specific performance or speed requirements.",
+          "source": "paper, Appendix E",
+          "locator": "page 22"
+        },
+        {
+          "text": "To minimize the upper bound of the error, we can maximize the sum of normalized attention scores",
+          "source": "paper, Appendix A",
+          "locator": "page 19"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A cumulative-attention-mass threshold is a proxy for output fidelity. The paper's own bound in Appendix A scales as (1 - a_S) times the sum of |v_j| over all L positions, so the same retained mass can allow a larger worst-case error as L grows or as value norms change. How much task-relevant signal sits in the dropped mass depends on the model and the task. A gamma that gives near-parity on one model may give a larger loss on another. Table 1 is consistent with this. At gamma 0.9, Yi scores 76.32 against 79.49 for full attention (about 3.2 points lower). GLM at gamma 0.9 is 88.58 against 89.06 (Table 3), and LLaMA at 0.9 is 88.38 against 88.70. Because no loss target is stated, 'near full attention' is not defined by the paper. The values are consistent with having been picked on the reporting benchmark, but the paper does not say how they were picked."
+    },
+    {
+      "headline": "A cumulative-mass threshold gamma does not guarantee a safe per-head budget without an auxiliary minimum-budget rule",
+      "claim": "At a lower gamma, heads with very peaked estimated attention can receive a tiny selected set, and the gamma rule alone does not prevent this. The reported results rely on a separate 1024-token floor and forced first/last key blocks, so the observed accuracy reflects gamma coupled with those rules and not gamma alone.",
+      "paper_fact": "To ensure that all attention heads work normally, we retain the first and last key blocks of each query block, while also requiring each attention head to compute at least 1024 tokens.",
+      "premise": "In general, a mass-cutoff rule picks the smallest set reaching the threshold, so a head with a sharp distribution can reach it with very few keys. A very small selected set can also be fragile to estimation error in the pooled or representative-query scores.",
+      "inference": "The paper reports that removing the floor at lower gamma hurts a lot: Llama-3.1-8B at gamma = 0.9 averages 84.78 with no floor and 88.38 with a 1024 floor (Table 10). So the adaptive threshold is not self-sufficient. The floor also bounds the speedup at short context, since 1024 tokens is a large share of a 4k prompt. The link from extreme sparsity to head malfunction is the authors' reported explanation.",
+      "toy_example": "Illustration only, not a measurement: a head puts 0.92 of its estimated mass on a single sink block. At gamma = 0.9, the rule can stop after one block, leaving very little else for the head to attend to.",
+      "conditional_consequence": "If gamma is lowered for speed, the results depend on the floor and forced blocks. Changing or removing them, or combining gamma with a different block size or tau, can change accuracy, so gamma cannot be tuned in isolation.",
+      "critical_link": "Whether a head still functions at its selected size depends on a floor that is separate from the coverage criterion, and the mass rule does not know about it.",
+      "necessary_conditions": [
+        "Some heads have highly peaked estimated attention so the mass cutoff selects very few keys",
+        "Gamma is low enough that those heads' selected sets fall below a functional size",
+        "No floor or forced-block rule compensates"
+      ],
+      "defeaters": [
+        "At high gamma such as 0.95, the paper says the floor is unnecessary because most important tokens are captured; Table 10 shows 89.42 without it versus 89.18 with it",
+        "A larger floor does not help further; 2048 gives similar or lower scores than 1024",
+        "Model-dependent effects, since GLM shows the same direction but different magnitudes"
+      ],
+      "do_not_infer": [
+        "Do not infer the floor is needed at gamma ≥ 0.95; the paper reports it is unnecessary there",
+        "Do not infer a general failure of cumulative-mass selection; the claim is about coupling with the auxiliary rules",
+        "Do not infer that a larger floor keeps improving accuracy; the paper says it does not"
+      ],
+      "disclosure": "reported",
+      "category_code": "method_shortcoming",
+      "lens": "L4_coupling",
+      "quotes": [
+        {
+          "text": "To ensure that all attention heads work normally, we retain the first and last key blocks of each query block, while also requiring each attention head to compute at least 1024 tokens.",
+          "source": "paper, Section 4.1 Implementation Details",
+          "locator": "page 7"
+        },
+        {
+          "text": "causing them to malfunction",
+          "source": "paper, Appendix F.5 Minimum Budget Limit",
+          "locator": "page 24"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 2,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "In general, a mass-cutoff rule picks the smallest set reaching the threshold, so a head with a sharp distribution can reach it with very few keys. A very small selected set can also be fragile to estimation error in the pooled or representative-query scores. The paper reports that removing the floor at lower gamma hurts a lot: Llama-3.1-8B at gamma = 0.9 averages 84.78 with no floor and 88.38 with a 1024 floor (Table 10). So the adaptive threshold is not self-sufficient. The floor also bounds the speedup at short context, since 1024 tokens is a large share of a 4k prompt. The link from extreme sparsity to head malfunction is the authors' reported explanation."
+    }
+  ],
+  "dropped_for_unverified_quotes": 0,
+  "chunk_count": 9,
+  "chunk_failures": 0,
+  "chunk_timings": [
+    {
+      "seconds": 42.30269522895105,
+      "attempts": 1
+    },
+    {
+      "seconds": 45.59237344516441,
+      "attempts": 1
+    },
+    {
+      "seconds": 58.050979300169274,
+      "attempts": 1
+    },
+    {
+      "seconds": 40.03114290605299,
+      "attempts": 1
+    },
+    {
+      "seconds": 70.50696982303634,
+      "attempts": 1
+    },
+    {
+      "seconds": 39.91224702401087,
+      "attempts": 1
+    },
+    {
+      "seconds": 57.98283560597338,
+      "attempts": 1
+    },
+    {
+      "seconds": 45.34001629380509,
+      "attempts": 1
+    },
+    {
+      "seconds": 55.93430265109055,
+      "attempts": 1
+    }
+  ],
+  "inventory_seconds": 144.76621776889078,
+  "chunks_seconds": 172.03725590882823,
+  "merged_candidates": 0,
+  "unverified_kept": 27
+}

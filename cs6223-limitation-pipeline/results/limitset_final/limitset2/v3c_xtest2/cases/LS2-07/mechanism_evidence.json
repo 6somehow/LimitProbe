@@ -1,0 +1,932 @@
+{
+  "candidates": [
+    {
+      "headline": "O(TL^2) recomputation complexity does not imply or guarantee the same latency bottleneck at all cache sizes.",
+      "claim": "The asymptotic quadratic term of sliding-window recomputation does not guarantee that recomputation dominates latency at small L or short T; the bottleneck may be memory or fixed overhead.",
+      "paper_fact": "as the cache size increases, StreamingLLM’s decoding speed has a linear growth. The sliding window with re-computation baseline has a quadratic rise in decoding latency.",
+      "premise": "Asymptotic complexity describes growth rates, not absolute latency or crossover points; constant factors and implementation overhead can dominate at small scales.",
+      "inference": "The reported quadratic rise implies the recomputation baseline's latency disadvantage should grow with cache size, but it does not guarantee a large speedup at small cache sizes or for all implementations.",
+      "toy_example": "Toy example (not a measurement): if L=16 and T=32, the quadratic term may be small relative to fixed overhead, so the asymptotic argument alone would not predict a 22.2× gap.",
+      "conditional_consequence": "If L is small or T is short, then the 22.2× speedup should not be expected; if L grows, then quadratic recomputation can dominate.",
+      "critical_link": "The link is the cache size L and sequence length T controlling the quadratic term; measured latency is not identical to asymptotic complexity.",
+      "necessary_conditions": [
+        "Cache size L or sequence length T is large enough for quadratic term to dominate",
+        "Same hardware and implementation context as reported",
+        "Latency, not throughput, is the metric"
+      ],
+      "defeaters": [
+        "Small cache sizes where measured latency is near-linear",
+        "Kernel optimizations that change constants",
+        "Memory-bound rather than compute-bound regimes"
+      ],
+      "do_not_infer": [
+        "Do not infer the baseline is exactly 22.2× slower in all settings",
+        "Do not infer asymptotic complexity alone predicts measured latency",
+        "Do not infer no speedup at small L"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L3_compatibility_of_units + L7_bottleneck_changes_over_scale_or_time",
+      "quotes": [
+        {
+          "quote": "as the cache size increases, StreamingLLM’s decoding speed has a linear growth. The sliding window with re-computation baseline has a quadratic rise in decoding latency.",
+          "source": "paper",
+          "locator": "page 9, Section 4.5"
+        },
+        {
+          "quote": "StreamingLLM delivers a remarkable speedup of up to 22.2× per token and retains a memory footprint similar to the re-computation baseline.",
+          "source": "paper",
+          "locator": "page 9, Figure 10 caption"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "author_boundary": "Paper reports measured latency on Llama-2-7B/13B and A6000; it does not claim the same crossover for all models/hardware.",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "page 9, Section 4.5",
+          "support_description": "as the cache size increases, StreamingLLM’s decoding speed has a linear growth. The sliding window with re-computation baseline has a quadratic rise in decoding latency."
+        },
+        {
+          "source_id": "paper",
+          "location": "page 9, Figure 10 caption",
+          "support_description": "StreamingLLM delivers a remarkable speedup of up to 22.2× per token and retains a memory footprint similar to the re-computation baseline."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Asymptotic complexity describes growth rates, not absolute latency or crossover points; constant factors and implementation overhead can dominate at small scales. The reported quadratic rise implies the recomputation baseline's latency disadvantage should grow with cache size, but it does not guarantee a large speedup at small cache sizes or for all implementations."
+    },
+    {
+      "headline": "Cache-relative renumbering conflicts with preserving original token distances across evicted spans.",
+      "claim": "Renumbering retained tokens after eviction collapses original gaps; this conflicts with preserving original relative distances between sink and recent tokens.",
+      "paper_fact": "Here, the contiguous linear bias is applied instead of a ’jumping’ bias to the attention scores.",
+      "premise": "Relative position encodings compute attention from distances between assigned positions; collapsing a gap changes those distances.",
+      "inference": "Because evicted tokens are removed and retained tokens are renumbered contiguously, the distance between an early sink token and a recent token is not the original distance; attention may therefore not reflect original spacing.",
+      "toy_example": "Toy example (not a measurement): original cache [0,1,2,3,6,7,8] becomes [0,1,2,3,4,5,6,7]; original tokens 3 and 6 are distance 3 apart but appear distance 1 apart.",
+      "conditional_consequence": "If a task or model behavior depends on the original distance between a retained sink token and a recent token, then cache-relative renumbering can misrepresent that distance and alter attention.",
+      "critical_link": "The position transformation is applied to keys in the rolling cache at each decoding phase, so the assigned indices are what the attention sees.",
+      "necessary_conditions": [
+        "Eviction creates non-contiguous original positions.",
+        "Position transformation is applied to retained keys using cache-relative indices.",
+        "Task or model behavior is sensitive to original distance between retained tokens."
+      ],
+      "defeaters": [
+        "Sink tokens act only as attention dumps and their original distance is irrelevant.",
+        "No eviction gap exists between compared tokens.",
+        "Model uses absolute positions outside the cache-relative scheme."
+      ],
+      "do_not_infer": [
+        "Do not infer that the paper measured harm from distance collapse; it presents contiguous bias as a crucial design choice.",
+        "Do not infer that original distances are always semantically important.",
+        "Do not infer that renumbering changes evicted tokens' KV; they are absent."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L4/L5",
+      "quotes": [
+        {
+          "source": "paper",
+          "locator": "p.5 §3.2",
+          "quote": "the positions assigned are [0, 1, 2, 3, 4, 5, 6, 7], rather than the positions in the original text"
+        },
+        {
+          "source": "paper",
+          "locator": "p.5 §3.2",
+          "quote": "Here, the contiguous linear bias is applied instead of a ’jumping’ bias to the attention scores."
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "author_boundaries": [
+        "Authors describe contiguous linear bias as applied instead of jumping bias.",
+        "Authors do not report an original-distance preservation guarantee or a distance-collapse ablation."
+      ],
+      "inferred_consequences": [
+        "Attention between sink and recent tokens may reflect collapsed distance rather than original spacing.",
+        "Tasks sensitive to original spacing may be misled."
+      ],
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p.5 §3.2",
+          "support_description": "the positions assigned are [0, 1, 2, 3, 4, 5, 6, 7], rather than the positions in the original text"
+        },
+        {
+          "source_id": "paper",
+          "location": "p.5 §3.2",
+          "support_description": "Here, the contiguous linear bias is applied instead of a ’jumping’ bias to the attention scores."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Relative position encodings compute attention from distances between assigned positions; collapsing a gap changes those distances. Because evicted tokens are removed and retained tokens are renumbered contiguously, the distance between an early sink token and a recent token is not the original distance; attention may therefore not reflect original spacing."
+    },
+    {
+      "headline": "SoftMax1 equivalence in attention computation does not guarantee implementation-level equivalence in a rolling KV cache.",
+      "claim": "The paper's equivalence between SoftMax1 and an all-zero KV token is stated for the attention computation; it does not guarantee that a zero-KV-token implementation preserves equivalence under rolling-cache position assignment and eviction.",
+      "paper_fact": "SoftMax1 is equivalent to prepending a token with an all-zero Key and Value features in the attention computation. We denote this method as “Zero Sink” to fit our framework.",
+      "premise": "Equivalence of an attention formula does not automatically survive positional encoding, cache indexing, or token-position bookkeeping in an implementation.",
+      "inference": "Therefore either implementation can test the Zero Sink hypothesis only if the zero token is handled without altering relative positions or cache semantics; otherwise the two implementations may not be interchangeable.",
+      "toy_example": "Toy example (not a measurement): a zero KV token inserted as a cache entry that consumes a position changes relative distances, so it is not the same as adding 1 to the SoftMax denominator.",
+      "conditional_consequence": "If implementing Zero Sink as a zero KV token, one must ensure it does not consume a position or change relative distances; otherwise results may not match SoftMax1.",
+      "critical_link": "The paper states equivalence in the attention computation and separately states that StreamingLLM assigns positions within the cache; the equivalence quote does not cover the rolling-cache position bookkeeping.",
+      "necessary_conditions": [
+        "The zero KV token is excluded from positional distance calculations or otherwise handled as a pure denominator term.",
+        "The implementation uses the same cache configuration and positional scheme as the SoftMax1 comparison.",
+        "The attention computation matches SoftMax1 exactly, including the +1 denominator."
+      ],
+      "defeaters": [
+        "The zero KV token is implemented outside the position index and empirically matches SoftMax1 across cache configurations.",
+        "The paper or code explicitly defines zero-token position handling that preserves equivalence.",
+        "Differences in position bookkeeping are shown not to affect streaming PPL."
+      ],
+      "do_not_infer": [
+        "Do not infer that the paper claims full pipeline equivalence.",
+        "Do not infer that a zero KV token is always unsafe.",
+        "Do not infer that SoftMax1 and Zero Sink cannot be equivalent in a correct implementation."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L3",
+      "quotes": [
+        {
+          "quote": "SoftMax1 is equivalent to prepending a token with an all-zero Key and Value features in the attention computation. We denote this method as “Zero Sink” to fit our framework.",
+          "source": "paper",
+          "locator": "p.6 §3.3"
+        },
+        {
+          "quote": "When determining the relative distance and adding positional information to tokens, StreamingLLM focuses on positions within the cache rather than those in the original text.",
+          "source": "paper",
+          "locator": "p.5 §3.2"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "author_boundaries": [
+        "The authors state equivalence in the attention computation, not a full implementation equivalence for every streaming cache.",
+        "The rolling-cache position rule is presented as crucial to StreamingLLM's performance."
+      ],
+      "inferred_consequences": [
+        "A zero-KV-token implementation must preserve position/cache semantics to be equivalent to SoftMax1.",
+        "Implementation differences could confound tests of the Zero Sink hypothesis."
+      ],
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p.6 §3.3",
+          "support_description": "SoftMax1 is equivalent to prepending a token with an all-zero Key and Value features in the attention computation. We denote this method as “Zero Sink” to fit our framework."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.5 §3.2",
+          "support_description": "When determining the relative distance and adding positional information to tokens, StreamingLLM focuses on positions within the cache rather than those in the original text."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Equivalence of an attention formula does not automatically survive positional encoding, cache indexing, or token-position bookkeeping in an implementation. Therefore either implementation can test the Zero Sink hypothesis only if the zero token is handled without altering relative positions or cache semantics; otherwise the two implementations may not be interchangeable."
+    },
+    {
+      "headline": "A four-sink default does not imply or guarantee no loss of recent-context capacity.",
+      "claim": "Four sink slots consume part of a fixed KV cache budget, so the default can trade off recent-context recall when the cache is small or when the task depends on information outside the retained recent window.",
+      "paper_fact": "StreamingLLM with a 4+3496 cache configuration underperforms compared to the truncation baseline, likely due to the loss of crucial initial input prompt information.",
+      "premise": "A fixed KV cache budget is shared between sink tokens and recent tokens; every sink slot reduces recent-token capacity.",
+      "inference": "The four-sink default is coupled to cache size and task demands; the paper's own LongBench and StreamEval results show limits when needed information falls outside the cache.",
+      "toy_example": "Toy example, not a measurement: with a cache of 8 slots, 4 sinks leave 4 recent slots; a query about a token 5 positions back may be evicted.",
+      "conditional_consequence": "If cache size is small or the query depends on tokens beyond the recent window, then four sinks can reduce accuracy relative to a configuration with fewer sinks or more recent slots.",
+      "critical_link": "The link is the shared x+y cache budget and the paper's own evidence that 4+3496 can underperform truncation when initial prompt information matters.",
+      "necessary_conditions": [
+        "Fixed KV cache budget",
+        "Sink tokens and recent tokens compete for slots",
+        "Task depends on recent or initial context within cache",
+        "No context extension or long-term memory mechanism"
+      ],
+      "defeaters": [
+        "Large cache makes four-slot cost negligible",
+        "Dedicated sink token reduces needed sink slots",
+        "Tasks only needing recent short-term context may not suffer"
+      ],
+      "do_not_infer": [
+        "Do not infer four sinks always hurt recent recall",
+        "Do not infer StreamingLLM provides long-term memory",
+        "Do not infer the four-sink default is the cause of all LongBench underperformance"
+      ],
+      "author_boundaries": [
+        "Paper acknowledges StreamingLLM is limited to current cache and not suitable for long-term memory tasks.",
+        "Paper reports LongBench 4+3496 underperformance but does not claim four sinks are always harmful."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L4_coupling_of_choices",
+      "quotes": [
+        {
+          "quote": "StreamingLLM with a 4+3496 cache configuration underperforms compared to the truncation baseline, likely due to the loss of crucial initial input prompt information.",
+          "source": "paper",
+          "locator": "p.17, LongBench discussion"
+        },
+        {
+          "quote": "Cache config x+y denotes adding x initial tokens with y recent tokens.",
+          "source": "paper",
+          "locator": "Table 1 caption, p.5"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p.17, LongBench discussion",
+          "support_description": "StreamingLLM with a 4+3496 cache configuration underperforms compared to the truncation baseline, likely due to the loss of crucial initial input prompt information."
+        },
+        {
+          "source_id": "paper",
+          "location": "Table 1 caption, p.5",
+          "support_description": "Cache config x+y denotes adding x initial tokens with y recent tokens."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "A fixed KV cache budget is shared between sink tokens and recent tokens; every sink slot reduces recent-token capacity. The four-sink default is coupled to cache size and task demands; the paper's own LongBench and StreamEval results show limits when needed information falls outside the cache."
+    },
+    {
+      "headline": "Four initial tokens sufficing does not imply or guarantee the model has four intrinsic semantic sinks.",
+      "claim": "The need for four sinks is contingent on vanilla pretraining without a consistent starting token; it is not evidence that the model intrinsically requires exactly four semantic sink tokens.",
+      "paper_fact": "We believe this pattern emerges because these models didn’t include a consistent starting token across all input samples during pre-training.",
+      "premise": "Attention-sink behavior is shaped by pretraining token distributions; a dedicated sink token can change how many initial tokens are used as sinks.",
+      "inference": "The count four reflects a pretraining regularity that can change with a dedicated sink token; the artifact should not treat four as an architectural requirement.",
+      "conditional_consequence": "If a model is pretrained with a dedicated sink token, then one sink may suffice and a four-sink default is not guaranteed to be necessary.",
+      "critical_link": "The link is the paper's hypothesis and sink-token experiment: changing pretraining changes the sink regularity, so the count four is regime-dependent.",
+      "necessary_conditions": [
+        "Vanilla pretraining lacks a consistent starting token",
+        "Model learns multiple initial tokens as sinks",
+        "No dedicated learnable sink token or SoftMax1 equivalent",
+        "Streaming evaluation uses reintroduced initial tokens"
+      ],
+      "defeaters": [
+        "Learnable sink token model shows stable streaming with only sink token",
+        "Zero Sink/SoftMax1 still needs other initial tokens, so not all alternatives remove multiple sinks",
+        "Paper does not derive exact four from theory"
+      ],
+      "do_not_infer": [
+        "Do not infer the model has exactly four semantic sink tokens",
+        "Do not infer one sink works for vanilla models",
+        "Do not infer four is an architectural requirement"
+      ],
+      "author_boundaries": [
+        "Paper hypothesizes and validates sink-token pretraining; it does not derive exact four from first principles.",
+        "Paper does not claim four sinks are intrinsic to Transformer attention."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "mechanism_origin_unclear",
+      "lens": "L5_origin_and_change_of_regularity",
+      "quotes": [
+        {
+          "quote": "We believe this pattern emerges because these models didn’t include a consistent starting token across all input samples during pre-training.",
+          "source": "paper",
+          "locator": "p.5, Section 3.1"
+        },
+        {
+          "quote": "Conversely, the model trained with a learnable Sink Token shows stable streaming perplexity with only the sink token added.",
+          "source": "paper",
+          "locator": "Table 3 caption, p.6"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p.5, Section 3.1",
+          "support_description": "We believe this pattern emerges because these models didn’t include a consistent starting token across all input samples during pre-training."
+        },
+        {
+          "source_id": "paper",
+          "location": "Table 3 caption, p.6",
+          "support_description": "Conversely, the model trained with a learnable Sink Token shows stable streaming perplexity with only the sink token added."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Attention-sink behavior is shaped by pretraining token distributions; a dedicated sink token can change how many initial tokens are used as sinks. The count four reflects a pretraining regularity that can change with a dedicated sink token; the artifact should not treat four as an architectural requirement."
+    },
+    {
+      "headline": "High attention to initial tokens does not imply or guarantee semantic importance.",
+      "claim": "High attention scores on initial tokens do not by themselves establish that those tokens are semantically important; they may serve as a softmax denominator sink.",
+      "paper_fact": "a surprisingly large amount of attention score is allocated to the initial tokens, irrespective of their relevance to the language modeling task",
+      "premise": "Attention weights are normalized across contextual tokens; a high weight can reflect a normalization sink rather than semantic relevance.",
+      "inference": "Therefore, attention visualizations alone are insufficient to infer semantic importance; the paper's sink account and linebreak substitution support position/visibility and softmax normalization as the cause.",
+      "conditional_consequence": "If one uses attention maps to claim initial tokens are semantically important, then one must separate position/visibility from content, e.g., linebreak substitution or sink-token ablation.",
+      "critical_link": "The critical link is the softmax denominator: initial tokens can absorb excess attention because scores must sum to one.",
+      "necessary_conditions": [
+        "Softmax-normalized attention",
+        "Initial tokens visible to later tokens",
+        "Attention maps are used as evidence of semantic importance"
+      ],
+      "defeaters": [
+        "Ablation shows initial-token content changes task performance beyond position",
+        "Attention is not softmax-normalized",
+        "Attention weights are shown to be causally necessary for semantics"
+      ],
+      "do_not_infer": [
+        "Initial tokens are semantically irrelevant in every task",
+        "Initial-token KV can be removed without cost",
+        "Attention visualization alone proves the sink mechanism"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1_proxy_guarantee",
+      "quotes": [
+        {
+          "quote": "a surprisingly large amount of attention score is allocated to the initial tokens, irrespective of their relevance to the language modeling task",
+          "source": "paper",
+          "locator": "p. 2, §1"
+        },
+        {
+          "quote": "Despite their lack of semantic significance, they collect significant attention scores.",
+          "source": "paper",
+          "locator": "p. 2, §1"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "author_boundaries": [
+        "The paper claims initial tokens act as attention sinks due to softmax and autoregressive visibility; it does not claim attention maps alone prove semantic irrelevance in all tasks.",
+        "The paper's linebreak substitution is on Llama-2-13B and PG19; it is not a universal semantic ablation."
+      ],
+      "inferred_consequences": [
+        "Attention visualization is a proxy, not a causal semantic attribution.",
+        "Initial-token KV may still be necessary even if content is replaceable."
+      ],
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p. 2, §1",
+          "support_description": "a surprisingly large amount of attention score is allocated to the initial tokens, irrespective of their relevance to the language modeling task"
+        },
+        {
+          "source_id": "paper",
+          "location": "p. 2, §1",
+          "support_description": "Despite their lack of semantic significance, they collect significant attention scores."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Attention weights are normalized across contextual tokens; a high weight can reflect a normalization sink rather than semantic relevance. Therefore, attention visualizations alone are insufficient to infer semantic importance; the paper's sink account and linebreak substitution support position/visibility and softmax normalization as the cause."
+    },
+    {
+      "headline": "SoftMax1 does not imply or guarantee elimination of attention sinks.",
+      "claim": "Replacing softmax with SoftMax1/Zero Sink does not guarantee that a model stops using initial tokens as attention sinks.",
+      "paper_fact": "while the zero sink alleviates the attention sink problem to some extent, the model still relies on other initial tokens as attention sinks.",
+      "premise": "Removing one normalization constraint does not remove all learned attention concentration; training can still create sinks on visible tokens.",
+      "inference": "Therefore, SoftMax1/Zero Sink is not sufficient to eliminate sink behavior; a dedicated sink token or other intervention may still be needed.",
+      "conditional_consequence": "If one adopts SoftMax1 expecting no sink tokens, then one should still test whether other initial tokens remain necessary.",
+      "critical_link": "The link is that Zero Sink removes the sum-to-one requirement but the model can still learn to dump attention on visible initial tokens.",
+      "necessary_conditions": [
+        "SoftMax1 or equivalent zero-KV sink is used",
+        "Model is trained under that objective",
+        "Sink behavior is measured by streaming PPL with varying initial tokens"
+      ],
+      "defeaters": [
+        "Larger-scale training with SoftMax1 eliminates reliance on other initial tokens",
+        "A different normalization removes sink behavior entirely",
+        "Zero Sink with no initial tokens matches full-cache PPL"
+      ],
+      "do_not_infer": [
+        "Softmax normalization is irrelevant to attention sinks",
+        "Zero Sink has no effect",
+        "A dedicated sink token is always necessary"
+      ],
+      "disclosure": "reported",
+      "category_code": "mechanism_origin_unclear",
+      "lens": "L5_origin_and_change_of_regularity",
+      "quotes": [
+        {
+          "quote": "while the zero sink alleviates the attention sink problem to some extent, the model still relies on other initial tokens as attention sinks.",
+          "source": "paper",
+          "locator": "p. 6, §3.3"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "author_boundaries": [
+        "The paper reports a 160M-parameter pretraining experiment; it does not establish that SoftMax1 is sufficient at all scales.",
+        "The paper's Zero Sink result is a partial alleviation, not a proof that softmax is the only cause."
+      ],
+      "inferred_consequences": [
+        "Residual sink behavior after SoftMax1 is not fully explained by the sum-to-one argument alone.",
+        "Dedicated sink tokens may remain useful even with SoftMax1."
+      ],
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p. 6, §3.3",
+          "support_description": "while the zero sink alleviates the attention sink problem to some extent, the model still relies on other initial tokens as attention sinks."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Removing one normalization constraint does not remove all learned attention concentration; training can still create sinks on visible tokens. Therefore, SoftMax1/Zero Sink is not sufficient to eliminate sink behavior; a dedicated sink token or other intervention may still be needed."
+    },
+    {
+      "headline": "Recomputation's per-token rebuild does not imply or guarantee long-term memory or context extension.",
+      "claim": "Rebuilding recent L KV states for each generated token maintains local context quality but does not extend the model's context window or guarantee retrieval of information older than L.",
+      "paper_fact": "Sliding Window with Re-computation rebuilds the KV states from the L recent tokens for each new token.",
+      "premise": "A method that only recomputes/caches L recent tokens cannot attend to tokens outside that window; long-text perplexity does not by itself demonstrate retrieval of distant information.",
+      "inference": "Recomputation's quality on long texts does not guarantee long-term memory or context extension beyond L; tasks requiring information older than the window are not covered by the mechanism.",
+      "toy_example": "Toy example (not a measurement): a query about a token 10,000 positions back is outside a 1,024-token recomputation window.",
+      "conditional_consequence": "If a task requires retrieving information beyond the L-token window, then recomputation cannot guarantee success even if its long-text perplexity is strong.",
+      "critical_link": "The link is the window size L bounding attendable tokens; recomputation rebuilds only those L tokens.",
+      "necessary_conditions": [
+        "The needed information lies outside the L-token window",
+        "The task requires long-term memory or context extension",
+        "The model's attention is limited to cached/recomputed tokens"
+      ],
+      "defeaters": [
+        "Information needed is within L",
+        "Task only needs recent context",
+        "Context-extension methods are combined with recomputation"
+      ],
+      "do_not_infer": [
+        "Do not infer recomputation has no long-context ability",
+        "Do not infer it extends the model's context window",
+        "Do not infer long-text perplexity proves long-term memory"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L2_objective_or_stopping_rule_vs_goal + L5_origin_and_change_of_regularity",
+      "quotes": [
+        {
+          "quote": "Sliding Window with Re-computation rebuilds the KV states from the L recent tokens for each new token.",
+          "source": "paper",
+          "locator": "page 2, Figure 1 caption"
+        },
+        {
+          "quote": "While it performs well on long texts, its O(TL2) complexity, stemming from quadratic attention in context re-computation, makes it considerably slow.",
+          "source": "paper",
+          "locator": "page 2, Figure 1 caption"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "author_boundary": "Paper's baseline is a quality baseline for long-text perplexity; it does not claim long-term memory or context extension.",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "page 2, Figure 1 caption",
+          "support_description": "Sliding Window with Re-computation rebuilds the KV states from the L recent tokens for each new token."
+        },
+        {
+          "source_id": "paper",
+          "location": "page 2, Figure 1 caption",
+          "support_description": "While it performs well on long texts, its O(TL2) complexity, stemming from quadratic attention in context re-computation, makes it considerably slow."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "A method that only recomputes/caches L recent tokens cannot attend to tokens outside that window; long-text perplexity does not by itself demonstrate retrieval of distant information. Recomputation's quality on long texts does not guarantee long-term memory or context extension beyond L; tasks requiring information older than the window are not covered by the mechanism."
+    },
+    {
+      "headline": "A single learnable sink token preserving streaming perplexity does not imply or guarantee that the sink token is the only or necessary mechanism for stable streaming.",
+      "claim": "The 160M pretraining result supports sufficiency of one sink token in that setup, not exclusivity or necessity of the sink-token mechanism for stable streaming.",
+      "paper_fact": "By pre-training 160-million parameter language models from scratch, we demonstrate that adding this single sink token preserves the model’s performance in streaming cases.",
+      "premise": "Perplexity and zero-shot accuracy are proxy metrics; sufficiency in one model size and recipe does not establish that a mechanism is the only or necessary route to the same outcome.",
+      "inference": "The reported result is evidence that one sink token can work in a 160M Pythia-style pretraining run, but it does not prove that stable streaming requires a learnable sink token or that no alternative mechanism could achieve comparable streaming behavior.",
+      "toy_example": "Not a measurement: two models could both reach stable streaming perplexity, one via a learnable sink token and another via a different attention-sink or cache-positioning scheme.",
+      "conditional_consequence": "If alternative mechanisms can stabilize streaming under comparable budgets, then recommending a learnable sink token as a universal or necessary pretraining change is overgeneralized.",
+      "critical_link": "The experiment varies sink-token presence but does not establish necessity against all alternatives; the evidence is a proxy-metric sufficiency result in one 160M setup.",
+      "necessary_conditions": [
+        "Pythia-160M-style pretraining recipe",
+        "deduplicated Pile data",
+        "streaming perplexity evaluation on PG19-style text",
+        "cache configurations with sink plus recent tokens"
+      ],
+      "defeaters": [
+        "an ablation showing the sink token is necessary versus all tested alternatives",
+        "larger-scale experiments where alternative mechanisms fail but sink token succeeds",
+        "a direct comparison showing no other mechanism can stabilize streaming"
+      ],
+      "do_not_infer": [
+        "the sink token is the only possible attention-sink mechanism",
+        "the sink token is causally necessary for stable streaming in general",
+        "the sink token is universally superior to alternative sink designs"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1_proxy_guarantee",
+      "quotes": [
+        {
+          "quote": "By pre-training 160-million parameter language models from scratch, we demonstrate that adding this single sink token preserves the model’s performance in streaming cases.",
+          "source": "paper",
+          "locator": "p. 3, Sec. 3.1"
+        },
+        {
+          "quote": "Simply pairing this sink token with recent tokens sufficiently anchors the model’s performance, and the resulting evaluation perplexity is even marginally improved.",
+          "source": "paper",
+          "locator": "p. 6, Sec. 3.3"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "author_boundaries": [
+        "Authors report a 160M pretraining experiment and streaming PPL/benchmark results; they do not claim the sink token is the only possible mechanism."
+      ],
+      "inferred_consequences": [
+        "If other mechanisms can stabilize streaming, then a universal recommendation to pretrain with a sink token is not established."
+      ],
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p. 3, Sec. 3.1",
+          "support_description": "By pre-training 160-million parameter language models from scratch, we demonstrate that adding this single sink token preserves the model’s performance in streaming cases."
+        },
+        {
+          "source_id": "paper",
+          "location": "p. 6, Sec. 3.3",
+          "support_description": "Simply pairing this sink token with recent tokens sufficiently anchors the model’s performance, and the resulting evaluation perplexity is even marginally improved."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Perplexity and zero-shot accuracy are proxy metrics; sufficiency in one model size and recipe does not establish that a mechanism is the only or necessary route to the same outcome. The reported result is evidence that one sink token can work in a 160M Pythia-style pretraining run, but it does not prove that stable streaming requires a learnable sink token or that no alternative mechanism could achieve comparable streaming behavior."
+    },
+    {
+      "headline": "A learnable sink token showing no benchmark harm at 160M does not imply or guarantee no harm at other scales or pretraining recipes.",
+      "claim": "The no-harm result for a sink token is limited to the tested 160M Pythia-style recipe and seven zero-shot benchmarks; it is not a scale-invariant guarantee.",
+      "paper_fact": "The inclusion of a sink token during pre-training doesn’t harm the model performance.",
+      "premise": "Optimization dynamics and attention patterns can change with model scale, data recipe, tokenizer, and training duration; a single-scale no-harm result is not a universal guarantee.",
+      "inference": "The reported no-harm finding is evidence for the tested 160M setup, but it does not guarantee that larger models or different pretraining recipes will see no convergence or benchmark tradeoff.",
+      "toy_example": "Not a measurement: a 7B model trained with a sink token could show a different loss curve or benchmark tradeoff than the 160M model.",
+      "conditional_consequence": "If deploying at larger scale or with a different data recipe, then the no-harm result should be revalidated rather than assumed.",
+      "critical_link": "The comparison holds model size, data, and training steps fixed; scale and recipe are exactly the variables not varied.",
+      "necessary_conditions": [
+        "Pythia-160M codebase and recipe",
+        "deduplicated Pile data",
+        "143,000 training steps",
+        "seven zero-shot benchmarks"
+      ],
+      "defeaters": [
+        "larger-scale pretraining shows harm or convergence instability",
+        "different data or tokenizer changes the effect",
+        "sink token interacts adversely with other architectural changes"
+      ],
+      "do_not_infer": [
+        "the sink token is universally harmless",
+        "the sink token has no convergence effect at all scales",
+        "the sink token has no benchmark tradeoff at larger scale"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L7_bottleneck_changes_over_scale_or_time",
+      "quotes": [
+        {
+          "quote": "The inclusion of a sink token during pre-training doesn’t harm the model performance.",
+          "source": "paper",
+          "locator": "p. 7, Table 4 caption"
+        },
+        {
+          "quote": "Our experiments employed the Pythia-160M (Biderman et al., 2023) codebase and followed its training recipe.",
+          "source": "paper",
+          "locator": "p. 7, Sec. 4.2"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "author_boundaries": [
+        "Authors report no harm in their 160M pretraining comparison and seven benchmarks; they do not claim scale-invariant harmlessness."
+      ],
+      "inferred_consequences": [
+        "If deploying at larger scale, the no-harm result should be revalidated rather than assumed."
+      ],
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p. 7, Table 4 caption",
+          "support_description": "The inclusion of a sink token during pre-training doesn’t harm the model performance."
+        },
+        {
+          "source_id": "paper",
+          "location": "p. 7, Sec. 4.2",
+          "support_description": "Our experiments employed the Pythia-160M (Biderman et al., 2023) codebase and followed its training recipe."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Optimization dynamics and attention patterns can change with model scale, data recipe, tokenizer, and training duration; a single-scale no-harm result is not a universal guarantee. The reported no-harm finding is evidence for the tested 160M setup, but it does not guarantee that larger models or different pretraining recipes will see no convergence or benchmark tradeoff."
+    },
+    {
+      "headline": "Visualization clarity does not imply or guarantee deployment-optimal cache size.",
+      "claim": "The paper’s half-pretraining-window cache sizes are chosen to enhance visualization clarity, not because they are shown to be optimal for streaming deployment.",
+      "paper_fact": "For Llama-2 models, the cache size is set at 2048, while for Falcon, Pythia, and MPT models, it’s set at 1024. This is half the pre-training window size chosen to enhance visualization clarity.",
+      "premise": "Visualization clarity is a presentation objective; deployment optimality depends on task accuracy, memory, latency, and the model’s ability to use context.",
+      "inference": "The reported half-window cache sizes are heuristic defaults for the paper’s plots, not tuned deployment recommendations; copying them into a deployment may be suboptimal.",
+      "toy_example": "Not a measurement: a deployment with an 8K pretraining window might use a 4K cache because the paper did, but a 2K cache could meet latency while preserving task accuracy; this is hypothetical.",
+      "conditional_consequence": "If deployment constraints differ from visualization or fair-comparison constraints, then cache size should be re-tuned and the half-window value should not be treated as optimal.",
+      "critical_link": "The only stated reason for the half-window choice is visualization clarity; no deployment-objective cache-size sweep is reported for that choice.",
+      "necessary_conditions": [
+        "Cache size materially affects quality and cost.",
+        "The deployment objective differs from visualization clarity.",
+        "No unreported tuning selected half-window for deployment optimality."
+      ],
+      "defeaters": [
+        "The paper reports a separate deployment tuning that coincides with half-window.",
+        "The task and hardware match the paper’s visualization setup.",
+        "Half-window is required only for fair comparison, not claimed optimal."
+      ],
+      "do_not_infer": [
+        "Do not infer half-window is bad or that larger is always better.",
+        "Do not infer the paper tested all cache sizes for deployment.",
+        "Do not infer visualization clarity is the only reason across all experiments."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L2/L6",
+      "quotes": [
+        {
+          "quote": "For Llama-2 models, the cache size is set at 2048, while for Falcon, Pythia, and MPT models, it’s set at 1024. This is half the pre-training window size chosen to enhance visualization clarity.",
+          "source": "PAPER TEXT",
+          "locator": "page 6, Section 4.1"
+        },
+        {
+          "quote": "Contrary to intuition, increasing the cache size doesn’t consistently lower the language modeling perplexity.",
+          "source": "PAPER TEXT",
+          "locator": "page 9, Section 4.4"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "author_boundaries": [
+        "Authors state half-window is chosen to enhance visualization clarity; they do not claim it is deployment-optimal.",
+        "Authors do not report a deployment-objective cache-size sweep for this choice."
+      ],
+      "inferred_consequences": [
+        "Half-window defaults should not be copied as optimal deployment settings.",
+        "Deployment cache size should be tuned under task, memory, and latency constraints."
+      ],
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "page 6, Section 4.1",
+          "support_description": "For Llama-2 models, the cache size is set at 2048, while for Falcon, Pythia, and MPT models, it’s set at 1024. This is half the pre-training window size chosen to enhance visualization clarity."
+        },
+        {
+          "source_id": "paper",
+          "location": "page 9, Section 4.4",
+          "support_description": "Contrary to intuition, increasing the cache size doesn’t consistently lower the language modeling perplexity."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Visualization clarity is a presentation objective; deployment optimality depends on task accuracy, memory, latency, and the model’s ability to use context. The reported half-window cache sizes are heuristic defaults for the paper’s plots, not tuned deployment recommendations; copying them into a deployment may be suboptimal."
+    },
+    {
+      "headline": "A fixed 10-line query cadence and 20-line answer lag do not guarantee representativeness of real-world chat.",
+      "claim": "StreamEval's 10-line query cadence and 20-line answer lag encode a recent-information assumption; the paper does not show this fixed lag distribution is representative of real-world multi-round chat.",
+      "paper_fact": "Each query’s answer is consistently 20 lines prior, reflecting real-world instances where questions typically pertain to recent information.",
+      "premise": "Benchmark constants such as query cadence and answer lag are design choices; claiming they reflect real-world chat requires validation against a distribution of real interactions.",
+      "inference": "The 10-line/20-line setup encodes an assumption that questions pertain to recent information; the paper does not show this lag distribution is representative.",
+      "toy_example": "Not a measurement: if real chat questions refer to 5 or 200 lines back, a fixed 20-line benchmark samples only one lag.",
+      "conditional_consequence": "If real queries refer to different lags, StreamEval's default results may not transfer.",
+      "critical_link": "External validity depends on the match between the fixed lag and real-world query-answer distances.",
+      "necessary_conditions": [
+        "Real-world query-answer lag distribution matches 20 lines",
+        "Line length is stable across domains",
+        "Recent-information assumption is the target"
+      ],
+      "defeaters": [
+        "Paper cites a validated real-world lag distribution",
+        "Target application is explicitly recent-only",
+        "The benchmark is used only as a stress test, not a representative sample"
+      ],
+      "do_not_infer": [
+        "20 lines is the optimal or universal lag",
+        "StreamEval covers all multi-round chat",
+        "The constants are empirically derived"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "mechanism_origin_unclear",
+      "lens": "L5_origin_and_change_of_regularity",
+      "quotes": [
+        {
+          "source": "paper",
+          "locator": "p.8 §4.3",
+          "quote": "Each query’s answer is consistently 20 lines prior, reflecting real-world instances where questions typically pertain to recent information."
+        },
+        {
+          "source": "paper",
+          "locator": "p.16 §C",
+          "quote": "In StreamEval, each line consists of 23 tokens, making the line distances equivalent to token distances of 23 × line distances."
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p.8 §4.3",
+          "support_description": "Each query’s answer is consistently 20 lines prior, reflecting real-world instances where questions typically pertain to recent information."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.16 §C",
+          "support_description": "In StreamEval, each line consists of 23 tokens, making the line distances equivalent to token distances of 23 × line distances."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Benchmark constants such as query cadence and answer lag are design choices; claiming they reflect real-world chat requires validation against a distribution of real interactions. The 10-line/20-line setup encodes an assumption that questions pertain to recent information; the paper does not show this lag distribution is representative."
+    },
+    {
+      "headline": "Stable streaming perplexity does not imply long-term memory or retrieval from evicted tokens.",
+      "claim": "Stable streaming perplexity and recent-context QA accuracy under StreamingLLM do not guarantee long-term memory or retrieval of evicted middle tokens.",
+      "paper_fact": "While StreamingLLM improves the efficiency of LLMs in streaming contexts, it does not extend the models’ context window or enhance their long-term memory capabilities.",
+      "premise": "A KV cache that keeps only initial sink tokens and a recent window cannot attend to evicted middle tokens; retrieval from those tokens requires their KV or equivalent memory.",
+      "inference": "A model can show stable next-token PPL and good recent-context QA while failing a query whose answer was evicted, because the evicted KV is unavailable to attention.",
+      "toy_example": "Toy example (not a measurement): a unique code is placed at token 10, then 10k tokens later the stream asks for it with a 1k cache; the code is evicted, so stable next-token PPL does not predict recall.",
+      "conditional_consequence": "If a task requires an answer from tokens outside the sink+recent cache and no external memory/context extension is used, then stable PPL does not predict task success; StreamEval-style accuracy can fall to zero beyond cache distance.",
+      "critical_link": "The evicted tokens are absent from the attention denominator/numerator, so the model cannot retrieve them; stable PPL measures local next-token prediction, not long-range recall.",
+      "necessary_conditions": [
+        "Task requires information from tokens evicted from the sink+recent cache",
+        "No external retrieval, context extension, or recomputation supplies the evicted content",
+        "Evaluation query-answer distance exceeds retained cache span"
+      ],
+      "defeaters": [
+        "Answer is in recent window or sink tokens",
+        "Task only needs short-term/local context",
+        "External memory or context-extension method is combined with StreamingLLM",
+        "Cache is large enough to retain the needed span"
+      ],
+      "do_not_infer": [
+        "Do not infer StreamingLLM is unstable for all streaming tasks",
+        "Do not infer perplexity is uninformative for local language modeling",
+        "Do not infer the paper claims long-term memory capability"
+      ],
+      "author_boundaries": [
+        "Paper explicitly limits StreamingLLM to short-term memory and recent context; it does not claim long-term memory.",
+        "Paper reports StreamEval accuracy drops beyond cache capacity; it does not claim retrieval from evicted tokens."
+      ],
+      "inferred_consequences": [
+        "Stable PPL/QA on recent context can coexist with zero accuracy on queries whose answers were evicted.",
+        "StreamingLLM should not be used for long-document QA/summarization without external memory or context extension."
+      ],
+      "disclosure": "reported",
+      "category_code": "applicability_limitation",
+      "lens": "L1_proxy_guarantee",
+      "quotes": [
+        {
+          "quote": "While StreamingLLM improves the efficiency of LLMs in streaming contexts, it does not extend the models’ context window or enhance their long-term memory capabilities.",
+          "source": "paper",
+          "locator": "p.15, Appendix A Limitations"
+        },
+        {
+          "quote": "Consequently, StreamingLLM is not suitable for tasks that demand long-term memory and extensive data dependency, such as long document question-answering (QA) and summarization.",
+          "source": "paper",
+          "locator": "p.15, Appendix A Limitations"
+        },
+        {
+          "quote": "However, accuracy diminishes as this distance increases and eventually drops to zero when it surpasses the cache capacity.",
+          "source": "paper",
+          "locator": "p.16, Appendix C"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 2,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p.15, Appendix A Limitations",
+          "support_description": "While StreamingLLM improves the efficiency of LLMs in streaming contexts, it does not extend the models’ context window or enhance their long-term memory capabilities."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.15, Appendix A Limitations",
+          "support_description": "Consequently, StreamingLLM is not suitable for tasks that demand long-term memory and extensive data dependency, such as long document question-answering (QA) and summarization."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.16, Appendix C",
+          "support_description": "However, accuracy diminishes as this distance increases and eventually drops to zero when it surpasses the cache capacity."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "A KV cache that keeps only initial sink tokens and a recent window cannot attend to evicted middle tokens; retrieval from those tokens requires their KV or equivalent memory. A model can show stable next-token PPL and good recent-context QA while failing a query whose answer was evicted, because the evicted KV is unavailable to attention."
+    },
+    {
+      "headline": "Constant memory does not imply or guarantee stable long-text modeling.",
+      "claim": "Window attention's constant memory and decoding speed after cache fill are efficiency properties, not evidence of stable long-text language modeling; the paper reports perplexity collapse once sequence length exceeds cache size.",
+      "paper_fact": "Although it ensures constant memory usage and decoding speed after the cache is initially filled, the model collapses once the sequence length exceeds the cache size",
+      "premise": "A memory bound limits resource use; it does not by itself establish output quality or stability.",
+      "inference": "Therefore, evaluating window attention only by constant memory would miss the reported quality failure beyond cache size.",
+      "toy_example": "Not a measurement: a 4-token window on a 10-token stream evicts token 0 at step 5; if token 0 is a sink, PPL can jump even though only one old token was removed.",
+      "conditional_consequence": "If deployment requires stable long-stream quality, then constant-memory window attention is insufficient unless sink retention or recomputation is added.",
+      "critical_link": "The reported PPL spike occurs exactly when cache overflow evicts initial tokens, linking the efficiency mechanism to a quality failure.",
+      "necessary_conditions": [
+        "sequence length exceeds cache size",
+        "initial tokens are evicted",
+        "quality is measured by PPL or accuracy on long streams"
+      ],
+      "defeaters": [
+        "task only needs recent context within cache",
+        "sink tokens are retained",
+        "cache size covers the whole sequence"
+      ],
+      "do_not_infer": [
+        "Do not infer window attention is never useful.",
+        "Do not infer constant memory causes collapse.",
+        "Do not infer all eviction policies fail.",
+        "Authors do not claim StreamingLLM extends context window."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1/L6",
+      "quotes": [
+        {
+          "quote": "maintains only a fixed-size sliding window on the KV states of most recent tokens.",
+          "source": "paper",
+          "locator": "p.2"
+        },
+        {
+          "quote": "Although it ensures constant memory usage and decoding speed after the cache is initially filled, the model collapses once the sequence length exceeds the cache size",
+          "source": "paper",
+          "locator": "p.2"
+        },
+        {
+          "quote": "Window attention has poor accuracy.",
+          "source": "paper",
+          "locator": "p.8"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 2,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p.2",
+          "support_description": "maintains only a fixed-size sliding window on the KV states of most recent tokens."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.2",
+          "support_description": "Although it ensures constant memory usage and decoding speed after the cache is initially filled, the model collapses once the sequence length exceeds the cache size"
+        },
+        {
+          "source_id": "paper",
+          "location": "p.8",
+          "support_description": "Window attention has poor accuracy."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "A memory bound limits resource use; it does not by itself establish output quality or stability. Therefore, evaluating window attention only by constant memory would miss the reported quality failure beyond cache size."
+    }
+  ],
+  "dropped_for_unverified_quotes": 0,
+  "chunk_count": 13,
+  "chunk_failures": 0,
+  "chunk_timings": [
+    {
+      "seconds": 142.941388532985,
+      "attempts": 1
+    },
+    {
+      "seconds": 127.13025102904066,
+      "attempts": 1
+    },
+    {
+      "seconds": 97.83526602596976,
+      "attempts": 1
+    },
+    {
+      "seconds": 89.88335012202151,
+      "attempts": 1
+    },
+    {
+      "seconds": 106.94339423603378,
+      "attempts": 1
+    },
+    {
+      "seconds": 106.1239937080536,
+      "attempts": 1
+    },
+    {
+      "seconds": 146.69888756307773,
+      "attempts": 1
+    },
+    {
+      "seconds": 129.1623409120366,
+      "attempts": 1
+    },
+    {
+      "seconds": 108.31916971411556,
+      "attempts": 1
+    },
+    {
+      "seconds": 176.85379873611964,
+      "attempts": 1
+    },
+    {
+      "seconds": 175.4604781290982,
+      "attempts": 1
+    },
+    {
+      "seconds": 144.06610030098818,
+      "attempts": 1
+    },
+    {
+      "seconds": 178.86575433192775,
+      "attempts": 1
+    }
+  ],
+  "inventory_seconds": 236.1393892080523,
+  "chunks_seconds": 686.171504290076,
+  "merged_candidates": 7,
+  "unverified_kept": 0
+}

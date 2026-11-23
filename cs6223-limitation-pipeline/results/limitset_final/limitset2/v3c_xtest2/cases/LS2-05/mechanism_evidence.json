@@ -1,0 +1,834 @@
+{
+  "candidates": [
+    {
+      "headline": "Binary search on simulated goodput does not imply or guarantee global optimality under non-monotonic SLO-rate relations.",
+      "claim": "Algorithm 1's binary search finds a simulated boundary for maximum rate meeting SLO; it does not prove global optimality if SLO attainment versus rate is non-monotonic or simulator-noisy, and phase-level optimization plus replication can leave rounding/coupling gaps.",
+      "paper_fact": "DistServe simply enumerates the placements and finds the maximum rate that meets the SLO attainment target with binary search and simulation trials.",
+      "premise": "Binary search requires a monotone predicate; SLO attainment can be non-monotonic in offered rate because batching, queueing, and simulator noise create plateaus or reversals.",
+      "inference": "The reported maximum rate is conditional on monotonicity and simulator accuracy; it is not a proof that no better placement exists.",
+      "toy_example": "Not a measurement: if SLO attainment is 91% at rate 2.0 and 89% at 2.1 but 92% at 2.2 due to batching effects, binary search can stop before the higher feasible rate.",
+      "conditional_consequence": "If non-monotonicity or simulator noise is plausible, validate with exhaustive search or real profiling; otherwise the chosen placement may be suboptimal.",
+      "critical_link": "The critical link is the monotonicity and accuracy of the simulated SLO-attainment predicate used by binary search.",
+      "necessary_conditions": [
+        "monotonic SLO attainment versus rate in the search range",
+        "deterministic or low-noise simulator",
+        "search granularity fine enough to find the boundary"
+      ],
+      "defeaters": [
+        "SLO attainment is monotone in the tested range",
+        "simulator is smooth and validated",
+        "exhaustive enumeration is used instead"
+      ],
+      "do_not_infer": [
+        "do not infer binary search finds the true global optimum",
+        "do not infer phase-level optimal per-GPU goodput plus replication is globally optimal",
+        "do not infer simulator boundary equals real-system boundary"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L2+L5",
+      "quotes": [
+        {
+          "quote": "DistServe simply enumerates the placements and finds the maximum rate that meets the SLO attainment target with binary search and simulation trials.",
+          "source": "paper",
+          "locator": "p.7 §4.1"
+        },
+        {
+          "quote": "The complexity of Algorithm 1 is O(NM2), with N as the node limit per instance and M representing the typical number of GPUs per node in modern clusters (e.g., 8).",
+          "source": "paper",
+          "locator": "p.7 §4.1"
+        },
+        {
+          "quote": "then, we use replication to match the overall traffic rate.",
+          "source": "paper",
+          "locator": "p.7 §4.1"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "author_boundaries": [
+        "Authors describe binary search and simulation trials, not a proof of global optimality.",
+        "Authors report simulator error under 2% in tested cases; they do not claim monotonicity for all workloads."
+      ],
+      "inferred_consequences": [
+        "The search's optimality claim is bounded by simulator fidelity and monotonicity.",
+        "Replication rounding can make phase-level optima differ from system-level optima."
+      ],
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p.7 §4.1",
+          "support_description": "DistServe simply enumerates the placements and finds the maximum rate that meets the SLO attainment target with binary search and simulation trials."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.7 §4.1",
+          "support_description": "The complexity of Algorithm 1 is O(NM2), with N as the node limit per instance and M representing the typical number of GPUs per node in modern clusters (e.g., 8)."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.7 §4.1",
+          "support_description": "then, we use replication to match the overall traffic rate."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Binary search requires a monotone predicate; SLO attainment can be non-monotonic in offered rate because batching, queueing, and simulator noise create plateaus or reversals. The reported maximum rate is conditional on monotonicity and simulator accuracy; it is not a proof that no better placement exists."
+    },
+    {
+      "headline": "Least-loaded decoding dispatch does not imply or guarantee minimal TPOT when KV-cache transfer and memory are coupled",
+      "claim": "DistServe's least-loaded decoding dispatch uses instance load as a proxy for decoding capacity; because KV-cache size, transfer delay, and memory pressure are coupled to decoding, the least-loaded instance may not be the one that minimizes TPOT.",
+      "paper_fact": "All incoming requests arrive at a centralized controller, then dispatched to the prefill instance with the shortest queue for prefill processing, followed by dispatch to the least loaded decoding instance for decoding steps.",
+      "premise": "Load metrics that ignore memory footprint and data-transfer dependencies can misrank instances; KV-cache size scales with context length and affects decoding memory and transfer time.",
+      "inference": "Least-loaded decoding dispatch is not sufficient to guarantee TPOT SLOs when KV caches are large or transfers are bursty, because load may not reflect pending KV-cache memory or transfer backpressure.",
+      "toy_example": "Toy example (not a measurement): two decoding instances report equal load, but one has many large KV caches pending transfer; choosing the least-loaded by request count may not minimize TPOT.",
+      "conditional_consequence": "If contexts are long, KV caches are large, or cross-node bandwidth is limited, least-loaded dispatch can still overload decoding memory or incur transfer delay; if contexts are short and bandwidth high, the proxy is more reliable.",
+      "critical_link": "The critical link is the assumption that the load metric captures the decoding instance's ability to accept and process KV caches without memory or transfer delay.",
+      "necessary_conditions": [
+        "Variable KV-cache sizes across requests",
+        "Limited decoding memory or KV-transfer bandwidth",
+        "A load metric that does not fully account for pending KV-cache memory or transfer work"
+      ],
+      "defeaters": [
+        "Uniform short contexts with small KV caches",
+        "High-bandwidth placement that makes transfer negligible",
+        "A load metric that includes KV-cache memory and transfer backlog"
+      ],
+      "do_not_infer": [
+        "Do not infer that the paper claims least-loaded dispatch guarantees minimal TPOT.",
+        "Do not infer a measured TPOT regression from this reasoning alone.",
+        "Do not infer that least-loaded dispatch is always worse than other simple policies."
+      ],
+      "author_boundaries": [
+        "Authors report least-loaded decoding dispatch and pull-based KV transfer.",
+        "Authors do not claim the load metric captures all KV-cache memory or transfer effects."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1_proxy_guarantee+L4_coupling",
+      "quotes": [
+        {
+          "quote": "All incoming requests arrive at a centralized controller, then dispatched to the prefill instance with the shortest queue for prefill processing, followed by dispatch to the least loaded decoding instance for decoding steps.",
+          "source": "paper",
+          "locator": "p. 8, §4.3"
+        },
+        {
+          "quote": "decoding instances fetch KV cache from prefill instances as needed, using the GPU memory of prefill instances as a queuing buffer.",
+          "source": "paper",
+          "locator": "p. 8, §4.3"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p. 8, §4.3",
+          "support_description": "All incoming requests arrive at a centralized controller, then dispatched to the prefill instance with the shortest queue for prefill processing, followed by dispatch to the least loaded decoding instance for decoding steps."
+        },
+        {
+          "source_id": "paper",
+          "location": "p. 8, §4.3",
+          "support_description": "decoding instances fetch KV cache from prefill instances as needed, using the GPU memory of prefill instances as a queuing buffer."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Load metrics that ignore memory footprint and data-transfer dependencies can misrank instances; KV-cache size scales with context length and affects decoding memory and transfer time. Least-loaded decoding dispatch is not sufficient to guarantee TPOT SLOs when KV caches are large or transfers are bursty, because load may not reflect pending KV-cache memory or transfer backpressure."
+    },
+    {
+      "headline": "Disaggregating prefill and decoding does not guarantee net goodput improvement when KV transfer cost is high.",
+      "claim": "Disaggregation removes prefill-decoding interference, but its net benefit is conditional on KV-cache transfer and extra model-weight costs being smaller than the saved interference.",
+      "paper_fact": "Transferring KV caches from prefill to decoding instances incurs notable overheads.",
+      "premise": "KV-cache transfer consumes network bandwidth and time; if the required transfer rate exceeds available bandwidth, transfer can become a bottleneck.",
+      "inference": "The reported goodput gain is conditional on transfer cost being small relative to saved interference; it does not establish a universal net benefit.",
+      "toy_example": "Toy example (not a measurement): a 512-token OPT-66B request has about 1.13GB of KV cache; at 10 rps that is about 11.3GB/s, or about 90Gbps, so a 25Gbps cross-node link would be insufficient to make transfer invisible.",
+      "conditional_consequence": "If cross-node bandwidth is low and KV bytes per request are high, disaggregation's net benefit can flip negative or require intra-node placement; condition on KV bytes per request versus saved interference.",
+      "critical_link": "Saved prefill-decoding interference must exceed KV transfer plus extra model-weight copies and orchestration overhead.",
+      "necessary_conditions": [
+        "Sufficient bandwidth or intra-node NVLINK placement",
+        "KV transfer rate within available network capacity",
+        "Latency-sensitive SLO where interference matters",
+        "Enough GPUs to allocate separate phase instances"
+      ],
+      "defeaters": [
+        "High-bandwidth NVLINK or InfiniBand",
+        "Small KV caches, e.g. GQA/MQA",
+        "Low request rate",
+        "Interference savings dominate transfer cost",
+        "Paper's measured transmission is under 0.1% of latency under its placement"
+      ],
+      "do_not_infer": [
+        "Do not infer disaggregation is always harmful",
+        "Do not infer the paper's measured transmission overhead applies to all clusters",
+        "Do not infer no benefit when transfer is managed"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L6_shifted_cost_net_benefit",
+      "quotes": [
+        {
+          "source": "paper",
+          "locator": "p. 6, §3.3",
+          "quote": "Transferring KV caches from prefill to decoding instances incurs notable overheads."
+        },
+        {
+          "source": "paper",
+          "locator": "p. 6, §3.3",
+          "quote": "Assuming an average arrival rate of 10 rps, we need to transfer 11.3GB data per second—or equivalently 90Gbps bandwidth to render the overhead invisible."
+        },
+        {
+          "source": "paper",
+          "locator": "p. 2, §1",
+          "quote": "Although disaggregation causes communication of intermediate states between GPUs, we show that the communication overhead is insubstantial (§3.3) in modern GPU clusters, and when managed appropriately, disaggregation significantly improves per-GPU goodput."
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p. 6, §3.3",
+          "support_description": "Transferring KV caches from prefill to decoding instances incurs notable overheads."
+        },
+        {
+          "source_id": "paper",
+          "location": "p. 6, §3.3",
+          "support_description": "Assuming an average arrival rate of 10 rps, we need to transfer 11.3GB data per second—or equivalently 90Gbps bandwidth to render the overhead invisible."
+        },
+        {
+          "source_id": "paper",
+          "location": "p. 2, §1",
+          "support_description": "Although disaggregation causes communication of intermediate states between GPUs, we show that the communication overhead is insubstantial (§3.3) in modern GPU clusters, and when managed appropriately, disaggregation significantly improves per-GPU goodput."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "KV-cache transfer consumes network bandwidth and time; if the required transfer rate exceeds available bandwidth, transfer can become a bottleneck. The reported goodput gain is conditional on transfer cost being small relative to saved interference; it does not establish a universal net benefit."
+    },
+    {
+      "headline": "Maximizing per-GPU goodput does not guarantee lower cost per query under bursty or non-stationary arrivals.",
+      "claim": "DistServe's per-GPU goodput objective is defined and simulated under an assumed arrival process; it does not by itself guarantee the same SLO attainment or cost per query when real arrivals are bursty or shift faster than the replanning cadence.",
+      "paper_fact": "Since all the datasets do not include timestamps, we generate request arrival times using Poisson distribution with different request rates.",
+      "premise": "Goodput is a rate under an SLO attainment target, so its measured value depends on the arrival process and queueing behavior; burstiness can raise tail latency and reduce attainment for a placement that looked adequate under Poisson arrivals.",
+      "inference": "If production traffic is more bursty or less stationary than the fitted Poisson/historical distribution, the simulator's per-GPU goodput can overstate the sustainable rate, so the placement chosen to maximize it may not deliver the claimed lower cost per query at the target SLO attainment.",
+      "toy_example": "Not a measurement: a placement simulated at 10 req/s Poisson with 90% attainment could see many TTFT/TPOT violations during a one-second burst of 100 requests, lowering realized goodput and raising effective cost per successful query.",
+      "conditional_consequence": "Under bursty or fast-shifting arrivals, per-GPU goodput optimization may select a placement that violates the SLO attainment goal in production, so lower cost per query is not guaranteed unless buffering, pull-based KV transfer, and replanning absorb the burst.",
+      "critical_link": "The simulator estimates SLO attainment from a fitted arrival distribution; the objective's cost claim is only as valid as that distributional assumption and the replanning interval.",
+      "necessary_conditions": [
+        "Arrivals are well approximated by the fitted distribution or burstiness is absorbed by buffering.",
+        "Replanning detects and reacts to workload shifts before SLO attainment degrades.",
+        "SLO attainment is measured on the same latency metrics and target as the objective."
+      ],
+      "defeaters": [
+        "The paper's pull-based KV-cache transfer uses prefill GPU memory as a queue buffer for bursts.",
+        "Periodic replanning can rerun placement after a significant pattern shift.",
+        "The paper evaluates only Poisson arrivals, so it does not establish failure for all bursty workloads."
+      ],
+      "do_not_infer": [
+        "Do not infer that DistServe fails every bursty workload.",
+        "Do not infer that the paper measured non-Poisson production traffic.",
+        "Do not infer that per-GPU goodput is meaningless; it is a conditional proxy under the stated assumptions."
+      ],
+      "author_boundaries": [
+        "The paper assumes Poisson arrivals in evaluation and states that short-term intervals are impossible to predict while longer timescales are often predictable.",
+        "The paper does not claim the per-GPU goodput objective is distribution-free."
+      ],
+      "inferred_consequences": [
+        "Burstiness can decouple simulated goodput from realized goodput.",
+        "Cost-per-query claims are conditional on arrival-process fidelity and timely replanning."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L1+L5",
+      "quotes": [
+        {
+          "quote": "Since all the datasets do not include timestamps, we generate request arrival times using Poisson distribution with different request rates.",
+          "source": "paper",
+          "locator": "p. 9, §6.1"
+        },
+        {
+          "quote": "DistServe implement periodic replanning. A workload profiler monitors key parameters such as the average input and output length of the requests, the average arrival rate, etc. If a significant pattern shift is detected, DistServe will trigger a rerun of the placement algorithm based on recent historical data.",
+          "source": "paper",
+          "locator": "p. 8, §4.3"
+        },
+        {
+          "quote": "Although short-term interval is impossible to predict, the workload pattern over longer timescales (e.g., hours or days) is often predictable [33, 55]. DistServe fits a distribution from the history request traces and resamples new traces from the distribution as the input workload to the simulator to compute the SLO attainment.",
+          "source": "paper",
+          "locator": "p. 7, §4.1"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p. 9, §6.1",
+          "support_description": "Since all the datasets do not include timestamps, we generate request arrival times using Poisson distribution with different request rates."
+        },
+        {
+          "source_id": "paper",
+          "location": "p. 8, §4.3",
+          "support_description": "DistServe implement periodic replanning. A workload profiler monitors key parameters such as the average input and output length of the requests, the average arrival rate, etc. If a significant pattern shift is detected, DistServe will trigger a rerun of the placement algorithm based on recent historical data."
+        },
+        {
+          "source_id": "paper",
+          "location": "p. 7, §4.1",
+          "support_description": "Although short-term interval is impossible to predict, the workload pattern over longer timescales (e.g., hours or days) is often predictable [33, 55]. DistServe fits a distribution from the history request traces and resamples new traces from the distribution as the input workload to the simulator to compute the SLO attainment."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Goodput is a rate under an SLO attainment target, so its measured value depends on the arrival process and queueing behavior; burstiness can raise tail latency and reduce attainment for a placement that looked adequate under Poisson arrivals. If production traffic is more bursty or less stationary than the fitted Poisson/historical distribution, the simulator's per-GPU goodput can overstate the sustainable rate, so the placement chosen to maximize it may not deliver the claimed lower cost per query at the target SLO attainment."
+    },
+    {
+      "headline": "Replication to meet traffic rate does not imply or guarantee optimal per-GPU goodput under low node-affinity bandwidth constraints.",
+      "claim": "DistServe's replication step does not guarantee the unconstrained per-GPU goodput when low node-affinity bandwidth forces constrained placement.",
+      "paper_fact": "DistLLM-High can achieve further improvements over DistLLM-Low because it is not constrained by the deployment constraint that the prefill and decoding instance on one node should share the same model stage.",
+      "premise": "Network topology constrains which parallelism and placement configurations are feasible; KV-cache transfer bandwidth can limit disaggregated serving.",
+      "inference": "Therefore, the optimize-then-replicate procedure's per-GPU goodput is conditional on cluster bandwidth and placement constraints, not guaranteed by replication alone.",
+      "toy_example": "Toy example (not a measurement): a cluster with 25 Gbps cross-node links may force same-stage colocation, so replication cannot recover the unconstrained placement's per-GPU goodput.",
+      "conditional_consequence": "If cross-node bandwidth is low, high-node-affinity placement may be infeasible and low-node-affinity placement may sacrifice per-GPU goodput; condition on cluster bandwidth and placement constraints.",
+      "critical_link": "Replication scales a chosen per-instance configuration; if bandwidth constraints force a lower-goodput configuration, replication scales that lower goodput rather than the unconstrained optimum.",
+      "necessary_conditions": [
+        "Placement and replication use per-instance goodput estimates consistent with cluster topology.",
+        "KV-cache transfer bandwidth is sufficient or placement constrains transfers to NVLINK.",
+        "Replication can scale rate without violating memory or placement constraints."
+      ],
+      "defeaters": [
+        "High-bandwidth cross-node network makes unconstrained placement feasible.",
+        "Model fits within node so low-affinity constraints are mild.",
+        "Low node-affinity algorithm finds equivalent goodput."
+      ],
+      "do_not_infer": [
+        "Do not infer replication is ineffective.",
+        "Do not infer low node-affinity always loses in all metrics.",
+        "Do not infer high node-affinity algorithm is deployable without high-bandwidth cross-node network."
+      ],
+      "author_boundaries": [
+        "Paper evaluates low node-affinity on its 25Gbps testbed and high node-affinity mainly in simulation; it does not claim high-node-affinity placement is deployable on low-bandwidth clusters.",
+        "Paper's claim is about its tested settings, not all topologies."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L4+L7",
+      "quotes": [
+        {
+          "quote": "In many real clusters, GPUs inside a node access to high-bandwidth NVLINK while GPUs distributed across nodes have limited bandwidth.",
+          "source": "DistServe paper",
+          "locator": "p. 7, §4.1"
+        },
+        {
+          "quote": "DistLLM-High can achieve further improvements over DistLLM-Low because it is not constrained by the deployment constraint that the prefill and decoding instance on one node should share the same model stage.",
+          "source": "DistServe paper",
+          "locator": "p. 12, §6.4"
+        },
+        {
+          "quote": "we first optimize the parallelism configurations for prefill and decoding instances separately to attain phase-level optimal per-gpu goodput; then, we use replication to match the overall traffic rate.",
+          "source": "DistServe paper",
+          "locator": "p. 7, §4.1"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p. 7, §4.1",
+          "support_description": "In many real clusters, GPUs inside a node access to high-bandwidth NVLINK while GPUs distributed across nodes have limited bandwidth."
+        },
+        {
+          "source_id": "paper",
+          "location": "p. 12, §6.4",
+          "support_description": "DistLLM-High can achieve further improvements over DistLLM-Low because it is not constrained by the deployment constraint that the prefill and decoding instance on one node should share the same model stage."
+        },
+        {
+          "source_id": "paper",
+          "location": "p. 7, §4.1",
+          "support_description": "we first optimize the parallelism configurations for prefill and decoding instances separately to attain phase-level optimal per-gpu goodput; then, we use replication to match the overall traffic rate."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Network topology constrains which parallelism and placement configurations are feasible; KV-cache transfer bandwidth can limit disaggregated serving. Therefore, the optimize-then-replicate procedure's per-GPU goodput is conditional on cluster bandwidth and placement constraints, not guaranteed by replication alone."
+    },
+    {
+      "headline": "High node-affinity placement does not imply or guarantee benefit without high cross-node bandwidth.",
+      "claim": "Algorithm 1's unconstrained cross-node placement and phase-level goodput optimization are conditional on high-speed cross-node networking; in a low-bandwidth cluster the same search can overstate achievable goodput or require the low node-affinity algorithm.",
+      "paper_fact": "On high node-affinity clusters equipped with Infiniband, KV caches transmission overhead across nodes is negligible",
+      "premise": "Disaggregated prefill and decoding transfer KV caches between nodes; if cross-node bandwidth is low, that transfer can add latency, constrain placement, or force colocation.",
+      "inference": "The high node-affinity search's reported goodput is not a guarantee for clusters lacking InfiniBand; the paper itself switches to a low node-affinity algorithm when cross-node bandwidth is limited.",
+      "toy_example": "Not a measurement: if a workload needs 90 Gbps of KV-cache transfer but the cross-node link is 25 Gbps, the transfer cannot be treated as negligible.",
+      "conditional_consequence": "If the cluster lacks high cross-node bandwidth, use Algorithm 2 or colocation and re-evaluate goodput; otherwise the high-affinity placement may fail SLOs or be infeasible.",
+      "critical_link": "The critical link is the assumption that cross-node KV-cache transfer is negligible, which justifies unconstrained placement and the simulator's communication model.",
+      "necessary_conditions": [
+        "high cross-node bandwidth or negligible KV-cache transfer",
+        "placement feasibility across nodes",
+        "simulator accounts for actual transfer cost"
+      ],
+      "defeaters": [
+        "high-speed InfiniBand is available",
+        "KV caches are small enough that transfer is hidden",
+        "the low node-affinity algorithm is used instead"
+      ],
+      "do_not_infer": [
+        "do not infer Algorithm 1 is universally better than Algorithm 2",
+        "do not infer disaggregation always improves goodput",
+        "do not infer the simulator's goodput transfers to any network"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L6+L7",
+      "quotes": [
+        {
+          "quote": "On high node-affinity clusters equipped with Infiniband, KV caches transmission overhead across nodes is negligible",
+          "source": "paper",
+          "locator": "p.7 §4.1"
+        },
+        {
+          "quote": "In many real clusters, GPUs inside a node access to high-bandwidth NVLINK while GPUs distributed across nodes have limited bandwidth. We next develop an algorithm to address this constraint.",
+          "source": "paper",
+          "locator": "p.7 §4.1"
+        },
+        {
+          "quote": "Due to the limited cross-node bandwidth, we use the low node-affinity placement algorithm (§2) for DistServe in most of the experiments except for the ablation study (§6.4) which uses simulation.",
+          "source": "paper",
+          "locator": "p.9 §6.1"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "author_boundaries": [
+        "Authors explicitly separate high node-affinity and low node-affinity placement algorithms.",
+        "Authors do not claim Algorithm 1 applies unchanged to low-bandwidth clusters."
+      ],
+      "inferred_consequences": [
+        "The high-affinity algorithm's benefit is environment-dependent.",
+        "Network bandwidth is a first-order condition for the placement search's validity."
+      ],
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p.7 §4.1",
+          "support_description": "On high node-affinity clusters equipped with Infiniband, KV caches transmission overhead across nodes is negligible"
+        },
+        {
+          "source_id": "paper",
+          "location": "p.7 §4.1",
+          "support_description": "In many real clusters, GPUs inside a node access to high-bandwidth NVLINK while GPUs distributed across nodes have limited bandwidth. We next develop an algorithm to address this constraint."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.9 §6.1",
+          "support_description": "Due to the limited cross-node bandwidth, we use the low node-affinity placement algorithm (§2) for DistServe in most of the experiments except for the ablation study (§6.4) which uses simulation."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Disaggregated prefill and decoding transfer KV caches between nodes; if cross-node bandwidth is low, that transfer can add latency, constrain placement, or force colocation. The high node-affinity search's reported goodput is not a guarantee for clusters lacking InfiniBand; the paper itself switches to a low node-affinity algorithm when cross-node bandwidth is limited."
+    },
+    {
+      "headline": "Same-stage colocation does not guarantee NVLINK-only transfer for all intermediate states",
+      "claim": "Colocating same-stage prefill and decoding segments within a node forces KV transfer for those corresponding-layer segments to use NVLINK, but it does not guarantee that all intermediate-state or system communication stays intra-node.",
+      "paper_fact": "By colocating prefill and decoding segments of the same stage within a single node, we force the transfer of intermediate states to occur only via NVLINK.",
+      "premise": "NVLINK is an intra-node interconnect; colocating two endpoints on one node can make their transfer use NVLINK, but other endpoints, pipeline stages, or control traffic may still communicate across nodes.",
+      "inference": "The NVLINK-only benefit is scoped to KV transfer between corresponding layers of the same stage; it does not cover inter-stage activations, controller traffic, or cross-node replication.",
+      "toy_example": "Not a measurement: if stage 0 and stage 1 are placed on different nodes, same-stage KV transfer can be intra-node for each stage while inter-stage pipeline activations still cross nodes.",
+      "conditional_consequence": "If every corresponding prefill/decode segment pair is colocated and only that KV transfer matters, then that transfer can avoid cross-node bandwidth; otherwise cross-node traffic remains possible.",
+      "critical_link": "Stage segmentation and node placement must align exactly for each corresponding layer pair.",
+      "necessary_conditions": [
+        "same inter-op stage segmentation for prefill and decoding instances",
+        "same-stage prefill and decoding segments colocated on one node",
+        "no other cross-node dependencies for the communication being claimed"
+      ],
+      "defeaters": [
+        "different inter-op stage counts or segment mappings",
+        "cross-node pipeline activations or controller traffic",
+        "replication or fault-handling traffic that crosses nodes"
+      ],
+      "do_not_infer": [
+        "no cross-node traffic at all",
+        "no communication overhead",
+        "all intermediate states use NVLINK"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L4+L6",
+      "quotes": [
+        {
+          "quote": "By colocating prefill and decoding segments of the same stage within a single node, we force the transfer of intermediate states to occur only via NVLINK.",
+          "source": "DistServe paper",
+          "locator": "§4.2, p. 8"
+        },
+        {
+          "quote": "Inside a node, we set the same parallelism and resource allocation for segments of the same instance.",
+          "source": "DistServe paper",
+          "locator": "§4.2, p. 8"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§4.2, p. 8",
+          "support_description": "By colocating prefill and decoding segments of the same stage within a single node, we force the transfer of intermediate states to occur only via NVLINK."
+        },
+        {
+          "source_id": "paper",
+          "location": "§4.2, p. 8",
+          "support_description": "Inside a node, we set the same parallelism and resource allocation for segments of the same instance."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "NVLINK is an intra-node interconnect; colocating two endpoints on one node can make their transfer use NVLINK, but other endpoints, pipeline stages, or control traffic may still communicate across nodes. The NVLINK-only benefit is scoped to KV transfer between corresponding layers of the same stage; it does not cover inter-stage activations, controller traffic, or cross-node replication."
+    },
+    {
+      "headline": "Same-stage segment enumeration does not guarantee optimal placement under workload or model changes",
+      "claim": "Algorithm 2's enumeration of inter-op degrees and intra-node configurations does not guarantee optimal placement when workload patterns or model stage structure change.",
+      "paper_fact": "As outlined in Algorithm 2, we begin by enumerating inter-op parallelism degrees to get all the possible instance segments.",
+      "premise": "Enumeration over a restricted search space with a simulator cannot guarantee global optimality under nonstationary workloads or model changes.",
+      "inference": "The placement is optimized for a specific workload pattern and stage structure; periodic replanning mitigates but does not guarantee optimality.",
+      "toy_example": "Not a measurement: a placement tuned for short chatbot prompts may become suboptimal when the workload shifts to long summarization prompts until replanning occurs.",
+      "conditional_consequence": "If workload shifts significantly or inter-op stage count changes, the chosen placement may be suboptimal until replanning; if simulator assumptions hold and workload is stable, the placement can be near-optimal within the enumerated space.",
+      "critical_link": "Simulator accuracy and workload stationarity.",
+      "necessary_conditions": [
+        "predictable workload distribution over the planning horizon",
+        "stable model architecture and inter-op stage count",
+        "simulator approximates the real system",
+        "enumeration covers the relevant feasible configurations"
+      ],
+      "defeaters": [
+        "nonstationary workload faster than replanning",
+        "model architecture or stage-count change",
+        "simulator error",
+        "relevant configurations outside the enumerated space"
+      ],
+      "do_not_infer": [
+        "global optimality",
+        "guaranteed SLO under all workloads",
+        "no need for replanning"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L5+L7",
+      "quotes": [
+        {
+          "quote": "As outlined in Algorithm 2, we begin by enumerating inter-op parallelism degrees to get all the possible instance segments.",
+          "source": "DistServe paper",
+          "locator": "§4.2, p. 8"
+        },
+        {
+          "quote": "The resource and parallelism plan in DistServe is optimized for a specific workload pattern, which may become suboptimal if the workload pattern changes over time.",
+          "source": "DistServe paper",
+          "locator": "§4.3, p. 8"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§4.2, p. 8",
+          "support_description": "As outlined in Algorithm 2, we begin by enumerating inter-op parallelism degrees to get all the possible instance segments."
+        },
+        {
+          "source_id": "paper",
+          "location": "§4.3, p. 8",
+          "support_description": "The resource and parallelism plan in DistServe is optimized for a specific workload pattern, which may become suboptimal if the workload pattern changes over time."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Enumeration over a restricted search space with a simulator cannot guarantee global optimality under nonstationary workloads or model changes. The placement is optimized for a specific workload pattern and stage structure; periodic replanning mitigates but does not guarantee optimality."
+    },
+    {
+      "headline": "Simulator accuracy on resampled historical traces does not guarantee SLO attainment under bursty or non-stationary arrivals.",
+      "claim": "The reported <2% simulator error on resampled historical traces does not establish that simulated SLO attainment remains accurate when arrivals are bursty or the length distribution shifts.",
+      "paper_fact": "We thus resort to building a simulator to estimate the SLO attainment, assuming prior knowledge of the workload’s arrival process and input and output length distributions.",
+      "premise": "SLO attainment is sensitive to arrival burstiness, tail latency, and distribution shift; resampling from historical traces preserves only the fitted distribution, not unobserved bursts or regime changes.",
+      "inference": "The simulator's accuracy claim is conditional on representative, stationary-enough historical traces; under bursty or non-stationary workloads, simulated SLO attainment can diverge from real attainment.",
+      "toy_example": "Toy example, not a measurement: a trace with a 10x burst for 5 minutes may violate SLO even if resampled hourly average says 90%.",
+      "conditional_consequence": "If production traffic has bursts or shifts beyond the fitted history, a placement chosen by simulated goodput may miss the SLO target until replanning or real profiling corrects it.",
+      "critical_link": "The simulator's workload model is fitted and resampled from history, so its SLO estimate inherits the representativeness and stationarity of those traces.",
+      "necessary_conditions": [
+        "Historical request traces are representative of the deployment workload",
+        "Arrival process and input/output length distributions are stable over the planning horizon",
+        "Simulator latency model is calibrated for the target model and hardware"
+      ],
+      "defeaters": [
+        "Periodic replanning detects and corrects workload shifts",
+        "Pull-based KV-cache transfer mitigates burst-induced memory overload",
+        "Bursts are short relative to SLO-attainment measurement window"
+      ],
+      "do_not_infer": [
+        "Do not infer the simulator is inaccurate on the paper's tested traces",
+        "Do not infer DistServe cannot handle any bursty workload",
+        "Do not infer the paper ignores burstiness entirely"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L1+L5",
+      "quotes": [
+        {
+          "quote": "We thus resort to building a simulator to estimate the SLO attainment, assuming prior knowledge of the workload’s arrival process and input and output length distributions.",
+          "source": "paper",
+          "locator": "p.7 §4.1"
+        },
+        {
+          "quote": "DistServe fits a distribution from the history request traces and resamples new traces from the distribution as the input workload to the simulator to compute the SLO attainment.",
+          "source": "paper",
+          "locator": "p.7 §4.1"
+        },
+        {
+          "quote": "The error is less than 2% in all cases, verifying the accuracy of our simulator.",
+          "source": "paper",
+          "locator": "p.12 §6.4"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "author_boundary": "Authors report <2% error for vLLM and DistServe-Low on their testbed and resampled traces; they do not claim accuracy for arbitrary bursty or non-stationary arrivals.",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p.7 §4.1",
+          "support_description": "We thus resort to building a simulator to estimate the SLO attainment, assuming prior knowledge of the workload’s arrival process and input and output length distributions."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.7 §4.1",
+          "support_description": "DistServe fits a distribution from the history request traces and resamples new traces from the distribution as the input workload to the simulator to compute the SLO attainment."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.12 §6.4",
+          "support_description": "The error is less than 2% in all cases, verifying the accuracy of our simulator."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "SLO attainment is sensitive to arrival burstiness, tail latency, and distribution shift; resampling from historical traces preserves only the fitted distribution, not unobserved bursts or regime changes. The simulator's accuracy claim is conditional on representative, stationary-enough historical traces; under bursty or non-stationary workloads, simulated SLO attainment can diverge from real attainment."
+    },
+    {
+      "headline": "Analytical FLOPs/memory latency model calibrated on A100 does not guarantee simulator accuracy on other hardware, kernels, or model families.",
+      "claim": "The reported <2% simulator error on the paper's A100/OPT testbed does not guarantee that the analytical FLOPs/memory latency model remains accurate on other GPUs, kernel implementations, or model families, because its coefficients are fitted to the tested stack.",
+      "paper_fact": "we analyze the FLOPs and the number of memory accesses for prefill and decoding phases respectively, and use a latency model to approximate the inference execution time.",
+      "premise": "Analytical performance models depend on hardware-specific compute and memory characteristics, kernel fusion, and model architecture; fitted coefficients absorb these effects and require recalibration when they change.",
+      "inference": "The simulator's accuracy claim is conditional on the calibrated hardware/software stack; on a different stack, simulated SLO attainment and placement decisions may diverge from real behavior.",
+      "toy_example": "Toy example, not a measurement: coefficients fitted on A100 may not predict an H100 kernel's memory-bound decoding latency.",
+      "conditional_consequence": "If deployed on different hardware or kernels without recalibration, the simulator may misestimate execution time and SLO attainment, leading to suboptimal placement.",
+      "critical_link": "The latency model's coefficients C1-C5 are obtained by profiling and interpolation on the target stack, so accuracy depends on that calibration remaining valid.",
+      "necessary_conditions": [
+        "Coefficients C1-C5 are profiled for the target GPU, model, and kernels",
+        "Workload shapes fall within the calibrated range",
+        "Kernel fusion and memory behavior match the analytical assumptions"
+      ],
+      "defeaters": [
+        "Recalibration on target hardware restores accuracy",
+        "DNN execution predictability holds across the target stack",
+        "Paper's simulator is validated on multiple OPT sizes and workloads"
+      ],
+      "do_not_infer": [
+        "Do not infer the simulator is inaccurate on A100/OPT",
+        "Do not infer the model cannot be ported with recalibration",
+        "Do not infer all non-A100 hardware invalidates the approach"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L3+L5",
+      "quotes": [
+        {
+          "quote": "we analyze the FLOPs and the number of memory accesses for prefill and decoding phases respectively, and use a latency model to approximate the inference execution time.",
+          "source": "paper",
+          "locator": "p.7 §4.1"
+        },
+        {
+          "quote": "Then we use profiling and interpolation to figure out the values of C1, C2, and C3.",
+          "source": "paper",
+          "locator": "p.17 Appendix A.2"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "author_boundary": "Authors report <2% error on their A100/OPT testbed with fitted coefficients; they do not claim coefficient-free accuracy on other hardware or kernels.",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p.7 §4.1",
+          "support_description": "we analyze the FLOPs and the number of memory accesses for prefill and decoding phases respectively, and use a latency model to approximate the inference execution time."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.17 Appendix A.2",
+          "support_description": "Then we use profiling and interpolation to figure out the values of C1, C2, and C3."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Analytical performance models depend on hardware-specific compute and memory characteristics, kernel fusion, and model architecture; fitted coefficients absorb these effects and require recalibration when they change. The simulator's accuracy claim is conditional on the calibrated hardware/software stack; on a different stack, simulated SLO attainment and placement decisions may diverge from real behavior."
+    },
+    {
+      "headline": "FCFS dispatch does not imply or guarantee SLO attainment under bursty mixed workloads",
+      "claim": "DistServe's simple FCFS policy with no preemption can suffer convoy effects and KV-cache memory pressure under burstiness, so SLO attainment is conditional on workload smoothness and request-length mix.",
+      "paper_fact": "In DistServe, the FCFS policy can lead to a “convoy effect”, where longer requests block shorter ones in the prefill stage.",
+      "premise": "Non-preemptive FCFS can cause head-of-line blocking; bursty arrivals increase queueing and memory pressure, and long requests can delay short ones.",
+      "inference": "Simple FCFS dispatch does not by itself guarantee latency SLOs when arrivals are bursty and request lengths are mixed; the paper's own convoy-effect and burstiness discussion identifies conditions where the mechanism can degrade.",
+      "toy_example": "Toy example (not a measurement): a burst of long prompts arrives just before many short prompts; FCFS prefill processing lets the long prompts block the short ones, increasing short-request TTFT.",
+      "conditional_consequence": "If burstiness is high and long requests are frequent, tail latency and decoding-memory overload risk rise; if arrivals are smooth and requests are short or uniform, the risk is lower.",
+      "critical_link": "The critical link is the non-preemptive FCFS ordering combined with bursty arrivals and variable service times.",
+      "necessary_conditions": [
+        "Bursty or clustered request arrivals",
+        "Mixed request lengths with long requests present",
+        "No preemption or priority scheduling in the prefill path"
+      ],
+      "defeaters": [
+        "Smooth Poisson-like arrivals with low burstiness",
+        "Uniform short requests",
+        "Preemption or length-aware scheduling added on top of FCFS",
+        "Sufficient decoding memory and KV-transfer buffering"
+      ],
+      "do_not_infer": [
+        "Do not infer that DistServe fails all bursty workloads.",
+        "Do not infer a measured SLO violation beyond what the paper reports.",
+        "Do not infer that FCFS is the only cause of any SLO miss."
+      ],
+      "author_boundaries": [
+        "Authors explicitly report the FCFS convoy effect and absence of preemption.",
+        "Authors do not claim FCFS guarantees SLO attainment under burstiness; they leave preemption as future work."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L6_shifted_cost_net_benefit+L7_bottleneck_scale_time",
+      "quotes": [
+        {
+          "quote": "In DistServe, the FCFS policy can lead to a “convoy effect”, where longer requests block shorter ones in the prefill stage.",
+          "source": "paper",
+          "locator": "p. 8, §4.3"
+        },
+        {
+          "quote": "DistServe does not implement advanced runtime policies like preemption [26] and fault tolerance [58], which are complementary to disaggregation.",
+          "source": "paper",
+          "locator": "p. 8, §4.3"
+        },
+        {
+          "quote": "Burstiness in workloads can cause a deluge of KV caches to transfer from prefill to decoding instances, risking memory overload on decoding instances.",
+          "source": "paper",
+          "locator": "p. 8, §4.3"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p. 8, §4.3",
+          "support_description": "In DistServe, the FCFS policy can lead to a “convoy effect”, where longer requests block shorter ones in the prefill stage."
+        },
+        {
+          "source_id": "paper",
+          "location": "p. 8, §4.3",
+          "support_description": "DistServe does not implement advanced runtime policies like preemption [26] and fault tolerance [58], which are complementary to disaggregation."
+        },
+        {
+          "source_id": "paper",
+          "location": "p. 8, §4.3",
+          "support_description": "Burstiness in workloads can cause a deluge of KV caches to transfer from prefill to decoding instances, risking memory overload on decoding instances."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Non-preemptive FCFS can cause head-of-line blocking; bursty arrivals increase queueing and memory pressure, and long requests can delay short ones. Simple FCFS dispatch does not by itself guarantee latency SLOs when arrivals are bursty and request lengths are mixed; the paper's own convoy-effect and burstiness discussion identifies conditions where the mechanism can degrade."
+    },
+    {
+      "headline": "Disaggregation does not imply goodput improvement in throughput-optimized or resource-constrained deployments.",
+      "claim": "Disaggregation's goodput benefit is conditional on latency-sensitive SLOs and enough GPUs; it does not imply improvement for offline throughput or single-GPU deployments.",
+      "paper_fact": "In offline applications that are not latency-sensitive, users typically have lower requirements for response time [45]. This allows serving systems to shift focus towards maximizing overall throughput instead of goodput and the effectiveness of DistServe may be compromised.",
+      "premise": "Goodput optimization targets latency SLO attainment; offline throughput may prefer full batches and colocation; separating phases requires multiple GPUs and extra weight copies.",
+      "inference": "The mechanism's advantage is not universal; in those regimes colocated or chunked-prefill systems may be preferable.",
+      "conditional_consequence": "If the workload is offline/throughput-oriented or only one/few GPUs are available, disaggregation may add complexity without goodput gain; condition on SLO sensitivity and GPU count.",
+      "critical_link": "Benefit depends on removing interference that matters for latency SLOs and on having enough resources to allocate separate phase instances.",
+      "necessary_conditions": [
+        "Latency-sensitive TTFT/TPOT SLOs",
+        "Multiple GPUs or instances",
+        "Mixed prefill/decode workload",
+        "Ability to replicate model weights per phase"
+      ],
+      "defeaters": [
+        "Offline throughput target",
+        "Single GPU or very few GPUs",
+        "Resource-constrained deployment",
+        "Simpler colocated system may be preferred",
+        "Paper reports goodput gains in evaluated latency-sensitive settings"
+      ],
+      "do_not_infer": [
+        "Do not infer disaggregation never improves throughput",
+        "Do not infer it is always worse in small clusters",
+        "Do not infer paper's gains apply to offline serving"
+      ],
+      "disclosure": "reported",
+      "category_code": "applicability_limitation",
+      "lens": "L2+L3",
+      "quotes": [
+        {
+          "source": "paper",
+          "locator": "p. 12, §7",
+          "quote": "In offline applications that are not latency-sensitive, users typically have lower requirements for response time [45]. This allows serving systems to shift focus towards maximizing overall throughput instead of goodput and the effectiveness of DistServe may be compromised."
+        },
+        {
+          "source": "paper",
+          "locator": "p. 13, §7",
+          "quote": "In resource-constrained scenarios, such as environments with only a few or even a single GPU, the design space for DistServe is significantly limited."
+        },
+        {
+          "source": "paper",
+          "locator": "p. 13, §7",
+          "quote": "In this case, simpler architectural choices like non-disaggregated systems [3, 32] may reduce deployment complexity and optimize operational efficiency."
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 2,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p. 13, §7",
+          "support_description": "In resource-constrained scenarios, such as environments with only a few or even a single GPU, the design space for DistServe is significantly limited."
+        },
+        {
+          "source_id": "paper",
+          "location": "p. 13, §7",
+          "support_description": "In this case, simpler architectural choices like non-disaggregated systems [3, 32] may reduce deployment complexity and optimize operational efficiency."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Goodput optimization targets latency SLO attainment; offline throughput may prefer full batches and colocation; separating phases requires multiple GPUs and extra weight copies. The mechanism's advantage is not universal; in those regimes colocated or chunked-prefill systems may be preferable."
+    }
+  ],
+  "dropped_for_unverified_quotes": 0,
+  "chunk_count": 7,
+  "chunk_failures": 0,
+  "chunk_timings": [
+    {
+      "seconds": 210.82583705009893,
+      "attempts": 2
+    },
+    {
+      "seconds": 101.5095245318953,
+      "attempts": 1
+    },
+    {
+      "seconds": 213.43373983097263,
+      "attempts": 2
+    },
+    {
+      "seconds": 86.44142765807919,
+      "attempts": 1
+    },
+    {
+      "seconds": 87.84991937200539,
+      "attempts": 1
+    },
+    {
+      "seconds": 101.01654335297644,
+      "attempts": 1
+    },
+    {
+      "seconds": 74.51161842001602,
+      "attempts": 1
+    }
+  ],
+  "inventory_seconds": 197.3717734059319,
+  "chunks_seconds": 311.843465060927,
+  "merged_candidates": 3,
+  "unverified_kept": 0
+}

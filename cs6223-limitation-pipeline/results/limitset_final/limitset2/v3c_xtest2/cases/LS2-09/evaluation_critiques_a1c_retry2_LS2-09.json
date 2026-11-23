@@ -1,0 +1,441 @@
+[
+  {
+    "headline": "Exempting more early layers from Quest does not guarantee proportional end-to-end speedup; it can raise fixed full-KV cost and saturate speedup.",
+    "claim": "Full KV cache in exempt layers imposes a fixed cost, so increasing the number of exempt layers can reduce net speedup even if later-layer self-attention becomes very fast.",
+    "paper_fact": "For the first two layers, the sparsity is below 10%, while for the rest of the layers, the sparsity is larger than 90%, showing great potential for optimization.",
+    "premise": "End-to-end latency includes full KV loads for exempt layers; if many layers are exempt, their full-cache cost remains and can dominate the remaining accelerated layers.",
+    "inference": "More exempt layers may reduce later-layer savings and saturate or reduce end-to-end speedup; the paper reports speedup with two exempt layers but does not sweep the number of exempt layers.",
+    "toy_example": "Toy example (not a measurement): if 8 of 32 layers are exempt, the full-KV cost of those 8 layers remains even if later layers are fast.",
+    "conditional consequence": "If the exemption threshold is increased to k layers, then end-to-end speedup may not scale and may decrease at short contexts unless the fixed full-KV cost is small.",
+    "critical_link": "The paper reports 7.03× self-attention speedup and 2.23× end-to-end speedup with two exempt layers; it does not provide a sweep over the number of exempt layers or a monotonic speedup guarantee.",
+    "necessary_conditions": [
+      "Exempt layers load full KV cache.",
+      "Later-layer attention is the accelerated part.",
+      "End-to-end latency includes both exempt-layer and later-layer costs.",
+      "The number of exempt layers is varied."
+    ],
+    "defeaters": [
+      "Exempt layers are a tiny fraction of total layers.",
+      "Later-layer savings dominate total latency.",
+      "Caching or batching hides the fixed full-KV cost."
+    ],
+    "do_not_infer": [
+      "Do not infer exact speedup at other exemption thresholds.",
+      "Do not infer self-attention speedup equals end-to-end speedup.",
+      "Do not infer the two-layer choice is suboptimal for the paper's setting."
+    ],
+    "author_boundaries": [
+      "Authors report 7.03× self-attention and 2.23× end-to-end speedup with two exempt layers; they do not sweep the number of exempt layers or claim monotonic speedup."
+    ],
+    "inferred_consequences": [
+      "Increasing exempt layers may saturate or reduce net speedup, especially at short context."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L6+L7",
+    "quotes": [
+      {
+        "text": "For the first two layers, the sparsity is below 10%, while for the rest of the layers, the sparsity is larger than 90%, showing great potential for optimization.",
+        "source": "paper",
+        "locator": "p.3 Figure 3 caption"
+      },
+      {
+        "text": "We show that Quest can achieve up to 7.03× self-attention speedup, which reduces inference latency by 2.23× while performing well on tasks with long dependencies with negligible accuracy loss.",
+        "source": "paper",
+        "locator": "p.1 Abstract"
+      },
+      {
+        "text": "At sequence length 32K and token budget 2048, Quest boosts inference speed by 1.74× with FP16 weights and 2.23× with 4-bit quantized weight.",
+        "source": "paper",
+        "locator": "p.8 §4.3.2"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 4,
+    "evidence": [],
+    "quote_verified": false,
+    "mechanism": "End-to-end latency includes full KV loads for exempt layers; if many layers are exempt, their full-cache cost remains and can dominate the remaining accelerated layers. More exempt layers may reduce later-layer savings and saturate or reduce end-to-end speedup; the paper reports speedup with two exempt layers but does not sweep the number of exempt layers."
+  },
+  {
+    "headline": "Fixed Top-K page selection does not guarantee lossless accuracy when the critical set exceeds K pages.",
+    "claim": "Quest's preset Top-K page budget does not guarantee lossless long-context accuracy as sequence length or the number of query-critical pages grows.",
+    "paper_fact": "Given all criticality scores of the pages, Quest chooses Top-K pages to perform approximate self-attention, where K is a preset constant (e.g. 128, 256).",
+    "premise": "A fixed page budget can cover only a bounded number of pages; if a query's critical tokens span more than K pages, some critical pages are excluded.",
+    "inference": "The paper's lossless results at tested budgets and sequence lengths do not establish losslessness for all budgets, lengths, or tasks; K is preset and not adaptively stopped by an accuracy criterion.",
+    "toy_example": "Toy example, not a measurement: with K=2 pages and a query whose critical tokens lie on three pages, one critical page is outside Top-K.",
+    "conditional_consequence": "If a workload has critical pages greater than K, Quest may omit critical KV and accuracy may degrade even while attention latency remains near constant.",
+    "critical_link": "The preset K and fixed page budget are the link between the operational rule and the lossless-accuracy goal.",
+    "necessary_conditions": [
+      "Critical pages for the query are at most K under the page ranking",
+      "Page size and metadata ranking preserve enough critical tokens",
+      "Tested accuracy target is representative of deployment workload"
+    ],
+    "defeaters": [
+      "Adaptive K or accuracy-triggered stopping",
+      "Workloads whose critical set is always within K pages",
+      "Larger page size or K that covers the critical set"
+    ],
+    "do_not_infer": [
+      "Do not infer the paper claims universal lossless accuracy for all K and lengths",
+      "Do not infer Quest always loses accuracy when K is fixed",
+      "Do not infer speedup alone proves accuracy"
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L2+L6",
+    "quotes": [
+      {
+        "text": "Given all criticality scores of the pages, Quest chooses Top-K pages to perform approximate self-attention, where K is a preset constant (e.g. 128, 256).",
+        "source": "paper",
+        "locator": "p.2"
+      },
+      {
+        "text": "By only loading the Top-K critical KV cache pages for attention, Quest significantly speeds up self-attention without sacrificing accuracy.",
+        "source": "paper",
+        "locator": "p.1 abstract"
+      },
+      {
+        "text": "Quest does not discard KV cache but instead uses a query-aware approach to identify critical tokens.",
+        "source": "paper",
+        "locator": "p.6 §4.2.2"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "author_boundaries": [
+      "Paper reports lossless results at tested budgets and tasks; it does not claim universal losslessness for all K, lengths, or workloads.",
+      "K is described as a preset constant, not an adaptive accuracy criterion."
+    ],
+    "inferred_consequences": [
+      "Fixed K can miss critical pages when the critical set exceeds K.",
+      "Lossless results at tested budgets do not transfer to all workloads."
+    ],
+    "evidence": [],
+    "quote_verified": false,
+    "mechanism": "A fixed page budget can cover only a bounded number of pages; if a query's critical tokens span more than K pages, some critical pages are excluded. The paper's lossless results at tested budgets and sequence lengths do not establish losslessness for all budgets, lengths, or tasks; K is preset and not adaptively stopped by an accuracy criterion."
+  },
+  {
+    "headline": "Observed query-dependent sparsity does not guarantee applicability across all layers or models.",
+    "claim": "The empirical layer-wise sparsity profile on LongChat-7B does not guarantee that query-aware page selection is safe or beneficial in all layers or other models without layer-specific exceptions.",
+    "paper_fact": "For the first two layers, the sparsity is below 10%, while for the rest of the layers, the sparsity is larger than 90%, showing great potential for optimization.",
+    "premise": "Layer-wise attention sparsity is model-, data-, and task-dependent; a profile measured on one model does not automatically transfer to other models or layers.",
+    "inference": "The paper's first-two-layer exception is an empirical boundary; if another model has more low-sparsity layers, the same Top-K page selection may need broader exceptions or may lose accuracy or speed.",
+    "conditional_consequence": "If query-dependent sparsity weakens in early or additional layers, the net speedup threshold rises and accuracy may require skipping more layers.",
+    "critical_link": "The measured sparsity profile is the link between the query-aware mechanism and its claimed applicability.",
+    "necessary_conditions": [
+      "Target model and layers exhibit similar high sparsity outside skipped layers",
+      "Task and data distribution match profiling conditions",
+      "Page selection overhead remains below full-cache load"
+    ],
+    "defeaters": [
+      "Adaptive per-layer sparsity detection",
+      "Other models with high sparsity in all layers",
+      "Tasks where early layers are not critical"
+    ],
+    "do_not_infer": [
+      "Do not infer Quest fails on all models or layers",
+      "Do not infer the paper claims universal layer-wise sparsity",
+      "Do not infer skipping first two layers is part of the core selection algorithm"
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "applicability_limitation",
+    "lens": "L5+L7",
+    "quotes": [
+      {
+        "text": "For the first two layers, the sparsity is below 10%, while for the rest of the layers, the sparsity is larger than 90%, showing great potential for optimization.",
+        "source": "paper",
+        "locator": "p.3 Fig. 3 caption"
+      },
+      {
+        "text": "Due to the low sparsity ratio for the first two layers (as shown in Fig. 3), we only apply Quest and all baselines on later layers to better preserve model accuracy.",
+        "source": "paper",
+        "locator": "p.4 §3.4"
+      },
+      {
+        "text": "Note that whether to skip the first two layers or not is orthogonal to the KV cache selection algorithm.",
+        "source": "paper",
+        "locator": "p.4 §3.4"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "author_boundaries": [
+      "Paper reports layer sparsity on LongChat-7B and skips first two layers in experiments.",
+      "Paper says skipping first two layers is orthogonal to the selection algorithm, not a universal model requirement."
+    ],
+    "inferred_consequences": [
+      "Other models may need different layer exceptions.",
+      "Net speedup threshold rises if more layers have low sparsity."
+    ],
+    "evidence": [],
+    "quote_verified": false,
+    "mechanism": "Layer-wise attention sparsity is model-, data-, and task-dependent; a profile measured on one model does not automatically transfer to other models or layers. The paper's first-two-layer exception is an empirical boundary; if another model has more low-sparsity layers, the same Top-K page selection may need broader exceptions or may lose accuracy or speed."
+  },
+  {
+    "headline": "Memory-load reduction does not imply end-to-end latency reduction.",
+    "claim": "Quest's page-granular sparse loading reduces KV bytes moved, but end-to-end latency also includes criticality estimation, Top-K filtering, approximate attention, and non-attention decode work; the reported speedups are configuration-specific.",
+    "paper_fact": "At sequence length 32K and token budget 2048, Quest boosts inference speed by 1.74× with FP16 weights and 2.23× with 4-bit quantized weight.",
+    "premise": "Amdahl's law: reducing one component's memory traffic does not guarantee proportional end-to-end speedup; overheads and other bottlenecks matter.",
+    "inference": "The 8× memory-load example and 7.03× self-attention speedup do not guarantee 8× or 7.03× end-to-end latency; net benefit depends on context length, token budget, hardware, and quantization.",
+    "conditional_consequence": "At short sequence lengths, estimation overhead can reduce net benefit; at long contexts sparse attention may dominate; with different hardware or batch size, speedup may differ.",
+    "critical_link": "The paper's efficiency evaluation uses specific sequence lengths, token budgets, GPUs, and FlashInfer; it reports measured speedups, not a universal latency guarantee.",
+    "necessary_conditions": [
+      "Context is long enough for sparse attention to dominate overhead.",
+      "Criticality estimation and Top-K filtering overhead remain small.",
+      "The decode stage is memory-bound and kernel support is available."
+    ],
+    "defeaters": [
+      "End-to-end measurements across all contexts showing proportional speedup.",
+      "Evidence that estimation and Top-K overhead are negligible in all settings.",
+      "A workload where other decode bottlenecks are absent."
+    ],
+    "do_not_infer": [
+      "Quest never speeds up inference.",
+      "Memory-load reduction is useless.",
+      "The paper's reported speedups are false."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "applicability_limitation",
+    "lens": "L7",
+    "quotes": [
+      {
+        "text": "At sequence length 32K and token budget 2048, Quest boosts inference speed by 1.74× with FP16 weights and 2.23× with 4-bit quantized weight.",
+        "source": "paper",
+        "locator": "p.8 §4.3.2"
+      },
+      {
+        "text": "At short sequence length, the memory bandwidth utilization of estimation is smaller than that of FlashInfer, as the total memory load size is not enough to fully utilize GPU memory bandwidth.",
+        "source": "paper",
+        "locator": "p.7 §4.3.1"
+      },
+      {
+        "text": "The top-K operator incurs negligible memory loading and execution time (5-10 us). Therefore, we do not include it in efficiency analysis.",
+        "source": "paper",
+        "locator": "p.5 §3.5 footnote"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "author_boundaries": [
+      "The authors report measured self-attention and end-to-end speedups on specified hardware and configurations; they do not claim that memory-load reduction alone guarantees proportional end-to-end latency reduction."
+    ],
+    "inferred_consequences": [
+      "Speedup claims should be read as workload- and hardware-specific.",
+      "Short-context and overhead-dominated regimes may see smaller net gains than long-context memory-bound regimes."
+    ],
+    "evidence": [],
+    "quote_verified": false,
+    "mechanism": "Amdahl's law: reducing one component's memory traffic does not guarantee proportional end-to-end speedup; overheads and other bottlenecks matter. The 8× memory-load example and 7.03× self-attention speedup do not guarantee 8× or 7.03× end-to-end latency; net benefit depends on context length, token budget, hardware, and quantization."
+  },
+  {
+    "headline": "Quest's upper-bound selection does not guarantee accuracy when applied uniformly across layers.",
+    "claim": "The mechanism's reported accuracy is conditional on not applying Quest to the first two layers; the bound alone does not guarantee that a small Top-K page budget preserves early-layer attention.",
+    "paper_fact": "Due to the low sparsity ratio for the first two layers (as shown in Fig. 3), we only apply Quest and all baselines on later layers to better preserve model accuracy.",
+    "premise": "If early layers need a much larger fraction of tokens to preserve perplexity, a fixed small page budget selected by an upper bound can omit tokens that matter; low sparsity means many critical tokens.",
+    "inference": "The reported near-lossless results do not establish that the same Top-K bound works for early layers; layer-selective application is part of the evaluated configuration.",
+    "toy_example": "Toy example (not a measurement): if an early layer needs 50% of tokens for the same perplexity, a 1% page budget chosen by a loose bound may omit needed tokens even if later layers need less than 10%.",
+    "conditional_consequence": "If Quest is applied to early layers with a small K, then accuracy may degrade unless K is increased or those layers use full attention.",
+    "critical_link": "The paper's own sparsity analysis shows below 10% sparsity in the first two layers versus above 90% later; Quest's Top-K page selection assumes few critical pages, which is weaker in early layers.",
+    "necessary_conditions": [
+      "Apply only to later layers or increase K for early layers.",
+      "Early-layer sparsity is high enough for page selection to preserve needed tokens.",
+      "The bound is tight enough for the early-layer query/key distribution."
+    ],
+    "defeaters": [
+      "If K is large enough for early layers, accuracy may hold.",
+      "If a different model has different layer sparsity, the boundary may shift.",
+      "If first two layers are handled by full attention as in the paper, the reported configuration is preserved.",
+      "The claim is about uniform application, not the paper's evaluated setup."
+    ],
+    "do_not_infer": [
+      "Do not infer that skipping the first two layers is invalid or hidden.",
+      "Do not infer that Quest cannot be applied to early layers with larger K.",
+      "Do not infer that all layers have the same sparsity.",
+      "Do not infer that the reported results are false."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "applicability_limitation",
+    "lens": "L5",
+    "quotes": [
+      {
+        "text": "Due to the low sparsity ratio for the first two layers (as shown in Fig. 3), we only apply Quest and all baselines on later layers to better preserve model accuracy.",
+        "source": "paper",
+        "locator": "p.4 §3.4"
+      },
+      {
+        "text": "For the first two layers, the sparsity is below 10%, while for the rest of the layers, the sparsity is larger than 90%, showing great potential for optimization.",
+        "source": "paper",
+        "locator": "p.3 Figure 3 caption"
+      },
+      {
+        "text": "Note that whether to skip the first two layers or not is orthogonal to the KV cache selection algorithm.",
+        "source": "paper",
+        "locator": "p.4 §3.4"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "evidence": [],
+    "quote_verified": false,
+    "mechanism": "If early layers need a much larger fraction of tokens to preserve perplexity, a fixed small page budget selected by an upper bound can omit tokens that matter; low sparsity means many critical tokens. The reported near-lossless results do not establish that the same Top-K bound works for early layers; layer-selective application is part of the evaluated configuration."
+  },
+  {
+    "headline": "Reported lossless accuracy on six LongBench datasets does not guarantee lossless accuracy for arbitrary long-context workloads or when the first two layers are sparsified.",
+    "claim": "Quest's reported lossless accuracy on six LongBench datasets is conditional on full-cache first two layers and dataset-specific token budgets; it does not establish that Top-K page filtering alone is lossless for arbitrary long-context workloads or all layers.",
+    "paper_fact": "Note that we do not apply any Quest and other baseline algorithms to the first two layers of the model, as our analysis in Sec 3.4 indicates a low sparsity ratio for these layers.",
+    "premise": "A hybrid method that leaves some layers dense can preserve accuracy that the sparse mechanism alone would not; benchmark-specific budgets are not universal constants.",
+    "inference": "Therefore, the reported lossless result does not transfer automatically to settings that sparsify the first two layers or use a different task's critical set.",
+    "toy_example": "Toy example (not a measurement): A task whose answer depends on a token in layer 1 may be preserved by full-cache first two layers even if later-layer Top-K would omit it.",
+    "conditional consequence": "If the first two layers are also filtered or a new task needs more critical pages than the chosen budget, accuracy may drop even though the same Top-K mechanism is used.",
+    "critical_link": "The link is the full-cache first two layers and per-dataset lossless budgets versus the claim that the Top-K mechanism alone guarantees lossless accuracy.",
+    "necessary_conditions": [
+      "first two layers use full KV cache",
+      "the token budget is set per dataset to a lossless level",
+      "the workload resembles the six evaluated LongBench tasks"
+    ],
+    "defeaters": [
+      "first two layers are also sparse but accuracy remains",
+      "budget is large enough for the new task",
+      "task has only local dependencies"
+    ],
+    "do_not_infer": [
+      "Do not infer that the reported lossless budgets are universal constants.",
+      "Do not infer that Quest alone, without full-cache first two layers, is lossless on all tasks.",
+      "Do not infer that the six LongBench datasets cover all long-context workloads."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "applicability_limitation",
+    "lens": "L2+L5",
+    "quotes": [
+      {
+        "text": "Note that we do not apply any Quest and other baseline algorithms to the first two layers of the model, as our analysis in Sec 3.4 indicates a low sparsity ratio for these layers.",
+        "source": "paper",
+        "locator": "p.5 §4.1"
+      },
+      {
+        "text": "After considering the full cache used in the first two layers, Quest can achieve lossless performance on Qasper, HotpotQA, GovReport, TriviaQA, NarrativeQA, and MultifieldQA with KV cache sparsity of 1/6, 1/6, 1/5, 1/10, 1/5, and 1/6, respectively.",
+        "source": "paper",
+        "locator": "p.6 §4.2.3"
+      },
+      {
+        "text": "For the first two layers, the sparsity is below 10%, while for the rest of the layers, the sparsity is larger than 90%, showing great potential for optimization.",
+        "source": "paper",
+        "locator": "p.3 Fig. 3 caption"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "evidence": [],
+    "quote_verified": false,
+    "mechanism": "A hybrid method that leaves some layers dense can preserve accuracy that the sparse mechanism alone would not; benchmark-specific budgets are not universal constants. Therefore, the reported lossless result does not transfer automatically to settings that sparsify the first two layers or use a different task's critical set."
+  },
+  {
+    "headline": "A preset Top-K page budget does not guarantee an accuracy target.",
+    "claim": "Quest chooses a preset constant K pages for sparse attention; the paper reports lossless performance on six LongBench datasets with specific sparsity ratios, but K is not tied to an accuracy target and may need per-model, per-task, or per-context calibration.",
+    "paper_fact": "Given all criticality scores of the pages, Quest chooses Top-K pages to perform approximate self-attention, where K is a preset constant (e.g. 128, 256).",
+    "premise": "A fixed token/page budget cannot adapt to task-specific attention sparsity; an accuracy target requires calibration or validation.",
+    "inference": "The preset K is not an accuracy guarantee; the reported lossless budgets on six LongBench datasets do not imply the same K is lossless for other models, tasks, or contexts.",
+    "toy_example": "Toy example (not a measurement): if a task's critical tokens are spread over 100 pages but K=64, the method loads 64 pages and can miss 36 pages of critical tokens; the preset K does not adapt.",
+    "conditional_consequence": "If a task needs more critical tokens than K pages cover, then accuracy can drop even though K is preset and the method still runs.",
+    "critical_link": "Objective mismatch: fixed Top-K optimizes memory movement, not an accuracy target.",
+    "necessary_conditions": [
+      "K calibrated per model/task/context to meet accuracy target",
+      "Critical tokens fit within K pages",
+      "First two layers full cache as in paper",
+      "Evaluation tasks representative of deployment"
+    ],
+    "defeaters": [
+      "Adaptive K or accuracy-targeted stopping rule",
+      "Per-task calibration showing same K works",
+      "Tasks with attention concentrated in fewer than K pages",
+      "Reported lossless results on the exact deployment distribution"
+    ],
+    "do_not_infer": [
+      "Do not infer Quest is always lossless; lossless is reported for specific datasets and budgets.",
+      "Do not infer K=1K is universal; the paper uses different sparsity ratios per dataset.",
+      "Do not infer the authors claim a fixed K guarantees an accuracy target.",
+      "Do not infer no tuning is needed for new models or tasks."
+    ],
+    "author_boundaries": [
+      "Authors report lossless performance on six LongBench datasets with specific sparsity ratios; they do not claim universal lossless K.",
+      "Authors use full cache in the first two layers."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L2+L4",
+    "quotes": [
+      {
+        "text": "Given all criticality scores of the pages, Quest chooses Top-K pages to perform approximate self-attention, where K is a preset constant (e.g. 128, 256).",
+        "source": "paper",
+        "locator": "p.2"
+      },
+      {
+        "text": "After considering the full cache used in the first two layers, Quest can achieve lossless performance on Qasper, HotpotQA, GovReport, TriviaQA, NarrativeQA, and MultifieldQA with KV cache sparsity of 1/6, 1/6, 1/5, 1/10, 1/5, and 1/6, respectively.",
+        "source": "paper",
+        "locator": "p.6 §4.2.3"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "evidence": [],
+    "quote_verified": false,
+    "mechanism": "A fixed token/page budget cannot adapt to task-specific attention sparsity; an accuracy target requires calibration or validation. The preset K is not an accuracy guarantee; the reported lossless budgets on six LongBench datasets do not imply the same K is lossless for other models, tasks, or contexts."
+  },
+  {
+    "headline": "Perfect passkey retrieval does not imply or guarantee general long-dependency accuracy.",
+    "claim": "Quest's perfect passkey accuracy at 10k and 100k lengths is evidence for single-needle retrieval, but it does not establish that page-level query-aware selection preserves all long-dependency reasoning tasks.",
+    "paper_fact": "Quest can achieve perfect accuracy with a minimal budget both on 10k and 100k sequence length tests.",
+    "premise": "Passkey retrieval is a synthetic single-fact task; general long-dependency tasks include multi-hop, aggregation, and distributed evidence; finite LongBench coverage is not universal.",
+    "inference": "Therefore perfect passkey accuracy should not be generalized to all long-dependency tasks; tasks requiring multiple separated pages may need larger budgets or different selection.",
+    "toy_example": "Toy example (not a measurement): a multi-hop question needs two facts in different pages; top-K may include one fact page and miss the other even if a single passkey is retrieved perfectly.",
+    "conditional_consequence": "If a task requires evidence spread across more pages than the budget, then Quest's page-level top-K can miss critical evidence and lose accuracy.",
+    "critical_link": "The critical link is benchmark coverage: passkey success tests one retrieval pattern, not the full space of long-dependency reasoning.",
+    "necessary_conditions": [
+      "Passkey task is single-needle retrieval",
+      "LongBench tasks are a finite sample",
+      "Quest uses page-level top-K",
+      "Accuracy is measured with simulated decoding"
+    ],
+    "defeaters": [
+      "Broader evaluation shows same perfect accuracy on multi-hop tasks",
+      "Task evidence is concentrated in one page",
+      "Budget is large enough to include all relevant pages"
+    ],
+    "do_not_infer": [
+      "Quest fails all long-dependency tasks",
+      "Quest guarantees perfect accuracy universally",
+      "Passkey result is invalid"
+    ],
+    "disclosure": "reported",
+    "category_code": "method_shortcoming",
+    "lens": "external validity of long-dependency benchmarks",
+    "quotes": [
+      {
+        "text": "Quest can achieve perfect accuracy with a minimal budget both on 10k and 100k sequence length tests.",
+        "source": "paper",
+        "locator": "p.6 §4.2.2"
+      },
+      {
+        "text": "Quest with a budget of 1K tokens can achieve comparable performance as the model with full KV cache",
+        "source": "paper",
+        "locator": "p.6 §4.2.3"
+      },
+      {
+        "text": "For all datasets, we split the input into material and question/instruction.",
+        "source": "paper",
+        "locator": "p.6 §4.2.3"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "author_boundaries": [
+      "Authors report passkey and LongBench results; they do not claim universal long-dependency accuracy."
+    ],
+    "inferred_consequences": [
+      "Passkey success should not be generalized to all long-dependency tasks; multi-hop or aggregation may need larger budgets or different selection."
+    ],
+    "evidence": [],
+    "quote_verified": false,
+    "mechanism": "Passkey retrieval is a synthetic single-fact task; general long-dependency tasks include multi-hop, aggregation, and distributed evidence; finite LongBench coverage is not universal. Therefore perfect passkey accuracy should not be generalized to all long-dependency tasks; tasks requiring multiple separated pages may need larger budgets or different selection."
+  }
+]

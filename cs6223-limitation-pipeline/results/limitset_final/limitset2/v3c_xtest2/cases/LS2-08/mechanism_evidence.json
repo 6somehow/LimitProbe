@@ -1,0 +1,1086 @@
+{
+  "candidates": [
+    {
+      "headline": "Attention sparsity does not imply or guarantee that a 5% KV cache preserves the same output token.",
+      "claim": "The observation that attention matrices are over 95% sparse under a 1%-of-row-max threshold does not imply or guarantee that retaining only 5% of KV entries preserves the same output token at each decoding step.",
+      "paper_fact": "only 5% of the KV cache is sufficient for decoding the same output token at each generation step",
+      "premise": "A thresholded attention row can be sparse while the small entries below threshold still contribute to softmax normalization and downstream logits; cache sufficiency requires preserving the computation's effect, not just the count of entries above a threshold.",
+      "inference": "The reported sparsity and 5% statement are empirical proxies; they do not by themselves guarantee that a 5% cache preserves the same output token for all steps, layers, and selection policies.",
+      "toy_example": "Toy example, not a measurement: a 100-entry attention row with 96 entries below 1% of the row max but whose combined mass is 20% of the softmax; dropping them changes normalization.",
+      "conditional_consequence": "If omitted entries carry non-negligible aggregate attention mass or interact with later layers, a 5% cache can change outputs even when measured sparsity exceeds 95%.",
+      "critical_link": "Sparsity fraction under a threshold -> sufficiency of a 5% KV cache for identical decoding.",
+      "necessary_conditions": [
+        "Omitted attention entries have negligible aggregate effect on softmax and downstream logits",
+        "Selection policy identifies output-relevant entries",
+        "Sparsity and selection are stable across decoding steps, layers, and heads",
+        "Evaluation checks output equivalence or task accuracy under the same budget"
+      ],
+      "defeaters": [
+        "Formal proof that any 5% selection preserving top attention mass yields identical outputs",
+        "Empirical output-equivalence across tasks and models",
+        "Evidence omitted mass is negligible in aggregate"
+      ],
+      "do_not_infer": [
+        "Do not infer that >95% sparsity guarantees 5% cache preserves accuracy",
+        "Do not infer that thresholded sparsity equals cache sufficiency",
+        "Do not infer that arbitrary 5% selection is safe"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1",
+      "quotes": [
+        {
+          "text": "only 5% of the KV cache is sufficient for decoding the same output token at each generation step",
+          "source": "paper p2",
+          "locator": "Section 1, page 2"
+        },
+        {
+          "text": "even when trained densely, the attention matrices of LLMs are over 95% sparse at inference time",
+          "source": "paper p2",
+          "locator": "Section 1, page 2"
+        },
+        {
+          "text": "we set the threshold as one percent of the maximum value in each row and calculates the corresponding sparsity",
+          "source": "paper p4",
+          "locator": "Section 3.1, page 4"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "author_boundaries": [
+        "Authors report empirical sparsity and state 5% sufficiency; their formal guarantee is for greedy H2 under submodular assumptions, not for arbitrary 5% selection."
+      ],
+      "inferred_consequences": [
+        "A 5% budget may change outputs if omitted attention mass matters.",
+        "Sparsity alone is not a formal cache-sufficiency certificate."
+      ],
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A thresholded attention row can be sparse while the small entries below threshold still contribute to softmax normalization and downstream logits; cache sufficiency requires preserving the computation's effect, not just the count of entries above a threshold. The reported sparsity and 5% statement are empirical proxies; they do not by themselves guarantee that a 5% cache preserves the same output token for all steps, layers, and selection policies."
+    },
+    {
+      "headline": "Correlation with co-occurrence does not imply or guarantee that co-occurrence causes H2 or that H2 positions are stable.",
+      "claim": "The reported correlation between accumulated attention and frequent co-occurrence does not establish a causal origin for H2 or stability of H2 positions across domains or training checkpoints.",
+      "paper_fact": "emergence of H2 is natural and strongly correlates with the frequent co-occurrence of tokens in the text",
+      "premise": "Correlation between attention scores and corpus co-occurrence can arise from token frequency, position, or training-data artifacts; it does not identify a causal mechanism or guarantee stability under distribution shift.",
+      "inference": "The authors report correlation and note many H2 at sentence beginnings; they do not show that manipulating co-occurrence changes H2, nor do they report attention-H2 stability across domains or training checkpoints (the early-bird result is for MLP H2).",
+      "toy_example": "Not a measurement: a frequent phrase may co-occur often and also appear at sentence starts; either factor could drive high accumulated attention without co-occurrence causing the score.",
+      "conditional_consequence": "If H2 positions drift with domain or training, then fixed H2 assumptions or precomputed H2 may fail; dynamic H2O may adapt but its score-maintenance cost and stability assumptions still matter.",
+      "critical_link": "Evidence needed is an intervention on co-occurrence or position, plus cross-domain and checkpoint stability measurements for attention H2.",
+      "necessary_conditions": [
+        "multiple domains or training checkpoints",
+        "controls for token frequency and sentence position",
+        "intervention or manipulation of co-occurrence",
+        "attention-H2 positions measured separately from MLP H2"
+      ],
+      "defeaters": [
+        "attention H2 positions are stable across domains and checkpoints",
+        "co-occurrence manipulation changes H2",
+        "position and frequency controls explain the correlation"
+      ],
+      "do_not_infer": [
+        "do not infer co-occurrence is irrelevant",
+        "do not infer H2O fails",
+        "do not infer H2 is merely token frequency",
+        "do not infer the authors claim a causal origin"
+      ],
+      "author_boundaries": [
+        "Authors report a strong correlation",
+        "Authors note many H2 at sentence beginnings",
+        "Authors report early-bird behavior for MLP H2, not attention H2"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "mechanism_origin_unclear",
+      "lens": "L5",
+      "quotes": [
+        {
+          "text": "emergence of H2 is natural and strongly correlates with the frequent co-occurrence of tokens in the text",
+          "source": "paper p1"
+        },
+        {
+          "text": "significant proportion of H2 occurrences at the beginning of sentences",
+          "source": "paper p21"
+        },
+        {
+          "text": "The emergence of H2 occurs early in the training process, thus exhibiting an \"early-bird\" characteristic, and their positions undergo gradual changes during subsequent training phases.",
+          "source": "paper p27"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Correlation between attention scores and corpus co-occurrence can arise from token frequency, position, or training-data artifacts; it does not identify a causal mechanism or guarantee stability under distribution shift. The authors report correlation and note many H2 at sentence beginnings; they do not show that manipulating co-occurrence changes H2, nor do they report attention-H2 stability across domains or training checkpoints (the early-bird result is for MLP H2)."
+    },
+    {
+      "headline": "Accumulated attention scores favoring older tokens conflicts with unbiased recency-sensitive eviction.",
+      "claim": "The paper's local accumulated score can bias retention toward least recent tokens; equal effectiveness does not guarantee unbiased selection.",
+      "paper_fact": "employing the accumulated attention score to evict KV embeddings can lead to a potential bias favoring the least recent tokens. This bias arises because most previous tokens have a higher number of attention scores, resulting in a higher accumulated attention score and, consequently, a greater likelihood of being retained.",
+      "premise": "Cumulative sums grow with token age, so an old token can accumulate score from many past steps even when its current relevance is low.",
+      "inference": "Without a recency correction, local H2 selection may retain stale tokens and evict recent tokens that are critical for the next decoding step.",
+      "conditional_consequence": "If recent tokens are critical and the H2 budget is small, the age bias may hurt generation quality despite low-cost local scoring.",
+      "critical_link": "The bias must be material and not fully mitigated by the paper's separate recent-token cache component.",
+      "necessary_conditions": [
+        "The eviction score is a cumulative sum over past attention.",
+        "Generation is long enough for age-based accumulation to matter.",
+        "Recent tokens can be critical for future decoding."
+      ],
+      "defeaters": [
+        "The paper explicitly keeps recent KV embeddings alongside H2.",
+        "The paper reports that an averaged-score alternative degraded performance.",
+        "Reported benchmarks show H2O matching full-cache performance in many settings."
+      ],
+      "do_not_infer": [
+        "Do not infer that the paper ignored recency; it combines H2 with recent tokens.",
+        "Do not infer that the bias caused failures in the reported benchmarks.",
+        "Do not infer that cumulative scoring is invalid in all settings."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L7",
+      "quotes": [
+        {
+          "text": "employing the accumulated attention score to evict KV embeddings can lead to a potential bias favoring the least recent tokens. This bias arises because most previous tokens have a higher number of attention scores, resulting in a higher accumulated attention score and, consequently, a greater likelihood of being retained.",
+          "source": "paper",
+          "locator": "p21"
+        },
+        {
+          "text": "we always maintain a list of KV cache with the first K entries as heavy hitters, and the last K entries as most recent tokens",
+          "source": "paper",
+          "locator": "p20"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "author_boundaries": [
+        "Authors acknowledge the age bias explicitly.",
+        "Authors mitigate it by retaining recent tokens.",
+        "Authors do not claim the cumulative score is unbiased."
+      ],
+      "inferred_consequences": [
+        "Age bias may interact with cache budget and task length.",
+        "The recent-token component is part of the mechanism, not an optional add-on."
+      ],
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Cumulative sums grow with token age, so an old token can accumulate score from many past steps even when its current relevance is low. Without a recency correction, local H2 selection may retain stale tokens and evict recent tokens that are critical for the next decoding step."
+    },
+    {
+      "headline": "An assumed submodular attention scheme does not imply or guarantee that actual attention is submodular.",
+      "claim": "The paper's near-optimality result is conditional on an assumption that attention is submodular; it does not prove this property for actual attention.",
+      "paper_fact": "assuming the attention scheme is submodular, H2 corresponds to a greedy algorithm and is therefore near-optimal.",
+      "premise": "A conditional theorem is only as strong as its assumptions; an unproved structural assumption can fail on real data.",
+      "inference": "The guarantee may not transfer to models or layers where attention violates diminishing returns, because submodularity is assumed rather than established.",
+      "toy_example": "Toy example (not a measurement): a set function with increasing returns on one layer would violate submodularity and break the assumed diminishing-returns premise.",
+      "conditional_consequence": "If attention violates diminishing returns, then the (1−1/e)-style approximation factor may not apply.",
+      "critical_link": "Validity of the submodularity/diminishing-returns assumption for attention.",
+      "necessary_conditions": [
+        "attention scheme satisfies submodularity/diminishing returns",
+        "dynamic submodular conditions hold across decoding steps",
+        "monotonicity/approximation conditions used in the proof hold"
+      ],
+      "defeaters": [
+        "a proof that attention is submodular for the tested models",
+        "empirical tests showing diminishing returns hold",
+        "a guarantee robust to submodularity violations"
+      ],
+      "do_not_infer": [
+        "do not infer attention is non-submodular",
+        "do not infer the theorem is false",
+        "do not infer the assumption is unreasonable"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "mechanism_origin_unclear",
+      "lens": "L5",
+      "quotes": [
+        {
+          "text": "assuming the attention scheme is submodular, H2 corresponds to a greedy algorithm and is therefore near-optimal.",
+          "source": "paper p3",
+          "locator": "Section 3 bullet"
+        },
+        {
+          "text": "We formulate the KV cache eviction as a dynamic submodular problem and prove (under mild assumptions) a theoretical guarantee",
+          "source": "paper p1",
+          "locator": "Abstract"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "author_boundaries": [
+        "Authors state the near-optimality is under the assumption that attention is submodular.",
+        "Authors do not claim in the shown main text to prove submodularity of attention."
+      ],
+      "inferred_consequences": [
+        "The guarantee's scope is conditional on an unverified structural property.",
+        "Violations would require separate analysis."
+      ],
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A conditional theorem is only as strong as its assumptions; an unproved structural assumption can fail on real data. The guarantee may not transfer to models or layers where attention violates diminishing returns, because submodularity is assumed rather than established."
+    },
+    {
+      "headline": "Preallocating KV cache does not imply or guarantee net memory savings",
+      "claim": "Preallocating KV cache for a fixed budget does not by itself guarantee that the realized memory footprint falls proportionally with the cache budget.",
+      "paper_fact": "memory for KV cache is preallocated. We use a circular queue to update the last K entries efficiently.",
+      "premise": "Preallocation reserves capacity up front; if the reserved capacity is sized to the maximum budget or is not fully occupied, resident memory can exceed the active KV entries.",
+      "inference": "A 20% KV-cache budget may not translate to a 20% net memory reduction unless preallocation is exactly sized and fully used, so the implementation detail alone does not establish proportional memory savings.",
+      "toy_example": "Toy example (not a measurement): reserving 20 slots but using 5 leaves 15 idle slots still allocated.",
+      "conditional_consequence": "If preallocation over-reserves per layer/head or allocator fragmentation is significant, then net memory saving may be less than the nominal budget reduction suggests.",
+      "critical_link": "The preallocated size must equal the active budget and allocator overhead must be small for the budget fraction to bound resident memory.",
+      "necessary_conditions": [
+        "Preallocation is sized to the active K budget, not a larger maximum",
+        "Allocator and fragmentation overhead are small",
+        "The measured memory metric counts reserved but unused cache memory"
+      ],
+      "defeaters": [
+        "Measured memory reduction matches the budget fraction",
+        "Preallocation is only for the active cache and unused slots are released",
+        "The claim is about peak reserved memory rather than active KV entries"
+      ],
+      "do_not_infer": [
+        "Do not infer that the authors claim preallocation alone guarantees proportional memory savings",
+        "Do not infer that a 20% cache budget equals a 20% total GPU-memory reduction",
+        "Do not infer that preallocation is wasteful in the tested implementation"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L6",
+      "quotes": [
+        {
+          "text": "memory for KV cache is preallocated. We use a circular queue to update the last K entries efficiently.",
+          "source": "paper p20",
+          "locator": "Appendix A System Details"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "author_boundary": "Authors report preallocation and circular-queue implementation; they do not claim preallocation alone guarantees proportional memory savings.",
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Preallocation reserves capacity up front; if the reserved capacity is sized to the maximum budget or is not fully occupied, resident memory can exceed the active KV entries. A 20% KV-cache budget may not translate to a 20% net memory reduction unless preallocation is exactly sized and fully used, so the implementation detail alone does not establish proportional memory savings."
+    },
+    {
+      "headline": "Accumulated-attention heavy-hitter selection does not guarantee an unbiased or task-optimal cache",
+      "claim": "The H2 selection via accumulated attention can favor early or least-recent tokens; the fixed split does not correct this bias, and the paper does not quantify its accuracy impact.",
+      "paper_fact": "employing the accumulated attention score to evict KV embeddings can lead to a potential bias favoring the least recent tokens. This bias arises because most previous tokens have a higher number of attention scores, resulting in a higher accumulated attention score and, consequently, a greater likelihood of being retained.",
+      "premise": "Cumulative attention scores are age-dependent; older tokens accumulate more scores, so a fixed H2 slot allocation can retain early tokens even when later tokens are more task-relevant.",
+      "inference": "Therefore, H2 slots may be biased toward early tokens, and the fixed split does not by itself ensure the retained heavy hitters are the most useful for the current task.",
+      "conditional_consequence": "If accumulated attention is used over long generations, then early tokens may occupy H2 slots, potentially reducing cache utility for later task-relevant tokens.",
+      "critical_link": "The paper reports the bias and early-token H2 concentration, but does not show that this bias causes accuracy loss under the fixed split; the inference is a design limitation, not a measured failure.",
+      "necessary_conditions": [
+        "Accumulated attention score is used for H2 selection.",
+        "Generation is long enough for age bias to matter.",
+        "Early tokens are not always the most task-relevant.",
+        "Fixed H2 slots cannot be reallocated."
+      ],
+      "defeaters": [
+        "Averaged attention was tried but degraded performance.",
+        "Early tokens may be genuinely important, e.g., attention sinks.",
+        "Bias may not affect final accuracy.",
+        "Paper does not quantify bias impact."
+      ],
+      "do_not_infer": [
+        "Do not infer the paper's H2 selection is invalid.",
+        "Do not infer early tokens are unimportant.",
+        "Do not infer the fixed split causes accuracy loss.",
+        "Do not infer the bias was measured as harmful.",
+        "Author boundary: the paper reports a potential bias and early H2 concentration, not a controlled accuracy ablation of that bias."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L4",
+      "quotes": [
+        {
+          "text": "employing the accumulated attention score to evict KV embeddings can lead to a potential bias favoring the least recent tokens. This bias arises because most previous tokens have a higher number of attention scores, resulting in a higher accumulated attention score and, consequently, a greater likelihood of being retained.",
+          "source": "paper",
+          "locator": "p21"
+        },
+        {
+          "text": "we observed a significant proportion of H2 occurrences at the beginning of sentences. This finding suggests that the initial tokens play a substantial role in subsequent generation tasks.",
+          "source": "paper",
+          "locator": "p21"
+        },
+        {
+          "text": "we always maintain a list of KV cache with the first K entries as heavy hitters, and the last K entries as most recent tokens",
+          "source": "paper",
+          "locator": "p20"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Cumulative attention scores are age-dependent; older tokens accumulate more scores, so a fixed H2 slot allocation can retain early tokens even when later tokens are more task-relevant. Therefore, H2 slots may be biased toward early tokens, and the fixed split does not by itself ensure the retained heavy hitters are the most useful for the current task."
+    },
+    {
+      "headline": "A fixed cache budget with sink plus H2 does not guarantee retention of middle-context information at million-token lengths.",
+      "claim": "Combining attention-sink/position-rolling streaming with H2O can stream to four million tokens, but if critical evidence lies in the middle and is neither sink nor heavy hitter nor local, fixed-budget eviction can drop it; long-length capability does not imply middle retrieval.",
+      "paper_fact": "this approach may pose challenges for certain tasks where vital information lies within the middle of the input and would be lost using this strategy.",
+      "premise": "Fixed-size KV caches evict tokens; attention-sink methods keep initial and local tokens, so a middle token is retained only if selected by the eviction policy or otherwise kept.",
+      "inference": "The 4M-token streaming result does not by itself establish that a middle fact will be retained; retention depends on H2 selection and cache budget.",
+      "toy_example": "Toy example (not a measurement): a 4M-token document with a unique fact at position 2M that never becomes a heavy hitter could be evicted; a QA probe would then fail even if streaming perplexity is low.",
+      "conditional_consequence": "If a task's answer depends on a middle token that is never selected as H2 and is outside the local window, then the combined method can lose it despite supporting 4M-token streaming.",
+      "critical_link": "The paper's middle-information warning is about sink/local strategies; H2O adds H2 retention, but H2O still has a fixed budget and can evict non-H2 middle tokens.",
+      "necessary_conditions": [
+        "The task-critical middle token is selected as a heavy hitter or otherwise retained.",
+        "The cache budget is large enough or H2 selection is accurate enough for the task.",
+        "Evaluation probes middle-context retrieval rather than only perplexity."
+      ],
+      "defeaters": [
+        "Paper reports H2O markedly superior to StreamLLM on multi-document QA and summarization.",
+        "If middle facts tend to become heavy hitters, the retention concern is reduced.",
+        "If the task only needs local or sink information, middle loss is irrelevant."
+      ],
+      "do_not_infer": [
+        "Do not infer H2O always loses middle information.",
+        "Do not infer StreamLLM and H2O are equivalent.",
+        "Do not infer the 4M-token claim is false."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L5",
+      "quotes": [
+        {
+          "text": "this approach may pose challenges for certain tasks where vital information lies within the middle of the input and would be lost using this strategy.",
+          "source": "paper",
+          "locator": "p25"
+        },
+        {
+          "text": "H2O can empower LLMs to tackle input with length up to four mil-\nlion tokens",
+          "source": "paper",
+          "locator": "p9"
+        },
+        {
+          "text": "Since StreamLLM will always maintain the first few tokens as well as the local tokens, regardless of various input content, such a strategy will inevitably result in the loss of crucial information and subsequently lead to a decrease in performance.",
+          "source": "paper",
+          "locator": "p26"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "author_boundaries": [
+        "Authors claim 4M-token streaming and lower PG-19 perplexity than StreamLLM; they do not claim universal middle-context retrieval at 4M tokens.",
+        "Authors report H2O better on multi-document QA and summarization, but not an exhaustive all-task guarantee."
+      ],
+      "inferred_consequences": [
+        "Task-specific middle-retrieval tests are needed before treating 4M-token support as general long-context competence."
+      ],
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Fixed-size KV caches evict tokens; attention-sink methods keep initial and local tokens, so a middle token is retained only if selected by the eviction policy or otherwise kept. The 4M-token streaming result does not by itself establish that a middle fact will be retained; retention depends on H2 selection and cache budget."
+    },
+    {
+      "headline": "A reduced-cache comparison does not imply or guarantee that H2O's heavy-hitter mechanism causes the diversity bonus",
+      "claim": "The paper attributes increased diversity and reduced repetition to H2O, but the shown comparison against full KV cache does not isolate H2O's heavy-hitter selection from the reduced cache budget or eviction itself.",
+      "paper_fact": "Given the same prompts, we visualize the generated text of the models with different KV cache budgets. Compared with the model of full KV cache, our H2O can generate sentences with fewer repeated words and more creativity.",
+      "premise": "Any cache eviction or context truncation can change repetition and diversity; comparing a reduced-cache policy to full cache confounds cache budget with eviction policy.",
+      "inference": "The paper's evidence supports that H2O at a reduced budget differs from full cache in examples, but it does not establish that the heavy-hitter mechanism specifically causes the diversity bonus.",
+      "conditional_consequence": "If the diversity effect is due mainly to reduced cache or generic eviction, other eviction policies at the same budget may show similar effects, weakening the H2O-specific claim.",
+      "critical_link": "Causal attribution of the diversity/repetition change to H2O's heavy-hitter mechanism rather than to cache budget or eviction.",
+      "necessary_conditions": [
+        "Same-budget comparison against local and other eviction policies",
+        "H2-only versus local-only ablation at the same budget",
+        "Same model, task, prompts, and decoding settings",
+        "Statistical comparison of diversity and quality metrics"
+      ],
+      "defeaters": [
+        "A same-budget ablation showing H2O-specific diversity beyond other eviction policies",
+        "Controlled experiments isolating heavy-hitter retention from cache size"
+      ],
+      "do_not_infer": [
+        "H2O's heavy hitters cause the diversity bonus",
+        "Other eviction policies cannot produce similar diversity",
+        "The bonus is unique to the H2O mechanism"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "mechanism_origin_unclear",
+      "lens": "L4",
+      "quotes": [
+        {
+          "text": "Given the same prompts, we visualize the generated text of the models with different KV cache budgets. Compared with the model of full KV cache, our H2O can generate sentences with fewer repeated words and more creativity.",
+          "source": "paper p10",
+          "locator": "Section 5.3 Q5/A5"
+        },
+        {
+          "text": "The full model reaches a Self-BELU score of 0.0057 while H2O and the local method achieve 0.0051 and 0.0436, respectively.",
+          "source": "paper p23",
+          "locator": "Appendix C.1"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "author_boundaries": "Authors attribute the bonus to H2O and show examples plus one Self-BLEU comparison; they do not isolate the heavy-hitter mechanism from cache budget or eviction effects.",
+      "inferred_consequence": "The diversity bonus is reported as an H2O effect, but its mechanism origin remains unisolated in the shown evidence.",
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Any cache eviction or context truncation can change repetition and diversity; comparing a reduced-cache policy to full cache confounds cache budget with eviction policy. The paper's evidence supports that H2O at a reduced budget differs from full cache in examples, but it does not establish that the heavy-hitter mechanism specifically causes the diversity bonus."
+    },
+    {
+      "headline": "Reducing KV cache memory footprint does not guarantee preserved generation quality",
+      "claim": "Reducing KV cache memory footprint does not by itself guarantee preserved generation quality; quality depends on which KV entries are evicted and on the task.",
+      "paper_fact": "it is challenging to reduce KV cache memory footprints in LLMs without accuracy drops.",
+      "premise": "Memory footprint and output quality are distinct metrics; evicting state can remove information needed for future tokens.",
+      "inference": "The paper's reported accuracy with H2O at 20% budget is empirical evidence for that policy and workload, not a guarantee that reducing KV memory by itself preserves generation quality.",
+      "toy_example": "Toy example, not a measurement: evicting a rare but task-critical token can lower memory while changing a downstream answer.",
+      "conditional_consequence": "If an eviction policy misses task-critical KV entries or the workload depends on evicted context, accuracy can degrade despite lower memory.",
+      "critical_link": "The link is the eviction policy's ability to identify and retain task-critical KV entries; memory savings alone do not encode that information.",
+      "necessary_conditions": [
+        "Eviction policy retains task-critical KV entries",
+        "Evaluation tasks and budgets cover the deployment workload",
+        "Accuracy metric is sensitive to evicted information"
+      ],
+      "defeaters": [
+        "Paper reports comparable accuracy at 20% budget across OPT, LLaMA, and GPT-NeoX",
+        "H2O combines heavy hitters and recent tokens",
+        "Some tasks even improve under H2O"
+      ],
+      "do_not_infer": [
+        "Do not infer memory reduction alone guarantees accuracy",
+        "Do not infer H2O always preserves quality for all tasks or budgets",
+        "Do not infer authors claim a formal accuracy guarantee from memory savings"
+      ],
+      "author_boundaries": [
+        "Authors report empirical accuracy with H2O at 20% budget; they do not claim any memory reduction preserves quality."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1: memory footprint proxy",
+      "quotes": [
+        {
+          "text": "it is challenging to reduce KV cache memory footprints in LLMs without accuracy drops.",
+          "source": "paper",
+          "locator": "p1"
+        },
+        {
+          "text": "H2O can reduce the memory footprint of KV cache by up to 5× without accuracy degradation on a wide range of model architectures",
+          "source": "paper",
+          "locator": "p7"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Memory footprint and output quality are distinct metrics; evicting state can remove information needed for future tokens. The paper's reported accuracy with H2O at 20% budget is empirical evidence for that policy and workload, not a guarantee that reducing KV memory by itself preserves generation quality."
+    },
+    {
+      "headline": "Sparsity observed on OPT/Wiki-Text-103 does not imply or guarantee sparsity or cache sufficiency across models, tasks, and layers.",
+      "claim": "The sparsity observation is from zero-shot OPT inference on Wiki-Text-103 validation with a threshold of one percent of the row maximum; it does not guarantee that other models, tasks, layers, or generation regimes have the same sparsity or that a uniform small cache works.",
+      "paper_fact": "We conduct zero-shot inference with the pre-trained OPT model on the validation set of Wiki-Text-103.",
+      "premise": "Attention distributions and heavy-hitter locations vary with model family, training data, task, layer, head, prompt length, and generation regime.",
+      "inference": "The mechanism's empirical support is setting-specific; applying a uniform small cache to new settings requires validation or adaptation.",
+      "conditional_consequence": "If a target model or task has lower sparsity or a different heavy-hitter distribution, a fixed 5% or 20% budget may miss critical entries and degrade accuracy.",
+      "critical_link": "Observed sparsity on OPT/Wiki-Text-103 -> general sparsity and cache sufficiency across models, tasks, and layers.",
+      "necessary_conditions": [
+        "Target model, task, layer, and head have comparable sparsity and heavy-hitter distribution",
+        "Threshold and budget are validated per setting",
+        "Evaluation covers target sequence lengths and generation regimes",
+        "Layer- or head-adaptive budget if sparsity varies"
+      ],
+      "defeaters": [
+        "Broad replication showing same sparsity and heavy-hitter distribution across models, tasks, and layers",
+        "A theoretical bound independent of setting",
+        "Adaptive budget validated across settings"
+      ],
+      "do_not_infer": [
+        "Do not infer universal sparsity from OPT/Wiki-Text-103",
+        "Do not infer a uniform 5% budget is optimal across layers",
+        "Do not infer task accuracy from sparsity alone"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L5",
+      "quotes": [
+        {
+          "text": "We conduct zero-shot inference with the pre-trained OPT model on the validation set of Wiki-Text-103.",
+          "source": "paper p4",
+          "locator": "Section 3.1, page 4"
+        },
+        {
+          "text": "with a sparsity over 95% in almost all layers",
+          "source": "paper p4",
+          "locator": "Section 3.1, page 4"
+        },
+        {
+          "text": "This holds for a wide range of pre-trained LLMs.",
+          "source": "paper p2",
+          "locator": "Section 1, page 2"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "author_boundaries": [
+        "The detailed sparsity observation is zero-shot OPT on Wiki-Text-103; the paper also asserts wide-model relevance, but the shown measurement is bounded."
+      ],
+      "inferred_consequences": [
+        "A uniform budget may underperform layer-adaptive budgets if sparsity is layer-dependent.",
+        "New settings need empirical validation."
+      ],
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Attention distributions and heavy-hitter locations vary with model family, training data, task, layer, head, prompt length, and generation regime. The mechanism's empirical support is setting-specific; applying a uniform small cache to new settings requires validation or adaptation."
+    },
+    {
+      "headline": "A fixed fractional KV budget does not imply or guarantee a small absolute memory bottleneck at long sequences.",
+      "claim": "Even if attention is sparse in fraction, retaining a fixed fraction of a long KV cache still scales with sequence length and batch size; sparsity does not guarantee that the absolute memory footprint is small or that the bottleneck is removed.",
+      "paper_fact": "a 30 billion-parameter model with an input batch size of 128 and a sequence length of 1024 results in 180GB of KV cache",
+      "premise": "KV cache size scales linearly with sequence length and batch size; a fixed fraction of a growing quantity grows.",
+      "inference": "Fractional sparsity reduction does not bound absolute cache memory; the long-sequence memory bottleneck can persist.",
+      "toy_example": "Toy example, not a measurement: 5% of a 1M-token cache is 50k entries per layer/head; across layers and batch this can still be large.",
+      "conditional_consequence": "If sequence length grows, a 5% budget may still exceed memory or require offloading, so throughput and latency gains may not follow.",
+      "critical_link": "Fractional KV budget -> absolute memory reduction sufficient to remove bottleneck.",
+      "necessary_conditions": [
+        "Absolute KV cache at target sequence length and batch fits memory",
+        "Fractional budget is combined with other memory controls if needed",
+        "Throughput and latency are measured end-to-end at target scale",
+        "Sequence length and batch size are bounded or accounted for"
+      ],
+      "defeaters": [
+        "Demonstration that 5% cache fits and removes bottleneck at target long sequences",
+        "Constant-memory cache design",
+        "Measurements showing no offloading at long sequence"
+      ],
+      "do_not_infer": [
+        "Do not infer that 20x fractional reduction means constant memory",
+        "Do not infer long-context inference is free",
+        "Do not infer sparsity removes need for offloading at all lengths"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L7",
+      "quotes": [
+        {
+          "text": "a 30 billion-parameter model with an input batch size of 128 and a sequence length of 1024 results in 180GB of KV cache",
+          "source": "paper p1",
+          "locator": "Section 1, page 1"
+        },
+        {
+          "text": "only 5% of the KV cache is sufficient for decoding the same output token at each generation step",
+          "source": "paper p2",
+          "locator": "Section 1, page 2"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "author_boundaries": [
+        "The paper reports KV cache size scaling and fractional budget; it does not claim constant absolute memory at unbounded sequence length."
+      ],
+      "inferred_consequences": [
+        "Long sequences may remain memory-bound despite fractional sparsity.",
+        "Throughput gains depend on absolute fit and offloading."
+      ],
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "KV cache size scales linearly with sequence length and batch size; a fixed fraction of a growing quantity grows. Fractional sparsity reduction does not bound absolute cache memory; the long-sequence memory bottleneck can persist."
+    },
+    {
+      "headline": "Power-law accumulated attention scores do not imply or guarantee that top-score tokens are optimal KV cache entries.",
+      "claim": "The paper's power-law and masking evidence support H2 as influential tokens, but do not establish that retaining the top accumulated-attention-score tokens is near-optimal for generation loss under a fixed KV cache budget.",
+      "paper_fact": "accumulated attention scores of all tokens in attention blocks adhere to a power-law distribution",
+      "premise": "A heavy-tailed score distribution and damage from removing high-score items can show that those items are influential; they do not by themselves show that a top-k score rule is optimal for a downstream loss under a fixed budget.",
+      "inference": "The authors report H2 as influential and use top accumulated score as an eviction heuristic; they do not directly compare against task-loss-optimal subsets, and their near-optimality statement is conditional on submodular assumptions.",
+      "toy_example": "Not a measurement: an early token can accumulate a high score across many steps while a later task-critical token has a lower sum; top-k by sum may retain the early token and evict the later one.",
+      "conditional_consequence": "If accumulated attention is only a proxy for task relevance, then H2O's 20% budget results may not transfer to tasks where high-attention tokens are not the most task-relevant.",
+      "critical_link": "Evidence needed is a direct oracle or task-loss comparison showing top accumulated-score selection is near-optimal, or a tight bound under conditions that actually hold for the tested models.",
+      "necessary_conditions": [
+        "fixed KV cache budget",
+        "per-layer/per-head attention scores are available",
+        "task loss or oracle subset is measured",
+        "comparison includes non-H2 high-relevance tokens"
+      ],
+      "defeaters": [
+        "direct oracle/task-loss comparison shows top-score selection is near-optimal",
+        "submodular assumptions are verified and the bound is tight for tested models",
+        "masking non-H2 tokens causes comparable damage"
+      ],
+      "do_not_infer": [
+        "do not infer H2O is invalid",
+        "do not infer the power-law observation is false",
+        "do not infer masking damage is irrelevant",
+        "do not infer the authors claim global optimality"
+      ],
+      "author_boundaries": [
+        "Authors report power-law scores and masking damage",
+        "Authors use top accumulated score as a heuristic",
+        "Authors state near-optimality only under submodular assumptions"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1",
+      "quotes": [
+        {
+          "text": "accumulated attention scores of all tokens in attention blocks adhere to a power-law distribution",
+          "source": "paper p2"
+        },
+        {
+          "text": "removing them results in significant performance degradation",
+          "source": "paper p1"
+        },
+        {
+          "text": "H2 based eviction policy can largely reduce the KV cache size without degrading the performance of OPT-30B",
+          "source": "paper p5"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A heavy-tailed score distribution and damage from removing high-score items can show that those items are influential; they do not by themselves show that a top-k score rule is optimal for a downstream loss under a fixed budget. The authors report H2 as influential and use top accumulated score as an eviction heuristic; they do not directly compare against task-loss-optimal subsets, and their near-optimality statement is conditional on submodular assumptions."
+    },
+    {
+      "headline": "Accumulated attention score does not imply or guarantee a recency-neutral importance measure.",
+      "claim": "The paper reports that accumulated attention can bias retention toward least recent tokens; therefore H2O's balance of recent and H2 tokens is a design response, not a guarantee that score accumulation alone yields recency-neutral importance.",
+      "paper_fact": "employing the accumulated attention score to evict KV embeddings can lead to a potential bias favoring the least recent tokens",
+      "premise": "Summing attention over all preceding tokens gives older tokens more opportunities to accumulate score, so raw sums can favor older tokens unless recency is handled separately.",
+      "inference": "The authors explicitly retain recent tokens alongside H2 and report that H2-only or local-only retention does not match full-cache performance; the reported bias means accumulated score alone is not a neutral importance measure.",
+      "toy_example": "Not a measurement: with a fixed budget, an old token seen at many decoding steps can outscore a newer critical token simply because it had more chances to accumulate attention.",
+      "conditional_consequence": "If the recent-token allocation is reduced or generation length grows, the reported bias may dominate and H2-only or score-only retention may degrade.",
+      "critical_link": "Evidence needed is an ablation separating H2-only, recent-only, and combined retention across lengths, plus a recency-neutral score variant that matches full-cache performance.",
+      "necessary_conditions": [
+        "long generation",
+        "fixed budget split between H2 and recent tokens",
+        "H2-only, local-only, and combined ablations",
+        "accuracy or perplexity measured"
+      ],
+      "defeaters": [
+        "H2-only matches full-cache performance",
+        "the bias is negligible at tested lengths",
+        "averaged attention score improves over accumulated score"
+      ],
+      "do_not_infer": [
+        "do not infer H2O is biased in generated output",
+        "do not infer recency is always necessary",
+        "do not infer accumulated score is useless",
+        "do not infer the authors claim score accumulation is recency-neutral"
+      ],
+      "author_boundaries": [
+        "Authors report a potential bias favoring least recent tokens",
+        "Authors retain recent tokens alongside H2",
+        "Authors report H2-only or local-only retention does not match full cache"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L7",
+      "quotes": [
+        {
+          "text": "employing the accumulated attention score to evict KV embeddings can lead to a potential bias favoring the least recent tokens",
+          "source": "paper p21"
+        },
+        {
+          "text": "only retaining the embeddings of H2 or local tokens can’t maintain a similar performance as the model using full embeddings",
+          "source": "paper p10"
+        },
+        {
+          "text": "dynamically retains a balance of recent and H2 tokens",
+          "source": "paper p1"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Summing attention over all preceding tokens gives older tokens more opportunities to accumulate score, so raw sums can favor older tokens unless recency is handled separately. The authors explicitly retain recent tokens alongside H2 and report that H2-only or local-only retention does not match full-cache performance; the reported bias means accumulated score alone is not a neutral importance measure."
+    },
+    {
+      "headline": "Dynamic retention of recent and H2 tokens does not imply or guarantee an adaptive or task-optimal split between them.",
+      "claim": "H2O's 'balance' is an even fixed split of the cache budget, not a learned or dynamically adjusted ratio; therefore it does not guarantee optimal allocation for tasks dominated by long-range H2 or local context.",
+      "paper_fact": "Since H2O evenly assigns the caching budget to H2 and the most recent KV, except for full KV cache, we consider the \"Local\" strategy as a baseline method.",
+      "premise": "A fixed 50/50 split is a design choice; the optimal allocation between recency and frequency depends on the workload and context.",
+      "inference": "The mechanism's dynamic aspect is updating which tokens are retained, not adapting the proportion between H2 and recent tokens.",
+      "toy_example": "Not a measurement: suppose a task's useful evidence is 90% long-range H2 and 10% local; an even split reserves half the cache for recent tokens, which may be wasted.",
+      "conditional_consequence": "If a workload needs long-range H2 more than local context, an even split may waste budget on recent tokens and underperform a H2-heavy allocation; the paper's ablation only shows both together beat either alone, not that equal split is optimal.",
+      "critical_link": "The link is the fixed even split reported on p7; without evidence of an adaptive ratio, 'dynamic balance' cannot be read as adaptive allocation.",
+      "necessary_conditions": [
+        "The cache budget is split evenly between H2 and recent tokens.",
+        "The workload has asymmetric need for long-range H2 versus local context.",
+        "No per-layer, per-head, or per-task adaptive ratio is used."
+      ],
+      "defeaters": [
+        "The paper reports per-head and per-layer independent retention, which could partially adapt at finer granularity.",
+        "The ablation shows H2-only and local-only are worse, so equal split may be a robust default even if not optimal.",
+        "The paper's main results use 20% budget and show comparable accuracy on many tasks."
+      ],
+      "do_not_infer": [
+        "Do not infer H2O is ineffective.",
+        "Do not infer the equal split is always suboptimal.",
+        "Do not infer the paper claims an adaptive ratio."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L4",
+      "quotes": [
+        {
+          "text": "Since H2O evenly assigns the caching budget to H2 and the most recent KV, except for full KV cache, we consider the \"Local\" strategy as a baseline method.",
+          "source": "paper",
+          "locator": "p7"
+        },
+        {
+          "text": "We conduct an empirical study implementing a KV cache eviction policy that retains only the H2 and the recent KV embeddings in the cache.",
+          "source": "paper",
+          "locator": "p5"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A fixed 50/50 split is a design choice; the optimal allocation between recency and frequency depends on the workload and context. The mechanism's dynamic aspect is updating which tokens are retained, not adapting the proportion between H2 and recent tokens."
+    },
+    {
+      "headline": "A submodular near-optimality guarantee does not imply or guarantee actual generation quality for real attention.",
+      "claim": "The theoretical near-optimality result is conditional on the attention scheme being submodular; it does not establish that H2O's eviction preserves generation accuracy for real attention distributions.",
+      "paper_fact": "Assuming the attention scheme is submodular, then greedily constructing the set Si (without cache size limitation) satisfies the near-optimal property in terms of submodular.",
+      "premise": "A guarantee conditional on an unverified structural assumption does not establish empirical accuracy or transfer to real workloads.",
+      "inference": "The paper's guarantee cannot be used as evidence that the mechanism is near-optimal in practice unless the submodularity assumption holds for the actual attention.",
+      "toy_example": "Not a measurement: if attention is not submodular, the theorem's premise fails, so the bound need not apply.",
+      "conditional_consequence": "If the real attention scheme violates submodularity or the mild assumptions, the near-optimality bound may not apply, and empirical accuracy must be established separately.",
+      "critical_link": "The link is the submodular assumption; without verifying it for actual attention, the theorem does not transfer to generation quality.",
+      "necessary_conditions": [
+        "The attention scheme satisfies submodularity or the stated mild assumptions.",
+        "The guarantee is about the score function, not end-task accuracy.",
+        "The theorem's parameters α and β are meaningful for the setting."
+      ],
+      "defeaters": [
+        "The paper provides empirical validation across models and tasks.",
+        "The assumption may hold approximately for attention.",
+        "The theorem is explicitly conditional, not a claim of unconditional optimality."
+      ],
+      "do_not_infer": [
+        "Do not infer the theorem is false.",
+        "Do not infer attention is not submodular.",
+        "Do not infer the empirical results are invalid."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1",
+      "quotes": [
+        {
+          "text": "Assuming the attention scheme is submodular, then greedily constructing the set Si (without cache size limitation) satisfies the near-optimal property in terms of submodular.",
+          "source": "paper",
+          "locator": "p5"
+        },
+        {
+          "text": "We formulate the KV cache eviction as a dynamic submodular problem and prove (under mild assumptions) a theoretical guarantee for our novel eviction algorithm which could help guide future work.",
+          "source": "paper",
+          "locator": "p1"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A guarantee conditional on an unverified structural assumption does not establish empirical accuracy or transfer to real workloads. The paper's guarantee cannot be used as evidence that the mechanism is near-optimal in practice unless the submodularity assumption holds for the actual attention."
+    },
+    {
+      "headline": "Local accumulated attention being equally effective as future attention in the paper's experiments does not imply or guarantee equivalence across tasks, layers, or cache budgets.",
+      "claim": "The paper's empirical equal-effectiveness result for local H2 is evidence for the tested settings, not a general guarantee that local accumulated attention tracks future attention importance.",
+      "paper_fact": "local H2, which is calculated using local statistics at every decoding step by summing up the attention scores of the previous tokens, is equally effective as taking into account the attention of future tokens",
+      "premise": "Past attention is not the same quantity as future attention; empirical equality on a benchmark does not establish equality in general.",
+      "inference": "If local and future attention importance diverge on a deployment task, layer, or cache budget, the local-statistic policy can select different tokens than a future-aware policy.",
+      "toy_example": "Toy example, not a measurement: a middle token is irrelevant to all past queries but becomes critical for a future query; local accumulated score would not select it, while future-aware selection would.",
+      "conditional_consequence": "If a task requires a token with low past attention but high future attention, local H2 may evict it and degrade generation.",
+      "critical_link": "The limitation is triggered only if local-future divergence is material under the deployment conditions; if local scores remain predictive, the reported equivalence may hold.",
+      "necessary_conditions": [
+        "Local accumulated scores must correlate with future attention importance.",
+        "The deployment task, layer, and cache budget must be similar enough to the tested settings.",
+        "The recent-token component must not already cover the future-critical tokens."
+      ],
+      "defeaters": [
+        "The paper reports equal effectiveness across OPT, LLaMA, and GPT-NeoX on multiple tasks.",
+        "H2O combines H2 with recent KV embeddings, which can mitigate local-future divergence.",
+        "The paper's local H2 is explicitly low-cost and empirically competitive in its evaluations."
+      ],
+      "do_not_infer": [
+        "Do not infer that local H2 is always worse than future-aware selection.",
+        "Do not infer that the paper proved universal equivalence.",
+        "Do not infer that a possible divergence invalidates the reported benchmark results."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L5",
+      "quotes": [
+        {
+          "text": "local H2, which is calculated using local statistics at every decoding step by summing up the attention scores of the previous tokens, is equally effective as taking into account the attention of future tokens",
+          "source": "paper",
+          "locator": "p5"
+        },
+        {
+          "text": "retaining the H2 based on local statistics at each decoding step—summing the attention scores of only the preceding tokens—is as effective as considering the attention of future tokens",
+          "source": "paper",
+          "locator": "p2"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "author_boundaries": [
+        "Authors report empirical equal effectiveness, not a universal equivalence theorem.",
+        "Authors evaluate specific models, tasks, and cache budgets.",
+        "Authors do not claim local attention is identical to future attention."
+      ],
+      "inferred_consequences": [
+        "Outside tested tasks or layers, local H2 may diverge from future-aware selection.",
+        "The method's reliability depends on the empirical local-future correlation holding."
+      ],
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Past attention is not the same quantity as future attention; empirical equality on a benchmark does not establish equality in general. If local and future attention importance diverge on a deployment task, layer, or cache budget, the local-statistic policy can select different tokens than a future-aware policy."
+    },
+    {
+      "headline": "A near-optimal submodular guarantee does not imply or guarantee LLM task accuracy.",
+      "claim": "The theorem's approximation bound for the submodular proxy f(S) does not by itself establish comparable downstream accuracy or generation quality.",
+      "paper_fact": "If for each token, we greedily compute the attention score based on top-k choice, then we can show the set eSi we generate each for token i satisfy that f(eSi) ≥(1 −α)(1 −1/e) max|S|=k f(S) −β, where α, β > 0 are parameters.",
+      "premise": "Approximation guarantees for a proxy set function transfer to downstream task metrics only if the proxy is aligned with those metrics and the theorem's assumptions hold.",
+      "inference": "The paper's bound on f(S) cannot by itself be read as guaranteeing accuracy parity with full KV cache; the accuracy claim is empirical.",
+      "toy_example": "Toy example (not a measurement): a proxy f could rank token sets well while exact-match accuracy stays flat or drops.",
+      "conditional_consequence": "If f is not aligned with task loss, then a high f(S) bound may coexist with lower downstream accuracy.",
+      "critical_link": "Alignment between the submodular proxy f and downstream generation quality.",
+      "necessary_conditions": [
+        "f is submodular under the paper's dynamic framework",
+        "the theorem's α, β and dynamic conditions hold",
+        "f is sufficiently aligned with downstream task accuracy",
+        "greedy top-k selection is used as analyzed"
+      ],
+      "defeaters": [
+        "empirical accuracy parity across tasks and budgets",
+        "a proof that f is monotone and aligned with task loss",
+        "the theorem is restated directly for task accuracy"
+      ],
+      "do_not_infer": [
+        "do not infer the theorem proves accuracy",
+        "do not infer H2O lacks empirical accuracy support",
+        "do not infer f is unaligned in all cases"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1",
+      "quotes": [
+        {
+          "text": "If for each token, we greedily compute the attention score based on top-k choice, then we can show the set eSi we generate each for token i satisfy that f(eSi) ≥(1 −α)(1 −1/e) max|S|=k f(S) −β, where α, β > 0 are parameters.",
+          "source": "paper p6",
+          "locator": "Theorem 4.4 (informal)"
+        },
+        {
+          "text": "We formulate the KV cache eviction as a dynamic submodular problem and prove (under mild assumptions) a theoretical guarantee",
+          "source": "paper p1",
+          "locator": "Abstract"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "author_boundaries": [
+        "Authors claim a theoretical guarantee for the submodular proxy under mild assumptions, not a theorem about downstream accuracy.",
+        "Authors separately report empirical accuracy results."
+      ],
+      "inferred_consequences": [
+        "The guarantee should be cited as proxy-level, not task-accuracy-level.",
+        "Accuracy claims need empirical support."
+      ],
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Approximation guarantees for a proxy set function transfer to downstream task metrics only if the proxy is aligned with those metrics and the theorem's assumptions hold. The paper's bound on f(S) cannot by itself be read as guaranteeing accuracy parity with full KV cache; the accuracy claim is empirical."
+    },
+    {
+      "headline": "Maximizing summed attention score does not imply or guarantee output accuracy.",
+      "claim": "The greedy eviction rule can maximize Fscore while still degrading generation quality; the score objective is not the same as task accuracy.",
+      "paper_fact": "The analysis shows that it results in a similar generative process as the one using the H2 eviction policy.",
+      "premise": "A proxy score can be optimized without preserving the model's downstream behavior; attention weights are not automatically a causal measure of token necessity.",
+      "inference": "Because the algorithm's guarantee is about Fscore/submodular assumptions, not task loss, empirical validation is required to connect eviction choices to accuracy.",
+      "toy_example": "Not a measurement: a cache could retain the highest summed-attention tokens while the next-token logits still change because a low-score token was a necessary modifier.",
+      "conditional_consequence": "If summed attention is only a proxy, then H2O's accuracy at a given budget must be established empirically and may vary by task, model, layer, and head.",
+      "critical_link": "No theorem in the shown text bounds output accuracy by Fscore maximization; the submodular result is conditional on mild assumptions about the attention scheme.",
+      "necessary_conditions": [
+        "Fscore maximization is a valid proxy for token importance",
+        "submodular assumptions hold for the attention scheme",
+        "local statistics are representative of future-token attention",
+        "evicting one entry per step preserves the relevant context"
+      ],
+      "defeaters": [
+        "A theorem directly bounds task loss by Fscore",
+        "Ablation shows Fscore-ranked tokens are causally necessary",
+        "Empirical accuracy matches full cache across all tested budgets and tasks"
+      ],
+      "do_not_infer": [
+        "Do not infer the greedy algorithm is invalid",
+        "Do not infer the paper reports accuracy failure",
+        "Do not infer no theoretical guarantee exists under its assumptions"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1",
+      "quotes": [
+        {
+          "text": "Fscore(T ) := P s∈T os",
+          "source": "paper p6",
+          "locator": "Algorithm 1 line 10"
+        },
+        {
+          "text": "u ←arg max v∈Gi Fscore(Si−1 ∪{i}\\{v}}",
+          "source": "paper p6",
+          "locator": "Algorithm 1 line 12"
+        },
+        {
+          "text": "Si ←(Si−1 ∪{i})\\{u}",
+          "source": "paper p6",
+          "locator": "Algorithm 1 line 13"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "author_boundaries": "Authors report a submodular-style guarantee under mild assumptions and empirical accuracy; they do not claim Fscore maximization alone guarantees task accuracy.",
+      "inferred_consequence": "The score objective can be optimized without a direct accuracy guarantee; accuracy must be inferred from empirical results.",
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A proxy score can be optimized without preserving the model's downstream behavior; attention weights are not automatically a causal measure of token necessity. Because the algorithm's guarantee is about Fscore/submodular assumptions, not task loss, empirical validation is required to connect eviction choices to accuracy."
+    },
+    {
+      "headline": "High summed attention does not imply or guarantee token importance for output accuracy.",
+      "claim": "The H2 premise treats accumulated attention as importance, but a high summed-attention token can be redundant or non-causal for the generated output.",
+      "paper_fact": "We discover that the accumulated attention scores of all tokens in attention blocks adhere to a power-law distribution. It suggests that there exists a small set of influential tokens that are critical during generation, named heavy-hitters (H2).",
+      "premise": "Attention weights can reflect correlation, positional effects, or redundancy rather than causal necessity; importance is task- and context-dependent.",
+      "inference": "The paper's H2 observation is an empirical correlation plus ablation evidence, not a general guarantee that summed attention ranks tokens by output importance.",
+      "toy_example": "Not a measurement: a repeated punctuation token may accumulate high attention but be replaceable without changing output.",
+      "conditional_consequence": "If attention sum is not a faithful importance measure, then eviction by Fscore can retain redundant tokens and evict low-attention tokens that matter downstream.",
+      "critical_link": "The link from accumulated attention to criticality is supported by the paper's empirical H2 ablation, not by a causal identification theorem.",
+      "necessary_conditions": [
+        "H2 set is stable across layers/heads and inputs",
+        "attention sum correlates with ablation importance",
+        "local H2 matches global/future H2",
+        "removing H2 is the relevant counterfactual"
+      ],
+      "defeaters": [
+        "Causal mediation shows attention-summed tokens are necessary",
+        "Ablation confirms H2 removal always damages performance",
+        "H2O matches full cache across all tasks and budgets"
+      ],
+      "do_not_infer": [
+        "Do not infer H2 do not exist",
+        "Do not infer attention is useless",
+        "Do not infer the paper observed a failure of H2O"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L3",
+      "quotes": [
+        {
+          "text": "We discover that the accumulated attention scores of all tokens in attention blocks adhere to a power-law distribution. It suggests that there exists a small set of influential tokens that are critical during generation, named heavy-hitters (H2).",
+          "source": "paper p2",
+          "locator": "Section 1"
+        },
+        {
+          "text": "removing them results in significant performance degradation",
+          "source": "paper p1",
+          "locator": "Abstract"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "author_boundaries": "Authors report H2 correlation and ablation; they do not claim attention sum is a causal importance measure.",
+      "inferred_consequence": "Attention-sum ranking is an empirical proxy; its causal link to output accuracy is inferred, not guaranteed.",
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Attention weights can reflect correlation, positional effects, or redundancy rather than causal necessity; importance is task- and context-dependent. The paper's H2 observation is an empirical correlation plus ablation evidence, not a general guarantee that summed attention ranks tokens by output importance."
+    },
+    {
+      "headline": "Avoiding memory swap does not imply or guarantee lower end-to-end latency",
+      "claim": "The no-swap implementation detail alone does not establish that H2O's latency or throughput gains are caused by avoiding swap.",
+      "paper_fact": "we do not swap memory when stored KV is evicted, but directly fill with newly-added KV",
+      "premise": "End-to-end generation latency includes attention, eviction scoring, preallocation, I/O, and synchronization; removing one data movement does not bound the total.",
+      "inference": "A system can avoid swap and still be slower if score computation, preallocation, or other overheads dominate, so the quote supports an implementation choice but not a causal latency guarantee.",
+      "toy_example": "Toy example (not a measurement): a cache that saves 1 unit of swap but adds 10 units of score computation would not be faster.",
+      "conditional_consequence": "If swap was not a material bottleneck or eviction scoring dominates, then no-swap may not reduce latency and may shift cost to preallocation and score computation.",
+      "critical_link": "The swap cost must be a material part of end-to-end latency and must not be replaced by larger preallocation, scoring, or synchronization costs.",
+      "necessary_conditions": [
+        "Swap is a material component of the measured latency",
+        "No new overhead from preallocation or score computation dominates",
+        "The workload and batch size make the removed data movement significant"
+      ],
+      "defeaters": [
+        "Measured latency improvements isolate or bound swap cost",
+        "Score and preallocation overhead are negligible in the tested setting",
+        "The claim is only about I/O bytes, not end-to-end latency"
+      ],
+      "do_not_infer": [
+        "Do not infer that the authors claim no-swap alone guarantees speedup",
+        "Do not infer that avoiding swap guarantees accuracy preservation",
+        "Do not infer that I/O-byte reduction equals wall-clock reduction"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1",
+      "quotes": [
+        {
+          "text": "we do not swap memory when stored KV is evicted, but directly fill with newly-added KV",
+          "source": "paper p6",
+          "locator": "Section 4.2 Implementation Details"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "author_boundary": "Authors report the no-swap implementation detail and system-level speedups; they do not isolate no-swap as the cause of latency or throughput gains.",
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "End-to-end generation latency includes attention, eviction scoring, preallocation, I/O, and synchronization; removing one data movement does not bound the total. A system can avoid swap and still be slower if score computation, preallocation, or other overheads dominate, so the quote supports an implementation choice but not a causal latency guarantee."
+    }
+  ],
+  "dropped_for_unverified_quotes": 0,
+  "chunk_count": 13,
+  "chunk_failures": 0,
+  "chunk_timings": [
+    {
+      "seconds": 224.55990088102408,
+      "attempts": 1
+    },
+    {
+      "seconds": 232.10881784092635,
+      "attempts": 1
+    },
+    {
+      "seconds": 229.58478471497074,
+      "attempts": 1
+    },
+    {
+      "seconds": 160.99928522086702,
+      "attempts": 1
+    },
+    {
+      "seconds": 194.6349740049336,
+      "attempts": 1
+    },
+    {
+      "seconds": 163.41498046694323,
+      "attempts": 1
+    },
+    {
+      "seconds": 164.9203613579739,
+      "attempts": 1
+    },
+    {
+      "seconds": 181.958639487857,
+      "attempts": 1
+    },
+    {
+      "seconds": 177.21225961786695,
+      "attempts": 1
+    },
+    {
+      "seconds": 152.06800256296992,
+      "attempts": 1
+    },
+    {
+      "seconds": 171.84992446401156,
+      "attempts": 1
+    },
+    {
+      "seconds": 136.53419168898836,
+      "attempts": 1
+    },
+    {
+      "seconds": 125.57069919002242,
+      "attempts": 1
+    }
+  ],
+  "inventory_seconds": 532.3987770299427,
+  "chunks_seconds": 828.120412713848,
+  "merged_candidates": 0,
+  "unverified_kept": 39
+}

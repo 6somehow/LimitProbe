@@ -1,0 +1,201 @@
+[
+  {
+    "headline": "Per-request deadline translation does not guarantee graceful degradation under overload.",
+    "claim": "Fine-grained QoS classes and deadline translation alone do not guarantee graceful service degradation when load exceeds capacity; QoServe needs hybrid prioritization and eager relegation to avoid cascading violations.",
+    "paper_fact": "EDF which prioritizes requests with earlier deadline has very low deadline violation rates (Figure 2(c)) at low loads, but the violation rates spike to almost 100% once the load exceeds a certain threshold.",
+    "premise": "Deadline-aware scheduling is not overload control; queue buildup and head-of-line blocking can cause cascading misses even when deadlines are computed per request.",
+    "inference": "Since the paper reports EDF collapses at high load and states QoServe or any policy cannot service all requests at desired SLOs under overload, deadline translation alone cannot guarantee graceful degradation; the guarantee depends on additional mechanisms and capacity assumptions.",
+    "toy_example": "Not a measurement: an EDF queue receives many requests with near deadlines while one long prefill occupies the batch; later requests miss deadlines despite having computed deadlines.",
+    "conditional_consequence": "If load exceeds capacity and no relegation or hybrid prioritization is active, per-request deadlines may produce cascading violations rather than graceful degradation.",
+    "critical_link": "The link is that deadlines order work but do not create capacity; overload behavior is determined by queue management, preemption, and relegation, not by deadline translation alone.",
+    "necessary_conditions": [
+      "Load is within or near capacity",
+      "Hybrid prioritization is enabled",
+      "Eager relegation is enabled",
+      "Application priority hints are available for multi-tenant relegation"
+    ],
+    "defeaters": [
+      "Paper reports QoServe reduces SLO violations by an order of magnitude under extreme load",
+      "Paper reports relegating 5% maintains latency SLOs under high overload",
+      "Paper reports QoServe misses no important tasks in transient overload"
+    ],
+    "do_not_infer": [
+      "Do not infer that QoServe fails under overload",
+      "Do not infer that deadline translation is useless",
+      "Author boundary: the paper does not claim deadline translation alone guarantees graceful degradation"
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "applicability_limitation",
+    "lens": "L7_bottleneck_over_scale_time",
+    "quotes": [
+      {
+        "quote": "EDF which prioritizes requests with earlier deadline has very low deadline violation rates (Figure 2(c)) at low loads, but the violation rates spike to almost 100% once the load exceeds a certain threshold.",
+        "source": "paper",
+        "locator": "page 5, §3.4"
+      },
+      {
+        "quote": "under overload conditions, QoServe (or any scheduling policy) still cannot service all incoming requests at the desired QoS SLOs.",
+        "source": "paper",
+        "locator": "page 6, §3.4"
+      },
+      {
+        "quote": "by relegating just 5% of the requests, we can maintain latency SLOs even under very high overload conditions.",
+        "source": "paper",
+        "locator": "page 6, §3.4"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "page 5, §3.4",
+        "support_description": "EDF which prioritizes requests with earlier deadline has very low deadline violation rates (Figure 2(c)) at low loads, but the violation rates spike to almost 100% once the load exceeds a certain threshold."
+      },
+      {
+        "source_id": "paper",
+        "location": "page 6, §3.4",
+        "support_description": "under overload conditions, QoServe (or any scheduling policy) still cannot service all incoming requests at the desired QoS SLOs."
+      },
+      {
+        "source_id": "paper",
+        "location": "page 6, §3.4",
+        "support_description": "by relegating just 5% of the requests, we can maintain latency SLOs even under very high overload conditions."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Deadline-aware scheduling is not overload control; queue buildup and head-of-line blocking can cause cascading misses even when deadlines are computed per request. Since the paper reports EDF collapses at high load and states QoServe or any policy cannot service all requests at desired SLOs under overload, deadline translation alone cannot guarantee graceful degradation; the guarantee depends on additional mechanisms and capacity assumptions."
+  },
+  {
+    "headline": "Deadline-slack dynamic chunking does not guarantee throughput gains under PD disaggregation with a large default prefill chunk.",
+    "claim": "QoServe's dynamic chunking is not exploited in PD disaggregation when the default prefill chunk is already large, so disaggregated throughput results cannot be used as evidence for the chunking mechanism's benefit.",
+    "paper_fact": "The throughput gains are lower compared to PD colocation because we are unable to exploit dynamic chunking here, because of the large baseline chunk size.",
+    "premise": "Dynamic chunking can increase chunk size only if the current/default chunk size is below the maximum useful chunk and if latency slack exists; if the baseline already uses a large chunk, there is little or no headroom for slack-based growth.",
+    "inference": "A PD-disaggregated artifact run may show smaller gains than the colocated 20% dynamic-chunking result, and those gains should not be attributed to dynamic chunking unless the baseline chunk size and TBT constraints are changed.",
+    "toy_example": "Toy example (not a measurement): if the baseline prefill chunk is already 8K and the policy has no TBT constraint forcing a smaller chunk, slack-based chunk maximization has no lever to increase throughput.",
+    "conditional_consequence": "If the artifact evaluates PD disaggregation with an 8K default prefill chunk, then dynamic chunking should not be expected to reproduce the colocated chunking gain; any observed gain should be attributed to other mechanisms or to a different baseline.",
+    "critical_link": "The critical link is baseline chunk-size headroom plus a latency budget that constrains chunk size; without those, deadline slack cannot be converted into larger chunks.",
+    "necessary_conditions": [
+      "PD colocation or a small default prefill chunk",
+      "TBT or another latency budget that constrains chunk size",
+      "available deadline slack",
+      "a predictor that maps batch statistics to latency"
+    ],
+    "defeaters": [
+      "baseline chunk size is reduced below the maximum useful chunk",
+      "prefill nodes have TBT constraints",
+      "dynamic chunking is applied to a different phase or deployment mode",
+      "the artifact uses a different maximum chunk size"
+    ],
+    "do_not_infer": [
+      "Do not infer that dynamic chunking is ineffective in general; the authors only report that it is not exploited in PD disaggregation with a large baseline chunk.",
+      "Do not infer that PD-disaggregation gains are due to dynamic chunking.",
+      "Do not infer artifact failure from lower disaggregated gains alone."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "applicability_limitation",
+    "lens": "deployment mode and baseline chunk-size headroom",
+    "quotes": [
+      {
+        "quote": "The throughput gains are lower compared to PD colocation because we are unable to exploit dynamic chunking here, because of the large baseline chunk size.",
+        "source": "QoServe paper",
+        "locator": "p. 9, §4.1.3"
+      },
+      {
+        "quote": "We set a large chunk size of 8K as default as we are not constrained by TBT in the prefill nodes for disaggregated serving.",
+        "source": "QoServe paper",
+        "locator": "p. 9, §4.1.3"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p. 9, §4.1.3",
+        "support_description": "The throughput gains are lower compared to PD colocation because we are unable to exploit dynamic chunking here, because of the large baseline chunk size."
+      },
+      {
+        "source_id": "paper",
+        "location": "p. 9, §4.1.3",
+        "support_description": "We set a large chunk size of 8K as default as we are not constrained by TBT in the prefill nodes for disaggregated serving."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Dynamic chunking can increase chunk size only if the current/default chunk size is below the maximum useful chunk and if latency slack exists; if the baseline already uses a large chunk, there is little or no headroom for slack-based growth. A PD-disaggregated artifact run may show smaller gains than the colocated 20% dynamic-chunking result, and those gains should not be attributed to dynamic chunking unless the baseline chunk size and TBT constraints are changed."
+  },
+  {
+    "headline": "Artifact coverage of Llama3-8B TP1 on Azure Code does not imply reproduction of the paper's cross-model and cross-trace generality.",
+    "claim": "The artifact's reported reproduction scope does not guarantee reproduction of the paper's goodput gains across Qwen-7B, Llama3-70B, ShareGPT, or all PD configurations.",
+    "paper_fact": "Current artifact reproduces Llama3-8B TP1 on Azure Code Trace.",
+    "premise": "A reproduction artifact that covers one model/hardware/trace combination is not evidence that other model/hardware/trace combinations in the paper were reproduced.",
+    "inference": "The artifact supports a narrow reproduction claim, not the paper's full generality claim; cross-model/hardware/trace results remain paper-reported and not artifact-verified.",
+    "toy_example": "Toy example, not a measurement: reproducing one Llama3-8B/A100/Azure-Code point is like checking one cell of a table; it does not fill the other cells.",
+    "conditional_consequence": "If artifact reviewers require cross-model reproduction, this artifact alone is insufficient; if they accept trend-level single-model reproduction, it may be sufficient for that narrower claim.",
+    "critical_link": "The link is the mapping between artifact scripts and paper figures: fig7.sh and fig8.sh are limited to Llama3-8B TP1, while paper Figure 7 spans three models and three datasets.",
+    "necessary_conditions": [
+      "Artifact must run the same model/hardware/trace combinations as paper",
+      "Artifact must use comparable request volumes and QPS sweep",
+      "Artifact must reproduce both colocated and disaggregated configurations"
+    ],
+    "defeaters": [
+      "Artifact includes additional scripts or results for Qwen-7B, Llama3-70B, ShareGPT, or full QPS sweep",
+      "Paper's generality claim is explicitly limited to Llama3-8B TP1",
+      "Artifact's reduced setup is shown to preserve all reported numerical results"
+    ],
+    "do_not_infer": [
+      "Do not infer the artifact fails to reproduce the paper's single-model trend",
+      "Do not infer the paper's cross-model results are false",
+      "Do not infer authors claim full artifact coverage"
+    ],
+    "author_boundaries": [
+      "Authors report artifact reproduces Llama3-8B TP1 on Azure Code and Azure Conv only",
+      "Authors note reduced requests and coarser QPS sweep may cause numerical variation"
+    ],
+    "inferred_consequences": [
+      "Cross-model and cross-trace generality is not artifact-verified",
+      "Artifact-based reproduction claims should be scoped to the reported model/trace"
+    ],
+    "disclosure": "reported",
+    "category_code": "method_shortcoming",
+    "lens": "L3_unit_compatibility",
+    "quotes": [
+      {
+        "quote": "Current artifact reproduces Llama3-8B TP1 on Azure Code Trace.",
+        "source": "paper",
+        "locator": "p. 16, A.6"
+      },
+      {
+        "quote": "Current artifact reproduces Llama3-8B TP1 on Azure Conv. Trace.",
+        "source": "paper",
+        "locator": "p. 16, A.6"
+      },
+      {
+        "quote": "artifact uses fewer requests and coarser QPS sweep than paper for manageable runtime; trends and relative performance remain consistent.",
+        "source": "paper",
+        "locator": "p. 16, A.6"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 2,
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p. 16, A.6",
+        "support_description": "Current artifact reproduces Llama3-8B TP1 on Azure Code Trace."
+      },
+      {
+        "source_id": "paper",
+        "location": "p. 16, A.6",
+        "support_description": "Current artifact reproduces Llama3-8B TP1 on Azure Conv. Trace."
+      },
+      {
+        "source_id": "paper",
+        "location": "p. 16, A.6",
+        "support_description": "artifact uses fewer requests and coarser QPS sweep than paper for manageable runtime; trends and relative performance remain consistent."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "A reproduction artifact that covers one model/hardware/trace combination is not evidence that other model/hardware/trace combinations in the paper were reproduced. The artifact supports a narrow reproduction claim, not the paper's full generality claim; cross-model/hardware/trace results remain paper-reported and not artifact-verified."
+  }
+]

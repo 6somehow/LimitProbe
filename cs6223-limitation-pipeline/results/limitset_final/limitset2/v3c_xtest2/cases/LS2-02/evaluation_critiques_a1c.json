@@ -1,0 +1,618 @@
+[
+  {
+    "headline": "A shared adder does not imply or guarantee that PE area/energy is dominated by arithmetic reuse.",
+    "claim": "The unified PE's single shared adder is presented as a per-PE area/energy optimization, but the paper's own breakdown shows pipeline registers consume 43.75% of array area and 42.61% of power, so adder reuse alone cannot guarantee the reported PE efficiency.",
+    "paper_fact": "Pipe Regs (93.78 µm2) 512 48,015.36 43.75 27,924 42.61",
+    "premise": "Reusing one adder reduces arithmetic logic, but total PE area/energy also includes pipeline registers, muxes, control, and accumulator sharing; savings in one component do not determine the total.",
+    "inference": "The mechanism's area/energy benefit is mediated by register and control overhead; from shared-adder reuse alone one cannot infer low total PE area/energy or that the adder is the dominant cost.",
+    "toy_example": "Not a measurement: if an adder is 10 units and registers are 40 units, halving adder area saves 5/50 = 10% total, not 50%.",
+    "conditional consequence": "If pipeline registers scale with P or 4-way grouping, shared-adder savings may be offset; if registers are negligible, the reuse argument is stronger.",
+    "critical_link": "Evidence that the shared adder materially reduces total PE area/energy after accounting for pipeline registers and control.",
+    "necessary_conditions": [
+      "Pipeline/register overhead is small relative to adder area",
+      "Shared adder does not add mux/control overhead that erases savings",
+      "Area/energy comparison uses same synthesis and boundary conditions"
+    ],
+    "defeaters": [
+      "Synthesis shows compute dominates and registers are already included in both designs",
+      "The reported 0.12× PE area is measured against a baseline with comparable registers",
+      "The claim is only about adder-level reuse, not total PE"
+    ],
+    "do_not_infer": [
+      "Do not infer the shared adder is ineffective",
+      "Do not infer the paper's measured energy/area results are wrong",
+      "Do not attribute to authors a claim that adder reuse alone explains all savings"
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "area/energy attribution and overhead accounting",
+    "quotes": [
+      {
+        "source": "paper p.12 Table VIII",
+        "text": "Pipe Regs (93.78 µm2) 512 48,015.36 43.75 27,924 42.61"
+      },
+      {
+        "source": "paper p.12 §VI-C",
+        "text": "FlexPosit occupies only 0.12× the PE area of the FP16 baseline. This compactness results from its bit-serial architecture, which reuses a single adder across arithmetic fields."
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 4,
+    "evidence": [],
+    "quote_verified": false,
+    "mechanism": "Reusing one adder reduces arithmetic logic, but total PE area/energy also includes pipeline registers, muxes, control, and accumulator sharing; savings in one component do not determine the total. The mechanism's area/energy benefit is mediated by register and control overhead; from shared-adder reuse alone one cannot infer low total PE area/energy or that the adder is the dominant cost."
+  },
+  {
+    "headline": "Hardware-aligned channel-window MPQ does not guarantee group-wise-like accuracy at a fixed 4-bit budget.",
+    "claim": "The paper's 'group-wise-like accuracy' claim is achieved with sensitivity-guided fractional precision and often requires more than 4 bits. At 4.1 b the mean ΔPPL is 0.64, closing much but not all of the gap to BitMoD; Qwen2.5-14B requires 5.0 b to match. Alignment alone does not guarantee parity at equal bit-width.",
+    "paper_fact": "FlexPosit matches or improves over BitMoD for GPT2-XL and OPT-2.7B at 4.1 b, GPT-2 Large at 4.2 b, DeepSeek-7B at 4.3 b, Qwen2.5-7B at 4.4 b, and Phi-2 at 4.5 b. For the remaining models, FlexPosit matches BitMoD at 4.6 b for LLaMA-2-7B and Mistral-7B, while Qwen2.5-14B requires 5.0 b.",
+    "premise": "Accuracy parity at a given bit-width is empirical and model-dependent; extra fractional bits can buy accuracy, and 'group-wise-like' is not a guarantee at equal bit-width.",
+    "inference": "The mechanism's accuracy claim is conditional on virtual precision budget and sensitivity allocation, not solely on column alignment. Under a strict 4.0 b budget, FlexPosit may not match group-wise BitMoD; under 4.1–5.0 b it can.",
+    "toy_example": "Toy example, not a measurement: matching a 4-bit group-wise baseline at 4.1 b average is not the same as matching it at 4.0 b.",
+    "conditional_consequence": "If the deployment budget is fixed at 4.0 b, FlexPosit's advantage may shrink; if fractional precision up to 5.0 b is allowed, the paper's PEB results support parity or improvement.",
+    "critical_link": "The 'group-wise-like' claim depends on fractional precision headroom and sensitivity ranking, not alignment alone.",
+    "necessary_conditions": [
+      "Virtual precision above 4 b is available.",
+      "Sensitivity-guided allocation is applied.",
+      "Model-specific PEB is used for iso-PPL comparison."
+    ],
+    "defeaters": [
+      "Evidence that FlexPosit at 4.0 b matches BitMoD.",
+      "An iso-bit comparison showing parity without extra fractional bits.",
+      "A showing that PEB differences are within evaluation noise."
+    ],
+    "do_not_infer": [
+      "Do not infer FlexPosit fails overall.",
+      "Do not infer BitMoD is always better.",
+      "Do not infer alignment alone yields group-wise accuracy; the authors combine alignment with Posit and sensitivity-guided MPQ."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L6: benefit threshold; accuracy claim vs bit budget",
+    "quotes": [
+      {
+        "source": "paper p.1 Abstract",
+        "text": "Algorithmically, FlexPosit employs distribution-aware quantization with hardware-aligned, sensitivity-guided mixed-precision allocation, leveraging the Posit format’s tapered precision to achieve group-wise-like accuracy with channel-wise-like regularity."
+      },
+      {
+        "source": "paper p.10 §VI-B",
+        "text": "FlexPosit matches or improves over BitMoD for GPT2-XL and OPT-2.7B at 4.1 b, GPT-2 Large at 4.2 b, DeepSeek-7B at 4.3 b, Qwen2.5-7B at 4.4 b, and Phi-2 at 4.5 b. For the remaining models, FlexPosit matches BitMoD at 4.6 b for LLaMA-2-7B and Mistral-7B, while Qwen2.5-14B requires 5.0 b."
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 4,
+    "evidence": [],
+    "quote_verified": false,
+    "mechanism": "Accuracy parity at a given bit-width is empirical and model-dependent; extra fractional bits can buy accuracy, and 'group-wise-like' is not a guarantee at equal bit-width. The mechanism's accuracy claim is conditional on virtual precision budget and sensitivity allocation, not solely on column alignment. Under a strict 4.0 b budget, FlexPosit may not match group-wise BitMoD; under 4.1–5.0 b it can."
+  },
+  {
+    "headline": "Sub-5-bit weight precision does not imply or guarantee iso-BitMoD accuracy for every model.",
+    "claim": "FlexPosit's sub-5-bit claim is model-dependent: Qwen2.5-14B requires 5.0 b to match BitMoD's 4 b PPL, so a strict sub-5-bit budget does not guarantee iso-BitMoD accuracy across all evaluated models.",
+    "paper_fact": "For the remaining models, FlexPosit matches BitMoD at 4.6 b for LLaMA-2-7B and Mistral-7B, while Qwen2.5-14B requires 5.0 b.",
+    "premise": "A model that requires 5.0 b to match a baseline is at the boundary of, not below, a strict sub-5-bit budget; per-model precision requirements can vary with scale and weight distribution.",
+    "inference": "The abstract-level sub-5-bit framing does not by itself guarantee iso-BitMoD accuracy for every model under a strict <5 b constraint.",
+    "toy_example": "Not a measurement: a strict budget of 4.9 b would exclude the reported 5.0 b operating point for Qwen2.5-14B.",
+    "conditional_consequence": "If the deployment enforces a strict <5 b average weight budget and requires BitMoD-level PPL, Qwen2.5-14B may not meet that target at the reported operating point.",
+    "critical_link": "The missing link is a uniform strict sub-5-bit iso-PPL guarantee across all evaluated models; the paper reports a 5.0 b requirement for one model.",
+    "necessary_conditions": [
+      "The claim is interpreted as a strict <5 b budget.",
+      "Iso-BitMoD PPL is the required accuracy target.",
+      "Qwen2.5-14B is in scope."
+    ],
+    "defeaters": [
+      "5.0 b is treated as within the intended 'sub-5-bit' rounding or range.",
+      "The claim is explicitly per-model and not a universal guarantee.",
+      "A different baseline or accuracy target is used."
+    ],
+    "do_not_infer": [
+      "Do not infer that FlexPosit fails to match BitMoD at its reported per-model precision.",
+      "Do not infer that sub-5-bit results are absent for all models.",
+      "Do not infer that 5.0 b is below 5 b."
+    ],
+    "disclosure": "inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L1/L7: proxy target and model-scale applicability.",
+    "quotes": [
+      {
+        "source": "paper",
+        "locator": "p.10 §VI-B",
+        "text": "For the remaining models, FlexPosit matches BitMoD at 4.6 b for LLaMA-2-7B and Mistral-7B, while Qwen2.5-14B requires 5.0 b."
+      },
+      {
+        "source": "paper",
+        "locator": "p.1 Abstract",
+        "text": "Evaluated across diverse LLMs, FlexPosit achieves near-FP16 accuracy with sub-5-bit fractional weights."
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 4,
+    "evidence": [],
+    "quote_verified": false,
+    "mechanism": "A model that requires 5.0 b to match a baseline is at the boundary of, not below, a strict sub-5-bit budget; per-model precision requirements can vary with scale and weight distribution. The abstract-level sub-5-bit framing does not by itself guarantee iso-BitMoD accuracy for every model under a strict <5 b constraint."
+  },
+  {
+    "headline": "Tapered precision matching heavy-tailed weights does not guarantee FP16-level downstream task accuracy at 4-bit channel-wise quantization.",
+    "claim": "Posit's tapered-precision alignment with heavy-tailed LLM weights can improve channel-wise perplexity, but it does not by itself guarantee downstream task accuracy parity with FP16 at 4-bit channel-wise weight quantization.",
+    "paper_fact": "On its own, however, it still leaves a clear gap to FP16 across all models.",
+    "premise": "Perplexity is a proxy for language modeling; downstream task accuracy can diverge under quantization because tasks may depend on different features and activation sensitivity.",
+    "inference": "The paper reports Posit(4,1) improves over INT4 under channel-wise quantization but remains below FP16, and downstream results still show gaps; therefore distribution alignment alone is insufficient to guarantee task parity.",
+    "toy_example": "Not a measurement: a model could show lower WikiText-2 PPL at 4.1 b yet still trail FP16 on MMLU; this illustrates the proxy gap, not an observed result.",
+    "conditional_consequence": "If a target deployment requires near-FP16 downstream accuracy at 4-bit channel-wise weights, fixed Posit(4,1) may need higher precision or task-aware allocation.",
+    "critical_link": "The link is the assumption that perplexity improvement transfers to downstream task accuracy.",
+    "necessary_conditions": [
+      "Downstream task accuracy is measured across representative tasks and models",
+      "PPL and task accuracy are compared at matched bit-width and granularity",
+      "Quantization uses the same activation precision and evaluation protocol"
+    ],
+    "defeaters": [
+      "Downstream tasks show parity with FP16 at 4-bit Posit for the target model",
+      "Task accuracy is shown to correlate tightly with PPL under this quantization"
+    ],
+    "do_not_infer": [
+      "Do not infer Posit is worse than INT4 or lacks value",
+      "Do not infer the paper claims FP16 parity at 4-bit",
+      "Do not infer PPL is useless"
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "PPL proxy vs downstream task accuracy",
+    "quotes": [
+      {
+        "source": "paper p.10 §VI-B",
+        "locator": "paragraph beginning 'As the channel-wise baseline'",
+        "text": "On its own, however, it still leaves a clear gap to FP16 across all models."
+      },
+      {
+        "source": "paper p.11 §VI-B",
+        "locator": "paragraph 'Downstream task accuracy'",
+        "text": "The downstream results follow the WikiText-2 perplexity trend: moving from fixed 4.0 b to 4.1 b recovers a substantial portion of the accuracy loss, and higher average precision further improves accuracy toward FP16 where evaluated."
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "evidence": [],
+    "quote_verified": false,
+    "mechanism": "Perplexity is a proxy for language modeling; downstream task accuracy can diverge under quantization because tasks may depend on different features and activation sensitivity. The paper reports Posit(4,1) improves over INT4 under channel-wise quantization but remains below FP16, and downstream results still show gaps; therefore distribution alignment alone is insufficient to guarantee task parity."
+  },
+  {
+    "headline": "Bubble-free precision windows do not guarantee end-to-end energy or throughput gains",
+    "claim": "The GPCU's synchronized P-cycle windows can remove compute-side bubbles, but that does not guarantee lower end-to-end latency or energy; benefits depend on compute-bound GEMM tiles and on P reduction actually reducing total cycles.",
+    "paper_fact": "Latency increases nearly linearly with precision, consistent with the proportional timing behavior of the bit-serial architecture.",
+    "premise": "In memory-bound workloads, DRAM/transfer time dominates; reducing bit-serial compute cycles by lowering P cannot reduce end-to-end time or energy proportionally, and control/synchronization overhead can offset savings.",
+    "inference": "The mechanism's no-bubble property is a compute-pipeline property, not a workload-level guarantee; the paper's own discussion notes memory-bound layers can offset compute advantages.",
+    "toy_example": "Not a measurement: a layer with 100 cycles of DRAM time and 20 cycles of compute at P=4; reducing P to 3 saves at most 5 compute cycles, not 25% of end-to-end time.",
+    "conditional_consequence": "If a layer is memory-bound or P reduction is small relative to control overhead, fractional precision may yield little latency/energy benefit despite bubble-free windows.",
+    "critical_link": "Roofline condition: compute time must be a large enough fraction of total time for P reduction to matter.",
+    "necessary_conditions": [
+      "GEMM tile is compute-bound or compute time is significant",
+      "lower P reduces bit-serial cycles",
+      "GPCU/decoder/FIFO overhead is small relative to saved compute",
+      "memory traffic does not dominate"
+    ],
+    "defeaters": [
+      "Measured end-to-end speedups across all evaluated workloads",
+      "Workload is compute-bound",
+      "P reduction also reduces memory traffic or energy proportionally"
+    ],
+    "do_not_infer": [
+      "Do not infer that FlexPosit provides no energy/throughput benefit",
+      "Do not infer measured results are wrong",
+      "Do not infer all layers are memory-bound"
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "applicability_limitation",
+    "lens": "workload roofline and memory-bound applicability",
+    "quotes": [
+      {
+        "source": "paper p.10 §VI-B",
+        "text": "Latency increases nearly linearly with precision, consistent with the proportional timing behavior of the bit-serial architecture."
+      },
+      {
+        "source": "paper p.12 §VI-C",
+        "text": "OliVe attains competitive latency through a compact symmetric MAC datapath, but the higher transfer cost of 8-bit weights renders many layers memory-bound, offsetting its compute advantage."
+      },
+      {
+        "source": "paper p.6 §V-A",
+        "text": "This yields fully synchronized execution across the array without inter-PE FIFOs or centralized stall control."
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "author_boundary": "Authors report measured average speedups and energy reductions under iso-area/iso-PPL settings; they do not claim every layer or workload is compute-bound or that bubble-free windows alone guarantee end-to-end gains.",
+    "evidence": [],
+    "quote_verified": false,
+    "mechanism": "In memory-bound workloads, DRAM/transfer time dominates; reducing bit-serial compute cycles by lowering P cannot reduce end-to-end time or energy proportionally, and control/synchronization overhead can offset savings. The mechanism's no-bubble property is a compute-pipeline property, not a workload-level guarantee; the paper's own discussion notes memory-bound layers can offset compute advantages."
+  },
+  {
+    "headline": "4-way MAC clustering does not guarantee end-to-end throughput or latency improvement",
+    "claim": "The reported 4/P MACs-per-cycle cluster rate is a compute-rate recovery, not a guarantee of end-to-end latency or throughput gains.",
+    "paper_fact": "each cluster achieves an effective throughput of 4/P MACs per cycle for any supported precision configuration",
+    "premise": "MAC/cycle is a compute-throughput metric; end-to-end latency also depends on memory bandwidth, data reuse, occupancy, and scheduling.",
+    "inference": "Therefore the 4/P cluster rate does not by itself guarantee end-to-end speedup; it is conditional on being compute-bound and fully utilized.",
+    "toy_example": "Toy example (not a measurement): a cluster at P=8 issues 0.5 MAC/cycle; if DRAM supplies weights slower than that, adding clusters need not halve latency.",
+    "conditional_consequence": "If the workload is compute-bound and all four lanes stay busy, clustering can recover bit-serial throughput; if memory-bound or underutilized, end-to-end benefit may not follow.",
+    "critical_link": "The link is that end-to-end latency equals compute time only when compute is the bottleneck and all four lanes are kept busy; otherwise memory, scheduling, or underutilization dominates.",
+    "necessary_conditions": [
+      "compute-bound execution",
+      "full four-lane utilization",
+      "P in the supported 4–8 range",
+      "memory and scheduling not dominant"
+    ],
+    "defeaters": [
+      "memory-bandwidth-bound workload",
+      "low batch or insufficient activation parallelism",
+      "P=8 where cluster rate is 0.5 MAC/cycle",
+      "pipeline or scheduling stalls"
+    ],
+    "do_not_infer": [
+      "Do not infer that clustering gives no speedup; the paper reports measured latency improvements.",
+      "Do not infer that 4/P is an end-to-end latency formula.",
+      "Do not infer that all workloads are compute-bound."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "applicability_limitation",
+    "lens": "throughput proxy vs end-to-end latency",
+    "quotes": [
+      {
+        "source": "paper p.7 §V-B",
+        "text": "each cluster achieves an effective throughput of 4/P MACs per cycle for any supported precision configuration"
+      },
+      {
+        "source": "paper p.7 §V-B",
+        "text": "matching the rate of a conventional FP16 MAC at the minimum 4 b precision"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "author_boundaries": [
+      "Paper claims effective cluster throughput and measured iso-area latency; it does not claim cluster rate alone guarantees end-to-end speedup for all workloads."
+    ],
+    "inferred_consequences": [
+      "Do not treat 4/P as end-to-end speedup; check memory-bound and batch/sequence sensitivity."
+    ],
+    "evidence": [],
+    "quote_verified": false,
+    "mechanism": "MAC/cycle is a compute-throughput metric; end-to-end latency also depends on memory bandwidth, data reuse, occupancy, and scheduling. Therefore the 4/P cluster rate does not by itself guarantee end-to-end speedup; it is conditional on being compute-bound and fully utilized."
+  },
+  {
+    "headline": "WikiText-2 ΔPPL sensitivity does not imply or guarantee downstream task accuracy or out-of-distribution robustness.",
+    "claim": "The sensitivity ranking is calibrated on WikiText-2 perplexity; it can prioritize channel windows that reduce WikiText-2 PPL without guaranteeing equal gains on MMLU, HellaSwag, or other domains.",
+    "paper_fact": "Precision allocation is driven by measuring how much each channel window affects the overall model perplexity (PPL).",
+    "premise": "Perplexity on one dataset is a proxy for model quality; downstream task accuracy and out-of-distribution behavior can diverge from PPL.",
+    "inference": "The ΔPPL ranking is a WikiText-2-specific signal; a bvirt chosen from it may not meet a downstream accuracy target even if WikiText-2 PPL improves.",
+    "toy_example": "Not a measurement: a channel window with large WikiText-2 ΔPPL could have little effect on MMLU accuracy.",
+    "conditional_consequence": "If downstream accuracy is not monotonic with WikiText-2 PPL, then sensitivity-guided allocation may over-invest in windows that do not help the target task.",
+    "critical_link": "The critical link is that WikiText-2 ΔPPL sensitivity must transfer to the target task and domain and remain stable under the chosen baseline and probe precisions.",
+    "necessary_conditions": [
+      "Target task accuracy correlates with WikiText-2 PPL",
+      "Calibration data is representative of deployment data",
+      "Baseline and probe precisions are representative",
+      "No significant distribution shift"
+    ],
+    "defeaters": [
+      "Paper reports downstream MMLU and HellaSwag trends in Table V",
+      "Fig. 10 shows sensitivity-guided ordering beats random and location-based ordering",
+      "If the target metric is WikiText-2 PPL itself"
+    ],
+    "do_not_infer": [
+      "Do not infer the paper omitted downstream evaluation",
+      "Do not infer ΔPPL is invalid for WikiText-2",
+      "Do not infer downstream accuracy is unaffected by precision"
+    ],
+    "author_boundaries": [
+      "Authors report WikiText-2 PPL and MMLU/HellaSwag accuracy",
+      "Authors do not claim universal transfer to all tasks or domains"
+    ],
+    "inferred_consequences": [
+      "Out-of-distribution deployment may require re-profiling",
+      "A bvirt chosen on WikiText-2 may not meet a downstream accuracy target"
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L1: proxy validity",
+    "quotes": [
+      {
+        "source": "paper p.5 §IV-B",
+        "text": "Precision allocation is driven by measuring how much each channel window affects the overall model perplexity (PPL)."
+      },
+      {
+        "source": "paper p.9 §VI-A",
+        "text": "Perplexity is measured on the WikiText-2 dataset [47] using the same evaluation protocol as prior quantization studies [11], [12]"
+      },
+      {
+        "source": "paper p.11 §VI-B",
+        "text": "The downstream results follow the WikiText-2 perplexity trend"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "evidence": [],
+    "quote_verified": false,
+    "mechanism": "Perplexity on one dataset is a proxy for model quality; downstream task accuracy and out-of-distribution behavior can diverge from PPL. The ΔPPL ranking is a WikiText-2-specific signal; a bvirt chosen from it may not meet a downstream accuracy target even if WikiText-2 PPL improves."
+  },
+  {
+    "headline": "A virtual precision budget does not imply or guarantee proportional hardware latency or energy.",
+    "claim": "bvirt is a weighted mean bit-width; stopping at bvirt does not by itself determine actual bit-serial cycles, memory traffic, or energy, which depend on window placement and schedule.",
+    "paper_fact": "The mixed-precision configuration is obtained by upgrading the most sensitive channel windows from blow toward bhigh until the model’s weighted mean precision reaches bvirt.",
+    "premise": "Average bit-width is not a hardware cost model; bit-serial latency depends on P-cycle scheduling, window boundaries, memory traffic, and array utilization.",
+    "inference": "Two allocations with the same bvirt can have different hardware cost because they place higher precision in different channel windows and thus create different P-cycle schedules.",
+    "toy_example": "Not a measurement: two allocations with the same bvirt can place 5-bit windows differently and produce different P-cycle schedules.",
+    "conditional_consequence": "If memory traffic or window-boundary reconfiguration dominates, then bvirt may not map linearly to latency or energy.",
+    "critical_link": "The critical link is that weighted mean precision must map to actual bit-serial cycles and memory traffic under the GPCU schedule.",
+    "necessary_conditions": [
+      "Uniform P-cycle per channel window",
+      "No pipeline bubbles or reconfiguration stalls",
+      "Compute-bound workload",
+      "Windows aligned to systolic columns",
+      "Memory traffic does not dominate"
+    ],
+    "defeaters": [
+      "Paper measures normalized latency and energy in Fig. 11 and Fig. 12",
+      "Paper reports near-linear latency with precision",
+      "If workload is compute-bound and windows are aligned"
+    ],
+    "do_not_infer": [
+      "Do not infer bvirt is meaningless",
+      "Do not infer the paper did not measure latency or energy",
+      "Do not infer energy is exactly proportional to bvirt"
+    ],
+    "author_boundaries": [
+      "Authors define bvirt as a weighted mean precision budget",
+      "Authors separately measure latency and energy on a 32×16 array",
+      "Authors do not claim bvirt alone is a hardware cost model"
+    ],
+    "inferred_consequences": [
+      "Design-space search using bvirt still needs hardware evaluation",
+      "Same bvirt can hide different window placements and schedules"
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L2/L3: objective and units",
+    "quotes": [
+      {
+        "source": "paper p.6 §IV-B",
+        "text": "The mixed-precision configuration is obtained by upgrading the most sensitive channel windows from blow toward bhigh until the model’s weighted mean precision reaches bvirt."
+      },
+      {
+        "source": "paper p.10 §VI-B",
+        "text": "Latency increases nearly linearly with precision, consistent with the proportional timing behavior of the bit-serial architecture."
+      },
+      {
+        "source": "paper p.6 §V-A",
+        "text": "A small counter and lightweight control logic generate semantic timing markers (cyc0, cyc1, cyc2, and cycP)"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "evidence": [],
+    "quote_verified": false,
+    "mechanism": "Average bit-width is not a hardware cost model; bit-serial latency depends on P-cycle scheduling, window boundaries, memory traffic, and array utilization. Two allocations with the same bvirt can have different hardware cost because they place higher precision in different channel windows and thus create different P-cycle schedules."
+  },
+  {
+    "headline": "Iso-area normalization does not guarantee equal effective resource constraints across accelerators.",
+    "claim": "The paper’s iso-compute-area comparison may not isolate compute efficiency because it normalizes compute area and scales reported areas to 16 nm, while end-to-end latency and energy also depend on memory bandwidth, buffer capacity, and data reuse.",
+    "paper_fact": "All accelerators are evaluated under an iso-compute-area constraint equivalent to a 32×16 FlexPosit array",
+    "premise": "Iso-area normalization controls only compute area; end-to-end latency and energy also depend on memory bandwidth, buffer capacity, data reuse, clock frequency, and process scaling.",
+    "inference": "The reported latency/energy advantages support a controlled comparison only if non-compute resources and scaling assumptions are equalized or shown not to affect the conclusion; iso-area alone does not establish that.",
+    "toy_example": "Toy example (not a measurement): two accelerators with equal compute area but one has 2× DRAM bandwidth; equal area alone would not make their latency comparison fair.",
+    "conditional_consequence": "If memory/bandwidth or buffer resources differ materially, the reported advantage may overstate compute-efficiency gains; if they are equalized and a sensitivity analysis supports robustness, the concern is mitigated.",
+    "critical_link": "The missing link is evidence that memory/bandwidth, buffer capacity, clocking, and process-scaling assumptions are equalized or that the conclusion is robust to them.",
+    "necessary_conditions": [
+      "Same effective memory bandwidth and DRAM model across designs",
+      "Same buffer capacities and data-reuse assumptions",
+      "Valid 16 nm scaling factors and comparable clock constraints",
+      "Workload and batch/sequence settings held fixed for the comparison"
+    ],
+    "defeaters": [
+      "Paper states all designs use the same 512 KB activation and 512 KB weight buffers and the same Ramulator DDR4 model",
+      "A sensitivity analysis shows the ranking is unchanged under plausible bandwidth/buffer variations",
+      "The comparison is explicitly compute-bound for the evaluated workloads"
+    ],
+    "do_not_infer": [
+      "Do not infer that the authors claim iso-area is unfair; they report the normalization and scaling assumptions.",
+      "Do not infer that FlexPosit is not faster or more energy-efficient; only that iso-area alone does not guarantee a fair end-to-end comparison.",
+      "Do not infer that memory/bandwidth differences are present; the concern is a missing equalization or robustness check."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L1 proxy validity; L3 units; L7 bottleneck shift",
+    "quotes": [
+      {
+        "source": "paper p.9 §VI-A",
+        "text": "All accelerators are evaluated under an iso-compute-area constraint equivalent to a 32×16 FlexPosit array"
+      },
+      {
+        "source": "paper p.9 §VI-A",
+        "text": "The reported area and power of FP16 baseline, BitMoD, and OliVe are scaled to 16 nm using standard process factors [51], [52], and their systolic arrays are dimensioned to match FlexPosit’s compute area."
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "evidence": [],
+    "quote_verified": false,
+    "mechanism": "Iso-area normalization controls only compute area; end-to-end latency and energy also depend on memory bandwidth, buffer capacity, data reuse, clock frequency, and process scaling. The reported latency/energy advantages support a controlled comparison only if non-compute resources and scaling assumptions are equalized or shown not to affect the conclusion; iso-area alone does not establish that."
+  },
+  {
+    "headline": "Iso-PPL matching to BitMoD’s 4 b does not guarantee equal downstream task accuracy.",
+    "claim": "The paper’s accuracy-fair hardware comparison matches WikiText-2 PPL to BitMoD’s 4 b group-wise quantization, but equal PPL does not necessarily mean equal downstream task accuracy or robustness.",
+    "paper_fact": "For accuracy-fair comparison (iso-PPL), each accelerator is configured to match the PPL of BitMoD’s 4 b group-wise quantization",
+    "premise": "Perplexity on WikiText-2 is a proxy for language-modeling accuracy; equal PPL does not imply equal downstream task accuracy or robustness across datasets.",
+    "inference": "The iso-PPL hardware comparison supports an accuracy-fair claim only for the matched PPL target and dataset; it does not by itself establish equal accuracy on MMLU, HellaSwag, or other workloads.",
+    "toy_example": "Toy example (not a measurement): two quantized models with identical WikiText-2 PPL can differ on a multiple-choice benchmark.",
+    "conditional_consequence": "If downstream accuracy diverges at matched PPL, the hardware comparison may not be iso-accuracy in the deployment sense; if downstream accuracy is also matched at PEB, the concern is mitigated.",
+    "critical_link": "The missing link is evidence that PPL matching at the reported operating points yields comparable downstream accuracy or that the hardware conclusion is robust to task-specific accuracy differences.",
+    "necessary_conditions": [
+      "Same PPL target and evaluation dataset for all designs",
+      "Downstream task accuracy matched or shown to track PPL at the operating points",
+      "No task-specific sensitivity that changes the relative ranking"
+    ],
+    "defeaters": [
+      "Table V shows downstream accuracy follows the same trend and supports comparable behavior at matched precision",
+      "The paper explicitly limits the accuracy claim to WikiText-2 PPL",
+      "A task-level iso-accuracy comparison yields the same hardware ranking"
+    ],
+    "do_not_infer": [
+      "Do not infer that the authors claim PPL is the only accuracy metric; they also report downstream tasks.",
+      "Do not infer that FlexPosit is less accurate; only that iso-PPL is not identical to iso-accuracy.",
+      "Do not infer that downstream accuracy actually diverges; the concern is the sufficiency of PPL matching."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L2 objective/stopping; L6 benefit threshold",
+    "quotes": [
+      {
+        "source": "paper p.9 §VI-A",
+        "text": "For accuracy-fair comparison (iso-PPL), each accelerator is configured to match the PPL of BitMoD’s 4 b group-wise quantization"
+      },
+      {
+        "source": "paper p.12 Fig. 11",
+        "text": "FlexPosit precision is set to PEB (minimum precision achieving iso-PPL to BitMoD’s 4 b)."
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "evidence": [],
+    "quote_verified": false,
+    "mechanism": "Perplexity on WikiText-2 is a proxy for language-modeling accuracy; equal PPL does not imply equal downstream task accuracy or robustness across datasets. The iso-PPL hardware comparison supports an accuracy-fair claim only for the matched PPL target and dataset; it does not by itself establish equal accuracy on MMLU, HellaSwag, or other workloads."
+  },
+  {
+    "headline": "An FP8 activation sensitivity check does not imply or guarantee full activation-quantized accuracy.",
+    "claim": "The FP8 activation check shows stable relative ordering across FlexPosit weight precisions, but it does not establish that FP8 or lower-precision activations are safe in absolute accuracy or across tasks.",
+    "paper_fact": "FP8 activation quantization slightly increases PPL, but the relative ordering across FlexPosit weight precisions remains stable.",
+    "premise": "Relative ordering can remain stable while absolute accuracy degrades; a PPL check on a few models is not a full task-level or activation-format robustness evaluation.",
+    "inference": "The FP8 result is a sensitivity probe, not a guarantee of end-to-end accuracy under activation quantization; absolute PPL increases and downstream task effects still matter.",
+    "toy_example": "Not a measurement: if FP8 added a fixed +0.3 PPL to every weight precision, the ordering would be unchanged while absolute accuracy worsened.",
+    "conditional_consequence": "If a deployment uses FP8 activations and requires task-level accuracy, the reported ordering stability alone may not predict acceptable behavior.",
+    "critical_link": "The missing link is absolute accuracy and downstream-task evidence under FP8 activations, not just relative PPL ordering across weight precisions.",
+    "necessary_conditions": [
+      "Activation quantization is part of the deployment.",
+      "Absolute accuracy or task accuracy is the relevant criterion.",
+      "The evaluated models and tasks are representative of the target."
+    ],
+    "defeaters": [
+      "Downstream tasks under FP8 show no meaningful degradation.",
+      "The deployment keeps FP16 activations, making the FP8 check irrelevant.",
+      "The paper's claim is explicitly limited to relative ordering, not absolute safety."
+    ],
+    "do_not_infer": [
+      "Do not infer that the paper claims FP8 activations are free.",
+      "Do not infer that FP8 activation quantization is unsafe in all cases.",
+      "Do not infer that the FP8 check is a full activation-quantized system evaluation."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L1/L5: proxy accuracy and regularity under activation quantization.",
+    "quotes": [
+      {
+        "source": "paper",
+        "locator": "p.11 §VI-B",
+        "text": "FP8 activation quantization slightly increases PPL, but the relative ordering across FlexPosit weight precisions remains stable."
+      },
+      {
+        "source": "paper",
+        "locator": "p.5 §IV-A",
+        "text": "In this work, only the weights are quantized while activations remain in FP16."
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "evidence": [],
+    "quote_verified": false,
+    "mechanism": "Relative ordering can remain stable while absolute accuracy degrades; a PPL check on a few models is not a full task-level or activation-format robustness evaluation. The FP8 result is a sensitivity probe, not a guarantee of end-to-end accuracy under activation quantization; absolute PPL increases and downstream task effects still matter."
+  },
+  {
+    "headline": "Per-column rescale area savings do not guarantee negligible dequantization overhead for all array sizes or placements.",
+    "claim": "The paper reports per-column rescale overhead below 1% for a 32×32 array and 0.4% in its 32×16 array, but per-group placement rises to 9.4%; the overhead is conditional on array size, placement, and included pipeline registers.",
+    "paper_fact": "per-column (channel-wise) scaling adds less than 1% overhead",
+    "premise": "Area overhead of per-column rescale scales with the number of columns relative to PEs and depends on array dimensions, technology, and whether rescale is per-column or per-PE.",
+    "inference": "The artifact's per-column rescale is not universally negligible; at smaller arrays or with additional registers, the area/power advantage may shrink.",
+    "toy_example": "Toy example (not a measurement): a 32×32 array has 32 per-column rescale units versus 1024 per-PE units, while a 4×4 array has only 4 columns versus 16 PEs, so the relative share changes.",
+    "conditional_consequence": "If the artifact uses a smaller array or different rescale placement, the reported area/power advantage may not transfer; if it matches the 32×16/32×32 setup, the paper's overhead claim may hold.",
+    "critical_link": "The reported overhead is for a specific 16 nm TPU-class output-stationary systolic array and per-column placement, not a general property of channel-wise quantization.",
+    "necessary_conditions": [
+      "16 nm TPU-class output-stationary systolic array",
+      "32×32 or 32×16 array",
+      "per-column rescale placement",
+      "area normalized to core excluding some logic"
+    ],
+    "defeaters": [
+      "Different array size",
+      "Different technology",
+      "Per-PE placement",
+      "Additional pipeline registers",
+      "Different baseline"
+    ],
+    "do_not_infer": [
+      "Do not infer per-column rescale is free",
+      "Do not infer per-group overhead is always 30%",
+      "Do not infer power overhead equals area overhead"
+    ],
+    "disclosure": "reported",
+    "category_code": "applicability_limitation",
+    "lens": "area-overhead scaling",
+    "quotes": [
+      {
+        "source": "paper p.3 §III-A",
+        "locator": "p.3 §III-A",
+        "text": "per-column (channel-wise) scaling adds less than 1% overhead"
+      },
+      {
+        "source": "paper p.3 §III-A",
+        "locator": "p.3 §III-A",
+        "text": "per-PE (group-wise) scaling inflates core area by over 30% for a 32×32 array"
+      },
+      {
+        "source": "paper p.12 §VI-C",
+        "locator": "p.12 §VI-C",
+        "text": "Even with lightweight power-of-two rescaling, per-PE placement increases rescale area overhead from 0.4% to 9.4%."
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 2,
+    "evidence": [],
+    "quote_verified": false,
+    "mechanism": "Area overhead of per-column rescale scales with the number of columns relative to PEs and depends on array dimensions, technology, and whether rescale is per-column or per-PE. The artifact's per-column rescale is not universally negligible; at smaller arrays or with additional registers, the area/power advantage may shrink."
+  },
+  {
+    "headline": "Default batch-1 sequence-256 speedups do not guarantee the same advantage under memory-bound workloads.",
+    "claim": "The headline throughput and energy advantages are reported for batch size 1 and sequence length 256 unless stated otherwise; the paper’s own sensitivity table shows smaller speedups at larger batch/sequence settings.",
+    "paper_fact": "Unless otherwise stated, hardware evaluations use batch size 1 and an input sequence length of 256 tokens.",
+    "premise": "Accelerator speedup and energy advantages are workload-dependent; larger batch/sequence lengths can shift execution toward memory/bandwidth-bound behavior.",
+    "inference": "The default iso-area/iso-PPL comparison does not by itself guarantee the same relative benefit for all deployment workloads; the advantage is conditional on the workload regime.",
+    "conditional_consequence": "If the target workload is memory-bound or has larger batch/sequence, the expected speedup/energy benefit may be smaller than the headline numbers; if the target is latency-sensitive B=1,L=256, the headline numbers apply.",
+    "critical_link": "The missing link is workload-specific evidence or a sensitivity analysis showing the ranking and magnitude hold across the deployment conditions of interest.",
+    "necessary_conditions": [
+      "Workload batch and sequence length match the reported setting or are covered by sensitivity data",
+      "Memory/bandwidth behavior is modeled consistently across designs",
+      "The deployment target is not dominated by a different bottleneck"
+    ],
+    "defeaters": [
+      "Table X reports positive speedups and energy reductions across B and L, including B=8,L=8192",
+      "The paper explicitly scopes the headline claim to the default setting",
+      "The target deployment is the latency-sensitive B=1,L=256 regime"
+    ],
+    "do_not_infer": [
+      "Do not infer that the authors claim the advantage is workload-independent; they report a sensitivity table.",
+      "Do not infer that FlexPosit loses its advantage at larger workloads; the reported speedups remain above 1×.",
+      "Do not infer that the default setting is invalid; it is a stated evaluation condition."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "applicability_limitation",
+    "lens": "L5 regularity; L7 bottleneck shift",
+    "quotes": [
+      {
+        "source": "paper p.9 §VI-A",
+        "text": "Unless otherwise stated, hardware evaluations use batch size 1 and an input sequence length of 256 tokens."
+      },
+      {
+        "source": "paper p.13 Table X / §VI-C",
+        "text": "At the largest evaluated point (B=8, L=8192), FlexPosit still achieves 3.4 × /1.6 × /1.2× speedup and 3.5 × /1.2 × /1.8× energy reduction over FP16 / BitMoD / OliVe."
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 2,
+    "evidence": [],
+    "quote_verified": false,
+    "mechanism": "Accelerator speedup and energy advantages are workload-dependent; larger batch/sequence lengths can shift execution toward memory/bandwidth-bound behavior. The default iso-area/iso-PPL comparison does not by itself guarantee the same relative benefit for all deployment workloads; the advantage is conditional on the workload regime."
+  }
+]

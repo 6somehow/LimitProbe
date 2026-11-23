@@ -1,0 +1,513 @@
+[
+  {
+    "headline": "Pair-level post-overlap makespan minimization does not guarantee end-to-end iteration throughput or MFU.",
+    "claim": "Tessera minimizes each overlap pair's post-overlap makespan and uses the maximum selected edge cost as a surrogate for partition selection, but this pair-local objective does not formally guarantee the system goal of iteration throughput or MFU.",
+    "paper_fact": "Tessera therefore uses the maximum selected post-overlap edge cost as a surrogate objective for partition selection.",
+    "premise": "A surrogate objective or local makespan is not a formal guarantee of the system-level objective; end-to-end throughput includes pipeline bubbles, warmup/cooldown, memory effects, and runtime adaptation.",
+    "inference": "Therefore, pair-level optimality may not compose into global throughput optimality, and the mechanism's reported gains do not imply a general end-to-end guarantee.",
+    "toy_example": "Toy example (not a measurement): two overlap pairs each improve 10%, but an unmodeled pipeline bubble grows and erases the end-to-end gain.",
+    "conditional_consequence": "If residual PP bubbles, warmup/cooldown, or SM contention dominate, optimizing pair makespan may yield limited end-to-end benefit.",
+    "critical_link": "The critical link is the surrogate objective versus the system goal; pair makespan is a proxy, not a bound on MFU.",
+    "necessary_conditions": [
+      "Pair-level post-overlap costs capture the true critical path",
+      "No unmodeled warmup/cooldown or DBO interactions dominate",
+      "MILP surrogate max edge cost aligns with iteration throughput",
+      "Profiling is representative of target execution"
+    ],
+    "defeaters": [
+      "Paper reports 20%–33% throughput gains and up to 1.24× MFU",
+      "DBO fills residual bubbles",
+      "Overlap-aware partition measured better than serial-balanced partition"
+    ],
+    "do_not_infer": [
+      "Do not infer the surrogate is invalid or that reported gains are not real",
+      "Do not infer pair makespan is irrelevant",
+      "Do not infer the authors claim global optimality"
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L2_objective_stopping_vs_goal",
+    "quotes": [
+      {
+        "quote": "For each overlap pair, the relevant performance metric is not the serial sum of its constituent operations, but the post-overlap cost: the resulting makespan of the co-scheduled overlap pair.",
+        "source": "Tessera paper",
+        "locator": "p. 4"
+      },
+      {
+        "quote": "Tessera therefore uses the maximum selected post-overlap edge cost as a surrogate objective for partition selection.",
+        "source": "Tessera paper",
+        "locator": "p. 7"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 4,
+    "author_boundaries": [
+      "Authors call the max edge cost a surrogate objective",
+      "Authors report measured gains, not a formal end-to-end optimality proof",
+      "Authors do not claim pair-local optimality composes globally"
+    ],
+    "inferred_consequences": [
+      "Pair-local optimization may leave system-level bottlenecks",
+      "End-to-end gains depend on unmodeled pipeline and runtime effects"
+    ],
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p. 4",
+        "support_description": "For each overlap pair, the relevant performance metric is not the serial sum of its constituent operations, but the post-overlap cost: the resulting makespan of the co-scheduled overlap pair."
+      },
+      {
+        "source_id": "paper",
+        "location": "p. 7",
+        "support_description": "Tessera therefore uses the maximum selected post-overlap edge cost as a surrogate objective for partition selection."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "A surrogate objective or local makespan is not a formal guarantee of the system-level objective; end-to-end throughput includes pipeline bubbles, warmup/cooldown, memory effects, and runtime adaptation. Therefore, pair-level optimality may not compose into global throughput optimality, and the mechanism's reported gains do not imply a general end-to-end guarantee."
+  },
+  {
+    "headline": "Using maximum selected post-overlap edge cost as a surrogate does not guarantee minimizing actual pipeline iteration time.",
+    "claim": "Tessera's MILP minimizes the maximum selected post-overlap edge cost, not measured end-to-end iteration time; this does not guarantee the selected partition is globally optimal for actual pipeline execution.",
+    "paper_fact": "Tessera therefore uses the maximum selected post-overlap edge cost as a surrogate objective for partition selection.",
+    "premise": "A max-edge surrogate is valid only if one overlap edge dominates the steady-state critical path; actual iteration time can include multiple edges, warmup/cooldown, exposed communication, and runtime bubbles.",
+    "inference": "A partition that minimizes max edge cost may not minimize actual iteration time; the paper's own residual PP bubble and exposed EP discussion shows other costs remain.",
+    "toy_example": "Toy example (not a measurement): candidate A has max edge cost 10.0 and a second edge 9.9; candidate B has max edge cost 10.1 and all other edges 1.0; max-edge surrogate picks A, but B could have lower full critical-path time.",
+    "conditional_consequence": "If multiple edges or non-edge costs shape the critical path, then the MILP may choose a partition that is not end-to-end optimal even with accurate profiles.",
+    "critical_link": "The MILP objective is max selected edge cost, while the paper states iteration time depends on the full critical path; the surrogate is valid only if the bottleneck edge dominates.",
+    "necessary_conditions": [
+      "one overlap edge dominates steady-state critical path",
+      "non-edge costs are equal across candidates or negligible",
+      "profiled edge costs are accurate enough for relative ranking",
+      "DBO and warmup/cooldown do not reverse candidate ranking"
+    ],
+    "defeaters": [
+      "bottleneck edge dominates iteration time",
+      "end-to-end experiments show the selected plan wins",
+      "candidate cost gaps are large",
+      "DBO absorbs residual non-edge costs"
+    ],
+    "do_not_infer": [
+      "do not infer the surrogate is invalid in all cases",
+      "do not infer the paper claims exact end-to-end optimality",
+      "do not infer the reported gains are invalid",
+      "do not infer profiling is unnecessary"
+    ],
+    "author_boundaries": [
+      "Paper reports the max-edge surrogate and end-to-end gains; it does not claim the surrogate equals full iteration time for every partition."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L2_objective_stopping_vs_goal",
+    "quotes": [
+      {
+        "quote": "Tessera therefore uses the maximum selected post-overlap edge cost as a surrogate objective for partition selection.",
+        "source": "Tessera paper",
+        "locator": "§3.1.3, p. 7"
+      },
+      {
+        "quote": "Pipeline iteration time depends on the full critical path through the fixed schedule.",
+        "source": "Tessera paper",
+        "locator": "§3.1.3, p. 7"
+      },
+      {
+        "quote": "a few misestimated overlap pairs can change the selected bottleneck edge or partition boundary.",
+        "source": "Tessera paper",
+        "locator": "§5, p. 10"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 4,
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "§3.1.3, p. 7",
+        "support_description": "Tessera therefore uses the maximum selected post-overlap edge cost as a surrogate objective for partition selection."
+      },
+      {
+        "source_id": "paper",
+        "location": "§3.1.3, p. 7",
+        "support_description": "Pipeline iteration time depends on the full critical path through the fixed schedule."
+      },
+      {
+        "source_id": "paper",
+        "location": "§5, p. 10",
+        "support_description": "a few misestimated overlap pairs can change the selected bottleneck edge or partition boundary."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "A max-edge surrogate is valid only if one overlap edge dominates the steady-state critical path; actual iteration time can include multiple edges, warmup/cooldown, exposed communication, and runtime bubbles. A partition that minimizes max edge cost may not minimize actual iteration time; the paper's own residual PP bubble and exposed EP discussion shows other costs remain."
+  },
+  {
+    "headline": "Per-EP-group DBO does not imply or guarantee absorption of infrastructure-jitter or cross-group bubbles at 10K+ GPUs.",
+    "claim": "DBO's design targets routing-induced bubbles within EP groups; it does not guarantee handling infrastructure jitter or cross-EP-group bubbles at 10K+ GPUs.",
+    "paper_fact": "DBO likewise operates within each EP group with no cross-replica coordination.",
+    "premise": "At 10K+ GPUs, infrastructure jitter and cross-rank congestion can create bubbles not visible in per-EP-group routing metadata; local per-group optimizers do not coordinate globally.",
+    "inference": "Therefore DBO may miss bubbles caused by infrastructure jitter or cross-group waits; scaling adds independent per-EP-group instances, not global coordination.",
+    "toy_example": "Not a measurement: if a switch congestion event delays one EP group's A2A, another EP group's local DBO cannot see or fill that cross-group wait.",
+    "conditional_consequence": "If infrastructure jitter dominates or bubbles span EP groups, then DBO's routing-metadata prediction may miss them and leave throughput on the table.",
+    "critical_link": "The critical link is the source and scope of the bubble: routing-induced and EP-group-local versus infrastructure-induced or cross-group.",
+    "necessary_conditions": [
+      "Bubbles are routing-induced and visible in EP-group metadata.",
+      "No cross-group coordination is needed for the target bubbles.",
+      "Infrastructure jitter is not the dominant bubble source.",
+      "Per-EP-group local injection suffices for the workload."
+    ],
+    "defeaters": [
+      "Paper reports production DBO gains at 8,192 and 6,144 GPUs.",
+      "Authors say extending DBO to jitter is architecturally feasible.",
+      "DBO runs independently per EP group, so scaling adds instances."
+    ],
+    "do_not_infer": [
+      "Do not infer DBO cannot be extended to jitter.",
+      "Do not infer DBO fails at 10K+ GPUs.",
+      "Do not infer infrastructure jitter is validated in the paper."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "applicability_limitation",
+    "lens": "L7_bottleneck_over_scale_time",
+    "quotes": [
+      {
+        "quote": "DBO likewise operates within each EP group with no cross-replica coordination.",
+        "source": "Tessera paper",
+        "locator": "§6.2, p. 11"
+      },
+      {
+        "quote": "We have explored extending DBO to absorb infrastructure jitter by reusing its bubble-filling mechanism.",
+        "source": "Tessera paper",
+        "locator": "§5, p. 10"
+      },
+      {
+        "quote": "Systematic validation of this extension under controlled jitter conditions remains future work.",
+        "source": "Tessera paper",
+        "locator": "§5, p. 10"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 4,
+    "author_boundaries": "Authors state infrastructure-jitter extension is future work and DBO has no cross-replica coordination; they do not claim validated jitter absorption.",
+    "inferred_consequences": [
+      "Jitter-induced or cross-group bubbles may remain unfilled.",
+      "Scaling does not add global coordination to DBO."
+    ],
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "§6.2, p. 11",
+        "support_description": "DBO likewise operates within each EP group with no cross-replica coordination."
+      },
+      {
+        "source_id": "paper",
+        "location": "§5, p. 10",
+        "support_description": "We have explored extending DBO to absorb infrastructure jitter by reusing its bubble-filling mechanism."
+      },
+      {
+        "source_id": "paper",
+        "location": "§5, p. 10",
+        "support_description": "Systematic validation of this extension under controlled jitter conditions remains future work."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "At 10K+ GPUs, infrastructure jitter and cross-rank congestion can create bubbles not visible in per-EP-group routing metadata; local per-group optimizers do not coordinate globally. Therefore DBO may miss bubbles caused by infrastructure jitter or cross-group waits; scaling adds independent per-EP-group instances, not global coordination."
+  },
+  {
+    "headline": "Excluding shadow actions from loss and optimizer accounting does not guarantee mathematical equivalence for all stateful training behavior.",
+    "claim": "The paper's equivalence argument for padding is scoped to loss accumulation, gradient scaling, and optimizer accounting; it does not establish that shadow actions cannot affect other stateful behavior such as RNG/dropout streams, normalization statistics, or collective ordering.",
+    "paper_fact": "Shadow actions are excluded from loss accumulation, gradient scaling, and optimizer accounting.",
+    "premise": "Mathematical equivalence of a training step requires that null operations not perturb any stateful computation or communication that affects real microbatches.",
+    "inference": "If shadow actions consume RNG, alter collective ordering, or interact with stateful layers, the batch may not be mathematically equivalent even though they are excluded from loss and optimizer accounting.",
+    "toy_example": "Not a measurement: if a null action advances a dropout RNG stream, later real microbatches could receive different masks even though the null action is excluded from loss.",
+    "conditional_consequence": "If the implementation advances RNG or state for shadow actions, then padding could change training trajectories; if it fully skips all stateful effects, equivalence holds.",
+    "critical_link": "The paper's exclusion list is not exhaustive of all stateful effects.",
+    "necessary_conditions": [
+      "Shadow actions are implemented as true no-ops for RNG and state.",
+      "Or the paper reports tests covering those effects."
+    ],
+    "defeaters": [
+      "The paper's bitwise equivalence test on a trillion-scale Qwen3-Next workload under deterministic mode shows no divergence.",
+      "The implementation skips all computation and state for shadow actions."
+    ],
+    "do_not_infer": [
+      "Do not infer that the paper proved equivalence for every possible model or stateful layer.",
+      "Do not infer that exclusion from loss/optimizer is insufficient in the tested implementation.",
+      "Do not infer the authors claim padding changes RNG behavior."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L1_proxy_guarantee",
+    "quotes": [
+      {
+        "quote": "Shadow actions are excluded from loss accumulation, gradient scaling, and optimizer accounting.",
+        "source": "paper",
+        "locator": "§5, page 10"
+      },
+      {
+        "quote": "We inject shadow actions, null operations that skip computation but perform necessary pipeline communication (sending pseudo-tensors), to satisfy structural dependencies without altering the mathematical equivalence of the batch.",
+        "source": "paper",
+        "locator": "§5, page 10"
+      },
+      {
+        "quote": "The two runs produce bit-identical loss trajectories.",
+        "source": "paper",
+        "locator": "§6.2, page 12, Bitwise Equivalence"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 4,
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "§5, page 10",
+        "support_description": "Shadow actions are excluded from loss accumulation, gradient scaling, and optimizer accounting."
+      },
+      {
+        "source_id": "paper",
+        "location": "§5, page 10",
+        "support_description": "We inject shadow actions, null operations that skip computation but perform necessary pipeline communication (sending pseudo-tensors), to satisfy structural dependencies without altering the mathematical equivalence of the batch."
+      },
+      {
+        "source_id": "paper",
+        "location": "§6.2, page 12, Bitwise Equivalence",
+        "support_description": "The two runs produce bit-identical loss trajectories."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Mathematical equivalence of a training step requires that null operations not perturb any stateful computation or communication that affects real microbatches. If shadow actions consume RNG, alter collective ordering, or interact with stateful layers, the batch may not be mathematically equivalent even though they are excluded from loss and optimizer accounting."
+  },
+  {
+    "headline": "Reported ~1% gap to ILP on profiled pairs does not imply or guarantee a ~1% gap on all overlap-pair DAGs.",
+    "claim": "The scheduler's empirical closeness to ILP is not a formal approximation guarantee; unseen DAGs or wider EP can exceed the reported gap.",
+    "paper_fact": "Tessera’s event-driven scheduler finishes in under a minute, staying within ∼1% of ILP on profiled post-overlap cost.",
+    "premise": "Heuristic list scheduling has no universal worst-case approximation guarantee for arbitrary DAGs; empirical CDFs on sampled instances do not bound unseen instances.",
+    "inference": "The paper's ~1% figure is an empirical result on profiled candidate pairs, not a guarantee for all DAGs or wider EP.",
+    "toy_example": "Toy example (not a measurement): two synthetic DAGs with the same task count but different dependency chains can make a greedy gap-fit choice diverge from ILP by more than 1%.",
+    "conditional_consequence": "If production DAGs differ from profiled candidates, the heuristic gap could exceed ~1% and change the selected bottleneck edge or partition.",
+    "critical_link": "The evidence is measured on enumerated candidate overlap pairs; no proof or exhaustive DAG coverage links that measurement to a universal bound.",
+    "necessary_conditions": [
+      "DAGs similar to profiled candidate pairs",
+      "ILP reference solved within budget",
+      "measured post-overlap cost used as ground truth"
+    ],
+    "defeaters": [
+      "formal approximation proof",
+      "exhaustive evaluation across DAGs",
+      "measured tail bound covering production"
+    ],
+    "do_not_infer": [
+      "Do not infer scheduler is always within 1% of ILP",
+      "Do not infer heuristic is worse than ILP",
+      "Do not infer no production benefit"
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L1_proxy_guarantee",
+    "quotes": [
+      {
+        "quote": "Tessera’s event-driven scheduler finishes in under a minute, staying within ∼1% of ILP on profiled post-overlap cost.",
+        "source": "Tessera paper §6.5",
+        "locator": "p. 14"
+      },
+      {
+        "quote": "Taken together, the two heuristics close to within 1.19%/0.12% of ILP on EP32/EP8 in analytical makespan, and 1.07%/0.76% on measured post-overlap cost.",
+        "source": "Tessera paper §6.5",
+        "locator": "p. 14"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "author_boundaries": [
+      "Authors report measured within ~1% of ILP on profiled post-overlap cost and adopt the heuristic as production default; they do not claim a formal guarantee for all DAGs."
+    ],
+    "inferred_consequence": "Unseen DAGs may exceed the reported gap.",
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p. 14",
+        "support_description": "Tessera’s event-driven scheduler finishes in under a minute, staying within ∼1% of ILP on profiled post-overlap cost."
+      },
+      {
+        "source_id": "paper",
+        "location": "p. 14",
+        "support_description": "Taken together, the two heuristics close to within 1.19%/0.12% of ILP on EP32/EP8 in analytical makespan, and 1.07%/0.76% on measured post-overlap cost."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Heuristic list scheduling has no universal worst-case approximation guarantee for arbitrary DAGs; empirical CDFs on sampled instances do not bound unseen instances. The paper's ~1% figure is an empirical result on profiled candidate pairs, not a guarantee for all DAGs or wider EP."
+  },
+  {
+    "headline": "Profile-guided pruning does not guarantee end-to-end planning speedup when MILP solve time is not the bottleneck.",
+    "claim": "Pruning reduces MILP size and solve time by roughly 3–5×, but the paper's own planning-overhead numbers show profiling can take up to about 3,050 seconds while all tested MILP configurations solve within five seconds. Therefore the pruning benefit does not imply a meaningful reduction in total planning time; it shifts attention to profiling cost and solver scalability.",
+    "paper_fact": "Profile-guided pruning (§3.1.3) removes all candidate pairs whose post-overlap cost exceeds Tbase, reducing the effective problem size by roughly 3–5×. All tested configurations are solved within five seconds on a 64-core server.",
+    "premise": "A speedup in one stage of a pipeline does not imply end-to-end speedup if another stage dominates total time.",
+    "inference": "In the reported planning workflow, profiling is performed before the MILP and can dominate planning time. Pruning's 3–5× MILP reduction may be negligible for end-to-end planning, even if it is useful for solver scalability or for larger candidate sets not shown.",
+    "toy_example": "Not a measurement: if profiling takes 3,000 s and MILP solve falls from 4 s to 1 s, pruning saves 3 s out of ~3,004 s, under 0.1% of planning time.",
+    "conditional_consequence": "If MILP solve time is already small relative to profiling, then aggressive pruning buys little end-to-end planning speedup and may not justify added complexity or risk.",
+    "critical_link": "The net benefit depends on the ratio of MILP solve time to profiling time; the paper reports both but does not show an end-to-end planning-time ablation with and without pruning.",
+    "necessary_conditions": [
+      "MILP solve time is a significant fraction of total planning time.",
+      "Profiling cost is not already required for all candidate pairs before pruning.",
+      "The 3–5× reduction applies to the relevant configuration and candidate set."
+    ],
+    "defeaters": [
+      "Pruning may still be valuable for solver scalability or for configurations with much larger candidate sets than those in Table 4.",
+      "The paper's goal for pruning is MILP size and solve time, not necessarily total planning time.",
+      "Profiling is offline and may be amortized across runs, reducing its importance."
+    ],
+    "do_not_infer": [
+      "Do not infer that pruning is useless; it reduces MILP size and solve time as reported.",
+      "Do not infer that profiling is always the dominant cost for all models or future candidate spaces.",
+      "Do not infer that the paper claims pruning reduces profiling time."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L6",
+    "quotes": [
+      {
+        "quote": "Profile-guided pruning (§3.1.3) removes all candidate pairs whose post-overlap cost exceeds Tbase, reducing the effective problem size by roughly 3–5×. All tested configurations are solved within five seconds on a 64-core server.",
+        "source": "paper",
+        "locator": "§6.7, p. 15"
+      },
+      {
+        "quote": "Measured profiling time grows with sequence length and peaks at about 3,050 seconds at 128K for the trillion-scale PP8-C2 case, still below one hour.",
+        "source": "paper",
+        "locator": "§6.7, p. 15"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "§6.7, p. 15",
+        "support_description": "Profile-guided pruning (§3.1.3) removes all candidate pairs whose post-overlap cost exceeds Tbase, reducing the effective problem size by roughly 3–5×. All tested configurations are solved within five seconds on a 64-core server."
+      },
+      {
+        "source_id": "paper",
+        "location": "§6.7, p. 15",
+        "support_description": "Measured profiling time grows with sequence length and peaks at about 3,050 seconds at 128K for the trillion-scale PP8-C2 case, still below one hour."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "A speedup in one stage of a pipeline does not imply end-to-end speedup if another stage dominates total time. In the reported planning workflow, profiling is performed before the MILP and can dominate planning time. Pruning's 3–5× MILP reduction may be negligible for end-to-end planning, even if it is useful for solver scalability or for larger candidate sets not shown."
+  },
+  {
+    "headline": "Bitwise numerical equivalence does not guarantee production safety under dynamic bubble optimization.",
+    "claim": "The bitwise-equivalence guarantee addresses numerical divergence only; it does not guarantee that DBO's deferred movable tasks avoid OOM or memory-pressure failures in production.",
+    "paper_fact": "In our production runs, aggressive bubble filling occasionally triggered out-of-memory (OOM) errors on memory-constrained workloads.",
+    "premise": "Numerical equivalence and memory safety are independent properties; deferring tasks can increase peak memory even if arithmetic is unchanged.",
+    "inference": "A run can be bit-identical in loss yet fail operationally due to OOM; production safety requires bounded movable-task pools and memory headroom, not just bitwise verification.",
+    "toy_example": "Toy example (not a measurement): a numerically identical run can still OOM if deferred Wgrad keeps activations live longer.",
+    "conditional_consequence": "If memory headroom is tight and DBO fills aggressively, then OOM can occur despite bit-identical loss.",
+    "critical_link": "DBO's deferral prolongs activation and gradient tensor liveness, increasing peak memory; bitwise loss comparison does not exercise OOM or memory-pressure failure.",
+    "necessary_conditions": [
+      "DBO defers movable tasks.",
+      "The workload is memory-constrained.",
+      "Bubble filling is aggressive or the movable-task pool cap is too high."
+    ],
+    "defeaters": [
+      "The bounded movable-task pool and memory headroom prevent OOM.",
+      "DBO is disabled or capped under tight memory.",
+      "The workload has ample memory headroom."
+    ],
+    "do_not_infer": [
+      "Do not infer that Tessera generally causes OOM; the paper reports a bounded-pool mitigation.",
+      "Do not infer that bitwise equivalence is false.",
+      "Do not infer that numerical divergence caused the OOM."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L6_shifted_cost_net_benefit_threshold",
+    "quotes": [
+      {
+        "quote": "In our production runs, aggressive bubble filling occasionally triggered out-of-memory (OOM) errors on memory-constrained workloads.",
+        "source": "paper",
+        "locator": "§5 'Memory Pressure Trade-off', p. 10"
+      },
+      {
+        "quote": "delaying a Wgrad task prolongs the liveness of its associated activation and gradient tensors, increasing peak memory consumption.",
+        "source": "paper",
+        "locator": "§5 'Memory Pressure Trade-off', p. 10"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "author_boundaries": "Authors report OOM under aggressive bubble filling and rely on a bounded movable-task pool and memory headroom; they do not claim bitwise verification covers memory safety.",
+    "inferred_consequences": [
+      "Numerical equivalence can coexist with OOM.",
+      "Production safety needs memory caps and headroom in addition to bitwise checks."
+    ],
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "§5 'Memory Pressure Trade-off', p. 10",
+        "support_description": "In our production runs, aggressive bubble filling occasionally triggered out-of-memory (OOM) errors on memory-constrained workloads."
+      },
+      {
+        "source_id": "paper",
+        "location": "§5 'Memory Pressure Trade-off', p. 10",
+        "support_description": "delaying a Wgrad task prolongs the liveness of its associated activation and gradient tensors, increasing peak memory consumption."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Numerical equivalence and memory safety are independent properties; deferring tasks can increase peak memory even if arithmetic is unchanged. A run can be bit-identical in loss yet fail operationally due to OOM; production safety requires bounded movable-task pools and memory headroom, not just bitwise verification."
+  },
+  {
+    "headline": "Bit-identical loss on one trillion-scale workload does not guarantee zero numerical divergence for all workloads.",
+    "claim": "The paper's empirical bitwise check on a single Qwen3-Next workload supports that workload, but it should not be generalized to all model architectures, sequence lengths, EP/TP topologies, or hardware as a universal zero-divergence guarantee.",
+    "paper_fact": "This confirms that Tessera’s scheduling transformations introduce zero numerical divergence, and the system has since sustained months of production pre-training without observed quality regression.",
+    "premise": "An empirical bitwise check on one workload is evidence for that workload, not a proof over all model architectures, kernels, and cluster configurations.",
+    "inference": "The universal-sounding 'zero numerical divergence' conclusion is bounded by the tested workload and the construction argument; other workloads may require separate verification.",
+    "conditional_consequence": "If a new workload uses different kernels, topology, or hardware, then separate bitwise verification or a construction proof is needed before claiming zero divergence.",
+    "critical_link": "The construction argument must hold for every workload; the empirical check only covers one trillion-scale Qwen3-Next configuration.",
+    "necessary_conditions": [
+      "The tested workload is not representative of all workloads.",
+      "Other workloads differ in kernels, topology, sequence length, or hardware.",
+      "The construction proof's premises are not independently established for those workloads."
+    ],
+    "defeaters": [
+      "The construction argument proves schedule-only changes cannot alter math for all workloads.",
+      "The tested workload spans all relevant kernel and topology classes.",
+      "The paper reports exhaustive per-workload verification."
+    ],
+    "do_not_infer": [
+      "Do not infer that divergence was observed in any workload.",
+      "Do not infer that the reported workload is unrepresentative or invalid.",
+      "Do not infer that Tessera's construction argument is false."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L7_bottleneck_over_scale_time",
+    "quotes": [
+      {
+        "quote": "This confirms that Tessera’s scheduling transformations introduce zero numerical divergence, and the system has since sustained months of production pre-training without observed quality regression.",
+        "source": "paper",
+        "locator": "§6.2 'Bitwise Equivalence', p. 12"
+      },
+      {
+        "quote": "We verify this empirically on a trillion-scale Qwen3-Next workload by comparing runs with and without Tessera’s optimizations under deterministic mode. The two runs produce bit-identical loss trajectories.",
+        "source": "paper",
+        "locator": "§6.2 'Bitwise Equivalence', p. 12"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 2,
+    "author_boundaries": "Authors report one empirical bitwise verification and months without observed quality regression; they do not report exhaustive per-workload bitwise tests.",
+    "inferred_consequences": [
+      "Other workloads may need separate verification.",
+      "The universal wording should be read as scoped to the tested workload plus construction."
+    ],
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "§6.2 'Bitwise Equivalence', p. 12",
+        "support_description": "This confirms that Tessera’s scheduling transformations introduce zero numerical divergence, and the system has since sustained months of production pre-training without observed quality regression."
+      },
+      {
+        "source_id": "paper",
+        "location": "§6.2 'Bitwise Equivalence', p. 12",
+        "support_description": "We verify this empirically on a trillion-scale Qwen3-Next workload by comparing runs with and without Tessera’s optimizations under deterministic mode. The two runs produce bit-identical loss trajectories."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "An empirical bitwise check on one workload is evidence for that workload, not a proof over all model architectures, kernels, and cluster configurations. The universal-sounding 'zero numerical divergence' conclusion is bounded by the tested workload and the construction argument; other workloads may require separate verification."
+  }
+]

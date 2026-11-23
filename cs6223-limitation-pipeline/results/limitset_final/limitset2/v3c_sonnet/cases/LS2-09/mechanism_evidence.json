@@ -1,0 +1,113 @@
+{
+  "candidates": [
+    {
+      "headline": "High top-10 token recall does not imply a small attention-output error",
+      "claim": "Quest's recall evidence shows it finds the highest-scoring tokens. That does not show the selected pages preserve the full attention output at a fixed budget, because the selection score uses only Q and the Key min/max bounds and ignores V and the unselected softmax mass.",
+      "paper_fact": "Recall rate is the ratio of tokens selected by different attention methods to tokens selected by the full attention in each round of decoding.",
+      "premise": "Attention output is a softmax-weighted sum of Value vectors. Output error therefore depends on the total weight of the dropped tokens and on their Value norms, not only on whether the few top-scoring tokens were kept. A page score built from Q and Key min/max bounds carries no information about V.",
+      "inference": "A configuration can reach high top-10 recall and still lose output fidelity when attention is spread across many mid-weight tokens in unselected pages, or when dropped tokens have large Values. The paper's recall figure is a proxy for this and does not measure it.",
+      "toy_example": "Illustration only, not a measurement: 200 tokens each hold 0.4% of the attention weight (80% in total) and the top-10 tokens hold the remaining 20%. Perfect top-10 recall then still leaves up to 80% of the weight in unselected pages.",
+      "conditional_consequence": "If attention mass is diffuse or dropped tokens carry large Values, high top-10 recall can coexist with a noticeable output error. A larger budget would then be needed than the recall curve suggests.",
+      "critical_link": "The step from per-token top-10 recall to the output sum of a_i·V_i is not tested directly by the recall figure.",
+      "necessary_conditions": [
+        "Attention in some heads or layers is diffuse rather than concentrated in about 10 tokens",
+        "Dropped pages contain tokens whose a_i·V_i contributions are non-negligible in aggregate"
+      ],
+      "defeaters": [
+        "The paper's end-task results (PG19 perplexity, LongBench, passkey) show small degradation on the tested models",
+        "Layers with low sparsity are already excluded (first two layers)"
+      ],
+      "do_not_infer": [
+        "That Quest's end-task accuracy is poor",
+        "That recall and accuracy are uncorrelated",
+        "That the paper claims recall equals output fidelity"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L2",
+      "quotes": [
+        {
+          "text": "Recall rate is the ratio of tokens selected by different attention methods to tokens selected by the full attention in each round of decoding.",
+          "source": "paper, Figure 4 caption",
+          "locator": "page 3"
+        },
+        {
+          "text": "The self-attention layer will output P ai · Vi and send to the FFN.",
+          "source": "paper, Sec 3.1",
+          "locator": "page 3"
+        },
+        {
+          "text": "Quest calculates the maximum possible value of the channel i by taking Ui = max(Qimi, QiMi)",
+          "source": "paper, Sec 3.4",
+          "locator": "page 4"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Attention output is a softmax-weighted sum of Value vectors. Output error therefore depends on the total weight of the dropped tokens and on their Value norms, not only on whether the few top-scoring tokens were kept. A page score built from Q and Key min/max bounds carries no information about V. A configuration can reach high top-10 recall and still lose output fidelity when attention is spread across many mid-weight tokens in unselected pages, or when dropped tokens have large Values. The paper's recall figure is a proxy for this and does not measure it."
+    },
+    {
+      "headline": "Constant top-K attention cost does not imply length-independent decode cost",
+      "claim": "Quest fixes the number of attended tokens, but its criticality estimation must still read metadata for every page each step. Total memory traffic therefore still grows linearly with context length, and the achievable reduction is capped near the page size.",
+      "paper_fact": "Quest loads 1/S + K ∗S/L of the total KV cache",
+      "premise": "The metadata term 1/S is a fixed fraction of the whole cache, so its absolute size grows with L. Only the K*S/L term shrinks as context grows. Memory-bound speedup is the inverse of the total fraction loaded.",
+      "inference": "Reduction approaches S as L grows, regardless of budget (S=16 gives at most about 16×). Latency at very long contexts rises, even though the approximate-attention kernel is flat.",
+      "toy_example": "Illustration only, not a measurement: with S=16, L=1M tokens and a 4K-token budget, the load fraction is 1/16 + 4096/1,000,000, about 0.0666, a reduction of about 15×. The estimation term accounts for about 94% of the traffic.",
+      "conditional_consequence": "At contexts well beyond those tested (32K to 128K), estimation dominates decode attention cost. Further gains would need larger pages, quantized metadata, or hierarchical selection.",
+      "critical_link": "The estimation scan is over all L/S pages every decode step, so it scales with L while the selected set does not.",
+      "necessary_conditions": [
+        "Memory-bound decoding",
+        "Fixed page size S and a fixed token budget as L increases"
+      ],
+      "defeaters": [
+        "Larger page size or quantized metadata, which the paper says can reduce the additional memory",
+        "Measured end-to-end latency in the paper changes only slightly with length over the tested range"
+      ],
+      "do_not_infer": [
+        "That Quest is slower than full attention at long context",
+        "That the paper claims length-independent total latency (it says the approximate attention kernel is constant)",
+        "Measured results beyond 128K"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L7",
+      "quotes": [
+        {
+          "text": "Quest loads 1/S + K ∗S/L of the total KV cache",
+          "source": "paper, Sec 3.5",
+          "locator": "page 5"
+        },
+        {
+          "text": "Approximate attention with token budget K consumes constant time irrelevant to total sequence length",
+          "source": "paper, Figure 8 caption",
+          "locator": "page 8"
+        },
+        {
+          "text": "As sequence length grows, the relative performance improves and approaches 1/Page Size since estimation only consumes one token per page.",
+          "source": "paper, Sec 4.3.1",
+          "locator": "page 7"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 2,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "The metadata term 1/S is a fixed fraction of the whole cache, so its absolute size grows with L. Only the K*S/L term shrinks as context grows. Memory-bound speedup is the inverse of the total fraction loaded. Reduction approaches S as L grows, regardless of budget (S=16 gives at most about 16×). Latency at very long contexts rises, even though the approximate-attention kernel is flat."
+    }
+  ],
+  "dropped_for_unverified_quotes": 0,
+  "chunk_count": 1,
+  "chunk_failures": 0,
+  "chunk_timings": [
+    {
+      "seconds": 39.33175092888996,
+      "attempts": 1
+    }
+  ],
+  "inventory_seconds": 123.17480004695244,
+  "chunks_seconds": 39.33292983612046,
+  "merged_candidates": 0,
+  "unverified_kept": 3
+}

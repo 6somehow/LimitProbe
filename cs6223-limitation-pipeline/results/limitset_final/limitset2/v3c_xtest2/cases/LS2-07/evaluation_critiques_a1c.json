@@ -1,0 +1,1139 @@
+[
+  {
+    "headline": "StreamEval accuracy near 120K tokens does not imply or guarantee long-term memory beyond the KV cache.",
+    "claim": "StreamEval's reported accuracy near 120K tokens is bounded by the KV cache and therefore does not establish long-term memory or long-document QA.",
+    "paper_fact": "StreamingLLM retains accuracy when the token distance between the query and answer is within the cache size. However, accuracy diminishes as this distance increases and eventually drops to zero when it surpasses the cache capacity.",
+    "premise": "A model cannot retrieve answer tokens that have been evicted from its KV cache; accuracy bounded by cache capacity is short-term recall, not long-term memory.",
+    "inference": "The reported StreamEval accuracy near 120K tokens is compatible with answers lying within the cache; it does not establish retrieval beyond the cache or long-document QA.",
+    "toy_example": "Not a measurement: with 23 tokens per line and a 1,024-token cache, a 20-line lag is about 460 tokens and inside the cache, while a 100-line lag is about 2,300 tokens and outside it.",
+    "conditional_consequence": "If a task places the answer beyond the cache capacity, StreamEval-style accuracy can fall to zero even when total input length is large.",
+    "critical_link": "The benchmark's line distance must be converted to token distance and compared with cache size before treating high accuracy as long-term memory.",
+    "necessary_conditions": [
+      "Answer token distance is within the configured cache",
+      "Line length is about 23 tokens as reported",
+      "The task is short-term or recent recall"
+    ],
+    "defeaters": [
+      "Cache is enlarged to include the answer distance",
+      "The task only requires recent information",
+      "A separate long-term memory mechanism is added"
+    ],
+    "do_not_infer": [
+      "120K-token StreamEval accuracy proves 120K-token context",
+      "StreamingLLM solves long-document QA",
+      "High accuracy implies memory beyond cache"
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "applicability_limitation",
+    "lens": "L7_bottleneck_changes_over_scale_or_time",
+    "quotes": [
+      {
+        "source": "paper",
+        "locator": "p.16 §C",
+        "quote": "StreamingLLM retains accuracy when the token distance between the query and answer is within the cache size. However, accuracy diminishes as this distance increases and eventually drops to zero when it surpasses the cache capacity."
+      },
+      {
+        "source": "paper",
+        "locator": "p.15 Appendix A Limitations",
+        "quote": "it does not extend the models’ context window or enhance their long-term memory capabilities."
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 4,
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p.16 §C",
+        "support_description": "StreamingLLM retains accuracy when the token distance between the query and answer is within the cache size. However, accuracy diminishes as this distance increases and eventually drops to zero when it surpasses the cache capacity."
+      },
+      {
+        "source_id": "paper",
+        "location": "p.15 Appendix A Limitations",
+        "support_description": "it does not extend the models’ context window or enhance their long-term memory capabilities."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "A model cannot retrieve answer tokens that have been evicted from its KV cache; accuracy bounded by cache capacity is short-term recall, not long-term memory. The reported StreamEval accuracy near 120K tokens is compatible with answers lying within the cache; it does not establish retrieval beyond the cache or long-document QA."
+  },
+  {
+    "headline": "A larger KV cache does not imply or guarantee better long-context utilization.",
+    "claim": "Increasing the cache size in window attention or StreamingLLM does not guarantee lower perplexity or better use of long context; the paper reports accuracy drops to zero when query-answer distance exceeds cache capacity and that models may not fully use cached context.",
+    "paper_fact": "accuracy diminishes as this distance increases and eventually drops to zero when it surpasses the cache capacity.",
+    "premise": "A larger cache increases available context but does not ensure the model can retrieve or use information outside it or fully use information inside it.",
+    "inference": "Therefore, cache size is not a sufficient proxy for long-context capability; tasks needing distant information can fail even with a larger window.",
+    "toy_example": "Not a measurement: a query whose answer is 2000 tokens back fails with a 1024-token cache even if the cache is enlarged to 1500, because the answer remains outside.",
+    "conditional_consequence": "If the task requires information beyond the cache, then increasing L within window attention cannot recover it; context extension or retrieval is needed.",
+    "critical_link": "Information outside the cache is unavailable, and the paper reports models may not fully use cached context, so cache size alone cannot guarantee utilization.",
+    "necessary_conditions": [
+      "task requires information beyond or across the cache",
+      "cache size is finite",
+      "model does not fully utilize cached context or cannot access evicted tokens"
+    ],
+    "defeaters": [
+      "required information lies within cache",
+      "model fully uses cached context",
+      "context extension or retrieval is integrated"
+    ],
+    "do_not_infer": [
+      "Do not infer larger cache never helps.",
+      "Do not infer window attention has no value.",
+      "Do not infer StreamingLLM extends context length.",
+      "Authors explicitly limit StreamingLLM to current cache and short-term memory."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "applicability_limitation",
+    "lens": "L6/L2",
+    "quotes": [
+      {
+        "quote": "accuracy diminishes as this distance increases and eventually drops to zero when it surpasses the cache capacity.",
+        "source": "paper",
+        "locator": "p.16"
+      },
+      {
+        "quote": "the model is limited to operating within the confines of its current cache.",
+        "source": "paper",
+        "locator": "p.15"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p.16",
+        "support_description": "accuracy diminishes as this distance increases and eventually drops to zero when it surpasses the cache capacity."
+      },
+      {
+        "source_id": "paper",
+        "location": "p.15",
+        "support_description": "the model is limited to operating within the confines of its current cache."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "A larger cache increases available context but does not ensure the model can retrieve or use information outside it or fully use information inside it. Therefore, cache size is not a sufficient proxy for long-context capability; tasks needing distant information can fail even with a larger window."
+  },
+  {
+    "headline": "Strong long-text quality of sliding-window recomputation does not imply or guarantee deployable streaming latency.",
+    "claim": "The sliding-window-with-recomputation baseline's strong long-text quality is a quality proxy; it does not guarantee acceptable per-token latency in streaming deployment.",
+    "paper_fact": "While it offers strong performance, this approach is significantly slower due to the computation of quadratic attention within its window, making this method impractical for real-world streaming applications.",
+    "premise": "Quality metrics such as perplexity and latency are distinct objectives; a high-quality method can be too slow for a latency-sensitive deployment.",
+    "inference": "The baseline's strong long-text performance cannot be used as evidence that it meets streaming latency requirements; its quadratic recomputation is a separate cost that can make it impractical when latency matters.",
+    "toy_example": "Toy example (not a measurement): a method with PPL 5.4 but 1 s/token is high quality but not streaming-viable.",
+    "conditional_consequence": "If the deployment objective is low per-token latency, then sliding-window recomputation is not viable despite its quality.",
+    "critical_link": "The link is the separation between quality proxy (perplexity) and deployment objective (latency); the paper reports both but does not equate them.",
+    "necessary_conditions": [
+      "Latency is a deployment objective",
+      "The recomputation window/cache size is large enough for quadratic cost to matter",
+      "Quality is being used as a proxy for deployability"
+    ],
+    "defeaters": [
+      "Small L/T where recomputation overhead is negligible",
+      "Throughput-oriented batching where quality dominates",
+      "Tasks where quality gain is worth latency"
+    ],
+    "do_not_infer": [
+      "Do not infer recomputation is always impractical",
+      "Do not infer StreamingLLM always has better quality",
+      "Do not infer quality and latency are interchangeable"
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L1_proxy_guarantee + L6_shifted_cost_and_net_benefit_threshold",
+    "quotes": [
+      {
+        "quote": "While it offers strong performance, this approach is significantly slower due to the computation of quadratic attention within its window, making this method impractical for real-world streaming applications.",
+        "source": "paper",
+        "locator": "page 2, Section 1"
+      },
+      {
+        "quote": "StreamingLLM outperforms the sliding window recomputation baseline by up to 22.2× speedup.",
+        "source": "paper",
+        "locator": "page 1, Abstract"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "author_boundary": "Paper reports quality and latency for its tested models/hardware; it does not claim quality guarantees latency.",
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "page 2, Section 1",
+        "support_description": "While it offers strong performance, this approach is significantly slower due to the computation of quadratic attention within its window, making this method impractical for real-world streaming applications."
+      },
+      {
+        "source_id": "paper",
+        "location": "page 1, Abstract",
+        "support_description": "StreamingLLM outperforms the sliding window recomputation baseline by up to 22.2× speedup."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Quality metrics such as perplexity and latency are distinct objectives; a high-quality method can be too slow for a latency-sensitive deployment. The baseline's strong long-text performance cannot be used as evidence that it meets streaming latency requirements; its quadratic recomputation is a separate cost that can make it impractical when latency matters."
+  },
+  {
+    "headline": "Four initial tokens sufficing for perplexity does not imply or guarantee four is a universal sink budget.",
+    "claim": "The paper's four-token default is an empirical sufficiency threshold for tested vanilla models and PG19 perplexity, not a universal guarantee that four sinks are necessary or sufficient across models, tasks, or cache sizes.",
+    "paper_fact": "Introducing four initial tokens generally suffices; further additions have diminishing returns.",
+    "premise": "Perplexity on a fixed PG19 test set is a proxy metric; model families and cache sizes can change the number of sinks needed.",
+    "inference": "The artifact should treat four as a practical default, not as a hard-coded universal constant; the paper reports a default and diminishing returns, not a law.",
+    "conditional_consequence": "If an artifact hard-codes four sinks as universally sufficient, then it may overstate performance on models or tasks where one sink or a dedicated sink token suffices, or where more sinks are needed.",
+    "critical_link": "The link is the proxy nature of PPL and the model-family variation in Table 2; the paper reports a default, not a universal law.",
+    "necessary_conditions": [
+      "Vanilla pretrained model without a dedicated sink token",
+      "Standard softmax attention and initial tokens visible to later tokens",
+      "Evaluation uses PPL on PG19-like long text",
+      "Cache config includes x initial plus y recent tokens"
+    ],
+    "defeaters": [
+      "A model pretrained with a learnable sink token can work with one sink token",
+      "Table 2 shows Falcon/MPT/Pythia at 1+ already near 4+ PPL, so four is not uniformly necessary",
+      "Cache-size ablation shows more cache does not consistently lower PPL"
+    ],
+    "do_not_infer": [
+      "Do not infer four sinks extend context window or long-term memory",
+      "Do not infer four is optimal for every model family",
+      "Do not infer PPL restoration guarantees downstream QA accuracy"
+    ],
+    "author_boundaries": [
+      "Paper claims four generally suffices for tested vanilla models and PPL; it does not claim a universal constant.",
+      "Paper explicitly says StreamingLLM does not extend context window or long-term memory."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L1_proxy_guarantee",
+    "quotes": [
+      {
+        "quote": "Introducing four initial tokens generally suffices; further additions have diminishing returns.",
+        "source": "paper",
+        "locator": "Table 2 caption, p.5"
+      },
+      {
+        "quote": "In all subsequent experiments with StreamingLLM, we default to using four initial tokens as attention sinks unless stated otherwise.",
+        "source": "paper",
+        "locator": "p.6"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "Table 2 caption, p.5",
+        "support_description": "Introducing four initial tokens generally suffices; further additions have diminishing returns."
+      },
+      {
+        "source_id": "paper",
+        "location": "p.6",
+        "support_description": "In all subsequent experiments with StreamingLLM, we default to using four initial tokens as attention sinks unless stated otherwise."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Perplexity on a fixed PG19 test set is a proxy metric; model families and cache sizes can change the number of sinks needed. The artifact should treat four as a practical default, not as a hard-coded universal constant; the paper reports a default and diminishing returns, not a law."
+  },
+  {
+    "headline": "Perplexity fluctuations at book transitions do not imply or guarantee model collapse.",
+    "claim": "In concatenated PG19, perplexity spikes at book boundaries are distribution shifts, not evidence of streaming failure or attention-cache collapse.",
+    "paper_fact": "We use the concatenated test set of PG19 (100 books) to perform language modeling, with perplexity fluctuations due to book transitions.",
+    "premise": "Concatenating books creates abrupt topic, style, and distribution shifts; next-token perplexity can rise at such seams even when the model mechanism is unchanged.",
+    "inference": "Therefore, boundary-localized PPL fluctuations should not be interpreted as cache or attention failure without separating distribution shift from mechanism degradation.",
+    "toy_example": "Toy example (not a measurement): concatenating a cookbook and a physics textbook can raise next-token perplexity at the seam even if the cache mechanism is unchanged.",
+    "conditional_consequence": "If analyzing long-run stability, then segment or annotate book boundaries; otherwise aggregate PPL may conflate distribution shift with mechanism failure.",
+    "critical_link": "The observed PPL fluctuations are attributed to book transitions, which are distribution shifts rather than attention-sink or rolling-cache failures.",
+    "necessary_conditions": [
+      "Book boundaries are identifiable and coincide with PPL spikes.",
+      "Concatenation creates distribution shifts at boundaries.",
+      "The model state is not reset at book boundaries."
+    ],
+    "defeaters": [
+      "PPL spikes occur within books, not at boundaries.",
+      "PPL spikes persist after boundary-aware segmentation.",
+      "Model collapse also occurs at boundaries for reasons unrelated to distribution shift."
+    ],
+    "do_not_infer": [
+      "All PPL fluctuations are benign.",
+      "There is no degradation at book boundaries.",
+      "Book transitions are the only cause of PPL fluctuations."
+    ],
+    "author_boundaries": [
+      "Authors attribute fluctuations to book transitions in the Figure 5 caption.",
+      "Authors do not claim every PPL fluctuation is a boundary effect."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "applicability_limitation",
+    "lens": "L5/L7",
+    "quotes": [
+      {
+        "quote": "We use the concatenated test set of PG19 (100 books) to perform language modeling, with perplexity fluctuations due to book transitions.",
+        "source": "paper",
+        "locator": "p. 7, Figure 5 caption"
+      },
+      {
+        "quote": "The perplexity remains stable throughout.",
+        "source": "paper",
+        "locator": "p. 7, Figure 5 caption"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p. 7, Figure 5 caption",
+        "support_description": "We use the concatenated test set of PG19 (100 books) to perform language modeling, with perplexity fluctuations due to book transitions."
+      },
+      {
+        "source_id": "paper",
+        "location": "p. 7, Figure 5 caption",
+        "support_description": "The perplexity remains stable throughout."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Concatenating books creates abrupt topic, style, and distribution shifts; next-token perplexity can rise at such seams even when the model mechanism is unchanged. Therefore, boundary-localized PPL fluctuations should not be interpreted as cache or attention failure without separating distribution shift from mechanism degradation."
+  },
+  {
+    "headline": "Matching oracle perplexity at 20K tokens does not imply or guarantee matching oracle perplexity at 4M tokens.",
+    "claim": "The reported 20K-token perplexity match to sliding-window recomputation is a bounded comparison; it does not establish oracle-equivalent quality at 4M tokens.",
+    "paper_fact": "StreamingLLM can match the oracle baseline (sliding window with re-computation) in terms of perplexity on texts spanning 20K tokens.",
+    "premise": "Oracle recomputation is expensive at long scales; a 20K-token comparison does not automatically extrapolate to 4M-token behavior.",
+    "inference": "Therefore, equivalence at 20K tokens should not be treated as evidence of equivalence at 4M tokens without an oracle comparison at that scale.",
+    "conditional_consequence": "If deployment requires 4M-token quality parity with the oracle baseline, then an oracle comparison at 4M tokens is needed.",
+    "critical_link": "The 20K-token oracle match is a bounded empirical result; scale extrapolation to 4M is not tested against the oracle in the quoted result.",
+    "necessary_conditions": [
+      "The oracle baseline is not evaluated at 4M tokens in the reported comparison.",
+      "20K and 4M token regimes differ in scale and cost.",
+      "Cache configurations are comparable across the compared settings."
+    ],
+    "defeaters": [
+      "The paper provides an oracle comparison at 4M tokens.",
+      "20K-token equivalence is sufficient for the target deployment scale.",
+      "PPL equivalence is empirically scale-invariant for this mechanism."
+    ],
+    "do_not_infer": [
+      "StreamingLLM degrades at 4M tokens.",
+      "The 4M-token results are invalid.",
+      "The oracle baseline would necessarily differ at 4M tokens."
+    ],
+    "author_boundaries": [
+      "Authors report a 20K-token oracle match and separate 4M-token stable PPL results.",
+      "Authors do not claim oracle equivalence at 4M tokens in the quoted sentence."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L2/L6",
+    "quotes": [
+      {
+        "quote": "StreamingLLM can match the oracle baseline (sliding window with re-computation) in terms of perplexity on texts spanning 20K tokens.",
+        "source": "paper",
+        "locator": "p. 6, Section 4.1"
+      },
+      {
+        "quote": "StreamingLLM can reliably handle exceptionally extended texts, encompassing more than 4 million tokens",
+        "source": "paper",
+        "locator": "p. 6, Section 4.1"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p. 6, Section 4.1",
+        "support_description": "StreamingLLM can match the oracle baseline (sliding window with re-computation) in terms of perplexity on texts spanning 20K tokens."
+      },
+      {
+        "source_id": "paper",
+        "location": "p. 6, Section 4.1",
+        "support_description": "StreamingLLM can reliably handle exceptionally extended texts, encompassing more than 4 million tokens"
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Oracle recomputation is expensive at long scales; a 20K-token comparison does not automatically extrapolate to 4M-token behavior. Therefore, equivalence at 20K tokens should not be treated as evidence of equivalence at 4M tokens without an oracle comparison at that scale."
+  },
+  {
+    "headline": "A per-token latency advantage up to cache size 4096 does not imply or guarantee end-to-end streaming throughput or quality at larger scales.",
+    "claim": "The benchmark measures per-token decoding latency over tested cache sizes; it does not establish real streaming service throughput or quality beyond those conditions.",
+    "paper_fact": "as the cache size increases, StreamingLLM’s decoding speed has a linear growth. The sliding window with re-computation baseline has a quadratic rise in decoding latency.",
+    "premise": "Per-token decode latency is not end-to-end throughput; real streaming includes prefill, scheduling, batching, network, and quality constraints, and cache size changes the cost balance.",
+    "inference": "The speedup threshold grows with cache size; small-cache gains may be modest, and end-to-end streaming gains are not guaranteed.",
+    "toy_example": "Toy example, not a measurement: a faster per-token decoder does not imply a faster chat service if scheduling and prefill dominate.",
+    "conditional_consequence": "If cache is small, then speedup is modest; if cache is large, then recomputation's quadratic cost dominates.",
+    "critical_link": "The critical link is from per-token decode microbenchmark to end-to-end streaming throughput and quality.",
+    "necessary_conditions": [
+      "Same per-token decode measurement",
+      "Same cache-size range",
+      "Same model and implementation",
+      "No batching or serving overhead included"
+    ],
+    "defeaters": [
+      "End-to-end streaming benchmark showing throughput gain",
+      "Quality evaluation at larger cache sizes",
+      "Evidence that per-token latency predicts service throughput"
+    ],
+    "do_not_infer": [
+      "Do not infer real streaming quality",
+      "Do not infer speedup beyond tested cache sizes",
+      "Do not infer context-length extension"
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": [
+      "L2",
+      "L5",
+      "L6"
+    ],
+    "quotes": [
+      {
+        "quote": "as the cache size increases, StreamingLLM’s decoding speed has a linear growth. The sliding window with re-computation baseline has a quadratic rise in decoding latency.",
+        "source": "paper",
+        "locator": "p. 9, §4.5"
+      },
+      {
+        "quote": "StreamingLLM achieves an impressive speedup, reaching up to 22.2× per token.",
+        "source": "paper",
+        "locator": "p. 9, §4.5"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "author_boundaries": [
+      "Authors report per-token latency and cache sizes up to 4096; they do not claim end-to-end serving throughput or quality beyond cache."
+    ],
+    "inferred_consequences": [
+      "Small-cache speedup may be modest.",
+      "Larger-cache or end-to-end streaming may be dominated by other costs."
+    ],
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p. 9, §4.5",
+        "support_description": "as the cache size increases, StreamingLLM’s decoding speed has a linear growth. The sliding window with re-computation baseline has a quadratic rise in decoding latency."
+      },
+      {
+        "source_id": "paper",
+        "location": "p. 9, §4.5",
+        "support_description": "StreamingLLM achieves an impressive speedup, reaching up to 22.2× per token."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Per-token decode latency is not end-to-end throughput; real streaming includes prefill, scheduling, batching, network, and quality constraints, and cache size changes the cost balance. The speedup threshold grows with cache size; small-cache gains may be modest, and end-to-end streaming gains are not guaranteed."
+  },
+  {
+    "headline": "Aligning sink count to initial-prompt size does not imply or guarantee long-context understanding.",
+    "claim": "The LongBench result that 1750+1750 restores truncation-baseline parity is evidence of comparable use of a truncated 3500-token view, not evidence that StreamingLLM extends context or gains long-range capability.",
+    "paper_fact": "aligning the attention sink number to 1750 restores performance to the level of the text truncation baseline.",
+    "premise": "Matching a truncation baseline's visible-token budget can equalize information access without adding model capability; benchmark parity is not context extension.",
+    "inference": "Author boundary: the paper reports parity with a truncation baseline and separately states that StreamingLLM does not extend the context window or long-term memory. Inferred consequence: LongBench parity should not be read as long-context understanding.",
+    "toy_example": "Not a measurement: two systems that both see only the first and last 1750 tokens can score equally without either being able to answer from the omitted middle.",
+    "conditional_consequence": "If the evaluation goal is long-range QA or summarization, then LongBench truncation-baseline parity should not be reported as context extension or long-context understanding.",
+    "critical_link": "The baseline truncates to 1750 initial and 1750 final tokens, and 1750+1750 sink+recent approximates that visible budget; parity therefore measures comparable use of truncated information, not added long-context capability.",
+    "necessary_conditions": [
+      "LongBench default truncation preserves only beginning and end",
+      "The comparison uses a fixed 3500-token budget",
+      "The task's answer depends on information outside the truncated view for a long-context claim",
+      "No context-extension or retrieval method is integrated"
+    ],
+    "defeaters": [
+      "A separate long-context benchmark without truncation shows gains",
+      "The method is combined with context extension and evaluated on middle-context tasks",
+      "The task only needs beginning/end information, making parity sufficient for that task"
+    ],
+    "do_not_infer": [
+      "Do not infer that 1750 sinks extend the model's context window",
+      "Do not infer general long-range reasoning ability from LongBench parity",
+      "Do not infer that all tasks need 1750 sink tokens"
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L2 objective/stopping rule vs goal; L6 shifted cost and net-benefit threshold",
+    "quotes": [
+      {
+        "quote": "aligning the attention sink number to 1750 restores performance to the level of the text truncation baseline.",
+        "source": "paper",
+        "locator": "page 17, Appendix D"
+      },
+      {
+        "quote": "While StreamingLLM improves the efficiency of LLMs in streaming contexts, it does not extend the models’ context window or enhance their long-term memory capabilities.",
+        "source": "paper",
+        "locator": "page 15, Appendix A Limitations"
+      },
+      {
+        "quote": "The baseline truncates inputs to 1750 initial and 1750 final tokens.",
+        "source": "paper",
+        "locator": "page 17, Table 8 caption"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "page 17, Appendix D",
+        "support_description": "aligning the attention sink number to 1750 restores performance to the level of the text truncation baseline."
+      },
+      {
+        "source_id": "paper",
+        "location": "page 15, Appendix A Limitations",
+        "support_description": "While StreamingLLM improves the efficiency of LLMs in streaming contexts, it does not extend the models’ context window or enhance their long-term memory capabilities."
+      },
+      {
+        "source_id": "paper",
+        "location": "page 17, Table 8 caption",
+        "support_description": "The baseline truncates inputs to 1750 initial and 1750 final tokens."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Matching a truncation baseline's visible-token budget can equalize information access without adding model capability; benchmark parity is not context extension. Author boundary: the paper reports parity with a truncation baseline and separately states that StreamingLLM does not extend the context window or long-term memory. Inferred consequence: LongBench parity should not be read as long-context understanding."
+  },
+  {
+    "headline": "Stable perplexity with attention sinks does not imply or guarantee long-range retrieval beyond the cache.",
+    "claim": "Attention-sink KV preservation can stabilize streaming perplexity without extending the model's effective context or long-term memory.",
+    "paper_fact": "StreamingLLM efficiently generates coherent text from tokens within the KV cache without extending the LLMs’ context length.",
+    "premise": "Next-token perplexity over recent context does not require access to evicted tokens; retrieval of distant facts requires their KV or equivalent memory.",
+    "inference": "Therefore, stable streaming PPL with sink KV does not establish context extension or long-term memory; performance on distant-token tasks should degrade once target tokens are evicted.",
+    "conditional_consequence": "If a task requires retrieving information outside the rolling cache, then StreamingLLM's sink KV will not guarantee success; use context extension or retrieval.",
+    "critical_link": "The link is cache contents: sink KV stabilizes attention but evicted tokens are unavailable for retrieval.",
+    "necessary_conditions": [
+      "Only sink and recent KVs are cached",
+      "Target information lies outside the cache",
+      "Task requires retrieval of evicted tokens"
+    ],
+    "defeaters": [
+      "External memory or retrieval supplies evicted information",
+      "Context extension keeps target tokens in cache",
+      "Task only needs recent context"
+    ],
+    "do_not_infer": [
+      "StreamingLLM is useless for all long texts",
+      "Stable PPL proves long-context understanding",
+      "Attention sinks extend the context window"
+    ],
+    "disclosure": "reported",
+    "category_code": "applicability_limitation",
+    "lens": "L2_objective_or_stopping_rule_vs_goal",
+    "quotes": [
+      {
+        "quote": "StreamingLLM efficiently generates coherent text from tokens within the KV cache without extending the LLMs’ context length.",
+        "source": "paper",
+        "locator": "p. 3, §1"
+      },
+      {
+        "quote": "it does not extend the models’ context window or enhance their long-term memory capabilities.",
+        "source": "paper",
+        "locator": "p. 15, Appendix A"
+      },
+      {
+        "quote": "accuracy diminishes as this distance increases and eventually drops to zero when it surpasses the cache capacity.",
+        "source": "paper",
+        "locator": "p. 16, Appendix C"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 2,
+    "author_boundaries": [
+      "The paper explicitly limits StreamingLLM to recent-cache use and says it is not suitable for long document QA or summarization.",
+      "The paper's PPL and StreamEval results are on specific models and datasets; they do not establish general long-context retrieval."
+    ],
+    "inferred_consequences": [
+      "PPL stability is not evidence of long-context understanding.",
+      "Tasks needing evicted tokens require separate memory or context extension."
+    ],
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p. 3, §1",
+        "support_description": "StreamingLLM efficiently generates coherent text from tokens within the KV cache without extending the LLMs’ context length."
+      },
+      {
+        "source_id": "paper",
+        "location": "p. 15, Appendix A",
+        "support_description": "it does not extend the models’ context window or enhance their long-term memory capabilities."
+      },
+      {
+        "source_id": "paper",
+        "location": "p. 16, Appendix C",
+        "support_description": "accuracy diminishes as this distance increases and eventually drops to zero when it surpasses the cache capacity."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Next-token perplexity over recent context does not require access to evicted tokens; retrieval of distant facts requires their KV or equivalent memory. Therefore, stable streaming PPL with sink KV does not establish context extension or long-term memory; performance on distant-token tasks should degrade once target tokens are evicted."
+  },
+  {
+    "headline": "A fixed-size KV cache does not imply fixed per-token decoding latency independent of cache size.",
+    "claim": "StreamingLLM's constant memory in stream length T does not guarantee constant per-token latency; per-token attention cost still scales with the retained cache size L, and the reported speedup is relative to recomputation.",
+    "paper_fact": "StreamingLLM delivers a remarkable speedup of up to 22.2× per token and retains a memory footprint similar to the re-computation baseline.",
+    "premise": "Per-token attention over L cached KV entries costs O(L) time; a fixed L bounds memory as stream length T grows but does not make compute independent of L.",
+    "inference": "Constant memory as T grows does not mean constant latency as L grows; speedup depends on baseline recomputation and cache size.",
+    "toy_example": "Toy example (not a measurement): if cache size L doubles from 1k to 2k, each token's attention reads roughly twice as many KV entries, so per-token latency can rise even though memory in stream length T stays bounded.",
+    "conditional_consequence": "If cache size L is increased to capture broader local context, per-token latency can rise even though memory in T remains bounded; the 22.2× speedup is not a universal latency guarantee.",
+    "critical_link": "The reported 22.2× is a speedup over sliding-window recomputation at a given cache size; it does not establish that per-token latency is constant when L changes.",
+    "necessary_conditions": [
+      "Cache size L is varied or large",
+      "No compensating kernel/hardware optimization",
+      "Comparison is per-token latency, not memory in T"
+    ],
+    "defeaters": [
+      "L is small enough that latency is dominated by other costs",
+      "Kernel optimizations make attention cost sublinear in practice",
+      "Comparison baseline is recomputation at same L"
+    ],
+    "do_not_infer": [
+      "Do not infer StreamingLLM is slower than recomputation",
+      "Do not infer memory grows with stream length T",
+      "Do not infer the 22.2× speedup is false"
+    ],
+    "author_boundaries": [
+      "Paper reports speedup vs sliding-window recomputation and similar memory footprint; it does not claim constant latency independent of cache size.",
+      "Paper's latency measurements are on specific hardware/models; they are not a universal deployment guarantee."
+    ],
+    "inferred_consequences": [
+      "Larger cache sizes can increase per-token latency even with bounded memory in T.",
+      "The 22.2× speedup is a relative result against recomputation, not a fixed latency guarantee."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L6_shifted_cost_and_net_benefit_threshold",
+    "quotes": [
+      {
+        "quote": "StreamingLLM delivers a remarkable speedup of up to 22.2× per token and retains a memory footprint similar to the re-computation baseline.",
+        "source": "paper",
+        "locator": "p.9, Figure 10 caption"
+      },
+      {
+        "quote": "Despite its reduced latency, StreamingLLM sustains a memory footprint consistent with the re-computation baseline.",
+        "source": "paper",
+        "locator": "p.9, Section 4.5"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 2,
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p.9, Figure 10 caption",
+        "support_description": "StreamingLLM delivers a remarkable speedup of up to 22.2× per token and retains a memory footprint similar to the re-computation baseline."
+      },
+      {
+        "source_id": "paper",
+        "location": "p.9, Section 4.5",
+        "support_description": "Despite its reduced latency, StreamingLLM sustains a memory footprint consistent with the re-computation baseline."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Per-token attention over L cached KV entries costs O(L) time; a fixed L bounds memory as stream length T grows but does not make compute independent of L. Constant memory as T grows does not mean constant latency as L grows; speedup depends on baseline recomputation and cache size."
+  },
+  {
+    "headline": "Compatibility with relative position encodings does not imply or guarantee long-context memory or extrapolation.",
+    "claim": "StreamingLLM's cache-relative position scheme can work with RoPE and ALiBi, but that compatibility does not guarantee long-context memory or extrapolation; the method is limited to information retained in the cache.",
+    "paper_fact": "While StreamingLLM improves the efficiency of LLMs in streaming contexts, it does not extend the models’ context window or enhance their long-term memory capabilities.",
+    "premise": "A position-encoding compatibility result only shows that positions can be assigned; it does not make evicted KV states attendable or create long-term memory.",
+    "inference": "If the answer-relevant token is evicted, no cache-relative position assignment can attend to it; performance should depend on cache contents, not on position scheme alone.",
+    "toy_example": "Toy example (not a measurement): if the answer token was evicted, renumbering the remaining cache positions cannot make it attendable.",
+    "conditional_consequence": "If a task requires information beyond the cache, then StreamingLLM without retrieval or context extension can fail even though it is compatible with RoPE/ALiBi.",
+    "critical_link": "Attention is computed only over cached keys and values; renumbering positions changes indices of retained tokens but cannot restore evicted tokens.",
+    "necessary_conditions": [
+      "Answer-relevant token is evicted from cache.",
+      "No external retrieval or context-extension mechanism supplies it.",
+      "Task requires long-term memory beyond cache."
+    ],
+    "defeaters": [
+      "Cache is large enough to contain answer-relevant tokens.",
+      "Context extension or retrieval augments the model.",
+      "Task only needs recent context."
+    ],
+    "do_not_infer": [
+      "Do not infer that StreamingLLM extends context window or long-term memory; authors explicitly deny this.",
+      "Do not infer that it is unsuitable for all long inputs; it is suitable when needed information is in cache.",
+      "Do not infer that relative position compatibility alone causes long-context ability."
+    ],
+    "disclosure": "reported",
+    "category_code": "method_shortcoming",
+    "lens": "L1/L6",
+    "quotes": [
+      {
+        "source": "paper",
+        "locator": "p.15 Appendix A Limitations",
+        "quote": "While StreamingLLM improves the efficiency of LLMs in streaming contexts, it does not extend the models’ context window or enhance their long-term memory capabilities."
+      },
+      {
+        "source": "paper",
+        "locator": "p.16 Appendix C",
+        "quote": "accuracy diminishes as this distance increases and eventually drops to zero when it surpasses the cache capacity."
+      },
+      {
+        "source": "paper",
+        "locator": "p.17 Appendix D",
+        "quote": "StreamingLLM’s effectiveness is contingent on the information within its cache"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 2,
+    "author_boundaries": [
+      "Authors explicitly state StreamingLLM does not extend context window or long-term memory.",
+      "Authors state it is not suitable for long-document QA and summarization requiring long-term memory.",
+      "Authors state effectiveness is contingent on information within cache."
+    ],
+    "inferred_consequences": [
+      "Long-document QA or summarization requiring evicted information may underperform.",
+      "StreamingLLM should be paired with retrieval or context extension for long-term memory."
+    ],
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p.15 Appendix A Limitations",
+        "support_description": "While StreamingLLM improves the efficiency of LLMs in streaming contexts, it does not extend the models’ context window or enhance their long-term memory capabilities."
+      },
+      {
+        "source_id": "paper",
+        "location": "p.16 Appendix C",
+        "support_description": "accuracy diminishes as this distance increases and eventually drops to zero when it surpasses the cache capacity."
+      },
+      {
+        "source_id": "paper",
+        "location": "p.17 Appendix D",
+        "support_description": "StreamingLLM’s effectiveness is contingent on the information within its cache"
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "A position-encoding compatibility result only shows that positions can be assigned; it does not make evicted KV states attendable or create long-term memory. If the answer-relevant token is evicted, no cache-relative position assignment can attend to it; performance should depend on cache contents, not on position scheme alone."
+  },
+  {
+    "headline": "Partial perplexity improvement from Zero Sink does not guarantee restored one-sink streaming.",
+    "claim": "A lower streaming perplexity under Zero Sink is a proxy for reduced sink pressure, not proof that a single sink suffices; the paper reports Zero Sink still needs other initial tokens.",
+    "paper_fact": "While Zero Sink shows a slight improvement, it still needs other initial tokens.",
+    "premise": "Perplexity is an aggregate next-token metric; a partial PPL reduction can reflect partial mitigation without proving a single anchor suffices for stable streaming.",
+    "inference": "Therefore Zero Sink's PPL gains do not meet the paper's single-sink goal and should not be read as equivalent to the learnable Sink Token result.",
+    "toy_example": "Toy example (not a measurement): comparing 0+1024 and 1+1023 cache configs is a schematic of the reported table, not a new experiment.",
+    "conditional_consequence": "If using Zero Sink for streaming, one must still retain multiple initial tokens; one cannot claim single-sink deployment from the PPL improvement alone.",
+    "critical_link": "Table 3 shows Zero Sink 0+1024 at 29214 PPL versus 1+1023 at 19.90 and 2+1022 at 18.27, while Learnable Sink 0+1024 is 1235 and 1+1023 is 18.01; the improvement is partial and still needs initial tokens.",
+    "necessary_conditions": [
+      "PPL is measured on the same data and cache-size regime.",
+      "The cache configurations explicitly vary initial-token count.",
+      "The comparison includes the learnable Sink Token baseline."
+    ],
+    "defeaters": [
+      "Zero Sink with 0+1024 is stable and close to the learnable-sink baseline across models.",
+      "The remaining initial-token need is shown to be unnecessary under a different evaluation.",
+      "The PPL improvement is demonstrated to correlate with single-sink attention maps."
+    ],
+    "do_not_infer": [
+      "Do not infer that Zero Sink has no benefit.",
+      "Do not infer that PPL is irrelevant to streaming stability.",
+      "Do not infer that the learnable Sink Token is always better in every setting."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L1",
+    "quotes": [
+      {
+        "quote": "While Zero Sink shows a slight improvement, it still needs other initial tokens.",
+        "source": "paper",
+        "locator": "p.6 Table 3 caption"
+      },
+      {
+        "quote": "Conversely, the model trained with a learnable Sink Token shows stable streaming perplexity with only the sink token added.",
+        "source": "paper",
+        "locator": "p.6 Table 3 caption"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 2,
+    "author_boundaries": [
+      "The authors use PPL and cache-config ablations to argue Zero Sink is partial; they do not claim it restores one-sink streaming.",
+      "The learnable Sink Token is presented as the effective remedy in their pretraining setup."
+    ],
+    "inferred_consequences": [
+      "Zero Sink's PPL improvement is not sufficient evidence for single-sink streaming.",
+      "A deployment claim of one-sink streaming from Zero Sink would exceed the reported evidence."
+    ],
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p.6 Table 3 caption",
+        "support_description": "While Zero Sink shows a slight improvement, it still needs other initial tokens."
+      },
+      {
+        "source_id": "paper",
+        "location": "p.6 Table 3 caption",
+        "support_description": "Conversely, the model trained with a learnable Sink Token shows stable streaming perplexity with only the sink token added."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Perplexity is an aggregate next-token metric; a partial PPL reduction can reflect partial mitigation without proving a single anchor suffices for stable streaming. Therefore Zero Sink's PPL gains do not meet the paper's single-sink goal and should not be read as equivalent to the learnable Sink Token result."
+  },
+  {
+    "headline": "Increasing cache size does not imply or guarantee lower language-modeling perplexity.",
+    "claim": "A larger KV cache is not a monotonic quality lever; the paper reports nonmonotonic perplexity across cache sizes and suggests models may not use the full context.",
+    "paper_fact": "Increasing the cache size in StreamingLLM doesn’t consistently yield a decrease in perplexity, showing these models may not fully utilize the provided context.",
+    "premise": "More cache tokens increase memory and attendable context, but quality also depends on the model’s context utilization and attention behavior.",
+    "inference": "Cache size should be evaluated empirically for the target model and task; a larger cache may cost memory without improving perplexity.",
+    "toy_example": "Not a measurement: a model might have lower perplexity at a 1K recent-token cache than at a 2K cache on one corpus, while the reverse holds on another task; this is hypothetical.",
+    "conditional_consequence": "If the objective is perplexity or task quality, then sweep cache sizes rather than assuming larger is better; if memory-constrained, larger cache may add cost without benefit.",
+    "critical_link": "The nonmonotonic cache-size results in Table 6 are the evidence that cache capacity is not a simple quality guarantee.",
+    "necessary_conditions": [
+      "Perplexity is measured on comparable data and model settings.",
+      "Cache configurations vary recent-token capacity as reported.",
+      "No confound such as book transitions explains the nonmonotonic pattern."
+    ],
+    "defeaters": [
+      "The nonmonotonic differences are within noise or due to corpus transitions.",
+      "The target task requires long-range retrieval that perplexity does not capture.",
+      "A different model or position-encoding scheme shows monotonic gains."
+    ],
+    "do_not_infer": [
+      "Do not infer larger cache never helps.",
+      "Do not infer perplexity is the only relevant metric.",
+      "Do not infer the model cannot use any context."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L1/L7",
+    "quotes": [
+      {
+        "quote": "Increasing the cache size in StreamingLLM doesn’t consistently yield a decrease in perplexity, showing these models may not fully utilize the provided context.",
+        "source": "PAPER TEXT",
+        "locator": "page 9, Table 6 caption"
+      },
+      {
+        "quote": "Contrary to intuition, increasing the cache size doesn’t consistently lower the language modeling perplexity.",
+        "source": "PAPER TEXT",
+        "locator": "page 9, Section 4.4"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 2,
+    "author_boundaries": [
+      "Authors report nonmonotonic perplexity and suggest a context-utilization limitation.",
+      "Authors do not claim cache size is irrelevant or that larger caches never help."
+    ],
+    "inferred_consequences": [
+      "Cache-size tuning should be empirical rather than monotonic-by-assumption.",
+      "Memory-quality tradeoffs are task- and model-dependent."
+    ],
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "page 9, Table 6 caption",
+        "support_description": "Increasing the cache size in StreamingLLM doesn’t consistently yield a decrease in perplexity, showing these models may not fully utilize the provided context."
+      },
+      {
+        "source_id": "paper",
+        "location": "page 9, Section 4.4",
+        "support_description": "Contrary to intuition, increasing the cache size doesn’t consistently lower the language modeling perplexity."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "More cache tokens increase memory and attendable context, but quality also depends on the model’s context utilization and attention behavior. Cache size should be evaluated empirically for the target model and task; a larger cache may cost memory without improving perplexity."
+  },
+  {
+    "headline": "Stable streaming perplexity does not imply or guarantee long-context memory or utilization.",
+    "claim": "StreamingLLM’s stable perplexity with attention sinks and a recent-token cache does not mean it extends the model’s context window or retains information outside the cache.",
+    "paper_fact": "StreamingLLM efficiently generates coherent text from tokens within the KV cache without extending the LLMs’ context length.",
+    "premise": "A fixed cache retains only sink tokens plus recent tokens; information outside that cache is evicted and unavailable for attention.",
+    "inference": "Tasks requiring long-term memory or distant-token retrieval may fail despite stable streaming perplexity; stable perplexity is not a long-context guarantee.",
+    "toy_example": "Not a measurement: a question whose answer appears 10K tokens back may be unanswerable with a 2K cache even if streaming perplexity stays stable; this is hypothetical.",
+    "conditional_consequence": "If the task depends on tokens beyond the cache, then use context extension, retrieval, or a larger cache; do not infer infinite context from stable streaming perplexity.",
+    "critical_link": "The paper’s own limitation and StreamEval distance results link cache eviction to loss of distant information.",
+    "necessary_conditions": [
+      "The needed information lies outside the retained sink-plus-recent cache.",
+      "No external memory or retrieval mechanism supplies that information.",
+      "The task requires recall or reasoning over distant tokens."
+    ],
+    "defeaters": [
+      "The answer is within the cache.",
+      "The method is combined with context extension or retrieval.",
+      "Sink tokens or recent tokens encode the needed information."
+    ],
+    "do_not_infer": [
+      "Do not infer StreamingLLM is useless for all long texts.",
+      "Do not infer stable perplexity is meaningless.",
+      "Do not infer the method cannot handle any long-context task."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "applicability_limitation",
+    "lens": "L1/L7",
+    "quotes": [
+      {
+        "quote": "StreamingLLM efficiently generates coherent text from tokens within the KV cache without extending the LLMs’ context length.",
+        "source": "PAPER TEXT",
+        "locator": "page 3, Section 1"
+      },
+      {
+        "quote": "accuracy diminishes as this distance increases and eventually drops to zero when it surpasses the cache capacity.",
+        "source": "PAPER TEXT",
+        "locator": "page 16, Appendix C"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 2,
+    "author_boundaries": [
+      "Authors explicitly state StreamingLLM does not extend context length or long-term memory.",
+      "Authors do not claim stable perplexity equals long-context understanding."
+    ],
+    "inferred_consequences": [
+      "Stable streaming perplexity should not be used as a long-context capability guarantee.",
+      "Long-memory tasks need additional mechanisms beyond sink-plus-recent caching."
+    ],
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "page 3, Section 1",
+        "support_description": "StreamingLLM efficiently generates coherent text from tokens within the KV cache without extending the LLMs’ context length."
+      },
+      {
+        "source_id": "paper",
+        "location": "page 16, Appendix C",
+        "support_description": "accuracy diminishes as this distance increases and eventually drops to zero when it surpasses the cache capacity."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "A fixed cache retains only sink tokens plus recent tokens; information outside that cache is evicted and unavailable for attention. Tasks requiring long-term memory or distant-token retrieval may fail despite stable streaming perplexity; stable perplexity is not a long-context guarantee."
+  },
+  {
+    "headline": "Stable PG19 perplexity does not imply or guarantee long-document QA or summarization accuracy.",
+    "claim": "StreamingLLM's stable PG19 perplexity on concatenated books is evidence for language-modeling stability, not for accuracy on long-document QA or summarization.",
+    "paper_fact": "Consequently, StreamingLLM is not suitable for tasks that demand long-term memory and extensive data dependency, such as long document question-answering (QA) and summarization.",
+    "premise": "Perplexity measures next-token likelihood; long-document QA and summarization require retrieving and using information beyond the recent cache.",
+    "inference": "Therefore, a stable PG19 perplexity curve cannot by itself establish downstream task accuracy; task-specific evaluation is needed.",
+    "conditional_consequence": "If the deployment goal is long-document QA or summarization, then PG19 perplexity stability is insufficient evidence and task-specific evaluation is required.",
+    "critical_link": "PPL is a next-token proxy, while long-document QA and summarization depend on distant-content retrieval and use beyond the rolling cache.",
+    "necessary_conditions": [
+      "The downstream task requires information outside the recent cache.",
+      "PPL and downstream task accuracy are not strongly correlated in the target domain.",
+      "The evaluation includes long-document QA or summarization rather than only next-token prediction."
+    ],
+    "defeaters": [
+      "The target task only needs recent context within the cache.",
+      "PPL is empirically shown to correlate with the target downstream task.",
+      "The paper's own downstream evaluations cover the exact deployment task."
+    ],
+    "do_not_infer": [
+      "StreamingLLM fails all QA tasks.",
+      "PG19 perplexity is useless for language modeling.",
+      "No downstream evidence exists in the paper."
+    ],
+    "author_boundaries": [
+      "Authors explicitly limit long-term memory and long-document QA/summarization.",
+      "Authors do not claim general downstream equivalence from PG19 perplexity."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L1/L2",
+    "quotes": [
+      {
+        "quote": "Consequently, StreamingLLM is not suitable for tasks that demand long-term memory and extensive data dependency, such as long document question-answering (QA) and summarization.",
+        "source": "paper",
+        "locator": "p. 15, Limitations"
+      },
+      {
+        "quote": "it does not extend the models’ context window or enhance their long-term memory capabilities",
+        "source": "paper",
+        "locator": "p. 15, Limitations"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 2,
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p. 15, Limitations",
+        "support_description": "Consequently, StreamingLLM is not suitable for tasks that demand long-term memory and extensive data dependency, such as long document question-answering (QA) and summarization."
+      },
+      {
+        "source_id": "paper",
+        "location": "p. 15, Limitations",
+        "support_description": "it does not extend the models’ context window or enhance their long-term memory capabilities"
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Perplexity measures next-token likelihood; long-document QA and summarization require retrieving and using information beyond the recent cache. Therefore, a stable PG19 perplexity curve cannot by itself establish downstream task accuracy; task-specific evaluation is needed."
+  },
+  {
+    "headline": "Exact-match accuracy on concatenated ARC QA does not guarantee real-world multi-round QA ability.",
+    "claim": "Exact match on concatenated ARC question-answer pairs is a narrow proxy; it does not establish semantic correctness, open-ended dialogue quality, or general real-world multi-round QA.",
+    "paper_fact": "assess model completions at each answer position using an exact match criterion.",
+    "premise": "Exact match is a strict string metric; it does not measure semantic equivalence, reasoning, or open-ended dialogue quality.",
+    "inference": "The reported exact-match accuracy on concatenated ARC QA pairs is evidence of exact answer retrieval at those positions, not of general real-world multi-round QA.",
+    "toy_example": "Not a measurement: an answer '8806' versus '8,806' or 'the value is 8806' would differ under exact match.",
+    "conditional_consequence": "If the target is paraphrased or explanatory QA, exact match can understate correct behavior; if the target is exact answer retrieval, it is appropriate.",
+    "critical_link": "The metric must be valid for the construct 'real-world applicability'.",
+    "necessary_conditions": [
+      "Answers are short exact strings at known positions",
+      "Concatenation preserves answer positions",
+      "Exact match is accepted as the target metric"
+    ],
+    "defeaters": [
+      "Paper validates exact match against semantic or human evaluation",
+      "Task is explicitly exact-answer retrieval",
+      "Outputs are normalized to exact strings"
+    ],
+    "do_not_infer": [
+      "Exact match accuracy equals semantic QA ability",
+      "StreamingLLM is suitable for all multi-round chat",
+      "High ARC exact match proves long-term memory"
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L1_proxy_guarantee",
+    "quotes": [
+      {
+        "source": "paper",
+        "locator": "p.8 §4.3",
+        "quote": "assess model completions at each answer position using an exact match criterion."
+      },
+      {
+        "source": "paper",
+        "locator": "p.8 §4.3",
+        "quote": "To show StreamingLLM’s real-world applicability, we emulate multi-round question-answering using instruction-tuned LLMs, commonly used in real-world scenarios."
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 2,
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p.8 §4.3",
+        "support_description": "assess model completions at each answer position using an exact match criterion."
+      },
+      {
+        "source_id": "paper",
+        "location": "p.8 §4.3",
+        "support_description": "To show StreamingLLM’s real-world applicability, we emulate multi-round question-answering using instruction-tuned LLMs, commonly used in real-world scenarios."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Exact match is a strict string metric; it does not measure semantic equivalence, reasoning, or open-ended dialogue quality. The reported exact-match accuracy on concatenated ARC QA pairs is evidence of exact answer retrieval at those positions, not of general real-world multi-round QA."
+  },
+  {
+    "headline": "A 22.2× per-token speedup on one A6000 does not imply or guarantee the same speedup on other hardware or deployment stacks.",
+    "claim": "The reported 22.2× speedup is a benchmark-specific proxy; it is not a deployment guarantee.",
+    "paper_fact": "Both methods are implemented using the Huggingface Transformers library (Wolf et al., 2020) and tested on a single NVIDIA A6000 GPU using the Llama-2-7B and Llama-2-13B models.",
+    "premise": "Decoding latency depends on GPU model, memory bandwidth, kernel implementations, batching, and serving stack; a single-GPU microbenchmark is not a universal deployment measurement.",
+    "inference": "The paper's speedup is evidence under its benchmark conditions, not a guarantee of 22.2× elsewhere.",
+    "toy_example": "Toy example, not a measurement: a 22.2× microbenchmark on one GPU could become a much smaller gain on a different GPU with a different attention kernel.",
+    "conditional_consequence": "If hardware or library changes, then absolute latency and speedup may shift.",
+    "critical_link": "The link from single-A6000 HuggingFace benchmark to arbitrary deployment is not established by the reported numbers.",
+    "necessary_conditions": [
+      "Same model family and size",
+      "Same cache sizes and sequence lengths",
+      "Same HuggingFace implementation and GPU",
+      "Same batching and serving configuration"
+    ],
+    "defeaters": [
+      "A multi-hardware benchmark showing similar speedup",
+      "A production serving benchmark with same gain",
+      "Evidence that kernel and memory-bandwidth differences are negligible"
+    ],
+    "do_not_infer": [
+      "Do not infer universal 22.2× speedup",
+      "Do not infer end-to-end throughput gain",
+      "Do not infer lower cost on other GPUs"
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "applicability_limitation",
+    "lens": [
+      "L1",
+      "L4"
+    ],
+    "quotes": [
+      {
+        "quote": "Both methods are implemented using the Huggingface Transformers library (Wolf et al., 2020) and tested on a single NVIDIA A6000 GPU using the Llama-2-7B and Llama-2-13B models.",
+        "source": "paper",
+        "locator": "p. 9, §4.5"
+      },
+      {
+        "quote": "StreamingLLM achieves an impressive speedup, reaching up to 22.2× per token.",
+        "source": "paper",
+        "locator": "p. 9, §4.5"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 2,
+    "author_boundaries": [
+      "Authors report a single A6000, HuggingFace, Llama-2-7B/13B benchmark; they do not claim universal hardware speedup."
+    ],
+    "inferred_consequences": [
+      "Deployment speedup may be lower or higher.",
+      "Memory-bound or batched serving may see different gains."
+    ],
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p. 9, §4.5",
+        "support_description": "Both methods are implemented using the Huggingface Transformers library (Wolf et al., 2020) and tested on a single NVIDIA A6000 GPU using the Llama-2-7B and Llama-2-13B models."
+      },
+      {
+        "source_id": "paper",
+        "location": "p. 9, §4.5",
+        "support_description": "StreamingLLM achieves an impressive speedup, reaching up to 22.2× per token."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Decoding latency depends on GPU model, memory bandwidth, kernel implementations, batching, and serving stack; a single-GPU microbenchmark is not a universal deployment measurement. The paper's speedup is evidence under its benchmark conditions, not a guarantee of 22.2× elsewhere."
+  },
+  {
+    "headline": "LongBench truncation-baseline parity does not imply or guarantee suitability for long-document QA or summarization.",
+    "claim": "The 1750+1750 LongBench parity on QA and summarization tasks should not be read as overcoming StreamingLLM's stated limitation for tasks requiring long-term memory and extensive data dependency.",
+    "paper_fact": "StreamingLLM is not suitable for tasks that demand long-term memory and extensive data dependency, such as long document question-answering (QA) and summarization.",
+    "premise": "A truncation baseline that keeps only beginning and end discards middle context; matching it cannot establish long-term memory or full long-document QA.",
+    "inference": "Author boundary: the paper states the limitation and also reports LongBench parity with a truncation baseline. Inferred consequence: parity is bounded by the baseline's truncated view and does not establish suitability for long-document QA or summarization.",
+    "toy_example": "Not a measurement: a reader given only a book's first and last chapters can match another reader given the same excerpts without either having read the middle.",
+    "conditional_consequence": "If a task requires middle-context or long-term memory, then do not cite 1750+1750 LongBench parity as evidence of suitability; use context extension or retrieval instead.",
+    "critical_link": "LongBench's default truncation preserves beginning and end; matching it leaves middle-context loss intact, which is exactly the limitation the authors state for long-document QA and summarization.",
+    "necessary_conditions": [
+      "The task requires middle or long-term context",
+      "The baseline truncates to 1750 initial and 1750 final tokens",
+      "No context extension or retrieval is used",
+      "LongBench parity is being cited as evidence of task suitability"
+    ],
+    "defeaters": [
+      "The task's answers are fully contained in the first and last 1750 tokens",
+      "StreamingLLM is integrated with context extension and evaluated on middle-context tasks",
+      "A long-document QA benchmark shows parity or improvement over full-context baselines"
+    ],
+    "do_not_infer": [
+      "Do not infer that StreamingLLM solves long-document QA or summarization",
+      "Do not infer that LongBench is uninformative for all purposes",
+      "Do not infer that truncation-baseline parity equals full-context performance"
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "applicability_limitation",
+    "lens": "L4 coupling of choices; L5 task-dependent regularity",
+    "quotes": [
+      {
+        "quote": "StreamingLLM is not suitable for tasks that demand long-term memory and extensive data dependency, such as long document question-answering (QA) and summarization.",
+        "source": "paper",
+        "locator": "page 15, Appendix A Limitations"
+      },
+      {
+        "quote": "The baseline truncates inputs to 1750 initial and 1750 final tokens.",
+        "source": "paper",
+        "locator": "page 17, Table 8 caption"
+      },
+      {
+        "quote": "aligning the attention sink number to 1750 restores performance to the level of the text truncation baseline.",
+        "source": "paper",
+        "locator": "page 17, Appendix D"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 2,
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "page 15, Appendix A Limitations",
+        "support_description": "StreamingLLM is not suitable for tasks that demand long-term memory and extensive data dependency, such as long document question-answering (QA) and summarization."
+      },
+      {
+        "source_id": "paper",
+        "location": "page 17, Table 8 caption",
+        "support_description": "The baseline truncates inputs to 1750 initial and 1750 final tokens."
+      },
+      {
+        "source_id": "paper",
+        "location": "page 17, Appendix D",
+        "support_description": "aligning the attention sink number to 1750 restores performance to the level of the text truncation baseline."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "A truncation baseline that keeps only beginning and end discards middle context; matching it cannot establish long-term memory or full long-document QA. Author boundary: the paper states the limitation and also reports LongBench parity with a truncation baseline. Inferred consequence: parity is bounded by the baseline's truncated view and does not establish suitability for long-document QA or summarization."
+  }
+]
