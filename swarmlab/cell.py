@@ -14,9 +14,13 @@ from .util import append_jsonl, dump, load, norm, require, secret_env
 
 
 def task_message(evidence: Evidence, include_packet: bool, task: str | None = None) -> str:
+    scope = "Evidence scope: original paper pages only." if evidence.repo is None else \
+        "Evidence scope: original paper pages and original tracked repository only."
     head = (f"{task or prompts.TASK}\n\nPaper ID: {evidence.meta['paper_id']}\n"
-            f"Pinned repository commit: {evidence.commit}\n"
-            f"Evidence scope: original paper pages and original tracked repository only.\n\n")
+            f"Pinned repository commit: {evidence.commit or 'none'}\n"
+            f"{scope}\n\n")
+    if evidence.repo is None:
+        head += prompts.PAPER_ONLY_NOTE + "\n\n"
     paper = f"ORIGINAL PAPER BEGIN\n{evidence.paper_header()}\nORIGINAL PAPER END"
     if not include_packet or not evidence.packet:
         return head + "\n" + paper
@@ -35,6 +39,7 @@ class Cell:
         self.out.mkdir(parents=True)
         self.protocol = protocol
         self.evidence = Evidence(self.inputs / paper, self.out)
+        self.paper_only = not self.evidence.repo
         env = secret_env()
         self.client = client or Client(
             key=env["SOCLAAS_API_KEY"],
@@ -118,7 +123,8 @@ class Cell:
     def run_once(self) -> str:
         system = prompts.ONCE_SYSTEM
         user = (f"Paper ID: {self.evidence.meta['paper_id']}\n"
-                f"Pinned Git commit: {self.evidence.commit}\n\n"
+                f"Pinned Git commit: {self.evidence.commit or 'none'}\n"
+                f"{prompts.PAPER_ONLY_NOTE + chr(10) + chr(10) if self.paper_only else ''}"
                 f"ORIGINAL PAPER BEGIN\n{self.evidence.paper_header()}\nORIGINAL PAPER END\n\n"
                 f"ORIGINAL REPOSITORY FILES BEGIN\n{self.evidence.packet}\nORIGINAL REPOSITORY FILES END")
         response = self.client.chat(
@@ -135,7 +141,8 @@ class Cell:
             {"role": "system", "content": system},
             {"role": "user", "content": task_message(self.evidence, include_packet=True)},
         ]
-        return _single_loop(self, messages, prompts.TOOLS, self.protocol["single_agent_turns"])
+        tools = prompts.PAPER_TOOLS if self.paper_only else prompts.TOOLS
+        return _single_loop(self, messages, tools, self.protocol["single_agent_turns"])
 
     def run_swarm(self) -> str:
         if not self.protocol.get("two_phase"):

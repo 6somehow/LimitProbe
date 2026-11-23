@@ -104,7 +104,7 @@ def main(argv=None) -> None:
     prep.add_argument("--inputs", type=Path, required=True)
     run_p = sub.add_parser("run")
     run_p.add_argument("root", type=Path)
-    run_p.add_argument("--split", default="dev", choices=["dev", "test"])
+    run_p.add_argument("--split", default="dev", choices=["dev", "test", "paperonly", "all"])
     run_p.add_argument("--conditions", nargs="+", default=["gap_receipt_swarm"])
     run_p.add_argument("--papers", nargs="+")
     args = parser.parse_args(argv)

@@ -227,3 +227,10 @@ Each new candidate needs: id (B1, B2, B3), stage, title, rule, trigger, mitigati
 
 FROZEN DEEP REPORT CANDIDATES:
 {deep}"""
+
+
+PAPER_ONLY_NOTE = ("No author repository is available for this paper. Use only the original paper pages; "
+                   "leave code_evidence empty and mark any implementation claim as untested.")
+
+PAPER_TOOLS = [tool for tool in TOOLS if tool["function"]["name"] in {"read_paper", "search_paper"}]
+PAPER_LEAD_TOOLS = PAPER_TOOLS + [DELEGATE_TOOL]

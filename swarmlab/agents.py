@@ -140,7 +140,7 @@ def run_lead(cell, evidence, client, task_message: str, compactor: Compactor | N
                 cell.delegate_prompts += 1
         force_gap = (not final_now and cell.delegations < max_delegations
                      and turns >= max_turns - 1 and remaining >= 2)
-        tools = prompts.LEAD_TOOLS
+        tools = prompts.PAPER_LEAD_TOOLS if cell.paper_only else prompts.LEAD_TOOLS
         if final_now:
             tools = []
         elif force_gap or (must_delegate and cell.delegate_prompts >= 2):
@@ -220,7 +220,7 @@ def run_worker(cell, evidence, client, worker_id: str, question: str, chain_summ
                 f"Worker budget: {client.requests + 1} of {cell.budget.request_cap} shared requests will be used. "
                 "Return the JSON answer after at most two source reads.")
         response = client.chat(messages + [{"role": "user", "content": note}],
-                               tools=[] if force else prompts.TOOLS,
+                               tools=[] if force else (prompts.PAPER_TOOLS if cell.paper_only else prompts.TOOLS),
                                max_tokens=min(16000, cell.protocol["max_output_tokens"]),
                                thinking=not force)
         message = response["message"]
