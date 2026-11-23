@@ -23,6 +23,7 @@ sys.path.insert(0, str(ROOT))
 from codeside.callgraph import RepoCallGraph  # noqa: E402
 from codeside.effect_anchor import check_effects  # noqa: E402
 from codeside.integrate import Context, Rules, integrate  # noqa: E402
+from codeside.process_confidence import FORMAT as PC_FORMAT, NAMES as PC_CHECKS, ProcessContext, assess_all  # noqa: E402
 from codeside.scope_check import ScopeChecker  # noqa: E402
 from codeside.verify3b import load_paper_side  # noqa: E402
 from schema.models import SCHEMA_VERSION, Limitation, Verification  # noqa: E402
@@ -50,8 +51,14 @@ def main() -> None:
     ap.add_argument("--no-llm", action="store_true")
     ap.add_argument("--strict-scope", action="store_true")
     ap.add_argument("--only", nargs="*", help="artifact ids to (re)run; the top-level files still cover all")
+    ap.add_argument("--process-only", action="store_true",
+                    help="do not redo step 4: only (re)compute process_confidence on the existing output "
+                         "(no model call, finding ids and everything else stay as they are)")
     a = ap.parse_args()
     rules = Rules(a.strict_scope)
+    if a.process_only:
+        process_only(ROOT / a.out, a.only)
+        return
     labels: dict = {}
     if (ROOT / a.labels).is_file():
         for r in json.loads((ROOT / a.labels).read_text())["labels"]:
@@ -100,9 +107,6 @@ def main() -> None:
             usage.update({k: v for k, v in llm.settings().items() if isinstance(v, int)})
         out = ROOT / a.out / aid
         out.mkdir(parents=True, exist_ok=True)
-        (out / "findings.json").write_text(json.dumps([f.model_dump(mode="json") for f in findings], indent=1,
-                                                      ensure_ascii=False))
-        (out / "findings.report.json").write_text(json.dumps(report, indent=1, ensure_ascii=False))
         (out / "llm_records.json").write_text(json.dumps(records, indent=1, ensure_ascii=False))
         lims = {l.limitation_id: l for l in code_lims + paper_lims}
         vers = {v.verification_id: v for v in code_vers}
@@ -112,10 +116,83 @@ def main() -> None:
             d["limitations"] = [lims[i].model_dump(mode="json") for i in f.limitation_ids]
             d["verifications"] = [vers[i].model_dump(mode="json") for i in f.verification_ids]
             records.append(d)
+        # process confidence: static checks on how each code-side Finding was produced (no model call)
+        report["process_confidence"] = assess_all(records, process_context(aid, ctx.repo, roots, ctx.entry_points, graph))
+        (out / "findings.json").write_text(json.dumps([f.model_dump(mode="json") for f in findings], indent=1,
+                                                      ensure_ascii=False))
+        (out / "findings.report.json").write_text(json.dumps(report, indent=1, ensure_ascii=False))
         (out / "limitations_for_tests.json").write_text(json.dumps(envelope(records, rules), indent=1, ensure_ascii=False))
         print(aid, json.dumps({k: report[k] for k in ("findings", "pairs_judged_same", "by_category",
                                                         "by_priority", "witness_status")}))
     combine(ROOT / a.out, rules, usage)
+
+
+def process_context(aid: str, repo, roots, entries, graph=None) -> ProcessContext:
+    """The repo plus the repeated measurements that exist for this artifact: the extraction runs of step 2
+    (results/step2_merged/<id>/merged_run*.json) and the repeated 3b checks (results/pipeline/<id>/3b.detail.json)."""
+    runs = [json.loads(f.read_text()) for f in sorted((ROOT / "results/step2_merged" / aid).glob("merged_run[0-9].json"))]
+    detail = ROOT / "results/pipeline" / aid / "3b.detail.json"
+    agreement = {i["limitation_id"]: i for i in json.loads(detail.read_text())["items"]} if detail.is_file() else {}
+    return ProcessContext(repo, tuple(roots or (".",)), entries, graph, runs=runs, agreement=agreement)
+
+
+def process_only(out: Path, only) -> None:
+    """Recompute `process_confidence` in the existing hand-off files. Nothing else in the records changes;
+    findings.json (plain Findings) is not touched."""
+    for d in sorted(p for p in out.iterdir() if (p / "limitations_for_tests.json").is_file()):
+        aid = d.name
+        if only and aid not in only:
+            continue
+        art = json.loads(artifact_json(aid).read_text())
+        repo = ROOT / "third_party" / art["repo_url"].rstrip("/").split("/")[-1]
+        cfg = artifact_json(aid).parent / "pipeline.json"
+        roots = (json.loads(cfg.read_text()).get("package_roots") if cfg.is_file() else None) or PACKAGE_ROOTS.get(aid)
+        entries = [e if isinstance(e, str) else e.get("entry", "") for e in art.get("entry_points", [])]
+        data = json.loads((d / "limitations_for_tests.json").read_text())
+        summary = assess_all(data["findings"], process_context(aid, repo, roots, entries))
+        (d / "limitations_for_tests.json").write_text(json.dumps(data, indent=1, ensure_ascii=False))
+        report = json.loads((d / "findings.report.json").read_text())
+        report["process_confidence"] = summary
+        (d / "findings.report.json").write_text(json.dumps(report, indent=1, ensure_ascii=False))
+        print(aid, json.dumps({k: summary[k] for k in ("assessed", "repo_available", "ceiling")}))
+    handoff, rules = [], {}
+    for d in sorted(p for p in out.iterdir() if (p / "limitations_for_tests.json").is_file()):
+        data = json.loads((d / "limitations_for_tests.json").read_text())
+        handoff += data["findings"]
+        rules = data.get("rules", rules)
+    (out / "limitations_for_tests.json").write_text(json.dumps(envelope(handoff, Rules(**rules)), indent=1,
+                                                               ensure_ascii=False))
+    process_summary(out)
+
+
+def process_summary(out: Path) -> None:
+    """<out>/process_confidence.md: check states, predicted ceilings and coverage per artifact."""
+    rows = [(d.name, json.loads((d / "findings.report.json").read_text()).get("process_confidence"))
+            for d in sorted(p for p in out.iterdir() if (p / "findings.report.json").is_file())]
+    rows = [(a, s) for a, s in rows if s]
+    if not rows:
+        return
+    cl = ["not_testable", "L1", "L2", "L3", "not_measured"]
+    L = ["# Code-side evidence per artifact (static, uncalibrated)", "",
+         "Written by `scripts/run_step4.py`; rules in `docs/11_process_confidence.md`. The code side sets no level. "
+         "`ceiling` is the highest test level a Finding can reach under the test side's rules, predicted before any test.", "",
+         "| artifact | code-side findings | ceiling: " + " | ".join(cl) + " | decision on main / side / unknown path | "
+         "decisions in entry-reachable functions | listed by the code side |", "|---" * (len(cl) + 5) + "|"]
+    for a, s in rows:
+        on, cov = s["decision_on"], s["coverage"]
+        L.append(f"| {a} | {s['assessed']} | " + " | ".join(str(s["ceiling"].get(x, 0)) for x in cl) +
+                 f" | {on.get('main', 0)} / {on.get('side', 0)} / {on.get('unknown', 0)} | "
+                 + (f"{cov['decisions']} in {cov['entry_reachable_functions']} functions | {cov['decisions_listed']}"
+                    if cov.get("measured") else "not measured | not measured") + " |")
+    states = ["eliminated", "residual", "open", "refuted"]
+    L += ["", "Check states over all artifacts (eliminated / residual / open / refuted):", "",
+          "| check | " + " | ".join(states) + " |", "|---" * (len(states) + 1) + "|"]
+    for k, name in PC_CHECKS.items():
+        tot = Counter()
+        for _, s in rows:
+            tot.update(s["by_check"][k])
+        L.append(f"| {k} {name} | " + " | ".join(str(tot.get(x, 0)) for x in states) + " |")
+    (out / "process_confidence.md").write_text("\n".join(L) + "\n")
 
 
 def known_ids(findings_json: Path) -> dict:
@@ -128,7 +205,11 @@ def known_ids(findings_json: Path) -> dict:
 def envelope(records: list, rules: Rules) -> dict:
     return {"schema_version": SCHEMA_VERSION, "witness_format": "witness-v2", "rules": rules.__dict__,
             "note": "One record per Finding (step 4). `limitations` and `verifications` are the full records behind it. "
-                    "Sorted by artifact, then priority. review comes from an LLM blind review, not a human.",
+                    "Sorted by artifact, then priority. review comes from an LLM blind review, not a human. "
+                    "`process_confidence` (code side only, else null) is the code side's static evidence (checks, repeats, "
+                    "predicted test ceiling, importance; no level), "
+                    "docs/11_process_confidence.md; like `limitations` it is not a field of the Finding schema.",
+            "process_confidence_format": PC_FORMAT,
             "findings": records}
 
 
@@ -164,6 +245,7 @@ def combine(out: Path, rules: Rules, usage: Counter) -> None:
               f"witness status: {dict(Counter(q['witness'] for q in queue))}",
               f"LLM usage (this run): {dict(usage)}"]
     (out / "summary.md").write_text("\n".join(lines) + "\n")
+    process_summary(out)
     print("\n".join(lines))
 
 
