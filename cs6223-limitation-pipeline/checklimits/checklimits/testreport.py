@@ -100,7 +100,9 @@ def finding_block(raw: dict[str, Any]) -> tuple[dict[str, Any], dict[str, list[d
            "priority": raw.get("priority"), "summary": raw.get("summary"), "review": raw.get("review"),
            "review_note": raw.get("review_note"), "scope_status": raw.get("scope_status"),
            "witness_status": wh.get("status"), "location": location, "function": wh.get("function"),
-           "condition": wh.get("condition")}
+           "condition": wh.get("condition"),
+           # code side's static process confidence (step 4, docs/11_process_confidence.md); None if absent
+           "process_confidence": raw.get("process_confidence")}
     return fin, {"paper": paper[:3], "code": code[:3]}
 
 

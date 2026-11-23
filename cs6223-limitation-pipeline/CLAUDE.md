@@ -11,6 +11,7 @@ NUS CS6223 课程项目。给定系统研究论文 + 代码仓库，论文侧和
 - 步骤 3b：代码 → 论文验证——`codeside/verify3b.py`，说明和结果见 `docs/06_3b_eval.md`；B → 3b 端到端见 `docs/07_pipeline_b_3b.md`
 - 步骤 4：整合成 Finding（去重、分类、priority、witness_hint）——`codeside/integrate.py` + `codeside/step4_llm.py` + `codeside/witness.py`，说明和结果见 `docs/09_step4_findings.md`
   - 效果标签检查 `codeside/effect_anchor.py`、调用链和参数对应 `codeside/callgraph.py`、被调函数名字换成入口名字 `codeside/chain_bind.py`（2026-11-15，`E2E_PLAN.md` 的 W1–W3）；Finding 编号跨运行不变
+  - 过程置信度 `codeside/process_confidence.py`（2026-11-21）：每条有代码侧记录的 Finding 带静态证据（8 项检查、重复测量、预测的测试档位上限、重要性数字；代码侧不定档），随 Finding 传给测试侧，见 `docs/11_process_confidence.md`
 - 共享 schema——`schema/models.py`
 
 队友：Zhaopeng（论文侧：步骤 1、3a、agent 编排、baseline；代码在 `paperside/`），Shanghao（步骤 5–6：测试生成与执行）。
@@ -75,6 +76,7 @@ python -m codeside.verify3b --limitations data/pilot_flexprefill/gold_code_limit
 python scripts/eval_3b.py          # 3b 的已知答案测试
 python scripts/run_pipeline.py --out-dir out/pipeline_ps --seed-cache out/pipeline   # B → 3b（论文侧用交接包）
 python scripts/run_step4.py        # 步骤 4：Finding + witness_hint，写到 results/step4/（调模型，有缓存；--no-llm 不调）
+python scripts/run_step4.py --process-only   # 只重算代码侧静态证据（不调模型，其余内容不变），之后跑 make_handoff_doc.py
 python -m codeside.cli validate data/*/*.json
 python -m schema.export_json_schema
 ```
