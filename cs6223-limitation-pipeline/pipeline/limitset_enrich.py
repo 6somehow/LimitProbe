@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import threading
 from concurrent.futures import Future
 from pathlib import Path
@@ -27,9 +28,9 @@ class RelayLLM:
     def __call__(self, prompt):
         from openai import OpenAI
         client = OpenAI(base_url=f'http://127.0.0.1:{self.port}/v1', api_key='relay', timeout=self.timeout, max_retries=2)
+        extra = {} if os.environ.get('LIMITSET_GEN_OMIT_SAMPLING') else {'temperature': 0, 'response_format': {'type': 'json_object'}}
         response = client.chat.completions.create(
-            model=self.model, temperature=0, response_format={'type': 'json_object'},
-            messages=[{'role': 'user', 'content': prompt}])
+            model=self.model, messages=[{'role': 'user', 'content': prompt}], **extra)
         return response.choices[0].message.content
 
 

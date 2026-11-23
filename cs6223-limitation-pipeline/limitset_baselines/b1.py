@@ -63,6 +63,8 @@ def run_case(case, input_dir, out_dir, env, repeat):
         prompt += '\n\nPinned repository:\n' + code
     payload = {'model': env.get('PIPELINE_MODEL', 'x-test-2'), 'temperature': 0,
                'messages': [{'role': 'user', 'content': prompt}]}
+    if env.get('LIMITSET_GEN_OMIT_SAMPLING'):  # e.g. Claude Sonnet 5.5 rejects `temperature`
+        payload.pop('temperature')
     write_json(out_dir / 'request.json', payload)
     write_json(out_dir / 'input_info.json', {'code': code_status, 'paper_characters': len(paper), 'character_budget': CHAR_BUDGET})
     write_json(out_dir / 'cost.json', {'calls': 1, 'prompt_tokens': None,
