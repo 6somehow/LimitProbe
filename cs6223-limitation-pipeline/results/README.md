@@ -2,9 +2,9 @@
 
 Copied from `out/` (`out/` itself is not committed). The temporary development notes (hand-off sheets, progress and draft reports) were removed from the artifact.
 
-- `step2_merged/<论文>/merged_runN.json`: final step 2 results (routes A + B, three runs).
-- `pipeline/<论文>/limitations.json`: limitations passed to 3b (from merged_run1).
-- `pipeline/<论文>/3b.json`: 3b conclusions; `3b.detail.json`: original quotes, votes per round, needs_review.
+- `step2_merged/<paper>/merged_runN.json`: final step 2 results (routes A + B, three runs).
+- `pipeline/<paper>/limitations.json`: limitations passed to 3b (from merged_run1).
+- `pipeline/<paper>/3b.json`: 3b conclusions; `3b.detail.json`: original quotes, votes per round, needs_review.
 - `pipeline/candidates.json`: candidate list across five papers.
 - `pipeline/` was rerun with Zhaopeng's `paper_side.json` (2026-11-11; see git history for the original stub version); `candidates.json` includes blind review labels.
 - `review/blind_review_labels.json`: Claude subagent blind review labels for route B additions (228 items, one reviewer, not human annotations).

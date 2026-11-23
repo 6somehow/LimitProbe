@@ -8,17 +8,15 @@ Run from the `cs6223-limitation-pipeline/checklimits/` directory (`python -m che
 
 ```bash
 python -m checklimits envcheck <artifact>                 # Environment precheck; writes ENV.json
-python -m checklimits test     <artifact> [选项]          # Select, test, and write report.json and LIMITATIONS.md
+python -m checklimits test     <artifact> [options]          # Select, test, and write report.json and LIMITATIONS.md
 python -m checklimits report   <artifact> [--results-root] # Regenerate LIMITATIONS.md using existing report.json files only
 ```
-
-In the command above, `[选项]` is an original-language placeholder [options].
 
 Options for `test`:
 
 | Option | Meaning |
 |---|---|
-| `--results-root DIR` | Output root, default `checklimits/results/e2e`. Pass `<pipeline 根>/results` when connecting the pipeline. |
+| `--results-root DIR` | Output root, default `checklimits/results/e2e`. Pass `<pipeline root>/results` when connecting the pipeline. |
 | `--attempts-root DIR` (repeatable) | Directory to search for existing test packages (attempts). Default: `agent_results/` and `<results-root>/tests/<artifact>/`. |
 | `--run-agent` | Run a code agent for each Finding that can be assessed but has no test package (requires relay and SoCLaaS credentials; about 5 to 15 minutes per Finding). Without it, these Findings are recorded as `not_run(not_attempted)`. |
 | `--only ID` (repeatable) | Test only the specified Finding; the report still includes all Findings, using existing records for the rest (see §5). |
@@ -28,7 +26,6 @@ Options for `test`:
 | `--skip-envcheck` | Skip the environment precheck. |
 | `--provision` | If the environment precheck fails but the repository is checked out, first create `scratch/venv_<artifact>` (`provision`: install the CPU version of torch and dependencies at the versions pinned by the repository, without running the repository's own tests), then check again. Record the process in `provisioned` in `ENV.json`. The pipeline `test` command does not yet pass this option through. |
 
-In `<pipeline 根>/results`, `根` is an original-language placeholder [root].
 
 Inputs: `results/step4/<artifact>/limitations_for_tests.json` (schema 0.2.0) and `data/*/artifact.json` (the one whose `artifact_id` matches).
 
