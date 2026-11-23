@@ -66,8 +66,16 @@ def _evidence(candidate: dict, pages: list[str]) -> list[TextEvidence]:
         page, quote = citation.get("page", citation.get("page_number", citation.get("physical_page"))), citation.get("quote", citation.get("text", citation.get("excerpt")))
         if type(page) is not int or not 1 <= page <= len(pages):
             raise ValueError(f"invalid physical PDF page {page!r}")
-        if not isinstance(quote, str) or not quote.strip() or " ".join(quote.split()) not in pages[page - 1]:
+        if not isinstance(quote, str) or not quote.strip():
             raise ValueError(f"quote does not occur on PDF page {page}")
+        flat = " ".join(quote.split())
+        if flat not in pages[page - 1]:
+            # The model often cites a neighbouring page. Accept the quote when it is verbatim elsewhere in the
+            # PDF and record the real page (rule 4: the quote must appear verbatim in the source).
+            hits = [i + 1 for i, text in enumerate(pages) if flat in text]
+            if not hits:
+                raise ValueError(f"quote does not occur on PDF page {page}")
+            page = min(hits, key=lambda n: abs(n - page))
         evidence.append(TextEvidence(quote=quote, locator=f"PDF p.{page}"))
     return evidence
 

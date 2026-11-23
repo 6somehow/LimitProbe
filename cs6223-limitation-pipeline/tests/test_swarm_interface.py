@@ -41,8 +41,10 @@ def test_converts_and_checks_quotes_then_integrates(swarm_inputs, tmp_path):
     ]
     report.write_text(json.dumps({"paper_id": "toy", "candidates": entries}))
     handoff, lims = convert("toy", report, pdf)
-    assert [d["id"] for d in handoff["dropped"]] == ["H4", "H5"]
-    assert [lim.swarm_category for lim in lims] == [entry["category"] for entry in entries[:3]]
+    # H4 cites the wrong page but the quote is verbatim elsewhere: kept, with the real page. H5 is not verbatim: dropped.
+    assert [d["id"] for d in handoff["dropped"]] == ["H5"]
+    assert lims[3].paper_evidence[0].locator == "PDF p.1"
+    assert [lim.swarm_category for lim in lims[:3]] == [entry["category"] for entry in entries[:3]]
     assert lims[0].condition_text == candidate["trigger"]
     assert lims[0].paper_evidence[0].quote == quote
     assert lims[0].swarm_provenance["candidate"] == candidate
@@ -60,12 +62,12 @@ def test_converts_and_checks_quotes_then_integrates(swarm_inputs, tmp_path):
             pytest.fail("Swarm paper hypotheses have no executable conditions")
 
     findings, _ = integrate("toy", [], [], lims, None, Rules(), Context(judge=Judge()))
-    assert len(findings) == 3
+    assert len(findings) == 4  # H4's wrong-page quote is relocated, not dropped
     assert all(f.origin == "swarm" and f.category == "paper_hypothesis" and f.level == "L3"
                and f.witness_hint["status"] == "no_condition" for f in findings)
     records = [{**f.model_dump(mode="json"), "limitations": [lim.model_dump(mode="json")]}
                for f, lim in zip(findings, lims)]
-    assert assess_all(records, ProcessContext(None))["not_assessed_paper_only"] == 3
+    assert assess_all(records, ProcessContext(None))["not_assessed_paper_only"] == 4
     assert all(r["process_confidence"] is None for r in records)
 
 
@@ -162,9 +164,9 @@ def test_s7_quotes_and_conditions(swarm_inputs):
                      causal_argument='The fixed budget cannot adapt.', conditions='variable input')
     candidate.pop('trigger')
     report.write_text(json.dumps({'candidates': [candidate, {**candidate, 'id': 'bad',
-        'paper_quotes': [{'page_number': 2, 'quote': quote}]}]}))
+        'paper_quotes': [{'page_number': 2, 'quote': quote.lower()}]}]}))
     handoff, limitations = convert('toy', report, pdf)
-    assert len(limitations) == 1
+    assert len(limitations) == 1  # a quote that is not verbatim in the PDF is dropped
     assert limitations[0].condition_text == 'variable input'
     assert limitations[0].swarm_provenance['candidate']['causal_argument'] == 'The fixed budget cannot adapt.'
     assert handoff['dropped_count'] == 1
