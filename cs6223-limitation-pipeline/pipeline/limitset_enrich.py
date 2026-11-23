@@ -57,6 +57,8 @@ def enrich(finding, cache_dir, llm, model):
     path = Path(cache_dir) / (key + '.json')
     try:
         result = _result(key, path, prompt, llm)
+        if finding.get('category_code') in CATEGORIES and finding['category_code'] != 'unclassified':
+            result = {key: finding[key] if key in finding and finding[key] is not None and (key != 'mechanism' or finding[key]) else value for key, value in result.items()}
         return {**finding, **result}, None
     except Exception as exc:
         return finding, f'{type(exc).__name__}: {exc}'

@@ -38,3 +38,26 @@ def test_candidate_with_invented_quote_is_dropped_and_records_are_a1():
     assert r.finding_id == "t-P001" and r.analysis["tier"] == "A1" and r.analysis["calibrated"] is False
     assert r.status == "not_run" and r.not_run.code == "no_code_location"
     assert r.analysis["arithmetic_check"]["status"] == "evaluated"
+
+
+def test_two_passes_cache_and_dedupe(tmp_path, monkeypatch):
+    pdf = tmp_path / "paper.pdf"
+    pdf.write_bytes(b"pdf")
+    monkeypatch.setattr(PO, "pdf_text", lambda _: TEXT)
+    quote = "achieves 2.3x speedup over the baseline on 64 GPUs"
+    first = {"kind": "evaluation_scope", "claim": "surface", "quotes": [quote]}
+    second = {"kind": "method_shortcoming", "claim": "limit", "mechanism": "because", "conditions": ["when"], "reasoning": "fact -> premise -> inference", "quotes": [quote]}
+    bad = {**second, "quotes": ["invented words absent from the paper"]}
+    responses = [json.dumps({"candidates": [first]}), json.dumps({"candidates": [second, bad]})]
+    calls = []
+    def ask(prompt):
+        calls.append(prompt)
+        return responses.pop(0)
+    kwargs = dict(title="t", venue="v", results_root=tmp_path, model="m", base_url="", key="", ask=ask)
+    result = PO.run_paper_only("a", pdf, **kwargs)
+    assert result["n_records"] == 1 and result["dropped"] == 1 and len(calls) == 2
+    report = json.loads((tmp_path / "tests/a/a-P001/report.json").read_text())
+    assert report["provenance"]["prompt_version"] == PO.MECHANISM_PROMPT_VERSION
+    assert report["analysis"]["mechanism"] == "because" and report["analysis"]["tier"] == "A1"
+    PO.run_paper_only("a", pdf, **kwargs)
+    assert len(calls) == 2
