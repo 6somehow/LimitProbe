@@ -1,0 +1,182 @@
+{
+  "paper_id": "infinigen",
+  "method_model": "InfiniGen: offloading-based dynamic KV cache management; speculative prefetch using previous-layer attention input, partial Q/K weights, and CPU KV pool with counter-based eviction",
+  "candidates": [
+    {
+      "id": "C1",
+      "category": "implementation_discrepancy_and_method_hypothesis",
+      "title": "离线 skewing 矩阵由单个样本决定，且代码用 Q/K 奇异值乘积而非论文的 query-only",
+      "causal_argument": "A 用于放大 Q/K 的少数列，使 partial Q/K 能代表全量注意力。若 A 只拟合 PG19 前 2048 token 和一次生成，并且代码用 s = sq * sk 排序后 scatter vq，而不是论文公式 3 的 query SVD 的 V，A 选出的列会反映该样本的谱方向而非所有请求的列重要性；输入分布变化时，partial score 与真实 score 的排序偏离，prefetch 可能选错 token、遗漏关键 KV，导致准确率下降。",
+      "conditions": "跨语料/领域、序列长于 2048 token、batch/beam 扩大、使用 RoPE 的模型，或模型层间/输入间 outlier 分布不稳定时，固定样本与请求分布差异更大。",
+      "paper_evidence": {
+        "physical_page": "PHYSICAL PDF PAGE 9",
+        "quote": "InfiniGen first runs the forward pass of the model once with a sample input. During this process, InfiniGen gathers the query matrix from each layer and performs singular value decomposition (SVD) of each query matrix."
+      },
+      "code_evidence": {
+        "file_path": "accuracy/setup/gen_opt_model.py",
+        "exact_symbol_or_excerpt": "file_path = \"./pg19_firstbook.txt\"; input_ids = tokenizer(prompt, return_tensors=\"pt\").input_ids.cuda()[:, :2048]; max_new_tokens = 1; s = sq * sk; A = A.scatter(-1, ind.unsqueeze(0).repeat(r,1), vq)"
+      },
+      "counterevidence": "论文称 column-wise pattern 来自模型固有属性而非输入，Figure 13 显示 OPT-6.7B 加 skewing 后恢复到接近 full-cache 的准确率，说明固定 A 可能已足够稳定。",
+      "minimal_comparison": "用两个不相交语料分别生成 A，比较被选列集合重叠率及同一任务的准确率；或将 A 替换为 identity/随机正交矩阵，在相同 alpha 与 partial ratio 下比较。"
+    },
+    {
+      "id": "C2",
+      "category": "implementation_discrepancy",
+      "title": "partial query weight 由固定六句 prompt 离线生成，未按请求 prefill 选列",
+      "causal_argument": "论文描述在 prefill 阶段从 query weight 和 key cache 中选重要列。若 partial query weight 实际由固定六句示例 prompt 离线预生成，则 top-k 列对每个请求固定；当请求的重要通道与该示例不同，partial Q 投影会错估 token 分数，导致 prefetch 漏掉重要 KV，准确率下降。",
+      "conditions": "任务/领域多样、prompt 较长、outlier 或重要通道随上下文变化、batch 中多个请求共享同一组固定 partial weights 时。",
+      "paper_evidence": {
+        "physical_page": "PHYSICAL PDF PAGE 9",
+        "quote": "In the prefill stage, InfiniGen selects several important columns from the query weight matrix and the key cache to speculate on the attention pattern, and generates partial query weight and key cache matrices used in the decoding stage."
+      },
+      "code_evidence": {
+        "file_path": "accuracy/setup/gen_partial_weight.py",
+        "exact_symbol_or_excerpt": "prompt = [\"The bartender refused to serve the patron because the patron was drunk....\"]; max_new_tokens = 1; torch.save(partial_weight, \"%s/partial_weight_q_\"%(basepath) + str(layer) + \".pt\")"
+      },
+      "counterevidence": "README 将 partial weights 和 skewing matrix 都放在 setup 中一次性生成；论文报告 Figure 11/12 的准确率接近 full cache，说明固定列可能在测试模型中足够鲁棒。",
+      "minimal_comparison": "对同一模型，用每个请求实际 prefill 重新选列，与固定 setup partial weights 比较 top-k KV 召回率、five-shot 准确率和 perplexity。"
+    },
+    {
+      "id": "C3",
+      "category": "evaluation_implementation_discrepancy",
+      "title": "准确率/perplexity 评测采用逐层全序列前向（use_cache=False），不是带 CPU KV pool 的逐 token 解码",
+      "causal_argument": "逐层全序列前向在每层一次性处理所有 query token，不执行增量 KV cache、CPU->GPU 按 token 预取或 counter-based pool eviction。这样测到的是选择近似在全序列前向上的效果，而不是实际解码路径；若 pool 替换、预取时机或 token 级缓存状态引入额外误差，论文的准确率结论可能高估真实系统表现。",
+      "conditions": "perplexity/lm-eval accuracy 实验、长输出、受 CPU 内存限制的 KV pool、需要验证实际部署准确率的场景。",
+      "paper_evidence": {
+        "physical_page": "PHYSICAL PDF PAGE 10",
+        "quote": "We evaluate accuracy (%) to assess the impact of approximation when InfiniGen, H2O, and Quantization are used. For the language modeling tasks with WikiText-2 and PTB, we use perplexity as a metric; lower perplexity means better accuracy."
+      },
+      "code_evidence": {
+        "file_path": "accuracy/perplexity/opt.py",
+        "exact_symbol_or_excerpt": "model.config.use_cache = False; for i in range(len(layers)): ... outs[j] = layer(inps[j].unsqueeze(0), attention_mask=attention_mask)[0]"
+      },
+      "counterevidence": "修改版 attention 仍使用 previous_hidden_states 和选择逻辑，因此近似误差本身仍被测试；速度实验与准确率实验分开，且 H2O 基线使用同一 harness。",
+      "minimal_comparison": "同一 prompt 上，用逐 token 解码加实际 CPU pool/counter 与逐层全序列 harness 对比 accuracy/perplexity；并扫描不同 capacity。"
+    },
+    {
+      "id": "C4",
+      "category": "method_limitation",
+      "title": "counter-based pool eviction 在更紧内存下可能永久丢弃后来突增的 KV",
+      "causal_argument": "counter 策略按历史被预取次数选择最小计数的 victim，不包含 recency 或未来重要性预测。若某个 token 过去很少被选、之后在长生成中突然变得重要，它可能在内存达到上限时被覆盖，之后无法恢复，重演论文批评的永久淘汰问题。",
+      "conditions": "CPU KV pool capacity < full、长上下文/长生成、注意力权重出现突发尖峰；主准确率实验 capacity=1.0，Table 2 只测到 80% 上限。",
+      "paper_evidence": {
+        "physical_page": "PHYSICAL PDF PAGE 10",
+        "quote": "In the case of the counter-based policy, the pool manager increments a counter for each prefetched KV entry and selects a victim with the smallest count in the KV cache pool."
+      },
+      "code_evidence": {
+        "file_path": "accuracy/lm_eval/figure11.py",
+        "exact_symbol_or_excerpt": "capacity = 1.0; run_lm_eval_harness.py: --capacity default=1.0"
+      },
+      "counterevidence": "Table 2 中 80-Counter 与 100% 内存限制在 WikiText-2/PTB 上 perplexity 几乎相同；论文也报告 LRU 与 counter 准确率相当，并称无内存限制时 InfiniGen 会保留暂时不重要的 KV。",
+      "minimal_comparison": "在 80%、60%、40% capacity 下运行长上下文和带注意力尖峰的合成任务，比较 counter、LRU 与 full-cache/oracle 淘汰的准确率。"
+    },
+    {
+      "id": "C5",
+      "category": "evaluation_limitation",
+      "title": "H2O 延迟基线使用固定 20% KV 预算，而 InfiniGen 平均使用 <10%，不是等 KV 字节/等精度比较",
+      "causal_argument": "InfiniGen 的延迟优势部分来自实际加载更少 KV 条目，而 H2O 固定加载 20% 预算。若把 H2O 调到与 InfiniGen 相同的平均 KV 字节数或相同准确率，H2O 的传输量会下降，速度差距可能缩小；因此该比较不能完全隔离“动态选择算法”的贡献。",
+      "conditions": "Figure 14–16 的延迟/speedup 比较、H2O 固定 20% 预算、InfiniGen 使用 alpha=4/5 且平均 <10% KV cache 时。",
+      "paper_evidence": {
+        "physical_page": "PHYSICAL PDF PAGE 12",
+        "quote": "In this section, we refer to H2O (with a KV cache budget of 20%) and 4-bit quantization implemented on top of FlexGen as H2O and INT4."
+      },
+      "code_evidence": {
+        "file_path": "speedup/README.md",
+        "exact_symbol_or_excerpt": "--alpha 4 --partial-weight-ratio 0.2 --max-num-kv 102"
+      },
+      "counterevidence": "论文 Figure 12 在 perplexity 实验中把 H2O 配置为与 InfiniGen 相同 KV 量，说明作者知道匹配预算的问题；Figure 11 也按相对 KV cache 大小比较准确率。",
+      "minimal_comparison": "将 H2O 预算设为与 InfiniGen 实测平均 KV 字节数相同，或按相同准确率调参，再在相同 batch/sequence length 下重跑延迟。"
+    },
+    {
+      "id": "C6",
+      "category": "method_hypothesis",
+      "title": "相邻层输入相似度假设在 Llama-2、深层或低 outlier 模型上会削弱 speculation",
+      "causal_argument": "InfiniGen 用 Layer i−1 的 attention input 代替 Layer i 的 query 来推测下一层注意力。若相邻层/注意输入的相似度较低，partial score 排序与真实 Layer i 排序的相关性下降，按 max−alpha 选出的 token 可能漏掉真正重要的 KV，导致准确率下降。",
+      "conditions": "Llama-2（Table 1 相似度 0.89–0.91，低于 OPT 的 0.95–0.97）、深层、缺乏强 outlier 通道的架构、输入分布变化时。",
+      "paper_evidence": {
+        "physical_page": "PHYSICAL PDF PAGE 8",
+        "quote": "Note that Tblock_in gradually changes across the layers; the inputs to distant layers are distinct."
+      },
+      "code_evidence": {
+        "file_path": "accuracy/perplexity/llama.py",
+        "exact_symbol_or_excerpt": "if ours: if i >= 2: layer.self_attn.previous_hidden_states = prev_hidden[j]"
+      },
+      "counterevidence": "Table 1 的相邻层相似度仍较高；Figure 11/12 中 Llama-2 准确率接近 full cache；skewing 被设计为放大稳定列，可能补偿较低相似度。",
+      "minimal_comparison": "逐层测量用 previous-layer input 与真实 current-layer input 选出的 top-k KV 召回率；再强制使用真实 current input 与 previous input，在相同 alpha/ratio 下比较准确率。"
+    }
+  ],
+  "known_boundaries": [
+    {
+      "id": "KB1",
+      "description": "每层最多只发送总 KV cache 的 20% 到 GPU；动态选择被硬上限截断，Layer 0 等宽注意力层可能不足。",
+      "paper_evidence": {
+        "physical_page": "PHYSICAL PDF PAGE 10",
+        "quote": "For each layer, we allow sending up to 20% of the total KV cache to the GPU if it contains more candidates."
+      }
+    },
+    {
+      "id": "KB2",
+      "description": "partial query weight 和 partial key cache 仍占用 GPU 显存；ratio=0.3 时 partial key cache 为总 KV cache 的 15%。",
+      "paper_evidence": {
+        "physical_page": "PHYSICAL PDF PAGE 14",
+        "quote": "For a ratio of 0.3, the sizes of the partial query weight and key cache are only 2.5% and 15% of the total model parameters and total KV cache, respectively."
+      }
+    },
+    {
+      "id": "KB3",
+      "description": "KV cache pool 的内存压力实验只测到 full KV cache 的 80% 上限，更紧容量未系统评估。",
+      "paper_evidence": {
+        "physical_page": "PHYSICAL PDF PAGE 12",
+        "quote": "under the 80% memory limit of a full KV cache."
+      }
+    },
+    {
+      "id": "KB4",
+      "description": "模型范围限于 OPT-6.7B/13B/30B 与 Llama-2-7B/13B，未覆盖 grouped-query/multi-query attention、MoE 或无强 outlier 架构。",
+      "paper_evidence": {
+        "physical_page": "PHYSICAL PDF PAGE 10",
+        "quote": "We use Open Pre-trained Transformer (OPT) models [77] with 6.7B, 13B, and 30B parameters for evaluation. The 7B and 13B models of Llama-2 [60] are also used"
+      }
+    },
+    {
+      "id": "KB5",
+      "description": "alpha 与 partial weight ratio 的敏感性研究只在 OPT-6.7B、1920/128 token、batch=8、WinoGrande 任务上做。",
+      "paper_evidence": {
+        "physical_page": "PHYSICAL PDF PAGE 13",
+        "quote": "We use the OPT-6.7B model with 1920 input tokens, 128 output tokens, and a batch size of 8. The accuracy is evaluated with the WinoGrande task in lm-evaluation-harness."
+      }
+    },
+    {
+      "id": "KB6",
+      "description": "推测和预取从 Layer 1 开始，因为 Layer 0 的 outlier/输入相似性条件不足；Layer 0 不参与同样的 speculation。",
+      "paper_evidence": {
+        "physical_page": "PHYSICAL PDF PAGE 10",
+        "quote": "InfiniGen initiates speculation and prefetching from Layer 1 because the outliers, which are essential for exploiting input similarity, emerge during the computation in Layer 0."
+      }
+    },
+    {
+      "id": "KB7",
+      "description": "skewing 是一次性离线过程，依赖预先修改权重；不在运行时按请求调整。",
+      "paper_evidence": {
+        "physical_page": "PHYSICAL PDF PAGE 9",
+        "quote": "Note that the skewing is a one-time offline process and does not incur any runtime overhead because we modify the weight matrices that are invariant at runtime."
+      }
+    },
+    {
+      "id": "KB8",
+      "description": "性能收益主要来自 decoding 阶段减少 KV cache 从 CPU 到 GPU 的加载；KV 传输占比不高的负载收益会受限。",
+      "paper_evidence": {
+        "physical_page": "PHYSICAL PDF PAGE 12",
+        "quote": "The performance benefit mainly comes from the significantly reduced amount of KV cache to load from the CPU memory due to our dynamic approach."
+      }
+    }
+  ],
+  "uncertainties": [
+    "accuracy/setup/gen_opt_model.py 将 bias 拼到 weight 后直接赋给 q_proj.weight.data；可见代码存在形状与 bias 旋转疑点，未运行验证，可能影响 setup 或 skewing 正确性。",
+    "accuracy/lm_eval/figure11.py 设 partial = 0.2，而论文正文写 partial weight ratio 为 0.3；该脚本还按模型只运行两个任务，是否完整复现 Figure 11 未验证。",
+    "H2O 20% 预算与 InfiniGen 的 CPU->GPU 实际传输/overlap 细节在可见 speedup 源码中不完整，无法核对是否与论文描述一致。",
+    "counter-based pool manager 的完整实现未出现在给定代码片段中，只有论文描述；victim 计数饱和与 partial key cache 更新细节无法核对。",
+    "accuracy 修改版 attention 源码只看到前 100 行，无法确认 partial Q/K、per-head alpha averaging 和 full-sequence harness 的完整语义。"
+  ],
+  "target_execution": "not_run"
+}

@@ -1,0 +1,160 @@
+{
+  "paper_id": "juneberry",
+  "method_model": "Juneberry/OQ：以 SRQ 作为共享接收队列，服务器 RNIC 按 SRQ 位置分配接收缓冲并产生硬件 ACK；nilext 请求以该硬件 ACK 作为提交信号，服务器 CPU 用 bitmap/idx 按 SRQ 顺序执行请求；多个 SRQ 按数据分区扩展；MP 与客户端委派用于缓解 SRQ WQE 链表和 QP 状态缓存问题；Juneberry-D 将 SRQ 缓冲放在 PM，并在 SEND 后追加 1-byte RDMA READ 以支持持久化。本文只依据论文，未运行实现。",
+  "candidates": [
+    {
+      "id": "C1",
+      "title": "SRQ 内顺序执行使慢 nilext 阻塞后续 non-nilext，形成头阻塞与尾延迟",
+      "causal_argument": "OQ 的 CPU rule 要求按接收缓冲在 SRQ 中的顺序执行；nilext 在硬件 ACK 时已被提交，但服务器可能尚未执行。若同一 SRQ 中某个慢 nilext 位于后续 non-nilext 之前，后续 non-nilext 必须等待前序请求执行（以及前序 CE 缺口被填补），因此其延迟包含服务器软件排队与执行时间，违背 non-nilext 的低延迟直觉，并放大尾延迟。",
+      "conditions": "混合 nilext/non-nilext 负载，尤其同一数据分区/SRQ 内先 set 后 get；set 执行较慢（如内存分配、淘汰、WAL 追加）或前序 CE 迟到；高负载、客户端刚收到 ACK 就发下一请求时更明显。",
+      "paper_evidence": {
+        "page": "物理页 6",
+        "quote": "the get request has a much higher latency."
+      },
+      "code_evidence": [],
+      "counterevidence": "作者明确指出该病理模式主要发生在同一客户端线程连续发往同一 RQ 的情况，并认为真实负载中不常见：多服务器/多 SRQ、客户端计算间隔可隐藏 nilext 执行；Twitter 分析显示 85.2% 集群中此类请求少于 10%；Cluster-19 的 P99 改善有限但未崩溃。",
+      "minimal_comparison": "在单一分区构造“慢 set 后紧接 get”的微基准，分别让 get 来自同一客户端和不同客户端，并与把 get 发到另一 SRQ/分区对照，比较 get 的 P50/P99；若同 SRQ 与异 SRQ 无显著尾延迟差异，则该机制不成立。"
+    },
+    {
+      "id": "C2",
+      "title": "秒级 Twitter trace 无法验证微秒级 Tgap 罕见性，适用性论证存在时间分辨率错配",
+      "causal_argument": "OQ 的病理窗口取决于 nilext ACK 与下一条 non-nilext 之间的间隔是否小于 nilext 执行时间，通常在微秒量级；但所用 trace 只有秒级时间戳，只能统计 [0,2s] 内的粗粒度间隔，无法区分 1µs、1ms 与 1s。因此“该模式不常见”的经验依据不能直接支撑微秒级部署假设，可能低估尾延迟触发频率。",
+      "conditions": "用生产 trace 外推 OQ 在真实缓存负载中的适用性；请求背靠背、同一客户端/同一分区；nilext 执行时间为微秒级。",
+      "paper_evidence": {
+        "page": "物理页 6",
+        "quote": "we can only coarsely count how many requests result in Tgap ⊂ [0,2s]."
+      },
+      "code_evidence": [],
+      "counterevidence": "Figure 2 仍显示 85.2% 的集群中只有少于 10% 的请求落在 [0,2s] 窗口；作者还论证多服务器、多 SRQ 和客户端计算间隔会降低同队列相邻概率；Cluster-19 的 P99 结果与该论证方向一致。",
+      "minimal_comparison": "在同一或类似负载上采集微秒级客户端请求间隔，统计 Tgap 小于 nilext 执行时间的比例，并与秒级窗口统计和实际 P99 对照；若微秒级窗口内比例同样很低，则该质疑被反驳。"
+    },
+    {
+      "id": "C3",
+      "title": "Juneberry-D 的持久化路径引入 PM 写带宽、额外 RDMA READ 与 DDIO 关闭开销，限制收益范围",
+      "causal_argument": "为使硬件 ACK 具备持久性，Juneberry-D 将 SRQ 缓冲放入 PM，并在每个 SEND 后追加 1-byte RDMA READ 以刷新 PCIe 写；同时禁用 DDIO，使 RNIC DMA 绕过 CPU cache。这会消耗服务器 RNIC IOPS 与 PM 写带宽，并与后端 PMemKV 竞争 PM 带宽；PM 读延迟也高于 DRAM。结果是大请求/高写负载吞吐下降，读密集时因 PM 缓冲和 DDIO 关闭而延迟变差。",
+      "conditions": "启用 Juneberry-D 持久化；写密集或大 value；PM 写带宽有限；读密集/只读负载；使用 Optane PM 等有限带宽持久内存。",
+      "paper_evidence": {
+        "page": "物理页 9",
+        "quote": "To make the hardware ACK have the persistence guarantee, Juneberry drains DMA operations of SEND commands in the server-side RNIC."
+      },
+      "code_evidence": [],
+      "counterevidence": "100B value 时吞吐退化仅 3.0%；写密集负载下 Juneberry-D 仍显著降低中位延迟；小对象在真实负载中常见；作者指出若后端不是 PM（如 SSD/HDD），不会引入该吞吐退化。",
+      "minimal_comparison": "对照 Juneberry 与 Juneberry-D 在 100B/3200B value、0%/50% put 下的吞吐和中位延迟；或将持久 SRQ 放到无额外 READ/DDIO 开销的替代持久介质上。若大 value 与读密集下开销消失，则机制被反驳或限定为 PM 实现问题。"
+    },
+    {
+      "id": "C4",
+      "title": "非幂等 nilext 被排除在硬件 ACK 快路径之外，nilext 的 wire-latency 承诺存在语义例外",
+      "causal_argument": "恢复时无法原子判断 ReqToExecute 指向的非幂等 nilext 是否已执行、是否已回 ACK；执行请求与更新 ReqToExecute 不是原子的。论文因此把所有非幂等请求改为软件可控，按 non-nilext 工作流执行并返回软件响应，客户端以软件响应作为提交信号。这样，非幂等 nilext 不能利用硬件 ACK 单程提交，失去 remote-CPU-bypass 快路径。",
+      "conditions": "非幂等 nil-externalizing 请求（如不返回值的 fetch-and-add）；崩溃恢复场景；请求位于 ReqToExecute 指向位置。",
+      "paper_evidence": {
+        "page": "物理页 9",
+        "quote": "we make all non-idempotent requests software controllable (i.e., have the same workflow as non-nilext requests)"
+      },
+      "code_evidence": [],
+      "counterevidence": "该处理保证正确性；Memcached/PMemKV 评估负载未覆盖此类操作；非幂等 nilext 可能较少；若后端执行时间占主导，软件响应带来的额外延迟可能不显著。",
+      "minimal_comparison": "在同一 Juneberry 实现上比较幂等 set 与非幂等计数器操作的提交延迟和恢复行为；若两者延迟与尾部分布无显著差异，则该排除的实际影响有限。"
+    },
+    {
+      "id": "C5",
+      "title": "SRQ 的链表 WQE 与 QP 状态缓存造成吞吐/扩展上限，MP 与委派只是缓解",
+      "causal_argument": "SRQ 中有效 WQE 因乱序完成而碎片化，形成链表；RNIC 需指针追逐式 DMA 预取，增加 cache miss 和 DMA 操作。大量 RC QP 又超出 RNIC 有限 SRAM，导致 QP 状态缓存抖动。MP 将多条消息放入同一接收缓冲以减少 WQE 预取，客户端委派将 QP 数从 C×Ct×St 降到 C×St；但 SRQ 仍达不到标准 RQ 的原始带宽，且无 MP 时基线无法扩展到 5 台以上客户端。",
+      "conditions": "高消息率、1KB 左右消息、大量客户端线程/QP；RNIC 不具备 MP 特性；SRQ 链表 WQE 明显。",
+      "paper_evidence": {
+        "page": "物理页 7",
+        "quote": "valid WQEs in an SRQ are connected using a link list."
+      },
+      "code_evidence": [],
+      "counterevidence": "MP 使 64B 请求吞吐从 16.45Mops/s 提升到 24.86Mops/s（1.51×），委派再提升 1.25×，并可扩展到 8 台客户端；作者认为 85Gbps 未达 100Gbps 是 SRQ 硬件限制，而 OQ 必须使用 SRQ。",
+      "minimal_comparison": "在相同负载下比较标准 RQ 与 MP SRQ（或 MP-capable 与非 MP RNIC）的吞吐、带宽、QP cache miss；若 MP SRQ 能匹配 RQ 且无 MP 依赖，则该性能限制被反驳。"
+    },
+    {
+      "id": "C6",
+      "title": "持久化 ACK 与崩溃恢复的正确性缺少故障注入验证",
+      "causal_argument": "Juneberry-D 的持久性依赖 PM-resident SRQ、请求头 checksum/size 扫描、ReqToExecute/SRQTail 的持久更新、SEND 后 READ 刷新 DMA，以及恢复时按序重放 nilext。论文评估主要报告吞吐/延迟，未给出在 ACK 前/后、DMA 完成前/后、执行与 ReqToExecute 更新之间、恢复扫描中途等位置触发崩溃的故障注入结果。因此无法仅凭性能数据确认不会漏掉已提交请求或重复执行。",
+      "conditions": "服务器掉电/崩溃发生在任意边界；部分 DMA、ACK 已返回但数据未持久、执行后指针未更新；PM/eADR/GPF 持久域；恢复过程再次崩溃。",
+      "paper_evidence": {
+        "page": "物理页 9",
+        "quote": "Upon recovery, the server scans SRQs to identify valid requests."
+      },
+      "code_evidence": [],
+      "counterevidence": "论文给出较完整的恢复协议、checksum、序号/对齐扫描、ReqToExecute 先更新后响应的 ❶❷❸ 顺序，并把非幂等请求改为软件可控；PM 与 eADR/GPF 提供持久性基础。若这些论证被视为充分，则缺少实验不必然意味着错误。",
+      "minimal_comparison": "在 SEND ACK 后、DMA 完成后、执行后、ReqToExecute 更新后、软件响应后等窗口注入崩溃，重启后与无崩溃参考状态及客户端已见 ACK 历史比对；若所有窗口均恢复一致，则该质疑被反驳。"
+    }
+  ],
+  "known_boundaries": [
+    {
+      "type": "作者明示的语义边界",
+      "description": "只有 nilext 请求可走硬件 ACK 快路径；需要返回执行结果或错误的 non-nilext 请求仍由服务器 CPU 执行并返回软件响应。",
+      "paper_evidence": {
+        "page": "物理页 4",
+        "quote": "it just returns an acknowledgment indicating committed, rather than returning an execution result or error."
+      }
+    },
+    {
+      "type": "作者明示的工作负载边界",
+      "description": "读密集/只读负载下 Juneberry-D 可能不如其他系统；5% put 和 0% put 时因 PM 缓冲与 DDIO 关闭出现更高中位延迟。",
+      "paper_evidence": {
+        "page": "物理页 12",
+        "quote": "Juneberry-D is inferior to other systems under read-intensive"
+      }
+    },
+    {
+      "type": "作者明示的部署边界",
+      "description": "耐久性评估依赖 Optane PM，而 Intel 已终止 Optane 业务；论文提出的 CXL SSD 与 UPS-backed DRAM 替代方案未在本文评估。",
+      "paper_evidence": {
+        "page": "物理页 13",
+        "quote": "Intel has fully killed offits Optane Memory business."
+      }
+    },
+    {
+      "type": "作者明示的后端假设",
+      "description": "Juneberry 的耐久性支持假设后端存储系统本身 crash-consistent；Memcached 不属于此类。",
+      "paper_evidence": {
+        "page": "物理页 8",
+        "quote": "Here, we assume that the back-end storage systems of Juneberry are crash-consistent (unlike Memcached)."
+      }
+    },
+    {
+      "type": "设计/适用性边界",
+      "description": "多核扩展依赖按数据分区，每个 worker 独占数据集；论文未覆盖跨分区多 key 事务的排序、原子性或线性化。",
+      "paper_evidence": {
+        "page": "物理页 6",
+        "quote": "Each worker thread manages an exclusive set of datasets."
+      }
+    },
+    {
+      "type": "评估范围边界",
+      "description": "评估为单服务器、8 台客户端、单 100Gbps ConnectX-5 与单 CPU/PM 资源，未验证多服务器、网络故障或客户端故障下的系统级线性化。",
+      "paper_evidence": {
+        "page": "物理页 9",
+        "quote": "one server machine and 8 client machines."
+      }
+    },
+    {
+      "type": "作者明示的性能权衡",
+      "description": "客户端委派减少服务器 QP 数，但引入跨线程通信等客户端软件开销；低负载读密集时 eRPC 中位延迟可略低。",
+      "paper_evidence": {
+        "page": "物理页 11",
+        "quote": "client-side delegation in Juneberry incurs extra software overhead such as cross-thread communication."
+      }
+    },
+    {
+      "type": "硬件依赖边界",
+      "description": "MP SRQ 依赖先进 RNIC 的 multi-packet 特性；无 MP 或不同 RNIC 时，SRQ WQE 预取与 QP 状态缓存问题可能更严重。",
+      "paper_evidence": {
+        "page": "物理页 8",
+        "quote": "exploiting the multi-packet (MP) feature in advanced RNICs"
+      }
+    }
+  ],
+  "uncertainties": [
+    "固定源中没有作者仓库或代码；所有实现细节（ACK 与 DMA 时序、bitmap 并发、恢复扫描、客户端委派）均未独立核验，相关实现判断均为 untested。",
+    "Rule 1 依赖“RNIC 在分配接收缓冲后才返回硬件 ACK”的规范论证与权限检查论证，但只在 ConnectX-5 上评估；其他 RNIC 若采用延迟分配或不同 ACK 时序，线性化可能失效。",
+    "Juneberry-D 用 SEND 后 1-byte READ 刷新 PCIe 写来保证持久性；该机制对 PCIe/NIC/PM 顺序语义的依赖未在故障注入中验证。",
+    "恢复协议只给出设计推理，未展示崩溃恢复实验；ReqToExecute 更新、DMA 完成与 ACK 返回之间的非原子窗口仍是正确性不确定点。",
+    "多 SRQ 数据分区对单 key 请求是自然边界，但跨分区多 key 请求、事务和全局线性化未讨论。",
+    "Twitter trace 只有秒级时间戳，无法判断微秒级 Tgap 分布；病理访问模式的真实频率仍不确定。",
+    "Optane PM 退市后，CXL-based SSD 与 UPS-backed DRAM 的可行性、延迟和持久性语义未在本文实验中验证。"
+  ],
+  "target_execution": "not_run"
+}

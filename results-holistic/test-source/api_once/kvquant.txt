@@ -1,0 +1,187 @@
+{
+  "paper_id": "kvquant",
+  "method_model": "KVQuant: per-channel pre-RoPE Key quantization, per-token Value quantization, sensitivity-weighted non-uniform quantization (NUQ), per-vector dense-and-sparse outliers, attention-sink-aware fp16 prefix, and custom CUDA kernels.",
+  "candidates": [
+    {
+      "id": "C1-long-context-memory-vs-accuracy",
+      "kind": "author_disclosed_boundary",
+      "title": "1M/10M 上下文结论主要来自内存估算，缺少同规模精度验证",
+      "causal_argument": "KVQuant 通过 2–4 bit 压缩使静态 KV cache 估算值落入 GPU 容量，因此宣称可服务 1M/10M 上下文；但量化误差会进入 attention logits 和 Value 加权和，上下文越长，被注意的缓存 token 越多，检索与长文任务对个别通道误差更敏感。内存可容纳不等价于量化后精度保持。",
+      "conditions": "上下文显著超过 32K，尤其 1M/10M；使用 nuq2；长文检索、多跳或需要利用全上下文的任务。",
+      "possible_consequence": "可能出现显存足够但 passkey/RULER/LongBench 成功率下降，使“可服务”被误读为“同等质量可服务”。",
+      "paper_evidence": {
+        "page": 15,
+        "quote": "Activation memory size estimates (GB) for 128K, 1M, and 10M sequence length"
+      },
+      "code_evidence": {
+        "file": "quant/eval_passkey_simquant.py",
+        "symbol": "parser.add_argument(\"--maxseqlen\", type=int, default=32768)"
+      },
+      "counterevidence": "论文在 32K 以内给出 passkey、LongBench、RULER；仓库 LWM README 给出 256K haystack 结果，说明更长上下文并非完全未测。",
+      "minimal_comparison": "在相同 LLaMA-7B 量化器下，比较 1M passkey/RULER 的 nuq2-1% 与 fp16 成功率或困惑度；若差距与 32K 时相当，则反驳。"
+    },
+    {
+      "id": "C2-2bit-long-context-degradation",
+      "kind": "empirical_limitation",
+      "title": "2-bit 是 1M/10M 方案的关键配置，但长上下文检索在 32K 已明显退化且部署入口不含 2-bit",
+      "causal_argument": "2-bit 每层只有 4 个非均匀 signposts，且稀疏 outlier 预算有限；长上下文 attention 对少数被错误量化的 Key/Value 更敏感，误差可在检索任务中放大。因此 nuq2 的 8× 压缩最适合短上下文 PPL，却最不适合直接外推到 1M。",
+      "conditions": "nuq2-1%，32K 及以上，尤其 Llama-2-70B 等长上下文/GQA 模型。",
+      "possible_consequence": "1M 上下文下 2-bit 的检索成功率可能显著低于 3/4-bit 或 fp16，且示例部署无法直接复现 2-bit。",
+      "paper_evidence": {
+        "page": 8,
+        "quote": "nuq2-1% 0.98 0.98 0.96 1 0.74 2.35"
+      },
+      "code_evidence": {
+        "file": "lwm/llama_inference.py",
+        "symbol": "choices=[3, 4, 16]"
+      },
+      "counterevidence": "2-bit PPL 在 Wikitext-2/C4 上仍低于 0.5 退化；LWM README 提供 nuq2 检查点并在 256K haystack 中报告可用性；32K 的 0.74 仅一个点。",
+      "minimal_comparison": "在 1M passkey/RULER 上比较 nuq2-1%、nuq3-1%、fp16 的成功率；若 nuq2 与 nuq3 接近，则反驳。"
+    },
+    {
+      "id": "C3-4bit-kernels-only",
+      "kind": "author_disclosed_boundary",
+      "title": "定制 kernel 与延迟收益只覆盖 4-bit，3/2-bit 的压缩收益主要来自模拟量化或估算",
+      "causal_argument": "LUT+稀疏 kernel 以 4-bit index 为设计点；3-bit/2-bit 需要不同打包、解包和 LUT 宽度，不能自动继承 4-bit 的 1.2–1.7× 延迟收益。论文的 3-bit/2-bit 精度表由模拟量化产生，未给出对应 kernel 的端到端延迟。",
+      "conditions": "部署 nuq3-1% 或 nuq2-1% 以取得 4.8×/8× 压缩；关注实际吞吐而不仅是显存。",
+      "possible_consequence": "4.8×/8× 压缩的精度结论可能与实际部署吞吐脱节；1M/10M 服务的端到端速度未被证明。",
+      "paper_evidence": {
+        "page": 6,
+        "quote": "we leverage dedicated kernel implementations with our 4-bit quantization method"
+      },
+      "code_evidence": {
+        "file": "deployment/README.md",
+        "symbol": "--abits 4 --include_sparse --sparsity-threshold 0.99"
+      },
+      "counterevidence": "论文明确只声称 4-bit 下 up to ∼1.7×；LWM CLI 支持 3-bit，且 3-bit 可能复用 4-bit LUT 索引；因此不是对精度结论的直接否定。",
+      "minimal_comparison": "对 nuq2/nuq3 实现同规模 LUT kernel，比较端到端 decode latency 与 4-bit/fp16；若相近，则反驳。"
+    },
+    {
+      "id": "C4-fixed-topk-sparse-cap",
+      "kind": "implementation_discrepancy",
+      "title": "`cap_outliers` 固定 21/21 top-k 与论文的 1% per-vector 稀疏预算不等价",
+      "causal_argument": "启用 `cap_outliers` 时，`get_outliers` 不做 1% 分位判断，而是对最后一维固定取最高 21 和最低 21 个值并写入 outlier_mask；保留元素数最多 42/向量。若序列长度远大于约 2K，或 per-channel Key 的 `channel` 不在最后一维，这既不是 1% 也不是论文所述 per-vector/per-channel 阈值；稀疏预算和离群维度发生偏移后，长上下文精度与显存开销会偏离论文表格。",
+      "conditions": "`cap_outliers > -1`；README 的 Capping Key Outliers；Key per-channel 且 `channel=0`；1M 级长序列。",
+      "possible_consequence": "长上下文下保留的离群值比例过低，2-bit 精度可能下降；或固定 42 个导致短上下文内存估计偏大。",
+      "paper_evidence": {
+        "page": 2,
+        "quote": "By removing only 1% of outliers, we can attain under 0.1 perplexity degradation on both Wikitext-2 and C4 for 3-bit KV cache quantization"
+      },
+      "code_evidence": {
+        "file": "quant/kvquant/simquant_module_quantizer.py",
+        "symbol": "upper_values, upper_indices = torch.topk(values, 21, dim=-1); lower_values, lower_indices = torch.topk(values, 21, dim=-1, largest=False)"
+      },
+      "counterevidence": "`cap_outliers` 默认 -1，主表可能未启用；README 将其列为 added improvement；在 hidden dim≈4096 时 21+21 近似 1% per token，可能是有意折中。",
+      "minimal_comparison": "同一模型/量化器下，用 1% 分位阈值（`cap_outliers=-1` / `get_outliers_dynamic`）与固定 21/21 在 2K、32K、1M 上比较 PPL、passkey 与稀疏存储字节；若两者一致，则反驳。"
+    },
+    {
+      "id": "C5-offline-calibration-16x2k",
+      "kind": "method_hypothesis",
+      "title": "Key 的 per-channel scale/zero-point 与 NUQ datatype 由 16×2K Wikitext-2 离线固定，低比特/超长上下文有分布失配风险",
+      "causal_argument": "Key 的 per-channel scaling/zero-point 与每层 signposts 只在校准集上估计后冻结；推理时 Key 的幅值和 outlier 通道若超出校准范围，会被 clamp 到静态范围。2-bit 只有 4 个非均匀 signposts，相同范围误差造成的相对量化误差更大；长上下文更容易出现校准集中未见的极端 channel。",
+      "conditions": "per-channel pre-RoPE Key；2-bit；上下文远超 2K 或领域/模型分布偏移。",
+      "possible_consequence": "2-bit/长上下文下 Key 量化误差增加，PPL 或检索下降；可能需要在线或长上下文校准才恢复。",
+      "paper_evidence": {
+        "page": 21,
+        "quote": "we use 16 calibration samples of sequence length 2K from the Wikitext-2 training set"
+      },
+      "code_evidence": {
+        "file": "gradients/run-fisher.py",
+        "symbol": "num_examples: int = field(default=16, metadata={\"help\": \"Number of calibration examples\"})"
+      },
+      "counterevidence": "Appendix Q 用 Wikitext-2/C4 互换校准仍接近；Table 14 在 nuq3+1% 时 offline 与 online Key 的 PPL 都是 5.75；论文的 2-bit PPL 也小于 0.5 退化。",
+      "minimal_comparison": "在 2-bit 下，比较默认 16×2K 离线校准与 32K/1M 或目标域校准/在线 per-channel 统计的 32K/1M PPL 与 passkey；若默认不差，则反驳。"
+    },
+    {
+      "id": "C6-latency-generation-batch1",
+      "kind": "author_disclosed_boundary",
+      "title": "延迟收益只在 batch=1 的 generation matvec 上验证，未覆盖 prompt processing/batched inference",
+      "causal_argument": "自定义 LUT+稀疏 kernel 优化的是 decoding 阶段每步读 KV cache 的 memory-bound matvec；prefill 是批量 token 的 GEMM，计算密度和并行度不同，可能不受益甚至被解包/量化开销拖慢；batch>1 的 KV 读取并行性也不同。",
+      "conditions": "prompt processing、长输入 prefill、batch>1 服务。",
+      "possible_consequence": "端到端吞吐或首 token 延迟可能没有提升；论文的 1.7× 不能外推到 prefill。",
+      "paper_evidence": {
+        "page": 27,
+        "quote": "our latency benchmarking results currently focus on memory-bandwidth bound generation rather than prompt processing"
+      },
+      "code_evidence": {
+        "file": "deployment/llama.py",
+        "symbol": "out = model(input_ids[:, i:i+1],"
+      },
+      "counterevidence": "Table 6/22 显示 l=2K/4K/16K 的 batch=1 decode 加速；论文明确 generation 是目标；内存节省独立于 prefill。",
+      "minimal_comparison": "用同一模型测量 prefill（一次多 token）与 batch>1 decode 的 KVQuant vs fp16 延迟和吞吐；若也加速，则反驳。"
+    }
+  ],
+  "known_boundaries": [
+    {
+      "boundary": "训练 >100K 长上下文模型不在本文范围，本文只处理推理。",
+      "kind": "author_disclosed",
+      "paper_evidence": {
+        "page": 27,
+        "quote": "there is significant work required for training long context length models with greater than 100K context length."
+      }
+    },
+    {
+      "boundary": "当前稀疏矩阵更新存在内存分配低效：拼接新 token 时需要复制旧 token 数据。",
+      "kind": "author_disclosed",
+      "paper_evidence": {
+        "page": 27,
+        "quote": "there are inefficiencies in how memory allocation is handled for updating the sparse matrix (where the data corresponding to the previous tokens have to be copied when concatenating them with the data from the new token)."
+      }
+    },
+    {
+      "boundary": "1M/10M 的 KV cache 数字是内存估算，不是实测端到端长上下文精度。",
+      "kind": "author_disclosed",
+      "paper_evidence": {
+        "page": 15,
+        "quote": "Activation memory size estimates (GB) for 128K, 1M, and 10M sequence length"
+      }
+    },
+    {
+      "boundary": "摘要中的 ∼1.7× kernel 加速明确限定在 4-bit、LLaMA-7B 的 matvec 基线。",
+      "kind": "author_disclosed",
+      "paper_evidence": {
+        "page": 1,
+        "quote": "We develop custom CUDA kernels for KVQuant, showing that we can achieve up to ∼1.7× speedups, compared to baseline fp16 matrix-vector multiplications, for the LLaMA-7B model."
+      }
+    },
+    {
+      "boundary": "平均 bit width 与 KV cache 大小按 128K 序列估算，且忽略模型自身上下文长度限制。",
+      "kind": "author_disclosed",
+      "paper_evidence": {
+        "page": 22,
+        "quote": "We compute these estimates assuming a sequence length of 128K (unless otherwise specified)."
+      }
+    },
+    {
+      "boundary": "实验未报告误差棒/置信区间；作者以低方差为由未做统计显著性分析。",
+      "kind": "author_disclosed",
+      "paper_evidence": {
+        "page": 30,
+        "quote": "The runs for the experiments in the paper have low variance."
+      }
+    },
+    {
+      "boundary": "模型覆盖为 LLaMA、Llama-2、Llama-3、Mistral；其他位置编码/注意力结构未系统验证。",
+      "kind": "author_disclosed",
+      "paper_evidence": {
+        "page": 1,
+        "quote": "By applying our method to the LLaMA, Llama-2, Llama-3, and Mistral models"
+      }
+    },
+    {
+      "boundary": "论文的 generation 延迟基准为 batch size 1；未覆盖 batched inference 的吞吐。",
+      "kind": "author_disclosed",
+      "paper_evidence": {
+        "page": 10,
+        "quote": "Table 6 shows kernel benchmarking results using a batch size of 1"
+      }
+    }
+  ],
+  "uncertainties": [
+    "未运行代码；无法确认 2-bit 是否在未展示的 kernel/quant 代码路径中实际支持，只能确认暴露的 LWM 推理 CLI choices 不含 2-bit。",
+    "仓库快照只显示每个文件前 100 行，无法确认 `cap_outliers` 在主实验中是否启用，以及 per-channel Key 调用时 `channel` 的实际取值。",
+    "1M/10M 的真实量化精度未知；仓库 LWM README 的 256K haystack 是附加证据，不等价于 1M 主结果。",
+    "KMeans/Fisher 校准的随机性与多次校准方差未展示；无法量化 0.1 PPL 阈值附近的不确定性。"
+  ],
+  "target_execution": "not_run"
+}

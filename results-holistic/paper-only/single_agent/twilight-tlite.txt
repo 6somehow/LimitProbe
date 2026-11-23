@@ -1,0 +1,376 @@
+{
+  "paper_id": "twilight-tlite",
+  "method_model": {
+    "objective": "把神经时序预取（temporal prefetching）问题重新表述，使神经解在硬件上可行：在保持或超过 Voyager 预测能力的同时，把模型尺寸、推理延迟与动态元数据存储降低数个数量级，并让离线训练的模型能在线适配新的程序阶段与新的程序输入。",
+    "mechanism": "两层间接（indirection）：(1) frequency-based candidate selection——神经网络不再输出地址，而是输出一个序数 i，对应“最近一次访问的后继页中第 i 频繁者”，另加第 N+1 类表示“不预取”；候选页到实际页的映射存放在在线维护的 DPF 元数据里。(2) behavioral clustering——离线先训练带 per-page embedding 的完整模型，再用 k-means 把页嵌入聚成固定 4096 个簇并强制同簇共享嵌入，最后在簇约束下 fine-tune；在线阶段用 offset-transition 直方图相似度把未见过的页动态分配到簇。DPF（decoupled positional frequency）把长度为 H 的联合历史分布近似为各位置边缘分布之积，使元数据从 O(P^H) 降到 O(P×H)。T-LITE 进一步把 N 从 20 降到 4、只用 f(P,1)、8-bit 量化、64KB 独立 DPF cache，并用“上一条预取正确则 0 cycle，否则 29 cycle”的推测式延迟模型评估。",
+    "assumptions": [
+      "Sparse Connectivity Hypothesis：每个地址（页）只有少数后继，因此 top-N 截断几乎不损失可达覆盖率（N=20 时 93.2% cache line / 92.7% page）。",
+      "候选集只需由“最近一次访问”的 DPF 条目决定；更早的历史只用于在这 N 个候选内重新加权。",
+      "联合历史分布可由各位置边缘分布之积近似，且网络能从这些边缘分布 + 簇/偏移/PC 历史中学到正确的加权。",
+      "页的预取行为可以用页嵌入（偏移转移矩阵）刻画，因此把页压成 4096 个行为簇只带来极小损失，且新输入上的页可按 offset-transition 相似度映射。",
+      "候选页与页内偏移可以分别预测后直接拼接成预取地址。",
+      "推测式预取链的延迟可被“上一条预取正确”完全隐藏（0 cycle），否则只付 29 cycle 的矩阵计算延迟。"
+    ],
+    "evaluation_scope": "ChampSim 迹驱动模拟器，乱序 4GHz、352 ROB、L1I 32KB / L1D 48KB / L2 512KB / LLC 2MB per core、DDR 3200MT/s；单核为主，另有 50 个 4-core 与 75 个 8-core 混合。负载：SPEC 2006 / SPEC 2017 的 irregular 子集（入选条件为 idealized temporal prefetcher 下有 >5% IPC 改善）、GAP（2^17 顶点的合成图）、以及公开 Google server trace（因缺 memory dependence 只报 accuracy/coverage）。训练/验证/评估为同一条 trace 的 0–200M / 200–225M / 225–400M 指令，同一 SimPoint；lookahead 2（Voyager 用 1），degree 1。Twilight 理想化评估（不计延迟、存储、off-chip 元数据流量），T-LITE 才建模存储与延迟并与 Triage 对比。跨输入迁移只在 GAP 上以 web/road/citation 三域 A/B/C 协议评估。"
+  },
+  "candidates": [
+    {
+      "id": "H1",
+      "title": "候选集只由最近一次访问决定，且历史 DPF 被投影到该候选集并重新归一化到 1，抹掉了“候选集本身有多可信”的信号",
+      "kind": "method_hypothesis",
+      "stage": "admission",
+      "claim": "Frequency-based candidate selection 的 admission 规则是：对每个输入历史，只有最近一次访问 E 的 DPF 条目产生 N 个候选；其余历史位置（Twilight D=3）的 DPF 向量只保留落在这 N 个候选上的项并重新归一化到 1。因此当最近访问的后继分布较宽、其 top-N 只覆盖真实质量的一部分时，旧历史位置的全部剩余质量被压成 0，一个真实概率 1% 的候选在输入向量里会显示为 100%。这使网络无法从 DPF 通道判断“候选集不可靠”，而论文把 +8.6% accuracy 归因于“学会不预取”的机制（§V-D1/V-D3）。",
+      "causal_argument": "生产者：§III-C 的 DPF 元数据，每个输入历史条目保存其 N 个最频繁后继的频率（p.5）。被保存的 artefact：N 维候选列表（同时充当 Candidate-Page Mapping Table）+ N 维 DPF 输入向量（Fig.5 标注为 “D by N”）。消费者：Candidate-FC 输出 N+1 维序数，argmax 后经候选页映射表得到页，再与 Offset-FC 的 64 类偏移拼接成预取地址（p.6–7）。计数：candidates_considered = 该页在 DPF 中记录过的全部不同后继（论文自己给出长尾：top-20 只覆盖 93.2% 的 cache line，top-100 才覆盖 98.5% 的访问，p.4；T-LITE N=4 时再掉 9.8% coverage，p.11）；candidates_kept = N（Twilight 20，T-LITE 4）；replay_count = 1（degree 1，一次预测只发一条预取，被选中但未选中的其余 N-1 个候选永不被发出，也没有第二次机会）。前提→变换→前提破损→后果：前提是“稀疏连通性使 top-N 截断几乎无损”，但 Fig.2 的 93.2% 是**集合级 recall**，是一个“若能完美地在 N 个里挑对”的上界，而本系统只发 1 条预取，还要再乘上“在 N 个中挑对”的概率与偏移正确率，所以可达覆盖率永远低于这个上界；更关键的是变换本身（renormalize 到 1）把“有多少质量落在候选集外”这一维信息删掉了，而这恰是判断是否该走第 N+1 类（no-prefetch）所需要的量。后果：no-prefetch 决策在最需要它的宽分布负载（473.astar、SPEC 2006）上失去 DPF 侧的可靠依据，只能靠簇/PC/偏移历史间接推断；报告的聚合 accuracy/coverage 无法区分“候选集没包含正确答案”与“网络在候选集里选错”，因为两者都被记成一次错误的地址级预取。若换一个合法输入（未归一化的原始质量，或额外一维“候选集保留质量”/other 桶）到达消费者，则 no-prefetch 的触发会在候选集差的触发点上系统性改变，改变的幅度被 Fig.2 的尾部质量锁定在可测范围内（N=20 约 6.8% 的 cache line，N=4 更大），因此这不是一个不可反驳的泛泛之谈：收益上限有量化上界，且应集中在宽分布 benchmark 上。",
+      "conditions": [
+        "最近一次访问的后继分布为宽/长尾（如 473.astar、SPEC 2006 中的工作负载），即 top-N recall 明显低于 100%。",
+        "更早的历史位置（Twilight 的 f(X,3)、f(Y,2)）对正确后继有独立的预测质量，但该后继不在最近访问的 top-N 内。",
+        "系统为 degree 1（每次只发一条预取），因此候选集内的次优候选无法作为补充预取被发出。",
+        "T-LITE 的 D=1 时该效应减弱为“候选集质量不可见”，不再涉及旧历史被投影。"
+      ],
+      "paper_evidence": [
+        {"page": 4, "quote": "68% of the cache lines are followed by their most likely successor, where a successor is deﬁned as the address that immediately follows a given history of accesses. 93.2% of cache lines are followed by one of their top 20 successors, and 98.5% of accesses are followed by one of their top 100."},
+        {"page": 4, "quote": "ground truth address is not among these N candidates, we add an (N + 1)th option so that the prefetcher can learn when not to prefetch."},
+        {"page": 5, "quote": "Namely, each metadata entry corresponds to an input history and stores the frequencies for each of its successors."},
+        {"page": 6, "quote": "For a given input history, (B,D,E ), the most recent access E determines the set of prefetch candidates: {F,C}. We construct the DPF input vectors utilizing only those candidates, and we then renormalize the resulting vectors"},
+        {"page": 6, "quote": "Since D is not one of the prefetch candidates, the DPF vector for f (B, 3) normalizes the frequency of the candidate"},
+        {"page": 7, "quote": "We ﬂatten this vector and feed it into the two fully connected layers for prediction. For candidate prediction, a prediction of 1 maps to the most frequent page, F , 2 maps to the second most, C, and 3 maps to no prefetch."},
+        {"page": 7, "quote": "We then combine the selected page with the predicted offset to get the prefetch address."},
+        {"page": 8, "quote": "Twilight’s speedup on 473.astar is lower than V oyager because Twilight’s set number of candidates, N = 20, cannot accommodate the wider successor distributions found in this benchmark."},
+        {"page": 11, "quote": "T-LITE reduces the number of possible successors from N = 20 to N = 4 , trading off 9.8% coverage (see Figure 2b) for a 80% reduction in DPF entry size and a 30% reduction in prediction latency."},
+        {"page": 12, "quote": "T-LITE outperforms Triage on both SPEC 2017 and GAP, but it underperforms on SPEC 2006 by 2%. As noted in Section V, SPEC 2006 has workloads with wider successor distributions, and because T-LITE further reduces the number of successors that it tracks, it has 9% lower prefetch coverage but maintains similar accuracy to Triage."}
+      ],
+      "code_evidence": [],
+      "rule": "对每个输入历史只用最近访问 E 的 DPF 条目产生 N 个候选；更早位置的 DPF 向量截断到该候选集并重新归一化到和为 1；网络从 N+1 类里选一个（含 no-prefetch），只发一条预取。",
+      "trigger": "最近访问的后继分布较宽（top-N recall 低），同时更早历史位置的真实质量主要落在候选集之外——即 Fig.2 的尾部那一部分访问。",
+      "mitigation": "第 N+1 个 no-prefetch 类本身是一道保险；网络还能从原始簇嵌入、偏移历史与 4096 项 PC 嵌入中间接推断相关性强弱；作者也指出可用 LoRA 在线 fine-tune 来补（p.8）。但这些都不恢复被 renormalize 删掉的“候选集保留质量”这一维。",
+      "consequence": "报告的 accuracy/coverage/IPC 聚合无法暴露“候选集不包含正确答案”这一失败模式；被归因于 candidate selection 的 +8.6% accuracy 中，有多少来自“候选集更干净”、有多少来自“网络学会了识别候选集不可靠”没有被分解，而后者正是被该变换削弱的通道。",
+      "counterevidence": [
+        "论文 §V-D3 报告网络预测的候选分布相当接近真实分布（top candidate 只高估 1.5%，而 naive 乘积高估 15%，p.11），说明网络确实从其它输入通道学到了部分可靠性信息，信息被删并不等于完全不可推断。",
+        "论文报告 Twilight 的 no-prefetch 是有效的：它比真实分布多出 3.7% 的 no-prefetch，作者把这解释为“宁可不去污染 cache”（p.11）。",
+        "T-LITE 的 DPF history length D=1（Table I），只有一个 DPF 向量，因此“旧历史被投影”的机制对 T-LITE 不成立，只对 Twilight（D=3）成立，削弱了该假设对主推系统 T-LITE 的适用面。",
+        "候选集由在线 DPF 动态更新，因此分布漂移会被逐步纠正，最坏情形集中在“页刚变热/分布刚变宽”的过渡期，而不是稳态。"
+      ],
+      "minimal_comparison": {
+        "fixed": [
+          "N=20（Twilight）/ N=4（T-LITE）与候选生成规则",
+          "同一 SimPoint 的 200M 训练 / 25M 验证 / 175M 评估划分",
+          "同一 DPF 在线更新策略、degree 1、同一模型容量与超参"
+        ],
+        "vary": "DPF 输入向量的构造：候选集内 renormalize 到 1（原方法） vs 保留未归一化质量并附一维“候选集保留质量/other 桶”",
+        "baseline": "原方法（renormalize 到 1）在 473.astar 与 SPEC 2006 上的 accuracy、coverage、no-prefetch 触发率、IPC",
+        "observable": "宽分布负载上的 address-level accuracy 与 IPC 变化；同时检查其余 benchmark 的 IPC 不回退；并用 Fig.13 式的“预测 vs 真实候选分布”指标检查 no-prefetch 校准",
+        "refuted_if": "宽分布负载的 accuracy/IPC 无显著改善（或改善幅度远小于 Fig.2 尾部质量所允许的上界），且 no-prefetch 触发率与校准不变"
+      },
+      "disclosure": "作者披露了固定 N 的容量代价（473.astar 因 N=20 不够而低于 Voyager，p.8；T-LITE 把 N 降到 4 掉 9.8% coverage、SPEC 2006 低 2%、coverage 低 9%，p.11–12）。作者没有披露的是 renormalize 到 1 会删掉候选集外质量，从而使 no-prefetch 通道失去一个直接可靠信号。",
+      "status": "hypothesis_not_executed",
+      "remaining_gap": "需要源码确认 DPF 输入张量的实际构造（是否只保留 N 维、是否附带任何质量标量），并在模拟器中把“候选集外质量”作为一个额外特征重训；没有仓库，无法验证。"
+    },
+    {
+      "id": "H2",
+      "title": "推测式 0/29-cycle 延迟模型把预取延迟与自身精度耦合，T-LITE 对 Triage 的 5.9% 优势未做敏感性分析",
+      "kind": "method_hypothesis",
+      "stage": "evaluation",
+      "claim": "T-LITE 的延迟被建模为“上一条预取正确 → 0 cycle，否则 → 29 cycle”，并且这个 29 cycle 只由 57K IOPs / 2048 IOPs-per-cycle 的矩阵计算得出，不含 DPF cache 访问与缺失代价。于是被记为 0 延迟的访问比例随 accuracy 单调上升，而 accuracy 正是 T-LITE 相对 Triage 的优势来源；报告的 20.7% vs 14.8% 因此部分来自一个从未被扰动过的建模选择，而不是纯粹的预取质量差异。",
+      "causal_argument": "规则：latency = 0 if 上一条预取正确 else 29。触发：任意满足“连续 LLC 访问间隔大于 29 cycle 且预取链连续正确”的负载，以及 DPF cache 缺失的访问。后果：报告的目标（T-LITE vs Triage 的 IPC 优势）无法把“更好的预取质量”与“更慷慨的延迟记账”分开；报告的 29-cycle ≈ Triage 的 20-cycle 可比性也依赖同一假设。可反驳性：同一 trace、同一精度、同一 DPF cache，把 0/29 换成固定 29 cycle（或把推测链限制为 1 跳），若 T-LITE 对 Triage 的优势基本不变，则假设被反驳。",
+      "conditions": [
+        "预取链连续正确的比例足够高（高 accuracy 负载），使 0-cycle 记账覆盖可观比例的访问。",
+        "LLC 访问间隔确实大于 29 cycle；对高 LLC 命中率或多流交织的访问流，该前提可能不成立。",
+        "DPF cache 命中；若缺失，需回存取，延迟模型未覆盖该分支。"
+      ],
+      "paper_evidence": [
+        {"page": 11, "quote": "By doing so, T-LITE can have zero-cycle prefetch latency when the prior prefetch is correct as the latency between LLC accesses is larger than T-LITE’s prediction latency. Thus, we model T-LITE to have a 29 cycle delay if the prior prefetch was incorrect and a 0 cycle delay otherwise."},
+        {"page": 11, "quote": "After quantization, T-LITE only requires 57K IOPs per prediction (1421× faster than V oyager). Given matrix extensions such as Intel AMX [4] or Arm SME [51], which can perform 8-bit integer operations at 2048 IOPs/cycle, T-LITE’s latency is approximately 29 cycles."},
+        {"page": 12, "quote": "Moreover, T-LITE’s 29 cycle prediction latency is similar to the 20 cycle prefetch delay that Triage would incur to read its metadata from the LLC."},
+        {"page": 12, "quote": "Figure 17 shows that T-LITE achieves a 20.7% speedup, outperforming Triage (14.8%), a practical temporal prefetcher."}
+      ],
+      "code_evidence": [],
+      "rule": "延迟 = 0（上一条预取正确）/ 29 cycle（否则），29 cycle = 纯矩阵计算延迟。",
+      "trigger": "预取链连续正确比例高的负载；以及 LLC 访问间隔小于 29 cycle 或 DPF cache 缺失的访问流。",
+      "mitigation": "Triage 自己也要付 20 cycle 的 LLC 元数据读取延迟，因此比较不是单向有利；作者用 lookahead 2 提升 timeliness；Twilight 的理想化评估比 T-LITE 更宽松，说明作者整体在向更保守的建模方向走。",
+      "consequence": "报告的目标（T-LITE 对 Triage 的 IPC 优势）没有随延迟模型变化而被检验；一旦 0-cycle 记账被收紧，优势中属于“记账”而非“预取”的那部分会消失，可能改变 5.9% 这一头条数字甚至分 benchmark 的排序。",
+      "counterevidence": [
+        "作者明确写出了 0-cycle 的前提（LLC 访问间隔大于预测延迟），不是无条件的免费午餐。",
+        "Triage 的 20-cycle 元数据读延迟同样被计入，因此双方都在同一量级上被建模。",
+        "T-LITE 是全文唯一被更忠实建模（存储 + 延迟）的系统，Twilight/Domino/STMS 都是理想化的，因此该建模偏离的方向对 T-LITE 并不偏袒。"
+      ],
+      "minimal_comparison": {
+        "fixed": ["同一 trace 与同一已训练 T-LITE", "同一 64KB DPF cache 与同一 8-way LRU 模型", "同一 Triage 基线配置与 175M 评估区间"],
+        "vary": "延迟模型：0/29 与“上一条预取正确”耦合（原方法） vs 固定 29 cycle（或推测链上限 1 跳）",
+        "baseline": "原 0/29 模型下的 T-LITE 20.7% vs Triage 14.8%",
+        "observable": "T-LITE 对 Triage 的 IPC 优势（5.9%）及 SPEC 2006 / SPEC 2017 / GAP 的分组排序",
+        "refuted_if": "优势幅度基本不变（仍约 5.9% 且分组排序不变）"
+      },
+      "disclosure": "作者披露了模型形式（0/29）与依据（57K IOPs / 2048 IOPs-per-cycle ≈ 29 cycle），也披露了 Triage 的 20-cycle 对照；但没有给出该模型的敏感性分析或链长分布。",
+      "status": "hypothesis_not_executed",
+      "remaining_gap": "需要知道模拟器中 0-cycle 分支覆盖了多少比例的预取、以及 DPF cache 缺失是否被单独计费；无仓库，无法确认。"
+    },
+    {
+      "id": "H3",
+      "title": "主结果的“unseen data”是同一 trace 的后半段（同一 SimPoint、同一输入、同一地址映射），跨输入证据只在 GAP 上",
+      "kind": "method_hypothesis",
+      "stage": "evaluation",
+      "claim": "论文把 175M 指令的评估区间称为能“better gauge the model’s ability to generalize to unseen data”，但该区间与训练区间来自同一条 trace、同一程序输入、同一 SimPoint，只有时间在变。论文自己在 p.2 认定“virtual to physical address mapping changes on every program execution”是 Voyager 无法离线部署的根因，而这一变量在主结果中从未被改变。唯一改变输入的是 §VI-E2 的 GAP 跨域迁移（30.4% vs Triage 13.8%，为 fine-tune 的 94%），它既只覆盖一个 benchmark suite，也与主表的 20.7% 不可直接比较。",
+      "causal_argument": "规则：训练 0–200M、验证 200–225M、评估 225–400M，同一 trace。触发：新程序执行（映射改变）或新输入（页集合、PC 集合、数据结构规模改变）。后果：报告的 24.1%（Twilight）/20.7%（T-LITE）是在“模型已经见过该次执行的地址/页/PC 总体”的条件下取得的，因此不能支持“跨执行/跨输入部署”的推理；注释里引用的 6.6% 衰减（p.11）只是时间外推，不是输入外推。可反驳性：用同一训练好的模型在同 benchmark 的第二个输入上评估（DPF 仍在线学习），若 IPC 下降与同 trace 的 6.6% 同量级，则假设被反驳。",
+      "conditions": [
+        "部署场景是“训练一次、在后续运行/新输入上使用”，这正是论文的 staged deployment 卖点。",
+        "新输入改变活跃页集合或 load PC 集合，使 4096 项 PC 嵌入表与页/簇映射出现训练集外项。",
+        "新执行改变虚拟→物理映射（论文自己强调的根因）。"
+      ],
+      "paper_evidence": [
+        {"page": 7, "quote": "we train the model on one region of a SimPoint [20] and evaluate on an unseen region of the same SimPoint."},
+        {"page": 7, "quote": "For both of SPEC and GAP, the neural models train on the ﬁrst 200M instructions of the trace, validate on the next 25M instructions, and are then evaluated on the subsequent 175M instructions."},
+        {"page": 7, "quote": "By evaluating about 4× the number of instructions evaluated by V oyager [41], we are able to better gauge the model’s ability to generalize to unseen data."},
+        {"page": 11, "quote": "V oyager continually loses performance throughout evaluation, with 17% performance loss at 200M, while Twilight suffers only 6.6% performance loss and actually recovers performance between 150M and 200M instructions, demonstrating that Twilight’s dynamic metadata collection improves its adaptability."},
+        {"page": 13, "quote": "Figure 19 shows that T-LITE-Transfer signiﬁcantly outperforms Triage ( 30.4% speedup vs. 13.8% speedup) despite never having trained on the evaluated input graph domain."},
+        {"page": 13, "quote": "despite T-LITE proﬁtably transferring knowledge learned across different program inputs, it’s still constrained to the program it was trained on and requires signiﬁcant ofﬂine-training on more representative data to further improve its generalization."}
+      ],
+      "code_evidence": [],
+      "rule": "离线训练与在线评估共享同一条 trace；只有跨输入实验（GAP，web/road/citation 三域 A/B/C）才更换输入。",
+      "trigger": "需要模型在训练时未见过的程序输入或新一次执行上工作（论文的 staged deployment 场景）。",
+      "mitigation": "DPF 元数据在线学习，因此地址映射变化对候选集本身不致命；作者用 50M→200M 的衰减曲线量化了时间外推；§VI-E2 确实做了跨域迁移并报告为 fine-tune 的 94%。",
+      "consequence": "报告的目标（“跨程序阶段与输入迁移”的收益）主要由同 trace 的长区间评估支撑；对“新执行/新输入”的收益外推未被测量，也无法从聚合数字中分离出来。",
+      "counterevidence": [
+        "作者在 Methodology 中明确写了这是同一 SimPoint 的不同区间，没有把它说成新执行。",
+        "§VI-E2 的域外迁移协议谨慎：α/β 由另一个域的验证集选出，保证“chosen model has no exposure to the evaluation data”（p.12–13）。",
+        "作者在 §VI-F 主动承认仍受限于训练程序，说明该边界是已知的而非被忽略的。",
+        "T-LITE 的设计（簇而非页标识）在原理上就消除了地址映射依赖，因此“映射改变”这一具体威胁被架构化解掉了一半。"
+      ],
+      "minimal_comparison": {
+        "fixed": ["同一训练好的模型与超参", "DPF 仍在线学习", "同一评估指令规模", "同 trace 的 6.6% 衰减作为参照"],
+        "vary": "评估输入：同一 trace 的后 175M（原方法） vs 同 benchmark 的第二个输入（或第二次执行）",
+        "baseline": "同 trace 后半段的 24.1%（Twilight）/ 20.7%（T-LITE）与 6.6% 的区间内衰减",
+        "observable": "跨输入时的 IPC speedup 下降幅度，以及 accuracy / coverage 的下降",
+        "refuted_if": "跨输入的下降与同 trace 的 6.6% 同量级，且不改变与 Triage / 非神经基线的结论"
+      },
+      "disclosure": "作者披露了训练/评估区间来自同一 SimPoint，并在 §VI-F 承认受限于训练程序、需要更多代表性数据；未披露的是“unseen data”这一措辞与主结果的可外推范围之间的落差，以及跨输入证据只覆盖 GAP。",
+      "status": "hypothesis_not_executed",
+      "remaining_gap": "需要第二个输入上的实测；论文没有报告任何 SPEC 的跨输入结果，因此无法从文本判断下降幅度。"
+    },
+    {
+      "id": "H4",
+      "title": "偏移预测头没有被“被选中的候选页”条件化，两个头并行后拼接，把联合分布拆成 P(page|history)·P(offset|cluster,PC)",
+      "kind": "method_hypothesis",
+      "stage": "representation",
+      "claim": "Candidate-FC（N+1）与 Offset-FC（64）是两个并行的全连接层，偏移头的上下文是“簇/页 + PC”，不包含刚刚被选中的候选页；最终地址由“选中的页 + 预测的偏移”拼接而成。因此即使候选页选对，页内偏移错误仍然产生一次地址级 miss，而论文把 +8.6% 的 accuracy 优势整体归因于 candidate selection，没有把“候选页正确率”和“偏移正确率”分解开。",
+      "causal_argument": "规则：P(page, offset | history) 被实现为 P(page|history) × P(offset|cluster, PC)，其中 offset 的条件不包含 page 的候选身份。触发：同一触发页的多个候选页具有不同的页内偏移行为（不同数据结构/字段布局），即 offset 依赖于是哪个后继页。后果：选对页但选错偏移的预取被记为错误，无法与“选错页”区分；报告的 accuracy 与 useful-misprediction 指标（p.10 的 12.4% 更高“useful”率）都可能部分来自“页对偏移错”的近似命中，而不是候选选择本身更强。可反驳性：固定候选头，把偏移改为以选中候选页嵌入为条件（或每个候选各预测一个偏移），若 address-level accuracy 与 IPC 不变，则假设被反驳。",
+      "conditions": [
+        "触发页的 top-N 候选页具有异质的页内访问偏移（非所有后继页共享同一字段布局）。",
+        "offset 的 64 类分类只以簇 + PC 为上下文，簇是 4096 分之一的粗粒度身份。",
+        "degree 1：无法对同一候选页的多个偏移同时预取。"
+      ],
+      "paper_evidence": [
+        {"page": 4, "quote": "Because there are only a small ﬁxed number of cache line offsets (64), we only apply our new problem formulation to Twilight’s page prediction and continue to predict offsets directly."},
+        {"page": 6, "quote": "The context— the page and the PC—weights the information from each of the experts via attention [7] and combines them into the ﬁnal context-aware offset embedding."},
+        {"page": 6, "quote": "T-LITE utilizes a single fully connected layer for candidate prediction (Candidate-FC) and another for offset prediction (Offset-FC) for a much more compact and parallelizable design than V oyager’s pair of LSTMs that require signiﬁcant serialized computation."},
+        {"page": 7, "quote": "We then combine the selected page with the predicted offset to get the prefetch address."},
+        {"page": 6, "quote": "As per Section III-A, T-LITE predicts the prefetch offset directly and an ordinal i that maps to a prefetch candidate page."}
+      ],
+      "code_evidence": [],
+      "rule": "候选页与偏移分别由两个独立 FC 头预测，然后拼接；偏移头的条件是页/簇与 PC，而不是被选中的候选页。",
+      "trigger": "同一触发页的多个候选页具有不同页内偏移模式（异质字段布局、不同数据结构）。",
+      "mitigation": "context-aware offset embedding 已包含 PC，而 PC 往往隐含了“哪个字段被访问”，部分补偿了缺失的候选页条件；Fig.8c 显示 Twilight 的 delta 分布比 delta prefetcher 更均匀，说明偏移预测确实学到了非平凡模式。",
+      "consequence": "报告的目标（accuracy 及其归因）无法区分“候选选择更强”与“偏移预测更强”；把 address-level accuracy 作为 candidate selection 的证据会高估 candidate selection 的贡献。",
+      "counterevidence": [
+        "作者把偏移直接预测作为简化设计明确写出，并报告了高 accuracy 与 8.6% 的优势，说明该分解在实践中未必是瓶颈。",
+        "在 GAP 这类图负载中，节点页的邻居偏移常常是同质的，因此候选页身份对偏移的额外信息可能很小。",
+        "candidate 与 offset 两个头共享同一 concatenate 输入（含簇历史与 DPF 向量），并非完全独立。"
+      ],
+      "minimal_comparison": {
+        "fixed": ["候选集生成与 Candidate-FC 不变", "同一 DPF/簇/PC 输入与超参", "同一训练与评估区间"],
+        "vary": "偏移预测是否以“被选中的候选页”为条件（并行独立 64 类 vs 条件化 / 每候选一个偏移）",
+        "baseline": "原并行双头设计的 address-level accuracy 与 IPC",
+        "observable": "候选页正确率与偏移正确率的分解、address-level accuracy、useful misprediction 率、IPC",
+        "refuted_if": "偏移正确率与 address-level accuracy 无显著变化（说明簇+PC 上下文已足够）"
+      },
+      "disclosure": "作者披露了“偏移直接预测、候选页用新表述”这一分工，也披露了两个独立 FC 头的结构；未披露的是该分解对 accuracy 归因的影响，也没有做“条件化偏移”的对照。",
+      "status": "hypothesis_not_executed",
+      "remaining_gap": "Fig.5 只标注了 “H by (C+P)” 的维度，C 对应 page/cluster、P 对应 PC 是从正文推断；偏移头是否真的完全不看候选页需要源码确认。"
+    },
+    {
+      "id": "H5",
+      "title": "4096 个簇嵌入同时服务候选头与偏移头，且离线聚类与在线映射使用两套不同的相似性准则，迁移时簇分配只对偏移行为负责",
+      "kind": "method_hypothesis",
+      "stage": "sharing",
+      "claim": "行为簇是一个被多个消费者共享的 artefact：它既是候选预测头的输入历史表示，也是 context-aware offset embedding 的注意力上下文，同时还以 12-bit 簇号的形式存在 DPF 条目里。离线聚类在“为 page embedding 训练出来的嵌入空间”里做 k-means，在线映射却按 offset-transition 直方图相似度为新页选簇。论文对迁移结果的解释（“即便 top-1 mapping 不准，簇的 offset transition 仍足够相似”）只覆盖了偏移头，没有覆盖候选头，因此 GAP 上“low top-1 page-to-cluster mapping accuracy”是否损害候选页预测，报告的聚合 IPC 无法回答。",
+      "causal_argument": "生产者：k-means over learned page embeddings，强制同簇共享以 centroid 初始化的嵌入并 fine-tune（p.5）。被保存的 artefact：4096 个 25-D 簇嵌入表 + 每个 DPF 条目里的 12-bit 簇号（p.6）。消费者有两个，需求不同：(a) Candidate-FC 需要“哪些后继页”这一维度上的相似性；(b) Offset-FC 的注意力上下文需要“页内偏移转移”这一维度上的相似性。在线映射只按 (b) 选簇。后果：两个不同后继集合、但偏移转移相似的页会被并到同一簇，候选头看到的输入历史因此丢失区分度；报告的 transfer 指标（30.4% vs Triage 13.8%、94% of FineTune）是 IPC 聚合，无法把这一失败模式与偏移头的成功分开。可反驳性：在 GAP transfer 设置下把 accuracy 分解为候选页正确率与偏移正确率，若 T-LITE-Transfer 的候选页正确率与 FineTune 无显著差异，则假设被反驳。",
+      "conditions": [
+        "跨输入/跨域部署，新页的后继页集合与训练页不同，但偏移转移相似（或反之）。",
+        "页的候选行为与偏移行为在嵌入空间与 offset-transition 空间中的近邻不一致。",
+        "簇数固定为 4096，而页数可达数十万（论文引用过 250M 指令内 255K unique pages 的 trace，p.3），必然是多对一合并。"
+      ],
+      "paper_evidence": [
+        {"page": 5, "quote": "Then, we cluster the learned page embeddings using k-means and force pages in the same cluster to share an embedding, which we initialize to the centroid."},
+        {"page": 6, "quote": "we augment each page’s DPF metadata entry to include a 12-bit integer that maps that page to a behavioral cluster which obviates the need for a dedicated page-cluster mapping table ."},
+        {"page": 12, "quote": "During runtime, we track the offset transitions for unseen pages and assign these pages to the cluster whose aggregate offset transitions is most similar."},
+        {"page": 12, "quote": "The mapping accuracy increases with each access to the page and for SPEC 2006, the accuracy reaches 95.6% at 250 accesses."},
+        {"page": 13, "quote": "Figure 18 shows low top-1 page-to-cluster mapping accuracy for GAP, but these results indicate that even if the dynamically mapped cluster isn’t the best cluster, the mapped behavioral cluster still performs well because it has sufﬁciently similar offset transition behavior."},
+        {"page": 11, "quote": "Compared to the page-based T-LITE-Page, Figure 15 shows that utilizing clusters without ﬁne-tuning (T-LITE-Cluster) drops speedup by 1.3% while ﬁne-tuning (T-LITE) reduces this drop to 0.1%, demonstrating the importance of recalibrating the neural model to take clusters as input instead of pages."}
+      ],
+      "code_evidence": [],
+      "rule": "把页压成 4096 个共享簇嵌入；离线按嵌入空间 k-means，在线按 offset-transition 相似度映射；簇号随 DPF 条目走。",
+      "trigger": "跨输入/跨域时新页的后继页集合与训练页不同但偏移转移相似；或某个页只被访问很少次数、其 offset-transition 统计尚不可靠。",
+      "mitigation": "fine-tune 后簇替换的损失被压到 0.1%（Fig.15）；transfer 达到 FineTune 的 94%；作者论证即便 top-1 mapping 不准，簇的 offset 行为仍足够相似。",
+      "consequence": "报告的目标（跨输入迁移收益）以 IPC 聚合呈现，无法暴露“共享簇嵌入把不同后继集合的页合并”这一失败模式；因此对“行为簇是页的有效替代”这一核心主张，迁移场景下的候选头证据是缺失的。",
+      "counterevidence": [
+        "Fig.15 显示簇替换本身只掉 1.3%（不 fine-tune），fine-tune 后 0.1%，说明簇的信息损失总体很小。",
+        "§III-B2 的 t-SNE 显示嵌入空间近邻与 offset-transition 聚类高度重合（omnetpp），这支持“两套相似性大体一致”，但只验证了偏移侧且只有单条 trace。",
+        "GAP 上 transfer 仍显著优于 Triage（30.4% vs 13.8%），说明即使簇错配存在，净收益仍为正。"
+      ],
+      "minimal_comparison": {
+        "fixed": ["4096 簇、C=25、H=3", "同一 fine-tune 流程", "同一 GAP A/B/C 域划分与模型选择协议", "同一 Triage 基线"],
+        "vary": "在线簇分配准则：offset-transition 相似（原方法） vs 同时用后继页集合相似度（或在相同元数据预算下保留页标识，如 Twilight）",
+        "baseline": "T-LITE-Transfer 30.4% vs Triage 13.8%，以及相对 FineTune 的 94%",
+        "observable": "GAP transfer 上候选页 top-1/top-4 正确率与偏移正确率的分解，以及对应 IPC",
+        "refuted_if": "T-LITE-Transfer 的候选页正确率与 T-LITE-FineTune 无显著差异"
+      },
+      "disclosure": "作者披露了 GAP 上 top-1 映射准确率低，并用“offset transition 足够相似”解释为何不影响性能；也披露了簇替换与 fine-tune 的代价。未披露的是该解释只覆盖偏移头。",
+      "status": "hypothesis_not_executed",
+      "remaining_gap": "需要把 GAP transfer 的 accuracy 按“候选页/偏移”分解；论文只给了聚合 IPC 与 Fig.18 的映射准确率。"
+    },
+    {
+      "id": "H6",
+      "title": "64KB DPF cache 的容量与页粒度元数据工作集不匹配，缺失率与缺失处理路径都未报告，而 29-cycle 延迟模型不含 DPF 访问",
+      "kind": "method_hypothesis",
+      "stage": "admission",
+      "claim": "T-LITE 的 DPF 元数据放在独立的 64KB、8-way LRU cache 里，条目是页粒度（N=4 个候选页 + 频率 + 12-bit 簇号）。论文报告了容量（64KB）与延迟（29 cycle），但没有报告该 cache 的缺失率，也没有说明缺失时的行为（丢弃这次预取，还是回存取元数据）；Fig.14 的数据通路只画了 [2] fetch，没有画 miss 分支。若缺失意味着丢弃，coverage 会下降；若意味着回存取，29-cycle 延迟模型不成立。",
+      "causal_argument": "规则：每页一条 DPF 条目，放进 64KB、8-way、LRU 的独立 cache。触发：LLC 访问流中活跃页数远超 cache 容量（按 N=4 含 4 个页号 + 频率 + 12-bit 簇号的条目大小估算，64KB 只能容纳约 1–2K 条；而论文自己引用 SPEC 2006 trace 在 250M 指令内可达 255K unique pages）。后果：论文的两个核心卖点——64KB vs Triage 1MB 的存储优势、29 cycle vs Triage 20 cycle 的延迟可比性——都建立在“元数据可用”的前提上；若缺失普遍，前者仍然成立（容量确实小）但后者的可比性与 coverage 结论会改变。可反驳性：报告缺失率并在 16KB/64KB/256KB/1MB 下扫容量，若 IPC 与 coverage 对容量不敏感（缺失率始终 <1%），假设被反驳。",
+      "conditions": [
+        "活跃页数远超 ~1–2K（大内存足迹负载，如 server 类或大 SPEC 图工作负载）。",
+        "LLC 访问流在页维度上缺乏足以让 64KB 容纳的局部性。",
+        "DPF 缺失没有被 speculatively 掩盖（链断时）。"
+      ],
+      "paper_evidence": [
+        {"page": 11, "quote": "This observation combined with the above optimizations enables T-LITE to retain most of Twilight’s performance with just 64 KB of DPF metadata. Unlike Triage which partitions out 1 MB of the last-level cache, T-LITE stores its DPF metadata in an on-chip metadata cache separate from the LLC (see Figure 14). We faithfully model this metadata cache as a 8-way, set-associative cache using LRU replacement."},
+        {"page": 11, "quote": "Fig. 14: T-LITE’s Hardware Design. [1] On LLC access, [2] T-LITE fetches the DPF metadata from the DPF cache. [3] T-LITE computes the prefetch address and [4] issues the prefetch request to DRAM which [5] ﬁlls in the LLC."},
+        {"page": 12, "quote": "Compared to Triage’s 1 MB metadata storage, all quantized versions of T-LITE require less total storage: 64 KB of metadata and 0.3 to 0.8 MB of neural weights."},
+        {"page": 12, "quote": "Finally, because its DPF metadata is stored outside of the LLC, T-LITE does not contend with LLC demand accesses, while Triage’s metadata accesses do."},
+        {"page": 3, "quote": "For example, there are SPEC 2006 traces that V oyager was not evaluated on with as many as 255K unique pages within a 250M instruction span, which is approximately 3× larger than the biggest footprint V oyager was evaluated on."}
+      ],
+      "code_evidence": [],
+      "rule": "页粒度 DPF 条目 + 64KB 8-way LRU 独立 cache；缺失处理未在文中定义。",
+      "trigger": "活跃页工作集远大于 64KB 可容纳的条目数。",
+      "mitigation": "页粒度使 DPF 条目数远少于 cache-line 粒度的时序预取器；只在 LLC 访问流上触发，活跃页数小于 trace 的全部 unique pages；缺失已被模拟器“faithfully model”，说明至少被计入了某种代价。",
+      "consequence": "报告的目标（存储/延迟的可行性主张与 T-LITE 的 IPC）没有把“元数据在不在”作为变量暴露出来；缺失若普遍，29-cycle 的可比性与 coverage 归因都会改变，而 64KB 这一数字本身仍成立——即该假设攻击的是延迟与覆盖率结论，不是存储结论。",
+      "counterevidence": [
+        "作者明确说 DPF cache 被“faithfully model”为 8-way LRU，暗示缺失在模拟中出现过并被计入。",
+        "T-LITE 只在 LLC 访问上触发，且页粒度元数据比 Triage 的地址粒度元数据少得多，命中率可能确实很高。",
+        "作者把 T-LITE 的元数据放在 LLC 之外，正是为了不与 demand access 竞争，这一优势不依赖命中率。"
+      ],
+      "minimal_comparison": {
+        "fixed": ["N=4、D=1、8-bit 权重量化、4096 簇", "同一 LLC 触发流与 degree 1", "同一 8-way LRU 替换策略"],
+        "vary": "DPF cache 容量 16KB / 64KB / 256KB / 1MB，并显式报告缺失率与缺失处理（丢弃 vs 回存取）",
+        "baseline": "64KB、缺失不可见条件下的 T-LITE 20.7% 与 29-cycle 延迟假设",
+        "observable": "DPF cache 缺失率、coverage、IPC 随容量的敏感度",
+        "refuted_if": "缺失率在所有容量下都很低（例如 <1%），且 IPC / coverage 对容量不敏感"
+      },
+      "disclosure": "作者披露了容量、相联度、替换策略与“faithfully model”的说法；未披露缺失率、缺失处理路径，也未把 DPF 访问计入 29-cycle 延迟。",
+      "status": "hypothesis_not_executed",
+      "remaining_gap": "无法确认模拟器中 DPF miss 的行为（图 14 无 miss 分支），也没有仓库可查；条目编码大小（页号位宽、频率位宽）未给出，64KB 对应的条目数只能估算。"
+    }
+  ],
+  "rejected_candidates": [
+    {
+      "title": "DPF 乘积分解 f((X,Y,Z),1)≈f(X,3)×f(Y,2)×f(Z,1) 是核心限制（独立性假设）",
+      "reason": "论文并不把乘积当作预测器：§V-D3 明确把“naive predictor multiplies the DPF values together”作为对照，并显示 Twilight 的候选分布远比它接近真实分布（top candidate 高估 15% vs 1.5%），说明网络是在原始 DPF 向量 + 簇/偏移/PC 历史上学加权，而不是使用乘积。把它列为限制缺乏因果链证据。"
+    },
+    {
+      "title": "只用单个 200M 训练区间 / 500 epochs 会过拟合该区间",
+      "reason": "这是训练配置而非方法机制，且论文用 175M 未见区间与 Fig.12 的 50M→200M 衰减曲线回应了时间外推；无法构造出与本文机制耦合的可反驳比较。"
+    },
+    {
+      "title": "多核实验只模拟 75M 指令、且未计 DPF 元数据带宽",
+      "reason": "属评估配置层面的通用问题，与“候选选择/行为簇”的方法机制没有可分离的因果联系；论文自己也把多核结果定位为趋势性证据。"
+    },
+    {
+      "title": "T-LITE 只保留 f(P,1) 丢掉了历史位置信息",
+      "reason": "这是作者在 §VI-A 明确列出的设计权衡（“reducing the number of metadata entries by two-thirds”），DPF history length 是公开超参（Table I），属已披露边界而非新限制，已归入 known_boundaries。"
+    }
+  ],
+  "known_boundaries": [
+    {
+      "title": "固定 N 无法适配宽后继分布",
+      "mechanism": "top-N 候选截断是一个全局常数 N（Twilight 20，T-LITE 4），而每个页的后继熵不同。",
+      "conditions": "473.astar、SPEC 2006 等后继分布较宽的工作负载。",
+      "paper_evidence": [
+        {"page": 8, "quote": "Twilight’s speedup on 473.astar is lower than V oyager because Twilight’s set number of candidates, N = 20, cannot accommodate the wider successor distributions found in this benchmark."},
+        {"page": 12, "quote": "because T-LITE further reduces the number of successors that it tracks, it has 9% lower prefetch coverage but maintains similar accuracy to Triage."}
+      ],
+      "what_is_not_established": "在相同元数据/算力预算下，按页自适应分配 N 能否同时保住宽分布与窄分布负载的收益——未测。"
+    },
+    {
+      "title": "T-LITE 的推理能耗超过预取带来的收益",
+      "mechanism": "每次 LLC 访问都要跑一次量化后的 57K IOPs 推理，能耗高于预取节省。",
+      "conditions": "任何部署场景。",
+      "paper_evidence": [
+        {"page": 13, "quote": "While T-LITE’s latency and storage is feasible, inference would cost more energy than the savings provided by superior prefetching."}
+      ],
+      "what_is_not_established": "能耗的具体倍数、与 Triage 的能耗对比、以及是否存在低功耗变体能让净能量为正。"
+    },
+    {
+      "title": "仍受限于训练程序，需要更多代表性数据",
+      "mechanism": "离线训练按程序进行；迁移依赖行为簇与动态映射，但模型权重仍专门化于训练程序。",
+      "conditions": "部署到未参与离线训练的程序。",
+      "paper_evidence": [
+        {"page": 13, "quote": "it’s still constrained to the program it was trained on and requires signiﬁcant ofﬂine-training on more representative data to further improve its generalization."}
+      ],
+      "what_is_not_established": "跨程序（而非跨输入/跨域）迁移的实际损失，以及“更多代表性数据”需要多少。"
+    },
+    {
+      "title": "Twilight 的评估是理想化的（不计延迟、存储、off-chip 元数据流量）",
+      "mechanism": "Section V 只比较预测能力；只有 T-LITE 才建模存储与延迟。",
+      "conditions": "所有 Twilight 与 Voyager/Domino/STMS 的单核与多核对比。",
+      "paper_evidence": [
+        {"page": 7, "quote": "For these temporal prefetchers, we focus on evaluating predictive power, so we do not simulate prediction latency, storage cost, or off-chip metadata trafﬁc."}
+      ],
+      "what_is_not_established": "Twilight 的 24.1% 在真实延迟/存储下还剩多少；论文只给 T-LITE 做了更忠实的建模。"
+    },
+    {
+      "title": "训练集外的访问模式与 load PC 会使 Twilight 输给非神经基线",
+      "mechanism": "PC 嵌入表限制在训练中出现最多的 4096 个 PC；训练集外的 pattern/PC 没有专门表示。",
+      "conditions": "评估区间中出现训练集未覆盖的访问模式或 load PC。",
+      "paper_evidence": [
+        {"page": 8, "quote": "While our new abstractions dramatically improve generalization, Twilight underperforms the non-neural baselines on some of the benchmarks because there are some access patterns and load PCs not found in the training data."},
+        {"page": 6, "quote": "to constrain the size of the PC embedding table, we limit the number of load PC embeddings to the 4096 most occurring load PCs."}
+      ],
+      "what_is_not_established": "训练集外 PC 占动态访问的比例、以及在相同存储预算下扩大 PC 表的收益——论文只提出 LoRA 在线 fine-tune 作为可能缓解。"
+    },
+    {
+      "title": "Google server 负载缺 memory dependence，只报 accuracy/coverage",
+      "mechanism": "原始 trace 来自 DynamoRIO，memory dependence 信息缺失，用 CloudSuite 统计建模。",
+      "conditions": "Google 公开 trace 上的所有结果。",
+      "paper_evidence": [
+        {"page": 7, "quote": "The memory dependence information is unavailable, but we model them using statistics collected from CloudSuite [17], another server benchmark suite."},
+        {"page": 7, "quote": "Because of the missing information, we only evaluate prefetcher accuracy and coverage for these workloads."}
+      ],
+      "what_is_not_established": "Google 负载上的 IPC 收益，以及 73.2% accuracy 能否转化为 speedup。"
+    },
+    {
+      "title": "benchmark 按“idealized temporal prefetcher 下有 >5% IPC 改善”入选",
+      "mechanism": "负载筛选以依赖变量的理想化上界为条件。",
+      "conditions": "SPEC 2006 / SPEC 2017 irregular 子集。",
+      "paper_evidence": [
+        {"page": 7, "quote": "we select workloads that have >5% IPC improvement with an idealized temporal prefetcher"}
+      ],
+      "what_is_not_established": "在未经筛选的 SPEC 全集或任意负载上，24.1% / 20.7% 的平均收益会是多少。"
+    },
+    {
+      "title": "跨输入迁移只在 GAP 上评估，且为 fine-tune 的 94%",
+      "mechanism": "web/road/citation 三域 A/B/C 划分 + 模型选择协议；未覆盖真实程序输入（如 SPEC 的 ref/train）。",
+      "conditions": "GAP 图输入。",
+      "paper_evidence": [
+        {"page": 13, "quote": "Moreover, compared to T-LITE-FineTune which is trained on the actual evaluation data, T-LITE-Transfer is able to achieve 94% of T-LITE-FineTune’s performance, demonstrating how well the dynamic mapping scheme is able to align new pages to behavioral clusters."}
+      ],
+      "what_is_not_established": "非图负载、或同一程序不同输入下的迁移损失；作者也承认 GAP 上 top-1 映射准确率低（p.13）。"
+    }
+  ],
+  "uncertainties": [
+    "无作者仓库（pinned commit: none），所有涉及实现细节的判断都是未验证的：DPF 输入张量的真实构造（是否真只保留 N 维并 renormalize）、偏移头是否真的完全不看候选页、DPF cache 缺失时是丢弃还是回存取。",
+    "Fig.5 只标注 “H by (C+P)” 的维度；C 对应 page/cluster embedding、P 对应 PC embedding 是从正文语义推断，不是图注明示。",
+    "Fig.2 的统计口径（按 cache line 平均 vs 按访问加权）与 y 轴曲线形状只能从抽取文本读到 N=20 的汇总值（93.2% / 92.7%），无法重建逐点数值。",
+    "Fig.6 / Fig.17 的逐 benchmark 数值是矢量图路径，无法从文本读取；因此 473.astar 的定量差距、SPEC 2006 的 −2% 之外的分布都未知。",
+    "T-LITE 的 DPF 条目位宽（页号位宽、频率位宽）未给出，64KB 对应多少条目只能按 4 个页号 + 频率 + 12-bit 簇号估算（约 1–2K），这直接影响 H6 的严重程度。",
+    "论文未说明 DPF cache 的缺失在 29-cycle 延迟模型里如何被计费，因此 H2 与 H6 的后果存在重叠但无法定量区分。",
+    "所有“若换一种输入/建模会怎样”的结论都是提出的实验，不是已执行的结果；本文没有运行任何目标程序或模拟器。"
+  ],
+  "target_execution": "not_run"
+}

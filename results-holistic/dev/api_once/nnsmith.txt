@@ -1,0 +1,163 @@
+{
+  "paper_id": "nnsmith",
+  "method_model": "NNSmith 以人工算子规格与 SMT 生成类型/形状有效的 DNN 图，用属性分箱增加多样性，用梯度搜索尽量避免中间算子产生 NaN/Inf，再以 PyTorch 为 oracle 对 ONNX 编译后端做差分测试。",
+  "candidates": [
+    {
+      "id": "C1",
+      "category": "method_hypothesis",
+      "title": "人工算子规格与单算子支持探测共同限定了可生成图空间",
+      "causal_argument": "NNSmith 的合法性完全依赖 AbsOpBase 规格中的 input_type/requires/type_transfer；SMT 只在规格定义的约束内求解模型。若目标编译器支持但规格未覆盖的算子/属性被排除，或规格过严/过松，则生成器要么不生成相应图，要么把规格外行为误判。支持集合又只用单算子模型探测，不能保证多算子组合、融合和上下文相关属性被覆盖。",
+      "conditions": "新算子、组合相关支持、属性相关支持；规格由人工从文档/源码编写；路径只在多算子融合、广播或布局优化中暴露。",
+      "paper_evidence": {
+        "physical_page": 2,
+        "quote": "NNSmith requires that users provide a specification for each operator"
+      },
+      "code_evidence": {
+        "file": "nnsmith/narrow_spec.py",
+        "excerpt": "Single-operator specification testing: Iterate over possible operator instances"
+      },
+      "counterevidence": "论文报告 59/73 个算子规格可在 4 行内实现，且找到 58 个确认为 bug；若未覆盖算子不是主要路径，则该限制影响有限。",
+      "minimal_comparison": "在同一 commit 上补齐缺失规格并建立多算子/属性级支持矩阵；若覆盖率和确认 bug 集无显著变化，则该限制被削弱或反驳。"
+    },
+    {
+      "id": "C2",
+      "category": "method_hypothesis",
+      "title": "PyTorch oracle 与 ONNX 导出器耦合，污染差分测试归因",
+      "causal_argument": "所有模型经 torch.onnx.export 生成，oracle 是同一 PyTorch 模型的 eager 结果；PyTorch 或导出器 bug 会改变被编译的 ONNX 或参考输出。差分不一致可来自 exporter、oracle 或 compiler。O0 对照只检查编译器自身优化前后，不能独立验证 PyTorch 参考。",
+      "conditions": "导出器版本相关 bug、PyTorch 与 ONNX 语义差异、类型/属性导出错误。",
+      "paper_evidence": {
+        "physical_page": 7,
+        "quote": "In rare cases value inconsistency (1 out of 72 in our bug finding) can happen in PyTorch’s converter which makes it unclear whether the bug comes from the converter or the compiler."
+      },
+      "code_evidence": {
+        "file": "nnsmith/materialize/onnx/__init__.py",
+        "symbol": "torch2onnx",
+        "excerpt": "torch.onnx.export("
+      },
+      "counterevidence": "论文把 10 个 PyTorch exporter bug 单独归类，并用编译器 O0 模式定位优化 bug；多数报告获开发者确认，说明耦合影响未压倒主要结论。",
+      "minimal_comparison": "用独立 ONNX 解释器或 NumPy 参考执行同一导出模型，或直接从 ONNX 计算参考；若报告集不变，则反驳该限制。"
+    },
+    {
+      "id": "C3",
+      "category": "method_hypothesis",
+      "title": "宽松输出容差会造成系统性语义 bug 漏报",
+      "causal_argument": "最终等价性用 numpy.testing.assert_allclose，rtol=1e-2、atol=1e-3；只要差异落在容差内即判通过。编译器产生的小幅但确定的语义错误会被漏掉。论文称高容差用于减少浮点假报，但代价是检测灵敏度下降；代码实现还是 NumPy 元素级容差，与论文所称按整体量级缩放不完全一致。",
+      "conditions": "错误输出幅度小、输出量级大或小、数值稳定但表达式被错误简化。",
+      "paper_evidence": {
+        "physical_page": 11,
+        "quote": "To reduce false alarms, we use a high error tolerance in comparison."
+      },
+      "code_evidence": {
+        "file": "nnsmith/difftest.py",
+        "excerpt": "rtol=1e-2,\n    atol=1e-3"
+      },
+      "counterevidence": "浮点编译器本身允许舍入差异；论文称用高容差和 filter 减少假报，且报告 bug 多经确认。若严格容差下新增报告绝大多数是假报，则该限制不成立为科学问题。",
+      "minimal_comparison": "对同一批已保存测试用更严格容差（如 1e-5/1e-6）和逐元素 ULP 比较重放；若没有新的真 bug 或假报爆炸，则反驳。"
+    },
+    {
+      "id": "C4",
+      "category": "implementation_discrepancy",
+      "title": "导出器固定 opset 14 限制 ONNX 版本相关行为覆盖",
+      "causal_argument": "torch2onnx 固定 opset_version=14；编译器的 ONNX frontend 常按 opset 分派 schema、属性和 dtype 检查。固定版本使 opset<14 或 >14 的转换与属性解释路径不被测试，尤其论文自己指出 ONNX 版本相关 dtype 处理常出错。",
+      "conditions": "版本相关 op schema、dtype 或 attribute；编译器 import 逻辑随 opset 分支。",
+      "paper_evidence": {
+        "physical_page": 11,
+        "quote": "Operators’ data type supports vary by ONNX versions, which are often mishandled."
+      },
+      "code_evidence": {
+        "file": "nnsmith/materialize/onnx/__init__.py",
+        "symbol": "torch2onnx",
+        "excerpt": "opset_version=14,"
+      },
+      "counterevidence": "论文在固定 opset 14 下仍发现 ONNX 版本相关 dtype bug，且所有受测编译器可能以 opset 14 为主要支持版本。",
+      "minimal_comparison": "生成同一模型的多 opset 导出并比较单算子支持、覆盖率和 bug 报告；若扩展 opset 不改变相关路径或不发现新 bug，则反驳。"
+    },
+    {
+      "id": "C5",
+      "category": "implementation_discrepancy",
+      "title": "TensorRT 缺少 O0 定位使语义差异归因不确定",
+      "causal_argument": "论文的 fault localization 依赖 compiler O0 与 optimized 对比；TRTFactory 在 optmax=False 时直接 raise，因此 TensorRT 语义差异没有 O0 对照。无法区分 TensorRT 优化 bug、转换/解析 bug、PyTorch exporter 问题，语义报告归因不确定。",
+      "conditions": "TensorRT 语义不一致；TensorRT-only 属性和 fusion；闭源环境。",
+      "paper_evidence": {
+        "physical_page": 7,
+        "quote": "if the compiler and PyTorch disagree on the model outputs, we further compare it with the compiler “O0” mode"
+      },
+      "code_evidence": {
+        "file": "nnsmith/backends/tensorrt.py",
+        "excerpt": "raise ValueError(\"There is not O0 mode for TensorRT so far.\")"
+      },
+      "counterevidence": "TensorRT 闭源且论文报告 10 个 bug、其中 4 个 unclassified；若最终只统计开发者确认的优化 bug，则归因问题主要影响未分类子集。",
+      "minimal_comparison": "构造 TensorRT 的 no-optimization/O0-like 模式（或将所有节点标记为输出、关闭层融合）与优化模式比较；若差异在 O0-like 仍存在，则优化归因被推翻。"
+    },
+    {
+      "id": "C6",
+      "category": "implementation_discrepancy",
+      "title": "后端异常直接计为编译器 bug，缺少自动非 bug 分类",
+      "causal_argument": "BackendFactory.checked_compile 对任何非 InternalError 的 Exception 一律构造 BugReport(EXCEPTION, COMPILATION)，checked_exec 对执行异常同样处理；没有区分不支持算子/属性、非法 ONNX、环境/资源错误和真实编译器 crash。单算子支持探测只覆盖 dtype/rank 级别，不能覆盖多算子或属性上下文。",
+      "conditions": "不支持但合法的后端特性、导出器产生非法模型、环境错误或多算子上下文相关限制。",
+      "paper_evidence": {
+        "physical_page": 7,
+        "quote": "We use this information when generating graphs, so as to avoid “Not-Implemented” errors."
+      },
+      "code_evidence": {
+        "file": "nnsmith/backends/factory.py",
+        "excerpt": "except Exception:\n            return BugReport(\n                testcase=testcase,\n                system=self.system_name,\n                symptom=Symptom.EXCEPTION,\n                stage=Stage.COMPILATION,"
+      },
+      "counterevidence": "论文报告 58/72 被确认、51 修复，说明多数异常最终可复现为真 bug；但未确认的 14 个中仍可能混有非 bug。",
+      "minimal_comparison": "把所有自动 EXCEPTION 报告按最小模型重放到干净环境和官方支持矩阵，并与人工确认状态比较；若异常报告全为真 bug，则限制被反驳。"
+    }
+  ],
+  "known_boundaries": [
+    {
+      "id": "B1",
+      "kind": "author_disclosed",
+      "boundary": "只面向 DNN 推理图，不覆盖训练/反向图。",
+      "basis": "p.2: \"In this work, we focus on DNN inference\""
+    },
+    {
+      "id": "B2",
+      "kind": "repo_disclosed",
+      "boundary": "模型侧主要是 PyTorch-ONNX；README 支持矩阵显示仅 TVM/ORT/TensorRT 有 PyTorch-ONNX 支持，TensorFlow 路径为 beta/未支持。",
+      "basis": "README.md: \"✅: Supported; ⚠️: Beta support; Others are not supported yet -- Contributions are welcome!\""
+    },
+    {
+      "id": "B3",
+      "kind": "author_disclosed",
+      "boundary": "NaN/Inf 等浮点异常值场景被排除出差分测试，以避免 undefined behavior 假报；这同时排除异常值处理 bug。",
+      "basis": "p.3: \"we must also exclude these results from differential testing\""
+    },
+    {
+      "id": "B4",
+      "kind": "author_disclosed",
+      "boundary": "PyTorch eager 被当作 oracle。",
+      "basis": "p.7: \"We use PyTorch as the reference backend\""
+    },
+    {
+      "id": "B5",
+      "kind": "author_disclosed",
+      "boundary": "评估默认生成 10 节点模型、属性分箱 k=7；结论对图规模和分箱配置敏感。",
+      "basis": "p.8: \"the default generated graph size ofNNSmith and GraphFuzzer to be 10\""
+    },
+    {
+      "id": "B6",
+      "kind": "author_disclosed",
+      "boundary": "TensorRT 闭源，排除在覆盖率评估之外。",
+      "basis": "p.8: \"Since TensorRT is closed-sourced, we exclude it for coverage evaluation.\""
+    },
+    {
+      "id": "B7",
+      "kind": "implementation",
+      "boundary": "代码限制最大 rank=5、FLOPS≈2^30，并默认约 6GB 张量上限；高 rank/大计算图不被默认生成。",
+      "basis": "nnsmith/abstract/op.py: \"__MAX_RANK__ = 5\"; \"FLOPS_LIM = 2**30\"; nnsmith/graph_gen.py: \"__MB_LIM__ = 6 * 1024\""
+    }
+  ],
+  "uncertainties": [
+    "无法执行固定提交，不能测量各候选对最终 72 个 bug 集的净漏报/误报贡献。",
+    "论文未给出自动异常报告的人工分诊细则，无法判断 C6 的实际假报比例。",
+    "固定提交的配置文件未完整提供，无法确认默认图规模、分箱和梯度搜索超参与论文评估配置完全一致。",
+    "无法验证 opset 14 是否覆盖所有受测编译器的主要 ONNX 版本路径。",
+    "容差与 NaN/Inf filter 对最终 bug 集的净影响未知；确认 bug 多不排除存在漏报。",
+    "源代码仅提供部分文件，无法完整审计权重/输入初始化和所有 filter 的调用路径。"
+  ],
+  "target_execution": "not_run"
+}

@@ -1,0 +1,83 @@
+{
+  "paper_id": "minference",
+  "method_model": "MInference 1.0：离线头模式搜索 + 在线稀疏索引 + A-shape/Vertical-Slash/Block-Sparse Triton 内核",
+  "candidates": [
+    {
+      "id": "C1",
+      "title": "单样本离线头模式搜索与固定配置复用可能导致头模式失配",
+      "causal_argument": "方法先对每个注意力头离线选择 A-shape、Vertical-Slash 或 Block-Sparse 及参数，并把每层每头配置固化为 JSON。搜索只使用一个 30k KV-retrieval 样本；若目标任务、长度或模型使某头的最优稀疏结构改变，固化的模式/参数会保留错误的行、列或块，漏掉重要注意力，尤其影响依赖少数 Block-Sparse/A-shape 头的检索与聚合任务。代码还把 262k、1048k、4194k 的 LLaMA 变体映射到同一 262k 配置文件，扩大该风险。",
+      "conditions": "新任务、领域、上下文长度或模型；注意力分布随输入变化；搜索样本未覆盖的头。",
+      "paper_evidence": "PHYSICAL PDF PAGE 18：we use only one sample as our validation set from KV retrieval synthetic data with 30k token inputs",
+      "code_evidence": "minference/configs/model2path.py：`MODEL2PATH` 中 1048k 与 4194k 的 LLaMA 条目复用 262k 的 `Llama_3_8B_Instruct_262k_kv_out_v32_fit_o_best_pattern.json`",
+      "counterevidence": "论文称该样本 exhibits strong generalization and stability across different lengths and domains，并在 InfiniteBench、RULER、NIAH 上报告保持或提升；附录称同一 LLaMA 配置在 1M NIAH 近乎完美。",
+      "minimal_comparison": "固定单样本配置 vs 按任务/长度/模型重新搜索或留出任务验证；在相同 kernel FLOPs 下比较 Retr.KV、聚合和 NIAH 的逐任务准确率与头分配变化。若无显著差异则不支持该限制。"
+    },
+    {
+      "id": "C2",
+      "title": "Vertical-Slash 仅用最后 64 个 query 估计全局竖线与斜线",
+      "causal_argument": "Vertical-Slash 头用最后 last_q 个 query 与全部 key 相乘得到估计注意力，再按列和对角线求和取 top-k，生成对所有 query 行共享的竖线和斜线索引。若较早 query 的显著竖线或斜线未被最后 64 个 query 选中，这些 query 的真实注意力会在稀疏重算时被 mask 掉；错误还会经层间传播影响最终 token。",
+      "conditions": "Vertical-Slash 头；长上下文；不同 query 位置的注意力分布差异大；last_q 固定为 64。",
+      "paper_evidence": "PHYSICAL PDF PAGE 1：we use a partial of attention weight consisting of the last last_q query and key vectors (i.e. Q[−last_q:] and K)",
+      "code_evidence": "minference/modules/minference_forward.py：`last_q = 64`",
+      "counterevidence": "论文称 Vertical-Slash 模式在相同 FLOPs 下 recall 更高，并在多个基准上保持准确率；仅 Vertical-Slash 消融仍保留大部分性能。",
+      "minimal_comparison": "last_q=64 vs 128/全量/分层采样 query 构造索引；在相同预算下测 Vertical-Slash 头的 attention recall 和下游任务。若扩大 last_q 无提升则反驳。"
+    },
+    {
+      "id": "C3",
+      "title": "Block-Sparse 的 64 块均值池化可能稀释块内显著 token",
+      "causal_argument": "Block-Sparse 头把 Q/K 按 64 token 块均值池化，再用块级 QK 的 softmax 取 top-k 块。块内若只有少数高权重 token 贡献，均值会被其他 token 稀释甚至抵消，使该块得分低而未入选；后续稀疏重算无法恢复被丢弃块的真实注意力。",
+      "conditions": "Block-Sparse 头；块内注意力高方差或存在离群 token；top-k 块数较小；block_size=64。",
+      "paper_evidence": "PHYSICAL PDF PAGE 1：For Block-Sparse heads, we perform mean pooling on both query and key vectors in blocks of 64",
+      "code_evidence": "minference/ops/block_sparse_flash_attention.py：`real_block_idx = tl.load(blocks_ptr + sparse_block_idx)`",
+      "counterevidence": "论文称均值池化与矩阵乘法可交换，块级权重近似实际权重；Fig.3c 显示模式 recall 较高，InfiniteBench 平均最佳；完整方法通过混合 A-shape/VS/BS 头保持整体性能。",
+      "minimal_comparison": "mean-pool block mask vs max-pool/attention-aware block mask/oracle block mask at same FLOPs；测块 recall 与下游准确率，尤其在离群 token 密集的合成提示上。若 mean 与 oracle 无差异则反驳。"
+    },
+    {
+      "id": "C4",
+      "title": "有限搜索空间与固定目标 FLOPs 限定“最优”头配置",
+      "causal_argument": "Algorithm 1 在预设搜索空间内按目标 FLOPs 选择每个头的配置；Table 6 的网格很窄：A-shape 仅 (1024,4096)，Block-Sparse 仅 {100}，Vertical-Slash 仅四组。若真实 Pareto 最优点在网格外，或不同头/长度需要不同 FLOPs 预算，搜索只能在受限集合中选次优，导致精度或加速损失。",
+      "conditions": "新模型、长度或硬件；头的最优稀疏度偏离固定网格；所有头共用统一目标 FLOPs。",
+      "paper_evidence": "PHYSICAL PDF PAGE 18：A-shape {(1024, 4096)}",
+      "code_evidence": "minference/modules/minference_forward.py：`self.best_pattern = {int(ii): jj for ii, jj in json.load(open(self.config_path))[self.layer_idx].items()}`",
+      "counterevidence": "论文的 kernel-aware 搜索按真实 GPU FLOPs 构建空间，并在多个模型和长度上报告良好结果；模式分布超过 90% 为 Vertical-Slash，说明小空间可能已覆盖主要模式。",
+      "minimal_comparison": "扩展搜索空间或按头分配 FLOPs vs 原网格；在相同延迟约束下画 accuracy-latency Pareto，比较 NIAH、RULER、InfiniteBench。若原网格已达前沿则反驳。"
+    },
+    {
+      "id": "C5",
+      "title": "以 attention output recall 为搜索目标不保证下游任务正确性",
+      "causal_argument": "离线搜索用 `argmin(y_i − y)` 的 attention output recall 选头配置，而不是任务损失或答案正确性。若高 recall 配置仍丢失任务关键 token，或低 recall 对最终答案无影响，搜索会偏向与下游目标不一致的配置；对检索和多跳任务风险更大。",
+      "conditions": "任务关键信息只由少数 token 决定；recall 与任务准确率弱相关；离线参考样本与目标分布不同。",
+      "paper_evidence": "PHYSICAL PDF PAGE 5：we use recall of the attention output as the objective criterion when searching for the best pattern",
+      "code_evidence": "minference/modules/minference_forward.py：`def search_pattern(q, k, head):`",
+      "counterevidence": "论文在 InfiniteBench、RULER 上整体保持或提升；作者认为该目标利用 V 矩阵进行端到端选择，比仅 attention 权重更贴近输出。",
+      "minimal_comparison": "同一搜索空间下，recall 目标 vs 下游任务 loss/验证准确率目标；比较逐任务准确率，尤其 Retr.KV 和 RULER 聚合。若两种目标的头配置排序高度一致则反驳。"
+    },
+    {
+      "id": "C6",
+      "title": "Vertical-Slash kernel 强制至少一条竖线和斜线，限制纯模式与消融解释",
+      "causal_argument": "Vertical-Slash 内核同时维护 block_count 和 column_count，论文明确因 kernel 限制必须保留至少一条 vertical 和一条 slash。若某头的最优解是纯竖线或纯斜线，搜索空间无法表达；强制保留的另一类线会增加无效计算，并使 only vertical/only slash 消融不是纯模式，混淆组件贡献。",
+      "conditions": "Vertical-Slash 头；高稀疏或低 FLOPs 预算；最优配置接近单一线型。",
+      "paper_evidence": "PHYSICAL PDF PAGE 21：due to kernel limitations, we must retain at least one vertical and one slash",
+      "code_evidence": "minference/ops/pit_sparse_flash_attention_v2.py：`num_blks = tl.load(block_count + off_hz * NUM_ROWS + start_m)` 与 `num_cols = tl.load(column_count + off_hz * NUM_ROWS + start_m)`",
+      "counterevidence": "Table 7 仍显示 only vertical/only slash 的差异，作者据此分析两种线的作用；完整 VS 方法在基准上表现良好，说明强制保留的额外线可能成本很小。",
+      "minimal_comparison": "实现允许 0 条 vertical 或 0 条 slash 的 kernel，或在搜索空间加入 (0,k)/(k,0)，与当前 top-1 强制保留比较；测 FLOPs、recall 和下游准确率。若无可测差异则反驳。"
+    }
+  ],
+  "known_boundaries": [
+    "预填充专用：PHYSICAL PDF PAGE 7：we perform sparse computation only during the pre-filling stage, while retaining dense computation during the decoding stage.",
+    "短上下文收益消失：PHYSICAL PDF PAGE 17：with a 10k context, the time spent on building the index increases from 5% to 30%, resulting in overall end-to-end latency approaching that of FlashAttention.",
+    "更高稀疏率可能降精度：PHYSICAL PDF PAGE 17：when using a higher sparsity rate, the model performance may noticeably decline.",
+    "离线搜索成本：PHYSICAL PDF PAGE 18：The search time is approximately 15 minutes on a single A100.",
+    "延迟仅在单 A100、bfloat16 上测量：PHYSICAL PDF PAGE 6：The latency experiments are conducted on a single Nvidia A100 GPU in the bfloat16 format.",
+    "稀疏索引有内存开销：PHYSICAL PDF PAGE 21：remaining within 160MB for a LLaMA-3-8B model in 1M context.",
+    "Block-Sparse 索引构建开销较高：PHYSICAL PDF PAGE 21：5%-15% and 25% of the total time for Vertical-Slash and Block-Sparse patterns, respectively."
+  ],
+  "uncertainties": [
+    "固定源码片段未包含 Vertical-Slash/Block-Sparse 索引构建器与 `search_pattern` 的完整实现，无法逐行核对算法与代码。",
+    "固定源码片段未包含完整实验脚本、逐任务配置、随机种子或方差，无法评估统计显著性。",
+    "缺少 batch>1、吞吐、多 GPU、H100 或采样解码下的数据，无法判断服务场景的外推性。",
+    "缺少参考样本和搜索空间敏感性的直接消融，只能依据论文声称的泛化性。",
+    "仓库中 vLLM 版本限制与 model2path 配置复用可能影响论文结论的可复现范围。"
+  ],
+  "target_execution": "not_run"
+}

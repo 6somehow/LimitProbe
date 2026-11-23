@@ -6,20 +6,26 @@ metric is **coverage of diagnosed limitations**: how many papers receive at leas
 usable diagnosis (core or partial). The shipped method is s7, a two-phase depth+breadth
 swarm (one gap worker plus one breadth pass, six candidates, 9-10 requests).
 
-| split | S s7 coverage | A api_once coverage |
-|---|---|---|
-| Dev (S dev-v18; A archived official grades) | **2 / 4** (NNSmith core, MInference partial) | 0 / 4 |
-| Test sample 1 (blind grader) | **4 / 4** (1 core + 3 partial) | 3 / 4 (2 core + 1 partial) |
-| Test sample 2 (blind grader) | **3 / 4** (1 core + 2 partial) | 2 / 4 (1 core + 1 partial) |
+| split | S s7 | A api_once | B single_agent |
+|---|---|---|---|
+| Dev (4) | **2 / 4** | 1 / 4 | 2 / 4 |
+| Test with source (4) | **4 / 4** | 3 / 4 | 2 / 4 |
+| Test paper-only (4) | 3 / 4 | **4 / 4** | 3 / 4 |
+| **All 12 (blind coverage)** | **9 / 12** | 8 / 12 | 7 / 12 |
 
-B `single_agent` covers 1/4 on Dev (MInference partial); C and D cover 0/4. A and a
-stronger 8-reply single agent re-run in this harness cover 0/4 on Dev.
+Test-with-source coverage is sample 1 of the s7 runs (sample 2: S 3/4 vs A 2/4; both
+samples favour S). On the strict holistic grader the overall ranking flips:
+A 7/12 > S 5/12 > B 1/12. The full per-paper matrix, cores and weighted scores are in
+[docs/full-matrix.md](docs/full-matrix.md); the coverage approach and sample-level test
+details are in [docs/coverage-primary.md](docs/coverage-primary.md) and
+[docs/test-results.md](docs/test-results.md).
 
-Coverage is the primary metric; core counts, weighted scores and paired outcomes are
-secondary ([docs/coverage-primary.md](docs/coverage-primary.md)). Two caveats are part of
-the result: the stricter holistic grader does not reproduce the coverage advantage (test
-sample 1 favours A, sample 2 ties), and the four test papers were inspected during prompt
-development, so the test numbers are post-hoc rather than a clean held-out estimate.
+All rows use the blind grader; B here is the same single-agent workflow with up to 8
+replies. Archived official A grades give 0/4 on Dev. C/D (archived) cover 0/4 on Dev.
+Two caveats are part of the result: the grader choice
+decides the overall ranking (blind coverage favours S by one paper; the strict grader
+favours A), and the test papers were inspected during prompt development, so the test
+numbers are post-hoc rather than a clean held-out estimate.
 
 Details: [docs/results.md](docs/results.md) · [docs/report.md](docs/report.md) ·
 [out/board.html](out/board.html).

@@ -1,0 +1,110 @@
+{
+  "paper_id": "prompt-cache",
+  "method_model": "Prompt Cache：用 PML schema 定义可复用的 prompt modules，预计算并缓存各模块的 KV attention states；推理时按 schema 位置 ID 拼接缓存，仅对未缓存文本执行 prefill。原型基于 HuggingFace transformers，支持 Llama2、Falcon、MPT、CodeLlama 等架构。",
+  "candidates": [
+    {
+      "id": "C1",
+      "title": "模块独立编码的注意力屏蔽使跨模块语义依赖任务可能退化",
+      "causal_argument": "Prompt Cache 对每个 prompt module 独立计算 KV，缓存中不包含该模块与其他模块 token 的相互注意力；拼接后相当于把 attention window 限制在模块内部。若下游问题需要跨文档、跨模块指代或多跳推理，缓存路径与全 prompt prefill 不等价，输出可能偏离 baseline。",
+      "conditions": "未启用 scaffolding；多个 module 语义依赖；任务需要跨 module 比较、检索或多跳推理；module 的组合或顺序与 schema 不同。",
+      "paper_evidence": {
+        "physical_page": 6,
+        "quote": "However, for semantically dependent modules, it can have the opposite effect."
+      },
+      "code_evidence": {
+        "file": "benchmark/utils.py",
+        "symbol": "XMLSchemaBuilder.add_document_module",
+        "excerpt": "module = SubElement(self.user, 'module', name=module_name)"
+      },
+      "counterevidence": "作者指出对语义独立模块，masking 可降低噪声并提升质量；Table 1 多数数据集与 baseline 接近，部分 cached 结果更高。因此退化并非所有任务都出现。",
+      "minimal_comparison": "在同一批跨模块 QA/retrieval prompt 上，分别用独立模块、scaffolding/联合编码和 KV baseline 运行并配对比较；若独立模块与联合编码无显著差异，或退化消失，则该候选被反证。"
+    },
+    {
+      "id": "C2",
+      "title": "schema 偏移位置 ID 与非连续位置假设可能改变模型看到的相对距离",
+      "causal_argument": "模块位置 ID 由 schema 中的绝对 offset 决定；当 prompt 只导入子集或跳过模块时，相邻导入模块之间保留 schema 的 gap。论文假设空白位置不改变语义，但模型实际接收到的是非连续 position IDs；RoPE/ALiBi 等对相对位置敏感，长 gap 可能改变 attention 分布和输出。",
+      "conditions": "导入子集或顺序与 schema 不同；被省略模块很长；模型使用 RoPE/ALiBi 且未重新映射为连续位置；长上下文任务。",
+      "paper_evidence": {
+        "physical_page": 6,
+        "quote": "The assigned position IDs do not start from zero. This is semantically acceptable since white spaces do not alter the meaning of the precomputed text."
+      },
+      "code_evidence": {
+        "file": "promptcache/schema.py",
+        "symbol": "Element.__init__",
+        "excerpt": "self.offset = offset"
+      },
+      "counterevidence": "论文的 empirical finding 是只要相对位置保持，质量不受影响；Table 1 多数结果接近 baseline，Figure 8 参数化示例输出质量相近。",
+      "minimal_comparison": "同一 token 序列分别使用连续 position IDs 和 schema-gap position IDs，固定解码并比较输出与准确率；若 gap 对输出无显著影响，则该候选被反证。"
+    },
+    {
+      "id": "C3",
+      "title": "冷启动与缓存填充成本可能被排除在 TTFT 之外",
+      "causal_argument": "模块首次出现时必须先编码并写入 host/device cache；若测量在 add_schema 或缓存填充之后开始，则报告的是热缓存 TTFT。低复用或大模块时，首次请求可能更慢，收益需按命中次数摊销。",
+      "conditions": "模块首次使用；复用次数少；模块较大；host-to-device 拷贝计入端到端；评测只计 process 之后的 prefill 时间。",
+      "paper_evidence": {
+        "physical_page": 6,
+        "quote": "The first time the attention states of a prompt module are needed, they must be computed and stored"
+      },
+      "code_evidence": {
+        "file": "demo.py",
+        "symbol": "main",
+        "excerpt": "cache_engine.add_schema(read_file(\"./examples/code_generation_game.xml\", preproc), max_tokens=800)"
+      },
+      "counterevidence": "论文明确目标为频繁复用的 prompt segments，冷启动成本可在多次请求中摊销；若 workload 复用率高，稳态 TTFT 仍有实际意义。",
+      "minimal_comparison": "测量首次请求包含 add_schema/上传的延迟、第二次及后续请求延迟，计算 break-even 复用次数，并与论文稳态 TTFT 比较；若首次成本可忽略，则该候选被反证。"
+    },
+    {
+      "id": "C4",
+      "title": "准确率评估代码使用 nucleus sampling，与论文的 deterministic greedy 声明不一致",
+      "causal_argument": "论文称每步取最高概率 token，但 eval_acc.py 的 GenerationParameters 设置 temperature=1.0、top_p=0.95、top_k=-1；TopPLogitsWarper 会按概率截断采样。cached 与 baseline 的输出差异可能来自随机采样，而非 Prompt Cache 本身。",
+      "conditions": "使用 eval_acc.py 生成 Table 1 类准确率结果；top_p=0.95 生效；没有固定种子或配对采样；比较单次输出。",
+      "paper_evidence": {
+        "physical_page": 8,
+        "quote": "We use deterministic sampling where the token with the highest probability is chosen at every step"
+      },
+      "code_evidence": {
+        "file": "eval_acc.py",
+        "symbol": "Eval.__init__",
+        "excerpt": "temperature=1.0, repetition_penalty=1.0, top_p=0.95, top_k=-1"
+      },
+      "counterevidence": "论文声明 deterministic，Table 1 可能来自另一条未提供的运行路径；且 top_p=0.95 仍较集中，若随机种子固定，影响可减小。",
+      "minimal_comparison": "用 greedy（temperature=0 或 top_p=1、top_k=1）重跑 Table 1，并用相同随机种子配对比较 cached 与 baseline；若结论不变，则该候选被反证。"
+    },
+    {
+      "id": "C5",
+      "title": "LongBench 代码为每个样本创建唯一 schema，未真正测试跨请求模块复用",
+      "causal_argument": "LongBench.init 用 item['_id'] 生成唯一 schema_name，并把该样本 context 放入单独 module；若每个 entry 只服务一次，模块不会被另一 prompt 复用。测得的 TTFT 主要是同一 prompt 的 context 预填充/热缓存，而非论文主张的跨不同 prompt 的 attention-state reuse。",
+      "conditions": "LongBench 评估按 entry 逐条运行；不同 entry 不复用同一 schema/module；TTFT 在 schema 编码后测量。",
+      "paper_evidence": {
+        "physical_page": 7,
+        "quote": "We defined the documents in the LongBench datasets, such as wiki pages and news articles, as prompt modules."
+      },
+      "code_evidence": {
+        "file": "benchmark/longbench.py",
+        "symbol": "LongBench.init",
+        "excerpt": "schema_name = f\"schema_{id}\""
+      },
+      "counterevidence": "若 CacheEngine 按内容去重，或 LongBench 中同一文档对应多个 _id/query，仍可能发生复用；代码摘录未展示完整运行循环，不能完全排除。",
+      "minimal_comparison": "构造同一 schema/module 被 N 个 query 复用的 workload，与每 query 唯一 schema 的 workload 对比 hit rate、首次/后续 TTFT；若唯一 schema 也有同等收益，则该候选被反证。"
+    }
+  ],
+  "known_boundaries": [
+    "PML/schema 前置：论文明确要求 prompt 必须从 schema 派生（p2 “must derive a prompt from a schema”），不能直接识别任意自由文本中的重叠片段。",
+    "首次模块编码与存储成本：模块首次出现必须先计算并存储 attention states（p6），方法主要适合高频复用段。",
+    "模块独立编码的 attention masking：语义依赖模块可能退化；scaffolding 可缓解但增加内存，且 Table 1 的准确率评估是 without scaffolding（p6、p8）。",
+    "仅降低 TTFT：prompt modules 不参与首 token 之后的解码，后续 token 生成复杂度与 KV Cache 相同（p6）；生成长输出时端到端收益递减。",
+    "内存容量与替换策略：Table 2 显示大模型每 token 缓存开销高；cache replacement/prefetching 明确留给未来工作（p7、p9）。",
+    "模型规模边界：实验使用可放入单块 40GB GPU 的模型（p7）；70B 等大模型的内存需求主要是外推，未做端到端验证。",
+    "批内共享与吞吐：p6 只讨论 Prompt Cache 可让更多 prompts 并行；原型生成接口为单序列，未评估 paged attention 共享指针的实际吞吐收益。",
+    "LongBench 准确率存在离群点：Table 1 中 Passage Retrieval 等出现明显下降（p9），但论文未用 scaffolding 做系统性消融。"
+  ],
+  "uncertainties": [
+    "未执行代码；eval.py 的完整计时循环与 add_schema 调用位置不在给定摘录中，无法确认冷启动成本是否被排除。",
+    "eval_acc.py 的 sampling 设置是否就是 Table 1 使用的路径，论文未在正文中绑定；需运行确认。",
+    "parameterized module 的 <unk> 替换是否重算下游 cached KV，摘录中不可见；Figure 8 只是定性输出对比。",
+    "LongBench 数据层面是否重复同一 context、CacheEngine 是否按内容去重，未在摘录中验证。",
+    "Table 1 的准确率离群点可能同时受 sampling、8-bit 量化、模型差异影响，不能单独归因于 attention masking。",
+    "host-to-device memcpy 与 KV 拼接开销是否计入论文报告的 TTFT，摘录不足以确认。"
+  ],
+  "target_execution": "not_run"
+}

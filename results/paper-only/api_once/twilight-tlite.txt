@@ -1,0 +1,224 @@
+{
+  "paper_id": "twilight-tlite",
+  "method_model": "Twilight/T-LITE：基于频率候选选择、DPF 元数据、行为聚类与推测式推理的神经网络 temporal prefetcher",
+  "candidates": [
+    {
+      "id": "C1",
+      "title": "有限 top-N 候选选择会截断宽后继分布",
+      "causal_argument": "频率候选选择把输出限制为每个 page 的 top-N 后继加 no-prefetch；当真实后继位于长尾或分布在阶段间变宽时，正确 page 不在候选集中，模型只能发 no-prefetch 或错误候选，降低 coverage 与最终 IPC。",
+      "conditions": "N 固定且较小；每 page 后继分布长尾或较宽；T-LITE 的 N=4 或 Twilight 的 N=20 不足；训练与在线阶段切换使候选表不完整。",
+      "paper_evidence": [
+        {
+          "page": "p. 8",
+          "quote": "cannot accommodate the wider successor distributions found in this benchmark."
+        },
+        {
+          "page": "p. 4",
+          "quote": "select from among the top- N most likely successors"
+        }
+      ],
+      "code_evidence": [],
+      "counterevidence": "p4 图2 称 N=20 时 93.2% cache lines / 92.7% pages 在 top-N 内；p11 称 Twilight 对候选分布预测接近真实，说明多数访问可能不受影响。",
+      "minimal_comparison": "在宽分布 trace（如 473.astar、SPEC 2006）上扫描 N=4/20/100 与全后继 oracle，在相近 metadata 或 latency 预算下比较 coverage/IPC；若增大 N 无显著收益，则该限制不成立。"
+    },
+    {
+      "id": "C2",
+      "title": "DPF 解耦乘积忽略历史项之间的条件依赖",
+      "causal_argument": "DPF 把联合历史分布近似为多个单页频率的乘积，丢弃 (X,Y,Z) 共同出现的交互信息；当后继由多个前驱联合决定或 access 顺序重要时，候选概率排序会偏差，T-LITE 只用 f(P,1) 时上下文更少。",
+      "conditions": "历史项强相关；PC 或最近页不足以区分；T-LITE 的 D=1 且只用 immediate page successor；irregular 访问中存在重复的联合模式。",
+      "paper_evidence": [
+        {
+          "page": "p. 5",
+          "quote": "DPF decouples the history and tracks f (X, 3), f (Y, 2) and f (Z, 1) separately"
+        },
+        {
+          "page": "p. 6",
+          "quote": "We feed in the raw DPF distributions to our neural models which learn the best weights to assign to each access."
+        }
+      ],
+      "code_evidence": [],
+      "counterevidence": "p11 称 Twilight closely predicts the true distribution of successor candidates；p4 也称神经网络能学到非平凡的 successor 分布，说明近似在报告工作负载上可能足够。",
+      "minimal_comparison": "在相同 64KB metadata 预算下比较 DPF 乘积、有限二阶联合或完整历史 oracle 的 accuracy/coverage/IPC；若联合模型无显著提升，则解耦近似误差不构成主要限制。"
+    },
+    {
+      "id": "C3",
+      "title": "推测式预测的零周期延迟模型可能高估时效性",
+      "causal_argument": "T-LITE 只在上一预取错误时计 29 cycle，上一预取正确时把本次预测延迟视为 0；真实系统中若 LLC 访问间隔小于预测延迟、存在多链并行或队列竞争，关键路径会暴露 29 cycle，从而降低 IPC，当前模型可能高估收益。",
+      "conditions": "高 IPC/MLP、LLC access spacing 小于 29 cycles、预取准确率不足、带宽或端口竞争；推测链依赖前序 prefetch 正确。",
+      "paper_evidence": [
+        {
+          "page": "p. 11",
+          "quote": "we model T-LITE to have a 29 cycle delay if the prior prefetch was incorrect and a 0 cycle delay otherwise."
+        },
+        {
+          "page": "p. 11",
+          "quote": "T-LITE’s latency is approximately 29 cycles."
+        }
+      ],
+      "code_evidence": [],
+      "counterevidence": "p11 称 T-LITE can have zero-cycle prefetch latency when the prior prefetch is correct as the latency between LLC accesses is larger than T-LITE’s prediction latency；p12 又称 29 cycle 与 Triage 的 20 cycle 接近。",
+      "minimal_comparison": "用固定每次 29-cycle 延迟，或加入真实队列与竞争模型重跑 T-LITE 对 Triage/Twilight；若 speedup 排名和幅度基本不变，则零周期假设不构成实质限制。"
+    },
+    {
+      "id": "C4",
+      "title": "T-LITE 的推理与 metadata 访问能耗可能超过预取节能",
+      "causal_argument": "T-LITE 在 LLC 访问路径上增加 DPF cache 读取和 int8 神经网络推理；即使这些操作降低 latency，频繁推理的能耗可能与预取减少的 DRAM stall 节能相抵或更大，使总能耗上升。",
+      "conditions": "能量受限或能效目标系统；LLC 访问频繁；预取主要提升 IPC 而未显著降低 DRAM 能量；缺少 energy-aware 触发。",
+      "paper_evidence": [
+        {
+          "page": "p. 13",
+          "quote": "inference would cost more energy than the savings provided by superior prefetching."
+        }
+      ],
+      "code_evidence": [],
+      "counterevidence": "p12 报告 T-LITE 相对 Triage 的 speedup 与更小 storage（20.7% vs 14.8%，0.8MB vs 1MB），说明性能与面积收益存在；但论文未给能耗数值，不能抵消该定性边界。",
+      "minimal_comparison": "加入 DPF cache 与 int8 MAC 的能耗模型，比较 T-LITE、Triage、no-prefetch 的 total energy 或 energy-delay product；若 T-LITE 净能耗更低，则该限制不成立。"
+    },
+    {
+      "id": "C5",
+      "title": "行为聚类与运行时 page-to-cluster 映射是域依赖近似",
+      "causal_argument": "T-LITE 用离线 k-means 固定 cluster，并在运行时按 offset transition 相似度映射未见 page；当新程序或输入域的页行为不被训练 cluster 覆盖，或访问数不足以估计 transition 时，page 会被分到错误 cluster，导致候选与 offset 预测退化。",
+      "conditions": "跨程序或跨输入域；冷 page；少访问；固定 cluster 数不足；offset transition 与训练域差异大。",
+      "paper_evidence": [
+        {
+          "page": "p. 13",
+          "quote": "Figure 18 shows low top-1 page-to-cluster mapping accuracy for GAP"
+        },
+        {
+          "page": "p. 12",
+          "quote": "The mapping accuracy increases with each access to the page and for SPEC 2006, the accuracy reaches 95.6% at 250 accesses."
+        }
+      ],
+      "code_evidence": [],
+      "counterevidence": "p13 报告即使映射非最佳，相似 offset transition 仍可工作：T-LITE-Transfer 达到 fine-tune 的 94% 并显著超过 Triage。",
+      "minimal_comparison": "在跨域 GAP 或新程序上比较动态映射、oracle page-to-cluster 映射、per-page embedding fine-tune 的 coverage/IPC；若 oracle 映射无显著增益，则该近似不是主要限制。"
+    },
+    {
+      "id": "C6",
+      "title": "工作负载筛选、合成 GAP 图与缺失依赖信息限制外部有效性",
+      "causal_argument": "主要 IPC 结论来自按“理想 temporal prefetcher 提升 >5% IPC”筛出的 irregular 子集和 synthetic GAP 图；Google traces 又因缺 memory dependence 只用 CloudSuite 统计并仅评 accuracy/coverage，因此对未筛选程序、真实图和真实 server 执行，speedup 与能耗结论可能偏乐观或无法外推。",
+      "conditions": "未按理想 prefetcher 筛选的完整套件；真实 GAP 图；带 memory dependence 的生产 traces；server IPC 或 energy 结论。",
+      "paper_evidence": [
+        {
+          "page": "p. 7",
+          "quote": "we select workloads that have >5% IPC improvement with an idealized temporal prefetcher"
+        },
+        {
+          "page": "p. 7",
+          "quote": "The memory dependence information is unavailable"
+        },
+        {
+          "page": "p. 7",
+          "quote": "we only evaluate prefetcher accuracy and coverage for these workloads"
+        }
+      ],
+      "code_evidence": [],
+      "counterevidence": "评测覆盖 SPEC 2006/2017/GAP，且 By evaluating about 4× the number of instructions evaluated by V oyager（p7）；跨域 GAP transfer 也显著超过 Triage（p13），说明并非完全过拟合。",
+      "minimal_comparison": "在完整套件、真实图和带依赖信息的 server traces 上重跑，比较 Twilight/T-LITE 相对 Voyager/Triage 的排名与收益；若保持，则外部有效性限制不关键。"
+    }
+  ],
+  "known_boundaries": [
+    {
+      "kind": "author-disclosed",
+      "boundary": "Twilight 仍非实用系统，论文只把 T-LITE 推进到更接近可部署。",
+      "paper_evidence": [
+        {
+          "page": "p. 1",
+          "quote": "While Twilight is still not practical"
+        }
+      ]
+    },
+    {
+      "kind": "author-disclosed",
+      "boundary": "T-LITE 虽在 latency/storage 上可行，但推理能耗可能高于预取节能。",
+      "paper_evidence": [
+        {
+          "page": "p. 13",
+          "quote": "inference would cost more energy than the savings provided by superior prefetching."
+        }
+      ]
+    },
+    {
+      "kind": "author-disclosed",
+      "boundary": "T-LITE 仍受训练程序约束，并需要大量有代表性的离线训练数据。",
+      "paper_evidence": [
+        {
+          "page": "p. 13",
+          "quote": "it’s still constrained to the program it was trained on"
+        }
+      ]
+    },
+    {
+      "kind": "author-disclosed",
+      "boundary": "T-LITE 以 N=4 和仅 f(P,1) 压缩 metadata，明确用 coverage 换 storage/latency。",
+      "paper_evidence": [
+        {
+          "page": "p. 11",
+          "quote": "T-LITE reduces the number of possible successors from N = 20 to N = 4"
+        },
+        {
+          "page": "p. 11",
+          "quote": "reducing the number of metadata entries by two-thirds."
+        }
+      ]
+    },
+    {
+      "kind": "method-hypothesis",
+      "boundary": "DPF 以解耦的历史频率乘积近似联合分布。",
+      "paper_evidence": [
+        {
+          "page": "p. 5",
+          "quote": "DPF decouples the history and tracks f (X, 3), f (Y, 2) and f (Z, 1) separately"
+        }
+      ]
+    },
+    {
+      "kind": "author-disclosed",
+      "boundary": "Twilight 与 Voyager 都不能在运行中可行地在线训练，论文改用离线训练模拟 staged deployment。",
+      "paper_evidence": [
+        {
+          "page": "p. 7",
+          "quote": "since neither V oyager nor Twilight can feasibly train online"
+        }
+      ]
+    },
+    {
+      "kind": "evaluation-boundary",
+      "boundary": "非神经 temporal baseline 在理想化比较中不模拟延迟、存储与 off-chip metadata traffic；Google traces 只评 accuracy/coverage。",
+      "paper_evidence": [
+        {
+          "page": "p. 7",
+          "quote": "we do not simulate prediction latency, storage cost, or off-chip metadata trafﬁc."
+        },
+        {
+          "page": "p. 7",
+          "quote": "we only evaluate prefetcher accuracy and coverage for these workloads"
+        }
+      ]
+    },
+    {
+      "kind": "implementation-model-untested",
+      "boundary": "T-LITE 的在线 metadata 受 64KB、8-way LRU 的 DPF cache 容量限制；给定文本未报告该 cache 的 miss/eviction 敏感度。",
+      "paper_evidence": [
+        {
+          "page": "p. 11",
+          "quote": "T-LITE stores its DPF metadata in an on-chip metadata cache separate from the LLC"
+        },
+        {
+          "page": "p. 11",
+          "quote": "8-way, set-associative cache using LRU replacement."
+        }
+      ]
+    }
+  ],
+  "uncertainties": [
+    "无作者仓库或 commit；无法核验神经网络实现、DPF cache、ChampSim 修改与量化流程，所有实现性结论均未运行验证。",
+    "DPF cache 的 miss/eviction 率及其对 coverage/IPC 的敏感度未在给定文本中报告。",
+    "T-LITE 的能耗只有定性陈述，没有 total energy 或 energy-delay product 数值。",
+    "Twilight/T-LITE 的离线训练时间、算力与所需 trace 量未在给定文本中量化。",
+    "跨程序 zero-shot 与生产 server 输入下的 IPC 未验证；Google traces 缺 memory dependence，仅报告 accuracy/coverage。",
+    "零周期推测延迟模型对高 MLP 或短 LLC access interval 的敏感度未量化。",
+    "GAP 主结果使用 synthetic graphs，真实图输入下的表现主要来自范围有限的跨域 transfer 实验。"
+  ],
+  "target_execution": "not_run"
+}

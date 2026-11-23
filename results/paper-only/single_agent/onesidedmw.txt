@@ -1,0 +1,271 @@
+{
+  "paper_id": "onesidedmw",
+  "method_model": {
+    "objective": "在 disaggregated memory（DM）中提供细粒度、单边、强隔离的远端内存分配/释放原语：CN 通过 RNIC offload 的 WR chain 触发 MW bind/unbind，绕开 MN 弱 CPU，同时保留 one-sided RDMA 的访问延迟和 type-2 MW 的隔离性，使 swap 系统与 disaggregated KVS 能以更低开销获得更高内存利用率。",
+    "mechanism": "MN 启动时注册全部内存并切成固定大小的 chunk，为每个 chunk 预分配一个 type-2 MW group，维护 MWTable 与一个全局 circular free-MW queue。CN 向 Alloc QP 发 SEND；MN RNIC 执行预置 WR chain：FAA 取 queue Head、READ queue entry、READ MWTable entry、对 group 内每个 MW 执行 BIND_MW（第一个绑定到 Free QP，其余绑定到 CN 指定的 Access QP）、最后 WRITE 元数据回 CN。释放走 Free QP 的 WR chain：READ entry、UNBIND MW、FAA Tail 并把 entry 插回队列。QP/MW grouping 让同一 chunk 可被多个 Access QP 访问；Management-Access QP Separation 让只有少量 management QP 带 offload 逻辑。",
+    "assumptions": [
+      "MN 可信，CN 可能被攻破且相互不信任；CN 只能通过自己的 QP 发分配/释放请求或做 one-sided RDMA。",
+      "type-2 MW 硬件上只能被执行 bind 的 QP 访问/解绑，因此 exclusive assignment 能提供强隔离。",
+      "内存分配是 control-path 操作，频率远低于内存访问，所以少量 management QP 足够。",
+      "全局 free MW queue 与 MWTable 是正确共享元数据；空队列可由 null slot 触发的 protection error 检测，并由 MN CPU 广播/轮询修复。",
+      "MN 初始化时选定的单一 chunk size 与部署的 allocation granularity 匹配；一个 MN 主要服务一类 DM 系统。",
+      "一个 chunk 同时只归一个 CN；跨 CN 的 key 访问可用 key-space partitioning 解决。"
+    ],
+    "evaluation_scope": "1 个 MN + 6 个 CN，100 Gbps Mellanox ConnectX-5 IB RNIC，MN 224 GB DRAM，MN 只用 1 个 CPU core 模拟弱 CPU；swap 用 1 MB chunk、MW group size 3；KVS 用 16 KB chunk（e.g.）、size classes、MW group size 2；KVS 端到端用单 CN 24 threads，6-CN 扩展性用 insert-only；swap 扩展性用 48 个 Kmeans 任务；没有在同一 MN 上混跑 swap+KVS，没有耗尽 free queue、CN 崩溃、恶意 CN 或跨 CN 读的实验。"
+  },
+  "candidates": [
+    {
+      "id": "H1",
+      "stage": "sharing",
+      "title": "空 free-MW 队列的 FAA 头指针没有回滚：首次耗尽后，已释放条目可能落在 Head 之后，只有回绕或未说明的全局 reset 才能恢复",
+      "kind": "method_hypothesis",
+      "claim": "分配路径用无条件 FAA 推进全局 Head，再用空槽的 null 触发 protection error 来发现队列为空；论文只描述 MN CPU 广播和轮询 Tail，没有描述把 Head 回滚或重置到 Tail。若没有回滚，第一次空队列事件后 Head != Tail，新释放的条目写在 Tail 处、位于 Head 之后，后续分配读到的仍是 null 并继续推进 Head，形成“有内存却分配不到”的停止态；恢复要么等 Head 绕队列一整圈，要么由 MN CPU 做一次需要所有 CN 停止分配的全局 reset。报告的吞吐/利用率从未把池耗尽，因此测不到这个停止规则。",
+      "rule": "每次分配先对全局 free MW queue 的 Head 做一次无条件 MaskedFAA（Figure 5 WR2），再用返回的 masked index 读取槽位（WR3）；空槽的 null 触发后续 READ 的 RDMA protection error，以此作为“队列为空”的停止信号。释放路径对 Tail 做 FAA 并把 entry 写回队列（§4.3）。论文没有给出 Head 的回滚、Head=Tail 的重置或 epoch/version 机制。",
+      "trigger": "MN 远端内存池被耗尽（所有 chunk 已分配），随后有 CN 释放至少一个 chunk；或多个 CN 在池接近满时并发分配/释放。",
+      "mitigation": "论文描述的缓解只有：MN CPU 收到 protection error 后向所有 CN 广播 empty 状态，并轮询 Tail；论文没有描述 Head 的回滚、Head=Tail 的重置、或让一个失败分配不消耗 Head 的机制。",
+      "consequence": "如果 Head 没有回滚，首次空队列事件后 Head != Tail，释放的条目位于 Head 之后；后续分配读到 null、继续推进 Head，形成“有 free chunk 但分配不到”的停止态。恢复要么等 Head 绕队列容量一圈，要么由 MN CPU 做一次需要所有 CN 停止分配的全局 reset；后者把弱 MN CPU 重新放回内存压力路径。论文报告的吞吐/利用率从未把池耗尽（48 个 Kmeans 任务 × 2 GB × 50% = 48 GB remote，KVS 约 1 GB，均远小于 224 GB），所以测不到这个停止规则。",
+      "causal_argument": "Producer（p.7-8, §4.3, Figure 5）：WR2 对全局 Head 做 FAA（add 8），WR3 读取返回的 masked index 对应槽位；槽位被之前的分配 WRITE 清零，因此空队列检测就是“读到 null”。Consumer（p.8, §4.3 “Detecting empty free MW queue”）：null 使后续 READ 触发 protection error，MN CPU 被通知并向所有 CN 广播 empty，然后轮询 Tail，释放操作补充队列后再广播 available。释放链在 p.8 写明：“performs a FAA operation on the tail pointer of the free MW queue and inserts the released entry back into the free MW queue”。Witness counts：candidates_considered = 全局队列中所有 free entry（每个分配请求都从同一个队列取）；candidates_kept = 1 个 entry/请求；replay_count = 1（entry 被分配链读取一次）。空路径上 FAA 仍保留一个 Head 槽位但没有有效 entry，相当于 phantom witness；释放条目不会被下一次分配 replay，因为下一次分配读的是已经推进的 Head。前提：Head==Tail 表示空，下一次分配会看到刚释放的 entry。变换：一次空分配把 Head 推进一格但不带 entry。被破坏的前提：失败后 Head != Tail，释放的 slot 不在 Head 处。后果：下一次分配仍读 null 并继续推进 Head，池看起来仍不可用；恢复需要 O(capacity) 次失败分配让 Head 回绕，或需要一次未说明的 MN CPU 全局 reset（Head=Tail），而 Head 是跨 CN 共享的，reset 必须让所有 CN 停止分配。",
+      "conditions": [
+        "free MW queue 变空（所有 chunk 已分配），例如 MN 内存超卖、租户突发或分配泄漏",
+        "在队列被消费的同时有 chunk 被释放",
+        "多个 CN 并发分配，因此任何 Head 重置都必须全局串行化",
+        "MN 只有 1 个弱 CPU core，empty/available 广播与轮询都在它上面"
+      ],
+      "paper_evidence": [
+        {
+          "page": 7,
+          "quote": "The chain then allocates a queue element from the free MW queue by performing a fetch-and-add (FAA) WR on the queue head (❷), and reads the address of the corresponding MWTable entry from the allocated queue element (❸)."
+        },
+        {
+          "page": 8,
+          "quote": "Finally, the WR chain performs a FAA operation on the tail pointer of the free MW queue and inserts the released entry back into the free MW queue."
+        },
+        {
+          "page": 8,
+          "quote": "Detecting empty free MW queue. We include a WRITE WR in the memory allocation WR chain to zero out the allocated queue element."
+        },
+        {
+          "page": 8,
+          "quote": "When the first allocation attempt occurs on an empty free MW queue, it will encounter a null pointer, triggering an RDMA protection error during subsequent WR execution. This error notifies theMN CPU, which then broadcasts the empty free MW queue state to all CNs."
+        },
+        {
+          "page": 8,
+          "quote": "Then the MN CPU continuously checks the tail pointer of the free MW queue. Once a series of memory free operations replenish the free MW queue, the MN CPU broadcasts to all CNs, signaling that free MWs are available again."
+        },
+        {
+          "page": 10,
+          "quote": "In this section, we analyze the scalability of OneSidedMW by increasing the number of worker threads running on 6 CNs, using an insert-only workload, until peak throughput is reached."
+        },
+        {
+          "page": 10,
+          "quote": "With 8 KB and 4 KB allocation sizes, OneSidedMW achieves 80.2% and 63.8% of Static-MR's peak throughput, respectively"
+        }
+      ],
+      "code_evidence": [],
+      "counterevidence": [
+        "MN CPU 可以在广播 empty 时把 Head 重置为 Tail；论文没有写，但广播本身可以作为“所有 CN 停止分配”的全局屏障，使 reset 无竞态。若如此，H1 退化为“恢复需要一次 MN CPU 全局 stop-the-world”，而不是永久丢失条目。",
+        "MaskedFAA 可能在实现中对空槽不推进 Head，或队列用额外的 occupancy counter/epoch 而不是裸 Head/Tail；论文没有给出这部分伪代码。",
+        "论文的所有工作负载都远未耗尽 224 GB（48 GB swap remote、约 1 GB KVS），空路径可能已在作者代码中测试但未写入论文；因此“论文未测”不等于“实现有 bug”。",
+        "即使条目被落在 Head 之后，Head 绕队列一圈后仍可能重新看到它；后果是恢复延迟而非永久丢失。"
+      ],
+      "minimal_comparison": {
+        "fixed": [
+          "同一个 MN、6 个 CN、相同的 chunk size 与 RNIC",
+          "同一个工作负载与相同的 1 个 MN CPU core"
+        ],
+        "vary": "先把 free queue 耗尽（分配完所有 chunk），释放 1 个 chunk 后立即请求 1 次分配；对照是队列始终至少有 1 个 free entry 的同一序列",
+        "baseline": "论文实际评估的“池从不耗尽”条件（48 GB / 224 GB）",
+        "observable": "释放后的第一次分配是否一次成功；成功前出现多少次 protection error / 多少次 Head 推进；MN CPU 在 empty/available 广播路径上的时间",
+        "refuted_if": "释放 1 个 chunk 后第一次分配即成功且没有 protection error；或论文/源码明确给出空队列时 Head=Tail 的无竞态 reset"
+      },
+      "disclosure": "论文把空队列检测/广播当作特性描述（p.8），并说 MN CPU 会轮询 Tail 直到释放补充队列；没有披露 Head 是否需要回滚、reset 的全局停摆成本，也没有任何耗尽实验。",
+      "status": "hypothesis_not_executed",
+      "remaining_gap": "没有作者仓库，无法查看 WR chain 状态机或 RNIC 错误处理是否回滚 Head；需要实际耗尽队列的执行或硬件/驱动源码才能确认。"
+    },
+    {
+      "id": "H2",
+      "stage": "admission",
+      "title": "每个 CN 只有 1 个 Alloc QP，且 QP 内按序执行；“分配是低频 control path”的前提在最细粒度处最弱，而 10.6×/80.2% 的头部结果用的是 4–8 KB 分配",
+      "kind": "method_hypothesis",
+      "claim": "一个 CN 的所有分配请求都走同一个 Alloc QP，而同一 QP 内的 RDMA 请求由 RNIC 按序处理。设计假设分配频率远低于访问频率，但 KVS 每次 insert 都要从 size class 分配一块内存；size class 越小，单位字节的分配请求越多。论文自己的数据已显示开销从 4 KB 的 8.73% 升到 2 KB 的 18.4%，而 6-CN 扩展性和“up to 10.6×”使用的是 4–8 KB 分配、1 KB value；256 B value / 512 B allocation 只出现在 Figure 6 的图中，正文没有量化其开销。因此“细粒度分配且吞吐代价很小”的目标是在比最细支持粒度粗 4–8 倍的条件下被验证的。",
+      "rule": "每个 CN 建立 1 个 Alloc QP 和 1 个 Free QP；所有分配 SEND 进入同一 Alloc QP，RNIC 对 QP 内 WR 按序执行；Management-Access QP Separation 只减少带 offload 逻辑的 QP 数量，不增加分配 QP 的并行度。",
+      "trigger": "小 value（256 B–1 KB）、每次 insert 一次分配、24–48 个 CN 线程同时分配、size class 为 512 B–2 KB 的高分配率负载；删除 90% 后的再插入还会同时压 Free QP。",
+      "mitigation": "论文的缓解是“少量 management QP 足够”的设计前提，以及把 Access QP 与 management QP 分离；没有描述每个 CN 使用多个 Alloc QP、按 size class/线程分片分配、或分配请求批处理。",
+      "consequence": "单个 Alloc QP 成为每 CN 分配吞吐的上限；分配延迟在 24 threads 下从 10.7 µs 升到 22.5 µs。随着 size class 变小，吞吐相对 Static-MR 的 overhead 继续上升，而论文的 80.2%/63.8% 只覆盖 8 KB/4 KB；10.6× 是相对 RPC-MW，不是相对 Static-MR（论文明确说 Static-MR 在所有场景吞吐最高）。",
+      "causal_argument": "Producer：每次 insert 向唯一 Alloc QP post 一个 SEND；该 QP 上的 offloaded WR chain 是唯一的 admission 路径。Consumer：p.6 明确“RDMA access requests within a single QP are processed in order by the RNIC processing units”，因此同一 QP 上的分配链彼此排队；p.9 的 §5.1/§5.2 都写“each CN establishes an Alloc QP and a Free QP connection”，即实现上是 1 个 Alloc QP/CN。Witness counts：candidates_considered = 该 CN 所有待处理分配请求；candidates_kept = 每个 Alloc QP 同一时刻承载一条按序 WR chain；replay_count = 1/请求（链只执行一次，没有按线程/大小类重排或多 QP 分流）。前提：分配频率 << 访问频率。变换：size class 从 8 KB 降到 512 B，单位 KV 操作的分配次数增加 4–8 倍。被破坏的前提：单一 management QP 不再是可忽略的 control path。后果：分配链排队，吞吐 overhead 随粒度变细而上升；论文的头部数字没有覆盖这个区间。",
+      "conditions": [
+        "256 B–1 KB value，且每次 insert 都分配",
+        "每 CN 24–48 threads，全部竞争同一个 Alloc QP",
+        "512 B–2 KB 的细 size class",
+        "delete 90% 后的高 churn，Free QP 也同时繁忙"
+      ],
+      "paper_evidence": [
+        {
+          "page": 6,
+          "quote": "RDMA access requests within a single QP are processed in order by the RNIC processing units."
+        },
+        {
+          "page": 7,
+          "quote": "To address this challenge, we make a key observation that memory allocation, as a control path operation, occurs less frequently than memory access operations. Therefore, a small number of memory management QPs can adequately serve each CN's needs."
+        },
+        {
+          "page": 9,
+          "quote": "each CN establishes an Alloc QP and a Free QP connection with the MN"
+        },
+        {
+          "page": 9,
+          "quote": "We run the workload using 24 threads on a single CN."
+        },
+        {
+          "page": 10,
+          "quote": "in the insert-only workload with 1 KB value size, OneSidedMW with 4 KB allocation size achieves a 65.6% deallocation rate while incurring only an 8.73% throughput overhead. With 2 KB allocation size, it saves 81.1% of MN memory at the cost of 18.4% throughput overhead."
+        },
+        {
+          "page": 10,
+          "quote": "With 8 KB and 4 KB allocation sizes, OneSidedMW achieves 80.2% and 63.8% of Static-MR's peak throughput, respectively"
+        }
+      ],
+      "code_evidence": [],
+      "counterevidence": [
+        "2 KB 的 18.4% 仍远好于 RPC-MW(type-2) 在 2 KB 时只有 Static-MR 33.9% 的吞吐；即使开销上升，OneSidedMW 仍是最优的细粒度方案。",
+        "论文声称“As allocation granularity decreases, OneSidedMW consistently sustains high throughput”，并给出了 2 KB 数据点；512 B 点可能在 Figure 6 中存在且可接受，只是正文没有引用具体数值。",
+        "同一 QP 内虽然按序，但多个未完成的分配 SEND 可以在 RNIC 中流水化，单 QP 不一定把整条 WR chain 串行到端到端。",
+        "4–8 KB 分配对应 1 KB value 是论文认为的代表性真实负载；512 B 分配更像压力测试，而非部署常态。"
+      ],
+      "minimal_comparison": {
+        "fixed": [
+          "单 CN、24 threads、1 KB value、同一 OneSidedMW 实现与 RNIC",
+          "同一 KVS 工作量与同一 Static-MR baseline"
+        ],
+        "vary": "allocation granularity 8 KB vs 512 B（等价于每个 KV 操作的分配请求数变化 4–8 倍）；可再加一个“每 CN 2 个 Alloc QP”变体",
+        "baseline": "Static-MR（16 MB 分配）以及论文的 4 KB 配置",
+        "observable": "相对 Static-MR 的吞吐、P99 分配延迟、Alloc QP backlog/queue depth",
+        "refuted_if": "512 B 的吞吐 overhead 与 4 KB 在统计上无差别；或增加第二个 Alloc QP 后 gap 消失（后者反而证明单 QP 前提是原因）"
+      },
+      "disclosure": "论文披露了“分配是低频 control path”的假设、每 CN 一个 Alloc/Free QP、以及 4 KB→2 KB 时 overhead 从 8.73% 升到 18.4%；没有讨论 512 B/256 B 的 overhead，也没有讨论单 Alloc QP 的吞吐上限。",
+      "status": "hypothesis_not_executed",
+      "remaining_gap": "Figure 6 的 256 B/512 B 点是图形，提取文本无法读出精确吞吐；没有源码无法测试第二 Alloc QP 或分配批处理。"
+    },
+    {
+      "id": "H3",
+      "stage": "evaluation",
+      "title": "6-CN、10.6× 的 KVS 结果是 insert-only 且均匀 key；key-access 限制把单个 hot key 的读吞吐限制在一个 CN/QP group 上，聚合指标从不改变 key skew",
+      "kind": "method_hypothesis",
+      "claim": "由于一个 chunk/MW group 同时只归一个 CN，一个 key 只能从拥有其 chunk 的 CN 读取。6-CN 扩展性实验是 insert-only；唯一含读的 50% read/50% insert 实验只在单 CN、24 threads 上跑。论文提出的 key-space partitioning 让每个 key 单宿，因此 hot key 的读吞吐和尾延迟被一个 CN 的 Access QP group（KVS 中 MW group size = 2）限制，CN 故障/过载也不能由另一个 CN 接管。报告的 10.6× 和 80.2%/63.8% 没有覆盖读扩展或 key skew。",
+      "rule": "type-2 MW 在 bind 时独占分配给特定 Access QP；一个 chunk 的 MW group 同时只属于一个 CN；跨 CN 读只能通过 key-space partitioning 把 key 固定到一个 CN（以及该 CN 的一个 QP group）。",
+      "trigger": "读密集或 Zipf 偏斜负载；某个 hot key/range 的请求量超过一个 CN 的一个 QP group 的服务能力；或该 CN 过载/故障。",
+      "mitigation": "论文的缓解是 key-space partitioning（引 Dinomo），把 key 空间分给不同 CN 以避免元数据一致性问题；没有描述只读副本、跨 CN MW 共享、hot key 复制或请求转发。",
+      "consequence": "均匀 key 下增加 CN 可以分走 key 空间、聚合吞吐仍可扩展；但 hot key 的 per-key 吞吐与 P99 不随 CN 数增加，且 10.6× 是 insert-only（无读）结果。论文的聚合吞吐指标不区分 hot/cold key，因此看不到这个 per-key ceiling；对读密集 KVS，报告的扩展性高估了实际可服务的读吞吐。",
+      "causal_argument": "Producer：分配时 BIND_MW 把 group 内每个 MW 分配给一个 Access QP（p.7, §4.1），type-2 硬件拒绝其他 QP 的访问（p.6）。Consumer：每次读必须使用 owner CN 的对应 QP 与该 MW 的 rkey；key-space partitioning 把 key 固定到一个 CN。Witness counts：candidates_considered = 一个 key 的 owner CN/QP group（只有 1 个）；candidates_kept = 1 个 owner CN 和 G 个 MW（KVS G=2）；replay_count = 1/读（每次读都走同一 owner 的 QP group，没有第二副本可重放）。前提：key 分布均匀、每个 CN 分到的 key 足够多。变换：Zipf 0.99 或单一 hot key 把读集中到一个 key/chunk/2 个 QP。被破坏的前提：增加 CN 可以线性提升任意 key 的读吞吐。后果：hot key 的 per-key 吞吐和 P99 被一个 CN 限制；除非复制/只读共享，否则多 CN 不能帮助 hot key，而复制会违反 type-2 独占性。",
+      "conditions": [
+        "读密集或混合读写，且 key 分布偏斜（Zipf）或存在 hot key",
+        "多 CN KVS，客户端可以把读发给任意 CN",
+        "key 的 home CN 或其 QP group 过载/故障",
+        "需要跨 CN 的只读副本或负载均衡"
+      ],
+      "paper_evidence": [
+        {
+          "page": 6,
+          "quote": "a type-2 MW can only be accessed or unbound through the specific QP that originally performed its binding operation."
+        },
+        {
+          "page": 9,
+          "quote": "We run the workload using 24 threads on a single CN."
+        },
+        {
+          "page": 9,
+          "quote": "a YCSB-D-like trace that performs a mix of 50% reads and 50% inserts, followed by randomly deleting 90% of the inserted keys."
+        },
+        {
+          "page": 10,
+          "quote": "In this section, we analyze the scalability of OneSidedMW by increasing the number of worker threads running on 6 CNs, using an insert-only workload, until peak throughput is reached."
+        },
+        {
+          "page": 10,
+          "quote": "Compared to RPC-MW, OneSidedMW lowers P99 tail latency by up to 97.7% and achieves up to 10.6× higher throughput."
+        },
+        {
+          "page": 13,
+          "quote": "Our design only allows each memory chunk and its MW group to be accessed by one CN at a time. As a result, in a disaggregated KVS, queries to a given key can only originate from a single CN."
+        },
+        {
+          "page": 9,
+          "quote": "We set the MW group size to 2, which is sufficient for KV operations."
+        }
+      ],
+      "code_evidence": [],
+      "counterevidence": [
+        "论文在 §7 明确披露了单 CN key-access 限制并给出 key-space partitioning 的缓解；partitioned KVS 是合法设计，均匀 key 下聚合吞吐仍可随 CN 数扩展。",
+        "单 CN 的 50% read 实验仍然覆盖了读路径，只是没有覆盖跨 CN 读；10.6× 讲的是分配/吞吐，不是读扩展。",
+        "论文的贡献是内存管理而非 KVS 复制；多 CN 只读共享可能超出其目标范围。",
+        "KVS 的 MW group size 为 2，意味着一个 hot key 仍有 2 个 QP 可访问；限制是“一个 CN 的两个 QP”，不是字面上的一个 QP。"
+      ],
+      "minimal_comparison": {
+        "fixed": [
+          "6 CN、1 KB value、同一 RACE hashing 集成、同一总内存、24–48 threads/CN",
+          "同一客户端路由与同一 key-space partitioning"
+        ],
+        "vary": "key 分布 uniform vs Zipf 0.99；read:write 50:50 vs insert-only；可再加一个 hot-key 复制开关（若允许）",
+        "baseline": "论文的 6-CN insert-only uniform 扩展性实验",
+        "observable": "聚合吞吐、top 0.1% hot key 的 per-key 吞吐与 P99、随 CN 数增加的斜率",
+        "refuted_if": "hot key 的 per-key 吞吐随 CN 数线性增长（需要只读共享/复制，而 type-2 独占性禁止）；或 partitioned 部署在 Zipf 下没有 hot-key 惩罚"
+      },
+      "disclosure": "论文披露了“一个 chunk/MW group 同时只被一个 CN 访问、KVS 中一个 key 的查询只能来自一个 CN”，并提出 key-space partitioning；6-CN 测试是 insert-only 也在 §6.1.2 明确写出。没有讨论 hot key/skew 的 per-key ceiling，也没有讨论 QP group 级别的 pinned 访问。",
+      "status": "hypothesis_not_executed",
+      "remaining_gap": "没有实验改变 key skew 或跨 CN 读路由；论文没有说明客户端读请求如何路由到 key 的 home CN，per-key ceiling 是从 ownership 规则推断的。"
+    },
+    {
+      "id": "H4",
+      "stage": "representation",
+      "title": "chunk size 在 MN 初始化时一次性固定：同一 MN 无法按混合 swap+KVS 负载调整粒度，报告的利用率只来自各自单独调参的部署",
+      "kind": "method_hypothesis",
+      "claim": "MN 启动时注册全部内存并切成单一配置大小的 chunk，为每个 chunk 预分配 MW group，MWTable 与 free queue 的布局也随之固定。swap 用 1 MB chunk，KVS 用 16 KB chunk，两组评估跑在不同部署上。由于 chunk size（以及 MW 数量、MWTable 大小、free queue 容量）在 MN 生命周期内固定，一个共享 MN 同时服务两类负载时，要么选一个粒度、让另一类严重内部碎片化，要么在初始化时静态分成多个 pool。论文的“flexible allocation granularity”覆盖的是 I/O 大小和按部署配置，不是运行时自适应或多租户混跑；没有在同一 MN 上混跑 swap+KVS 的实验。",
+      "rule": "初始化时把整个 MN 按单一 chunk size S 切分；每个 chunk 预分配 G 个 MW；所有分配、bind、free 都以 S 为单位，CN 的 size class 只能在 chunk 内细分，MN 的回收粒度仍是 S。",
+      "trigger": "同一个 MN 同时服务以 4 KB 页为单位的 swap 和以 256 B–1 KB value 为单位的 KVS；或工作负载 mix 随时间变化，需要改变分配粒度。",
+      "mitigation": "论文没有运行时重新分块或动态 pool 的机制；实际可用的缓解是部署时静态分区（为每类负载分一块 MN 内存），但这会牺牲 pooling 的弹性。",
+      "consequence": "单一 S 无法同时优化两类负载：1 MB chunk 对 1 KB value 的 KVS 会产生严重的 chunk 内碎片/回收粒度问题，16 KB chunk 对 swap 则增加 MW 数量与元数据开销。报告的 >90% / 1.54–2.38× 利用率只在每类负载单独选 S 时成立；混合部署的聚合利用率与吞吐未被指标覆盖。",
+      "causal_argument": "Producer：p.9 §5 的初始化把全部内存按 configurable size 切块并为每块预分配 MW group；p.9 §5.1 用 1 MB，p.9 §5.2 用 16 KB。Consumer：每次分配/绑定/释放都以 S 为单位，CN 的 size class 只改变 chunk 内的切分，MN 回收仍以 S 为粒度。Witness counts：candidates_considered = 整个 MN 按单一 S 切出的所有 chunk；candidates_kept = 1 个 chunk/分配；replay_count = 0（初始化后不再重新分块，也没有第二个 pool 可重放）。前提：部署时能选到一个适合当前负载的 S。变换：在同一 MN 上混跑 4 KB 页 swap 和 1 KB value KVS。被破坏的前提：单一 S 能同时匹配两类负载。后果：操作者必须静态分区或接受其中一类负载的碎片；论文的利用率数字是 per-homogeneous-deployment 的，不是混合部署的。",
+      "conditions": [
+        "一个 MN 同时服务不同对象大小的 DM 系统或租户",
+        "需要真正的内存 pooling 而不是预先静态分区",
+        "工作负载 mix 随时间变化（swap 压力上升而 KVS value 仍很小）",
+        "chunk 回收只能在 chunk 内所有 block 都空闲时发生（与 KVS 的 size-class 分配配合）"
+      ],
+      "paper_evidence": [
+        {
+          "page": 9,
+          "quote": "At initialization, the MN registers all its memory and divides it into multiple memory chunks with configurable size. Then it pre-allocates an MW group for each memory chunk and initializes the MWTable and the free MW queue."
+        },
+        {
+          "page": 9,
+          "quote": "OneSidedMW adopts a 1 MB allocation granularity, which is sufficient to significantly improve remote memory utilization in our practice. The MN partitions its memory into 1 MB chunks"
+        },
+        {
+          "page": 9,
+          "quote": "The MN divides its memory into fine-grained chunks (e.g., 16 KB)."
+        },
+        {
+          "page": 12,
+          "quote": "OneSidedMW, RPC-MW(type-1), and RPC-MW(type-2) achieve over 90% memory utilization in most cases. They achieve 1.54× to 2.38× higher memory utilization compared to Static-MR."
+        }
+      ],
+      "code_evidence": [],
+      "counterevidence": [
+        "KVS 的两级分配可以在任意 chunk size 内再分 size class，所以 1 MB chunk 不一定灾难性；但回收粒度仍是 1 MB，论文自己的 4 KB/2 KB size-class 对比（65.6% vs 81.1%）显示粒度确实影响 deallocation rate。",
+        "实际部署可以在初始化时把 MN 静态分成多个 pool；论文的目标是单系统 DM，而不是多租户内存管理器，混合负载可能超出范围。",
+        "论文的“flexible”主要指可选 allocation granularity 和任意 I/O size，按部署配置是支持的；它没有承诺运行时重新配置。",
+        "如果 MN 只服务一个 DM 系统，固定 S 是合理的工程选择，混合负载不是论文声称的评估场景。"
+      ],
+      "minimal_comparison": {
+        "fixed": [
+          "同一个 MN、相同的总远端内存需求、相同的 CN runtime 与 RNIC",
+          "相同的 swap 与 KVS 工作负载比例"
+        ],
+        "vary": "单一 16 KB pool 同时服务 swap+KVS vs 两个静态 pool（1 MB swap / 16 KB KVS）vs 单一 1 MB pool",
+        "baseline": "论文 §5.1/§5.2 的各自单独调参部署",
+        "observable": "聚合内存利用率（used/allocated）、每类负载吞吐、deallocation rate",
+        "refuted_if": "单一 chunk size 在两类负载上达到与单独调参部署相同的利用率和吞吐；或设计支持运行时重新分块/新建 pool（论文未描述）"
+      },
+      "disclosure": "论文披露了初始化时按 configurable size 切分、swap 用 1 MB、KVS 用 16 KB（e.g.）；没有声称运行时重新分块，也没有在同一 MN 上混跑两类负载。",
+      "status": "hypothesis_not_executed",
+      "remaining_gap": "没有混合负载实验，也没有运行时分块 API

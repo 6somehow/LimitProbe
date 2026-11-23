@@ -1,4 +1,10 @@
-# Results (dev split)
+# Results
+
+Full 12-paper matrix (dev, test-with-source, paper-only; blind coverage primary and
+holistic sensitivity): [docs/full-matrix.md](full-matrix.md). Exported finals, grades and
+a sha256 manifest are in `results/` (blind) and `results-holistic/`.
+
+## Dev split
 
 All runs use frozen inputs, model `x-test-2` / `deepseek-v4.1-flash-1017`, and the human
 reference rubric for scoring only. A/B/C/D are the frozen v9 conditions with their

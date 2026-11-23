@@ -1,0 +1,171 @@
+{
+  "paper_id": "cxlfork",
+  "method_model": "CXLfork 将进程私有状态与页表以内存拷贝写入共享 CXL 内存，重定位内部指针并把 PTE 改为只读 CXL 物理地址；恢复时仅构建上层页表/VMA 树并附着 checkpoint 叶子，写触发 CoW/migrate-on-write，另提供 MoA 与 Hybrid Tiering。CXLporter 用 ghost containers 与 tiering 策略做 FaaS 自动扩缩容。评测基于单台双 socket 主机上的两个 VM、CXL v1.1 FPGA 设备、Linux 6.6、QEMU/KVM，并用 SST 做时延敏感性模拟。固定来源无作者仓库，代码实现层判断均未验证。",
+  "candidates": [
+    {
+      "id": "C1",
+      "kind": "作者披露的评测边界与环境差异",
+      "title": "单机双 VM/CXL v1.1 代理真实多节点 CXL 3.0 fabric",
+      "causal_argument": "作者用同一台双 socket 主机上的两个 VM 代表两节点，并把 CXL 内存作为 QEMU memory region/CPU-less NUMA 暴露；平台为 CXL v1.1-attached memory，而目标场景是 CXL 3.0+ 的 cluster-wide shared memory。该代理缺少真实多主机 CXL 交换、链路与带宽争用、跨节点一致性和故障路径，且用 non-temporal stores 绕过缓存。对 restore 时延、P99 与去重收益的外推可能偏乐观或偏保守。",
+      "conditions": "将两节点 VM 结果外推到真实 CXL fabric 多节点、并发共享和 CXL 3.0 一致性场景时。",
+      "paper_evidence": {
+        "physical_page": 9,
+        "quote": "Because we only have a single host, we set up a virtual machine in each of the two sockets to model a two-node distributed machine with shared CXL memory."
+      },
+      "code_evidence": "",
+      "implementation_status": "untested",
+      "counterevidence": "作者测得 391ns 的 CXL 往返时延并据此校准 SST；§8 说明 non-temporal stores 与只读 checkpoint+CoW 在当前平台避免 coherence 问题，CXL 3.0 硬件一致性只会放宽写路径。",
+      "minimal_comparison": "在两个物理主机和真实 CXL 3.0 fabric 上重复 CXLfork/CXLporter，比较 restore、P99、带宽和一致性事件；若与单机双 VM 结果相近，则可反驳该担忧。"
+    },
+    {
+      "id": "C2",
+      "kind": "基线实现差异",
+      "title": "Mitosis-CXL 在同一 VM 内模拟，比较优势可能不反映真实 remote fork",
+      "causal_argument": "由于当前没有 CXL inter-node fault 支持，作者把 Mitosis 移植到单个 VM，并用 CXL 上的内存拷贝替代 RDMA 和远端缺页。这会消除真实两节点中的远端故障路径、网络/链路时延以及节点间缓存与 TLB 差异，可能改变其 restore 与 page fault 成本，从而影响论文对 Mitosis-CXL 的 1.40x 比较。",
+      "conditions": "使用论文中的 Mitosis-CXL 数字推断 CXLfork 相对 state-of-the-art 的加速，或推断真实 RDMA/CXL GIM 下的交叉点时。",
+      "paper_evidence": {
+        "physical_page": 9,
+        "quote": "We mimic remote forking within the same VM, by replacing RDMA operations with memory copies over the CXL fabric."
+      },
+      "code_evidence": "",
+      "implementation_status": "untested",
+      "counterevidence": "作者说明每个“remote” fault 仍计入 CXL store/fetch 时延，并指出 CXL 3.0 GIM 才可正确评估 Mitosis；因此不是完全理想化，但仍非真实远端故障。",
+      "minimal_comparison": "在真实两节点上运行原版 Mitosis over RDMA，或在支持 inter-node CXL fault/GIM 的平台上运行 Mitosis-CXL，与 CXLfork 在相同函数和 trace 下比较端到端时延与内存。"
+    },
+    {
+      "id": "C3",
+      "kind": "基线不对称",
+      "title": "CRIU-CXL 不能使用 ghost containers，CXLporter 端到端比较混入容器化差异",
+      "causal_argument": "CXLfork 与 Mitosis-CXL 在 CXLporter 中使用 ghost containers，避免每次请求重新创建容器；CRIU-CXL 因文件系统式 checkpoint 不兼容 ghost containers，需要支付容器创建开销。于是 P99/P50 改善和相对 CRIU-CXL 的 70% 降幅可能部分归因于容器复用，而非纯 rfork 机制差异。",
+      "conditions": "评估 CXLporter 的端到端延迟、P99 或吞吐，并把结果归因于 remote fork 机制本身时。",
+      "paper_evidence": {
+        "physical_page": 10,
+        "quote": "CRIU-CXL is not compatible with ghost containers, as it stores/deserializes checkpoints to/from a file system."
+      },
+      "code_evidence": "",
+      "implementation_status": "untested",
+      "counterevidence": "论文在无容器 Fig. 7 中单独比较 rfork，并在正文承认 ghost containers 会降低 Mitosis-CXL 和 CXLfork 的冷启动容器化开销；该问题主要影响 CXLporter 的端到端归因。",
+      "minimal_comparison": "给 CRIU-CXL 等价的热容器/ghost container 机制，或在同一容器化条件下对三者做消融；若 CXLfork 的相对优势保持，则可反驳。"
+    },
+    {
+      "id": "C4",
+      "kind": "作者披露的评测边界",
+      "title": "CXLporter burst 实验用节点内 rfork 近似跨节点扩展，缺少大集群网络与调度效应",
+      "causal_argument": "在有限的两节点平台上，作者用节点内 rfork-restore 生成 burst，并称除大分布式网络开销外可正确估计 remote fork 开销。但 CXLporter 的自动扩缩容还受跨节点放置、调度、分布式 checkpoint object store、CXL fabric 争用和容器回收影响，节点内近似不覆盖这些路径，可能使 P99/P50 改善和 2x throughput 结论难以外推。",
+      "conditions": "将 CXLporter 的尾延迟、吞吐和 keep-alive 策略外推到多节点生产 FaaS 集群时。",
+      "paper_evidence": {
+        "physical_page": 10,
+        "quote": "to approximate an environment with invocation bursts in our limited two-node platform."
+      },
+      "code_evidence": "",
+      "implementation_status": "untested",
+      "counterevidence": "论文使用 Azure serverless traces 和 150 RPS 平均负载，并同时包含跨节点与节点内 rfork；作者明确只把网络开销视为缺失项。",
+      "minimal_comparison": "在多节点集群上按同一 Azure trace 运行 CXLporter，全部用跨节点 CXLfork restore，比较 P99/P50、吞吐和 keep-alive 行为；若与两节点近似一致，则可反驳。"
+    },
+    {
+      "id": "C5",
+      "kind": "作者披露的扩展性边界",
+      "title": "CXL 带宽与大规模并发争用未纳入 tiering 策略和评测",
+      "causal_argument": "CXLfork 的 MoW/HT 策略主要按访问时延决定本地或 CXL 放置；当许多节点/实例并发读共享 checkpoint 时，CXL fabric 带宽可能成为瓶颈，当前时延驱动策略可能把过多页面留在 CXL 或形成集中访问，导致吞吐下降和尾延迟上升。",
+      "conditions": "机架级多节点、大量 sibling 同时恢复或运行、CXL 链路或设备带宽受限时。",
+      "paper_evidence": {
+        "physical_page": 13,
+        "quote": "In a large cluster, we anticipate that limited CXL bandwidth may be a bottleneck."
+      },
+      "code_evidence": "",
+      "implementation_status": "untested",
+      "counterevidence": "两节点小规模下共享只读页可命中硬件缓存，391ns 时延可被摊销；作者也明确把带宽感知策略列为未来工作。",
+      "minimal_comparison": "在多节点上逐步增加并发函数实例和 CXL 带宽压力，比较当前策略与带宽感知策略的吞吐/P99；若当前策略不劣化，则可反驳。"
+    },
+    {
+      "id": "C6",
+      "kind": "方法假设",
+      "title": "Hybrid tiering 依赖 checkpoint 时 A/D 位代表未来热页，访问模式漂移会使放置失准",
+      "causal_argument": "HT 根据 checkpointed page table 的 A 位决定页面是否在访问时取回本地；该策略假设父进程在 checkpoint 时的 A/D 位以及父子写页重叠能预测子进程未来访问。若工作集随输入或执行阶段变化，A 位会漏标或误标，HT 可能把热页留在慢 CXL 或把冷页搬到本地，损失运行时性能或内存节省。",
+      "conditions": "FaaS 函数具有输入相关、阶段变化或长尾访问模式；checkpoint 在 16th invocation 后取，之后 A 位被周期重置时。",
+      "paper_evidence": {
+        "physical_page": 8,
+        "quote": "Hybrid tiering is effective only if the 𝐴 bits of checkpointed page tables effectively capture the “hot” pages of the workload’s footprint."
+      },
+      "code_evidence": "",
+      "implementation_status": "untested",
+      "counterevidence": "作者报告在 serverless 负载中超过 95% 父进程写过的页也被子进程写；且多数函数工作集可被硬件缓存吸收，默认 MoW 不依赖 HT。",
+      "minimal_comparison": "选取输入相关或阶段变化函数，比较 HT、MoW 与 oracle 热页迁移的 warm/cold 时延和内存；若 HT 与 oracle 接近，则可反驳。"
+    }
+  ],
+  "known_boundaries": [
+    {
+      "boundary": "假设各节点根文件系统相同",
+      "paper_evidence": {
+        "physical_page": 6,
+        "quote": "CXLfork assumes that the root file system is identical across nodes"
+      },
+      "note": "跨节点文件路径与权限需一致，适用于相同容器镜像等场景。"
+    },
+    {
+      "boundary": "不支持共享匿名内存映射",
+      "paper_evidence": {
+        "physical_page": 6,
+        "quote": "CXLfork does not currently support shared anonymous memory mappings, i.e., memory shared between processes."
+      },
+      "note": "进程间共享匿名页不在当前 remote fork 语义内。"
+    },
+    {
+      "boundary": "全局状态仍需序列化与反序列化",
+      "paper_evidence": {
+        "physical_page": 6,
+        "quote": "CXLfork serializes into CXL memory the information necessary to re-instantiate global state on a remote node."
+      },
+      "note": "零序列化主要适用于 private state；global state 重建开销可能随文件、套接字等数量增长。"
+    },
+    {
+      "boundary": "可重构状态只覆盖 mount points 和 PID namespaces",
+      "paper_evidence": {
+        "physical_page": 6,
+        "quote": "CXLfork only serializes and checkpoints mount points and the process identifier (PID) namespaces."
+      },
+      "note": "network、cgroup 等其余元数据从新节点调用者继承。"
+    },
+    {
+      "boundary": "CXL 页被排除在 OS LRU/回收之外",
+      "paper_evidence": {
+        "physical_page": 7,
+        "quote": "we exclude CXL memory from OS memory reclamation (i.e., from LRU lists)"
+      },
+      "note": "跨节点共享页不能由单个 OS 实例独立回收；checkpoint 回收由 CXLporter 负责。"
+    },
+    {
+      "boundary": "写密集负载削弱内存节省",
+      "paper_evidence": {
+        "physical_page": 13,
+        "quote": "CXLfork’s memory savings are blunted"
+      },
+      "note": "写操作最终经 CoW 把大量页面迁移到本地内存。"
+    },
+    {
+      "boundary": "未研究大规模多节点系统",
+      "paper_evidence": {
+        "physical_page": 13,
+        "quote": "we cannot study CXLfork on a distributed system with many nodes"
+      },
+      "note": "受 CXL 硬件原型限制，多节点扩展性与故障行为未实测。"
+    },
+    {
+      "boundary": "keep-alive 窗口大小未按函数区分",
+      "paper_evidence": {
+        "physical_page": 9,
+        "quote": "We consider studying different window sizes for different functions as future work."
+      },
+      "note": "内存压力下缩短到 10 秒的策略是固定策略，未做函数级调优。"
+    }
+  ],
+  "uncertainties": [
+    "固定来源无作者仓库；内核补丁、PTE 特殊位、VMA/页表 attach、A-bit reset 接口、TLB shootdown 与 dirty-page prefetch 的具体实现均无法核验，相关实现性判断均标为 untested。",
+    "论文未报告实验重复次数、方差或置信区间；2.26x、1.40x、87%、61% 等平均值的统计稳健性未知。",
+    "单机双 VM 与 CXL v1.1 FPGA 组合对真实 CXL 3.0 多主机一致性、交换 fabric、带宽和故障行为的代表性未知。",
+    "Mitosis-CXL 的移植细节、同一 VM 内 page fault 路径及其缓存/TLB 效应未给出，基线公平性仍不确定。",
+    "CXLporter 的调度、checkpoint 回收、object store、HighMem 90% 阈值与 keep-alive 策略实现细节未给出，策略敏感性未知。",
+    "SST 模拟的校准细节、不同 CXL 时延下的带宽与并发设定未给出，Fig. 9 的外推范围有限。"
+  ],
+  "target_execution": "not_run"
+}

@@ -60,21 +60,21 @@ def main() -> None:
     extra = ""
     test_html = ""
     if args.test_mapping and args.test_grades:
-        coverage = [("Dev (archived A)", "2 / 4", "0 / 4"),
-                    ("Test sample 1 (blind)", "4 / 4", "3 / 4"),
-                    ("Test sample 2 (blind)", "3 / 4", "2 / 4")]
-        rows_html = "".join(f"<tr><th>{a}</th><td>{b}</td><td>{c}</td></tr>"
-                            for a, b, c in coverage)
+        coverage = [("Dev (4)", "2 / 4", "1 / 4", "2 / 4"),
+                    ("Test with source (4)", "4 / 4", "3 / 4", "2 / 4"),
+                    ("Test paper-only (4)", "3 / 4", "4 / 4", "3 / 4"),
+                    ("All 12 (blind)", "9 / 12", "8 / 12", "7 / 12")]
+        rows_html = "".join(f"<tr><th>{a}</th><td>{b}</td><td>{c}</td><td>{d}</td></tr>"
+                            for a, b, c, d in coverage)
         test_html = ("<h2>Primary metric: coverage of diagnosed limitations</h2>"
-                     "<p>Coverage = papers with at least a partial diagnosis / 4. Blind "
-                     "grader for the test samples; archived official grades for Dev A.</p>"
-                     "<table><tr><th>split</th><th>S s7</th><th>A one call</th></tr>"
+                     "<p>Coverage = papers with at least a partial diagnosis / 4, blind grader on all "
+                     "splits. B uses up to 8 replies. Full per-paper matrix in docs/full-matrix.md.</p>"
+                     "<table><tr><th>split</th><th>S s7</th><th>A one call</th><th>B single agent</th></tr>"
                      + rows_html + "</table>"
-                     "<p>Secondary: test sample 1 cores 1 vs 2, weighted 5 vs 5; sample 2 "
-                     "cores 1 vs 1, weighted 4 vs 3. The stricter holistic grader does not "
-                     "reproduce the coverage advantage (sample 1 favours A, sample 2 ties), "
-                     "and the test papers were inspected during prompt development, so the "
-                     "test numbers are post-hoc.</p>")
+                     "<p>Blind coverage: S 9/12 vs A 8/12 vs B 7/12. Source-backed papers favour S; "
+                     "paper-only papers favour A (4/4 vs 3/4). The stricter holistic grader flips "
+                     "the overall ranking (A 7/12 > S 5/12 > B 1/12), and the test papers were "
+                     "inspected during prompt development, so the test numbers are post-hoc.</p>")
     if args.second_mapping and args.second_grades:
         second = rows(args.second_mapping, args.second_grades)
         hit = second.get(("nnsmith", "gap_receipt_swarm"))

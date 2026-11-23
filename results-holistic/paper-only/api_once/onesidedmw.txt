@@ -1,0 +1,173 @@
+{
+  "paper_id": "onesidedmw",
+  "method_model": "OneSidedMW：在 MN RNIC 上以 WAIT/WR chain offload MW bind/unbind，结合 type-2 MW、QP/MW Grouping 与 Management-Access QP Separation；论文将其集成到 Fastswap 和 RACE hashing。",
+  "candidates": [
+    {
+      "id": "C1-single-owner",
+      "classification": "author_disclosed",
+      "title": "单个 chunk/MW group 只能由一个 CN 独占，限制跨 CN 共享访问",
+      "causal_argument": "OneSidedMW 在分配时把 memory chunk 的 MW group 绑定并分配给一个 CN 的 Access QP；type-2 MW 又只能由被绑定的 QP 访问，因此同一 chunk 在任一时刻不能被多个 CN 并发读写。对共享 key、跨 CN 事务、负载迁移或故障切换，上层必须做分区、代理或迁移，否则无法直接访问。",
+      "conditions": "同一 key/数据被多个 CN 并发查询；需要跨 CN 一致性、动态负载均衡或快速故障切换；key space 不易静态分区。",
+      "paper_evidence": {
+        "physical_page": 13,
+        "quote": "Our design only allows each memory chunk and its MW group to be accessed by one CN at a time."
+      },
+      "code_evidence": [],
+      "counterevidence": "作者指出可用 key space partitioning 规避元数据一致性问题，并引用已有工作采用该方案；若工作负载天然按 key 分区，单 CN 独占不会造成明显问题。论文未测跨 CN 热 key，因此该限制的实际代价仍取决于上层分区能力。",
+      "minimal_comparison": "在同一 RACE/OneSidedMW 配置上比较：按 key 静态分区、每 key 只由一个 CN 访问，与两个 CN 并发访问同一热 key（需代理或迁移）的吞吐、P99 延迟和迁移开销；若分区版无退化，则限制不显著。"
+    },
+    {
+      "id": "C2-alloc-qp-rate",
+      "classification": "method_hypothesis",
+      "title": "少数 Alloc/Free QP 假设分配频率远低于访问频率，分配密集时可能成为瓶颈",
+      "causal_argument": "Management-Access QP Separation 把 memory (de)allocation 集中在少量 Alloc/Free QP 上的 WAIT WR chain；若每个小对象 insert/write 都触发分配或释放，这些 QP 和链式 WR 会串行化/竞争，分配延迟（约 10.7 µs 单线程、22.5 µs 24 线程）叠加到请求路径，削弱吞吐并抬高端到端尾延迟。",
+      "conditions": "小 value、写/插入/删除比例高、chunk 粒度细、大量线程共享少数 Alloc QP；bursty allocation/deallocation。",
+      "paper_evidence": {
+        "physical_page": 7,
+        "quote": "memory allocation, as a control path operation, occurs less frequently than memory access operations. Therefore, a small number of memory management QPs can adequately serve each CN’s needs."
+      },
+      "code_evidence": [],
+      "counterevidence": "论文的 insert-only 1 KB value 测试中，4 KB/2 KB 分配仅带来 8.73%/18.4% 吞吐开销；24 线程下分配延迟仍约 20 µs，作者认为可摊销。说明在测试范围内 Alloc QP 未饱和；只有更高分配率、更少管理 QP 或更细粒度时才会放大。",
+      "minimal_comparison": "固定 chunk 大小与内存效率，改变 allocation:access 比例（如 100% insert 对 50/50）和 Alloc QP 数量，测量吞吐与分配尾延迟；若增加 Alloc QP 或降低分配率后开销消失/出现，可支持或反驳该限制。"
+    },
+    {
+      "id": "C3-empty-queue-cpu-fallback",
+      "classification": "method_hypothesis",
+      "title": "空闲 MW 队列耗尽时回退到 MN CPU 并全局广播，破坏稳态无 CPU 路径",
+      "causal_argument": "正常分配链从 free MW queue 取元素；空队列时链遇到 null 指针并触发 RDMA protection error，通知 MN CPU，MN CPU 向所有 CN 广播不可用，并持续轮询 tail，待释放补充后再广播。内存压力或多 CN burst 下，大量 CN 可能同时遇错/等待，形成控制面串行、全局同步和尾延迟尖峰。",
+      "conditions": "free MW queue 被耗尽或接近耗尽；多 CN 高并发分配；deallocation 不能及时补充；队列容量小或容量规划保守。",
+      "paper_evidence": {
+        "physical_page": 8,
+        "quote": "This error notifies theMN CPU, which then broadcasts the empty free MW queue state to all CNs."
+      },
+      "code_evidence": [],
+      "counterevidence": "该路径只在队列空时触发；论文给 MN 224 GB，常规负载未打到耗尽，且释放后可恢复。若队列足够大并保守容量规划，可能从不进入该路径；论文未给出耗尽压测，因此严重性未验证。",
+      "minimal_comparison": "在相同 MN 容量下人为缩小空闲队列或持续分配至耗尽，比较 1 个与 6 个/更多 CN 的分配 P99、MN CPU 和恢复时间；与始终非空或后台补充队列的策略对照。"
+    },
+    {
+      "id": "C4-preallocated-mw-scaling",
+      "classification": "method_hypothesis",
+      "title": "按每个 chunk 预分配 MW group 使 RNIC MW/元数据随容量与细粒度线性增长",
+      "causal_argument": "MN 初始化时把全部内存切成 chunk，并为每个 chunk 预分配一组 MW，同时建立 MWTable 与 free MW queue。chunk 越小、MW group 越大、MN 容量越大，所需 MW 硬件对象和元数据越多；这可能触及 RNIC MW 上限、增加初始化开销，并加剧 offload 资源竞争，从而限制细粒度或大容量扩展。",
+      "conditions": "大容量 MN（论文 224 GB）；小 chunk（KVS 例 16 KB，评估低至 2 KB 分配粒度）；MW group 增大；RNIC MW 资源有限。",
+      "paper_evidence": {
+        "physical_page": 9,
+        "quote": "At initialization, the MN registers all its memory and divides it into multiple memory chunks with configurable size. Then it pre-allocates an MW group for each memory chunk and initializes the MWTable and the free MW queue."
+      },
+      "code_evidence": [],
+      "counterevidence": "论文在 224 GB MN 上报告了 16 KB KVS chunk 和 1 MB swap chunk 的端到端结果，说明其实际测试配置可行；作者也把 RNIC 资源需求列为已隐含评估的限制。若 RNIC 可支持所需 MW 数量且初始化成本可摊销，此限制不显著。",
+      "minimal_comparison": "扫描 MN 容量、chunk 大小和 MW group 大小，测量最大可注册 chunk 数、初始化时间、分配失败率与 one-sided 访问延迟；与按需惰性绑定 MW 或分层 MW 池对照。"
+    },
+    {
+      "id": "C5-rnic-offload-overhead-scale",
+      "classification": "method_hypothesis",
+      "title": "RNIC offload 资源开销随含 offload 的 QP 数增加，分离只缓解不消除",
+      "causal_argument": "WAIT/WR chain 占用 RNIC 硬件资源；每增加含 offload 逻辑的 MN 侧 QP，会降低普通 one-sided READ/WRITE 的效率。Management-Access QP Separation 减少 Alloc/Free QP 数量，但 Access QP 多、CN 多或 RNIC 饱和时，残留 offload 与硬件资源竞争仍可能提高访问延迟。",
+      "conditions": "大量 CN/线程、大量 Access QP、RNIC 接近饱和；对 one-sided READ/WRITE 延迟敏感；不同 RNIC 型号/固件。",
+      "paper_evidence": {
+        "physical_page": 6,
+        "quote": "With 96 MN-side QPs containing offloaded logic, the latency of one-sided READ operations increases by 12.6%."
+      },
+      "code_evidence": [],
+      "counterevidence": "作者在 §6.1.2 让 MN RNIC 饱和后仍报告 OneSidedMW 与 Static-MR 可比，并且启用 Separation 后将访问延迟降低 10.6% 到接近无 offload；说明在其 6 CN/ConnectX-5 配置下缓解有效。",
+      "minimal_comparison": "固定访问负载，扫描含 offload 的 QP 数、CN 数和 Access QP 数，比较 OneSidedMW、OneSidedMW(+Sep)、无 offload 的 READ P99；若增加 CN/QP 后差距不扩大，则限制有限。"
+    },
+    {
+      "id": "C6-rnic-semantics-portability",
+      "classification": "implementation_assumption",
+      "title": "依赖可修改已 post WR 的 qpn 及链式 BIND/UNBIND 语义，跨 RNIC 可移植性与隔离验证不足",
+      "causal_argument": "跨 QP 分配利用已提交但未执行的 BIND_MW WR 的 qpn 字段可被前序 WR 改写；释放时后续 UNBIND 又被配置为跳过 qpn 检查，仅靠首个绑定到 Free QP 的 MW 验证所有权。这些行为依赖具体 RNIC 对 WAIT 链、BIND_MW 和字段更新的实现；若语义不同或更新非原子，可能无法工作或削弱隔离。",
+      "conditions": "换用其他厂商/固件 RNIC、OFED 版本；WR chain 中字段更新与执行时序变化；错误/重试路径；安全审计。",
+      "paper_evidence": {
+        "physical_page": 7,
+        "quote": "because posted WRs in offloaded WR chains are not executed immediately, theqpn field can be updated prior to execution."
+      },
+      "code_evidence": [],
+      "counterevidence": "论文在 commodity ConnectX-5/OFED 4.9 上实现并给出安全论证：首个 MW 强制分配给 Free QP，非法 entry 触发 RNIC 错误；说明在该硬件上机制成立。作者只声称依赖 commodity RNIC，并未证明跨型号一致性。",
+      "minimal_comparison": "在同一 WR chain 逻辑上换用至少两种 RNIC/固件，做 qpn 改写的时序/并发压力测试和非法 free/access 负向测试；若另一平台失败或需改语义，则支持该限制。"
+    }
+  ],
+  "known_boundaries": [
+    {
+      "id": "B1-trusted-mn",
+      "type": "author_disclosed",
+      "boundary": "安全模型假定 MN 可信、CN 可能被攻破且互不信任；不覆盖恶意 MN/RNIC 或侧信道。",
+      "paper_evidence": {
+        "physical_page": 8,
+        "quote": "we assume MNs are trusted"
+      }
+    },
+    {
+      "id": "B2-single-owner",
+      "type": "author_disclosed",
+      "boundary": "每个 chunk 及其 MW group 在任一时刻只能由一个 CN 访问；作者建议用 key space partitioning 缓解 KVS 场景。",
+      "paper_evidence": {
+        "physical_page": 13,
+        "quote": "Our design only allows each memory chunk and its MW group to be accessed by one CN at a time."
+      }
+    },
+    {
+      "id": "B3-cpu-bypass-normal-path",
+      "type": "author_disclosed",
+      "boundary": "正常分配/释放快路径绕过 MN CPU；初始化、空队列错误、DoS 计数和崩溃回收等异常/控制路径仍涉及 MN CPU。",
+      "paper_evidence": {
+        "physical_page": 8,
+        "quote": "This error notifies theMN CPU, which then broadcasts the empty free MW queue state to all CNs."
+      }
+    },
+    {
+      "id": "B4-fixed-chunk-granularity",
+      "type": "author_disclosed",
+      "boundary": "I/O 大小可任意，但远端分配按配置的 chunk 粒度进行（swap 实验 1 MB，KVS 例 16 KB，并配合 size class）。",
+      "paper_evidence": {
+        "physical_page": 9,
+        "quote": "OneSidedMW adopts a 1 MB allocation granularity"
+      }
+    },
+    {
+      "id": "B5-small-testbed",
+      "type": "author_disclosed",
+      "boundary": "评估使用 1 个 MN、6 个 CN、100 Gbps Mellanox ConnectX-5 IB RNIC、OFED 4.9/Linux 4.15，并只用一个 MN CPU 核模拟弱 CPU。",
+      "paper_evidence": {
+        "physical_page": 9,
+        "quote": "one MN and 6 CNs, interconnected via an InfiniBand switch."
+      }
+    },
+    {
+      "id": "B6-dos-budget",
+      "type": "author_disclosed",
+      "boundary": "DoS 防护依赖 MN CPU 周期性读取 RDMA 硬件计数器并在超预算时断开管理 QP；论文未给出对抗性压测。",
+      "paper_evidence": {
+        "physical_page": 8,
+        "quote": "The MN CPU periodically reads the RDMA hardware counters"
+      }
+    },
+    {
+      "id": "B7-rnic-resource",
+      "type": "author_disclosed",
+      "boundary": "作者承认 (de)allocation 需要额外 RNIC 资源，可能带来开销并影响访问性能；评估称已在 RNIC 饱和场景下隐含考虑。",
+      "paper_evidence": {
+        "physical_page": 13,
+        "quote": "The (de)allocation operations in OneSidedMW require additional RNIC resources"
+      }
+    },
+    {
+      "id": "B8-odrp-kvs-excluded",
+      "type": "author_disclosed",
+      "boundary": "KVS 评估未包含 ODRP，因为 ODRP 只支持固定 4 KB 分配和访问；因此 KVS 结论不覆盖 ODRP 对比。",
+      "paper_evidence": {
+        "physical_page": 9,
+        "quote": "ODRP is not included in this test, as it only supports fixed 4 KB allocation and access."
+      }
+    }
+  ],
+  "uncertainties": [
+    "没有作者仓库且 pinned commit 为 none；WR chain、qpn 改写、skip qpn、错误恢复等实现细节均未验证，所有 implementation claim 标记为 untested。",
+    "MWTable、free MW queue、每 chunk 预分配 MW 的实际内存/硬件开销和最大 MW 数未量化；C4 的上限判断是条件性推断。",
+    "空队列耗尽、CN 崩溃回收、DoS 预算执行和恶意 CN 行为均无对抗性或故障注入实验数据。",
+    "评估未覆盖多 MN、异构 RNIC、网络拥塞、跨代硬件、动态线程/QP 变化和故障切换。",
+    "性能结论来自 6 CN/1 MN/ConnectX-5/单 MN CPU 核配置，外推到更大集群或不同 allocation:access 比例需验证。",
+    "论文未报告实现层与设计描述之间的差异；在缺少代码的情况下不能区分方法限制与实现缺陷。"
+  ],
+  "target_execution": "not_run"
+}

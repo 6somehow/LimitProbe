@@ -1,0 +1,121 @@
+{
+  "paper_id": "spinquant",
+  "method_model": "SpinQuant：在 Stiefel manifold 上用 Cayley SGD 学习可合并的 residual R1 与 per-head R2 旋转，并可叠加固定 online Hadamard R3/R4，对 LLM 做权重/激活/KV-cache 后训练量化。",
+  "candidates": [
+    {
+      "id": "c1_quantizer_mismatch",
+      "title": "旋转优化时的权重量化状态与最终 GPTQ 评估可能不一致",
+      "causal_argument": "论文主结果声称在权重保持 16-bit、仅激活量化的网络中学习 R1/R2，再对旋转后权重做 GPTQ；若按 README 示例把 w_bit=4 传入，`prepare_model` 会在 `args.w_bits < 16` 时插入 RTN 权重量化器，使 Cayley 优化面对的是 RTN W4 误差，而不是最终评估时的 GPTQ W4 误差。旋转梯度会分配容量去补偿 RTN 权重噪声；GPTQ 随后改变权重误差结构，可能使学到的旋转不再最优，并使“旋转负责激活误差、GPTQ 负责权重误差”的归因与复现实验脱耦。",
+      "conditions": "使用 4-bit 权重的主结果（W4A4 或 W4A4KV4 + GPTQ）；按 README 的 `bash scripts/10_optimize_rotation.sh meta-llama/Llama-2-7b 4 4 4` 流程优化；未显式把优化脚本的 `$2` 改为 16。",
+      "paper_evidence": {
+        "physical_page": "6",
+        "quote": "In the main results, we optimize the rotation with respect to the activation quantized network, where the weights remain 16-bit."
+      },
+      "code_evidence": {
+        "file_path": "train_utils/main.py; scripts/10_optimize_rotation.sh; README.md",
+        "symbol_or_excerpt": "`if args.w_bits < 16:` 后调用 `quantizers = rtn_utils.rtn_fwrd(model, \"cuda\", args)`；脚本含 `--w_bits $2`；README 示例为 `bash scripts/10_optimize_rotation.sh meta-llama/Llama-2-7b 4 4 4`。"
+      },
+      "counterevidence": "论文 Table 3（p.8）显示 LLaMA-2 7B 上 `Cayley on 16-4-KV` 为 `64.1 ±0.4`，优于 `Cayley on 4-4-KV` 的 `61.0 ±1.0`，支持 activation-only 设计；README 注也提醒 GPTQ 时应只对激活优化。若用户实际传 16，则矛盾消失。",
+      "minimal_comparison": "固定 seed、校准集与网络，分别以 w_bits=16 和 w_bits=4 学习 R1/R2，再对二者应用完全相同的 GPTQ W4A4KV4，比较 8-task 平均与 WikiText2。若 w_bits=4 不劣于 16，则该机制对最终结果不构成实质限制。"
+    },
+    {
+      "id": "c2_global_r1_layer_tradeoff",
+      "title": "全局 R1 的端到端损失优化不保证逐层量化 SNR，可能牺牲个别层",
+      "causal_argument": "R1 是残差流上的单一全局正交矩阵，所有层共享；Cayley 只最小化校准集端到端损失，梯度会被对输出影响大的层或样本主导。正交混合会重新分配各层的量化噪声，因此总损失下降不意味着每层 SNR 都提升；论文自己观察到多数层变化不大、个别层甚至变差。若目标任务更依赖变差的层，平均常识分数会掩盖局部退化。",
+      "conditions": "层间敏感度或离群值强度异质；低比特激活（如 W4A4）；仅用端到端 next-token/cross-entropy 校准，没有逐层 SNR 或任务约束。",
+      "paper_evidence": {
+        "physical_page": "19",
+        "quote": "layer-level SNR improves significantly for a few layers, but does not change much for most layers, and even gets worse for one of the layers."
+      },
+      "code_evidence": {
+        "file_path": "optimize_rotation.py",
+        "symbol_or_excerpt": "`model.R1 = RotateModule(R1)`；循环中 `model.model.layers[i].self_attn.R2 = RotateModule(R2)`，显示 R1 为全局共享、R2 为逐层 per-head 参数。"
+      },
+      "counterevidence": "同节报告端到端 SNR 从随机 R 的 `0.9` dB 提升到 learned R 的 `6.8` dB，且下游平均准确率显著提升；作者假设被牺牲的是不重要层。若变差层与任务性能无关，则不构成实际限制。",
+      "minimal_comparison": "记录 learned vs random 的逐层 SNR，并在触发该层能力的任务或探针上比较；或给优化加入逐层 SNR 下界/多目标约束后重学 R1。若受牺牲层与任务退化无相关，则反驳。"
+    },
+    {
+      "id": "c3_first_token_outlier_per_token",
+      "title": "旋转把首个 token 的强离群值摊到所有通道，方法仍依赖 per-token 量化",
+      "causal_argument": "正交旋转保持向量范数，只改变坐标分布。若首个 token 原本有少数极大通道，旋转后该 token 的幅度会分布在所有通道；逐 token 的 scale 可按 token 吸收这一整体幅度，但若硬件改用 per-tensor 或跨 token 共享 scale，首 token 仍会拉大量化范围，普通 token 的有效比特减少。代码中的 `ActQuantizer` 也只实现 per-token 激活量化。",
+      "conditions": "激活或 KV-cache 低比特；量化 scale 跨 token 共享（per-tensor 或部分 per-channel）；硬件不支持 per-token dynamic quantization。",
+      "paper_evidence": {
+        "physical_page": "20",
+        "quote": "After rotation, this outlier is distributed across all channels of the first token. Although per-token activation quantization can readily manage this distribution..."
+      },
+      "code_evidence": {
+        "file_path": "utils/quant_utils.py",
+        "symbol_or_excerpt": "`class ActQuantizer(torch.nn.Module):` 的 docstring 写明 `We only support (both sym. and asym.) per-token quantization for the activations.`"
+      },
+      "counterevidence": "Figure 2 的 caption（p.3）声称旋转后 `outlier removal using rotation enables accurate token-wise or tensor-wise quantization`；若 per-tensor 实验也保持精度，则该限制不成立。",
+      "minimal_comparison": "同一 learned rotation 下，将激活/KV scale 从 per-token 改为 per-tensor，其余不变，比较首 token 幅度、WikiText2 与 8-task。若差距可忽略，则机制不重要。"
+    },
+    {
+      "id": "c4_fixed_online_hadamard",
+      "title": "R3/R4 固定为 Hadamard，不参与学习，在线块内离群值只能被动均匀混合",
+      "causal_argument": "论文只对可合并的 R1/R2 做 Cayley 优化；R3/R4 为在线 Hadamard，固定且 data-independent。Hadamard 对所有坐标做均匀混合；若 MLP down-proj 输入或 K-cache 的离群值集中在非均匀、模型特定子空间，固定基不能像学习旋转那样把幅度精确摊到可用量化区间，残余离群值会限制 W4A4 或 KV4 的误差下限。",
+      "conditions": "极端低比特（W4A4、KV4）且块内 MLP/KV 离群值结构非各向同性；希望进一步逼近 full-precision；可接受额外在线旋转参数或内核。",
+      "paper_evidence": {
+        "physical_page": "5",
+        "quote": "Given that R3 and R4 are online rotation operations, meaning they cannot be absorbed into the weight matrix, we retain them as Hadamard matrices. This is because online Hadamard transforms can be efficiently implemented without significant overhead."
+      },
+      "code_evidence": {
+        "file_path": "train_utils/apply_r3_r4.py",
+        "symbol_or_excerpt": "`R4_rotate_down_proj_weights` 调用 `apply_exact_had_to_linear(...)`；`QKRotationWrapper.forward` 使用 `HadamardTransform.apply(q.float())` 与 `HadamardTransform.apply(k.float())`。"
+      },
+      "counterevidence": "Table 2（p.8）中 learned R{1,2} + 固定 Hadamard R{3,4} 已优于 random Hadamard R{1,2,3,4}，例如 Mistral-7B 4-4-4 为 `68.6` vs `52.4`，说明主要增益可来自 R1/R2；Table 4 也显示 Hadamard 初始化后优化对初始化不敏感。若学习 R3/R4 无额外增益，固定 Hadamard 足够。",
+      "minimal_comparison": "保持 R1/R2 相同，将 R3/R4 换成可学习的块对角/快速变换兼容正交矩阵，或对小模型搜索混合基，比较 W4A4KV4；若无提升，则固定 Hadamard 不是限制。"
+    },
+    {
+      "id": "c5_power_of_two_head_dim",
+      "title": "K-cache 的在线 Hadamard R3 在代码中要求 head_dim 为 2 的幂",
+      "causal_argument": "`QKRotationWrapper` 在启用 K-cache 量化时断言 `is_pow2(head_dim)`；fast Hadamard/exact Hadamard 的实现在非 2 的幂 head_dim 上不能直接套用。若模型 head_dim 非 2 的幂，SpinQuant_had 的 KV4 路径会失败或需回退，论文的 KV-cache 量化结论不能直接外推。",
+      "conditions": "模型 head_dim 非 2 的幂（如 80 或 96），且 k_bits/v_bits < 16；使用仓库默认 K 旋转包装。",
+      "paper_evidence": {
+        "physical_page": "5",
+        "quote": "Hadamard matrix (R3 in Figure 1(b)) can be inserted when low-bit KV cache quantization is required."
+      },
+      "code_evidence": {
+        "file_path": "train_utils/apply_r3_r4.py",
+        "symbol_or_excerpt": "`f\"Only power of 2 head_dim is supported for K-cache Quantization!\"`，位于 `QKRotationWrapper.__init__` 的 `assert is_pow2(head_dim)` 处。"
+      },
+      "counterevidence": "论文评估的 LLaMA-2/3 与 Mistral 的 head_dim 都是 2 的幂（通常 64 或 128），因此该断言不暴露在已报告结果中；也可用分块或补零 Hadamard 绕过。若这些扩展保持精度，则限制是实现的而非方法的。",
+      "minimal_comparison": "选一个 head_dim=96 或 80 的模型，比较：默认断言失败、分块/补零 Hadamard 的 KV4、以及不启 R3 的 KV4。若分块版本与 2 的幂模型同样恢复精度，则限制可绕过。"
+    },
+    {
+      "id": "c6_architecture_pre_norm_rmsnorm",
+      "title": "旋转不变性构造依赖 pre-norm RMSNorm 及 Llama 结构，代码只覆盖 Llama",
+      "causal_argument": "论文的等价性依赖把 RMSNorm 的 scale 吸入其后线性层，并在 pre-norm 残差结构中使用正交旋转；若模型使用带 bias 的 LayerNorm、post-norm、并行 attention/MLP 或非 RoPE 位置编码，旋转不能被同样吸收，full-precision 输出等价性和量化收益都需重新证明。仓库的 modeling/eval 路径以 `LlamaForCausalLM` 为中心，不能直接当作通用 LLM 实现。",
+      "conditions": "非 pre-norm RMSNorm 架构；LayerNorm 带 bias；post-norm；attention/MLP 并行；非 Llama 的 q/k/v 布局或位置编码。",
+      "paper_evidence": {
+        "physical_page": "5",
+        "quote": "In a pre-norm LLM like LLaMA, we can convert a transformer network into a rotation-invariant network by incorporating the RMSNorm scale parameters α into the weight matrix right after the RMSNorm layer."
+      },
+      "code_evidence": {
+        "file_path": "eval_utils/modeling_llama.py; utils/fuse_norm_utils.py; train_utils/main.py",
+        "symbol_or_excerpt": "`from transformers.models.llama.configuration_llama import LlamaConfig`；`def fuse_layer_norms(model):`；`rope_function_name = \"apply_rotary_pos_emb\"`。"
+      },
+      "counterevidence": "论文在 LLaMA-2 7B/13B/70B、LLaMA-3 1B/3B/8B 和 Mistral-7B 上验证，说明同一 pre-norm RMSNorm/RoPE 家族内可迁移；若目标架构同族，则不构成限制。",
+      "minimal_comparison": "在 OPT 或 GPT-NeoX 上检查：1）旋转前后 FP logits 最大误差；2）融合/不融合 RMSNorm scale 的差异；3）W4A8/W4A4 精度。若能保持等价与精度，则限制不成立。"
+    }
+  ],
+  "known_boundaries": [
+    "校准与优化预算边界：R1/R2 使用 800 个 WikiText2 样本、100 次 Cayley 迭代；作者 Table 11 显示 128 样本和 100 迭代已足够，Table 13 显示 C4 校准一致。",
+    "训练目标与 GPTQ 分工边界：主结果先在仅激活量化、权重 16-bit 的网络中学习旋转，再对旋转后权重做 GPTQ；作者 Table 3 报告 16-4-KV 优于 4-4-KV。",
+    "在线旋转边界：R3/R4 不学习，保留为 Hadamard，以 fast Hadamard transform 换取低开销；只有 R1/R2 在 Stiefel manifold 上优化。",
+    "量化配置边界：旋转按具体 W/A/KV bit-width 训练并评估；4-4-4、4-4-16、4-8-8 等分别报告，不能假定一个旋转跨 bit-width 通用。",
+    "评估范围边界：主要结果是 WikiText2 perplexity 与 8 个零样本常识任务；指令微调/少样本结果仅在附录 Table 18。",
+    "部署开销边界：SpinQuant_had 的 online Hadamard 在 CPU 上约 8% 延迟开销，GPU 上为 marginal difference；需要 fast Hadamard kernel。",
+    "参数化边界：R1 为全局 residual rotation，R2 为 per-head/per-layer rotation；仅 R1/R2 可合并，R3/R4 为 online；R1/R2 约占权重 0.26%。",
+    "模型覆盖边界：实验覆盖 LLaMA-2/3 与 Mistral 的 pre-norm RMSNorm/RoPE 家族；未覆盖 LayerNorm-bias、post-norm 等架构。"
+  ],
+  "uncertainties": [
+    "README 的 `4 4 4` 示例与论文 activation-only 描述的冲突，可能是文档陈旧、示例默认用法不同，或作者实际 Table 1 用了 w_bits=16；未运行无法确认。",
+    "论文称学习率线性衰减到 0，而 `scripts/10_optimize_rotation.sh` 使用 cosine 调度；对旋转质量与复现的影响未量化。",
+    "`fuse_layer_norms` 对 embedding 权重做逐行均值减法，是否在所有模型上严格保持 full-precision 输出等价，仅凭提供的代码片段不足以验证。",
+    "固定 R3/R4 的潜在损失没有 learned R3/R4 消融直接测量；只能从 Table 2 与 Table 4 间接推断。",
+    "per-tensor 激活量化是否在论文中有实验支持不明确：Figure 2 提到 tensor-wise，但仓库 `ActQuantizer` 只实现 per-token。",
+    "head_dim 非 2 的幂可通过分块或补零 Hadamard 绕过；该限制是代码实现约束还是方法内在约束尚未验证。"
+  ],
+  "target_execution": "not_run"
+}

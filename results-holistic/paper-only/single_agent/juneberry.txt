@@ -1,0 +1,305 @@
+{
+  "paper_id": "juneberry",
+  "method_model": {
+    "objective": "为 nil-externalizing（nilext）存储请求实现 wire latency：以单次往返、且不在关键路径上使用服务器 CPU 的方式提交请求，同时保持整个存储系统的线性化；并进一步用持久内存（PM）让硬件 ACK 具备持久性、支持崩溃恢复。",
+    "mechanism": "用 SRQ 绑定多条 RC QP，使不同客户端的 SEND 落入同一队列。Rule 1（NIC rule）：接收端 RNIC 从 SRQ 头部顺序分配接收缓冲区，并在分配之后回硬件 ACK。Rule 2（CPU rule）：CPU 只执行 SRQ 中第一个尚未执行的缓冲区，借助 CQ 的 CE 设置 bitmap 位、用 idx 推进，从而在多 QP 下强制按缓冲位置顺序执行。nilext 请求以硬件 ACK 作为提交信号，non-nilext 请求以软件响应作为提交信号。性能上用 multi-packet SRQ 让一个 WQE 承载多条消息，并用 client-side delegation（每个 client 机器 St 条 QP、由 owner 线程统一收发）把服务器 QP 数从 C×Ct×St 降到 C×St。持久化版本 Juneberry-D 把 SRQ 缓冲区放到 PM，每条 SEND 后在同一 QP 追加 1 字节 RDMA READ 来冲刷 PCIe 写，并关闭 DDIO；恢复时从 ReqToExecute 到 SRQTail 扫描，用 64-bit checksum + 32-bit size 识别有效请求，并按顺序重放 nilext 请求。",
+    "assumptions": [
+      "nilext 请求不返回执行结果或执行错误，因此可以延后执行（接口语义层面的假设）。",
+      "存储系统可按 key 做 shared-nothing 分区：每个 key 只属于一个 worker 的一个 SRQ，且请求只访问本分区数据。",
+      "服务器 CPU 的执行速度能跟上 nilext 请求的到达速度，未执行积压不超过 SRQ 的缓冲区数量（48 个 × 16KB）。",
+      "同一客户端线程的下一个依赖请求，通常落在与该 nilext 请求不同的 SRQ，或与之间隔足够长的思考时间（大于 nilext 执行时间）。",
+      "RNIC 只在分配接收缓冲区之后才回硬件 ACK（作者用 MR 权限检查论证此点）。",
+      "持久化场景下后端存储引擎本身是 crash-consistent 的（明确排除 Memcached）。",
+      "被测应用的请求都是单 key 的 set/get、put/get，多 key 或跨分区操作不在接口与证明范围内。"
+    ],
+    "evaluation_scope": "1 台服务器（双路 18 核 Xeon Gold 6240M、192GB DRAM、1.5TB Optane PM、100Gbps Mellanox ConnectX-5）+ 8 台客户端（每台 24 线程）；服务器 16（Memcached）或 18（PMemKV）个 worker 线程；Memcached 1.6.19 配 4 条 Twitter trace（set 比例 80%/25%/15%/94%），客户端按给定速率、泊松到达发请求；PMemKV 配 YCSB-like 100%/50%/5%/0% put、91B 对象、Zipf 0.99。基线为 RawRPC、DeferredExec、eRPC。报告吞吐-中位数延迟与吞吐-P99 延迟。无崩溃注入/恢复实验，无闭环依赖节奏实验，无多 key 操作实验，无超过 8 台客户端或单服务器之外的扩展实验。"
+  },
+  "candidates": [
+    {
+      "id": "H1",
+      "title": "Rule 2 的严格顺序执行把 nilext 的执行时延转嫁给同一 SRQ 中其后的 non-nilext 请求；开环泊松负载与秒级 Tgap 统计都无法证伪这一点",
+      "kind": "method_hypothesis",
+      "stage": "evaluation",
+      "rule": "Rule 2：CPU 总是取 SRQ 中第一个尚未执行的接收缓冲区执行，并且只有在执行该请求之后才推进 idx（论文第 7 页 bitmap/idx 三步流程）。因此一个请求的执行资格由它在 SRQ 中的位置唯一决定。",
+      "trigger": "一条 non-nilext 请求（get）进入某个 SRQ 时，该 SRQ 前面存在尚未执行完的 nilext 请求。这既可能是同一客户端线程在收到 ACK 后立刻发下一条请求（论文定义的病态模式），也可能是分区内持续积压导致的任意客户端之间的队头阻塞。",
+      "claim": "OQ 只把 nilext 的提交（硬件 ACK）移出关键路径，并没有把它的执行移出后续请求的关键路径。由于 CPU 必须按 SRQ 缓冲位置严格顺序执行，任何未执行的 nilext 请求都会把自身执行时间加到同一 SRQ 中其后 non-nilext 请求的延迟上。论文用两点论证该模式罕见：(a) 用秒级时间戳的 Twitter trace 统计 Tgap⊂[0,2s]；(b) 认为客户端有计算任务、且一个客户端常访问多个服务器/多个 SRQ。但 (a) 的分辨率比相关执行时间（微秒级）粗 5~6 个数量级，(b) 只在开环负载下成立；§6.3 的负载生成器是给定速率的泊松到达（开环），客户端下一条请求的发出时间与上一条响应无关，因此结构性低估了依赖节奏。于是论文报告的中位数/P99 提升不足以证明该模式在真实闭环节奏下不影响尾延迟。",
+      "causal_argument": "链路：生成/准入 → 产物 → 消费者 → 指标。(1) 生成：客户端对 key 做 hash 选一个 SRQ，候选数为 St（16 或 18），保留 1 个（第 7 页：clients hash the target key in a set/get request, and send the request to the SRQ managed by the i-th worker thread）。(2) 产物：每个 SRQ 一份 bitmap+idx，它把 CQ 中乱序的 CE 归并成唯一的执行顺序；客户端拿到的硬件 ACK 只说明自己的 SEND 已被分配，不携带它在队列中的位置或前面未执行请求数，因此客户端无法知道自己的提交要等多久。(3) 消费者：worker 线程的执行循环按 idx 逐个执行（replay_count = 1，每条缓冲只执行一次），下游消费者是需要软件响应的 non-nilext 请求。(4) 指标：客户端观测到的中位数/P99 延迟（图 7/8，第 11 页）。前提：硬件 ACK 使 nilext 提交与服务端执行解耦，故 nilext 的快速提交应降低整体延迟。变换：Rule 2 把服务端执行重新串行化到“后续请求”的关键路径上——论文自己的例子给出 set=2µs、set=2µs、get=23µs（无 OQ 时分别为 12/12/7µs），get 的延迟比不用 OQ 还高 3.3 倍。被破坏的前提：nilext 的执行延迟总能被客户端隐藏。只有在同一 SRQ 中下一条依赖请求到来前存在 ≥ 执行时间的间隙时才成立；闭环节奏下该间隙约为一个 RTT（论文取 2µs），小于 set 执行时间（论文取 10µs），因此必然暴露。后果：评测把 nilext 与 non-nilext 请求混在同一个中位数/P99 里，写密集 trace 中 set 占 80%~94%，中位数由被加速的 set 主导，而被转嫁延迟的 get 只出现在尾部；因此报告的目标函数无法区分“延迟真的降低”与“延迟从 nilext 转移到了 non-nilext”。",
+      "conditions": [
+        "non-nilext 请求与未执行的 nilext 请求落在同一 SRQ（同一 hash 分区）。",
+        "请求发出节奏是闭环的（收到响应/ACK 后立即发下一条），或分区内有持续积压使任意 get 都排在未执行 set 之后。",
+        "nilext 的处理时间与 RTT 同量级或更大（论文示例：set 10µs vs. RTT 2µs）。",
+        "负载点接近或超过服务端可持续执行速率。"
+      ],
+      "paper_evidence": [
+        {"page": 5, "quote": "Rule 2 (CPU rule). The CPU executes requests in order."},
+        {"page": 5, "quote": "In other words, the CPU always fetches the first receive buffer not yet executed in the RQ, executes the associated request, and finally returns software responses for non-nilext requests."},
+        {"page": 6, "quote": "With the OQ, the latency are 2µs, 2µs, and 23µs, respectively: although the two set requests are fast, the get request has a much higher latency."},
+        {"page": 6, "quote": "Since the traces record timestamps in seconds, we can only coarsely count how many requests result in Tgap ⊂ [0,2s]."},
+        {"page": 7, "quote": "Clients in Juneberry need to send requests (via RDMA SEND) to correct server-side worker threads according to partition scheme."},
+        {"page": 10, "quote": "client threads generate requests at a given rate with Poisson arrivals."},
+        {"page": 11, "quote": "This is because a small fraction of get requests produce pathological access patterns (recall §4), i.e., the time interval between them and previous set requests from the same client threads is too short to hide execution latency of set requests, leading to high tail latency."}
+      ],
+      "code_evidence": [],
+      "counterevidence": [
+        "作者主动披露了该模式，并给出 23µs 的数值示例；这不是隐藏的缺陷。",
+        "作者给出的缓解论据部分成立：一个客户端常访问多个服务器、每个服务器有多个 SRQ，且客户端线程有计算任务（网页渲染）产生思考时间；这些都会降低同 SRQ 依赖的概率。",
+        "论文自己的数据表明该模式没有推翻总体排名：在 Cluster-19 上 Juneberry 的 P99 仍从 65.8µs 降到 61.8µs，在写密集 Cluster-12/31 上 P99 比次优系统低 32.43%/42.86%。",
+        "在峰值吞吐下 Juneberry 明显优于 eRPC 与 DeferredExec，说明即使存在队头阻塞，其收益在写密集负载上仍然显著。",
+        "论文把 Cluster-19/27 的有限 P99 改进归因于该模式，这是作者的因果推断而非受控实验，因此既不能证明该模式的频率，也不能证明它一定是原因。"
+      ],
+      "minimal_comparison": {
+        "fixed": [
+          "同一硬件（1 服务器 + 8 客户端，ConnectX-5，Optane PM）与同一后端（Memcached 1.6.19，16 worker 线程）",
+          "同一 trace 比例与 key/value 大小（Cluster-12：80% set、44B key、1030B value；或 Cluster-19：25% set）",
+          "同一组给定 offered throughput（0.3~1.2 Mops/s），同一起止时间与预热"
+        ],
+        "vary": "客户端发出节奏与观测分辨率：开环泊松（论文现状）vs. 闭环（每线程一个 outstanding，收到响应后再发下一条）；同时把同线程 set→get 的 Tgap 从秒级改为 1µs 分辨率计数",
+        "baseline": "论文 §6.3 的开环泊松结果（图 7/8），以及同一负载下的 RawRPC 与 DeferredExec",
+        "observable": "把 get 与 set 分开的 p50/p99 延迟；闭环下 get 的 p99 相对开环的比值；get 前存在 Tgap < 10µs 同 SRQ set 的比例",
+        "refuted_if": "在相同 throughput 下，闭环 get 的 p99 不高于开环 get p99 的 1.1 倍，或高分辨率重放显示 Tgap 小于一次 set 执行时间（<10µs）的 get 比例低于 1%（即不足以影响 P99）"
+      },
+      "disclosure": "作者在 §4 明确披露该病态访问模式、给出 2µs/2µs/23µs 的示例，并在 §6.3 用 Cluster-19/27 的有限 P99 改进承认其影响。未披露的是：用微秒级、闭环节奏的负载直接测量该模式的频率与代价，以及按请求类型拆分的延迟统计。",
+      "status": "hypothesis_not_executed",
+      "remaining_gap": "需要闭环客户端生成器或微秒级 trace 重放；并把 get 与 set 的延迟分布分开报告，才能判断中位数提升中有多少来自延迟转嫁。"
+    },
+    {
+      "id": "H2",
+      "title": "Client-side delegation 让 nilext 的提交信号多经过一次跨线程软件跳：应用线程观测到的提交时延不再等于硬件 ACK 的 wire latency",
+      "kind": "method_hypothesis",
+      "stage": "sharing",
+      "rule": "每个 client 机器只建 St 条 QP（而不是 Ct×St），每条 QP 由一个 owner 线程独占；其他线程把请求发布到预留 slot，由 owner 扫描并发出，owner 同时负责处理该 QP 的完成事件并把响应交给发起者（第 8 页）。",
+      "trigger": "一个发起请求的 client 线程并不是其目标 QP 的 owner（24 个 client 线程共享 18 条 QP，因此这是常态），且 owner 处于忙、被调度延迟、或正在扫描/发送自己的请求时。",
+      "claim": "委派把服务器端 QP 数从 3456 降到 144，是 Juneberry 能扩展到 8 台客户端的前提；但它同时把一条 QP 变成了由多个 client 线程共享的产物，而这条 QP 既承担“发出请求”也承担“回收完成/ACK”。对于 nilext 请求，发起线程所依赖的提交信号是服务器 RNIC 的硬件 ACK，而该 ACK 的完成事件由 owner 轮询并转发，因此应用可见的提交路径是“发起线程 → slot → owner → NIC → 服务器 ACK → owner → 发起线程”，比“wire latency”多出两次跨线程软件跳。论文把 eRPC 在低负载读密集下低 100~400ns 归因于“cross-thread communication”，却没有单独隔离该开销对 nilext 提交路径的影响，也没有讨论它是否与“nilext 以硬件 ACK 提交、因此具有 wire latency”的主张冲突。",
+      "causal_argument": "链路：生成/准入 → 产物 → 消费者 → 指标。(1) 生成：客户端线程按目标 worker 选择 QP owner（候选为 St 条 QP，保留 1 条）。(2) 产物：共享 QP 及其 owner 线程，它把多个发起者的请求串行化到一条 QP 上；同一个 owner 还负责把该 QP 的完成事件分发给各发起者。(3) 消费者：发起 nilext 请求的应用线程，它必须等到 owner 把 ACK/完成事件转交后才能认为请求已提交；non-nilext 请求则等待 owner 转交软件响应。(4) 指标：图 7 的客户端中位数延迟（第 11 页）。前提：硬件 ACK 使 nilext 提交不经过服务器 CPU，因此客户端只需一次往返即可提交。变换：委派把“一次往返”在客户端侧扩展为“两次跨线程同步 + 一次往返”，并且 owner 的扫描周期与调度决定了请求何时真正上线、ACK 何时被分发给发起者。被破坏的前提：nilext 请求的提交延迟与 QP 数量优化无关。冲突在于两个目标由同一个产物承担：QP 状态可缓存要求“多条线程共享一条 QP”，而单个线程的提交延迟要求“自己的请求不被别人的请求排队、ACK 直接回到自己”。共享无冲突时（负载低）前者几乎免费，但在低/中负载下它正是延迟下限的来源。后果：论文报告的“wire latency”是网络路径的性质，而不是应用线程观测到的提交延迟；评估在峰值吞吐下由排队时间主导，恰好掩盖了这一固定开销，只有 eRPC 在低负载读密集场景下的 100~400ns 优势把它暴露出来，而作者只把它当作一句旁注。",
+      "conditions": [
+        "client 机器上的线程数 Ct 大于服务器 worker 数 St（论文：24 线程 vs. 16/18 个 worker），因此多个线程必须共享同一条 QP。",
+        "一个 client 线程的请求被路由到由另一个线程拥有的 QP。",
+        "负载处于低/中区间，排队时间不足以掩盖跨线程开销。",
+        "nilext 请求的提交判定需要发起线程自己知道 ACK 已到达（而不是由 owner 代表它继续后续工作）。"
+      ],
+      "paper_evidence": [
+        {"page": 8, "quote": "Each QP is managed by one client thread, which is called owner of the QP. When a client thread is about to send a request to a worker thread, it identifies the owner of the target QP and publishes the request in a reserved slot."},
+        {"page": 8, "quote": "The owner is also responsible for processing responses from the QP and delivering these responses to initiators."},
+        {"page": 10, "quote": "Second, client-side delegation further increases throughput by 1.25×, since it reduces the number of RC QPs from 3456 (i.e., 8×24×18) to 144 (i.e., 8×18)"},
+        {"page": 11, "quote": "when the throughput is less than 2.5Mops/s under Cluster-27, eRPC has 100∼400ns lower median latency than Juneberry."},
+        {"page": 11, "quote": "This is because at this point, software queuing does not affect latency, but the client-side delegation in Juneberry incurs extra software overhead such as cross-thread communication."}
+      ],
+      "code_evidence": [],
+      "counterevidence": [
+        "委派是作者明确论证的必要优化：没有它 Juneberry 无法扩展到 5 台以上客户端（第 10 页），且它带来 1.25× 吞吐提升；因此该开销不是实现失误，而是被接受的权衡。",
+        "论文报告的所有客户端延迟本身就包含委派开销，头条数字没有被高估；问题只在于“wire latency”这一措辞与“应用可见提交延迟”的差距。",
+        "作者在 §5.2.3 给出 XRC 作为消除委派的替代方案（服务器 QP 数降为 C×Ct），说明该边界有已知缓解路径。",
+        "在峰值吞吐下 Juneberry 仍明显优于 eRPC，说明该开销只影响延迟下限，不影响论文的主要结论方向。",
+        "论文没有说明延迟是在发起线程处还是在 owner 处测量；若是在 owner/线上测量，则 100~400ns 的差距可能被低估或高估，这一点无法从论文确定。"
+      ],
+      "minimal_comparison": {
+        "fixed": [
+          "单台 client 机器 + 同一台服务器，24 个 client 线程，Cluster-27 的 15% set / 8B value 组合",
+          "同一组 offered throughput（0.1~2.5 Mops/s），同一起止时间与预热",
+          "同一服务器端配置（16 worker、48×16KB SRQ）"
+        ],
+        "vary": "委派开/关：论文的 owner 共享 QP（St 条 QP）vs. 每线程独占 QP（Ct×St 条，单 client 机器下仅 432 条，仍在 RNIC 可承受范围）",
+        "baseline": "论文的 Juneberry（开启委派）与 eRPC；同一机器、同一负载",
+        "observable": "nilext set 的 p50/p99；owner 侧两个时间戳（slot 发布 → 上线、CE 到达 → 发起者可见）的差值；get 的 p50/p99 作为对照",
+        "refuted_if": "关闭委派后 nilext set 的 p50 变化小于约 50ns，且 Juneberry 与 eRPC 在低负载下的 100~400ns 差距仍存在（说明差距来自 eRPC 自身路径或其他因素，而非共享 QP 的跨线程跳）"
+      },
+      "disclosure": "作者在 §5.2.2 明确描述 owner 转发响应，并在 §6.3 承认客户端委派带来跨线程通信开销，使低负载读密集下比 eRPC 慢 100~400ns。未披露的是：该开销在 nilext 提交路径上的单独量化，以及它与“nilext 请求以硬件 ACK 提交、具有 wire latency”这一主张的关系。",
+      "status": "hypothesis_not_executed",
+      "remaining_gap": "需要在同一机器、同一线程数下做委派开/关的 nilext 专项延迟对比，并把 slot→上线与 CE→发起者两段时延拆开测量；论文没有给出客户端侧的时间戳分解。"
+    },
+    {
+      "id": "H3",
+      "title": "恢复路径把 64-bit checksum 当作“有效请求”的唯一判据，而 SRQ 缓冲区会被回收重用：已执行请求的陈旧字节在 ReqToExecute..SRQTail 范围内仍能通过校验，恢复时会作为已提交 nilext 请求被重放",
+      "kind": "method_hypothesis",
+      "stage": "representation",
+      "rule": "恢复时，对每个 SRQ，恢复线程从 ReqToExecute 扫描到 SRQTail；地址 checksum 失败则跳到下一个对齐地址，checksum 通过则标记为有效请求；随后按 SRQ 顺序执行其中所有 nilext 请求，non-nilext 请求因未提交而跳过（第 9 页）。",
+      "trigger": "SRQ 中已执行、已被 CPU 重新 post 的缓冲区尚未被新的 SEND 覆盖，因此仍保留上一条（或更早）请求的完整字节；此时发生崩溃或掉电，恢复扫描会在 ReqToExecute 之后的空缓冲区里遇到这些陈旧但 checksum 有效的请求。",
+      "claim": "论文声称“checksum 覆盖整个请求 + size 是请求长度”就能识别有效请求，但有效性的另一个维度——该缓冲区当前是否真的被一条新 SEND 填充——在崩溃后已经丢失。缓冲区是循环重用的（第 5 页明确说“Receive buffers consumed by the CPU can be pushed into the RQ again”），而每个 SRQ 有 48 个 16KB 缓冲区，正常运行时绝大多数已 post 的缓冲区是空的、内容是旧请求的字节。扫描范围 ReqToExecute..SRQTail 恰好覆盖这些空缓冲区。于是一条在 ReqToExecute 之前早已执行过的 nilext set(k,v_old)，如果其缓冲区被重新 post 且未被覆盖，就会被判定为有效，并在恢复时排在新请求之后重放，把 v_old 写回、覆盖客户端已经收到 ACK 的更新值——这违反已确认的顺序，即线性化被破坏。论文只讨论了“未提交的非 nilext 请求 r5 可以跳过”，没有讨论“陈旧但格式有效的已执行请求不能重放”。",
+      "causal_argument": "链路：生成/准入 → 产物 → 消费者 → 指标。(1) 生成：worker 执行完请求后把缓冲区重新 post 到 SRQ 尾部，SRQTail 随之更新（第 9 页）。(2) 产物：PM 中的请求字节 + 持久化的 ReqToExecute/SRQTail；checksum+size 是唯一的有效性表示。(3) 消费者：恢复线程，它用 checksum 判定有效、并对所有 nilext 请求按地址顺序重放（replay_count = 1，且没有任何 epoch/generation 区分“本轮填充”与“上一轮残留”）。(4) 指标：论文报告的是吞吐-延迟，恢复正确性没有任何度量（§6 无崩溃/恢复实验）。前提：checksum 能区分“有效未执行请求”与“无效/垃圾数据”。变换：缓冲区重用使“无效/垃圾”位置上存在完整、checksum 正确的旧请求；恢复线程把“格式有效”等同于“当前已提交”。被破坏的前提：格式有效性 = 本次运行中被 SEND 填充。后果：对同一 key 的多次覆盖写，恢复后可能回到旧值；而论文以“persistent hardware ACKs + recoverable SRQ”宣称不牺牲崩溃一致性（第 12 页），该宣称在评估中完全没有被检验。",
+      "conditions": [
+        "SRQ 缓冲区被回收重用，且 re-post 时没有清零或使 header 失效（论文未描述任何这样的步骤）。",
+        "崩溃发生时 SRQ 中存在已 post 但未被新 SEND 覆盖的空缓冲区（由于 48 个缓冲区且 MP 打包，这是常态而非边缘情况）。",
+        "存在对同一 key 的多次 nilext 覆盖写，且旧请求的缓冲区位于 ReqToExecute 之后。",
+        "只有 nilext 请求会被重放；non-idempotent 请求走 non-nilext 流程，因此危险的是幂等但会覆盖新值的 set/put。"
+      ],
+      "paper_evidence": [
+        {"page": 9, "quote": "each request begins with a 64-bit checksum and a 32-bit size; checksum covers the whole request and size is the request length, both being filled by client threads."},
+        {"page": 9, "quote": "For each SRQ, a recovery thread scans receive buffers from ReqToExecute to SRQTail. When an address results in checksum failure, the thread jumps to the next aligned address in the current receive buffer or the next buffer, continuing to identify valid requests."},
+        {"page": 9, "quote": "nilext requests may have returned hardware ACKs as commit signals; therefore, for crash consistency, the recovery thread executes these nilext requests in order (i.e., r3 and r6)."},
+        {"page": 5, "quote": "Receive buffers consumed by the CPU can be pushed into the RQ again."},
+        {"page": 10, "quote": "Without explicit mention, each MP SRQ consists of 48 receive buffers of 16KB."},
+        {"page": 9, "quote": "Note that we do not need to execute non-nilext request r5, because it is uncommitted and thus is concurrent with the subsequent requests in the SRQ (i.e., r6 in this example)."}
+      ],
+      "code_evidence": [],
+      "counterevidence": [
+        "论文明确把非幂等请求改为 software controllable、走 non-nilext 流程（第 9 页），因此重放幂等 set 在很多情况下无害；只有“旧 set 覆盖新 set”这种顺序反转才会产生可观测错误。",
+        "如果实现在 re-post 时清零 header、写入 generation/epoch，或用持久化的收包序号标记“本轮已填充”，则该问题不存在；论文没有描述这些步骤，因此这是未验证的实现细节，而不是已证实的缺陷。",
+        "恢复严格按地址顺序执行，因此问题只在“陈旧缓冲区地址晚于新请求地址”时出现；若实现保证 re-post 的缓冲区不会被扫描（例如只扫描有 CE 记录的 WQE），也可避免。",
+        "论文的图 5 只展示“有效 vs. checksum 失败”，没有给出缓冲区重用后的情形，因此既不能证实也不能证伪。",
+        "评估里完全没有崩溃注入实验，因此该问题即使存在也不会被报告的吞吐/延迟数字暴露；这既是支持也是限制：没有观测到反例。"
+      ],
+      "minimal_comparison": {
+        "fixed": [
+          "Juneberry-D、PMemKV、50% put、8 字节 key、91B~3200B value、Zipf 0.99",
+          "同一服务器与 PM 配置，同一恢复代码路径"
+        ],
+        "vary": "崩溃点与缓冲区卫生：在一个 set 的缓冲区已被 re-post、且同一 key 已被更新过之后注入崩溃 vs. 干净关机；以及 re-post 时清零 header vs. 保持原字节",
+        "baseline": "客户端收到的 ACK 历史（应恢复出的最后值）与干净关机后的状态",
+        "observable": "恢复后该 key 的值；恢复日志中“checksum 有效但对应缓冲区本轮未被 SEND 填充”的请求数；被重放的陈旧请求数",
+        "refuted_if": "在所有崩溃点恢复出的状态都等于 ACK 历史（例如因为实现会在 re-post 时使 header 失效或为每个缓冲区维护持久化 generation），或扫描范围不可能包含已回收的陈旧缓冲区"
+      },
+      "disclosure": "作者披露了 ReqToExecute/SRQTail、checksum+size 格式、从 ReqToExecute 到 SRQTail 的扫描，以及“重放所有 nilext 请求”的策略；也讨论了 ReqToExecute 处 non-idempotent 请求的角落情况。未披露的是缓冲区回收重用导致的“陈旧但格式有效”请求，且评估中没有任何崩溃/恢复实验。",
+      "status": "hypothesis_not_executed",
+      "remaining_gap": "需要崩溃注入实验（先对同一 key 多次覆盖写以迫使缓冲区轮转），或源码/规范确认 re-post 时是否使 header 失效；论文没有提供任一证据。"
+    },
+    {
+      "id": "H4",
+      "title": "线性化证明只覆盖单个 RQ；实现按 key 分成 St 个 SRQ，“whole system”的线性化仅对单 key 操作成立，跨分片/多 key 操作没有共同的排序点",
+      "kind": "method_hypothesis",
+      "stage": "admission",
+      "rule": "客户端对 key 做 hash 选择第 i 个 worker 的 SRQ（i = hash(key) % #worker threads），每个 worker 独占一组数据；每个 SRQ 内的缓冲区位置给出该分区的全序，不同 SRQ 之间没有任何排序机制。",
+      "trigger": "一个请求需要同时读写映射到不同 worker 的两个 key（multi-get、scan、跨 key 条件更新，或 handler 内部访问另一分区），或者两个客户端在不同 SRQ 上并发提交后，一个多 key 读需要同时观察两者的效果。",
+      "claim": "§4 的线性化论证是对“一个 RQ”做的：R1 与 R2 的相对顺序来自同一队列中的缓冲位置。§5.1 为了多核扩展把队列拆成 St 个 SRQ，但论文没有把证明扩展到多队列；唯一的桥接论据是“每个 key 只属于一个 SRQ”，这只对单 key 操作成立。对于跨两个 key 的操作，系统没有共同的排序点：两个分区的 ACK 顺序可以各自线性化，但任何需要同时观察两个 key 的读都可能返回一个从未存在过的组合状态，而这是“linearizability of the whole storage system”所禁止的。评估中 Memcached 只发单 key 的 set/get（Table 1 的四条 trace 均为 set 比例 + key/value 大小），PMemKV 只有单 key 的 put/get，因此报告的中位数/P99 无法暴露该边界。",
+      "causal_argument": "链路：生成/准入 → 产物 → 消费者 → 指标。(1) 生成/准入：每个请求只被准入到一个 SRQ（候选 St 个，保留 1 个），选择规则是 hash(key)。(2) 产物：per-SRQ 的 bitmap+idx 全序；跨 SRQ 没有任何全序或向量时钟，客户端也不知道两个 ACK 之间的全局先后。(3) 消费者：需要跨 key 一致视图的应用逻辑（多 key 读、扫描、跨 key 条件写），它只能分别等待两个分区的响应，然后自行拼接。(4) 指标：论文报告的单 key 延迟与吞吐。前提：按 key 分区使得“每 key 一个队列”足以给出系统级线性化。变换：一旦一个操作跨两个分区，它在两个队列中的位置可以互相矛盾——分区 A 的写可能在分区 B 的读之后被排序，而分区 B 的写也可能在分区 A 的读之后被排序，形成循环。被破坏的前提：per-key 有序 ⇒ whole-system 线性化。后果：论文在摘要/正文中宣称的 “linearizability of the whole storage system” 只在单 key 操作集合上被证明；评估的工作负载恰好全部是单 key，因此既没有验证也没有触及该宣称的边界。",
+      "conditions": [
+        "同一请求涉及两个映射到不同 worker 的 key（多 key 读、范围扫描、跨 key 条件更新）。",
+        "两个客户端在不同 SRQ 上并发提交，且一个多 key 读需要同时观察两者。",
+        "后端被当作 shared-nothing 按 key 分区（论文明确假设），且没有任何跨分区协调或全局时钟。"
+      ],
+      "paper_evidence": [
+        {"page": 5, "quote": "We therefore propose Ordered Queue (OQ) abstraction, which enables wire-latency nilext requests while maintaining linearizability of the whole storage system."},
+        {"page": 5, "quote": "Here, we prove that a request (R2) sees the effects of any request (R1) that is committed before it invokes."},
+        {"page": 7, "quote": "Juneberry creates multiple SRQs at the server side, each being associated with a worker thread. Each worker thread manages an exclusive set of datasets."},
+        {"page": 7, "quote": "For example, in the Memcached case, clients hash the target key in a set/get request, and send the request to the SRQ managed by the i-th worker thread, where i = hash(key) % #(worker threads)."},
+        {"page": 11, "quote": "This is because Juneberry makes nilext requests (i.e., set requests) wire-latency by leveraging hardware ACKs as commit signals."}
+      ],
+      "code_evidence": [],
+      "counterevidence": [
+        "作者明确披露了数据分区前提：“Such data partitioning is easily achieved in many storage systems such as key-value stores, since they adopt a shared-nothing architecture”，因此这不是完全隐藏的假设。",
+        "对单 key KV 而言，按 key 分片确实足够：同一 key 的 set 与 get 永远落在同一 SRQ，§4 的证明可以直接套用。",
+        "如果应用把所有多 key 操作都发给同一个 SRQ（协调者），也能得到一个顺序；但这会破坏“每个 worker 独占数据集”的前提，或迫使协调者跨分区访问。",
+        "论文评测的 Memcached/PMemKV 接口本身是单 key 的，因此在该范围内该限制不会显现；把它算作方法层限制的前提是应用确实需要多 key 原子视图。",
+        "论文没有声称支持事务或多 key 操作；若把 “whole storage system” 解释为“所有实际发出的单 key 请求的集合”，则论证成立。"
+      ],
+      "minimal_comparison": {
+        "fixed": [
+          "Memcached + Juneberry，8 客户端、16 worker、25% set、同一 key/value 分布",
+          "同一并发度与 offered throughput"
+        ],
+        "vary": "操作集合：纯单 key get/set（论文现状）vs. 增加一个跨两个 worker 的多 key 读，或一个基于另一 key 的条件更新",
+        "baseline": "RawRPC 上的同一多 key 操作（由单一服务器端 handler 串行处理，因而有明确的排序点）",
+        "observable": "多 key 读是否返回无法由任何串行历史解释的组合（例如 k1 为新值、k2 为旧值，而两个客户端按该顺序收到了 ACK）；用线性化检查器判定",
+        "refuted_if": "所有多 key 操作都被路由到单一 SRQ 并在一个明确的序列化点执行，或观测到的所有结果都存在一个合法的线性化顺序"
+      },
+      "disclosure": "作者披露了按 key 的 shared-nothing 分区前提与客户端 hash 选 SRQ 的规则；未披露的是：§4 的证明只针对单个 RQ，且摘要/正文的 “linearizability of the whole storage system” 没有限定为单 key 操作。",
+      "status": "hypothesis_not_executed",
+      "remaining_gap": "需要在 Juneberry 上实现并测试一个跨分区多 key 操作，并用线性化检查器判定；论文的评测工作负载不包含此类操作。"
+    }
+  ],
+  "rejected_candidates": [
+    {
+      "title": "硬件 ACK 在 DMA 完成前返回会破坏 OQ 顺序",
+      "reason": "论文已论证 RNIC 必须在检查目标 MR 权限之后才回 ACK，而权限检查意味着缓冲区已分配（第 6~7 页）；且 CPU 只有在收到 CE（DMA 完成后）才会设置 bitmap 位并执行，因此非持久化路径不会乱序。持久化路径另有 SEND+1 字节 READ 的冲刷机制（第 9 页）。该候选与论文机制直接冲突。"
+    },
+    {
+      "title": "nilext 请求执行失败会被静默丢弃，从而破坏线性化",
+      "reason": "nilext 接口按定义不返回执行结果或执行错误（第 4 页），论文因此从未描述 handler 失败语义；要成立需要 Memcached/PMemKV 具体失败模式（如 set 分配失败、PMemKV put 失败）与框架处理方式的证据。当前只能算接口契约之外的推测，且无法从论文给出受控对比，故不保留为候选。"
+    },
+    {
+      "title": "Optane PM 停产使 Juneberry-D 的持久化不可部署",
+      "reason": "作者已在 §7 披露 Optane 业务被关闭，并给出 CXL-based SSD 与 UPS-backed DRAM 两条替代路径；这是作者主动披露的部署边界，不属于未披露的方法层限制。"
+    },
+    {
+      "title": "SRQ 比标准 RQ 吞吐低（2.91 vs. 2.24 Mops/s）是方法缺陷",
+      "reason": "这是 SRQ 的 list-based WQE 硬件特性，作者已量化并用 MP SRQ（1.51×）与委派（1.25×）缓解（第 8、10 页）；它解释的是为什么需要优化，而不是方法本身无法成立。"
+    },
+    {
+      "title": "单服务器、8 客户端、单一 RNIC 的评估不能外推到大规模",
+      "reason": "这是泛化的“缺少评估”，而不是一个有具体因果机制、触发条件与可证伪对照的方法层限制；论文的机制本身不依赖服务器数量，若要主张规模边界需要更具体的资源瓶颈论证。"
+    }
+  ],
+  "known_boundaries": [
+    {
+      "title": "病态访问模式：同一线程在 nilext ACK 后立刻发 non-nilext 请求，会使后者等待前者执行",
+      "mechanism": "Rule 2 要求按 SRQ 顺序执行；nilext 请求的提交被硬件 ACK 提前，但其执行仍会阻塞同一 SRQ 中其后的 non-nilext 请求。论文示例：无 OQ 时 12/12/7µs，有 OQ 时 2/2/23µs。",
+      "conditions": "同一客户端线程、同一 SRQ、无思考时间、nilext 执行时间大于 RTT。",
+      "paper_evidence": [
+        {"page": 5, "quote": "There is a pathological access pattern that makes OQ perform poorly: a client thread sends a non-nilext request immediately after receiving the hardware ACK of a nilext request, and both requests reach},
+        {"page": 6, "quote": "With the OQ, the latency are 2µs, 2µs, and 23µs, respectively: although the two set requests are fast, the get request has a much higher latency."},
+        {"page": 6, "quote": "In 85.2% (46) clusters, requests leading to Tgap ⊂ [0,2s] are less than 10%"},
+        {"page": 11, "quote": "This also explains why Juneberry is less effective in reducing tail latency than median latency."}
+      ],
+      "what_is_not_established": "该模式在微秒尺度上的真实频率与代价。Tgap 只能按秒级统计，而一次 set 执行约 10µs；85.2% 的集群中“少于 10% 的请求”落在 0~2s 区间，仍可能包含足以决定 P99 的微秒级依赖。"
+    },
+    {
+      "title": "SRQ 缓冲区耗尽时硬件 ACK 退化为 RNR 重传，尾延迟急剧上升",
+      "mechanism": "nilext 请求在 SRQ 中占用接收缓冲区直到被 CPU 执行；当归档全部为 nilext 且 offered 速率略高于服务端可持续执行速率时，SRQ 没有空闲缓冲区，服务器 RNIC 返回 receive not ready（RNR），发送端必须重传。",
+      "conditions": "100% put（全 nilext）、offered throughput 略高于 Juneberry-D 可处理的速率、SRQ 深度 48 个缓冲区。",
+      "paper_evidence": [
+        {"page": 12, "quote": "However, when the throughput offered is slightly higher than Juneberry-D can handle, its tail latency increases dramatically. This is because when all requests are nilext, the server-side SRQ can easily have no free buffers, causing the server-side RNIC to generate the receive not ready (RNR) error."},
+        {"page": 10, "quote": "Without explicit mention, each MP SRQ consists of 48 receive buffers of 16KB."}
+      ],
+      "what_is_not_established": "退化的定量形状（RNR 阈值与 SRQ 深度、MP 打包、执行速率的关系）、RNR 重传计数、以及客户端能否区分“正在重传”与“已提交”。论文只有一句定性描述和一个 P99 图，没有给出超载时的 p50、RNR 计数或超时时间。"
+    },
+    {
+      "title": "持久化版本带来 36.40% 的吞吐下降",
+      "mechanism": "每条 SEND 后追 1 字节 RDMA READ 以冲刷 PCIe 写，消耗服务器 RNIC 的 IOPS；PM 上处理请求还要多花 CPU 周期（PM 读延迟约为 DRAM 的 3 倍）。",
+      "conditions": "Juneberry-D（PM-resident SRQ + 关闭 DDIO），64B 小请求，8 台客户端。",
+      "paper_evidence": [
+        {"page": 10, "quote": "supporting durability brings 36.40% throughput degradation (compared with Figure 6(a)): from 31.07Mops /s to 19.76Mops/s. This is because 1) every RDMA SEND command is followed by an RDMAREAD command for durability, consuming the IOPS of the server-side RNIC; 2) handling PM-resident requests consumes more CPU cycles, since PM has 3× higher read latency than DRAM."}
+      ],
+      "what_is_not_established": "该下降与 offered 速率、并发度、SRQ 深度的关系；论文只给 8 客户端下的一个点。也没有与“不追 READ 但仍在 PM 上”的消融，因此无法拆分 READ 与 PM 读延迟各自的贡献。"
+    },
+    {
+      "title": "读密集/只读负载下 Juneberry-D 的中位数与 P99 反而更差",
+      "mechanism": "关闭 DDIO 损害 RNIC 与主存之间的通信延迟；PM-resident 接收缓冲区使 CPU 取请求更慢。",
+      "conditions": "5% put 与 0% put 的 PMemKV 工作负载。",
+      "paper_evidence": [
+        {"page": 12, "quote": "Second, Juneberry-D is inferior to other systems under read-intensive (i.e., 5%put) and read-only workloads. Specifically, compared withRawRPC, Juneberry-D has 1.19× (1.6µs) and 1.20× (1.7µs) higher median latency."},
+        {"page": 12, "quote": "When workloads are read-intensive (5% put) and read-only, Juneberry-D has up to 1.28× and 1.49× higher P99 latency due to PM receive buffers and disabled DDIO."}
+      ],
+      "what_is_not_established": "该回退在非持久化 Juneberry（不关 DDIO、SRQ 在 DRAM）上是否也存在，以及它随 read ratio 的转折点；论文把两个因素合在一起归因，没有做 DDIO 与 PM 缓冲区的消融。"
+    },
+    {
+      "title": "大 value 时 PM 写带宽被 SRQ 缓冲区与后端存储竞争，吞吐落后 RawRPC 1.42×",
+      "mechanism": "PM-resident 接收缓冲区消耗 PM 写带宽；value 越大，put 请求越大，SRQ 占用的写带宽越多，留给后端 PMemKV 的带宽越少。",
+      "conditions": "8 字节 key、50% put、value 从 100B 到 3200B。",
+      "paper_evidence": [
+        {"page": 12, "quote": "with 3200B values, RawRPC delivers 1.42× higher throughput against Juneberry-D. Fortunately, small objects are very common in real-world workloads [15, 43, 63], soJuneberry-D can achieve wire-latency nilext requests at a small cost in throughput in many cases."},
+        {"page": 12, "quote": "In addition, if the back-end storage system uses a storage device that is not a PM (e.g., SSD or HDD), Juneberry will not induce throughput degradation."}
+      ],
+      "what_is_not_established": "“非 PM 后端不会退化”这一句没有任何测量支撑（评估只用了 Optane PM）；大 value 下的延迟（而非吞吐）行为也没有给出。"
+    },
+    {
+      "title": "峰值吞吐不提升：后端存储引擎是瓶颈，收益只在给定吞吐下的延迟",
+      "mechanism": "OQ 移除的是服务器 CPU 在 nilext 提交关键路径上的开销，而不是后端引擎的执行容量；因此所有系统达到相同的峰值吞吐。",
+      "conditions": "Memcached/PMemKV 的 16/18 worker 线程配置，后端引擎先饱和。",
+      "paper_evidence": [
+        {"page": 11, "quote": "All systems achieve the same peak throughput since the back-end storage engine is the throughput bottleneck."},
+        {"page": 11, "quote": "As a result, the median latency of Juneberry is not only low but also stable under different degrees of loads."}
+      ],
+      "what_is_not_established": "如果后端不是瓶颈（例如 CPU-bound 的复杂 handler、或更大的 worker 并行度），OQ 能否提高吞吐；论文没有给出这类配置，也没有给出 CPU 利用率。"
+    },
+    {
+      "title": "部署与硬件范围：单服务器、ConnectX-5、Optane PM；Memory-Semantic SSD 尚未可用",
+      "mechanism": "持久化依赖能暴露 load/store 语义的 PM 设备；评测依赖 Mellanox ConnectX-5 的 SRQ/MP 特性与 100Gbps IB。",
+      "conditions": "1 台服务器 + 8 台客户端；Optane PM（已被 Intel 停产）；ConnectX-5。",
+      "paper_evidence": [
+        {"page": 9, "quote": "Memory-Semantic SSD is not currently available."},
+        {"page": 10, "quote": "Each machine installs a 100Gbps Mellanox ConnectX-5 RNIC; all RNICs are connected to a Mellanox 100Gbps IB Switch."},
+        {"page": 8, "quote": "Here, we assume that the back-end storage systems of Juneberry are crash-consistent (unlike Memcached)."}
+      ],
+      "what_is_not_established": "在其他 RNIC（尤其是不支持 MP SRQ 或 ACK 语义不同的网卡）、多服务器、或多 RNIC 下的行为；以及后端不 crash-consistent 时恢复会怎样。论文没有任何崩溃注入实验来验证 §5.3 的恢复流程。"
+    }
+  ],
+  "uncertainties": [
+    "论文没有说明客户端延迟是在发起线程处测量，还是在 owner/线上测量；这直接影响 H1 与 H2 中“应用可见延迟”的解释。",
+    "论文没有说明委派模式下 nilext 请求的硬件 ACK/完成事件如何通知到发起线程，因此 H2 的“两次跨线程跳”是基于第 8 页 owner 转发响应的描述推断的。",
+    "论文没有说明缓冲区在 re-post 时是否清零或使 checksum header 失效；这是判断 H3 是否成立的关键实现细节，仓库与代码均不可得。",
+    "论文没有说明 Memcached/PMemKV 集成是否真的只接受单 key 操作，也没有说明多 key 操作会被如何路由；H4 的触发条件依赖应用确实需要跨 key 视图。",
+    "作者把 Cluster-19/27 的有限 P99 改进归因于病态访问模式，但没有做受控消融；该归因是作者的推断，不是测量结果。",
+    "所有实验都在单服务器、单 RNIC、最多 8 台客户端下完成；任何关于更大规模或不同硬件的结论都只能算外推。",
+    "没有作者仓库与代码，本报告所有涉及实现的判断均为未执行的、基于论文描述的假设。"
+  ],
+  "target_execution": "not_run"
+}

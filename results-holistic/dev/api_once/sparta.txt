@@ -1,0 +1,196 @@
+{
+  "paper_id": "sparta",
+  "method_model": "SparTA：以 TeSA 表示张量稀疏/量化属性，经属性传播、执行计划变换和 TeSA 感知代码特化生成稀疏 DNN 执行代码。",
+  "candidates": [
+    {
+      "id": "C1",
+      "title": "核心传播 pass 返回未更新属性，端到端稀疏传播在提供路径中未执行",
+      "causal_argument": "SpartaModel._optimize_sparsity 调用 propagate_sparsity；该函数仅提取初始 TeSA，随后显式标注 mocked 并令 post_sparsity = pre_sparsity。下游变换只能看到初始属性，无法获得论文所述前向/反向传播带来的新增稀疏或量化位宽下降。",
+      "conditions": "使用 sparta.core.SpartaModel 或直接调用 propagate_sparsity；模型只标注部分张量 TeSA；依赖传播增益的端到端结论。",
+      "paper_evidence": {
+        "page": 2,
+        "quote": "propagated forward and backward across the entire deep learning model"
+      },
+      "code_evidence": [
+        {
+          "file": "sparta/propagation/propagate.py",
+          "symbol": "propagate_sparsity",
+          "excerpt": "# mocked\n    post_sparsity = pre_sparsity\n    return post_sparsity"
+        }
+      ],
+      "counterevidence": "sparta/propagation/talgebra.py 实现了 propagate_matmul 等 TeSA 代数；若实验脚本绕过 propagate_sparsity 直接调用它，或 artifact 其他路径执行传播，则核心 no-op 只限制该 API。README/分支可能不是完整论文实现。",
+      "minimal_comparison": "构造两层 Matmul 链，只给中间权重已知列剪枝 TeSA；比较 propagate_sparsity 返回的 TeSA 与用 propagate_matmul 推得的 TeSA/稀疏率。若前者不变而论文传播结果可复现，则需另找传播实现。"
+    },
+    {
+      "id": "C2",
+      "title": "重建 pass 返回原模型，特化 kernel/module 未替换执行图",
+      "causal_argument": "optimize_and_rebuild 先生成 TransformedModule，随后 rebuild_sparse_model_pytorch 标注 mocked 并原样 return model；SpartaModel.forward 使用 self.opt_model，因此该路径前向仍执行原始模型。即使变换生成了 kernel，也不会影响延迟/内存。",
+      "conditions": "使用 SpartaModel 或 optimize_and_rebuild 且 backend='pytorch'；依赖二阶段编译替换算子的端到端实验。",
+      "paper_evidence": {
+        "page": 4,
+        "quote": "After attribute propagation, SparTA runs a multi-pass com-pilation process"
+      },
+      "code_evidence": [
+        {
+          "file": "sparta/transformation/optimize_model.py",
+          "symbol": "rebuild_sparse_model_pytorch",
+          "excerpt": "# return mocked for now\n    return model"
+        }
+      ],
+      "counterevidence": "实验脚本可能直接使用 TransformedModule.kernels 或单独替换模型；artifact 可能裁剪了最终 rebuild。optimize_model.py 中 rebuild_sparse_model_nnfusion 也是省略实现。",
+      "minimal_comparison": "实例化 SpartaModel(nn.Linear) 并设置 TeSA；检查 opt_model 是否就是原 model，或比较 module 类型、graph 节点数和前向延迟。若脚本路径产生稀疏模块，则候选只限制核心 API。"
+    },
+    {
+      "id": "C3",
+      "title": "执行计划分解与卷积路径不完整，复杂 TeSA 不能按 Algorithm 3 拆成子算子",
+      "causal_argument": "TransformPolicy.transform_tesas 直接 return [(tesa,)]；transform_module 只处理 nn.Linear，nn.Conv2d 分支为省略号；代码注释明确分解只做 weight tensors。混合位宽/块稀疏、激活或输出 TeSA、Conv2d 无法在该 policy 中拆成多个简单 TeSA 和子算子，变换增益与任意 pattern 支持受限。",
+      "conditions": "混合位宽/块稀疏；激活或输出 TeSA；Conv2d（MobileNet/HuBERT 的卷积部分）；非 nn.Linear 模块。",
+      "paper_evidence": {
+        "page": 6,
+        "quote": "SparTA therefore transforms a tensor with a complex sparsity pattern to multiple tensors"
+      },
+      "code_evidence": [
+        {
+          "file": "sparta/transformation/transform_policy.py",
+          "symbol": "transform_tesas",
+          "excerpt": "return [(tesa,)]"
+        },
+        {
+          "file": "sparta/transformation/transform_policy.py",
+          "symbol": "transform_module",
+          "excerpt": "elif isinstance(module_sparsity.module_obj, nn.Conv2d):\n            ..."
+        },
+        {
+          "file": "sparta/transformation/transform_policy.py",
+          "symbol": "transform_module docstring",
+          "excerpt": "In the current implementation, we do not decompose activation tensor into multiple tensors. Only do this for weight tensors."
+        }
+      ],
+      "counterevidence": "weighted_block_cover.py 与 specialize_kernel.py 有块覆盖和模板；transform_matmul 未在给定 1-100 行展示，可能实现权重分解；论文 Table 3 主要剪枝权重，激活混合稀疏未必在评测范围。",
+      "minimal_comparison": "对带混合位宽权重的 Linear 和对 Conv2d 调用 transform_module，记录生成 kernel/sub-operator 数与 TeSA 分解数；与 Algorithm 3 的笛卡尔积分支比较。若其他路径生成多子算子，则降低该候选。"
+    },
+    {
+      "id": "C4",
+      "title": "代码生成接口只接受五个硬编码 pattern，通用 codegen 函数体为空",
+      "causal_argument": "generate_code 先断言 pattern in support_patterns，而 support_patterns 只有五个模型-精度字符串；各 *_codegen 函数体为省略号。通过该接口无法为新稀疏算法/模式生成专用代码，论文“21 个算法”的通用性未由该路径实现或验证。",
+      "conditions": "调用 sparta.specialization.generate_code 或 artifact_specialization 对应路径；使用论文 21 个算法中不在五个字符串里的算法；新 sparsity pattern。",
+      "paper_evidence": {
+        "page": 9,
+        "quote": "supported 21 model sparsity algorithms, including 16 pruning algorithms and 5 quantization algorithms"
+      },
+      "code_evidence": [
+        {
+          "file": "sparta/specialization/generate_code.py",
+          "symbol": "support_patterns",
+          "excerpt": "support_patterns = [\"mobilenet_coarse_int8\", \"bert_coarse_fp32\", \"bert_coarse_int8\", \"hubert_coarse_fp32\", \"hubert_coarse_int8\"]"
+        },
+        {
+          "file": "sparta/specialization/generate_code.py",
+          "symbol": "generate_code",
+          "excerpt": "assert(pattern in support_patterns, f\"only support support_patterns: {support_patterns}\")"
+        }
+      ],
+      "counterevidence": "specialize_kernel.py 的 matmul_kernel_codegen 按 dense/finegrained/block 模板生成，可能绕过 generate_code；五个字符串可能只是实验配置名而非全部算法。",
+      "minimal_comparison": "用未列出的 pattern 调 generate_code，观察断言；同时对同一 TeSA 比较 generate_code 输出与 matmul_kernel_codegen 模板输出。若通用模板独立工作，则该限制仅限该接口。"
+    },
+    {
+      "id": "C5",
+      "title": "硬件位宽与 block 成本硬编码为 2080Ti/少量 profiled 尺寸，设备泛化依赖重调",
+      "causal_argument": "TransformPolicy.device_info 仅保存；hardware_bit_precisions 注释写明 currently specific for 2080ti 并固定返回 [4,8,16,32]；available_covering_size 用硬编码的少量 block size 和 profiled 成本，而论文说成本取决于 kernel/hardware 并评测 13 种 block size。变换策略可能把 2080Ti 的最优选择套到 CPU/ROCm/A100 或新 kernel 上，导致次优或不可用。",
+      "conditions": "非 2080Ti 设备；内核模板/编译选项变化；block size 不在表内；算子太稀疏无法饱和核心、成本失真。",
+      "paper_evidence": {
+        "page": 9,
+        "quote": "The overhead of each block size is proﬁled by measuring the latency of the kernel with zero sparsity"
+      },
+      "code_evidence": [
+        {
+          "file": "sparta/transformation/transform_policy.py",
+          "symbol": "hardware_bit_precisions",
+          "excerpt": "# currently, specific for 2080ti\n        # int4, int8, float16, float32\n        return [4, 8, 16, 32]"
+        },
+        {
+          "file": "sparta/transformation/weighted_block_cover.py",
+          "symbol": "available_covering_size",
+          "excerpt": "cover_sizes = {\n        (1, 1): 0.0064,\n        (32, 32): 6.25,"
+        }
+      ],
+      "counterevidence": "specialize_matmul 会对每个 weight TeSA 做 matmul_kernel_tune 并累加实测 latency；TransformPolicy 可能按 profile 选择而非仅用固定成本。论文也单独报告 ROCm/CPU 实验。",
+      "minimal_comparison": "固定同一 TeSA，分别在 device_info=2080Ti/CPU/A100 下运行 transform_module，比较选出的 bit/block 方案；再用实测 latency 与 alternative block sizes 对照。若选择随 device_info 改变或 profiling 总选最优，则候选不成立。"
+    },
+    {
+      "id": "C6",
+      "title": "TeSA 位宽编码与论文图 3 不一致，量化属性可能按有符号 int8 解释",
+      "causal_argument": "论文图 3 用 8 表示 uint8；代码 TesaAttr 把 8 映射为 int8、把 7 映射为 uint8、把 4 映射为 int4；bcsr_generate 对 bit==8 调用 convert_to_block_csr_int8。若外部算法按论文编码写入 8，实现可能按 signed int8 生成数据/内核，改变数值范围、精度和专用指令选择。",
+      "conditions": "量化 TeSA 由论文示例/外部算法产生；走 TesaAttr 或 bcsr_generate 转换；Structured+8bit 或 Mixed Sparsity 的 uint8 部分。",
+      "paper_evidence": {
+        "page": 4,
+        "quote": "8 means uint8"
+      },
+      "code_evidence": [
+        {
+          "file": "sparta/common/sparsity.py",
+          "symbol": "TesaAttr",
+          "excerpt": "4: 'int4',\n            7: 'uint8',\n            8: 'int8',"
+        },
+        {
+          "file": "sparta/artifact_specialization/generate_code.py",
+          "symbol": "bcsr_generate",
+          "excerpt": "elif bit == 8:\n        rows, cols, vals = convert_to_block_csr_int8(...)"
+        }
+      ],
+      "counterevidence": "代码可能把位宽与数据格式分开编码，7/8 是内部枚举而非论文值；模板使用 uint8_t，n_bits 可能携带真实位宽。论文 §4 也说 7 bits 记录位宽、4 bits 记录格式，需看完整编码。",
+      "minimal_comparison": "构造两个 TeSA：paper 值 8=uint8 与 code 值 7=uint8；检查 TesaAttr、bcsr_generate 生成值类型和一个小 matmul 的数值范围/精度。若二者生成相同 uint8 结果，则候选不成立。"
+    }
+  ],
+  "known_boundaries": [
+    {
+      "boundary": "编译期开销大且单线程",
+      "page": 11,
+      "quote": "take 3 minutes, 2 hours and 1.5 hours respectively using a single thread"
+    },
+    {
+      "boundary": "量化传播依赖校准数据和局部阈值",
+      "page": 6,
+      "quote": "If the drop of model accuracy is smaller than a predefined threshold (e.g., 1% in our experiment)"
+    },
+    {
+      "boundary": "Tensor Scrambling 依赖有限随机采样，非形式化保证",
+      "page": 12,
+      "quote": "256 randomly sampled tensors can identify sparsity correctly."
+    },
+    {
+      "boundary": "评测硬件与模型覆盖有限",
+      "page": 10,
+      "quote": "NVIDIA GeForce RTX 2080 Ti, AMD Radeon VII, and Intel Xeon Silver 4210 CPU."
+    },
+    {
+      "boundary": "Sparse Tensor Core 有严格 tile 约束",
+      "page": 13,
+      "quote": "one element should be pruned in a [1× 2] tile"
+    },
+    {
+      "boundary": "端到端批量大小主要固定为 32",
+      "page": 10,
+      "quote": "The batch size we used in the end-to-end experiments (except Figure 12) is 32."
+    },
+    {
+      "boundary": "子算子保持原算子计算逻辑的假设",
+      "page": 7,
+      "quote": "The sub-operator usually has the same computation logic as the original operator"
+    },
+    {
+      "boundary": "整张量块可回退到通用/密集 kernel",
+      "page": 8,
+      "quote": "SparTA can directly use the existing state-of-the-art general sparse kernel implementation"
+    }
+  ],
+  "uncertainties": [
+    "所给仓库为 sparta_artifact 分支片段，多个函数显式 mocked/省略；不能据此证明完整论文实现不存在，只能说明该分支路径的限制。",
+    "README 将源码指向 microsoft/nni，而论文 artifact 写的是 microsoft/SparTA；版本/路径不一致会使复现与代码证据归因存在不确定性。",
+    "transform_tesas 返回单个 TeSA 可能是未使用的占位；transform_matmul 未在给定行段展示，权重分解和调优可能在其他代码中完成。",
+    "TeSA 数值编码可能同时包含 bit width 与 data format；仅凭 TesaAttr 和 bcsr_generate 不能完全排除内部转换层。",
+    "device_info 未使用，但实验脚本可能通过预调参、A100 Dockerfile 或单独 policy 绕过；不能仅据此判定所有硬件结果无效。",
+    "未运行任何实验；所有判断基于静态源码和论文文本。"
+  ],
+  "target_execution": "not_run"
+}
