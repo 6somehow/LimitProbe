@@ -9,6 +9,7 @@ def main():
     parser = argparse.ArgumentParser(description="Score reference coverage")
     for arg in ("pred", "root", "splits", "out"):
         parser.add_argument("--" + arg, type=Path, required=True)
+    parser.add_argument("--labels-en", type=Path)
     parser.add_argument("--judge", choices=("relay", "fake"), default="relay")
     parser.add_argument("--model", default="x-test-2")
     parser.add_argument("--temperature", type=float, default=0.0)
@@ -18,7 +19,7 @@ def main():
     result = score(read_jsonl(args.root / "labels/test_labels.jsonl"), read_jsonl(args.pred),
                    json.loads(args.splits.read_text(encoding="utf-8")), judge,
                    json.loads((args.root / "schemas/label.schema.json").read_text(encoding="utf-8")),
-                   json.loads((args.root / "schemas/prediction.schema.json").read_text(encoding="utf-8")), workers=args.workers)
+                   json.loads((args.root / "schemas/prediction.schema.json").read_text(encoding="utf-8")), workers=args.workers, labels_en=read_jsonl(args.labels_en) if args.labels_en else None)
     args.out.mkdir(parents=True, exist_ok=True)
     (args.out / "score.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     lines = ["# Reference coverage", "", "One observation per case; unreviewed cases are excluded. Repeats of the same case are dependent.", ""]
