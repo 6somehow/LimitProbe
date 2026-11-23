@@ -1,310 +1,305 @@
-# 置信度细则（提案 v0，待确认）
+# Confidence specification (proposal v0, pending confirmation)
 
-状态：**已确认并实现**（Shanghao 2026-11-11 批准 §10 的四项）。取代 `SCORECARD.md` §3 到 §5 的"加权几何平均"。实现与提案的差异见 §11。
-起因：Shanghao 的三点要求。(1) 主项目是 agent，不是某个 paper 的 case。(2) 置信度要有严格明确的细则，参考软件测试已有的概念和方法，不重复造轮子。(3) 在细则固定的前提下，用更好的 agent skill、harness、workflow 去拿到更高的置信度。
+Status: **Confirmed and implemented** (Shanghao approved the four items in §10 on 2026-11-11). This replaces the "weighted geometric mean" in `SCORECARD.md` §3 to §5. See §11 for differences between the implementation and proposal.
 
-## 1. 现有评分表的问题
+This arose from Shanghao's three requirements: (1) The main project is an agent, not a case for one paper. (2) Confidence needs strict, clear rules based on existing software testing concepts and methods, without reinventing them. (3) With the rules fixed, use better agent skills, harnesses, and workflows to obtain higher confidence.
 
-| 问题 | 具体表现 |
+## 1. Problems with the existing scorecard
+
+| Problem | Details |
 |---|---|
-| 数字没有含义 | 权重 0.15/0.20、地板 0.05、mock 惩罚 0.4/0.05、阈值 0.7/0.8 都是初始值。最终分既不是概率，也不对应任何测量尺度 |
-| 把"没做"当成"测出来是 0.05" | 变异和重放没运行，却以 0.05 参与几何平均。未评估和测量失败是两回事 |
-| 补偿式汇总 | 几何平均仍会让一项高分抵消另一项低分，看不出具体缺了什么 |
-| 混了两个问题 | "测试做得好不好"和"判定对不对"被合成一个分数 |
-| 带有个案启发式 | 相邻点用"差 1 或 2 倍"，只在 F01、F07 上说得通 |
-| 不可校准 | 没有带真值的样本，无法说"档位 high 的判定有多大概率是对的" |
+| Numbers have no meaning | The weights 0.15/0.20, floor 0.05, mock penalties 0.4/0.05, and thresholds 0.7/0.8 are initial values. The final score is neither a probability nor associated with a measurement scale |
+| Treating "not done" as "measured as 0.05" | Mutation and replay were not run, yet contribute 0.05 to the geometric mean. Not assessed and measurement failure are different |
+| Compensatory aggregation | The geometric mean still allows a high score on one item to offset a low score on another, concealing what is missing |
+| Two questions combined | "How well was the test done?" and "Is the verdict correct?" are combined into one score |
+| Case-specific heuristics | Adjacent points use "a difference of 1 or a factor of 2", which only makes sense for F01 and F07 |
+| Cannot be calibrated | Without ground-truth samples, we cannot say "how likely is a verdict at the high level to be correct?" |
 
-## 2. 原则
+## 2. Principles
 
-1. **置信度回答一个问题：这个判定有多大把握是对的。** 它不衡量 limitation 的重要性，也不衡量测试写得漂亮。
-2. **用 defeater（可能推翻判定的理由）组织证据，不用加权求和。** 方法来自 Assurance 2.0 和 eliminative argumentation（Bloomfield、Rushby；已核实 arXiv 2004.10474、2205.04522、2405.15800）：先列出判定可能错的所有理由，再逐条用证据消除；消除不了的，登记为残余疑点。
-3. **每个 defeater 对应测试领域已有的概念和一个确定性的检查。** 检查由 harness 执行，agent 不能自报。
-4. **区分四种状态，不压成一个数。** `eliminated`（已用测量消除）、`residual`（只有论证，没有测量）、`open`（没评估）、`refuted`（检查失败）。
-5. **档位由规则表决定，规则表的参数写在一个 profile 文件里，逐项标明出处或"策略值"。** 同一份证据加同一份 profile，得到同一档位。
-6. **档位的含义靠带真值的基准校准**：用故障注入造出"limitation 存在/不存在"已知的样本，统计每个档位下判定的正确率和置信区间。校准之前，档位只是序数，报告里必须写"未校准"。
+1. **Confidence answers one question: how confident are we that the verdict is correct?** It measures neither the importance of a limitation nor the quality of the test's presentation.
+2. **Organize evidence by defeaters (reasons that could overturn the verdict), not a weighted sum.** The method comes from Assurance 2.0 and eliminative argumentation (Bloomfield, Rushby; arXiv 2004.10474, 2205.04522, 2405.15800 verified): list all reasons the verdict might be wrong, then eliminate them one by one with evidence; record those that cannot be eliminated as residual doubts.
+3. **Each defeater corresponds to an existing testing concept and a deterministic check.** The harness performs the checks; the agent cannot self-report them.
+4. **Distinguish four states instead of collapsing them into one number.** `eliminated` (eliminated by measurement), `residual` (argument only, no measurement), `open` (not assessed), `refuted` (check failed).
+5. **A rule table determines the level; its parameters are in a profile file, each marked with its source or as a "policy value".** The same evidence and profile yield the same level.
+6. **Calibrate the meaning of levels against a ground-truth benchmark**: use fault injection to create samples where "limitation exists/does not exist" is known, and calculate the verdict accuracy and confidence interval at each level. Before calibration, levels are ordinal only, and reports must say "uncalibrated".
 
-## 3. 被验证的命题
+## 3. Claim under test
 
-`C`：在条件 `cond` 下，代码在位置 `loc` 出现效果 `eff`（对应 `Finding` + `Region`）。判定 `yes` 是"C 成立"，`no` 是"C 不成立"，`inconclusive` 是"证据不足以判断"。
+`C`: under condition `cond`, the code exhibits effect `eff` at location `loc` (corresponding to `Finding` + `Region`). A `yes` verdict means "C holds", `no` means "C does not hold", and `inconclusive` means "insufficient evidence to decide".
 
-## 4. defeater 表
+## 4. Defeater table
 
-RIPR 链来自 Ammann & Offutt，PIE 的前三步来自 Voas 1992（已核实 RIPR 的来源；Voas 1992 的细节来自记忆，未逐条核对）。
+The RIPR chain comes from Ammann & Offutt; the first three steps of PIE come from Voas 1992 (the RIPR source has been verified; the details of Voas 1992 are recalled from memory and have not been checked individually).
 
-| # | defeater：判定可能错在 | 对应概念 | harness 的检查 | `eliminated` 的条件 | 类别 |
+| # | Defeater: how the verdict could be wrong | Related concept | Harness check | Condition for `eliminated` | Category |
 |---|---|---|---|---|---|
-| D1 | 目标语句根本没执行 | Reachability | 目标行事件 | 正例执行目标行 | 致命 |
-| D2 | 执行了，但条件没按预期成立 | Infection | 在目标行的局部变量上求值 `cond`（或 agent 事先登记的谓词） | 正例求值为真，反例为假 | 致命 |
-| D3 | oracle 看不见效果，或看见了不该看见的 | Propagation、Revealability；变异测试衡量 oracle 充分性 | 对目标判定做变异（取反、比较符替换、删除 assert、常量±1），测试结果必须翻转 | 变异数 ≥ `n_min`，且杀死率的 Wilson 下界 ≥ `kill_lb` | 重要 |
-| D4 | oracle 本身不可靠 | Test oracle problem；Barr 等把 oracle 分为 specified、derived、implicit、human（已核实 IEEE TSE 41(5), 2015） | 核对 oracle 类型与证据：是否指向 `Region.location`；是否事先登记 | specified 且位置等于 `Region.location`，登记哈希在首次运行前 | 致命（低于 implicit 或未登记） |
-| D5 | 正反例的差别不止一个因素，或反例离边界很远 | Ceteris paribus；边界值分析、域测试的 ON/OFF 点（White & Cohen 1980、Jeng & Weyuker 1994）；delta debugging（Zeller & Hildebrandt 2002） | 输入差集；**harness 自己沿边界变量做二分，验证翻转只发生一次，并找到 ON/OFF 点** | 差集大小为 1，且 agent 的反例等于 OFF 点 | 重要 |
-| D6 | 观察依赖了不可信的替身 | Test double 分类（Meszaros：dummy、stub、spy、mock、fake；Fowler）；模拟与参考实现 | **因果依赖分析**：某条观察是在哪些替身被访问之后产生的 | 见 §5 | 重要 |
-| D7 | 观测手段改变了行为 | Probe effect（Gait 1986） | 有 hook 与无 hook 的可观测结果对比 | 相同 | 致命 |
-| D8 | 结果不稳定 | Flaky tests（Luo 等，FSE 2014） | 固定种子、单线程、离线；重复 `n_rep` 次，比较**规范化轨迹哈希** | 全部相同；报告 Rule of three 上界 3/n | 重要 |
-| D9 | 换个环境结果不同 | 可复现性；干净环境重放 | `SCORECARD.md` §3.6 的重放 | 重放判定相同 | 重要 |
-| D10 | 缩小规模后行为不同 | 外部效度（表征性） | 正例在完整规模重放；harness 对反例按边界二分时也在完整规模探测目标行 | 两个规模下目标判定的真假一致 | 重要 |
-| D11 | 被测代码被改过 | 被测对象保真 | AST diff（目标语句、判定表达式、调用链函数） | 目标语句无改动，其余改动语句比例 ≤ `mod_max` | 致命（目标语句被改） |
-| D12 | Region、位置或条件本身有误（上游） | 输入有效性 | snippet 逐字比对 | 与仓库对应行一致 | 致命 |
-| D13 | 输入超出论文范围 | 范围 gate（T9） | `scope_status` | `in_scope` 或 `scope_edge` | 说明项 |
+| D1 | The target statement never executes | Reachability | Target line event | The positive case executes the target line | Fatal |
+| D2 | It executes, but the condition does not hold as expected | Infection | Evaluate `cond` (or a predicate registered in advance by the agent) on the target line's local variables | True for the positive case and false for the negative case | Fatal |
+| D3 | The oracle cannot see the effect, or sees something it should not | Propagation, Revealability; mutation testing measures oracle adequacy | Mutate the target verdict (negation, comparison replacement, assert deletion, constant ±1); the test result must flip | Mutant count ≥ `n_min`, and Wilson lower bound on kill rate ≥ `kill_lb` | Important |
+| D4 | The oracle itself is unreliable | Test oracle problem; Barr et al. classify oracles as specified, derived, implicit, human (IEEE TSE 41(5), 2015 verified) | Check oracle type and evidence: does it point to `Region.location`; was it registered in advance | Specified and location equals `Region.location`, with registration hash before the first run | Fatal (below implicit or unregistered) |
+| D5 | Positive and negative cases differ in more than one factor, or the negative case is far from the boundary | Ceteris paribus; boundary value analysis, ON/OFF points in domain testing (White & Cohen 1980, Jeng & Weyuker 1994); delta debugging (Zeller & Hildebrandt 2002) | Input difference set; **the harness itself bisects along the boundary variable, verifies that the result flips only once, and finds ON/OFF points** | Difference set size is 1, and the agent's negative case equals the OFF point | Important |
+| D6 | An observation depends on an untrustworthy test double | Test double classification (Meszaros: dummy, stub, spy, mock, fake; Fowler); simulation and reference implementations | **Causal dependency analysis**: which doubles were accessed before an observation was produced | See §5 | Important |
+| D7 | Observation changes behavior | Probe effect (Gait 1986) | Compare observable results with and without hooks | Identical | Fatal |
+| D8 | Results are unstable | Flaky tests (Luo et al., FSE 2014) | Fixed seed, single thread, offline; repeat `n_rep` times and compare **normalized trace hashes** | All identical; report Rule of three upper bound 3/n | Important |
+| D9 | Results differ in another environment | Reproducibility; clean-environment replay | Replay from `SCORECARD.md` §3.6 | Same verdict on replay | Important |
+| D10 | Behavior differs at reduced scale | External validity (representativeness) | Replay the positive case at full scale; the harness also probes the target line at full scale when bisecting the negative case boundary | The target verdict has the same truth value at both scales | Important |
+| D11 | The code under test was modified | Fidelity of the system under test | AST diff (target statement, verdict expression, call-chain functions) | Target statement unchanged, proportion of other modified statements ≤ `mod_max` | Fatal (target statement modified) |
+| D12 | Region, location, or condition itself is wrong (upstream) | Input validity | Compare snippet verbatim | Matches the corresponding repository lines | Fatal |
+| D13 | Input is outside the paper's scope | Scope gate (T9) | `scope_status` | `in_scope` or `scope_edge` | Informational |
 
-`Finding.confidence`（mechanical、llm_assisted）仍然单独报告，不并入。
+`Finding.confidence` (mechanical, llm_assisted) remains separately reported and is not incorporated.
 
-## 5. 替身依赖：用状态代替乘法权重（D6）
+## 5. Test double dependencies: states instead of multiplicative weights (D6)
 
-不再用 0.9、0.75、0.3 之类的乘数。每条观察记录它的**因果前缀**：在它产生之前，被访问过哪些替身。观察的证据状态：
+Multipliers such as 0.9, 0.75, and 0.3 are no longer used. Each observation records its **causal prefix**: which doubles were accessed before it was produced. Evidence states for observations:
 
-| 状态 | 条件 |
+| State | Condition |
 |---|---|
-| `direct` | 因果前缀里没有任何替身（或只有 spy，即只记录、不改变行为） |
-| `simulated:reference` | 前缀里只有调用仓库自带参考实现的替身 |
-| `simulated:fake` | 含有自己写的、有真实计算的实现（fake） |
-| `simulated:stub` | 含有返回固定值的替身（stub、dummy） |
+| `direct` | No doubles in the causal prefix (or only a spy, which records without changing behavior) |
+| `simulated:reference` | The prefix contains only doubles that call the repository's reference implementation |
+| `simulated:fake` | Contains a custom implementation that performs real computation (fake) |
+| `simulated:stub` | Contains a double that returns fixed values (stub, dummy) |
 
-判定只依赖 `direct` 的观察。`simulated:*` 的观察作为**补充信息**列出，明确标注，不进入判定。例如 F07：正例在目标行抛异常是 `direct`；反例"继续运行并返回 `Tensor(1,512,2,128)`"是 `simulated:fake`。
+The verdict depends only on `direct` observations. `simulated:*` observations are listed as **supplementary information**, clearly labeled, and excluded from the verdict. For example, in F07, the positive case throwing an exception at the target line is `direct`; the negative case "continues and returns `Tensor(1,512,2,128)`" is `simulated:fake`.
 
-这样做有两个好处：不需要为每类替身编一个数；agent 如果想让更多结论变成 `direct`，只能减少目标行之前的替身，而不是调大权重。
+This has two benefits: there is no need to invent a number for each type of double; if the agent wants more conclusions to be `direct`, it must reduce doubles before the target line rather than increase a weight.
 
-## 6. 档位规则
+## 6. Level rules
 
-| 档位 | 条件（全部满足） |
+| Level | Conditions (all required) |
 |---|---|
-| `invalid` | 任一致命 defeater 为 `refuted`。判定强制为 `inconclusive` |
-| `L1 indicative` | 没有 `refuted`；致命项全部 `eliminated`；重要项有 `open` |
-| `L2 supported` | 致命项和 D3、D8、D9 全部 `eliminated`；D5、D6、D10 中允许 `residual` |
-| `L3 established` | 所有 defeater 为 `eliminated`，或为"允许残余"的项（D13）。判定所依赖的观察全部是 `direct` |
+| `invalid` | Any fatal defeater is `refuted`. The verdict is forced to `inconclusive` |
+| `L1 indicative` | None is `refuted`; all fatal items are `eliminated`; important items include `open` |
+| `L2 supported` | Fatal items and D3, D8, D9 are all `eliminated`; `residual` is allowed for D5, D6, D10 |
+| `L3 established` | All defeaters are `eliminated`, or are items for which residual is allowed (D13). All observations on which the verdict depends are `direct` |
 
-`no` 判定另加一条：D3 必须 `eliminated`，否则最高 `L1`。理由：证明"没有效果"需要证明 oracle 在效果存在时看得见（变异测试的用途）。
+For a `no` verdict, an additional rule applies: D3 must be `eliminated`, otherwise the maximum is `L1`. Proving "no effect" requires showing that the oracle can see the effect when it exists (the purpose of mutation testing).
 
-profile 参数（初始值，全部标"策略值"，除非另注）：`n_min = 4`、`kill_lb = 0.5`（Wilson 下界；Wilson 1927）、`n_rep = 5`、`mod_max = 0.05`。校准后再调。
+Profile parameters (initial values, all marked "policy value" unless otherwise noted): `n_min = 4`, `kill_lb = 0.5` (Wilson lower bound; Wilson 1927), `n_rep = 5`, `mod_max = 0.05`. Adjust after calibration.
 
-## 7. 校准与有效性（怎么证明细则有意义）
+## 7. Calibration and validity (how to show the rules are meaningful)
 
-1. **带真值的基准。** 对每个 artifact 做故障注入：删 assert、改阈值、把条件取反，造出"limitation 存在/不存在"已知的版本。变异能否替代真实故障，有实证研究（Andrews 等 ICSE 2005；Just 等 FSE 2014），但结论不是无条件的，报告里要写限制。
-2. **指标。** 每个档位的判定正确率及 Wilson 区间；错误判定的类型（假阳性、假阴性）；Brier 分数和可靠性图（Brier 1950；Guo 等 ICML 2017 用于神经网络校准，借其方法）。
-3. **表单诚实度。** agent 声明与 harness 重算的一致率，单独报告，不并入档位。
-4. **消融。** 逐个关掉 harness 服务（变异、边界二分、规模检查、因果依赖分析），看各档位的占比和正确率怎么变。这是回答"harness 设计带来多少置信度"的实验。
+1. **A benchmark with ground truth.** Inject faults into each artifact: delete asserts, change thresholds, or negate conditions to create versions where whether the "limitation exists/does not exist" is known. Empirical studies examine whether mutations can substitute for real faults (Andrews et al. ICSE 2005; Just et al. FSE 2014), but their conclusions are not unconditional; reports must state the limitations.
+2. **Metrics.** Verdict accuracy and Wilson interval at each level; types of incorrect verdict (false positive, false negative); Brier score and reliability diagram (Brier 1950; Guo et al. ICML 2017 used these for neural network calibration; we borrow their method).
+3. **Form honesty.** Report the agreement rate between agent declarations and harness recalculations separately; do not incorporate it into the level.
+4. **Ablation.** Disable harness services one at a time (mutation, boundary bisection, scale checks, causal dependency analysis) and observe how the share and accuracy of each level change. This experiment answers "how much confidence does the harness design bring?"
 
-上面第 1 到 3 点里的方法名和出处，Brier 1950、Guo 等 2017、Just 等 2014、Andrews 等 2005、Luo 等 2014、Gait 1986、White & Cohen 1980、Zeller & Hildebrandt 2002 来自记忆，未在本次会话里逐条核对，进入论文前要查原文。
+The method names and references in points 1 to 3 above, Brier 1950, Guo et al. 2017, Just et al. 2014, Andrews et al. 2005, Luo et al. 2014, Gait 1986, White & Cohen 1980, and Zeller & Hildebrandt 2002 come from memory and were not individually verified in this session. Check the original papers before using them in the paper.
 
-## 8. 怎样在细则固定的前提下拿到更高的置信度
+## 8. How to obtain higher confidence with fixed rules
 
-每个 `open` 或 `residual` 的 defeater 都对应一个由谁来消除：
+Each `open` or `residual` defeater has an assigned party responsible for eliminating it:
 
-| defeater | harness 能自动做的 | agent 的义务（skill 里写成清单） | 失败后的修复动作（workflow 回环） |
+| defeater | What the harness can do automatically | Agent obligations (a checklist in the skill) | Repair after failure (workflow loop) |
 |---|---|---|---|
-| D3 | 自动生成并执行变异，算杀死率 | 把 oracle 写成指向具体位置的断言，避免只检查"有异常" | 杀死率低：提示存活变异体，agent 加强 oracle |
-| D5 | 沿边界变量二分，验证单次翻转，给出 ON/OFF 点 | 说明哪个变量是边界变量，哪些参数是自由参数及理由 | 反例不是 OFF 点：给出 OFF 点，agent 换反例 |
-| D6 | 因果依赖分析；提供记录型替身（spy）和模拟器模板 | 声明每个替身的类别和理由；优先把替身放到目标行之后 | 观察依赖 stub：提示换成 fake 或参考实现，或把替身后移 |
-| D8、D9 | 重复运行、规范化轨迹哈希、干净环境重放 | 登记全部命令；固定种子 | 不稳定：定位非确定性来源（线程、哈希种子、随机数） |
-| D10 | 在完整规模重放目标行 | 给出规模缩放的不变性论证 | 完整规模下判定不同：撤销缩放 |
-| D2 | 执行谓词 | 条件无法直接求值时，事先写可执行谓词 | 谓词与 Region 条件不等价：交给人复核 |
+| D3 | Generate and run mutants; calculate the kill rate | Write the oracle as an assertion pointing to a specific location; avoid checking only that "an exception occurred" | Low kill rate: show surviving mutants; the agent strengthens the oracle |
+| D5 | Bisect along the boundary variable, verify a single flip, and provide ON/OFF points | Identify the boundary variable and free parameters and explain why | Contrast is not the OFF point: provide the OFF point; the agent replaces the contrast |
+| D6 | Analyze causal dependencies; provide spy and simulator templates | Declare the type of each double and the reason; prefer placing doubles after the target line | Observation depends on a stub: suggest a fake or reference implementation, or move the double later |
+| D8, D9 | Repeat runs, normalize trace hashes, replay in a clean environment | Register all commands; fix the seed | Instability: locate sources of nondeterminism (threads, hash seed, random numbers) |
+| D10 | Replay the target line at full scale | Explain why the behavior is invariant under scaling | Different verdict at full scale: undo scaling |
+| D2 | Execute the predicate | Write an executable predicate in advance when the condition cannot be evaluated directly | Predicate is not equivalent to the Region condition: refer for human review |
 
-workflow 因此分为：**计划 → 登记（oracle、预期、替身声明）→ 执行 → harness 审计 → 修复回环**。审计输出一份"缺陷清单"：每个 defeater 的状态，以及下一步该做什么。agent 在预算内只处理未消除的 defeater。停止条件：达到目标档位、预算耗尽，或剩下的 defeater 无法由 agent 消除（例如上游 Region 有误）。
+The workflow is therefore: **plan → register (oracle, expectations, double declarations) → execute → harness audit → repair loop**. The audit produces a "defect list": the state of each defeater and what to do next. The agent addresses only uneliminated defeaters within its budget. It stops when the target level is reached, the budget is exhausted, or the remaining defeaters cannot be eliminated by the agent (for example, an upstream Region is wrong).
 
-## 9. 与现有实现的关系
+## 9. Relationship to the existing implementation
 
-保留：RIPR 的测量（trace、条件求值、判定结果）、AST diff、探针影响、记录型替身、表单审计、因果前缀（现在的 `information` 是它的雏形）、`Finding.confidence` 单独报告。
+Keep: RIPR measurements (trace, condition evaluation, verdict), AST diff, probe effect, spies, form audit, causal prefix (the current `information` is its precursor), and separate reporting of `Finding.confidence`.
 
-要改：
-1. `scoring.py`：去掉加权几何平均和最终分，改为 defeater 状态表加 §6 的规则表。`scoring_prototype.py` 的九个样例不再回归；改为"每个样例对应的 defeater 状态和档位"的新测试。
-2. `models.py`：`Scorecard` 改成 `DefeaterTable` 加 `level`；`InfoItem.confidence` 改成证据状态。
-3. 新增 `bva.py`（边界二分）、`mutate.py`、`replay.py`（P1b 本来就要做）。
-4. 个案代码（相邻点启发式、只支持 `reject` 的效果判定）换成可插拔的效果检查器。
+Changes:
+1. `scoring.py`: remove the weighted geometric mean and final score; replace them with a defeater state table and the rule table in §6. The nine examples in `scoring_prototype.py` are no longer regression tests; replace them with tests of "the defeater states and level for each example".
+2. `models.py`: replace `Scorecard` with `DefeaterTable` plus `level`; replace `InfoItem.confidence` with evidence state.
+3. Add `bva.py` (boundary bisection), `mutate.py`, and `replay.py` (already planned for P1b).
+4. Replace case-specific code (adjacent-point heuristics and effect verdicts that support only `reject`) with pluggable effect checkers.
 
-诊断用的七个维度可以保留为"诊断读数"，不再合成最终分。
+The seven diagnostic dimensions may remain as "diagnostic readings", but are no longer combined into a final score.
 
-## 10. 需要 Shanghao 决定
+## 10. Decisions for Shanghao
 
-1. 是否放弃数值化的最终分，只报告档位加 defeater 表（原因见 §1，建议放弃）。
-2. §6 的档位定义和 profile 初始值是否可接受。
-3. 判定只依赖 `direct` 的观察（§5）。这会让 F07、F01 的反例"正常返回"降为补充信息。
-4. 下一步的顺序：先实现 §9（改 scoring、加 bva、mutate、replay），再写 agent skill 和 workflow；还是先写 agent 部分。建议前者，因为 agent 的修复回环需要 harness 给出缺陷清单。
+1. Whether to abandon the numerical final score and report only the level and defeater table (see §1 for the reasons; recommend abandoning it).
+2. Whether the level definitions and initial profile values in §6 are acceptable.
+3. Whether the verdict depends only on `direct` observations (§5). This downgrades the "normal return" of the F07 and F01 contrast cases to supplementary information.
+4. The order of the next steps: implement §9 first (change scoring, add bva, mutate, replay), then write the agent skill and workflow; or write the agent part first. The former is recommended because the agent repair loop needs the harness to provide a defect list.
 
+## 11. Differences between implementation and proposal (2026-11-11)
 
-## 11. 实现与提案的差异（2026-11-11）
+Code: `confidence.py` (rules), `profile.py` (parameters and sources), `stats.py` (Wilson, Rule of three), `mutate.py`, `bva.py`, `harness.py` (service orchestration).
 
-代码：`confidence.py`（规则）、`profile.py`（参数和出处）、`stats.py`（Wilson、Rule of three）、`mutate.py`、`bva.py`、`harness.py`（各服务的调度）。
-
-| 项 | 提案 | 实现 |
+| Item | Proposal | Implementation |
 |---|---|---|
-| 档位 | invalid、L1 到 L3 | 另加 **L0**：没有致命 defeater 被推翻，但有致命项仍 `open`（例如没做探针影响检查）。判定为 `inconclusive` 时档位为 `n/a` |
-| D14 | 无 | 新增"是否经过官方入口"（T4 集成层级）。入口在 `call_chain[0]` 为 `eliminated`；更深但写了 `execution.entry_reason` 为 `residual`；没写原因为 `refuted`。归入"重要" |
-| D2 | 谓词无法求值时交给人复核 | agent 写的谓词与 Region 条件成立：`residual`（翻译是否忠实没有验证），因此最高 L1。条件完全无法求值且没有谓词：`open` |
-| D4 | 低于 specified 的登记 | 验证后的 tier 为 O1/O2 或没登记：`refuted`；O3 或事后改过 oracle：`residual`；O4、登记在首次运行前、0 次修改：`eliminated`。登记的哈希只覆盖 **oracle、预期结果和条件谓词**（SCORECARD T1 的原话），不覆盖输入、替身和规模 |
-| D5 | harness 二分找 ON/OFF 点 | 实现为**邻点探测**：在完整 witness 规模下，对反例的边界变量取 ±`probe_step`，至少一侧有效果则反例与效果区相邻。两侧都有效果说明无效果区是一个点（`!=` 型守卫）。边界变量不是整数或差异不止一个因素时记为 `residual`。判定为 `no` 时只要求差异为一个因素 |
-| D6 | direct 与三种 simulated | 判定依赖的观察全部 direct：`eliminated`；含 reference 或 fake：`residual`（最高 L2）；含 stub：`refuted`（最高 L1） |
-| D8 | 轨迹哈希相同 | 规范化哈希覆盖状态、异常类型和位置、返回值摘要、目标行命中的局部变量摘要、调用链函数启动顺序、执行行集合；不含序号和耗时 |
-| D9 | 重放 agent 的命令 | harness 在**全新检出的固定 commit** 和**全新的 attempt 拷贝**里重放**自己的调用**，不执行 agent 写在 `replay_commands` 里的 shell 字符串（否则 attempt 能让 harness 运行任意命令）。`replay_commands` 只作记录 |
-| D10 | 完整规模二分 | 完整规模下的正例、反例各跑一次探针（到目标判定即停），两者的效果必须与缩放后的运行一致 |
-| 探针运行 | 无 | D5、D3、D10 用"到目标判定即停"的探针（`tracer.StopProbe`）。探针不进入判定，也不运行目标之后的代码 |
-| 数值诊断读数 | 可保留 | 没有保留。`Scorecard`、`EvidenceRecord`、`scoring.py`、`s_mod` 等全部移除；`scoring_prototype.py` 作为历史文件留在原处 |
+| Level | invalid, L1 to L3 | Adds **L0**: no fatal defeater is refuted, but a fatal item remains `open` (e.g. no probe effect check). The level is `n/a` when the verdict is `inconclusive` |
+| D14 | None | Adds "whether execution went through the official entry" (T4 integration level). Entry at `call_chain[0]` is `eliminated`; deeper entry with `execution.entry_reason` is `residual`; no reason is `refuted`. Classified as important |
+| D2 | Refer to human review if the predicate cannot be evaluated | An agent-written predicate holds for the Region condition: `residual` (faithfulness of the translation is unverified), hence at most L1. Condition cannot be evaluated at all and no predicate exists: `open` |
+| D4 | Registration below specified | Verified tier O1/O2 or unregistered: `refuted`; O3 or oracle changed after registration: `residual`; O4, registered before the first run, with 0 modifications: `eliminated`. The registration hash covers only **oracle, expected result, and condition predicate** (the wording of SCORECARD T1), not inputs, doubles, or scale |
+| D5 | Harness bisects to find ON/OFF points | Implemented as **adjacent-point probing**: at full witness scale, try ±`probe_step` on the contrast's boundary variable; if at least one side has an effect, the contrast is adjacent to the effect region. Effects on both sides indicate a one-point no-effect region (a `!=` guard). A non-integer boundary variable or more than one differing factor is `residual`. A `no` verdict requires only one differing factor |
+| D6 | direct and three simulated states | All verdict-dependent observations direct: `eliminated`; includes reference or fake: `residual` (at most L2); includes stub: `refuted` (at most L1) |
+| D8 | Identical trace hashes | Normalized hash covers status, exception type and location, return-value summary, local-variable summaries at target-line hits, call-chain function start order, and executed line set; excludes sequence numbers and elapsed time |
+| D9 | Replay agent commands | The harness replays **its own invocation** in a **fresh checkout of the pinned commit** and a **fresh attempt copy**; it does not execute shell strings written by the agent in `replay_commands` (otherwise an attempt could make the harness run arbitrary commands). `replay_commands` is only a record |
+| D10 | Full-scale bisection | Probe the positive and contrast cases once each at full scale (stop at the target verdict); both effects must match the scaled run |
+| Probe runs | None | D5, D3, and D10 use probes that "stop at the target verdict" (`tracer.StopProbe`). Probes do not enter the verdict or execute code after the target |
+| Numerical diagnostic readings | May retain | Not retained. `Scorecard`, `EvidenceRecord`, `scoring.py`, `s_mod`, etc. were all removed; `scoring_prototype.py` remains in place as a historical file |
 
-profile 默认值：`n_min=4`、`kill_lb=0.5`、`n_rep=5`、`mod_max=0.05`、`probe_step=1`，出处全部写在 `profile.py`，报告里带上使用的 profile。
+Profile defaults: `n_min=4`, `kill_lb=0.5`, `n_rep=5`, `mod_max=0.05`, `probe_step=1`. Sources are all recorded in `profile.py`, and reports include the profile used.
 
-### 已知限制
+### Known limitations
 
-1. **L3 现在只表示"我们能想到的 14 个 defeater 都被测量并消除"，不表示判定一定正确。** 在没有故障注入基准之前，报告里 `calibrated=false`。
-2. 效果判定只实现了 `reject`（目标位置抛异常）。`fallback`、`mechanism_variant`、`state_dependent` 等返回 `not_run`。
-3. D3 的变异只作用于 assert、raise、if、while；邻点探测只对整数边界变量有效。
-4. 对 assert 目标，探针提前停止，变异的"杀死"是目标处的强变异：判定从 `yes` 变成别的就算杀死，包括变异体导致崩溃。等价变异体没有剔除，所以用 Wilson 下界而不是要求 100%。
-5. 堆损坏、线程和非确定性库的行为：D8 只能比较观察到的轨迹，不能证明不存在非确定性；报告里给出 Rule of three 上界（5 次运行时 0.6，即证据很弱）。要把上界压到 0.1 需要 30 次运行，由 profile 的 `n_rep` 控制。
+1. **L3 currently means only "all 14 defeaters we could think of have been measured and eliminated"; it does not mean the verdict is necessarily correct.** Until a fault-injection benchmark exists, reports state `calibrated=false`.
+2. Effect verdicts implement only `reject` (an exception at the target location). `fallback`, `mechanism_variant`, `state_dependent`, etc. return `not_run`.
+3. D3 mutations apply only to assert, raise, if, and while; adjacent-point probing works only for integer boundary variables.
+4. For assert targets, the probe stops early. A mutation "kill" is strong mutation at the target: any change from `yes` counts as a kill, including a crash caused by the mutant. Equivalent mutants are not excluded, so the Wilson lower bound is used instead of requiring 100%.
+5. Heap corruption, threads, and nondeterministic libraries: D8 can compare only observed traces; it cannot prove nondeterminism absent. Reports provide the Rule of three upper bound (0.6 for 5 runs, very weak evidence). Reducing the bound to 0.1 requires 30 runs, controlled by profile `n_rep`.
 
+## 12. Fault-injection benchmark v0 (`results/bench/`, 2026-11-11)
 
-## 12. 故障注入基准 v0（`results/bench/`，2026-11-11）
+`python -m checklimits bench` creates 9 variants for each of three FlexPrefill findings (F07, F01, F04), plus 4 variants that degrade attempt quality, for 31 cases. Variants are written to a new commit in the cloned repository, which becomes the system under test. Each case has ground truth `claim_true` (whether "the witness input is rejected at that line and the adjacent input is not rejected" holds in the variant). A `yes`/`no` verdict is a "decision"; `inconclusive` is an "abstention".
 
-`python -m checklimits bench` 对 FlexPrefill 的三条 finding（F07、F01、F04）各造 9 个变体，另有 4 个降低 attempt 质量的变体，共 31 个 case。变体写进克隆仓库的一次新 commit，该 commit 作为被测系统。每个 case 带真值 `claim_true`（"witness 输入在该行被拒绝，相邻输入不被拒绝"在变体里是否成立）。判定为 `yes`/`no` 的叫"决定"，`inconclusive` 叫"弃权"。
-
-| 变体 | 真值 | 考察什么 |
+| Variant | Ground truth | What it tests |
 |---|---|---|
-| orig | 真 | 对照 |
-| delete-stale / relax-stale | 假 | Region 没跟着变体更新，应当被 D12 拦住 |
-| delete-snip / relax-snip | 假 | Region 的 snippet 已更新，但条件仍是原 finding 的说法（抽取器读错条件）。应判 `no` |
-| invert-snip | 假 | 边界方向反了，不应判 `yes` |
-| otherexc-snip | 真 | 同样拒绝，但抛的是 `ValueError`。oracle 只认 `AssertionError`，已知会判 `no`（假阴性） |
-| shifted / collide | 真 | 位置失效，应弃权 |
-| att-fake-einops / att-no-location | 真 | 判定应仍为 `yes`，档位应降到 L1 以下 |
-| att-scale-dependent | 真 | 缩放后行为不同，应弃权 |
-| att-false-claims | 真 | 表单诚实度应下降（`form_integrity`），判定不受影响 |
+| orig | True | Control |
+| delete-stale / relax-stale | False | Region was not updated with the variant; D12 should catch it |
+| delete-snip / relax-snip | False | Region snippet was updated, but the condition still describes the original finding (extractor misread the condition). Should return `no` |
+| invert-snip | False | Boundary direction reversed; should not return `yes` |
+| otherexc-snip | True | Still rejects, but raises `ValueError`. The oracle recognizes only `AssertionError`; known to return `no` (false negative) |
+| shifted / collide | True | Location invalid; should abstain |
+| att-fake-einops / att-no-location | True | Verdict should remain `yes`, level should fall below L1 |
+| att-scale-dependent | True | Behavior changes after scaling; should abstain |
+| att-false-claims | True | Form honesty should decrease (`form_integrity`), verdict unaffected |
 
-结果（137 项单元测试之外的一次完整运行，每例约 36 秒，3 个并行）：
+Results (one full run in addition to 137 unit tests, about 36 seconds per case, 3 in parallel):
 
-| 档位 | case | 决定 | 正确 | 准确率 | Wilson 下界 |
+| Level | case | Decisions | Correct | Accuracy | Wilson lower bound |
 |---|---|---|---|---|---|
 | L3 | 3 | 3 | 3 | 1.0 | 0.44 |
 | L1 | 12 | 12 | 9 | 0.75 | 0.47 |
 | invalid | 10 | 0 | 0 | | |
 | n/a | 6 | 0 | 0 | | |
 
-- **假阳性 0 个。** 16 个弃权全部落在 `invalid`（D12 或 D2 被推翻）或 `n/a`。
-- 三个假阴性（`*-otherexc-snip`）全部在 L1，且 D3 为 `refuted`（变异体存活，oracle 看不见效果）。同样 D3 被推翻的 `relax-snip` 却判对了。
-- 样本太小（15 个决定），Wilson 区间很宽。这是对规则的冒烟测试，不是校准；`calibrated` 仍为 false。
+- **0 false positives.** All 16 abstentions fell under `invalid` (D12 or D2 refuted) or `n/a`.
+- All three false negatives (`*-otherexc-snip`) were L1 with D3 `refuted` (mutants survived; the oracle could not see the effect). `relax-snip`, also with D3 refuted, was judged correctly.
+- The sample is too small (15 decisions), and Wilson intervals are wide. This is a smoke test of the rules, not calibration; `calibrated` remains false.
 
-### 基准发现的问题
+### Problems found by the benchmark
 
-1. **harness 缺陷（已修）。** `att-fake-einops` 第一次运行得到 L3：fake 模块只在 import 阶段被访问，而 child 在每个 case 开始时清空了记录，D6 误判为 `direct`。现在 import 阶段的记录会保留。已加回归测试（去掉修复后该测试失败）。
-2. **集合型守卫的 D3。** F04 的 `head_dim in {16,32,64,128}` 只用一个反例（128），把 16、32、64 改成别的数的变异体全部存活，D3 被推翻，档位 L1。`next_steps` 现在会列出存活变异体，并建议"为每个成员各加一个输入"。agent 目前只能给一个反例，这是 agent 层要解决的设计问题。
-3. **待决定：`no` 判定在 D3 被推翻时是否应改为 `inconclusive`。** 已批准的规则是"最高 L1"。基准里 `no` + D3 被推翻共 6 个：3 个对（relax-snip）、3 个错（otherexc-snip），等于抛硬币。变异测试的逻辑是：oracle 连目标处的变化都看不见，就不能用它证明"没有效果"。原 SCORECARD 的 G5 就是这么要求的。改成强制 `inconclusive` 会把这 6 个都变成弃权。因为这条改动是看了基准之后提的，需要你确认，不然有按基准调规则的嫌疑。
+1. **Harness defect (fixed).** The first run of `att-fake-einops` returned L3: the fake module was accessed only during import, and the child cleared the record at the start of each case, so D6 incorrectly reported `direct`. Import-stage records are now retained. A regression test was added (it fails without the fix).
+2. **D3 for set guards.** F04's `head_dim in {16,32,64,128}` uses only one contrast (128), so all mutants changing 16, 32, or 64 to another number survived; D3 was refuted and the level was L1. `next_steps` now lists surviving mutants and suggests "add an input for each member". The agent currently supplies only one contrast; this is an agent-layer design problem.
+3. **Decision pending: should a `no` verdict become `inconclusive` when D3 is refuted?** The approved rule is "at most L1". The benchmark has 6 cases with `no` + D3 refuted: 3 correct (relax-snip), 3 wrong (otherexc-snip), equivalent to a coin toss. Mutation testing logic says that an oracle unable to see changes at the target cannot prove "no effect". The original SCORECARD G5 required this. Forcing `inconclusive` would turn all 6 into abstentions. This change was proposed after seeing the benchmark, so it needs your confirmation; otherwise it risks tuning the rule to the benchmark.
 
+## 13. Effect types (evening of 2026-11-11)
 
-## 13. 效果类型（2026-11-11 晚）
+D1 to D14 apply to all three effect types; only "what counts as an effect" differs (`runner.outcome_support`, `runner.to_observation`):
 
-D1 到 D14 对三类效果通用，只有"什么算效果"不同（`runner.outcome_support`、`runner.to_observation`）：
-
-| `Region.outcome` | 效果 | 要求 |
+| `Region.outcome` | Effect | Requirement |
 |---|---|---|
-| `reject` | 目标位置抛异常（类型来自 oracle 的 spec） | 任意目标语句 |
-| `fallback`、`mechanism_variant` | 目标处的分支判定走进分支体 | 目标是 `if` 或 `while` |
-| `state_dependent` | 同上，但只看最后一次驱动调用；之前的 `positive_prelude` / `negative_prelude` 调用先改变状态 | 目标是 `if` 或 `while` |
-| 其他 | 不判断，`not_run` | |
+| `reject` | Exception at the target location (type from oracle spec) | Any target statement |
+| `fallback`, `mechanism_variant` | Branch decision at the target enters the branch body | Target is `if` or `while` |
+| `state_dependent` | As above, but only the last driver call counts; earlier `positive_prelude` / `negative_prelude` calls first change state | Target is `if` or `while` |
+| Other | Not judged, `not_run` | |
 
-已知缺口（有测试覆盖，规则没有为它们放宽）：状态的相邻点无法探测，D5 最高 residual；`x is None` 一类守卫变异体不足 4 个，D3 最高 residual；检查调用之前的 prelude 要跑过目标之后的替身，D6 最高 residual。所以 `state_dependent` 在当前规则下最高 L1。要改善需要：更多变异算子（`is` 与 `is not`、`and` 与 `or`），或者对状态的邻点探测，这些都是新的设计决定。
+Known gaps (covered by tests; rules are not relaxed for them): adjacent state points cannot be probed, so D5 is at most residual; guards such as `x is None` have fewer than 4 mutants, so D3 is at most residual; preludes before the checked call must run doubles after the target, so D6 is at most residual. Thus `state_dependent` is at most L1 under current rules. Improvements require more mutation operators (`is` and `is not`, `and` and `or`) or adjacent-point probing for state; these are new design decisions.
 
+## 14. Mutation operator set v2 (2026-11-12, Shanghao approved additional operators)
 
-## 14. 变异算子集 v2（2026-11-12，Shanghao 批准补算子）
+**Added:** swap comparison operators `is` and `is not`, `in` and `not in`; swap logical connectives `and` and `or` (one mutant per connective). Existing condition negation, `==`/`!=`, `<`/`<=`, `>`/`>=` swaps, deletion of `assert`/`raise`, and integer constant ±1 remain unchanged.
 
-**新增：** 比较符 `is` 与 `is not`、`in` 与 `not in` 互换；逻辑连接词 `and` 与 `or` 互换（每个连接处一个变异体）。原有的取反条件、`==`/`!=`、`<`/`<=`、`>`/`>=` 互换、删除 `assert`/`raise`、整数常量加减 1 不变。
+**One count was also tightened:** `not (a == b)` and `a != b` (likewise `is` and `in`) are the same mutant. When the entire condition is one such comparison, the swap is no longer counted, as it would double-count and inflate the mutant count used by D3. Previously 1 of F07's 5 mutants was a duplicate; now there are 4 (negation, `1→2`, `1→0`, deletion), with Wilson lower bound 0.51, just above the 0.5 threshold.
 
-**同时收紧了一处计数：** `not (a == b)` 和 `a != b`（`is`、`in` 同理）是同一个变异体。整个条件就是单个这样的比较时，互换那一个不再计入，否则 D3 依赖的变异体个数被重复计算虚增。此前 F07 的 5 个变异体里有 1 个重复，现在是 4 个（取反、`1→2`、`1→0`、删除），Wilson 下界 0.51，刚好过 0.5 的门槛。
+**Impact (re-audit of 33 archived agent attempts, without rerunning the agent):**
 
-**影响（对已归档的 33 个 agent attempt 重新审计，不重新运行 agent）：**
-
-| | 数量 |
+| | Count |
 |---|---|
-| 档位不变 | 32 |
-| 档位下降 | 1（F053：`if q_len == 1:`，变异体 3 个，少于 `n_min=4`，D3 从 eliminated 变为 residual，L3 变为 L1） |
-| 档位上升 | 0 |
+| Level unchanged | 32 |
+| Level decreased | 1 (F053: `if q_len == 1:`, 3 mutants, fewer than `n_min=4`; D3 changed from eliminated to residual and L3 to L1) |
+| Level increased | 0 |
 
-新增的三类算子没有让任何一条上升：D3 residual 的 15 条里，单比较守卫（`x is None`、`q_len == 1`）本来就只有取反这一个非等价变异体，`x in {...}` 型守卫的成员常量加减 1 早已计入；复合条件才会多出 `and`/`or` 变异体，而这 15 条里几乎没有。**所以 D3 residual 主要不是算子集太窄，而是这类守卫在逻辑上可变异的点就这么少。** 要让它们到 L2 需要改规则（例如 `n_min` 随可变异点数调整，或接受"全部非等价变异体都被杀死"），这是单独的决定。
+The three new operator types raised no levels: among 15 cases with D3 residual, single-comparison guards (`x is None`, `q_len == 1`) already had only one non-equivalent mutant, negation, and member constants ±1 for `x in {...}` guards were already counted. Only compound conditions gain `and`/`or` mutants, and almost none of these 15 are compound. **Thus D3 residual is mainly due to the small number of logically mutable points in these guards, not an overly narrow operator set.** Raising them to L2 requires a rule change (e.g. adjust `n_min` to the number of mutable points, or accept "all non-equivalent mutants killed"); that is a separate decision.
 
-分布：变异体个数为 1 的 5 条、2 的 8 条、3 的 2 条、4 及以上 16 条、没有可用算子的 2 条（未运行）。
+Distribution: 5 cases with 1 mutant, 8 with 2, 2 with 3, 16 with 4 or more, and 2 with no applicable operator (not run).
 
-### 基准重跑（2026-11-12）
+### Benchmark rerun (2026-11-12)
 
-用算子 v2 和当前的手写 attempt 重跑 31 个基准 case：判定类别不变（TP 6、TN 6、FN 3、弃权 16，**假阳性仍为 0**）。F04-orig 和 F04-relax-snip 从 L1 升到 L3，**原因是手写的 F04 attempt 在第一次基准之后加了 `extra_negatives`**（集合守卫每个成员一个反例），不是算子变化。L3 现在 5/5 正确（Wilson 下界 0.57），L1 7/10 正确，三个假阴性（`*-otherexc-snip`）仍在 L1。这仍是 15 个决定的冒烟测试，不是校准。
+Rerun all 31 benchmark cases with operator v2 and the current hand-written attempts: verdict categories unchanged (TP 6, TN 6, FN 3, abstentions 16, **still 0 false positives**). F04-orig and F04-relax-snip rose from L1 to L3 **because `extra_negatives` were added to the hand-written F04 attempt after the first benchmark** (one contrast per set-guard member), not because of the operator change. L3 is now 5/5 correct (Wilson lower bound 0.57), L1 7/10 correct, and the three false negatives (`*-otherexc-snip`) remain L1. This is still a smoke test of 15 decisions, not calibration.
 
+## 15. Rule corrections from a second artifact (2026-11-12)
 
-## 15. 第二个 artifact 带来的规则修正（2026-11-12）
+1. **Applicability of `reject` (`runner.outcome_support`).** Judge only when the target can raise an exception: `assert`, `raise`, or `if` / `while` with a `raise` in the branch body. Other statements return `not_run` with a reason, not `no`. Reason: if "the program eventually rejects" is attached to `continue`, an assignment, or a loop condition, "exception at the target location" can never hold, producing a `no` in the wrong direction.
+2. **Normalized hash scope (D8, D9).** Include only verdict, condition value, exception, return-value summary, function start order, executed line set, and local values of **names appearing in the Region condition**. Irrelevant locals such as clocks, random numbers, and object addresses no longer make deterministic behavior look unstable. When there is a `condition.py` predicate, still hash all locals (the predicate can read any name).
+3. **Module-level targets.** `function == "<module>"` denotes statements executed at import; AST comparison and coverage handle them accordingly. Names beginning with `__` in the module dictionary are not captured.
 
-1. **`reject` 的适用范围（`runner.outcome_support`）。** 只有目标能抛异常时才判断：`assert`、`raise`，或分支体里有 `raise` 的 `if` / `while`。其他语句返回 `not_run` 并说明原因，不给 `no`。原因：把"程序最终拒绝"标在 `continue`、赋值或循环条件上，"目标位置抛异常"永远不满足，会得到方向错误的 `no`。
-2. **规范化哈希的口径（D8、D9）。** 只包含判定结果、条件取值、异常、返回值摘要、函数启动顺序、执行行集合，以及 **Region 条件里出现的名字**的局部变量值。时钟、随机数、对象地址等无关局部变量不再让确定的行为显得不稳定。有 `condition.py` 谓词时仍哈希全部局部变量（谓词可读任意名字）。
-3. **模块级目标。** `function == "<module>"` 指 import 时执行的语句，AST 比较和覆盖率按此处理；模块字典里的 `__` 开头名字不捕获。
+## 16. Fault-injection benchmark expanded to 82 cases (2026-11-16)
 
+`bench.py` adds a second class of cases: inject repository faults into test packages agents wrote for step 4 Findings (NNSmith F004, F017, F025, F010; FlexPrefill F003, F054, F026). Rules match the first 31 cases: 5 `reject` variants (original, deletion, negation, different exception type, paired with "stale Region" or "current snippet"), 5 branch variants (original, condition replaced with `False`, negation, replaced with `True`, with the same two Regions), plus "stale location" (insert a comment line or a harmless statement). Acceptable result sets were fixed before the run and written in `bench.py`. There are also two test-package faults for NNSmith F004. The original 31 cases were rerun as well.
 
-## 16. 故障注入基准扩大到 82 个 case（2026-11-16）
-
-`bench.py` 新增第二类 case：对 agent 为 step 4 Finding 写的测试包（NNSmith 的 F004、F017、F025、F010；FlexPrefill 的 F003、F054、F026）注入仓库故障，规则与前 31 个 case 相同：`reject` 类 5 种（原样、删除、取反、换异常类型，各配"过期 Region"或"当前 snippet"），分支类 5 种（原样、条件换成 `False`、取反、换成 `True`，同样两种 Region），再加"位置过期"（插一行注释、插入一条无害语句）。可接受的结果集在跑之前定好，写在 `bench.py` 里。另有 NNSmith F004 的两个测试包故障。原来的 31 个 case 一并重跑。
-
-| | 前 31 个 case（11-11） | 现在 82 个 case |
+| | First 31 cases (11-11) | Now 82 cases |
 |---|---|---|
-| 假阳性（claim 假而判 `yes`） | 0 | **0** |
-| 判定 `yes` | 6 个，全对 | 15 个，全对（L3 7 个、L1 8 个，Wilson 下界 0.65 和 0.68） |
-| 判定 `no` | 9 个，6 对 | 13 个，7 对 |
-| 弃权 | 16 | 54 |
+| False positives (claim false but verdict `yes`) | 0 | **0** |
+| Verdict `yes` | 6, all correct | 15, all correct (7 L3, 8 L1, Wilson lower bounds 0.65 and 0.68) |
+| Verdict `no` | 9, 6 correct | 13, 7 correct |
+| Abstentions | 16 | 54 |
 
-按判定和档位拆开：
+By verdict and level:
 
-| 判定 / 档位 | 决定数 | 正确 | 比例 | Wilson 95% 区间 |
+| Verdict / level | Decisions | Correct | Rate | Wilson 95% interval |
 |---|---|---|---|---|
-| `yes` / L3 | 7 | 7 | 1.00 | 0.65 到 1.00 |
-| `yes` / L1 | 8 | 8 | 1.00 | 0.68 到 1.00 |
-| `no` / L3 | 1 | 1 | 1.00 | 0.21 到 1.00 |
-| **`no` / L1** | **12** | **6** | **0.50** | **0.25 到 0.75** |
+| `yes` / L3 | 7 | 7 | 1.00 | 0.65 to 1.00 |
+| `yes` / L1 | 8 | 8 | 1.00 | 0.68 to 1.00 |
+| `no` / L3 | 1 | 1 | 1.00 | 0.21 to 1.00 |
+| **`no` / L1** | **12** | **6** | **0.50** | **0.25 to 0.75** |
 
-读法：
+Interpretation:
 
-* **`yes` 没有错过。** 15 个 `yes` 全是 claim 为真。这是基准能说的最强的一句，仍然是 15 个决定的结果，故障集也是我们自己编的。
-* **`no` 在 L1 是抛硬币。** 12 个 L1 的 `no`，6 个错，**全部是同一种故障**：claim 为真，仓库把 `AssertionError` 换成了 `ValueError`（`*-otherexc-snip`，现在 6 个，前 31 个里是 3 个），oracle 只认 `AssertionError`，所以看到"没有预期的异常"，判成 `no`。其中 5 个的 D3（变异检查）是 `refuted`，1 个是 `residual`。11-11 的决定是"`no` 在 D3 没有消除时最高 L1，不强制 `inconclusive`"。这批新数据是对那条决定的新证据：L1 的 `no` 在这个故障族上一半是错的。**我没有改规则**（看了基准再改规则有按基准调参的嫌疑），这个决定留给你。
-* **弃权变多，不是错。** F07、F01、F04 的"删除守卫，Region snippet 已更新"三个 case 从 `no`/L1 变成 `inconclusive`/n/a：Region 说效果是 `reject`，目标语句已经是 `pass`，11-12 加的"`reject` 只在目标能抛异常时判断"（本文第 15 节）让它们弃权。这三个的可接受集是 `{no}`，所以在表里是"可接受集之外"，但没有错判。
-* 不同族的结果一致：手写 pilot 31 个 case、NNSmith 30 个、FlexPrefill step 4 测试包 21 个，假阳性都是 0。
-* 全部是确定性的小故障。这仍是冒烟测试，**不是校准**。档位的含义要靠人工标注（`labels` 命令）才能有经验依据。
+* **No `yes` was wrong.** All 15 `yes` verdicts had true claims. This is the strongest statement the benchmark supports; it is still based on 15 decisions and faults we devised ourselves.
+* **L1 `no` is a coin toss.** Of 12 L1 `no` verdicts, 6 were wrong, **all from the same fault**: the claim was true, but the repository replaced `AssertionError` with `ValueError` (`*-otherexc-snip`, now 6 cases versus 3 in the first 31). The oracle recognized only `AssertionError`, so it saw "no expected exception" and returned `no`. D3 (mutation check) was `refuted` for 5 and `residual` for 1. The 11-11 decision was "`no` is at most L1 when D3 is not eliminated; do not force `inconclusive`". These new data are evidence about that decision: half of L1 `no` verdicts in this fault family are wrong. **I did not change the rule** (changing it after seeing the benchmark risks tuning to it); the decision is left to you.
+* **More abstentions are not errors.** Three F07, F01, and F04 cases with "guard deleted, Region snippet updated" changed from `no`/L1 to `inconclusive`/n/a: Region says the effect is `reject`, but the target statement is now `pass`. The 11-12 rule "judge `reject` only when the target can raise an exception" (§15) makes them abstain. Their acceptable set is `{no}`, so they are "outside the acceptable set" in the table, but are not incorrect verdicts.
+* Results agree across families: 0 false positives in the 31 hand-written pilot cases, 30 NNSmith cases, and 21 FlexPrefill step 4 test-package cases.
+* All are small deterministic faults. This remains a smoke test, **not calibration**. The meaning of levels needs an empirical basis from human annotation (`labels` command).
 
-## 17. agent 的可见范围（2026-11-16，11-17 更新）
+## 17. Agent visibility (2026-11-16, updated 11-17)
 
-* 沙箱里不可读：`attempts/`、`results/`、`locks/`、`runs/`、`tests/`、`scripts/`、`scratch/`、`agent_results/`，git 历史，凭据，`PLAN.md`、`ENV.md`、`KICKOFF_PROMPT.md`、`scoring_prototype.py`，以及 `AGENT_RESULTS.md`、`BATCH_RESULTS.md`、`NNSMITH_RESULTS.md`、`PREFLIGHT_FLEXPOSIT.md`。`agent_results/` 在 11-16 之前是可读的（`BATCH_RESULTS.md` 补记三）。
-* 白盒（默认）：可读 `checklimits/` 的源码、`CONFIDENCE_SPEC.md`、`SCORECARD.md`。
-* `--blind`（干净盲测）：沙箱里没有 harness（包目录是空 tmpfs），规则文档和实验记录读不到。`cl` 是客户端，`task`、`init`、`lint`、`run` 由沙箱外的服务（`agent_service.py`）执行，在同一个 bwrap 沙箱里跑，只返回输出。11-16 的第一版"盲测"只把源码换成 `.pyc`，五次运行都用 `strings`、`marshal`、`dis` 读了字节码，所以那一版只算半盲（`EXPERIMENTS.md`）。
+* Unreadable in the sandbox: `attempts/`, `results/`, `locks/`, `runs/`, `tests/`, `scripts/`, `scratch/`, `agent_results/`, git history, credentials, `PLAN.md`, `ENV.md`, `KICKOFF_PROMPT.md`, `scoring_prototype.py`, and `AGENT_RESULTS.md`, `BATCH_RESULTS.md`, `NNSMITH_RESULTS.md`, `PREFLIGHT_FLEXPOSIT.md`. `agent_results/` was readable before 11-16 (third addendum to `BATCH_RESULTS.md`).
+* White box (default): can read `checklimits/` source, `CONFIDENCE_SPEC.md`, `SCORECARD.md`.
+* `--blind` (clean blind test): no harness in the sandbox (the package directory is an empty tmpfs); rules and experiment records are unreadable. `cl` is the client; `task`, `init`, `lint`, `run` are executed by a service outside the sandbox (`agent_service.py`) in the same bwrap sandbox, returning only output. The first 11-16 "blind test" only replaced source with `.pyc`; all five runs read bytecode using `strings`, `marshal`, `dis`, so that version counts only as semi-blind (`EXPERIMENTS.md`).
 
-## 19. D14 要求目标在入口里执行（2026-11-17）
+## 19. D14 requires the target to execute inside the entry (2026-11-17)
 
-原来 D14 只看 `call_chain[0]` 是不是最先开始的函数。现在还要求目标行执行时它仍在运行（追踪器给每次命中记下当时的调用栈，`fidelity.entry_on_stack`）。入口先开始、目标却在入口之外执行（先调一次入口，再直接调目标函数）时：写了 `entry_reason` 是 residual，没写是 refuted。模块级目标和无调用栈记录时不检查。发现的经过和对已有结果的影响见 `EXPERIMENTS.md`："D14 的漏洞"。
+Previously D14 checked only whether `call_chain[0]` was the first function started. It now also requires that function still to be running when the target line executes (the tracer records the call stack at each hit, `fidelity.entry_on_stack`). If the entry starts first but the target executes outside it (call the entry once, then call the target function directly): an `entry_reason` gives residual; no reason gives refuted. Module-level targets and hits without a recorded call stack are not checked. See `EXPERIMENTS.md`: "D14 的漏洞" [The D14 loophole] for the discovery and impact on existing results.
 
-对全部已有结果的影响（用新规则重新审计）：FlexPrefill F008 从 L3 到 L2；NNSmith F035 从 L3 到 L2；其余 e2e 结果的档位不变。基准的 82 个 case 没有重跑（它们是故障注入，不涉及入口），16 个决定、假阳性 0 的结论不受影响，但没有再验证一遍。
+Impact on all existing results (re-audited under the new rule): FlexPrefill F008 fell from L3 to L2; NNSmith F035 fell from L3 to L2; other e2e levels were unchanged. The 82 benchmark cases were not rerun (they inject faults and do not involve entry), so the conclusion of 16 decisions and 0 false positives is unaffected, but was not reverified.
 
-## 20. D2 与 agent 谓词的交叉检查，以及第一份人工基线（2026-11-17）
+## 20. Cross-checking D2 and agent predicates, and the first human baseline (2026-11-17)
 
-agent 可以写 `condition.py` 谓词代替 Region.condition 来求 D2。谓词可能说的是另一件事。人工基线（`labels/sheet_shanghao.csv`）发现 NNSmith F009：Region 的条件是 `max(left, right) >= W`（"到上限时不加进位"），目标语句是 `if carry and max(...) < W:`，agent 的谓词按语句写，于是 trigger 和 contrast 的方向反了，harness 给了 `yes`/L1，D2 只是 residual。现在谓词存在时也同时求值 Region.condition（`TargetHit.region_condition_value`）：能求值且与"正例为真、反例为假"矛盾，D2 为 refuted；一致，D2 为 eliminated；不能求值，仍是 residual。Region.condition 含调用（`random.uniform(...)`、`x.size()`）时不求值，因为求值会改变被测程序（`tracer._pure_expression`）。F009 现在是 `inconclusive`/`invalid`；F019、F022 因条件含调用，仍是 residual。有测试。
+The agent can write a `condition.py` predicate in place of Region.condition for D2. The predicate may describe something else. The human baseline (`labels/sheet_shanghao.csv`) found NNSmith F009: Region's condition is `max(left, right) >= W` ("do not add carry at the limit"), while the target statement is `if carry and max(...) < W:`. The agent wrote its predicate to match the statement, reversing trigger and contrast; the harness gave `yes`/L1 with D2 only residual. Now, when a predicate exists, Region.condition is also evaluated (`TargetHit.region_condition_value`): if evaluable and inconsistent with "positive true, contrast false", D2 is refuted; if consistent, D2 is eliminated; if not evaluable, it remains residual. Region.condition is not evaluated when it contains calls (`random.uniform(...)`, `x.size()`), because evaluation would alter the program under test (`tracer._pure_expression`). F009 is now `inconclusive`/`invalid`; F019 and F022 remain residual because their conditions contain calls. Tests cover this.
 
-基线的第一批数字（20 条抽样里 18 条 harness 判 `yes`，刷新 key 之后）：人工判断"断言对代码成立"的比例 16/18（Wilson 0.67 到 0.97），L1 4/6，L2 6/6，L3 6/6。**q2（测试有效）基本没评：** 基线的 q2 写的是 `Unverified`，因为审阅者没有拿到 driver 源码，只有 F009 一条被判 `Inconsistent`。`labels/context/` 给每条补了 driver 全文。这些数字不是校准，样本 18，档位之间的差别在区间里重叠。
+First baseline numbers (18 of 20 sampled cases received a harness `yes`, after refreshing the key): human judgments that "the assertion holds for the code" were 16/18 (Wilson 0.67 to 0.97), L1 4/6, L2 6/6, L3 6/6. **q2 (test validity) was mostly not assessed:** baseline q2 says `Unverified` because the reviewer did not receive driver source; only F009 was judged `Inconsistent`. `labels/context/` added the full driver for each case. These numbers are not calibration; the sample is 18 and intervals overlap across levels.
 
-## 21. D5 的邻点探测对超时重试（2026-11-17）
+## 21. D5 adjacent-point probe retries on timeout (2026-11-17)
 
-NNSmith 的 `random_model_gen` 用 `max_gen_millisec` 限时，机器负载高时邻点探测（`neg+`、`neg-`）可能在判出目标之前超时，D5 变 `open`，档位掉级（F035 chain-3 在 3 个并行 worker 下从 L3 掉到 L1）。现在 `harness._run_bva` 对没有判出目标的邻点探测最多再单独跑 `BVA_RETRIES = 2` 次。只重跑未判出的探测：已判出的结果不会被覆盖，重试只能把 `open` 变成有测量值的结果，不会把任何档位的判断改成别的方向；仍然判不出的保持 `open`。没有改任何阈值或规则，所以没有重跑基准和 `results/e2e/`。有两个测试（`test_mutate_bva.py`）。这没有"证明"负载问题消失：真实机器上的并行重审还没有重做，重做时仍建议 `--workers 1` 或 2。
+NNSmith's `random_model_gen` uses `max_gen_millisec` as a time limit. Under heavy load, adjacent-point probes (`neg+`, `neg-`) can time out before reaching a target verdict, leaving D5 `open` and lowering the level (F035 chain-3 fell from L3 to L1 with 3 parallel workers). Now `harness._run_bva` separately retries probes without a target verdict up to `BVA_RETRIES = 2` times. Only undecided probes are rerun: decided results are not overwritten; retries can only turn `open` into a measured result, not reverse a level's judgment. Probes still undecided remain `open`. No thresholds or rules changed, so the benchmark and `results/e2e/` were not rerun. Two tests cover this (`test_mutate_bva.py`). This does not "prove" the load issue is gone: parallel re-audit on the real machine has not been repeated; `--workers 1` or 2 is still recommended when it is.
 
-## 22. 分析通道：不能测的 Finding 也给分析，但另立档位（2026-11-18）
+## 22. Analysis channel: analyze untestable Findings at separate levels (2026-11-18)
 
-`not_run` 的 Finding（`no_code_location`、`outcome_unsupported`、纯论文）不再只有一行原因。`checklimits analyze` / `pipeline analyze` / `pipeline e2e`（默认）给每条加一个 `analysis` 块（`report.json` 的可选字段，契约不升版本）。它**不是测试**：永远没有 `yes`/`no`，没有 L 档。
+A `not_run` Finding (`no_code_location`, `outcome_unsupported`, paper-only) no longer has only a one-line reason. `checklimits analyze` / `pipeline analyze` / `pipeline e2e` (default) adds an `analysis` block to each (`report.json` optional field, no contract version bump). This **is not a test**: it never has `yes`/`no` or an L level.
 
-三步，可信度由高到低：
-1. **静态证据核对（确定性）**：Finding 引用的文件在固定 commit 里存在、行号在范围内、引用的片段在那里。
-2. **探针（由 harness 执行）**：语言模型可以提出正则探针（"脚本里没有 `wget`"）。探针只能看 Finding 引用过的文件；`absent` 型探针必须带一个 `control` 正则，且它在同一文件里命中，否则记为 `unanchored`，不算数（"没找到"太容易满足）。
-3. **语言模型的读法**：`supports` / `contradicts` / `unclear`，带理由，答案缓存。
+Three steps, in decreasing order of credibility:
+1. **Static evidence check (deterministic):** the file cited by the Finding exists at the pinned commit, the line number is in range, and the cited snippet is there.
+2. **Probes (run by the harness):** the language model can propose regex probes ("the script has no `wget`"). Probes can inspect only files cited by the Finding; an `absent` probe must include a `control` regex that matches in the same file, otherwise it is `unanchored` and does not count ("not found" is too easy to satisfy).
+3. **Language model interpretation:** `supports` / `contradicts` / `unclear`, with reasons; answers are cached.
 
-档位（未校准，和 L 档不是一个量表）：
+Levels (uncalibrated, on a different scale from L levels):
 
-| 档 | 条件 |
+| Level | Condition |
 |---|---|
-| A2 | 引用的代码找到了，至少一个探针跑了且与读法一致 |
-| A1 | 只有文字读法：纯论文、没有仓库、或没法写探针 |
-| A0 | 证据没法落地（引用的文件或行不存在），或读法与探针矛盾，或模型没给出可用答案 |
+| A2 | Cited code found, at least one probe ran and agrees with the interpretation |
+| A1 | Text interpretation only: paper-only, no repository, or no probe can be written |
+| A0 | Evidence cannot be grounded (cited file or line absent), interpretation contradicts a probe, or model gave no usable answer |
 
-**纯论文**（`checklimits paper-only` / `pipeline paper-only`，例如没有公开代码的 Tessera）：模型读 PDF 全文，列出读者能从文字确定的限制（假设、评测范围、缺失对比、数字不一致）。harness 核对每条引用**逐字出现在 PDF 里**，否则整条丢弃并计数；候选可带一个算术检查，其中每个数字必须出现在引用里，由 harness 求值。档位最高 A1。记录用 `<id>-P001…` 编号，`not_run.code = no_code_location`，`finding.category = paper_only:<kind>`，不走步骤 4 的 schema。
+**Paper-only** (`checklimits paper-only` / `pipeline paper-only`, e.g. Tessera with no public code): the model reads the full PDF and lists limitations readers can establish from the text (assumptions, evaluation scope, missing comparisons, numerical inconsistencies). The harness checks that each quotation **appears verbatim in the PDF**; otherwise it discards and counts the entire item. A candidate may include an arithmetic check, with every number appearing in the quotation, evaluated by the harness. Maximum level A1. Records are numbered `<id>-P001…`, with `not_run.code = no_code_location` and `finding.category = paper_only:<kind>`; they do not use the step 4 schema.
 
-限制：探针是文本搜索，不是语义分析；模型提出的探针可能选错文件或正则；A2 只说"找到的文本与读法一致"。没有人工核对，没有校准。
+Limitations: probes are text searches, not semantic analysis; model-proposed probes may choose the wrong file or regex; A2 says only "the text found agrees with the interpretation". No human verification or calibration.
 
-## 23. 加速器代码的替身要自证（2026-11-18）
+## 23. Accelerator code doubles must demonstrate fidelity (2026-11-18)
 
-没有 GPU 不是放弃一条 Finding 的理由。agent 可以用 CPU 替身（`sim.py`）代替 CUDA/Triton 核或硬件块，并用 `MockDecl.sim_check = "check.py::fn"` 声明怎么证明替身算的是核算的：`fn(sim)` 返回 `{"ok","detail","kind"}`，可以是和 CPU 参考实现在小规模随机输入上的数值比较，不变量检查（softmax 行和为 1、mask 生效、形状），或用 sympy / z3 对公式做符号证明。
+Lack of a GPU is not a reason to abandon a Finding. The agent can use a CPU double (`sim.py`) for a CUDA/Triton kernel or hardware block, and declare how to show that the double computes what the kernel computes with `MockDecl.sim_check = "check.py::fn"`: `fn(sim)` returns `{"ok","detail","kind"}`. This can compare numerical results with a CPU reference implementation on small random inputs, check invariants (softmax rows sum to 1, mask applies, shape), or use sympy / z3 for a symbolic proof of the formula.
 
-agent 写检查，所以 harness 不直接信它：`simcheck.py` 在子进程里先对替身跑一次（必须 ok），再对"被破坏的替身"（输出放大、取负、清零）各跑一次。破坏后仍然通过的检查看不见错误，记为 `vacuous`。状态：`agrees` / `disagrees` / `vacuous` / `error`。**只有 `disagrees` 改变档位**（D6 refuted）；`agrees` 只写进 D6 的证据，替身的证据状态仍由 `sim_class` 决定（`simulated:*`，档位上限不变）。
+The agent writes the check, so the harness does not trust it directly: `simcheck.py` first runs it on the double in a child process (must be ok), then on each "broken double" (output scaled up, negated, zeroed). A check that still passes after damage cannot see errors and is marked `vacuous`. States: `agrees` / `disagrees` / `vacuous` / `error`. **Only `disagrees` changes the level** (D6 refuted); `agrees` is recorded only as D6 evidence, while the double's evidence state remains determined by `sim_class` (`simulated:*`, level cap unchanged).
 
-验证：FlexPrefill F07 的 `bnhd_pool` 替身加上 `sim_check` 后，在真实 harness 里为 `agrees`（`tests/test_simcheck.py` 另有 5 个单测：agrees、disagrees、vacuous、error、未声明）。还没有让 agent 在一条真正需要 GPU 的新 Finding 上自己写 `sim_check` 并跑完。
+Validation: after adding `sim_check` to the FlexPrefill F07 `bnhd_pool` double, it was `agrees` in the real harness (`tests/test_simcheck.py` also has 5 unit tests: agrees, disagrees, vacuous, error, undeclared). An agent has not yet written and run `sim_check` itself for a new Finding that truly needs a GPU.
