@@ -106,11 +106,21 @@ class RelayConfig:
         self.host = p.hostname
         self.port = p.port or (443 if p.scheme == "https" else 80)
         self.base_path = p.path.rstrip("/")  # e.g. "/v1"
-        self.api_key = api_key
+        # Several keys (comma-separated) are used round-robin; a 429 moves the request to the next key.
+        self.api_keys = [k.strip() for k in api_key.split(",") if k.strip()]
+        self.api_key = self.api_keys[0]
+        self._rr = 0
+        self._rr_lock = threading.Lock()
         self.iface = iface
         self.source_ip = source_ip
         self.log_path = log_path
         self._log_lock = threading.Lock()
+
+    def next_key_index(self) -> int:
+        with self._rr_lock:
+            i = self._rr % len(self.api_keys)
+            self._rr += 1
+            return i
 
     def log(self, method: str, path: str, status: int, ms: int, model: str) -> None:
         # Deliberately only these five fields. No headers, no body.
@@ -168,7 +178,8 @@ def make_handler(cfg: RelayConfig):
                 if parsed.query:
                     up_path += "?" + parsed.query
                 headers = {k: v for k, v in self.headers.items() if k.lower() not in DROP_REQUEST}
-                headers["Authorization"] = f"Bearer {cfg.api_key}"
+                ki = cfg.next_key_index()
+                headers["Authorization"] = f"Bearer {cfg.api_keys[ki]}"
                 headers["Host"] = cfg.host
                 headers["Accept-Encoding"] = "identity"
                 if body:
@@ -177,7 +188,8 @@ def make_handler(cfg: RelayConfig):
                 conn = resp = None
                 # Nothing has been sent to the client before the upstream status line arrives, so a connection
                 # failure or a 502/503/504 at that point is retried (an upstream hiccup must not abort a long run).
-                for attempt in range(UPSTREAM_RETRIES + 1):
+                rate_tries = 0
+                for attempt in range(UPSTREAM_RETRIES + 1 + 2 * len(cfg.api_keys)):
                     if cfg.iface:
                         conn = (_BoundHTTPS if cfg.scheme == "https" else _BoundHTTP)(
                             cfg.host, cfg.port, timeout=UPSTREAM_TIMEOUT)
@@ -188,6 +200,14 @@ def make_handler(cfg: RelayConfig):
                     try:
                         conn.request(self.command, up_path, body=body or None, headers=headers)
                         resp = conn.getresponse()
+                        if resp.status == 429 and rate_tries < 2 * len(cfg.api_keys) - 1:
+                            # rate limited on this key: try the next key (short pause after a full cycle)
+                            resp.read(); conn.close(); rate_tries += 1
+                            ki = (ki + 1) % len(cfg.api_keys)
+                            headers["Authorization"] = f"Bearer {cfg.api_keys[ki]}"
+                            if rate_tries % len(cfg.api_keys) == 0:
+                                time.sleep(5)
+                            continue
                         if resp.status in (502, 503, 504) and attempt < UPSTREAM_RETRIES:
                             resp.read(); conn.close(); time.sleep(2 * (attempt + 1)); continue
                         break
@@ -247,12 +267,16 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--log", default=None, help="log file (default: stderr)")
     a = ap.parse_args(argv)
     base, key = os.environ.get("SOCLAAS_BASE_URL"), os.environ.get("SOCLAAS_API_KEY")
+    extra = os.environ.get("SOCLAAS_EXTRA_KEYS", "")   # optional extra keys, comma-separated, never logged
+    if key and extra:
+        key = key + "," + extra
     if not base or not key:
         print("SOCLAAS_BASE_URL and SOCLAAS_API_KEY must be set in the environment", file=sys.stderr)
         return 2
     cfg = RelayConfig(base, key, iface=a.iface, log_path=a.log)
     srv = serve(cfg, "127.0.0.1", a.port)
-    print(f"relay listening on 127.0.0.1:{a.port} (outbound via {a.iface or 'default route'})", file=sys.stderr)
+    print(f"relay listening on 127.0.0.1:{a.port} (outbound via {a.iface or 'default route'}, "
+          f"{len(cfg.api_keys)} key(s))", file=sys.stderr)
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
