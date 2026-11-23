@@ -56,7 +56,7 @@ def main() -> None:
     for axis, (split, title) in zip(axes, panels):
         counts = [sum(blind[split, paper, workflow][0] != "miss" for paper in SPLITS[split])
                   for workflow in WORKFLOWS]
-        bars = axis.barh(("S7", "A", "B"), counts, color=("#285f8e", "#96611f", "#52766a"),
+        bars = axis.barh(("PaperTest Swarm", "A", "B"), counts, color=("#285f8e", "#96611f", "#52766a"),
                          height=0.53)
         axis.bar_label(bars, labels=[f"{value}/4" for value in counts], padding=3)
         axis.set(title=title, xlim=(0, 4.65), xticks=(0, 1, 2, 3, 4))

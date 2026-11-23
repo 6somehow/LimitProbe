@@ -1,17 +1,17 @@
 # Paper-side diagnosis on eight source-backed papers
 
-A (one model request) and B (one tool-using agent, up to eight replies) receive the paper and the source packet. S7 maps decisions in the paper, follows an evidence chain in the pinned repository, and delegates a question about one link. It then appends candidates from other stages to the deep report. S7 has a ten-request cap. All three use DeepSeek V4.1 Flash through SoCLaaS. The human reference diagnoses are held back for grading.
+A (one model request) and B (one tool-using agent, up to eight replies) receive the paper and the source packet. PaperTest Swarm maps decisions in the paper, follows an evidence chain in the pinned repository, and delegates a question about one link. It then appends candidates from other stages to the deep report. PaperTest Swarm has a ten-request cap. All three use DeepSeek V4.1 Flash through SoCLaaS. The human reference diagnoses are held back for grading.
 
 Coverage counts papers with at least one core or partial match. The blinded grader sees the final and the reference diagnosis with the workflow identity hidden. The strict grader puts more weight on the operational consequence. Both grade the same 24 final reports.
 
-| Split | S7 | A | B |
+| Split | PaperTest Swarm | A | B |
 |---|---:|---:|---:|
 | Development (4) | **2/4** | 1/4 | 2/4 |
 | Test with source (4) | **4/4** | 3/4 | 2/4 |
 
 ![Blinded diagnosis coverage by workflow on the development and source-backed test sets](figures/paper-side-coverage.svg)
 
-| Split | Paper | S7 | A | B |
+| Split | Paper | PaperTest Swarm | A | B |
 |---|---|---|---|---|
 | Development | NNSmith | core | miss | core |
 | Development | MInference | partial | partial | partial |
@@ -22,9 +22,9 @@ Coverage counts papers with at least one core or partial match. The blinded grad
 | Evaluation | KVQuant | partial | miss | partial |
 | Evaluation | DX100 | partial | partial | miss |
 
-On the evaluation split, the blinded grader gives S7 partial credit for KVQuant's fixed protection budget and part of DX100's dependence across iterations. A receives a core grade on SpinQuant, where S7 receives partial credit.
+On the evaluation split, the blinded grader gives PaperTest Swarm partial credit for KVQuant's fixed protection budget and part of DX100's dependence across iterations. A receives a core grade on SpinQuant, where PaperTest Swarm receives partial credit.
 
-| Split | S7 core / weighted | A core / weighted | B core / weighted |
+| Split | PaperTest Swarm core / weighted | A core / weighted | B core / weighted |
 |---|---:|---:|---:|
 | Development (4) | 1 / 3 | 0 / 1 | 1 / 3 |
 | Test with source (4) | 1 / 5 | 2 / 5 | 0 / 2 |
@@ -33,7 +33,7 @@ The weighted score gives two points for core, one for partial, and zero for miss
 
 ## Sensitivity to the grader
 
-| Split | S7 | A | B |
+| Split | PaperTest Swarm | A | B |
 |---|---:|---:|---:|
 | Development (4) | 2/4 | 0/4 | 0/4 |
 | Test with source (4) | 2/4 | 3/4 | 0/4 |

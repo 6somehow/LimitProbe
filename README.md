@@ -1,15 +1,17 @@
-# AgentSwarm — gap-receipt swarm for paper method-limitation testing
+# PaperTest Swarm
 
-S7 proposes testable method limitations from a research paper and its pinned source repository. It traces one decision through the implementation, checks a gap with a worker, and adds candidates from other stages.
+PaperTest Swarm is a multi-agent method for finding test opportunities in research software from a paper and its pinned source repository. The lead agent traces a decision through the implementation and delegates an open link to a worker. The worker returns source evidence for the lead to check. A final pass adds test candidates from other stages. A candidate describes what to hold fixed, what input or condition to vary, and what outcome would support or refute the hypothesis.
 
-| Blinded diagnosis coverage | S7 | A (one request) | B (one agent) |
+| Blinded diagnosis coverage | PaperTest Swarm | A (one request) | B (one agent) |
 |---|---:|---:|---:|
 | Development (4) | **2/4** | 1/4 | 2/4 |
 | Test with source (4) | **4/4** | 3/4 | 2/4 |
 
-A paper is covered if its best candidate earns a core or partial match to the reference diagnosis. This measures whether discovery finds an opportunity for a controlled test. On the four evaluation papers the strict grader puts A ahead of S7, 3/4 to 2/4. Some of these papers informed earlier prompt revisions. The [paper-side evaluation](docs/paper-side-evaluation.md) gives the per-paper grades, coverage figure, and full scoring details.
+A paper is covered if its best candidate earns a core or partial match to the reference diagnosis. This measures whether discovery finds an opportunity for a controlled test. On the four evaluation papers the strict grader puts A ahead of PaperTest Swarm, 3/4 to 2/4. Some of these papers informed earlier prompt revisions. The [paper-side evaluation](docs/paper-side-evaluation.md) gives the per-paper grades, coverage figure, and full scoring details.
 
-## The method (s7): depth first, breadth appended, measured handoffs
+## How PaperTest Swarm discovers tests
+
+The evaluation uses the archived prompt version `s7/2026-11-23` and runner condition `gap_receipt_swarm`.
 
 ```
 Phase 1 (depth)                           Phase 2 (breadth)
@@ -66,8 +68,7 @@ dropped silently. Across v3–v6: 13 delegated gaps, 6 candidate
 sets returned, 6 parsed and delivered, 2 cited in a final report. With the s2/s3 role
 contracts (v10-v18): 9 of 9 handoffs returned candidates with a verdict (4 supports,
 5 narrows), 13 candidate records, all delivered, 16 spans re-read by the lead, but
-strict `origin_ids` citation is 0/13 (see the s4 negative result below). The s7 runs
-keep one gap worker per paper and add the breadth pass. On NNSmith the
+strict `origin_ids` citation is 0/13 (see the s4 negative result below). PaperTest Swarm uses one gap worker per paper and adds the breadth pass. On NNSmith the
 worker returned `nnsmith-single-witness-consumption` and
 `nnsmith-single-witness-first-feasible` with counts considered=2, kept=1, replay=1,
 consumer=1.
@@ -134,8 +135,8 @@ the same 10-request cell cap.
 * Probe categories (length/extension, position scaling, grouping, arrangement, input
   values) overlap the reference rubric's categories by construction; the probes never
   name a paper's diagnosis, but this is a design-coupling risk to review.
-* The report matrix uses the completed A, B and S7 comparison. Earlier runs of C and D are exploratory.
-* In the S7 NNSmith run, the lead traced the retained input and the worker helped narrow the claim about the number of search attempts.
+* The report matrix uses the completed A, B and PaperTest Swarm comparison. Earlier runs of C and D are exploratory.
+* In the PaperTest Swarm NNSmith run, the lead traced the retained input and the worker helped narrow the claim about the number of search attempts.
 
 ## Related docs
 
