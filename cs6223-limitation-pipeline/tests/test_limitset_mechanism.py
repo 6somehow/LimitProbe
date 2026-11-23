@@ -109,7 +109,7 @@ def test_v3c_chunks_retry_rank_and_failure(monkeypatch):
     assert [c['non_obviousness'] for c in result] == [5, 2]
     assert len(critiques) == 2 and dropped == 0
     assert stats['chunk_count'] == 3 and stats['chunk_failures'] == 1
-    assert len(calls) == 5 and all(timeout == 300 for _, timeout, _ in calls)
+    assert len(calls) == 5 and all(timeout == 600 for _, timeout, _ in calls)
     assert sorted(max_tokens for _, _, max_tokens in calls) == [14000] * 4 + [18000]
 
 
