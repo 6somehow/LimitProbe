@@ -141,6 +141,7 @@ def load_task_step4(finding_id: str, findings_file: Path, artifact_file: Path) -
         raise KeyError(f"no finding {finding_id} in {findings_file}")
     rec = dict(recs[finding_id])
     lims_raw, vers = rec.pop("limitations", []), rec.pop("verifications", [])
+    rec.pop("process_confidence", None)  # code side's static block, carried by the hand-off record, not a Finding field
     finding = Finding.model_validate(rec)
     lims = [Limitation.model_validate(l) for l in lims_raw]
     entry_points = json.loads(artifact_file.read_text()).get("entry_points", []) if artifact_file.exists() else []

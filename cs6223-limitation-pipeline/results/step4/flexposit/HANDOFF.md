@@ -96,6 +96,7 @@
 | `limitation_ids` / `limitations` | 背后的完整 Limitation 记录（两侧都可能有） | 看原始条件、论文原文和代码位置 |
 | `verification_ids` / `verifications` | 代码侧的 3b 结果：在哪里找到了说明、原文 | 判断“文档到底怎么写的” |
 | `confidence` | 目前全部是 llm_assisted | — |
+| `process_confidence` | 代码侧的静态证据：8 项检查的状态、重复测量、预测的测试档位上限、重要性数字（没有自己的档位），见第 6 节；纯论文侧的 Finding 为 null | 作为你定档的输入；不是测试结论 |
 
 注意：论文侧原始记录的 `effect_text` 有一部分写的是“同上……”，指的是 3a 同一条记录的 local_entry 描述。Finding 的 `summary` 已经展开，`limitations` 里保留原样。
 
@@ -146,7 +147,58 @@
 | resource / performance | 内存 / 时间 | resource：测量，对比 contrast |
 | other（论文侧几乎全是） | 实现和论文描述不同，没有确定的运行时后果 | witness 为 always 时：走到引用代码的任一输入，和论文公式 / 描述做 differential 或 metamorphic 对比；3a 只做了静态判断，后果未证实 |
 
-## 6. 典型例子
+## 6. 代码侧的静态证据（未校准，没有自己的档位）
+
+每条有代码侧记录的 Finding 带一个 `process_confidence` 块（格式 `process-confidence-v2`，规则见 `docs/11_process_confidence.md`）。它是对你的档位的补充：**代码侧不定档，档位只由你的测试证据决定**。不执行代码、不调模型，同样的输入得到同样的结果。块里有四部分。
+
+**1. `checks`：核对表。** 词汇和你的 defeater 表一样：`eliminated`（工具核对过）、`residual`（只有论证或模型判断）、`open`（没评估）、`refuted`（核对失败）。
+
+| 检查 | 对应的测试概念 | 对应你的 | `eliminated` 的条件 |
+|---|---|---|---|
+| C1 location | 输入有效性 | D12 | 固定 commit 下该行的语句就是记录的 snippet |
+| C2 condition | 语句的判定（decision） | D2 | 条件就是该语句的判定表达式或它的取反 |
+| C3 reachability | 可达性（RIPR 的 R） | D1、D14 | 从官方入口到目标有静态调用链，且没有靠猜的步骤 |
+| C4 feasibility | 不可行路径 | witness | z3 在完整路径前缀下找到触发点和对照点 |
+| C5 extraction | 分析的可重复性 | D8 | 静态路线找到，或 LLM 路线在全部抽取运行里都找到（同一文件同一行） |
+| C6 effect_label | oracle 与语句相符 | D4、效果类型 | 标注的效果能在该语句上判定（reject 要能抛异常，path_change 要是 if / while） |
+| C7 documentation | 缺失性断言，只作说明 | — | 3b 找到了原文；not_found 无法证明，为 residual；3 次重复不一致也为 residual |
+| C8 review | 审查（inspection） | — | 人工审过；LLM 盲审为 residual，没审为 open |
+
+**2. `repeats`：重复测量。** `extraction_runs`：这个位置在几次抽取运行里出现（`found_in` / `of`）；`documentation_check`：3b 重复几次、结果的一致率；`routes`：哪条路线找到的（`ast` 静态、`llm`）。
+
+**3. `testability`：预测你这边能测到哪一档。** 按你的规则推出来的上限，不是预报，实际可以更低。
+
+| 字段 | 含义 |
+|---|---|
+| `testable: false` + `expect_not_run` | C4 为 refuted 预计 `witness_unusable`；效果是 `other` 预计 `outcome_unsupported` |
+| `mutants` / `mutants_needed` | 用你的 `mutate.generate` 在目标行能造出几个变异体；少于 `n_min`（4）时 D3 消不掉 |
+| `ceiling` | `L1`：变异体不够；`L2`：没有调用链，D14 最多 residual；`L3`：静态上没有限制 |
+| `limited_by` | 卡在哪个 defeater，原因是什么 |
+| `condition_has_calls`、`integer_boundary` | 条件里有没有函数调用（影响 D2 能否直接求值）；边界变量是否都是整数（影响 D5 的邻点） |
+
+和已有测试报告对照（7 篇里测过的 130 条）：**没有一条的实际档位超过预测上限**，98 条正好等于上限；预计 `outcome_unsupported` 的 48 条、`witness_unusable` 的 12 条全部对上。这是在同一批数据上看的，不是独立验证。
+
+**4. `importance`：重要性，和把握分开。**
+
+- `path.decision_on`：`main` 每次调用都会求值这个判定；`side` 判定在某个 `if` / `except` / `case` 里面（自己函数里的见 `enclosing_conditions`，调用链上的见 `conditional_call_sites`）；`unknown` 没有调用链，看不到调用者。
+- `impact`：判定管住多少语句（分支体，或 assert / raise 之后函数里剩下的语句）、函数共多少语句、从入口来的调用链条数、仓库里解析到这个函数的调用点数。
+- `coverage`：目标函数里有多少个判定（if / while / assert）、代码侧列出了几个、入口能否静态到达这个函数。这是**分析的覆盖**，不是执行覆盖；执行覆盖在你的 `execution_report.json` 里。
+
+**建议的用法**：测之前按 `ceiling` 分配预算（`测不了` 的不测，`L1` 的少花时间）；测之后把 `limited_by` 放在档位旁边，说明是这句本身测不到更高还是测得不够；没测的 Finding 把 `checks` 和 `repeats` 作为确定性的证据并排列出；`importance` 只用于排序，不进档位。
+
+预测的测试档位上限：
+
+| 论文 | 测不了 | L1 | L2 | L3 | 没测量 | 合计 |
+|---|---|---|---|---|---|---|
+| flexposit | 10 | 10 | 1 | 1 | 0 | 22 |
+
+判定在主路径还是侧路径：
+
+| 论文 | main | side | unknown | 合计 |
+|---|---|---|---|---|
+| flexposit | 7 | 7 | 8 | 22 |
+
+## 7. 典型例子
 
 每个例子是一条 Finding 的精简版，长字段已截断；完整内容在 json 里。例子是按规则自动挑的第一条，不是挑好看的。“论文侧 · LLM 写出条件”那条正好说明了它的局限：条件在形式上能解，但不一定抓住了论文差异的本质，所以论文侧条件只当提示用。
 
@@ -252,7 +304,27 @@
    "quote": null
   }
  ],
- "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it"
+ "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+ "process_confidence": {
+  "checks": {
+   "C1": "eliminated",
+   "C2": "residual",
+   "C3": "eliminated",
+   "C4": "eliminated",
+   "C5": "eliminated",
+   "C6": "eliminated",
+   "C7": "residual",
+   "C8": "open"
+  },
+  "found_in_runs": null,
+  "ceiling": "L1",
+  "limited_by": [
+   "D3: 1 mutant(s) of the target line, fewer than n_min=4; it cannot be eliminated"
+  ],
+  "decision_on": "side",
+  "guarded_statements": 0,
+  "note": "... evidence per check and the full numbers are in the json"
+ }
 }
 ```
 
@@ -325,7 +397,27 @@
    "quote": "It is required when ``config.bits`` is above ``config.base_nsize``"
   }
  ],
- "rationale": "3b: found in docstring; priority 3: docs_only, path_change effect"
+ "rationale": "3b: found in docstring; priority 3: docs_only, path_change effect",
+ "process_confidence": {
+  "checks": {
+   "C1": "eliminated",
+   "C2": "eliminated",
+   "C3": "eliminated",
+   "C4": "eliminated",
+   "C5": "residual",
+   "C6": "eliminated",
+   "C7": "eliminated",
+   "C8": "open"
+  },
+  "found_in_runs": null,
+  "ceiling": "L1",
+  "limited_by": [
+   "D3: 2 mutant(s) of the target line, fewer than n_min=4; it cannot be eliminated"
+  ],
+  "decision_on": "main",
+  "guarded_statements": 6,
+  "note": "... evidence per check and the full numbers are in the json"
+ }
 }
 ```
 
@@ -396,7 +488,27 @@
    "quote": null
   }
  ],
- "rationale": "3b: not_found; merged (LLM: same issue): flexposit-gap-M01-B08; paper side also reports: impl_deviates; priority 1: undisclosed, reject effect, witness reaches it; related (candidate pair, judged different): flexposit-F023, flexposit-F031"
+ "rationale": "3b: not_found; merged (LLM: same issue): flexposit-gap-M01-B08; paper side also reports: impl_deviates; priority 1: undisclosed, reject effect, witness reaches it; related (candidate pair, judged different): flexposit-F023, flexposit-F031",
+ "process_confidence": {
+  "checks": {
+   "C1": "eliminated",
+   "C2": "eliminated",
+   "C3": "open",
+   "C4": "eliminated",
+   "C5": "residual",
+   "C6": "eliminated",
+   "C7": "residual",
+   "C8": "open"
+  },
+  "found_in_runs": null,
+  "ceiling": "L2",
+  "limited_by": [
+   "D14: no call chain from an official entry; a test has to call a deeper function, at most residual"
+  ],
+  "decision_on": "unknown",
+  "guarded_statements": 1,
+  "note": "... evidence per check and the full numbers are in the json"
+ }
 }
 ```
 
@@ -642,52 +754,52 @@
 }
 ```
 
-## 7. 全部 Finding 索引
+## 8. 全部 Finding 索引
 
-每篇按 priority 排序。列的含义：侧 = 代/论/合（代码侧 / 论文侧 / 两侧合并）；审 = 审阅状态（✓ worth_testing，~ real_but_minor，✗ wrong，空 = 未审）。
+每篇按 priority 排序。列的含义：侧 = 代/论/合（代码侧 / 论文侧 / 两侧合并）；审 = 审阅状态（✓ worth_testing，~ real_but_minor，✗ wrong，空 = 未审）；过程 = 过程置信度档位和判定所在路径（第 6 节；论文侧为空）。
 
 ### flexposit（41 条）
 
-| ID | 侧 | 类别 | P | effect | witness | 审 | 位置 | 内容 |
-|---|---|---|---|---|---|---|---|---|
-| F001 | 代 | undisclosed | 1 | reject | solved |  | `src/flexposit/api.py:120-121` | When True: raise FileNotFoundError(f'No sensitivity CSV {str(name_or_path)!r}: not a file, and not … |
-| F002 | 代 | undisclosed | 1 | reject | solved |  | `src/flexposit/api.py:189` | When state.total_windows == 0: Quantize aborts if no sensitivity rows match the model's layer names… |
-| F003 | 代 | undisclosed | 1 | reject | solved |  | `src/flexposit/export.py:40` | When not torch.equal(table[pos], mag): posit_encode raises ValueError if the scaled weights are not… |
-| F004 | 合 | undisclosed | 1 | reject | solved |  | `src/flexposit/export.py:135` | When scale.min() < -16 or scale.max() > 15: export_tile raises ValueError when the per-column scale… |
-| F005 | 代 | undisclosed | 1 | reject | solved |  | `src/flexposit/formats.py:39` | When not 2 <= nsize <= 16: posit_quantize (via _check_posit) rejects nsize outside [2,16], so the t… |
-| F006 | 代 | undisclosed | 1 | reject | solved |  | `src/flexposit/formats.py:103` | When True: raise TypeError(f'posit_quantize expects a float32 tensor, got {x.dtype}') |
-| F007 | 代 | undisclosed | 1 | reject | solved |  | `src/flexposit/formats.py:156` | When True: raise ValueError(f'invalid rounding mode {rounding!r}') |
-| F008 | 代 | undisclosed | 2 | path_change | solved |  | `src/flexposit/mpq/channel_window.py:283` | When strategy == "random": Random strategy shuffles candidates with the caller-seeded RNG, selectin… |
-| F009 | 代 | undisclosed | 2 | path_change | solved |  | `src/flexposit/mpq/channel_window.py:571` | When args.downgrade: Caller flag downgrade switches Budget Mode to demote the least-sensitive windo… |
-| F010 | 论 | impl_deviates | 2 | other | always |  | `hardware/README.md:3-9` | 论文要求 4 PE 共享 1 个 FP16 累加器；RTL 为每 PE 独立块浮点累加器（ACC_MANW=12, GRS=3，非 FP16 格式），无时分复用。 |
-| F011 | 论 | impl_deviates | 2 | other | no_condition |  | `hardware/README.md:3-9` | 论文要求簇内 4 个 PE 各取一个不同 FP16 激活；RTL 中不同激活分布在不同行（每行一个），且激活为 FP8 而非 FP16。 |
-| F012 | 论 | impl_deviates | 2 | other | always |  | `hardware/README.md:3-9` | 论文要求 FP16 激活与全浮点域 MAC；RTL 激活为 FP8 且累加为块浮点整数尾数，非逐项浮点累加。 |
-| F013 | 论 | impl_deviates | 2 | other | no_condition |  | `hardware/rtl/fp8_pe_mac_stream.v:395-423` | 同 local_entry：cyc2 用符号位与未右移的 A |
-| F014 | 论 | impl_deviates | 2 | other | solved |  | `hardware/rtl/fp8_pe_mac_stream.v:452-490` | 同 local_entry |
-| F015 | 论 | impl_deviates | 2 | other | no_condition |  | `hardware/rtl/posit_decode_and_queue.v:136-183` | 同 local_entry：符号 FIFO 写入在 cyc1 而非 cyc0。 |
-| F016 | 论 | impl_deviates | 2 | other | no_condition |  | `hardware/rtl/posit_decode_and_queue.v:218-281` | 论文要求 cyc0 推入符号项；代码在 cyc1 写符号、cyc0 写零标志与 exp/man |
-| F017 | 论 | impl_deviates | 2 | other | solved |  | `hardware/rtl/posit_decode_and_queue.v:218-279` | 同 local_entry：以固定位宽上限而非 cycP 终止尾数收集。 |
-| F018 | 论 | impl_deviates | 2 | other | solved |  | `hardware/rtl/posit_decode_and_queue.v:339-384` | 同 local_entry：RTL 分槽写入而非一起推入。 |
-| F019 | 论 | impl_deviates | 2 | other | no_condition |  | `hardware/rtl/systolic_efficient.v:198-240` | 论文的“轮流完成、无停顿”依赖共享累加器时分复用；RTL 无共享，且存在全局 stall 背压路径。 |
-| F020 | 论 | impl_deviates | 2 | other | no_condition |  | `hardware/rtl/systolic_efficient.v:242-330` | 论文要求簇内 4 个 PE 同周期共享同一解码权重项；RTL 中同列相邻 PE 收到同一权重项但相差 1 周期，且不存在“簇内 4 PE 同周期”结构。 |
-| F021 | 论 | impl_deviates | 2 | other | no_condition |  | `hardware/rtl/systolic_efficient.v:411-512` | 同 local_entry：写出受 out_ready 背压与一拍填充延迟约束，非无停顿。 |
-| F022 | 论 | impl_deviates | 2 | other | always |  | `scripts/regen_sensitivity_ppl.sh:8-33` | 同 local_entry：符号与 Algorithm 2 第6行相反。 |
-| F023 | 论 | impl_deviates | 2 | other | always |  | `src/flexposit/export.py:105-141` | 论文要求激活保持 FP16；硬件导出/仿真路径把激活转成 FP8 E4M3。 |
-| F024 | 论 | impl_deviates | 2 | other | solved |  | `src/flexposit/sensitivity/ppl_probe.py:72-75` | 论文要求窗口为阵列列数整数倍；脚本默认256（16列整数倍）但模块默认64，且无对齐校验（E4,E5,E6） |
-| F025 | 代 | undisclosed | 3 | other | solved |  | `src/flexposit/api.py:149` | When r[0] not in valid_layers: Sensitivity rows for layers not present in the model are silently dr… |
-| F026 | 代 | undisclosed | 3 | other | solved |  | `src/flexposit/api.py:153` | When span == 0: If upgrade_nsize equals base_nsize (span zero), the upgrade fraction silently becom… |
-| F027 | 代 | docs_only | 3 | path_change | solved |  | `src/flexposit/api.py:181` | When config.bits > config.base_nsize: When bits exceeds base_nsize the code requires a sensitivity … |
-| F028 | 代 | docs_only | 3 | reject | solved |  | `src/flexposit/api.py:183-186` | When True: raise ValueError(f"bits={config.bits} needs a sensitivity ranking to decide which channe… |
-| F029 | 代 | docs_only | 3 | other | solved |  | `src/flexposit/core.py:35` | When isinstance(es, int): A scalar es disables the per-channel es search (single candidate), while … |
-| F030 | 代 | undisclosed | 3 | other | solved |  | `src/flexposit/core.py:37` | When all(int(e) > max_es for e in cands): If every caller-supplied es candidate exceeds nsize-1, th… |
-| F031 | 代 | docs_only | 3 | reject | solved |  | `src/flexposit/export.py:131` | When len(sizes) != 1: export_tile raises ValueError when the selected output channels span more tha… |
-| F032 | 代 | docs_only | 3 | other | solved |  | `src/flexposit/formats.py:29` | When _BACKEND == "qtorch": Module-level env var read at import time selects the posit/float quantiz… |
-| F033 | 代 | undisclosed | 3 | other | solved |  | `src/flexposit/mpq/channel_window.py:136` | When all(e > max_es for e in es_cands): If every caller-supplied es candidate exceeds nsize-1, the … |
-| F034 | 代 | undisclosed | 3 | other | solved |  | `src/flexposit/mpq/channel_window.py:161` | When start >= end: A window whose clamped start is not less than its end returns the weight unchang… |
-| F035 | 代 | undisclosed | 3 | other | solved |  | `src/flexposit/mpq/channel_window.py:205` | When not (is_quant_linear(mod) and hasattr(mod, "weight") and mod.weight is not None and mod.weight… |
-| F036 | 代 | undisclosed | 3 | other | solved |  | `src/flexposit/mpq/channel_window.py:208` | When key not in ref_sd: A layer named in the sensitivity windows but absent from the FP32 reference… |
-| F037 | 代 | undisclosed | 3 | other | solved |  | `src/flexposit/mpq/channel_window.py:256` | When dp >= 0.0 and not allow_positive: When allow_positive is False, windows with non-negative delt… |
-| F038 | 论 | not_implemented | 3 | other | always |  | `hardware/rtl/fp8_pe_mac_stream.v:497-621` | 论文要求 4 并行 MAC/权重项；RTL 为单 PE 串行位乘。 |
-| F039 | 论 | not_implemented | 3 | other | solved |  | `hardware/rtl/systolic_efficient.v:198-240` | 论文的 4/P 依赖 4-PE 簇并行；RTL 每 PE 为 1/P，簇级 4/P 未被实现。 |
-| F040 | 论 | not_implemented | 3 | other | always |  | `scripts/regen_sensitivity_ppl.sh:8-33` | 剖析实验路径未产出论文要求的降序排序敏感度图。 |
-| F041 | 论 | not_implemented | 3 | other | always |  | `src/flexposit/sensitivity/ppl_probe.py:72-75` | 论文要求 Qwen 1024；脚本与模块均无 Qwen→1024 规则（E4,E5,E6） |
+| ID | 侧 | 类别 | P | effect | witness | 审 | 上限 路径 | 位置 | 内容 |
+|---|---|---|---|---|---|---|---|---|---|
+| F001 | 代 | undisclosed | 1 | reject | solved |  | L1 side | `src/flexposit/api.py:120-121` | When True: raise FileNotFoundError(f'No sensitivity CSV {str(name_or_path)!r}: not a file, and not … |
+| F002 | 代 | undisclosed | 1 | reject | solved |  | L1 side | `src/flexposit/api.py:189` | When state.total_windows == 0: Quantize aborts if no sensitivity rows match the model's layer names… |
+| F003 | 代 | undisclosed | 1 | reject | solved |  | L1 unknown | `src/flexposit/export.py:40` | When not torch.equal(table[pos], mag): posit_encode raises ValueError if the scaled weights are not… |
+| F004 | 合 | undisclosed | 1 | reject | solved |  | L2 unknown | `src/flexposit/export.py:135` | When scale.min() < -16 or scale.max() > 15: export_tile raises ValueError when the per-column scale… |
+| F005 | 代 | undisclosed | 1 | reject | solved |  | L3 main | `src/flexposit/formats.py:39` | When not 2 <= nsize <= 16: posit_quantize (via _check_posit) rejects nsize outside [2,16], so the t… |
+| F006 | 代 | undisclosed | 1 | reject | solved |  | L1 main | `src/flexposit/formats.py:103` | When True: raise TypeError(f'posit_quantize expects a float32 tensor, got {x.dtype}') |
+| F007 | 代 | undisclosed | 1 | reject | solved |  | L1 main | `src/flexposit/formats.py:156` | When True: raise ValueError(f'invalid rounding mode {rounding!r}') |
+| F008 | 代 | undisclosed | 2 | path_change | solved |  | L1 side | `src/flexposit/mpq/channel_window.py:283` | When strategy == "random": Random strategy shuffles candidates with the caller-seeded RNG, selectin… |
+| F009 | 代 | undisclosed | 2 | path_change | solved |  | L1 side | `src/flexposit/mpq/channel_window.py:571` | When args.downgrade: Caller flag downgrade switches Budget Mode to demote the least-sensitive windo… |
+| F010 | 论 | impl_deviates | 2 | other | always |  |  | `hardware/README.md:3-9` | 论文要求 4 PE 共享 1 个 FP16 累加器；RTL 为每 PE 独立块浮点累加器（ACC_MANW=12, GRS=3，非 FP16 格式），无时分复用。 |
+| F011 | 论 | impl_deviates | 2 | other | no_condition |  |  | `hardware/README.md:3-9` | 论文要求簇内 4 个 PE 各取一个不同 FP16 激活；RTL 中不同激活分布在不同行（每行一个），且激活为 FP8 而非 FP16。 |
+| F012 | 论 | impl_deviates | 2 | other | always |  |  | `hardware/README.md:3-9` | 论文要求 FP16 激活与全浮点域 MAC；RTL 激活为 FP8 且累加为块浮点整数尾数，非逐项浮点累加。 |
+| F013 | 论 | impl_deviates | 2 | other | no_condition |  |  | `hardware/rtl/fp8_pe_mac_stream.v:395-423` | 同 local_entry：cyc2 用符号位与未右移的 A |
+| F014 | 论 | impl_deviates | 2 | other | solved |  |  | `hardware/rtl/fp8_pe_mac_stream.v:452-490` | 同 local_entry |
+| F015 | 论 | impl_deviates | 2 | other | no_condition |  |  | `hardware/rtl/posit_decode_and_queue.v:136-183` | 同 local_entry：符号 FIFO 写入在 cyc1 而非 cyc0。 |
+| F016 | 论 | impl_deviates | 2 | other | no_condition |  |  | `hardware/rtl/posit_decode_and_queue.v:218-281` | 论文要求 cyc0 推入符号项；代码在 cyc1 写符号、cyc0 写零标志与 exp/man |
+| F017 | 论 | impl_deviates | 2 | other | solved |  |  | `hardware/rtl/posit_decode_and_queue.v:218-279` | 同 local_entry：以固定位宽上限而非 cycP 终止尾数收集。 |
+| F018 | 论 | impl_deviates | 2 | other | solved |  |  | `hardware/rtl/posit_decode_and_queue.v:339-384` | 同 local_entry：RTL 分槽写入而非一起推入。 |
+| F019 | 论 | impl_deviates | 2 | other | no_condition |  |  | `hardware/rtl/systolic_efficient.v:198-240` | 论文的“轮流完成、无停顿”依赖共享累加器时分复用；RTL 无共享，且存在全局 stall 背压路径。 |
+| F020 | 论 | impl_deviates | 2 | other | no_condition |  |  | `hardware/rtl/systolic_efficient.v:242-330` | 论文要求簇内 4 个 PE 同周期共享同一解码权重项；RTL 中同列相邻 PE 收到同一权重项但相差 1 周期，且不存在“簇内 4 PE 同周期”结构。 |
+| F021 | 论 | impl_deviates | 2 | other | no_condition |  |  | `hardware/rtl/systolic_efficient.v:411-512` | 同 local_entry：写出受 out_ready 背压与一拍填充延迟约束，非无停顿。 |
+| F022 | 论 | impl_deviates | 2 | other | always |  |  | `scripts/regen_sensitivity_ppl.sh:8-33` | 同 local_entry：符号与 Algorithm 2 第6行相反。 |
+| F023 | 论 | impl_deviates | 2 | other | always |  |  | `src/flexposit/export.py:105-141` | 论文要求激活保持 FP16；硬件导出/仿真路径把激活转成 FP8 E4M3。 |
+| F024 | 论 | impl_deviates | 2 | other | solved |  |  | `src/flexposit/sensitivity/ppl_probe.py:72-75` | 论文要求窗口为阵列列数整数倍；脚本默认256（16列整数倍）但模块默认64，且无对齐校验（E4,E5,E6） |
+| F025 | 代 | undisclosed | 3 | other | solved |  | 测不了 side | `src/flexposit/api.py:149` | When r[0] not in valid_layers: Sensitivity rows for layers not present in the model are silently dr… |
+| F026 | 代 | undisclosed | 3 | other | solved |  | 测不了 side | `src/flexposit/api.py:153` | When span == 0: If upgrade_nsize equals base_nsize (span zero), the upgrade fraction silently becom… |
+| F027 | 代 | docs_only | 3 | path_change | solved |  | L1 main | `src/flexposit/api.py:181` | When config.bits > config.base_nsize: When bits exceeds base_nsize the code requires a sensitivity … |
+| F028 | 代 | docs_only | 3 | reject | solved |  | L1 side | `src/flexposit/api.py:183-186` | When True: raise ValueError(f"bits={config.bits} needs a sensitivity ranking to decide which channe… |
+| F029 | 代 | docs_only | 3 | other | solved |  | 测不了 main | `src/flexposit/core.py:35` | When isinstance(es, int): A scalar es disables the per-channel es search (single candidate), while … |
+| F030 | 代 | undisclosed | 3 | other | solved |  | 测不了 main | `src/flexposit/core.py:37` | When all(int(e) > max_es for e in cands): If every caller-supplied es candidate exceeds nsize-1, th… |
+| F031 | 代 | docs_only | 3 | reject | solved |  | L1 unknown | `src/flexposit/export.py:131` | When len(sizes) != 1: export_tile raises ValueError when the selected output channels span more tha… |
+| F032 | 代 | docs_only | 3 | other | solved |  | 测不了 main | `src/flexposit/formats.py:29` | When _BACKEND == "qtorch": Module-level env var read at import time selects the posit/float quantiz… |
+| F033 | 代 | undisclosed | 3 | other | solved |  | 测不了 unknown | `src/flexposit/mpq/channel_window.py:136` | When all(e > max_es for e in es_cands): If every caller-supplied es candidate exceeds nsize-1, the … |
+| F034 | 代 | undisclosed | 3 | other | solved |  | 测不了 unknown | `src/flexposit/mpq/channel_window.py:161` | When start >= end: A window whose clamped start is not less than its end returns the weight unchang… |
+| F035 | 代 | undisclosed | 3 | other | solved |  | 测不了 unknown | `src/flexposit/mpq/channel_window.py:205` | When not (is_quant_linear(mod) and hasattr(mod, "weight") and mod.weight is not None and mod.weight… |
+| F036 | 代 | undisclosed | 3 | other | solved |  | 测不了 unknown | `src/flexposit/mpq/channel_window.py:208` | When key not in ref_sd: A layer named in the sensitivity windows but absent from the FP32 reference… |
+| F037 | 代 | undisclosed | 3 | other | solved |  | 测不了 unknown | `src/flexposit/mpq/channel_window.py:256` | When dp >= 0.0 and not allow_positive: When allow_positive is False, windows with non-negative delt… |
+| F038 | 论 | not_implemented | 3 | other | always |  |  | `hardware/rtl/fp8_pe_mac_stream.v:497-621` | 论文要求 4 并行 MAC/权重项；RTL 为单 PE 串行位乘。 |
+| F039 | 论 | not_implemented | 3 | other | solved |  |  | `hardware/rtl/systolic_efficient.v:198-240` | 论文的 4/P 依赖 4-PE 簇并行；RTL 每 PE 为 1/P，簇级 4/P 未被实现。 |
+| F040 | 论 | not_implemented | 3 | other | always |  |  | `scripts/regen_sensitivity_ppl.sh:8-33` | 剖析实验路径未产出论文要求的降序排序敏感度图。 |
+| F041 | 论 | not_implemented | 3 | other | always |  |  | `src/flexposit/sensitivity/ppl_probe.py:72-75` | 论文要求 Qwen 1024；脚本与模块均无 Qwen→1024 规则（E4,E5,E6） |

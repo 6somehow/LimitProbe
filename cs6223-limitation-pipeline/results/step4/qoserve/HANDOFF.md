@@ -96,6 +96,7 @@
 | `limitation_ids` / `limitations` | 背后的完整 Limitation 记录（两侧都可能有） | 看原始条件、论文原文和代码位置 |
 | `verification_ids` / `verifications` | 代码侧的 3b 结果：在哪里找到了说明、原文 | 判断“文档到底怎么写的” |
 | `confidence` | 目前全部是 llm_assisted | — |
+| `process_confidence` | 代码侧的静态证据：8 项检查的状态、重复测量、预测的测试档位上限、重要性数字（没有自己的档位），见第 6 节；纯论文侧的 Finding 为 null | 作为你定档的输入；不是测试结论 |
 
 注意：论文侧原始记录的 `effect_text` 有一部分写的是“同上……”，指的是 3a 同一条记录的 local_entry 描述。Finding 的 `summary` 已经展开，`limitations` 里保留原样。
 
@@ -146,7 +147,58 @@
 | resource / performance | 内存 / 时间 | resource：测量，对比 contrast |
 | other（论文侧几乎全是） | 实现和论文描述不同，没有确定的运行时后果 | witness 为 always 时：走到引用代码的任一输入，和论文公式 / 描述做 differential 或 metamorphic 对比；3a 只做了静态判断，后果未证实 |
 
-## 6. 典型例子
+## 6. 代码侧的静态证据（未校准，没有自己的档位）
+
+每条有代码侧记录的 Finding 带一个 `process_confidence` 块（格式 `process-confidence-v2`，规则见 `docs/11_process_confidence.md`）。它是对你的档位的补充：**代码侧不定档，档位只由你的测试证据决定**。不执行代码、不调模型，同样的输入得到同样的结果。块里有四部分。
+
+**1. `checks`：核对表。** 词汇和你的 defeater 表一样：`eliminated`（工具核对过）、`residual`（只有论证或模型判断）、`open`（没评估）、`refuted`（核对失败）。
+
+| 检查 | 对应的测试概念 | 对应你的 | `eliminated` 的条件 |
+|---|---|---|---|
+| C1 location | 输入有效性 | D12 | 固定 commit 下该行的语句就是记录的 snippet |
+| C2 condition | 语句的判定（decision） | D2 | 条件就是该语句的判定表达式或它的取反 |
+| C3 reachability | 可达性（RIPR 的 R） | D1、D14 | 从官方入口到目标有静态调用链，且没有靠猜的步骤 |
+| C4 feasibility | 不可行路径 | witness | z3 在完整路径前缀下找到触发点和对照点 |
+| C5 extraction | 分析的可重复性 | D8 | 静态路线找到，或 LLM 路线在全部抽取运行里都找到（同一文件同一行） |
+| C6 effect_label | oracle 与语句相符 | D4、效果类型 | 标注的效果能在该语句上判定（reject 要能抛异常，path_change 要是 if / while） |
+| C7 documentation | 缺失性断言，只作说明 | — | 3b 找到了原文；not_found 无法证明，为 residual；3 次重复不一致也为 residual |
+| C8 review | 审查（inspection） | — | 人工审过；LLM 盲审为 residual，没审为 open |
+
+**2. `repeats`：重复测量。** `extraction_runs`：这个位置在几次抽取运行里出现（`found_in` / `of`）；`documentation_check`：3b 重复几次、结果的一致率；`routes`：哪条路线找到的（`ast` 静态、`llm`）。
+
+**3. `testability`：预测你这边能测到哪一档。** 按你的规则推出来的上限，不是预报，实际可以更低。
+
+| 字段 | 含义 |
+|---|---|
+| `testable: false` + `expect_not_run` | C4 为 refuted 预计 `witness_unusable`；效果是 `other` 预计 `outcome_unsupported` |
+| `mutants` / `mutants_needed` | 用你的 `mutate.generate` 在目标行能造出几个变异体；少于 `n_min`（4）时 D3 消不掉 |
+| `ceiling` | `L1`：变异体不够；`L2`：没有调用链，D14 最多 residual；`L3`：静态上没有限制 |
+| `limited_by` | 卡在哪个 defeater，原因是什么 |
+| `condition_has_calls`、`integer_boundary` | 条件里有没有函数调用（影响 D2 能否直接求值）；边界变量是否都是整数（影响 D5 的邻点） |
+
+和已有测试报告对照（7 篇里测过的 130 条）：**没有一条的实际档位超过预测上限**，98 条正好等于上限；预计 `outcome_unsupported` 的 48 条、`witness_unusable` 的 12 条全部对上。这是在同一批数据上看的，不是独立验证。
+
+**4. `importance`：重要性，和把握分开。**
+
+- `path.decision_on`：`main` 每次调用都会求值这个判定；`side` 判定在某个 `if` / `except` / `case` 里面（自己函数里的见 `enclosing_conditions`，调用链上的见 `conditional_call_sites`）；`unknown` 没有调用链，看不到调用者。
+- `impact`：判定管住多少语句（分支体，或 assert / raise 之后函数里剩下的语句）、函数共多少语句、从入口来的调用链条数、仓库里解析到这个函数的调用点数。
+- `coverage`：目标函数里有多少个判定（if / while / assert）、代码侧列出了几个、入口能否静态到达这个函数。这是**分析的覆盖**，不是执行覆盖；执行覆盖在你的 `execution_report.json` 里。
+
+**建议的用法**：测之前按 `ceiling` 分配预算（`测不了` 的不测，`L1` 的少花时间）；测之后把 `limited_by` 放在档位旁边，说明是这句本身测不到更高还是测得不够；没测的 Finding 把 `checks` 和 `repeats` 作为确定性的证据并排列出；`importance` 只用于排序，不进档位。
+
+预测的测试档位上限：
+
+| 论文 | 测不了 | L1 | L2 | L3 | 没测量 | 合计 |
+|---|---|---|---|---|---|---|
+| qoserve | 5 | 4 | 0 | 5 | 0 | 14 |
+
+判定在主路径还是侧路径：
+
+| 论文 | main | side | unknown | 合计 |
+|---|---|---|---|---|
+| qoserve | 6 | 6 | 2 | 14 |
+
+## 7. 典型例子
 
 每个例子是一条 Finding 的精简版，长字段已截断；完整内容在 json 里。例子是按规则自动挑的第一条，不是挑好看的。“论文侧 · LLM 写出条件”那条正好说明了它的局限：条件在形式上能解，但不一定抓住了论文差异的本质，所以论文侧条件只当提示用。
 
@@ -290,7 +342,25 @@
    "quote": "randomly assign a tier to the request between 0 and NUM_TIERs - 1"
   }
  ],
- "rationale": "3b: found in code_comment, readme; merged (LLM: same issue): qoserve-gap-M01-B01, qoserve-gap-M01-B05, qoserve-gap-M06-B04-R01; paper side also reports: impl_deviates, not_implemented; priority 2: impl_deviates; related (candidate pair, judged different): qoserve-F020, qoserve-F022, qoserve-F024, q…"
+ "rationale": "3b: found in code_comment, readme; merged (LLM: same issue): qoserve-gap-M01-B01, qoserve-gap-M01-B05, qoserve-gap-M06-B04-R01; paper side also reports: impl_deviates, not_implemented; priority 2: impl_deviates; related (candidate pair, judged different): qoserve-F020, qoserve-F022, qoserve-F024, q…",
+ "process_confidence": {
+  "checks": {
+   "C1": "eliminated",
+   "C2": "residual",
+   "C3": "open",
+   "C4": "residual",
+   "C5": "residual",
+   "C6": "open",
+   "C7": "eliminated",
+   "C8": "open"
+  },
+  "found_in_runs": null,
+  "ceiling": "outcome_unsupported",
+  "limited_by": null,
+  "decision_on": "unknown",
+  "guarded_statements": 5,
+  "note": "... evidence per check and the full numbers are in the json"
+ }
 }
 ```
 
@@ -490,61 +560,61 @@
 }
 ```
 
-## 7. 全部 Finding 索引
+## 8. 全部 Finding 索引
 
-每篇按 priority 排序。列的含义：侧 = 代/论/合（代码侧 / 论文侧 / 两侧合并）；审 = 审阅状态（✓ worth_testing，~ real_but_minor，✗ wrong，空 = 未审）。
+每篇按 priority 排序。列的含义：侧 = 代/论/合（代码侧 / 论文侧 / 两侧合并）；审 = 审阅状态（✓ worth_testing，~ real_but_minor，✗ wrong，空 = 未审）；过程 = 过程置信度档位和判定所在路径（第 6 节；论文侧为空）。
 
 ### qoserve（50 条）
 
-| ID | 侧 | 类别 | P | effect | witness | 审 | 位置 | 内容 |
-|---|---|---|---|---|---|---|---|---|
-| F001 | 代 | undisclosed | 1 | reject | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:251` | When not (seq.is_paused()): 'Sequence should be in PAUSED state' |
-| F002 | 代 | undisclosed | 1 | reject | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:253` | When not (self.block_manager.can_append_slot()): AssertionError |
-| F003 | 合 | docs_only | 2 | other | solved |  | `sarathi/core/datatypes/sequence.py:73` | When NUM_TIERS > 0: Each Sequence's QoS tier (and hence its deadline) is drawn at random from the g… |
-| F004 | 合 | undisclosed | 2 | path_change | solved |  | `sarathi/core/datatypes/sequence.py:114` | When self.tier > 0: For any non-zero (randomly assigned) tier, the TBT deadline uses execution_thre… |
-| F005 | 代 | undisclosed | 2 | path_change | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:120` | When memory_budget < 1000: When free KV-cache blocks (free_blocks * block_size // 32) fall below 10… |
-| F006 | 代 | undisclosed | 2 | path_change | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:130` | When min_slack <= 0: When the caller-supplied slack is non-positive, the binary search is skipped e… |
-| F007 | 代 | undisclosed | 2 | path_change | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:231` | When seq.tier >= 1: For tier>=1 sequences the ttft_deadline is recomputed by subtracting predicted … |
-| F008 | 代 | undisclosed | 2 | path_change | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:233` | When seq.num_decode_tokens == -1: Selects whether the decode-time estimate uses the global output_l… |
-| F009 | 代 | undisclosed | 2 | path_change | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:276` | When self.scheduler_type == 'deadline': Only when scheduler_type is 'deadline' is the dynamic chunk… |
-| F010 | 代 | undisclosed | 2 | path_change | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:300` | When self.scheduler_type == 'deadline' or self.scheduler_type == 'deadline_no_dynamic_chunking': Th… |
-| F011 | 论 | impl_deviates | 2 | other | no_condition |  | `README.md:1-129` | 实验脚本不自动下载数据集，需先手动 wget |
-| F012 | 论 | impl_deviates | 2 | other | always |  | `chunk_size_predictor/predictor.py:1-41` | 论文要求训练随机森林；脚本导入并训练 LinearRegression，无 RandomForest/ensemble |
-| F013 | 论 | impl_deviates | 2 | other | always |  | `fig7.sh:76-106` | 缺 §4.3/§4.4 执行路径 |
-| F014 | 论 | impl_deviates | 2 | other | trigger_only |  | `fig7.sh:76-106` | 缺 Qwen/70B 与 4 小时控制 |
-| F015 | 论 | impl_deviates | 2 | other | solved |  | `paper_plot_scripts/fig7_cap.py:13-47` | Q1 的 TBT 违规未被度量 |
-| F016 | 论 | impl_deviates | 2 | other | always |  | `paper_plot_scripts/fig_10_11.py:1-20` | 图输出目录与论文声明的 paper_plots/ 不一致 |
-| F017 | 论 | impl_deviates | 2 | other | always |  | `paper_plot_scripts/fig_10_11.py:19-37` | 固定阈值替代数据 p90 |
-| F018 | 论 | impl_deviates | 2 | other | always |  | `sarathi/config/config.py:284-311` | 脚本层同样无按请求提交 QoS 字段的配置。 |
-| F019 | 论 | impl_deviates | 2 | other | always |  | `sarathi/config/config.py:284-311` | 脚本层无每请求优先级配置。 |
-| F020 | 论 | impl_deviates | 2 | other | solved |  | `sarathi/core/datatypes/sequence.py:70-80` | 实验路径同样没有独立的 D_total 完成截止。 |
-| F021 | 论 | impl_deviates | 2 | other | solved |  | `sarathi/core/datatypes/sequence.py:88-109` | 论文要求 α 同时乘 (Prefill_rem+Decode_rem)；代码把 decode 估计以固定系数 execution_threshold_batched 从期限中扣除，而非以 α 加权加… |
-| F022 | 论 | impl_deviates | 2 | other | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:296-333` | 论文要求检查“已违反 或 将违反”TTFT/TTLT；代码仅做 TTFT 前瞻（now+service_time>deadline），且仅对 drop==0 且未分配内存的请求生效，无 TTLT 维… |
-| F023 | 论 | impl_deviates | 2 | other | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:296-333` | 论文要求移入独立 relegated 队列；代码仅设 drop 标志并放回原 prefill 队列，无 relegated 队列结构，且 drop 请求仍可被再次选中调度。（artifact 范围：… |
-| F024 | 代 | undisclosed | 3 | other | solved |  | `sarathi/core/datatypes/sequence.py:80` | When self.scheduler_type == 'fcfs': `Sequence.__lt__` dispatches on this per-object attribute: 'fcf… |
-| F025 | 代 | undisclosed | 3 | other | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:92` | When batch_num_tokens <= 512: The execution-time predictor switches between two hard-coded stratifi… |
-| F026 | 代 | undisclosed | 3 | other | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:211` | When not self._check_request_prompt_length(seq): Requests whose prompt length fails the check are a… |
-| F027 | 代 | undisclosed | 3 | other | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:305` | When (seq.drop == 0) and (seq.mem_allocated == False) and ((now + service_time_required) > (seq.arr… |
-| F028 | 论 | not_implemented | 3 | other | always |  | `chunk_size_predictor/predictor.py:1-41` | 论文要求用 Vidur 暴露的 harness 采集剖面；pinned 仓库中不存在该采集实现 |
-| F029 | 论 | not_implemented | 3 | other | always |  | `fig10_11.sh:103-129` | 偏斜工作负载未实现 |
-| F030 | 论 | not_implemented | 3 | other | always |  | `fig7.sh:76-106` | 未实现按 QoS 桶独立集群的 silo 部署 |
-| F031 | 论 | not_implemented | 3 | other | always |  | `fig7.sh:76-106` | silo 基线整体缺失，无按桶 chunk 配置 |
-| F032 | 论 | not_implemented | 3 | other | no_condition |  | `fig7.sh:76-106` | 集群规模实验缺失 |
-| F033 | 论 | not_implemented | 3 | other | always |  | `fig7.sh:76-106` | 瞬态过载工作负载未实现 |
-| F034 | 论 | not_implemented | 3 | other | always |  | `fig7.sh:76-106` | 无峰谷比构造 |
-| F035 | 论 | not_implemented | 3 | other | no_condition |  | `fig7.sh:76-106` | 集群规模实验缺失 |
-| F036 | 论 | not_implemented | 3 | other | no_condition |  | `fig7.sh:76-106` | 替代分配实验缺失 |
-| F037 | 论 | not_implemented | 3 | other | always |  | `fig8.sh:37-69` | 论文要求固定 QPS 下离线扫描 α 0–10；artifact 脚本对 α 只给单一常量 0.016，未遍历 0–10 的 α 网格。 |
-| F038 | 论 | impl_deviates | 3 | other | infeasible |  | `fig8.sh:37-69` | 论文称固定 QPS 采用 8 ms/token；artifact 固定 QPS 运行脚本使用 16 ms/token，与论文所选值不符。 |
-| F039 | 论 | not_implemented | 3 | other | always |  | `fig8.sh:37-69` | 论文要求低负载 α=1 ms/token；artifact 无该取值或负载分段。 |
-| F040 | 论 | not_implemented | 3 | other | always |  | `fig8.sh:37-69` | 组件消融未实现 |
-| F041 | 论 | not_implemented | 3 | other | always |  | `fig8.sh:37-69` | 消融表汇总未实现 |
-| F042 | 论 | not_implemented | 3 | other | always |  | `fig8.sh:37-69` | alpha 敏感性实验未实现 |
-| F043 | 论 | not_implemented | 3 | other | always |  | `paper_plot_scripts/fig_10_11.py:19-37` | 优先级标注未实现 |
-| F044 | 论 | not_implemented | 3 | other | always |  | `run_exp.sh:1-27` | 未实现多副本 round-robin 分发 |
-| F045 | 论 | not_implemented | 3 | other | always |  | `sarathi/config/config.py:284-311` | 脚本层同样无按应用解码历史。 |
-| F046 | 论 | not_implemented | 3 | other | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:184-354` | 论文要求优先级驱动的抢占；对齐 artifact 调度路径不执行抢占。 |
-| F047 | 论 | not_implemented | 3 | other | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:184-354` | 缺少 prefill 队列抢占资格判定。 |
-| F048 | 论 | not_implemented | 3 | other | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:184-354` | 论文所述避免队头阻塞的抢占手段在 DeadlineScheduler 中不存在。（artifact 范围：。） |
-| F049 | 论 | not_implemented | 3 | other | no_condition |  | `sarathi/core/scheduler/deadline_scheduler.py:296-333` | 论文要求按优先级抢占已部分 prefill 的在途请求；代码无任何抢占触发或调用，仅通过堆排序选择未开始的请求 |
-| F050 | 论 | not_implemented | 3 | other | solved |  | `sarathi/core/scheduler/deadline_scheduler.py:296-333` | 论文要求按优先级分层、低优先级耗尽后才降级高优先级；代码对所有请求一视同仁按截止时间降级，无分层门控。（artifact 范围：。） |
+| ID | 侧 | 类别 | P | effect | witness | 审 | 上限 路径 | 位置 | 内容 |
+|---|---|---|---|---|---|---|---|---|---|
+| F001 | 代 | undisclosed | 1 | reject | solved |  | L1 main | `sarathi/core/scheduler/deadline_scheduler.py:251` | When not (seq.is_paused()): 'Sequence should be in PAUSED state' |
+| F002 | 代 | undisclosed | 1 | reject | solved |  | L1 main | `sarathi/core/scheduler/deadline_scheduler.py:253` | When not (self.block_manager.can_append_slot()): AssertionError |
+| F003 | 合 | docs_only | 2 | other | solved |  | 测不了 unknown | `sarathi/core/datatypes/sequence.py:73` | When NUM_TIERS > 0: Each Sequence's QoS tier (and hence its deadline) is drawn at random from the g… |
+| F004 | 合 | undisclosed | 2 | path_change | solved |  | L3 main | `sarathi/core/datatypes/sequence.py:114` | When self.tier > 0: For any non-zero (randomly assigned) tier, the TBT deadline uses execution_thre… |
+| F005 | 代 | undisclosed | 2 | path_change | solved |  | L3 side | `sarathi/core/scheduler/deadline_scheduler.py:120` | When memory_budget < 1000: When free KV-cache blocks (free_blocks * block_size // 32) fall below 10… |
+| F006 | 代 | undisclosed | 2 | path_change | solved |  | L3 side | `sarathi/core/scheduler/deadline_scheduler.py:130` | When min_slack <= 0: When the caller-supplied slack is non-positive, the binary search is skipped e… |
+| F007 | 代 | undisclosed | 2 | path_change | solved |  | L3 main | `sarathi/core/scheduler/deadline_scheduler.py:231` | When seq.tier >= 1: For tier>=1 sequences the ttft_deadline is recomputed by subtracting predicted … |
+| F008 | 代 | undisclosed | 2 | path_change | solved |  | L1 side | `sarathi/core/scheduler/deadline_scheduler.py:233` | When seq.num_decode_tokens == -1: Selects whether the decode-time estimate uses the global output_l… |
+| F009 | 代 | undisclosed | 2 | path_change | solved |  | L1 side | `sarathi/core/scheduler/deadline_scheduler.py:276` | When self.scheduler_type == 'deadline': Only when scheduler_type is 'deadline' is the dynamic chunk… |
+| F010 | 代 | undisclosed | 2 | path_change | solved |  | L3 main | `sarathi/core/scheduler/deadline_scheduler.py:300` | When self.scheduler_type == 'deadline' or self.scheduler_type == 'deadline_no_dynamic_chunking': Th… |
+| F011 | 论 | impl_deviates | 2 | other | no_condition |  |  | `README.md:1-129` | 实验脚本不自动下载数据集，需先手动 wget |
+| F012 | 论 | impl_deviates | 2 | other | always |  |  | `chunk_size_predictor/predictor.py:1-41` | 论文要求训练随机森林；脚本导入并训练 LinearRegression，无 RandomForest/ensemble |
+| F013 | 论 | impl_deviates | 2 | other | always |  |  | `fig7.sh:76-106` | 缺 §4.3/§4.4 执行路径 |
+| F014 | 论 | impl_deviates | 2 | other | trigger_only |  |  | `fig7.sh:76-106` | 缺 Qwen/70B 与 4 小时控制 |
+| F015 | 论 | impl_deviates | 2 | other | solved |  |  | `paper_plot_scripts/fig7_cap.py:13-47` | Q1 的 TBT 违规未被度量 |
+| F016 | 论 | impl_deviates | 2 | other | always |  |  | `paper_plot_scripts/fig_10_11.py:1-20` | 图输出目录与论文声明的 paper_plots/ 不一致 |
+| F017 | 论 | impl_deviates | 2 | other | always |  |  | `paper_plot_scripts/fig_10_11.py:19-37` | 固定阈值替代数据 p90 |
+| F018 | 论 | impl_deviates | 2 | other | always |  |  | `sarathi/config/config.py:284-311` | 脚本层同样无按请求提交 QoS 字段的配置。 |
+| F019 | 论 | impl_deviates | 2 | other | always |  |  | `sarathi/config/config.py:284-311` | 脚本层无每请求优先级配置。 |
+| F020 | 论 | impl_deviates | 2 | other | solved |  |  | `sarathi/core/datatypes/sequence.py:70-80` | 实验路径同样没有独立的 D_total 完成截止。 |
+| F021 | 论 | impl_deviates | 2 | other | solved |  |  | `sarathi/core/datatypes/sequence.py:88-109` | 论文要求 α 同时乘 (Prefill_rem+Decode_rem)；代码把 decode 估计以固定系数 execution_threshold_batched 从期限中扣除，而非以 α 加权加… |
+| F022 | 论 | impl_deviates | 2 | other | solved |  |  | `sarathi/core/scheduler/deadline_scheduler.py:296-333` | 论文要求检查“已违反 或 将违反”TTFT/TTLT；代码仅做 TTFT 前瞻（now+service_time>deadline），且仅对 drop==0 且未分配内存的请求生效，无 TTLT 维… |
+| F023 | 论 | impl_deviates | 2 | other | solved |  |  | `sarathi/core/scheduler/deadline_scheduler.py:296-333` | 论文要求移入独立 relegated 队列；代码仅设 drop 标志并放回原 prefill 队列，无 relegated 队列结构，且 drop 请求仍可被再次选中调度。（artifact 范围：… |
+| F024 | 代 | undisclosed | 3 | other | solved |  | 测不了 unknown | `sarathi/core/datatypes/sequence.py:80` | When self.scheduler_type == 'fcfs': `Sequence.__lt__` dispatches on this per-object attribute: 'fcf… |
+| F025 | 代 | undisclosed | 3 | other | solved |  | 测不了 side | `sarathi/core/scheduler/deadline_scheduler.py:92` | When batch_num_tokens <= 512: The execution-time predictor switches between two hard-coded stratifi… |
+| F026 | 代 | undisclosed | 3 | other | solved |  | 测不了 main | `sarathi/core/scheduler/deadline_scheduler.py:211` | When not self._check_request_prompt_length(seq): Requests whose prompt length fails the check are a… |
+| F027 | 代 | undisclosed | 3 | other | solved |  | 测不了 side | `sarathi/core/scheduler/deadline_scheduler.py:305` | When (seq.drop == 0) and (seq.mem_allocated == False) and ((now + service_time_required) > (seq.arr… |
+| F028 | 论 | not_implemented | 3 | other | always |  |  | `chunk_size_predictor/predictor.py:1-41` | 论文要求用 Vidur 暴露的 harness 采集剖面；pinned 仓库中不存在该采集实现 |
+| F029 | 论 | not_implemented | 3 | other | always |  |  | `fig10_11.sh:103-129` | 偏斜工作负载未实现 |
+| F030 | 论 | not_implemented | 3 | other | always |  |  | `fig7.sh:76-106` | 未实现按 QoS 桶独立集群的 silo 部署 |
+| F031 | 论 | not_implemented | 3 | other | always |  |  | `fig7.sh:76-106` | silo 基线整体缺失，无按桶 chunk 配置 |
+| F032 | 论 | not_implemented | 3 | other | no_condition |  |  | `fig7.sh:76-106` | 集群规模实验缺失 |
+| F033 | 论 | not_implemented | 3 | other | always |  |  | `fig7.sh:76-106` | 瞬态过载工作负载未实现 |
+| F034 | 论 | not_implemented | 3 | other | always |  |  | `fig7.sh:76-106` | 无峰谷比构造 |
+| F035 | 论 | not_implemented | 3 | other | no_condition |  |  | `fig7.sh:76-106` | 集群规模实验缺失 |
+| F036 | 论 | not_implemented | 3 | other | no_condition |  |  | `fig7.sh:76-106` | 替代分配实验缺失 |
+| F037 | 论 | not_implemented | 3 | other | always |  |  | `fig8.sh:37-69` | 论文要求固定 QPS 下离线扫描 α 0–10；artifact 脚本对 α 只给单一常量 0.016，未遍历 0–10 的 α 网格。 |
+| F038 | 论 | impl_deviates | 3 | other | infeasible |  |  | `fig8.sh:37-69` | 论文称固定 QPS 采用 8 ms/token；artifact 固定 QPS 运行脚本使用 16 ms/token，与论文所选值不符。 |
+| F039 | 论 | not_implemented | 3 | other | always |  |  | `fig8.sh:37-69` | 论文要求低负载 α=1 ms/token；artifact 无该取值或负载分段。 |
+| F040 | 论 | not_implemented | 3 | other | always |  |  | `fig8.sh:37-69` | 组件消融未实现 |
+| F041 | 论 | not_implemented | 3 | other | always |  |  | `fig8.sh:37-69` | 消融表汇总未实现 |
+| F042 | 论 | not_implemented | 3 | other | always |  |  | `fig8.sh:37-69` | alpha 敏感性实验未实现 |
+| F043 | 论 | not_implemented | 3 | other | always |  |  | `paper_plot_scripts/fig_10_11.py:19-37` | 优先级标注未实现 |
+| F044 | 论 | not_implemented | 3 | other | always |  |  | `run_exp.sh:1-27` | 未实现多副本 round-robin 分发 |
+| F045 | 论 | not_implemented | 3 | other | always |  |  | `sarathi/config/config.py:284-311` | 脚本层同样无按应用解码历史。 |
+| F046 | 论 | not_implemented | 3 | other | solved |  |  | `sarathi/core/scheduler/deadline_scheduler.py:184-354` | 论文要求优先级驱动的抢占；对齐 artifact 调度路径不执行抢占。 |
+| F047 | 论 | not_implemented | 3 | other | solved |  |  | `sarathi/core/scheduler/deadline_scheduler.py:184-354` | 缺少 prefill 队列抢占资格判定。 |
+| F048 | 论 | not_implemented | 3 | other | solved |  |  | `sarathi/core/scheduler/deadline_scheduler.py:184-354` | 论文所述避免队头阻塞的抢占手段在 DeadlineScheduler 中不存在。（artifact 范围：。） |
+| F049 | 论 | not_implemented | 3 | other | no_condition |  |  | `sarathi/core/scheduler/deadline_scheduler.py:296-333` | 论文要求按优先级抢占已部分 prefill 的在途请求；代码无任何抢占触发或调用，仅通过堆排序选择未开始的请求 |
+| F050 | 论 | not_implemented | 3 | other | solved |  |  | `sarathi/core/scheduler/deadline_scheduler.py:296-333` | 论文要求按优先级分层、低优先级耗尽后才降级高优先级；代码对所有请求一视同仁按截止时间降级，无分层门控。（artifact 范围：。） |
