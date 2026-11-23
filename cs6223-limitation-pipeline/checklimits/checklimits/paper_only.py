@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from .analysis import ANALYSIS_VERSION, chat
-from .testreport import NotRun, TestRecord, now_iso
+from .testreport import NotRun, TestRecord, not_run_record, now_iso
 
 PROMPT_VERSION = "paper-only-v1"
 MAX_CANDIDATES = 12
@@ -155,7 +155,6 @@ def build_records(artifact_id: str, cands: list[dict[str, Any]], flat_text: str,
 
 def run_paper_only(artifact_id: str, pdf: Path, *, title: str, venue: str, results_root: Path, model: str,
                    base_url: str, key: str, ask: Optional[Callable[[str], str]] = None) -> dict[str, Any]:
-    from .testreport import counts, render_markdown, write_record
     text = pdf_text(pdf)[:MAX_TEXT_CHARS]
     prompt = TASK.format(n=MAX_CANDIDATES, kinds=", ".join(KINDS), text=text)
     tdir = results_root / "tests" / artifact_id
@@ -179,6 +178,52 @@ def run_paper_only(artifact_id: str, pdf: Path, *, title: str, venue: str, resul
     sha = hashlib.sha256(pdf.read_bytes()).hexdigest()
     prov = {"pdf_sha256": sha, "model": model, "prompt_version": PROMPT_VERSION, "generated_at": now_iso()}
     recs, dropped = build_records(artifact_id, cands, _flat(text), model, prov)
+    return _write_paper_report(artifact_id, pdf, title, venue, results_root, sha, recs, dropped)
+
+
+def run_swarm_paper_only(artifact_id: str, pdf: Path, report: Path, *, title: str, venue: str,
+                         results_root: Path, extractor: str) -> dict[str, Any]:
+    from codeside.integrate import Context, Rules, integrate
+    from paperside_bridge.swarm_to_paper_side import convert
+    from schema.models import SCHEMA_VERSION
+
+    handoff, limitations = convert(artifact_id, report, pdf, extractor=extractor)
+    out = results_root / "step4" / artifact_id / "limitations_for_tests.json"
+    known_ids = {}
+    if out.is_file():
+        previous = json.loads(out.read_text())["findings"]
+        known_ids = {tuple(f["limitation_ids"]): f["finding_id"] for f in previous}
+    findings, _ = integrate(artifact_id, [], [], limitations, None, Rules(),
+                            Context(known_ids=known_ids, paper_origin="swarm"))
+    by_id = {lim.limitation_id: lim for lim in limitations}
+    records, recs = [], []
+    for finding in findings:
+        lim = by_id[finding.limitation_ids[0]]
+        raw = finding.model_dump(mode="json")
+        raw.update(limitations=[lim.model_dump(mode="json")], verifications=[], process_confidence=None)
+        records.append(raw)
+        rec = not_run_record(raw, "no_code_location", "paper-only Swarm candidate", {"source": "swarm",
+                              **handoff["provenance"], "candidate_id": lim.swarm_provenance["candidate_id"]})
+        rec.evidence["paper"] = [e.model_dump(mode="json") for e in lim.paper_evidence]
+        rec.analysis = {"version": ANALYSIS_VERSION, "kind": "analysis_only", "tier": "A1",
+                        "tier_note": "Paper quotes checked against the cited PDF pages",
+                        "calibrated": False, "assessment": "unclear", "reasoning": lim.effect_text,
+                        "static": {"cited": 0, "grounded": False, "items": []}, "probes": [], "paper_only": True}
+        recs.append(rec)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps({"schema_version": SCHEMA_VERSION, "origin": "swarm", "findings": records},
+                              ensure_ascii=False, indent=2) + "\n")
+    dropped = sum(item["reason"] != "withdrawn or refuted" for item in handoff["dropped"])
+    result = _write_paper_report(artifact_id, pdf, title, venue, results_root, handoff["provenance"]["pdf_sha256"],
+                                 recs, dropped)
+    return {**result, "origin": "swarm", "findings_file": str(out), "dropped_candidates": handoff["dropped"]}
+
+
+def _write_paper_report(artifact_id, pdf, title, venue, results_root, sha, recs, dropped) -> dict[str, Any]:
+    from .testreport import counts, render_markdown, write_record
+
+    tdir = results_root / "tests" / artifact_id
+    tdir.mkdir(parents=True, exist_ok=True)
     for r in recs:
         write_record(tdir / r.finding_id, r)
     art = {"artifact_id": artifact_id, "paper_title": title, "venue": venue, "repo_url": "none (no public code)",

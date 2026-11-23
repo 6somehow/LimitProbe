@@ -18,8 +18,13 @@ def _records(path: Path):
     return [data]
 
 
-# pipeline.json is run config (written by `pipeline init --package-root`), not a record
-@pytest.mark.parametrize("path", sorted(p for p in DATA.rglob("*.json") if p.name != "pipeline.json"), ids=lambda p: p.name)
+# Limitset inputs and evaluator material have their own formats.
+# pipeline.json is run config (written by `pipeline init --package-root`).
+PROJECT_RECORDS = sorted(path for directory in DATA.iterdir() if directory.name != "limitset"
+                         for path in directory.rglob("*.json") if path.name != "pipeline.json")
+
+
+@pytest.mark.parametrize("path", PROJECT_RECORDS, ids=lambda p: p.name)
 def test_every_data_file_is_schema_valid(path):
     for rec in _records(path):
         errors = []

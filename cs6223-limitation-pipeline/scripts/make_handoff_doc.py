@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CATS = ["undisclosed", "contradicts_docs", "stated_differently", "docs_only", "paper_stated", "impl_deviates",
-        "not_implemented"]
+        "not_implemented", "paper_hypothesis"]
 CAT_ZH = {
     "undisclosed": "代码有这个限制，用户能读到的地方都没写（核心发现）",
     "contradicts_docs": "文档写的和代码行为相反",
@@ -20,6 +20,7 @@ CAT_ZH = {
     "paper_stated": "论文写了，边界和代码一致",
     "impl_deviates": "论文描述了，代码实现得不一样",
     "not_implemented": "论文描述了，代码里没有",
+    "paper_hypothesis": "Swarm 根据论文证据提出的假设",
 }
 WSTATUS = ["solved", "solved_contrast_outside_scope", "trigger_only", "always", "infeasible", "untranslatable",
            "unknown", "no_condition"]
@@ -149,7 +150,7 @@ def main() -> None:
           "`findings` 里每条记录的字段如下：", "",
           "| 字段 | 内容 | 测试时怎么用 |", "|---|---|---|",
           "| `finding_id` | `<论文>-F###`，在一篇论文内按 priority 排序 | TestCase.finding_id 填它 |",
-          "| `category` | 7 类之一，见上表 | 决定这条测的是“没写”还是“和论文不同” |",
+          "| `category` | 见上表 | 区分文档、实现和论文假设 |",
           "| `priority` | 1 / 2 / 3 | 先测 1 |",
           "| `effect_type` | reject / path_change / state / … | 决定 oracle，见第 5 节 |",
           "| `summary` | 一句话：什么条件下会怎样，附位置 | 给人看 |",

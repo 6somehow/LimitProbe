@@ -34,7 +34,7 @@ from pydantic import TypeAdapter
 
 from codeside.doc_index import Passage, Retriever, pdf_passages, repo_passages, verify_quote
 from codeside.scope_check import ScopeChecker
-from schema.models import Binding, EvalPoint, Limitation, ScopeItem, Verification
+from schema.models import Binding, EvalPoint, Limitation, ScopeItem, TextEvidence, Verification
 
 # 3b-v1 -> 3b-v2: "contradicted" need not restate the code's effect. v1 made the model report a docstring
 # listing a value as supported, while the code rejects that value, as not_found.
@@ -284,12 +284,14 @@ def gate(skill: str, raw: dict, passages: dict[str, Passage]) -> Judgement:
 
 class Verifier:
     def __init__(self, llm: LLM, title: str, paper: list[Passage], elsewhere: list[Passage],
-                 bindings: list[Binding], repeat: int = 0, top_k: int = 15, per_phrase: int = 3):
+                 bindings: list[Binding], repeat: int = 0, top_k: int = 15, per_phrase: int = 3,
+                 candidate_passages: tuple[Passage, ...] = ()):
         self.llm, self.title, self.paper, self.elsewhere = llm, title, paper, elsewhere
         self.bindings, self.repeat, self.top_k, self.per_phrase = bindings, repeat, top_k, per_phrase
         self.by_id = {p.passage_id: p for p in paper + elsewhere}
         self._paper_rx = Retriever(paper)
         self._else_rx = Retriever(elsewhere)
+        self._candidate_rx = Retriever(list(candidate_passages)) if candidate_passages else None
 
     def _judge(self, skill: str, lim: Limitation, passages: list[Passage]) -> Judgement:
         user = JUDGE.format(title=self.title, limitation=describe(lim, self.bindings), passages=show(passages),
@@ -322,7 +324,12 @@ class Verifier:
         return list(seen.values())
 
     def skill_retrieve(self, lim: Limitation) -> Judgement:
-        return self._judge("retrieve", lim, self.retrieve_candidates(lim, self._paper_rx))
+        passages = self.retrieve_candidates(lim, self._paper_rx)
+        if self._candidate_rx is not None:
+            seen = {p.passage_id for p in passages}
+            passages.extend(p for p in self._candidate_rx.search(self._query(lim), self.per_phrase)
+                            if p.passage_id not in seen)
+        return self._judge("retrieve", lim, passages)
 
     def skill_fullpaper(self, lim: Limitation) -> Judgement:
         return self._judge("fullpaper", lim, self.paper)
@@ -460,13 +467,31 @@ def compose(lim: Limitation, paper: Judgement, elsewhere: Judgement, scope, veri
         verifier=verifier, rationale=note)
 
 
-def load_paper_side(path: Optional[str]) -> tuple[list[ScopeItem], list[EvalPoint], list[Binding]]:
-    if not path:
-        return [], [], []
-    data = json.loads(Path(path).read_text())
+def paper_side_data(path: Optional[str | Path]) -> dict:
+    return json.loads(Path(path).read_text()) if path else {}
+
+
+def paper_side_origin(path: str | Path) -> str:
+    return "swarm" if paper_side_data(path).get("origin") == "swarm" else "v1"
+
+
+def _scope_records(data: dict) -> tuple[list[ScopeItem], list[EvalPoint], list[Binding]]:
     return ([ScopeItem.model_validate(x) for x in data.get("scope", [])],
             [EvalPoint.model_validate(x) for x in data.get("eval_points", [])],
             [Binding.model_validate(x) for x in data.get("bindings", [])])
+
+
+def load_paper_side(path: Optional[str]) -> tuple[list[ScopeItem], list[EvalPoint], list[Binding]]:
+    return _scope_records(paper_side_data(path))
+
+
+def swarm_passages(data: dict, pdf: str, paper: list[Passage]) -> tuple[Passage, ...]:
+    if data.get("origin") != "swarm":
+        return ()
+    if data["provenance"]["pdf_sha256"] != hashlib.sha256(Path(pdf).read_bytes()).hexdigest():
+        raise ValueError("Swarm handoff PDF hash does not match the verification PDF")
+    evidence = [TextEvidence.model_validate(e) for e in data.get("candidate_evidence", [])]
+    return tuple(p for p in paper if any(verify_quote(e.quote, p.text) for e in evidence))
 
 
 def majority(judgements: list[Judgement]) -> tuple[Judgement, float]:
@@ -479,16 +504,18 @@ def majority(judgements: list[Judgement]) -> tuple[Judgement, float]:
 def run(limitations: list[Limitation], title: str, pdf: str, repo: Optional[str], paper_side: Optional[str],
         llm: LLM, skill: str = "consensus", repeats: int = 3, workers: int = 8,
         extra_code_files: tuple[str, ...] = ()) -> tuple[list[Verification], list[dict]]:
-    scope, evals, bindings = load_paper_side(paper_side)
+    data = paper_side_data(paper_side)
+    scope, evals, bindings = _scope_records(data)
     checker = ScopeChecker(scope, evals, bindings)
     paper = pdf_passages(pdf)
+    candidate_passages = swarm_passages(data, pdf, paper)
     code_files = {loc.file for l in limitations for loc in l.code_evidence} | set(extra_code_files)
     elsewhere = repo_passages(repo, code_files) if repo else []
     paper_runs: list[dict[str, dict[str, Judgement]]] = []
     else_runs: list[dict[str, Judgement]] = []
     with ThreadPoolExecutor(workers) as pool:
         for r in range(repeats):
-            v = Verifier(llm, title, paper, elsewhere, bindings, repeat=r)
+            v = Verifier(llm, title, paper, elsewhere, bindings, repeat=r, candidate_passages=candidate_passages)
             paper_runs.append(run_paper_tier(v, limitations, skill, pool))
             futures = {l.limitation_id: pool.submit(v.judge_elsewhere, l) for l in limitations}
             else_runs.append({k: f.result() for k, f in futures.items()})

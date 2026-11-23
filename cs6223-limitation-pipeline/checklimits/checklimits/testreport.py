@@ -96,7 +96,8 @@ def finding_block(raw: dict[str, Any]) -> tuple[dict[str, Any], dict[str, list[d
     location = wh.get("location")
     if not location and code and code[0].get("file"):
         location = f"{code[0]['file']}:{code[0].get('line_start')}"
-    fin = {"category": raw.get("category"), "step4_level": raw.get("level"), "effect_type": raw.get("effect_type"),
+    fin = {"category": raw.get("category"), "origin": raw.get("origin", "v1"),
+           "step4_level": raw.get("level"), "effect_type": raw.get("effect_type"),
            "priority": raw.get("priority"), "summary": raw.get("summary"), "review": raw.get("review"),
            "review_note": raw.get("review_note"), "scope_status": raw.get("scope_status"),
            "witness_status": wh.get("status"), "location": location, "function": wh.get("function"),
