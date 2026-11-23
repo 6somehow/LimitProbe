@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import math
 import re
 import urllib.request
@@ -246,8 +247,9 @@ def _score(labels, predictions, splits, judge, label_schema, prediction_schema, 
         sigs = [signals(reference, f) for f in findings]
         sigs_zh = [signals(label, f) for f in findings]
         evaluations = []
-        for start in range(0, len(findings), 30 if "label_id" in label or len(findings) > 60 else max(1, len(findings))):
-            chunk = findings[start:start + (30 if "label_id" in label or len(findings) > 60 else len(findings))]
+        size = int(os.environ.get("LIMITSET_JUDGE_CHUNK", "30")) if ("label_id" in label or len(findings) > 60) else max(1, len(findings))
+        for start in range(0, len(findings), size):
+            chunk = findings[start:start + size]
             chunk_sigs = sigs[start:start + len(chunk)]
             try:
                 results = judge.judge_batch(reference, chunk, chunk_sigs)
