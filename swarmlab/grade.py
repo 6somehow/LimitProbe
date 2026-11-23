@@ -47,7 +47,11 @@ def build_packets(root: Path, out: Path, references: dict, tag: str) -> dict:
         from .util import sha
         digest = sha(final.read_bytes())
         ident = report_id(Path(root), paper, condition, digest)
-        report = parse_finding_report(final.read_text())
+        try:
+            report = parse_finding_report(final.read_text())
+        except ValueError as exc:
+            report = {"records": [], "repairs": [], "raw_candidate_count": 0,
+                      "parse_error": str(exc)}
         records = [{k: v for k, v in record.items() if k != "status"} for record in report["records"]]
         case = next(case for case, row in references.items() if row["paper"].lower().startswith(paper.split("-")[0]))
         dump(out / f"{ident}.json", {

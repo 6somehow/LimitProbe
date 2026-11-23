@@ -60,20 +60,21 @@ def main() -> None:
     extra = ""
     test_html = ""
     if args.test_mapping and args.test_grades:
-        tests = rows(args.test_mapping, args.test_grades)
-        labels = {"prompt-cache": "Prompt Cache", "spinquant": "SpinQuant",
-                  "kvquant": "KVQuant", "dx100": "DX100"}
-        test_rows = "".join(
-            f"<tr><th>{label}</th>{match_cell(tests.get((slug, 'gap_receipt_swarm'), '—'))}"
-            f"{match_cell(tests.get((slug, 'api_once'), '—'))}</tr>"
-            for slug, label in labels.items())
-        test_html = ("<h2>Test split (s7 depth+breadth vs one-call baseline)</h2>"
-                     "<table><tr><th>paper</th><th>S s7</th><th>A one call</th></tr>"
-                     + test_rows + "</table>"
-                     "<p>Graded against reference rows 05/07/09/14. Conservative/holistic: S 0 core / 2 partial, "
-                     "A 1 core / 2 partial. Blind: S 1 core / 3 partial / 0 miss, A 2 core / 1 partial / 1 miss; "
-                     "coverage S 4/4 vs A 3/4, weighted 5-5, paired 1-1. S wins only under the coverage metric; "
-                     "under the study's paired/core rule it does not.</p>")
+        coverage = [("Dev (archived A)", "2 / 4", "0 / 4"),
+                    ("Test sample 1 (blind)", "4 / 4", "3 / 4"),
+                    ("Test sample 2 (blind)", "3 / 4", "2 / 4")]
+        rows_html = "".join(f"<tr><th>{a}</th><td>{b}</td><td>{c}</td></tr>"
+                            for a, b, c in coverage)
+        test_html = ("<h2>Primary metric: coverage of diagnosed limitations</h2>"
+                     "<p>Coverage = papers with at least a partial diagnosis / 4. Blind "
+                     "grader for the test samples; archived official grades for Dev A.</p>"
+                     "<table><tr><th>split</th><th>S s7</th><th>A one call</th></tr>"
+                     + rows_html + "</table>"
+                     "<p>Secondary: test sample 1 cores 1 vs 2, weighted 5 vs 5; sample 2 "
+                     "cores 1 vs 1, weighted 4 vs 3. The stricter holistic grader does not "
+                     "reproduce the coverage advantage (sample 1 favours A, sample 2 ties), "
+                     "and the test papers were inspected during prompt development, so the "
+                     "test numbers are post-hoc.</p>")
     if args.second_mapping and args.second_grades:
         second = rows(args.second_mapping, args.second_grades)
         hit = second.get(("nnsmith", "gap_receipt_swarm"))

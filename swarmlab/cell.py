@@ -124,6 +124,7 @@ class Cell:
         response = self.client.chat(
             [{"role": "system", "content": system}, {"role": "user", "content": user}],
             tools=[], max_tokens=self.protocol["max_output_tokens"],
+            thinking=self.protocol.get("api_once_thinking", True),
         )
         return response["message"].get("content") or ""
 

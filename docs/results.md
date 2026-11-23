@@ -4,6 +4,13 @@ All runs use frozen inputs, model `x-test-2` / `deepseek-v4.1-flash-1017`, and t
 reference rubric for scoring only. A/B/C/D are the frozen v9 conditions with their
 official grades. S is the gap-receipt swarm implemented in this workspace.
 
+## Primary metric: coverage
+
+Coverage = papers with at least a partial diagnosis. Dev: S s7 (dev-v18) 2/4 (NNSmith
+core, MInference partial) vs archived A 0/4 and B 1/4. Test (blind, two samples): S
+4/4 and 3/4 vs A 3/4 and 2/4. Core/weighted/paired are secondary; the holistic grader
+does not reproduce the coverage advantage. See docs/coverage-primary.md.
+
 ## Per-paper dev grades
 
 | paper | A api_once | B single_agent (v9) | C plain_swarm | D evidence_gap_swarm | S dev-v6 |

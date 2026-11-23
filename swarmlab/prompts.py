@@ -5,7 +5,7 @@ differs only in workflow, not in the research objective or output contract.
 """
 from __future__ import annotations
 
-PROMPT_VERSION = "s9/2026-11-23"
+PROMPT_VERSION = "s7/2026-11-23"
 
 FINAL_CONTRACT = """For a final report return one compact JSON object, paper_id and target_execution='not_run',
 with up to three candidates and three known_boundaries. Every retained record in either list
@@ -74,9 +74,7 @@ Identify the unit the paper's headline evaluation measures (generated graphs, to
 
 Follow every produced artifact through each consumer until the reported metric, not only to the first consumer. Rank candidates by how directly they reach that metric; after the delegation returns, spend your remaining replies completing and evidencing the best chain rather than widening the list.
 
-For every candidate, name the existing free degrees or recovery paths that could absorb the conflict: per-layer, per-head or per-task parameters, recalibration, recomputation, joint caching, restart, fallback. State whether they absorb it. If the only recovery recomputes the reused artifact, say how that erodes the method's benefit; if a free degree does absorb the conflict, narrow or withdraw the candidate.
-
-State each candidate's consequence as a property of the method's output: what quality, correctness, coverage or cost it fails to guarantee, and on which inputs. "The reported metric does not expose X" is supporting evidence, not the consequence; convert it into the operational failure (for example: the fixed budget cannot recover the needed coverage, so the output degrades on those inputs; or the shared basis cannot serve both consumers, so one side loses fidelity). An author-disclosed weaker result (a layer whose SNR worsens, a configuration where the gain shrinks, a case the authors call unstable) is still a candidate when the reported aggregate metric cannot expose it: keep it under candidates with a controlled comparison, and use known_boundaries only for boundaries the reported evaluation already quantifies or that lie outside the method's scope.
+An author-disclosed weaker result (a layer whose SNR worsens, a configuration where the gain shrinks, a case the authors call unstable) is still a candidate when the reported aggregate metric cannot expose it: keep it under candidates with a controlled comparison, and use known_boundaries only for boundaries the reported evaluation already quantifies or that lie outside the method's scope.
 
 Write that chain explicitly for every retained candidate. (1) Premise: why is the selected artifact adequate under the calibration condition the paper used? (2) Transformation: what does the paper's own evaluation change in the input, representation, length, position mapping, grouping or arrangement? (3) Broken premise: which specific quantity changes (for example the number or location of significant attention diagonals, the number of distinct key directions in a group, or the set of legal values reached by the search), and by what mechanism? (4) Consequence: how does that break the reported metric or the intended coverage? State the controlled comparison that would show the difference. If the transformation in the paper is a context-extension or position-scaling method, reason about how it rescales relative positions and what that does to the sparse structure the artifact assumes."""
 

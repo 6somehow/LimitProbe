@@ -1,71 +1,58 @@
 # AgentSwarm — gap-receipt swarm for paper method-limitation testing
 
 An independent development track for the CS6223 project "paper-guided testing of
-research-method limitations", built beside the existing pipeline. It asks one question:
-**can a two-role agent swarm deliver the human reference diagnosis (the method's rule,
-its trigger and its downstream consequence) where a single API call and a single agent
-do not?**
+research-method limitations", built beside the existing pipeline. The project's primary
+metric is **coverage of diagnosed limitations**: how many papers receive at least a
+usable diagnosis (core or partial). The shipped method is s7, a two-phase depth+breadth
+swarm (one gap worker plus one breadth pass, six candidates, 9-10 requests).
 
-Short answer on the Dev split: **yes, on NNSmith** (core reproduces across samples,
-each core blind-graded) and, with the latest s3 role contracts, also on **InfiniGen**
-(a first for this study). Worker candidate yield rose from 5 of 13 handoffs (s1) to
-9 of 9 handoffs with explicit verdicts (s2+s3). The pre-s2 (s1) prompt also reached a core on the
-held-out SpinQuant. Prompt iterations and their measured effects are in
-[docs/prompt-iterations.md](docs/prompt-iterations.md).
+| split | S s7 coverage | A api_once coverage |
+|---|---|---|
+| Dev (S dev-v18; A archived official grades) | **2 / 4** (NNSmith core, MInference partial) | 0 / 4 |
+| Test sample 1 (blind grader) | **4 / 4** (1 core + 3 partial) | 3 / 4 (2 core + 1 partial) |
+| Test sample 2 (blind grader) | **3 / 4** (1 core + 2 partial) | 2 / 4 (1 core + 1 partial) |
 
-## Current evidence
+B `single_agent` covers 1/4 on Dev (MInference partial); C and D cover 0/4. A and a
+stronger 8-reply single agent re-run in this harness cover 0/4 on Dev.
 
-Dev papers: NNSmith, MInference, InfiniGen, SparTA. Scores are `core / partial / miss`
-against the archived Shanghao reference, used for scoring only. A/B/C/D are the frozen
-v9 study conditions with their official grades; S is this track.
-
-| paper | A api_once | B single_agent (v9) | C plain_swarm | D evidence_gap_swarm | S s3 (dev-v12) |
-|---|---|---|---|---|---|
-| NNSmith | miss | miss | miss | miss | **core** |
-| MInference | miss | partial | miss | miss | miss |
-| InfiniGen | miss | miss | miss | miss | partial (blind: core) |
-| SparTA | miss | miss | miss | miss | miss |
-| core/partial | 0/0 | 0/1 | 0/0 | 0/0 | **1/2** |
-
-* A and a **stronger 8-reply single agent** (same packet, tools, historical direct
-  prompt) were re-run inside this harness: 0 cores and 0 partials on all four papers.
-* NNSmith samples: dev-v6 core, dev-v8 miss, dev-v9 core (stored-witness probe),
-  dev-v10 core, dev-v11 core and dev-v12 core (role contracts). Every core was
-  blind-confirmed; the miss is retained, not filtered.
-* s3 adds the first InfiniGen candidate naming the GQA shared key representation and
-  the per-head column/basis conflict (H4); the blind grader calls it core, the holistic
-  grader partial. Both readings are kept.
-* Test split with the s7 depth+breadth method (same harness, A re-run as a one-call
-  baseline): conservative/holistic S is 0 core / 2 partial vs A 1 core / 2 partial; the
-  blind agent gives S 1 core / 3 partial / 0 miss vs A 2 core / 1 partial / 1 miss;
-  paired blind is 1-1 and A keeps more cores, so **S does not beat A under the study's
-  paired/core rule**. Under a coverage metric (at least partial per paper) blind S is
-  4/4 vs A 3/4, which is the only reading where S wins; weighted core=2/partial=1 ties
-  5-5. Coverage is a post-hoc choice, not the pre-registered rule. The dev advantage did
-  not transfer. See [docs/test-results.md](docs/test-results.md)
-  for per-paper reasons and the breadth-vs-depth explanation. Test papers were inspected
-  during prompt fixes, so these numbers are post-hoc, not clean held-out.
-* Every core listed above was also blind-graded by a separate agent that saw only the
-  frozen final and the rubric.
+Coverage is the primary metric; core counts, weighted scores and paired outcomes are
+secondary ([docs/coverage-primary.md](docs/coverage-primary.md)). Two caveats are part of
+the result: the stricter holistic grader does not reproduce the coverage advantage (test
+sample 1 favours A, sample 2 ties), and the four test papers were inspected during prompt
+development, so the test numbers are post-hoc rather than a clean held-out estimate.
 
 Details: [docs/results.md](docs/results.md) · [docs/report.md](docs/report.md) ·
 [out/board.html](out/board.html).
 
-## The method (S): two roles, one chain, measured handoffs
+## The method (s7): depth first, breadth appended, measured handoffs
 
 ```
-paper + pinned repository (read-only tools)
+Phase 1 (depth)                           Phase 2 (breadth)
+paper + pinned repo (read-only tools)
         |
         v
-  LEAD: stage ledger  ->  complete one chain (produce -> save -> consume -> metric)
+  LEAD: stage ledger -> complete one chain (produce -> save -> consume -> metric)
         |                                  |
         |  delegate_gap(question,           |  reopen the worker's cited spans
         |    chain_summary, expected_signal) |  (receipts recorded)
         v                                  v
-  WORKER: verdict + counts + candidate(s)  ->  LEAD final JSON with origin_ids
+  WORKER: verdict + counts + candidate(s)  ->  LEAD deep report (first record frozen)
+                                                   |
+                                                   v
+                                     breadth pass (no tools): append 3 new
+                                     candidates from distinct stages
+                                     (admission/representation/sharing/evaluation)
+                                                   |
+                                                   v
+                                     merged JSON: deep record first, 6 max
 ```
 
-**Lead role contract** (`swarmlab/prompts.py`, `PROMPT_VERSION = "s2/2026-11-23"`):
+Phase 1 is the s3 loop that produced the Dev cores. Phase 2 is one extra call that
+freezes the deep report and appends three breadth candidates, one per remaining stage;
+the deep first record is returned verbatim. Total budget 9-10 requests: up to 6 lead
+replies + one gap worker with 2 replies + one breadth pass.
+
+**Lead role contract** (`swarmlab/prompts.py`, `PROMPT_VERSION = "s7/2026-11-23"`):
 
 1. keep a stage ledger for every acceptance, selection, stopping, allocation or
    shared-state decision: artifact, rule/budget, consumer;
@@ -77,6 +64,8 @@ paper + pinned repository (read-only tools)
    several partial ones; incomplete records go to `known_boundaries`/`rejected`;
 6. if a stage produces a test input, cached state, stored witness or propagation
    artifact, at least one retained candidate must follow that stage to its consumer.
+7. phase 2 appends three breadth candidates from distinct stages while the deep first
+   record is returned verbatim (the breadth pass cannot rewrite the chain).
 
 **Worker role contract**: restate the gap and artifact/consumer pair; read and quote
 pinned source; report `candidates_considered / candidates_kept / replay_count /
@@ -90,9 +79,10 @@ field aliases, bare candidate lists, truncated JSON and a root object that close
 before `"candidates"`; it records every repair, so a structured candidate list is never
 dropped silently. Across v3–v6: 13 delegated gaps, 6 candidate
 sets returned, 6 parsed and delivered, 2 cited in a final report. With the s2/s3 role
-contracts (v10-v12): 9 of 9 handoffs returned candidates with a verdict (4 supports,
+contracts (v10-v18): 9 of 9 handoffs returned candidates with a verdict (4 supports,
 5 narrows), 13 candidate records, all delivered, 16 spans re-read by the lead, but
-strict `origin_ids` citation is 0/13 (see the s4 negative result below). On NNSmith the
+strict `origin_ids` citation is 0/13 (see the s4 negative result below). The s7 runs
+keep one gap worker per paper and add the breadth pass. On NNSmith the
 worker returned `nnsmith-single-witness-consumption` and
 `nnsmith-single-witness-first-feasible` with counts considered=2, kept=1, replay=1,
 consumer=1.

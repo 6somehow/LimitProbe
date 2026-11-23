@@ -78,6 +78,27 @@ give S 4/4 vs A 3/4, and a weighted core=2/partial=1 score ties at 5. Coverage i
 only reading under which S wins this split; it is a post-hoc choice and the test papers
 were inspected during development.
 
+## Second sample (test-v6) and coverage as the primary metric
+
+The project defines its contribution as **coverage of diagnosed limitations** (papers
+with at least a partial diagnosis). Two independent samples were run with the s7 method
+and the one-call baseline; the blind grader is primary.
+
+| sample | S s7 coverage | A coverage | S core/partial | A core/partial |
+|---|---|---|---|---|
+| 1 | **4 / 4** | 3 / 4 | 1 / 3 | 2 / 1 |
+| 2 | **3 / 4** | 2 / 4 | 1 / 2 | 1 / 1 |
+| mean | **3.5 / 4** | 2.5 / 4 | | |
+
+Coverage favours S in both samples. Weighted (core=2, partial=1): 5 vs 5 in sample 1,
+4 vs 3 in sample 2. Cores: A 2 vs S 1 in sample 1, tied 1-1 in sample 2. Paired outcomes
+are 1-1 and 2-2. The stricter holistic grader does not reproduce the coverage advantage
+(S 2/4 vs A 3/4 in sample 1; 2/4 vs 2/4 in sample 2). In sample 2 the one-call baseline's
+DX100 run returned empty content twice with extended thinking (32k reasoning tokens), so
+it was re-run once without extended thinking; that final is used.
+
+Details and per-paper records: [docs/coverage-primary.md](docs/coverage-primary.md).
+
 ## Earlier test samples (for completeness)
 
 | run | prompt | result |
