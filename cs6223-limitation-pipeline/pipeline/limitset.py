@@ -7,6 +7,8 @@ import json
 import os
 from pathlib import Path
 import shutil
+import signal
+import time
 import subprocess
 import sys
 
@@ -57,7 +59,32 @@ def now():
     return datetime.now(timezone.utc).isoformat()
 
 
-def worker(case, repeat, out, raw, timeout, env, schema):
+def failure_record(case, repeat, out, reason):
+    run = out / 'runs' / case['case_id'] / f'r{repeat}'
+    run.mkdir(parents=True, exist_ok=True)
+    failure = {'case_id': case['case_id'], 'repeat': repeat, 'findings': [],
+               'insufficient_evidence_reason': reason, 'status': 'failed'}
+    (run / 'failure.json').write_text(json.dumps(failure, indent=2) + '\n')
+    return failure
+
+
+def run_generator(cmd, *, env, timeout, log):
+    proc = subprocess.Popen(cmd, env=env, cwd=ROOT, start_new_session=True,
+                            stdout=log, stderr=subprocess.STDOUT)
+    try:
+        code = proc.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        proc.wait()
+        raise
+    if code:
+        raise subprocess.CalledProcessError(code, cmd)
+
+
+def worker(case, repeat, out, raw, timeout, env, schema, swarm_template=None):
     run = out / 'runs' / case['case_id'] / f'r{repeat}'
     done = run / 'prediction.json'
     if done.is_file():
@@ -74,25 +101,66 @@ def worker(case, repeat, out, raw, timeout, env, schema):
         cmd = [sys.executable, str(ROOT / 'scripts/limitset/make_case_dir.py'), case['case_id'], '--out', str(case_dir), '--raw', str(raw)]
         subprocess.run(cmd, check=True, env=env, timeout=timeout, capture_output=True, text=True)
         assert {p.name for p in case_dir.iterdir()} == {'paper.pdf', 'case.json'}
+        swarm = safe_path(Path(swarm_template.format(case=case['case_id']))).resolve() if swarm_template else None
+        if swarm and not swarm.is_file():
+            swarm = None
         cmd = [sys.executable, '-m', 'pipeline.limitset', '_paper', case['case_id'], str(case_dir / 'paper.pdf'), str(run), case['title']]
+        if swarm:
+            cmd.append(str(swarm))
         with (run / 'generator.log').open('w') as log:
-            subprocess.run(cmd, check=True, env=env, cwd=ROOT, timeout=timeout, stdout=log, stderr=subprocess.STDOUT)
-        tdir = run / 'results/tests' / case['case_id']
+            run_generator(cmd, env=env, timeout=timeout, log=log)
+        tdir = run / ('results/swarm/tests' if swarm else 'results/tests') / case['case_id']
         index = read(tdir / 'index.json')
         findings = [mapping(read(tdir / item['finding_id'] / 'report.json')) for item in index['findings']]
-        sources = ['paper-only']
+        source = 'swarm' if swarm else 'paper-only'
+        for finding in findings:
+            finding['origin'] = source
+        sources = [source]
         code = ROOT / 'results/step4/infinigen/limitations_for_tests.json'
         if case['case_id'] == 'CS6223-03' and code.is_file():
-            findings.extend(mapping(f) for f in read(code)['findings'])
+            findings.extend({**mapping(f), 'origin': source} for f in read(code)['findings'])
             sources.append('results/step4/infinigen')
         record = {'case_id': case['case_id'], 'repeat': repeat, 'findings': findings, 'sources': sources}
         validate(record, schema)
         done.write_text(json.dumps(record, ensure_ascii=False, indent=2) + '\n')
+        (run / 'failure.json').unlink(missing_ok=True)
         return record
     except Exception as exc:
-        failure = {'case_id': case['case_id'], 'repeat': repeat, 'findings': [], 'insufficient_evidence_reason': f'{type(exc).__name__}: {exc}', 'status': 'failed'}
-        (run / 'failure.json').write_text(json.dumps(failure, indent=2) + '\n')
-        return failure
+        return failure_record(case, repeat, out, f'{type(exc).__name__}: {exc}')
+
+
+class RunnerRelay:
+    def __init__(self, e2e, pipeline_run, env, out):
+        self.e2e, self.pipeline_run, self.env, self.out = e2e, pipeline_run, env, out
+        self.proc = None
+
+    def __enter__(self):
+        if self.e2e.relay_up():
+            return self
+        renv = dict(os.environ)
+        renv.update(SOCLAAS_API_KEY=self.env['SOCLAAS_API_KEY'], SOCLAAS_BASE_URL=self.env['SOCLAAS_BASE_URL'])
+        cmd = [sys.executable, '-m', 'checklimits.relay', '--port', str(self.e2e.RELAY_PORT),
+               '--log', str(self.out / 'relay.log'), '--iface', self.env.get('SOCLAAS_IFACE', 'eth0')]
+        with (self.out / 'relay.stderr').open('w') as err:
+            self.proc = subprocess.Popen(cmd, cwd=self.pipeline_run.CHECKLIMITS, env=renv,
+                                         stdout=subprocess.DEVNULL, stderr=err)
+        for _ in range(50):
+            if self.e2e.relay_up():
+                return self
+            if self.proc.poll() is not None:
+                break
+            time.sleep(0.2)
+        self.__exit__(None, None, None)
+        raise RuntimeError('relay did not start; see relay.stderr')
+
+    def __exit__(self, *exc):
+        if self.proc and self.proc.poll() is None:
+            self.proc.terminate()
+            try:
+                self.proc.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                self.proc.kill()
+                self.proc.wait()
 
 
 def main(argv=None):
@@ -107,6 +175,7 @@ def main(argv=None):
     r.add_argument('--out', type=Path, default=ROOT / 'out/limitset')
     r.add_argument('--raw', type=Path, default=RAW)
     r.add_argument('--dry-run', action='store_true')
+    r.add_argument('--swarm-report', help='report path template containing {case}')
     a = p.parse_args(argv)
     if min(a.repeats, a.workers, a.timeout) < 1:
         p.error('repeats, workers and timeout must be positive')
@@ -124,6 +193,8 @@ def main(argv=None):
     manifest = {'git_sha': sha, 'model_id': env.get('PIPELINE_MODEL', 'x-test-2'), 'split': a.split, 'repeats': a.repeats, 'started_at': now(), 'pdf_hashes': {c['case_id']: c['pdf_sha256'] for c in selected}}
     (out / 'run_manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
     jobs = [(c, n) for c in selected for n in range(1, a.repeats + 1)]
+    cached = {(c['case_id'], n) for c, n in jobs
+              if (out / 'runs' / c['case_id'] / f'r{n}' / 'prediction.json').is_file()}
     if a.dry_run:
         for c, n in jobs:
             run = out / 'runs' / c['case_id'] / f'r{n}'
@@ -136,12 +207,35 @@ def main(argv=None):
             print(f"{c['case_id']} r{n}: {inp}")
     else:
         from pipeline import e2e, run as pipeline_run
-        e = pipeline_run.env()
-        env.update(e)
-        with e2e.Relay(e):
-            with ThreadPoolExecutor(max_workers=a.workers) as pool:
-                records = list(pool.map(lambda job: worker(*job, out, raw, a.timeout, env, schema), jobs))
+        records = []
+        try:
+            if len(cached) == len(jobs):
+                records = [read(out / 'runs' / c['case_id'] / f'r{n}' / 'prediction.json') for c, n in jobs]
+                for record in records:
+                    validate(record, schema)
+            else:
+                e = pipeline_run.env()
+                env.update(e)
+                # Relay's standard log paths are shared; keep this runner's logs in out.
+                with RunnerRelay(e2e, pipeline_run, e, out):
+                    with ThreadPoolExecutor(max_workers=a.workers) as pool:
+                        records = list(pool.map(lambda job: worker(*job, out, raw, a.timeout, env, schema, a.swarm_report), jobs))
+        except Exception as exc:
+            reason = f'Relay startup failed: {type(exc).__name__}: {exc}'
+            for c, n in jobs:
+                done = out / 'runs' / c['case_id'] / f'r{n}' / 'prediction.json'
+                if done.is_file():
+                    record = read(done)
+                    validate(record, schema)
+                    records.append(record)
+                else:
+                    records.append(failure_record(c, n, out, reason))
         (out / 'predictions.jsonl').write_text(''.join(json.dumps(x, ensure_ascii=False) + '\n' for x in records))
+        manifest['counts'] = {'ok': sum(x.get('status') != 'failed' and (x['case_id'], x['repeat']) not in cached for x in records),
+                              'failed': sum(x.get('status') == 'failed' for x in records),
+                              'skipped': sum((x['case_id'], x['repeat']) in cached and x.get('status') != 'failed' for x in records)}
+    if a.dry_run:
+        manifest['counts'] = {'ok': 0, 'failed': 0, 'skipped': len(jobs)}
     manifest['finished_at'] = now()
     (out / 'run_manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
 
@@ -149,9 +243,9 @@ def main(argv=None):
 def paper_worker(args):
     from pipeline import e2e, run
     from types import SimpleNamespace
-    case, pdf, output, title = args
+    case, pdf, output, title, *report = args
     run.ROOT = Path(output)
-    e2e.paper_only_cmd(SimpleNamespace(artifact_id=case, pdf=pdf, title=title, venue=None, model=None, swarm_report=None))
+    e2e.paper_only_cmd(SimpleNamespace(artifact_id=case, pdf=pdf, title=title, venue=None, model=None, swarm_report=Path(report[0]) if report else None, swarm_pdf_extractor='pypdf'))
 
 
 if __name__ == '__main__':
