@@ -15,3 +15,12 @@ Translate to clear, accurate ENGLISH, in place (same file names): docs/00_projec
 Rules: CLAUDE.md (Chinese; read it) and AGENTS.md. Never read or print anything under /home/somehow6/LLM_API_KEY/. No secrets, no PDFs, no paper text in anything you write. Do not edit paperside/ (a teammate's code), third_party/, out/, docs/13_limitset_results.md (the controller finishes it). Do not run git add/commit. All documents you write are ENGLISH. Keep meaning exactly when translating; do not invent results. Do not change runtime behavior of code (comments, docstrings and docs only unless the package says otherwise).
 ## Checks
 - grep -rlP '[\x{4e00}-\x{9fff}]' on the allowed files lists only prompt originals / dataset quotes
+
+STATUS: PARTIAL
+COMMITS: pending controller commit
+EXECUTOR: codex; requested medium -> actual model id unavailable; effort unavailable
+SUMMARY: Translated the project overview and results README; the remaining requested documents and prompt explanations still need translation.
+CHECKS: grep -rlP '[\x{4e00}-\x{9fff}]' on existing allowed files; FAIL: Chinese remains in docs/01–05, docs/prompts, TASKS.md, and preserved path placeholders in results/README.md. git diff --check; PASS. git status; PASS: overview and results README modified before this return block.
+GPU: none
+SELF-REVIEW: Scope checked with git status; only allowed documents and this required return block were written. Original paths and identifiers retained. Full translation and CJK requirement remain unmet; no code or runtime behavior changed.
+RISKS: Partial translation requires completion and review for accuracy; results/README.md retains Chinese path placeholders to preserve paths exactly. data/README.md does not exist.
