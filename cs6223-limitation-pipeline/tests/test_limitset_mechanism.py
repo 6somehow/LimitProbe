@@ -84,3 +84,41 @@ def test_v3_steps_filter_and_no_filter():
         assert len(calls) == (3 if no_filter else 4)
         assert len(result) == len(critiques) == dropped == 1
         assert result[0]['necessary_conditions'] == ['change']
+
+
+def test_v3c_chunks_retry_rank_and_failure(monkeypatch):
+    from checklimits.checklimits.paper_only import MECH_V3C
+    monkeypatch.setenv('LIMITSET_MECH_THREADS', '3')
+    paper = 'A sufficiently long exact quotation for the first mechanism. A different exact quotation for the second mechanism.'
+    calls = []
+    def ask(prompt, *, timeout, max_tokens):
+        calls.append((prompt, timeout, max_tokens))
+        if max_tokens == 18000:
+            return json.dumps({'mechanisms': [{'mechanism': x} for x in ('first', 'second', 'failure')]})
+        if '"failure"' in prompt:
+            raise RuntimeError('chunk failed')
+        first = '"first"' in prompt
+        quote = ('A sufficiently long exact quotation for the first mechanism.' if first else
+                 'A different exact quotation for the second mechanism.')
+        item = {'category_code': 'method_shortcoming', 'claim': 'claim', 'premise': quote,
+                'necessary_conditions': ['condition'], 'non_obviousness': 2 if first else 5,
+                'quotes': [quote], 'kind': 'mechanism'}
+        return json.dumps({'candidates': [item, dict(item, kind='evaluation_critique')]})
+    stats = {}
+    result, critiques, dropped = mechanism_candidates(paper, {}, ask, version=MECH_V3C, stats=stats)
+    assert [c['non_obviousness'] for c in result] == [5, 2]
+    assert len(critiques) == 2 and dropped == 0
+    assert stats['chunk_count'] == 3 and stats['chunk_failures'] == 1
+    assert len(calls) == 5 and all(timeout == 600 for _, timeout, _ in calls)
+    assert sorted(max_tokens for _, _, max_tokens in calls) == [14000] * 4 + [18000]
+
+
+def test_v3c_all_chunks_fail():
+    from checklimits.checklimits.paper_only import MECH_V3C
+    import pytest
+    def ask(prompt, *, timeout, max_tokens):
+        if max_tokens == 18000:
+            return json.dumps({'mechanisms': [{'mechanism': 'x'}]})
+        raise RuntimeError('failed')
+    with pytest.raises(ValueError, match='all mechanism chunks failed'):
+        mechanism_candidates('', {}, ask, version=MECH_V3C)

@@ -272,7 +272,7 @@ def main(argv=None):
     r.add_argument('--dry-run', action='store_true')
     r.add_argument('--no-enrich', action='store_true')
     r.add_argument('--generator', choices=['paper-only', 'swarm', 'mechanism'], default='paper-only')
-    r.add_argument('--mech-version', choices=['v1', 'v2', 'v3'], default='v3')
+    r.add_argument('--mech-version', choices=['v1', 'v2', 'v3', 'v3c'], default='v3')
     r.add_argument('--mech-no-filter', action='store_true')
     r.add_argument('--mechanism-examples', type=Path)
     r.add_argument('--swarm-report', help='report path template containing {case}')
@@ -327,6 +327,10 @@ def main(argv=None):
                 with RunnerRelay(e2e, pipeline_run, e, out):
                     from pipeline.limitset_enrich import RelayLLM
                     llm = None if a.no_enrich and a.generator != 'mechanism' else RelayLLM(manifest['model_id'], e2e.RELAY_PORT, timeout=900 if a.generator == 'mechanism' else 60)
+                    if a.generator == 'mechanism' and a.mech_version == 'v3c':
+                        from checklimits.checklimits.analysis import chat
+                        def llm(prompt, *, timeout, max_tokens):
+                            return chat(prompt, manifest['model_id'], f'http://127.0.0.1:{e2e.RELAY_PORT}/v1', 'relay', timeout=timeout, max_tokens=max_tokens)
                     with ThreadPoolExecutor(max_workers=a.workers) as pool:
                         records = list(pool.map(lambda job: worker(*job, out, raw, a.timeout, env, schema, a.swarm_report, llm, manifest['model_id'], a.generator, a.mechanism_version, a.mechanism_examples, a.mech_no_filter, cases_path), jobs))
         except Exception as exc:
