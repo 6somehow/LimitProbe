@@ -70,9 +70,17 @@ def cmd_test(a: argparse.Namespace) -> int:
 def cmd_paper_only(a: argparse.Namespace) -> int:
     import os
     from .e2e import DEFAULT_RESULTS_ROOT, InputError
-    from .paper_only import run_paper_only
+    from .paper_only import run_paper_only, run_swarm_paper_only
 
     def go():
+        if a.swarm_report:
+            try:
+                return run_swarm_paper_only(
+                    a.artifact, Path(a.pdf), Path(a.swarm_report), title=a.title or a.artifact, venue=a.venue or "",
+                    results_root=Path(a.results_root) if a.results_root else DEFAULT_RESULTS_ROOT / "swarm",
+                    extractor=a.swarm_pdf_extractor)
+            except ValueError as error:
+                raise InputError(str(error)) from error
         base, key = os.environ.get("SOCLAAS_BASE_URL") or "", os.environ.get("SOCLAAS_API_KEY") or ""
         if not base or not key:
             raise InputError("needs SOCLAAS_BASE_URL and SOCLAAS_API_KEY (through the relay: python -m pipeline doctor)")
@@ -328,6 +336,8 @@ def main(argv: list[str] | None = None) -> int:
     po.add_argument("--venue")
     po.add_argument("--model", default=None)
     po.add_argument("--results-root", default=None)
+    po.add_argument("--swarm-report")
+    po.add_argument("--swarm-pdf-extractor", choices=["pypdf", "pymupdf"], default="pypdf")
     po.set_defaults(fn=cmd_paper_only)
     an = sub.add_parser("analyze", help="add analyses to the not-tested Findings already on disk (no test is run)")
     _common(an)

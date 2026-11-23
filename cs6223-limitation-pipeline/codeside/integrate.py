@@ -58,7 +58,7 @@ USER_DOCS = ("paper", "appendix", "readme", "docstring", "other")
 SEVERITY = {"reject": "high", "accuracy": "high", "state": "high",
             "path_change": "medium", "resource": "medium", "performance": "medium", "other": "low"}
 WEIGHT = {"undisclosed": "high", "contradicts_docs": "high", "stated_differently": "medium", "impl_deviates": "medium",
-          "docs_only": "low", "paper_stated": "low", "not_implemented": "low"}
+          "docs_only": "low", "paper_stated": "low", "not_implemented": "low", "paper_hypothesis": "low"}
 # when a merged finding holds several code-side categories, the one that says most is kept
 CATEGORY_ORDER = ["contradicts_docs", "undisclosed", "stated_differently", "docs_only", "paper_stated",
                   "impl_deviates", "not_implemented"]
@@ -82,6 +82,7 @@ class Context:
     callgraph: object = None  # codeside.callgraph.RepoCallGraph of the repo
     known_ids: dict = field(default_factory=dict)  # sorted limitation ids of a finding -> its id in the last run
     effect_moves: dict = field(default_factory=dict)  # limitation id -> effect_anchor record of a moved target
+    paper_origin: str = "v1"
 
 
 def resolve_same_as_above(lim: Limitation, conformance: dict) -> Optional[str]:
@@ -137,6 +138,8 @@ def classify(v: Optional[Verification]) -> tuple[str, list[str]]:
 
 
 def paper_category(lim: Limitation) -> tuple[str, list[str]]:
+    if lim.swarm_category:
+        return "paper_hypothesis", [f"Swarm candidate ({lim.swarm_category}); hypothesis with cited paper text"]
     m = re.search(r"verdict=(\w+)", lim.notes or "")
     verdict = m.group(1) if m else None
     notes = [f"paper side (3a static): {verdict or 'no verdict'}; not a confirmed runtime effect"]
@@ -369,7 +372,7 @@ def integrate(artifact_id: str, code_lims: list[Limitation], code_vers: list[Ver
     # paper-only clusters need an LLM condition; ask for all of them at once
     conditions: list[dict] = []
     paper_mains = [_main([units[i] for i in m]) for m in clusters.values()]
-    paper_mains = [u.head for u in paper_mains if u.origin == "paper"]
+    paper_mains = [u.head for u in paper_mains if u.origin == "paper" and not u.head.swarm_category]
     cond_of = {}
     if ctx.judge is not None:
         cond_of = dict(zip([l.limitation_id for l in paper_mains], _pmap(ctx.judge.condition, paper_mains)))
@@ -418,7 +421,8 @@ def integrate(artifact_id: str, code_lims: list[Limitation], code_vers: list[Ver
                         for c in dict.fromkeys([main.category, *(u.category for u in us)]))
         notes.append(f"priority {prio}: {why}")
         all_lims = [l for u in us for l in u.lims]
-        kw = dict(artifact_id=artifact_id, category=main.category, level=lim.level or "L2",
+        origin = "swarm" if any(l.swarm_category for l in all_lims) else ctx.paper_origin
+        kw = dict(artifact_id=artifact_id, origin=origin, category=main.category, level=lim.level or "L2",
                   limitation_ids=[l.limitation_id for l in all_lims],
                   verification_ids=[vers[l.limitation_id].verification_id for l in all_lims if l.limitation_id in vers],
                   scope_status=scope, evaluated_in_paper=v.evaluated_in_paper if v else None,
@@ -543,7 +547,10 @@ def main() -> None:
         checker = ScopeChecker(*load_paper_side(str(pd / "paper_side.json")))
         if (pd / "limitations.json").is_file():
             paper_lims = load(pd / "limitations.json", Limitation)
-    findings, report = integrate(art["artifact_id"], code_lims, code_vers, paper_lims, checker, Rules(a.strict_scope))
+    from codeside.verify3b import paper_side_origin
+    origin = paper_side_origin(pd / "paper_side.json") if a.paper_dir else "v1"
+    findings, report = integrate(art["artifact_id"], code_lims, code_vers, paper_lims, checker,
+                                 Rules(a.strict_scope), Context(paper_origin=origin))
     out = Path(a.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps([f.model_dump(mode="json") for f in findings], indent=1, ensure_ascii=False))
