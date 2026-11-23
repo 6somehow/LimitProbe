@@ -1,8 +1,8 @@
 # Limitations report: InfiniGen: Efficient Generative Inference of Large Language Models with Dynamic KV Cache Management
 
 - artifact: `infinigen` (OSDI 2024), repository https://github.com/snu-comparch/InfiniGen at `3754f52d13`
-- input: `results/step4/infinigen/limitations_for_tests.json` (sha256 `51f6ee77be8f`), 31 Findings
-- generated: 2026-11-18T15:03:57+08:00 by `checklimits test` (contract `checklimits-test-report/1`)
+- input: `results/step4/infinigen/limitations_for_tests.json` (sha256 `583779a93137`), 31 Findings
+- generated: 2026-11-23T11:22:09+08:00 by `checklimits test` (contract `checklimits-test-report/1`)
 - environment: **ok**
 
 ## How to read this
@@ -25,6 +25,8 @@
 | levels | L1 10, L2 5, n/a 4 |
 | analysis only (not tests) | A0 2, A1 1, A2 9 |
 | not tested, by reason | `no_code_location` 11, `witness_unusable` 1 |
+
+Code side's predicted ceiling vs measured level (both uncalibrated; 15 tested Findings have both): equal 14, measured below ceiling 1, measured above ceiling 0.
 
 | Finding | category | effect | location | result |
 |---|---|---|---|---|
@@ -73,6 +75,8 @@
 **Verdict `inconclusive`**: no verdict: the test was invalid or could not separate the cases.
   effect only on the negative input: boundary direction reversed
 
+Code side predicted ceiling before the test: L1 (measured: n/a).
+
 **Level n/a, uncalibrated.** no verdict, so no level. verdict is inconclusive; no confidence is assigned to it
 
 - trigger run: no exception at speedup/flexgen/infinigen/flex_opt.py:426
@@ -97,6 +101,8 @@
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L2 (measured: L2).
+
 **Level L2, uncalibrated.** supported: fatal checks, mutation, repeat runs and clean-checkout replay passed; some checks are residual.
 
 - trigger run: branch taken at speedup/flexgen/infinigen/flex_opt.py:442 (later ValueError at speedup/flexgen/infinigen/flex_opt.py:467)
@@ -119,6 +125,8 @@
 
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L2 (measured: L1).
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
@@ -145,6 +153,8 @@
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: NotImplementedError at speedup/flexgen/infinigen/flex_opt.py:710
@@ -169,6 +179,8 @@
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L2 (measured: L2).
+
 **Level L2, uncalibrated.** supported: fatal checks, mutation, repeat runs and clean-checkout replay passed; some checks are residual.
 
 - trigger run: AssertionError at speedup/flexgen/infinigen/flex_opt.py:1359
@@ -192,6 +204,8 @@
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: AssertionError at speedup/flexgen/infinigen/pytorch_backend.py:464
@@ -214,6 +228,8 @@
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: AssertionError at speedup/flexgen/infinigen/pytorch_backend.py:823
@@ -235,6 +251,8 @@
 
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L1 (measured: L1).
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
@@ -261,6 +279,8 @@
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L2 (measured: L2).
+
 **Level L2, uncalibrated.** supported: fatal checks, mutation, repeat runs and clean-checkout replay passed; some checks are residual.
 
 - trigger run: branch taken at speedup/flexgen/infinigen/flex_opt.py:287
@@ -283,6 +303,8 @@
 
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L1 (measured: L1).
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
@@ -308,6 +330,8 @@
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: branch taken at speedup/flexgen/infinigen/flex_opt.py:528 (later RuntimeError at torch/nn/functional.py:2515)
@@ -330,6 +354,8 @@
 
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L2 (measured: L2).
 
 **Level L2, uncalibrated.** supported: fatal checks, mutation, repeat runs and clean-checkout replay passed; some checks are residual.
 
@@ -355,6 +381,8 @@
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: branch taken at speedup/flexgen/infinigen/flex_opt.py:799
@@ -378,6 +406,8 @@
 
 **Verdict `inconclusive`**: no verdict: the test was invalid or could not separate the cases.
   positive run: KeyError at workspace/attempt/driver.py:48 before the target was reached
+
+Code side predicted ceiling before the test: L1 (measured: n/a).
 
 **Level n/a, uncalibrated.** no verdict, so no level. verdict is inconclusive; no confidence is assigned to it
 
@@ -407,6 +437,8 @@
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: branch taken at speedup/flexgen/infinigen/pytorch_backend.py:422 (later AssertionError at torch/cuda/__init__.py:239)
@@ -429,6 +461,8 @@
 
 **Verdict `inconclusive`**: no verdict: the test was invalid or could not separate the cases.
   positive run: NotImplementedError at workspace/attempt/driver.py:11 before the target was reached
+
+Code side predicted ceiling before the test: L1 (measured: n/a).
 
 **Level n/a, uncalibrated.** no verdict, so no level. verdict is inconclusive; no confidence is assigned to it
 
@@ -457,6 +491,8 @@
 
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L1 (measured: L1).
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
@@ -657,6 +693,8 @@
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L2 (measured: L2).
+
 **Level L2, uncalibrated.** supported: fatal checks, mutation, repeat runs and clean-checkout replay passed; some checks are residual.
 
 - trigger run: branch taken at speedup/flexgen/infinigen/flex_opt.py:690 (later RuntimeError at torch/cuda/_utils.py:46)
@@ -680,6 +718,8 @@
 
 **Verdict `inconclusive`**: no verdict: the test was invalid or could not separate the cases.
   effect only on the negative input: boundary direction reversed
+
+Code side predicted ceiling before the test: L1 (measured: n/a).
 
 **Level n/a, uncalibrated.** no verdict, so no level. verdict is inconclusive; no confidence is assigned to it
 

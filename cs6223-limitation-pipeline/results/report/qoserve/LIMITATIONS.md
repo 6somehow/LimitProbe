@@ -1,8 +1,8 @@
 # Limitations report: QoServe: Breaking the Silos of LLM Inference Serving (Niyama)
 
 - artifact: `qoserve` (ASPLOS 2026), repository https://github.com/microsoft/sarathi-serve at `72339db5b1`
-- input: `results/step4/qoserve/limitations_for_tests.json` (sha256 `79eb69f6ac71`), 50 Findings
-- generated: 2026-11-18T11:16:15+08:00 by `checklimits test` (contract `checklimits-test-report/1`)
+- input: `results/step4/qoserve/limitations_for_tests.json` (sha256 `bcd4fb7a75d0`), 50 Findings
+- generated: 2026-11-23T11:22:10+08:00 by `checklimits test` (contract `checklimits-test-report/1`)
 - environment: **ok**
 
 ## How to read this
@@ -25,6 +25,8 @@
 | levels | L1 4, L3 5 |
 | analysis only (not tests) | A0 6, A1 3, A2 32 |
 | not tested, by reason | `no_code_location` 36, `outcome_unsupported` 5 |
+
+Code side's predicted ceiling vs measured level (both uncalibrated; 9 tested Findings have both): equal 9, measured below ceiling 0, measured above ceiling 0.
 
 | Finding | category | effect | location | result |
 |---|---|---|---|---|
@@ -91,6 +93,8 @@
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: AssertionError at sarathi/core/scheduler/deadline_scheduler.py:251
@@ -112,6 +116,8 @@
 
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L1 (measured: L1).
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
@@ -159,6 +165,8 @@
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L3 (measured: L3).
+
 **Level L3, uncalibrated.** established: every defeater was measured and ruled out.
 
 - trigger run: branch taken at sarathi/core/datatypes/sequence.py:114
@@ -178,6 +186,8 @@
 
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L3 (measured: L3).
 
 **Level L3, uncalibrated.** established: every defeater was measured and ruled out.
 
@@ -199,6 +209,8 @@
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L3 (measured: L3).
+
 **Level L3, uncalibrated.** established: every defeater was measured and ruled out.
 
 - trigger run: branch taken at sarathi/core/scheduler/deadline_scheduler.py:130
@@ -219,6 +231,8 @@
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L3 (measured: L3).
+
 **Level L3, uncalibrated.** established: every defeater was measured and ruled out.
 
 - trigger run: branch taken at sarathi/core/scheduler/deadline_scheduler.py:231
@@ -238,6 +252,8 @@
 
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L1 (measured: L1).
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
@@ -261,6 +277,8 @@
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: branch taken at sarathi/core/scheduler/deadline_scheduler.py:276
@@ -283,6 +301,8 @@
 
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L3 (measured: L3).
 
 **Level L3, uncalibrated.** established: every defeater was measured and ruled out.
 
