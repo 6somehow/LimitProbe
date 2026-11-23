@@ -171,10 +171,7 @@ If a promising lead arrived in a raw report, require the same evidence before re
 
 
 def freeze_runtime(output, swarm_source=None):
-    if swarm_source:
-        prepare_runtime(swarm_source,output,PIN)
-    else:
-        shutil.copytree(HERE/'vendor-pi-swarm', output)
+    prepare_runtime(swarm_source,output,PIN)
     shutil.copyfile(HERE/'gap_coordination.mjs', output/'gap_coordination.mjs')
     agent_path = output/'agent.mjs'
     agent = agent_path.read_text()
