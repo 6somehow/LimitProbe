@@ -74,12 +74,12 @@ def main():
                            'response_format': {'type': 'json_object'}}).encode()
         request = urllib.request.Request(RELAY_URL + '/chat/completions', data=body,
                     headers={'Content-Type': 'application/json', 'Authorization': 'Bearer ' + PLACEHOLDER_KEY})
-        import time, urllib.error
+        import time
         for attempt in range(8):  # upstream rate limits (HTTP 429) are transient: back off and retry
             try:
                 with urllib.request.urlopen(request, timeout=420) as response:
                     return json.loads(json.load(response)['choices'][0]['message']['content'])
-            except urllib.error.HTTPError as exc:
+            except urllib.request.HTTPError as exc:
                 if exc.code not in (429, 500, 502, 503, 504) or attempt == 7:
                     raise
                 time.sleep(20 * (attempt + 1))
