@@ -85,8 +85,13 @@ def run_case(case, input_dir, out_dir, env, repeat):
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(p, dest)
         copied.append(str(rel))
-    if not any(x.lower().endswith('.pdf') for x in copied) or not any(x.lower().endswith('.txt') for x in copied):
-        raise ValueError('isolated input must contain a PDF and extracted text')
+    if not any(x.lower().endswith('.pdf') for x in copied):
+        raise ValueError('isolated input must contain a PDF')
+    if not any(x.lower().endswith('.txt') for x in copied):
+        import fitz  # the driver supplies only paper.pdf: extract its text for the agent's read tools
+        pdf = next(work / x for x in copied if x.lower().endswith('.pdf'))
+        with fitz.open(pdf) as doc:
+            (work / 'paper.txt').write_text('\n'.join(page.get_text() for page in doc), encoding='utf-8')
     home = out / 'home'
     if HOME_TEMPLATE.is_dir():
         shutil.copytree(HOME_TEMPLATE, home, symlinks=False)
