@@ -13,32 +13,32 @@ ROOT = Path(__file__).resolve().parents[1]
 CATS = ["undisclosed", "contradicts_docs", "stated_differently", "docs_only", "paper_stated", "impl_deviates",
         "not_implemented", "paper_hypothesis"]
 CAT_ZH = {
-    "undisclosed": "代码有这个限制，用户能读到的地方都没写（核心发现）",
-    "contradicts_docs": "文档写的和代码行为相反",
-    "stated_differently": "文档写了，但边界不同或说得更弱（如“只测过 bf16”vs 代码强制 bf16）",
-    "docs_only": "README / 公开 docstring 写了，论文没写",
-    "paper_stated": "论文写了，边界和代码一致",
-    "impl_deviates": "论文描述了，代码实现得不一样",
-    "not_implemented": "论文描述了，代码里没有",
-    "paper_hypothesis": "Swarm 根据论文证据提出的假设",
+    "undisclosed": "The code has this limitation, but no user-facing source documents it (core finding)",
+    "contradicts_docs": "The documentation contradicts the code behavior",
+    "stated_differently": "The documentation states a different or weaker boundary (e.g. “only tested bf16” vs code requiring bf16)",
+    "docs_only": "The README / public docstring states it, but the paper does not",
+    "paper_stated": "The paper states it with the same boundary as the code",
+    "impl_deviates": "The implementation differs from the paper",
+    "not_implemented": "The paper describes it, but the code does not implement it",
+    "paper_hypothesis": "A hypothesis proposed by Swarm from paper evidence",
 }
 WSTATUS = ["solved", "solved_contrast_outside_scope", "trigger_only", "always", "infeasible", "untranslatable",
            "unknown", "no_condition"]
 ORACLE = [
-    ("reject", "抛异常 / 断言失败", "trigger 上断言抛出指定异常，contrast 上不抛"),
-    ("path_change", "换了一条执行路径（回退、换 kernel、换策略）", "path hook：在两条路径的入口打桩，trigger 走限制分支、contrast 不走"),
-    ("accuracy", "结果精度变差", "differential：和参考实现比，trigger 上误差超过阈值"),
-    ("state", "依赖前几次调用留下的状态", "event_sequence：先按顺序调用把状态弄成 trigger，再检查"),
-    ("resource / performance", "内存 / 时间", "resource：测量，对比 contrast"),
-    ("other（论文侧几乎全是）", "实现和论文描述不同，没有确定的运行时后果",
-     "witness 为 always 时：走到引用代码的任一输入，和论文公式 / 描述做 differential 或 metamorphic 对比；"
-     "3a 只做了静态判断，后果未证实"),
+    ("reject", "Raises an exception / fails an assertion", "Assert that trigger raises the specified exception and contrast does not"),
+    ("path_change", "Changes execution path (fallback, kernel, or strategy)", "path hook: instrument both path entries; trigger takes the limited branch and contrast does not"),
+    ("accuracy", "Reduced result accuracy", "differential: compare with a reference implementation; trigger error exceeds the threshold"),
+    ("state", "Depends on state left by previous calls", "event_sequence: call in order to establish the trigger state, then check"),
+    ("resource / performance", "Memory / time", "resource: measure and compare with contrast"),
+    ("other (almost all paper-side findings)", "The implementation differs from the paper, with no established runtime consequence",
+     "When witness is always: use any input that reaches the cited code and compare with the paper formula / description using differential or metamorphic tests; "
+     "3a made only a static judgment; the consequence is unconfirmed"),
 ]
 
 
 def side(f: dict) -> str:
     o = {l["origin"] for l in f["limitations"]}
-    return "两侧合并" if len(o) == 2 else ("代码侧" if "code" in o else "论文侧")
+    return "Merged" if len(o) == 2 else ("Code side" if "code" in o else "Paper side")
 
 
 def short(s: str, n: int = 90) -> str:
@@ -47,7 +47,7 @@ def short(s: str, n: int = 90) -> str:
 
 
 def counter_table(rows, cols, get, row_name, col_names=None) -> list[str]:
-    out = [f"| {row_name} | " + " | ".join(col_names or cols) + " | 合计 |", "|---" * (len(cols) + 2) + "|"]
+    out = [f"| {row_name} | " + " | ".join(col_names or cols) + " | Total |", "|---" * (len(cols) + 2) + "|"]
     for r, items in rows:
         c = Counter(get(f) for f in items)
         out.append(f"| {r} | " + " | ".join(str(c.get(x, 0)) for x in cols) + f" | {len(items)} |")
@@ -108,7 +108,7 @@ def main() -> None:
     fs = data["findings"]
     papers = list(dict.fromkeys(f["artifact_id"] for f in fs))
     by_paper = [(p, [f for f in fs if f["artifact_id"] == p]) for p in papers]
-    by_side = [(s, [f for f in fs if side(f) == s]) for s in ("代码侧", "论文侧", "两侧合并")]
+    by_side = [(s, [f for f in fs if side(f) == s]) for s in ("Code side", "Paper side", "Merged")]
     n_lim = sum(len(f["limitations"]) for f in fs)
     L = []
     scope = "、".join(papers) if len(papers) <= 6 else f"{len(papers)} 篇"
@@ -116,11 +116,11 @@ def main() -> None:
           f"> 自动生成（`scripts/make_handoff_doc.py`），数据来自 `{a.src}`。schema {data['schema_version']}，"
           f"witness 格式 {data['witness_format']}。方法细节见 `docs/09_step4_findings.md`。", "",
           "## 一句话", "",
-          f"{len(papers)} 篇论文共 **{n_lim} 条 limitation**（代码侧 + 论文侧），去重后是 **{len(fs)} 条 Finding**。"
+          f"{len(papers)} 篇论文共 **{n_lim} 条 limitation**（Code side + Paper side），去重后是 **{len(fs)} 条 Finding**。"
           "每条 Finding 就是一个要测试的对象：它说明在什么条件下代码会出现什么行为，给出触发点和对照点（witness_hint），"
           f"还附带它背后的全部原始记录。你要用的文件只有一个：`{a.src}`。", "",
           "## 1. 两侧的 limitation 有什么不同", "",
-          "| | 代码侧（Wanting，步骤 2 + 3b） | 论文侧（Zhaopeng，步骤 1 + 3a） |",
+          "| | Code side（Wanting，步骤 2 + 3b） | Paper side（Zhaopeng，步骤 1 + 3a） |",
           "|---|---|---|",
           "| 从哪来 | 从入口函数静态分析 + LLM 找出的检查、分支、回退 | 逐条读论文的机制描述，再去代码里找对应实现 |",
           "| 说的是什么 | “输入满足条件 X 时，代码会抛异常 / 换路径 / 改变状态” | “论文说要做 A，代码做的是 B（或没做）” |",
@@ -134,7 +134,7 @@ def main() -> None:
           "", "两侧说同一件事、经 LLM 判断合并后的 Finding，`limitations` 里两侧的记录都有。",
           "",
           "## 2. 数量", ""]
-    L += counter_table(by_paper, ["代码侧", "论文侧", "两侧合并"], side, "论文") + [""]
+    L += counter_table(by_paper, ["Code side", "Paper side", "Merged"], side, "论文") + [""]
     L += ["按类别：", ""] + counter_table(by_side, CATS, lambda f: f["category"], "来源") + [""]
     L += ["| 类别 | 意思 |", "|---|---|"] + [f"| `{c}` | {CAT_ZH[c]} |" for c in CATS] + [""]
     L += ["按 priority（1 = 先测）：", ""] + counter_table(by_side, [1, 2, 3], lambda f: f["priority"], "来源",
@@ -142,7 +142,7 @@ def main() -> None:
     L += ["按 effect_type：", ""] + counter_table(by_side, ["reject", "path_change", "state", "accuracy", "resource",
                                                             "performance", "other"], lambda f: f["effect_type"], "来源") + [""]
     L += ["按 witness 状态：", ""] + counter_table(by_side, WSTATUS, lambda f: f["witness_hint"].get("status"), "来源") + [""]
-    L += ["按审阅状态（盲审由 LLM 子代理做，不是人工；只覆盖了部分代码侧条目）：", ""] + counter_table(
+    L += ["按审阅状态（盲审由 LLM 子代理做，不是人工；只覆盖了部分Code side条目）：", ""] + counter_table(
         by_side, ["worth_testing", "real_but_minor", "wrong", "unreviewed"], lambda f: f["review"], "来源") + [""]
 
     L += ["## 3. 一条记录里有什么", "",
@@ -155,15 +155,15 @@ def main() -> None:
           "| `effect_type` | reject / path_change / state / … | 决定 oracle，见第 5 节 |",
           "| `summary` | 一句话：什么条件下会怎样，附位置 | 给人看 |",
           "| `witness_hint` | 触发点、对照点和各名字的含义，见第 4 节 | 构造测试输入 |",
-          "| `scope_status` | 是否在论文声明的范围内；目前几乎都是 unknown（论文侧参数映射很少） | out_of_scope 的不计入主结果 |",
+          "| `scope_status` | 是否在论文声明的范围内；目前几乎都是 unknown（Paper side参数映射很少） | out_of_scope 的不计入主结果 |",
           "| `review` / `review_note` | worth_testing / real_but_minor / wrong / unreviewed，以及是谁审的、理由 | wrong 的可以跳过 |",
           "| `rationale` | 分类依据、合并了谁、priority 的理由，以及判为“相关但不同”的其他 Finding | 查原因 |",
           "| `limitation_ids` / `limitations` | 背后的完整 Limitation 记录（两侧都可能有） | 看原始条件、论文原文和代码位置 |",
-          "| `verification_ids` / `verifications` | 代码侧的 3b 结果：在哪里找到了说明、原文 | 判断“文档到底怎么写的” |",
+          "| `verification_ids` / `verifications` | Code side的 3b 结果：在哪里找到了说明、原文 | 判断“文档到底怎么写的” |",
           "| `confidence` | 目前全部是 llm_assisted | — |",
-          "| `process_confidence` | 代码侧的静态证据：8 项检查的状态、重复测量、预测的测试档位上限、重要性数字（没有自己的档位），见第 6 节；"
-          "纯论文侧的 Finding 为 null | 作为你定档的输入；不是测试结论 |", "",
-          "注意：论文侧原始记录的 `effect_text` 有一部分写的是“同上……”，指的是 3a 同一条记录的 local_entry 描述。"
+          "| `process_confidence` | Code side的静态证据：8 项检查的状态、重复测量、预测的测试档位上限、重要性数字（没有自己的档位），见第 6 节；"
+          "纯Paper side的 Finding 为 null | 作为你定档的输入；不是测试结论 |", "",
+          "注意：Paper side原始记录的 `effect_text` 有一部分写的是“同上……”，指的是 3a 同一条记录的 local_entry 描述。"
           "Finding 的 `summary` 已经展开，`limitations` 里保留原样。", "",
           "## 4. witness_hint 怎么读", "",
           "- `trigger`：满足条件的点，会走限制分支；`contrast`：离 trigger 最近、但不走限制分支的点。两者都满足 `path_prefix`。",
@@ -177,10 +177,10 @@ def main() -> None:
           "| solved | 两个点都有 | 直接用 trigger / contrast |",
           "| solved_contrast_outside_scope | contrast 只能取在论文 scope 外 | 同上，注意 contrast 不在论文范围内 |",
           "| trigger_only | 条件在路径上总是成立，没有对照点 | 只用 trigger |",
-          "| always | 论文侧：每次走到引用代码都会出现 | 任意走到 `code_locations` 的输入 |",
+          "| always | Paper side：每次走到引用代码都会出现 | 任意走到 `code_locations` 的输入 |",
           "| infeasible | 条件和路径前缀矛盾，从入口走不到。`infeasible_because: call_chain` 表示是把被调函数的名字"
           "换成入口函数的名字之后才矛盾的（见下面“调用链”） | 已降为 p3，不用花预算 |",
-          "| no_condition | 论文侧：没有可用条件 | 读 `note` 和 summary，人工判断 |",
+          "| no_condition | Paper side：没有可用条件 | 读 `note` 和 summary，人工判断 |",
           "| untranslatable / unknown | 条件翻译不了 / 求解超时 | 读 condition 原文 |", "",
           "调用链（`call_chain_status`）：", "",
           "| 值 | 意思 |", "|---|---|",
@@ -199,7 +199,7 @@ def main() -> None:
           "同一个东西。这时别名只在单层时参与求解，其余只列在 `aliases_not_applied` 里。",
           "- 多行语句的 `snippet` 是 `ast.unparse` 后的第一行：并成一行、去掉 assert 消息、去掉多余括号，最多 200 字符。"
           "请按解析后的条件比较，不要逐字比较。",
-          "- 论文侧条件由 LLM 写出，只核对过“名字都出现在引用的代码里”，**语义不一定对**，要当提示用。",
+          "- Paper side条件由 LLM 写出，只核对过“名字都出现在引用的代码里”，**语义不一定对**，要当提示用。",
           "- 所有值都没有实际执行验证过。", "",
           "## 5. 按 effect 选 oracle（建议）", "",
           "| effect_type | 意思 | 建议的 oracle |", "|---|---|---|"]
@@ -213,9 +213,9 @@ def main() -> None:
             t = f["process_confidence"]["testability"]
             return "没测量" if not t.get("measured") else t["ceiling"] if t.get("testable") else "测不了"
 
-        L += ["## 6. 代码侧的静态证据（未校准，没有自己的档位）", "",
-              "每条有代码侧记录的 Finding 带一个 `process_confidence` 块（格式 `process-confidence-v2`，规则见 "
-              "`docs/11_process_confidence.md`）。它是对你的档位的补充：**代码侧不定档，档位只由你的测试证据决定**。"
+        L += ["## 6. Code side的静态证据（未校准，没有自己的档位）", "",
+              "每条有Code side记录的 Finding 带一个 `process_confidence` 块（格式 `process-confidence-v2`，规则见 "
+              "`docs/11_process_confidence.md`）。它是对你的档位的补充：**Code side不定档，档位只由你的测试证据决定**。"
               "不执行代码、不调模型，同样的输入得到同样的结果。块里有四部分。", "",
               "**1. `checks`：核对表。** 词汇和你的 defeater 表一样："
               "`eliminated`（工具核对过）、`residual`（只有论证或模型判断）、`open`（没评估）、`refuted`（核对失败）。", "",
@@ -244,7 +244,7 @@ def main() -> None:
               "（自己函数里的见 `enclosing_conditions`，调用链上的见 `conditional_call_sites`）；`unknown` 没有调用链，看不到调用者。",
               "- `impact`：判定管住多少语句（分支体，或 assert / raise 之后函数里剩下的语句）、函数共多少语句、"
               "从入口来的调用链条数、仓库里解析到这个函数的调用点数。",
-              "- `coverage`：目标函数里有多少个判定（if / while / assert）、代码侧列出了几个、入口能否静态到达这个函数。"
+              "- `coverage`：目标函数里有多少个判定（if / while / assert）、Code side列出了几个、入口能否静态到达这个函数。"
               "这是**分析的覆盖**，不是执行覆盖；执行覆盖在你的 `execution_report.json` 里。", "",
               "**建议的用法**：测之前按 `ceiling` 分配预算（`测不了` 的不测，`L1` 的少花时间）；测之后把 `limited_by` "
               "放在档位旁边，说明是这句本身测不到更高还是测得不够；没测的 Finding 把 `checks` 和 `repeats` 作为确定性的证据并排列出；"
@@ -256,22 +256,22 @@ def main() -> None:
             lambda f: f["process_confidence"]["importance"]["path"].get("decision_on"), "论文") + [""]
 
     L += ["## 7. 典型例子", "", "每个例子是一条 Finding 的精简版，长字段已截断；完整内容在 json 里。"
-          "例子是按规则自动挑的第一条，不是挑好看的。“论文侧 · LLM 写出条件”那条正好说明了它的局限："
-          "条件在形式上能解，但不一定抓住了论文差异的本质，所以论文侧条件只当提示用。", ""]
+          "例子是按规则自动挑的第一条，不是挑好看的。“Paper side · LLM 写出条件”那条正好说明了它的局限："
+          "条件在形式上能解，但不一定抓住了论文差异的本质，所以Paper side条件只当提示用。", ""]
     ex = [
-        ("代码侧 · undisclosed · p1 · 有别名", lambda f: side(f) == "代码侧" and f["priority"] == 1
+        ("Code side · undisclosed · p1 · 有别名", lambda f: side(f) == "Code side" and f["priority"] == 1
          and f["witness_hint"].get("aliases")),
-        ("代码侧 · stated_differently（文档说得比代码弱）", lambda f: side(f) == "代码侧"
+        ("Code side · stated_differently（文档说得比代码弱）", lambda f: side(f) == "Code side"
          and f["category"] == "stated_differently" and f["witness_hint"].get("status") == "solved"),
-        ("代码侧 · docs_only（README / docstring 写了，论文没写）", lambda f: side(f) == "代码侧" and f["category"] == "docs_only"),
-        ("代码侧 · state（事件序列）", lambda f: side(f) == "代码侧" and f["effect_type"] == "state"),
-        ("代码侧 · infeasible（多半走不到，p3）", lambda f: f["witness_hint"].get("status") == "infeasible"),
-        ("两侧合并", lambda f: side(f) == "两侧合并"),
-        ("论文侧 · impl_deviates · always", lambda f: side(f) == "论文侧" and f["witness_hint"].get("status") == "always"
+        ("Code side · docs_only（README / docstring 写了，论文没写）", lambda f: side(f) == "Code side" and f["category"] == "docs_only"),
+        ("Code side · state（事件序列）", lambda f: side(f) == "Code side" and f["effect_type"] == "state"),
+        ("Code side · infeasible（多半走不到，p3）", lambda f: f["witness_hint"].get("status") == "infeasible"),
+        ("Merged", lambda f: side(f) == "Merged"),
+        ("Paper side · impl_deviates · always", lambda f: side(f) == "Paper side" and f["witness_hint"].get("status") == "always"
          and len(f["limitations"]) > 1),
-        ("论文侧 · LLM 写出条件并求解", lambda f: side(f) == "论文侧" and f["witness_hint"].get("status") == "solved"),
-        ("论文侧 · not_implemented", lambda f: f["category"] == "not_implemented"),
-        ("论文侧 · no_condition", lambda f: f["witness_hint"].get("status") == "no_condition"),
+        ("Paper side · LLM 写出条件并求解", lambda f: side(f) == "Paper side" and f["witness_hint"].get("status") == "solved"),
+        ("Paper side · not_implemented", lambda f: f["category"] == "not_implemented"),
+        ("Paper side · no_condition", lambda f: f["witness_hint"].get("status") == "no_condition"),
     ]
     used: set = set()
     for title, pred in ex:
@@ -280,11 +280,11 @@ def main() -> None:
             L += [f"### {title}：`{f['finding_id']}`", "", "```json", compact(f), "```", ""]
 
     L += ["## 8. 全部 Finding 索引", "",
-          "每篇按 priority 排序。列的含义：侧 = 代/论/合（代码侧 / 论文侧 / 两侧合并）；"
+          "每篇按 priority 排序。列的含义：侧 = 代/论/合（Code side / Paper side / Merged）；"
           "审 = 审阅状态（✓ worth_testing，~ real_but_minor，✗ wrong，空 = 未审）；"
-          "过程 = 过程置信度档位和判定所在路径（第 6 节；论文侧为空）。", ""]
+          "过程 = 过程置信度档位和判定所在路径（第 6 节；Paper side为空）。", ""]
     mark = {"worth_testing": "✓", "real_but_minor": "~", "wrong": "✗", "unreviewed": ""}
-    sd = {"代码侧": "代", "论文侧": "论", "两侧合并": "合"}
+    sd = {"Code side": "代", "Paper side": "论", "Merged": "合"}
     for p, items in by_paper:
         L += [f"### {p}（{len(items)} 条）", "",
               "| ID | 侧 | 类别 | P | effect | witness | 审 | 上限 路径 | 位置 | 内容 |", "|---|---|---|---|---|---|---|---|---|---|"]
@@ -297,7 +297,7 @@ def main() -> None:
                     f"{b['importance']['path'].get('decision_on', '')}").strip() if b else ""
             L.append(f"| {f['finding_id'].split('-')[-1]} | {sd[side(f)]} | {f['category']} | {f['priority']} | "
                      f"{f['effect_type']} | {w.get('status')} | {mark[f['review']]} | {proc} | `{short(loc, 60)}` | "
-                     f"{short(f['summary'].rsplit(' (', 1)[0] if side(f) != '论文侧' else f['summary'], 100)} |")
+                     f"{short(f['summary'].rsplit(' (', 1)[0] if side(f) != 'Paper side' else f['summary'], 100)} |")
         L.append("")
     (ROOT / a.out).write_text("\n".join(L))
     print(f"wrote {a.out}: {len(fs)} findings, {len(L)} lines")
