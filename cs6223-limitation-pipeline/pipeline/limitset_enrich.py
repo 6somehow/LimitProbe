@@ -19,13 +19,14 @@ _INFLIGHT = {}  # cache key -> Future, so duplicate findings share one call
 
 
 class RelayLLM:
-    def __init__(self, model, port):
+    def __init__(self, model, port, timeout=60):
         self.model = model
         self.port = port
+        self.timeout = timeout
 
     def __call__(self, prompt):
         from openai import OpenAI
-        client = OpenAI(base_url=f'http://127.0.0.1:{self.port}/v1', api_key='relay', timeout=60, max_retries=0)
+        client = OpenAI(base_url=f'http://127.0.0.1:{self.port}/v1', api_key='relay', timeout=self.timeout, max_retries=2)
         response = client.chat.completions.create(
             model=self.model, temperature=0, response_format={'type': 'json_object'},
             messages=[{'role': 'user', 'content': prompt}])
