@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Protocol
 
 FIELDS = ("mechanism", "conditions", "defeaters", "evidence_location", "category", "disclosure")
-PROMPT_VERSION = "judge-v2-batched"
+PROMPT_VERSION = "judge-v3-en"
 
 
 def read_jsonl(path):
@@ -130,7 +130,7 @@ class RelayJudge:
 
     def _request(self, prompt):
         from pipeline.e2e import RELAY_URL, PLACEHOLDER_KEY
-        rubric = (self.root / "evaluation/RUBRIC_zh.md").read_text(encoding="utf-8")
+        rubric = "You are an independent evaluator of reference coverage. Judge semantic evidence."
         body = json.dumps({"model": self.model_id, "temperature": self.temperature,
                            "messages": [{"role": "system", "content": rubric}, {"role": "user", "content": prompt}],
                            "response_format": {"type": "json_object"}}).encode()
@@ -149,8 +149,8 @@ class RelayJudge:
     def judge(self, label, finding, signals):
         prompt = ("Assess this prediction against the reference. Matching requires the same mechanism, "
                   "triggering conditions and consequence. Return only JSON with boolean matched and coverage "
-                  "containing boolean fields " + ", ".join(FIELDS) + ". Signals are heuristic.\n" +
-                  json.dumps({"reference": label, "prediction": finding, "signals": signals}, ensure_ascii=False))
+                  "containing boolean fields " + ", ".join(FIELDS) + ".\n" +
+                  json.dumps({"reference": label, "prediction": finding}, ensure_ascii=False))
         return self._request(prompt)
 
     def judge_batch(self, label, findings, signal_list):
@@ -162,10 +162,9 @@ class RelayJudge:
                     value = item[field]
                     if isinstance(value, str): item[field] = value[:2000]
                     else: item[field] = json.dumps(value, ensure_ascii=False)[:2000]
-            predictions.append({"index": i, "finding": item, "signals": sig})
+            predictions.append({"index": i, "finding": item})
         prompt = ("Independently assess each prediction against the single reference. Matching requires the same "
-                  "mechanism, triggering conditions and consequence; topic overlap is insufficient. Signals are "
-                  "heuristic. Return only JSON: {\"matches\":[{\"index\":i,\"matched\":boolean,"
+                  "mechanism, triggering conditions and consequence; topic overlap is insufficient. Return only JSON: {\"matches\":[{\"index\":i,\"matched\":boolean,"
                   "\"coverage\":{field:boolean}}]}; include every index once and all coverage fields: " +
                   ", ".join(FIELDS) + ".\n" + json.dumps({"reference": label, "predictions": predictions}, ensure_ascii=False))
         result = self._request(prompt)
@@ -199,12 +198,12 @@ def wilson(success, total):
     return {"covered": success, "total": total, "fraction": p, "wilson_95": [max(0, center-margin), min(1, center+margin)]}
 
 
-def score(labels, predictions, splits, judge, label_schema=None, prediction_schema=None, workers=4):
+def score(labels, predictions, splits, judge, label_schema=None, prediction_schema=None, workers=4, labels_en=None):
     with judge if hasattr(judge, "__enter__") else nullcontext():
-        return _score(labels, predictions, splits, judge, label_schema, prediction_schema, workers)
+        return _score(labels, predictions, splits, judge, label_schema, prediction_schema, workers, labels_en)
 
 
-def _score(labels, predictions, splits, judge, label_schema, prediction_schema, workers):
+def _score(labels, predictions, splits, judge, label_schema, prediction_schema, workers, labels_en):
     by_case, invalid = {}, []
     for label in labels:
         cid = label.get("case_id") if isinstance(label, dict) else None
@@ -214,6 +213,15 @@ def _score(labels, predictions, splits, judge, label_schema, prediction_schema, 
             continue
         if cid in by_case: raise ValueError(f"duplicate label: {cid}")
         by_case[cid] = (label, errors)
+    english = {}
+    if labels_en is not None:
+        for label in labels_en:
+            cid = label.get("case_id") if isinstance(label, dict) else None
+            if not isinstance(cid, str) or cid in english:
+                raise ValueError("invalid or duplicate English label case_id")
+            english[cid] = label
+        if set(english) != set(by_case):
+            raise ValueError("English labels must cover exactly the reference cases")
     groups = defaultdict(list)
     for record in predictions:
         cid = record.get("case_id") if isinstance(record, dict) else None
@@ -232,20 +240,22 @@ def _score(labels, predictions, splits, judge, label_schema, prediction_schema, 
     if set(membership) != set(by_case): raise ValueError("splits must cover all labels")
     def evaluate_repeat(label, record):
         findings = record["findings"]
-        sigs = [signals(label, f) for f in findings]
+        reference = english.get(label["case_id"], label)
+        sigs = [signals(reference, f) for f in findings]
+        sigs_zh = [signals(label, f) for f in findings]
         evaluations = []
         for start in range(0, len(findings), 30 if len(findings) > 60 else max(1, len(findings))):
             chunk = findings[start:start + (30 if len(findings) > 60 else len(findings))]
             chunk_sigs = sigs[start:start + len(chunk)]
             try:
-                results = judge.judge_batch(label, chunk, chunk_sigs)
+                results = judge.judge_batch(reference, chunk, chunk_sigs)
                 if not isinstance(results, list) or len(results) != len(chunk) or not all(valid_decision(r) for r in results):
                     raise ValueError("invalid batch")
             except (ValueError, KeyError, TypeError, json.JSONDecodeError):
                 results = []
                 for finding, sig in zip(chunk, chunk_sigs):
                     try:
-                        result = judge.judge(label, finding, sig)
+                        result = judge.judge(reference, finding, sig)
                         if not valid_decision(result):
                             raise ValueError("judge must return boolean matched and all coverage fields")
                         results.append(result)
@@ -255,9 +265,9 @@ def _score(labels, predictions, splits, judge, label_schema, prediction_schema, 
                 results = [None] * len(chunk)
             for offset, (sig, result) in enumerate(zip(chunk_sigs, results)):
                 if result is None:
-                    evaluations.append({"index": start + offset, "signals": sig, "matched": None, "coverage": sig, "judge_unavailable": True})
+                    evaluations.append({"index": start + offset, "signals": sig, "signals_zh": sigs_zh[start + offset], "matched": None, "coverage": {f: None for f in FIELDS}, "judge_unavailable": True})
                 else:
-                    evaluations.append({"index": start + offset, "signals": sig, **result})
+                    evaluations.append({"index": start + offset, "signals": sig, "signals_zh": sigs_zh[start + offset], **result})
         matches = [e for e in evaluations if e["matched"] is True]
         unavailable = any(e.get("judge_unavailable") for e in evaluations)
         best = max(matches, key=lambda e: sum(e["coverage"].values()), default=None)
@@ -282,7 +292,7 @@ def _score(labels, predictions, splits, judge, label_schema, prediction_schema, 
                     repeats.append(pending[cid, i].result())
             known = [r for r in repeats if r["found"] is not None]
             found = True if any(r["found"] is True for r in repeats) else None if any(r["found"] is None for r in repeats) or not known else False
-            selected = max(repeats, key=lambda r: (r["found"] is True, sum(r["coverage"].values())), default=None)
+            selected = max(repeats, key=lambda r: (r["found"] is True, sum(v is True for v in r["coverage"].values())), default=None)
             cases.append({"case_id": cid, "category": label.get("category_code"), "split": membership[cid], "found": found,
                           "fields": selected["coverage"] if selected else {f: None for f in FIELDS},
                           "judge_unavailable": any(r["judge_unavailable"] for r in repeats), "validation_errors": case_errors,
