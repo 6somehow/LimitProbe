@@ -1,39 +1,39 @@
-# `other` 类效果的分析和决定（S4b，2026-11-16）
+# Analysis and decision on `other` effects (S4b, 2026-11-16)
 
-结论：**没有实现新的 oracle。** `other` 类里没有一个"有界且不是同义反复"的子集。这份文档给出依据，并说明现在的报告怎么写这些 Finding 没测的原因。
+Conclusion: **No new oracle was implemented.** The `other` class contains no subset that is both bounded and non-tautological. This document gives the rationale and explains how reports now describe why these Findings were not tested.
 
-## 现状
+## Current state
 
-step 4 把效果分成 `reject`、`path_change`、`state`、`other`。harness 只判前三类。`other` 是"没有对应的检查"，五个 artifact 一共 168 条：
+Step 4 divides effects into `reject`, `path_change`, `state`, and `other`. The harness judges only the first three. `other` means there is no corresponding check; there are 168 across five artifacts:
 
-| 类别（按目标语句和备注分） | 条数 | 例子 |
+| Category (by target statement and notes) | Count | Example |
+|---|---:|---|
+| Static discrepancy between paper and code ("Static discrepancy hypothesis", no executable assertion) | 121 | FlexPrefill F030: the paper requires the smallest k whose cumulative sum is ≥γ; the code uses >γ |
+| No code location | 14 | Paper-side entries for SparTA |
+| Branch with no `raise` in its body (the program rejects later elsewhere) | 12 | NNSmith F005, F007: `if ...: continue` |
+| Assignment or augmented assignment | 13 | NNSmith F013: `gres_config = os.getenv('NNSMITH_GRES', '4')` |
+| Call statement whose effect is not an exception on that line | 3 | NNSmith F027: `ConstraintCheck.true(...)` returns False |
+| Warning or log | 1 | FlexPrefill F049: `warnings.warn(...)` |
+| Other (function definition, unparseable) | 4 | |
+
+## What each category needs and whether it can be bounded
+
+| Category | Question for the oracle | Can it be bounded? |
 |---|---|---|
-| 论文和代码的静态差异（"Static discrepancy hypothesis"，没有可执行的断言） | 121 | FlexPrefill F030：论文要求累计和 ≥γ 的最小 k，代码取 >γ |
-| 没有代码位置 | 14 | SparTA 的论文侧条目 |
-| 分支但分支体里没有 `raise`（程序之后在别处拒绝） | 12 | NNSmith F005、F007：`if ...: continue` |
-| 赋值、增量赋值 | 13 | NNSmith F013：`gres_config = os.getenv('NNSMITH_GRES', '4')` |
-| 调用语句，效果不是该行的异常 | 3 | NNSmith F027：`ConstraintCheck.true(...)` 返回 False |
-| 警告或日志 | 1 | FlexPrefill F049：`warnings.warn(...)` |
-| 其他（函数定义、解析不了） | 4 | |
+| Static discrepancy (121) | How much does the code result differ from the paper's formula? | **No.** Differential comparison needs an executable reference implementation of the paper's formula. Its source is an open question (the paper side must provide a formula with semantics, not a quotation). Without it, any "test" merely compares code with code. |
+| Assignment (13) | What downstream change does this assignment cause? | **Tautological.** The assigned value must differ at the trigger and control points, because the condition is on that value (NNSmith F013's condition is `gres_config != "4"`, and the assignment is `gres_config = ...`). The actual effect is downstream ("a different reshape grouping was selected"). Comparing downstream outputs requires a differential or metamorphic relation, but there is no source for the metamorphic relation. |
+| Branch that rejects later (12) | Did the program eventually reject, and where? | **Possible, but outside the test side.** The effect location is elsewhere (the caller checks the return value and then `raise`s or retries). Step 4's `effect_anchor` can already move an `except` line to a `raise` and move an assignment to an outer `if` with the same condition; it could be extended to follow the return value to a `raise` in the caller. Once the location is corrected, the existing `reject` check can judge it without a new oracle. |
+| Call statement (3) | What happens after it returns False? | As above, first find the effect location. |
+| Warning (1) | Did the target line issue a warning? | Technically possible (record with `warnings.catch_warnings`), but one case does not justify a separate oracle. |
 
-## 每一类需要什么，能不能做
+## Decision
 
-| 类别 | oracle 要回答的问题 | 能不能有界地做 |
-|---|---|---|
-| 静态差异（121） | 代码的结果和论文的公式差多少 | **不能。** 需要论文公式的可执行参考实现，才能做差分比较。参考实现从哪来是开放问题（论文侧要给出带语义的公式，不是引文）。没有它，任何"测试"都只是把代码和代码比 |
-| 赋值（13） | 这个赋值导致的下游变化 | **同义反复。** 赋值的值在触发点和对照点必然不同，因为条件就是对这个值的条件（NNSmith F013 的条件是 `gres_config != "4"`，赋值语句正是 `gres_config = ...`）。真正的效果在下游（"选了另一种 reshape 分组"），要比较下游输出，需要差分或蜕变关系，但蜕变关系没有来源 |
-| 之后才拒绝的分支（12） | 程序最终拒绝了吗，在哪里拒绝 | **可以做，但不属于测试侧。** 效果位置在别处（调用者里检查返回值后 `raise` 或重试）。step 4 的 `effect_anchor` 已经能把 `except` 行移到 `raise`、把赋值移到同条件的外层 `if`，可以扩到"沿着返回值找到调用者里的 `raise`"。位置移对以后，现有的 `reject` 检查就能判，不用新 oracle |
-| 调用语句（3） | 返回 False 之后发生了什么 | 同上，要先找到效果位置 |
-| 警告（1） | 目标行发出了警告 | 技术上可做（`warnings.catch_warnings` 记录），但只有 1 条，不值得单独做一套 oracle |
+1. **Do not implement a new oracle.** The largest category (121) lacks a reference implementation, not test-side capability. An assignment oracle would yield a tautological `yes` every time, adding false confirmation to a Finding.
+2. **Give specific reasons for not testing.** `classify_finding` now gives category-specific reasons for `other` (`describe_other`), for example: "the target is an assignment; the claimed effect is a later change and requires differential output checking; the assignment itself must differ." Static discrepancies without a code location also state that a reference implementation of the paper's formula is needed. Readers can see what is missing from the report.
+3. **Requests to the other two team members:**
+   * Wanting: extend `effect_anchor`'s target movement to branches that reject later (12 cases). With the location corrected, the existing `reject` check can judge them; some of the 12 are expected to become judgeable.
+   * Zhaopeng: for static discrepancies where the paper gives a formula or pseudocode, identify which can be written as an executable reference function (inputs, outputs, numerical tolerance). Only those can enter the design of a differential oracle. None currently has this information.
 
-## 决定
+## What we will not do
 
-1. **不实现新的 oracle。** 最大的一类（121 条）缺的是参考实现，不是测试侧的能力。赋值类做出来会得到永远为 `yes` 的同义反复，那是给 Finding 增加假的确认。
-2. **把"没测"的原因写具体。** `classify_finding` 对 `other` 现在按类别给出原因（`describe_other`），例如"目标是赋值，声称的效果是之后的变化，需要对输出做差分检查，赋值本身必然不同"。没有代码位置的静态差异也写明"需要论文公式的参考实现"。报告里读者能看出缺什么。
-3. **给其他两位的请求：**
-   * Wanting：把 `effect_anchor` 的"移动目标"扩到"之后才拒绝的分支"（12 条）。位置移对，这些就能用现有的 `reject` 检查判，预计能多判 12 条里的一部分。
-   * Zhaopeng：静态差异里，论文给出的是公式或伪代码的，请标出哪些能写成一个可执行的参考函数（输入、输出、数值容差）。只有这些才进入差分 oracle 的设计。现在没有一条有这个信息。
-
-## 不做什么
-
-* 不做"两次输出不同就算 yes"的泛化差分检查。任何改变输入的对比都会输出不同，那样的 `yes` 没有信息。
+* Do not implement a generic differential check that counts any two different outputs as yes. Any comparison that changes the input produces different outputs, making such a `yes` uninformative.
