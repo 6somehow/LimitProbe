@@ -1,0 +1,5 @@
+# B2: opencode baseline
+
+`run_case(case, input_dir, out_dir, env, repeat)` stages PDF and text files from an isolated case input into a new workspace. The output directory must be fresh. It runs opencode with a restricted filesystem, a warmed home when available, and a local config that denies shell and web tools. Set `LIMITSET_OPENCODE` in `env` to override the executable and `LIMITSET_OPENCODE_TIMEOUT` to change the 1800-second timeout. The runtime needs bubblewrap and the local relay. No credentials are passed to the agent.
+
+The return value and `b2_result.json` include findings, cost, parse failures, and process status; `events.jsonl` and `stderr.txt` preserve execution evidence. Token counts and backend model ID are null when events do not provide them. The configured `relay/x-test-2` is a relay alias, not a claim about the underlying model. Free text is accepted only as bullet or numbered findings. Invalid evidence is recorded and omitted. Case CS6223-03 currently runs with paper only: a pinned InfiniGen checkout has not been verified. The caller must provide only the intended case's paper files in the input directory.
