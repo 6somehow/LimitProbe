@@ -114,6 +114,12 @@ class RelayJudge:
         import os
         timeout = timeout or int(os.environ.get('LIMITSET_JUDGE_TIMEOUT', '420'))
         self.root, self.model_id, self.temperature = Path(root), model_id, temperature
+        # Judge-only overrides (the generators never read these): another relay port and model.
+        self.model_id = os.environ.get('LIMITSET_JUDGE_MODEL') or model_id
+        self.port = int(os.environ.get('LIMITSET_JUDGE_RELAY_PORT') or 0) or None
+        if self.model_id.startswith('gpt-6'):
+            self.temperature = 'default(1)'  # these models accept only the default temperature
+            self.prompt_version = PROMPT_VERSION + '-gpt61terra'
         self.env = env
         self.timeout, self.retries = timeout, retries
         self.calls = 0
@@ -130,11 +136,15 @@ class RelayJudge:
         return self._relay.__exit__(*exc)
 
     def _request(self, prompt):
-        from pipeline.e2e import RELAY_URL, PLACEHOLDER_KEY
+        from pipeline.e2e import RELAY_URL as DEFAULT_URL, PLACEHOLDER_KEY
+        RELAY_URL = f"http://127.0.0.1:{self.port}/v1" if self.port else DEFAULT_URL
         rubric = "You are an independent evaluator of reference coverage. Judge semantic evidence."
-        body = json.dumps({"model": self.model_id, "temperature": self.temperature,
-                           "messages": [{"role": "system", "content": rubric}, {"role": "user", "content": prompt}],
-                           "response_format": {"type": "json_object"}}).encode()
+        payload = {"model": self.model_id, "temperature": self.temperature,
+                   "messages": [{"role": "system", "content": rubric}, {"role": "user", "content": prompt}],
+                   "response_format": {"type": "json_object"}}
+        if not isinstance(self.temperature, (int, float)):
+            payload.pop("temperature")
+        body = json.dumps(payload).encode()
         for attempt in range(self.retries + 1):
             try:
                 request = urllib.request.Request(RELAY_URL + "/chat/completions", data=body,
