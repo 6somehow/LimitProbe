@@ -330,7 +330,53 @@ def _json_object(response):
     match = re.search(r"\{.*\}", response, re.S)
     if not match:
         raise ValueError("no JSON object in the answer")
-    return json.loads(match.group())
+    text = match.group()
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+    # Tolerant repair: strip code fences / trailing commas; if the object is cut, close it at the last complete item.
+    text = re.sub(r",\s*([}\]])", r"\1", text)
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+    for end in range(len(text) - 1, 0, -1):
+        if text[end] not in "}]":
+            continue
+        head = text[: end + 1]
+        stack = []
+        in_str = esc = False
+        for ch in head:
+            if in_str:
+                esc = (not esc) and ch == "\\"
+                if not esc and ch == '"':
+                    in_str = False
+                continue
+            if ch == '"':
+                in_str = True
+            elif ch in "{[":
+                stack.append("}" if ch == "{" else "]")
+            elif ch in "}]" and stack:
+                stack.pop()
+        if in_str:
+            continue
+        try:
+            return json.loads(head + "".join(reversed(stack)))
+        except json.JSONDecodeError:
+            continue
+    raise ValueError("unparseable JSON in the answer")
+
+
+def _ask_json(ask, prompt, tries=3, **kw):
+    """One model call that must return a JSON object; a bad answer is re-asked (fresh call), not fatal."""
+    last = None
+    for _ in range(tries):
+        try:
+            return _json_object(ask(prompt, **kw))
+        except ValueError as exc:
+            last = exc
+    raise last
 
 def mechanism_candidates(text, code_files, ask, *, version=MECH_V1, examples_path=None, stats=None, no_filter=False):
     """Generate and verify candidates; return mechanisms, critiques and dropped count."""
@@ -349,7 +395,7 @@ def mechanism_candidates(text, code_files, ask, *, version=MECH_V1, examples_pat
         response = ask(MECH_ANALYSIS.format(inventory=json.dumps(inventory), text=text[:MAX_TEXT_CHARS], code=code, examples=examples))
     elif version == MECH_V3C:
         started = time.monotonic()
-        inventory = _json_object(ask(V3C_INVENTORY.format(text=text[:MAX_TEXT_CHARS], code=code), max_tokens=6000, timeout=300))
+        inventory = _ask_json(ask, V3C_INVENTORY.format(text=text[:MAX_TEXT_CHARS], code=code), max_tokens=6000, timeout=300)
         entries = inventory.get("mechanisms")
         if not isinstance(entries, list) or not entries:
             raise ValueError("no mechanisms list in inventory")
@@ -358,7 +404,7 @@ def mechanism_candidates(text, code_files, ask, *, version=MECH_V1, examples_pat
             start = time.monotonic()
             for attempt in range(2):
                 try:
-                    result = _json_object(ask(V3C_WRITE.format(mechanism=json.dumps(entry), text=text[:MAX_TEXT_CHARS], code=code), max_tokens=4000, timeout=300))
+                    result = _ask_json(ask, V3C_WRITE.format(mechanism=json.dumps(entry), text=text[:MAX_TEXT_CHARS], code=code), tries=2, max_tokens=4000, timeout=300)
                     if not isinstance(result.get("candidates"), list):
                         raise ValueError("no candidates list")
                     return result["candidates"][:3], {"seconds": time.monotonic() - start, "attempts": attempt + 1}
