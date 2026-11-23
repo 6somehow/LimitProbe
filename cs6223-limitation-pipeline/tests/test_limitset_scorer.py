@@ -72,7 +72,8 @@ def test_unavailable_judge_keeps_deterministic_fields():
                    {"validation": [label["case_id"]], "test": []}, Offline())
     case = result["cases"][0]
     assert case["judge_unavailable"] and case["found"] is None
-    assert case["fields"]["mechanism"] is True
+    assert case["fields"]["mechanism"] is None
+    assert case["repeats"][0]["evaluations"][0]["signals"]["mechanism"] is True
     assert result["aggregate"]["split"]["validation"]["found"]["total"] == 0
 
 
@@ -145,3 +146,50 @@ def test_relay_lifetime_and_parallel_repeats(tmp_path, monkeypatch):
     score([label], [{"case_id": label["case_id"], "findings": [finding]}] * 2,
           {"validation": [label["case_id"]], "test": []}, judge, workers=2)
     assert events == [("init", {}), "enter", "exit"]
+
+
+def test_english_signals_and_judge_input(tmp_path, monkeypatch):
+    from scorer_limitset.scoring import RelayJudge
+    label, finding = fixture()
+    label['necessary_conditions_zh'] = ['大输入']
+    english = dict(label, necessary_conditions_zh=['large input'])
+    prompts = []
+    judge = RelayJudge(tmp_path, 'test')
+    monkeypatch.setattr(judge, '_request', lambda prompt: prompts.append(prompt) or {
+        'matches': [{'index': 0, 'matched': True, 'coverage': {f: True for f in FIELDS}}]})
+    monkeypatch.setattr(judge, '__enter__', lambda: judge)
+    import pipeline.e2e as e2e
+    monkeypatch.setattr(e2e, 'relay_up', lambda: True)
+    result = score([label], [{'case_id': label['case_id'], 'findings': [finding]}],
+                   {'validation': [label['case_id']], 'test': []}, judge, labels_en=[english])
+    evaluation = result['cases'][0]['repeats'][0]['evaluations'][0]
+    assert evaluation['signals']['conditions'] and not evaluation['signals_zh']['conditions']
+    assert 'signals' not in prompts[0] and 'large input' in prompts[0] and '大输入' not in prompts[0]
+    assert result['judge']['prompt_version'] == 'judge-v3-en'
+    with pytest.raises(ValueError):
+        score([label], [], {'validation': [label['case_id']], 'test': []}, FakeJudge(), labels_en=[])
+
+
+def test_translation_cache_and_structure(tmp_path):
+    from scripts.limitset.translate_labels import translate_labels
+    label = {'case_id': 'C1', 'claim_zh': '中文', 'source_locations': ['src/file.py']}
+    calls = []
+    def translate(value):
+        calls.append(value)
+        return dict(value, claim_zh='English')
+    out = tmp_path / 'labels_en.jsonl'
+    translate_labels([label], out, translate, 'fake')
+    translate_labels([label], out, translate, 'fake')
+    assert len(calls) == 1
+    assert json.loads(out.read_text())['claim_zh'] == 'English'
+    assert json.loads((tmp_path / 'labels_en.manifest.json').read_text())['model_id'] == 'fake'
+    with pytest.raises(ValueError):
+        translate_labels([label], out, lambda v: dict(v, case_id='changed'), 'other')
+
+
+def test_translated_labels_are_scorer_only():
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    for directory in ('pipeline', 'limitset_baselines', 'checklimits'):
+        for path in (root / directory).rglob('*.py'):
+            assert 'labels_en.jsonl' not in path.read_text(encoding='utf-8'), str(path)
