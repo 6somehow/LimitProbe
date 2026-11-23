@@ -275,6 +275,21 @@ def _write_paper_report(artifact_id, pdf, title, venue, results_root, sha, recs,
 
 
 MECH_V1 = "paper-only-mech-v1"
+MECH_V2 = "paper-only-mech-v2"
+MECH_INVENTORY = '''In English, list core mechanisms and implicit assumptions per algorithm or section.
+Return JSON {{"mechanisms": [{{"mechanism": "...", "assumptions": [], "quotes": ["verbatim quote"], "locator": "..."}}]}}.
+PAPER TEXT\n{text}\nCODE EXCERPTS\n{code}'''
+MECH_ANALYSIS = '''In English, produce 20-30 distinct conditional method limitations from the inventory.
+Consider grouped/multi-query attention sharing, quantization, unstructured vs structured sparsity, scale,
+hardware differences, workload shift, input distribution shift, batching, and dynamic vs static shapes.
+Return JSON {{"candidates": [...]}} with category_code (applicability_limitation, mechanism_origin_unclear,
+or method_shortcoming), claim, mechanism, reasoning_chain (list containing paper_fact, analysis_premise,
+inference, optional simplified_example, conditional_consequence), critical_link, necessary_conditions,
+consequence, defeaters, do_not_infer, disclosed_or_inferred (reported_in_paper or inferred), quotes,
+and locator. Quotes must be verbatim paper strings or objects with source, quote and locator.
+Self-check: tag reviewer-style critiques such as few models, unfair baseline, missing statistics, and
+missing comparisons as kind=evaluation_critique. Distinguish reported facts from inference.
+INVENTORY\n{inventory}\nPAPER TEXT\n{text}\nCODE EXCERPTS\n{code}\nEXAMPLES\n{examples}'''
 MECH_TASK = """Analyze the paper in English. Produce 15-20 method limitations as JSON {{"candidates": [...]}}.
 Use only these categories: applicability_limitation: where or when the method does not apply
 (scope, assumptions, settings), with explicit necessary conditions; mechanism_origin_unclear: the paper
@@ -292,10 +307,23 @@ CODE EXCERPTS
 {code}"""
 
 
-def mechanism_candidates(text, code_files, ask):
+def mechanism_candidates(text, code_files, ask, *, version=MECH_V1, examples_path=None, stats=None):
     """Generate and verify candidates; return mechanisms, critiques and dropped count."""
     code = "\n\n".join(f"FILE {path}\n{content}" for path, content in code_files.items())
-    response = ask(MECH_TASK.format(text=text[:MAX_TEXT_CHARS], code=code))
+    if version == MECH_V1:
+        response = ask(MECH_TASK.format(text=text[:MAX_TEXT_CHARS], code=code))
+    elif version == MECH_V2:
+        inventory_text = ask(MECH_INVENTORY.format(text=text[:MAX_TEXT_CHARS], code=code))
+        match = re.search(r"\{.*\}", inventory_text, re.S)
+        if not match:
+            raise ValueError("no JSON object in inventory")
+        inventory = json.loads(match.group())
+        if not isinstance(inventory.get("mechanisms"), list):
+            raise ValueError("no mechanisms list in inventory")
+        examples = Path(examples_path).read_text(encoding="utf-8") if examples_path else "None"
+        response = ask(MECH_ANALYSIS.format(inventory=json.dumps(inventory), text=text[:MAX_TEXT_CHARS], code=code, examples=examples))
+    else:
+        raise ValueError(f"unknown mechanism version: {version}")
     match = re.search(r"\{.*\}", response, re.S)
     if not match:
         raise ValueError("no JSON object in the answer")
@@ -303,7 +331,8 @@ def mechanism_candidates(text, code_files, ask):
     if not isinstance(candidates, list):
         raise ValueError("no candidates list")
     mechanisms, critiques, dropped = [], [], 0
-    for c in candidates[:20]:
+    merged = 0
+    for c in candidates[:30 if version == MECH_V2 else 20]:
         if not isinstance(c, dict):
             continue
         quotes = c.get("quotes")
@@ -328,9 +357,24 @@ def mechanism_candidates(text, code_files, ask):
             dropped += 1
             continue
         item = {**c, "evidence": evidence}
-        if c.get("category_code") in MECHANISM_KINDS:
+        if c.get("kind") != "evaluation_critique" and c.get("category_code") in MECHANISM_KINDS:
+            if version == MECH_V2:
+                words = set(re.findall(r"\w+", str(c.get("mechanism") or "").lower()))
+                anchors = {_flat(e["support_description"]) for e in evidence}
+                duplicate = False
+                for old in mechanisms:
+                    old_words = set(re.findall(r"\w+", str(old.get("mechanism") or "").lower()))
+                    old_anchors = {_flat(e["support_description"]) for e in old["evidence"]}
+                    if anchors & old_anchors or (words and old_words and len(words & old_words) / len(words | old_words) >= 0.8):
+                        duplicate = True
+                        break
+                if duplicate:
+                    merged += 1
+                    continue
             mechanisms.append(item)
         else:
             item["kind"] = "evaluation_critique"
             critiques.append(item)
+    if stats is not None:
+        stats["merged_candidates"] = merged
     return mechanisms, critiques, dropped
