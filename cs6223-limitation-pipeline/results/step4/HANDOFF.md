@@ -4,11 +4,11 @@
 
 ## 一句话
 
-7 篇论文共 **439 条 limitation**（代码侧 + 论文侧），去重后是 **380 条 Finding**。每条 Finding 就是一个要测试的对象：它说明在什么条件下代码会出现什么行为，给出触发点和对照点（witness_hint），还附带它背后的全部原始记录。你要用的文件只有一个：`results/step4/limitations_for_tests.json`。
+7 篇论文共 **439 条 limitation**（Code side + Paper side），去重后是 **380 条 Finding**。每条 Finding 就是一个要测试的对象：它说明在什么条件下代码会出现什么行为，给出触发点和对照点（witness_hint），还附带它背后的全部原始记录。你要用的文件只有一个：`results/step4/limitations_for_tests.json`。
 
 ## 1. 两侧的 limitation 有什么不同
 
-| | 代码侧（Wanting，步骤 2 + 3b） | 论文侧（Zhaopeng，步骤 1 + 3a） |
+| | Code side（Wanting，步骤 2 + 3b） | Paper side（Zhaopeng，步骤 1 + 3a） |
 |---|---|---|
 | 从哪来 | 从入口函数静态分析 + LLM 找出的检查、分支、回退 | 逐条读论文的机制描述，再去代码里找对应实现 |
 | 说的是什么 | “输入满足条件 X 时，代码会抛异常 / 换路径 / 改变状态” | “论文说要做 A，代码做的是 B（或没做）” |
@@ -24,7 +24,7 @@
 
 ## 2. 数量
 
-| 论文 | 代码侧 | 论文侧 | 两侧合并 | 合计 |
+| 论文 | Code side | Paper side | Merged | Total |
 |---|---|---|---|---|
 | flexposit | 21 | 19 | 1 | 41 |
 | flexprefill | 46 | 19 | 0 | 65 |
@@ -36,53 +36,54 @@
 
 按类别：
 
-| 来源 | undisclosed | contradicts_docs | stated_differently | docs_only | paper_stated | impl_deviates | not_implemented | 合计 |
-|---|---|---|---|---|---|---|---|---|
-| 代码侧 | 163 | 1 | 8 | 11 | 1 | 0 | 0 | 184 |
-| 论文侧 | 0 | 0 | 0 | 0 | 0 | 112 | 78 | 190 |
-| 两侧合并 | 4 | 0 | 0 | 2 | 0 | 0 | 0 | 6 |
+| 来源 | undisclosed | contradicts_docs | stated_differently | docs_only | paper_stated | impl_deviates | not_implemented | paper_hypothesis | Total |
+|---|---|---|---|---|---|---|---|---|---|
+| Code side | 163 | 1 | 8 | 11 | 1 | 0 | 0 | 0 | 184 |
+| Paper side | 0 | 0 | 0 | 0 | 0 | 112 | 78 | 0 | 190 |
+| Merged | 4 | 0 | 0 | 2 | 0 | 0 | 0 | 0 | 6 |
 
 | 类别 | 意思 |
 |---|---|
-| `undisclosed` | 代码有这个限制，用户能读到的地方都没写（核心发现） |
-| `contradicts_docs` | 文档写的和代码行为相反 |
-| `stated_differently` | 文档写了，但边界不同或说得更弱（如“只测过 bf16”vs 代码强制 bf16） |
-| `docs_only` | README / 公开 docstring 写了，论文没写 |
-| `paper_stated` | 论文写了，边界和代码一致 |
-| `impl_deviates` | 论文描述了，代码实现得不一样 |
-| `not_implemented` | 论文描述了，代码里没有 |
+| `undisclosed` | The code has this limitation, but no user-facing source documents it (core finding) |
+| `contradicts_docs` | The documentation contradicts the code behavior |
+| `stated_differently` | The documentation states a different or weaker boundary (e.g. “only tested bf16” vs code requiring bf16) |
+| `docs_only` | The README / public docstring states it, but the paper does not |
+| `paper_stated` | The paper states it with the same boundary as the code |
+| `impl_deviates` | The implementation differs from the paper |
+| `not_implemented` | The paper describes it, but the code does not implement it |
+| `paper_hypothesis` | A hypothesis proposed by Swarm from paper evidence |
 
 按 priority（1 = 先测）：
 
-| 来源 | p1 | p2 | p3 | 合计 |
+| 来源 | p1 | p2 | p3 | Total |
 |---|---|---|---|---|
-| 代码侧 | 45 | 65 | 74 | 184 |
-| 论文侧 | 0 | 111 | 79 | 190 |
-| 两侧合并 | 1 | 5 | 0 | 6 |
+| Code side | 45 | 65 | 74 | 184 |
+| Paper side | 0 | 111 | 79 | 190 |
+| Merged | 1 | 5 | 0 | 6 |
 
 按 effect_type：
 
-| 来源 | reject | path_change | state | accuracy | resource | performance | other | 合计 |
+| 来源 | reject | path_change | state | accuracy | resource | performance | other | Total |
 |---|---|---|---|---|---|---|---|---|
-| 代码侧 | 62 | 71 | 6 | 0 | 0 | 0 | 45 | 184 |
-| 论文侧 | 0 | 0 | 0 | 0 | 0 | 0 | 190 | 190 |
-| 两侧合并 | 2 | 1 | 0 | 0 | 0 | 0 | 3 | 6 |
+| Code side | 62 | 71 | 6 | 0 | 0 | 0 | 45 | 184 |
+| Paper side | 0 | 0 | 0 | 0 | 0 | 0 | 190 | 190 |
+| Merged | 2 | 1 | 0 | 0 | 0 | 0 | 3 | 6 |
 
 按 witness 状态：
 
-| 来源 | solved | solved_contrast_outside_scope | trigger_only | always | infeasible | untranslatable | unknown | no_condition | 合计 |
+| 来源 | solved | solved_contrast_outside_scope | trigger_only | always | infeasible | untranslatable | unknown | no_condition | Total |
 |---|---|---|---|---|---|---|---|---|---|
-| 代码侧 | 172 | 0 | 0 | 0 | 12 | 0 | 0 | 0 | 184 |
-| 论文侧 | 51 | 0 | 1 | 116 | 1 | 0 | 0 | 21 | 190 |
-| 两侧合并 | 6 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 6 |
+| Code side | 172 | 0 | 0 | 0 | 12 | 0 | 0 | 0 | 184 |
+| Paper side | 51 | 0 | 1 | 116 | 1 | 0 | 0 | 21 | 190 |
+| Merged | 6 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 6 |
 
-按审阅状态（盲审由 LLM 子代理做，不是人工；只覆盖了部分代码侧条目）：
+按审阅状态（盲审由 LLM 子代理做，不是人工；只覆盖了部分Code side条目）：
 
-| 来源 | worth_testing | real_but_minor | wrong | unreviewed | 合计 |
+| 来源 | worth_testing | real_but_minor | wrong | unreviewed | Total |
 |---|---|---|---|---|---|
-| 代码侧 | 27 | 40 | 13 | 104 | 184 |
-| 论文侧 | 0 | 0 | 0 | 190 | 190 |
-| 两侧合并 | 2 | 0 | 0 | 4 | 6 |
+| Code side | 27 | 40 | 13 | 104 | 184 |
+| Paper side | 0 | 0 | 0 | 190 | 190 |
+| Merged | 2 | 0 | 0 | 4 | 6 |
 
 ## 3. 一条记录里有什么
 
@@ -91,20 +92,20 @@
 | 字段 | 内容 | 测试时怎么用 |
 |---|---|---|
 | `finding_id` | `<论文>-F###`，在一篇论文内按 priority 排序 | TestCase.finding_id 填它 |
-| `category` | 7 类之一，见上表 | 决定这条测的是“没写”还是“和论文不同” |
+| `category` | 见上表 | 区分文档、实现和论文假设 |
 | `priority` | 1 / 2 / 3 | 先测 1 |
 | `effect_type` | reject / path_change / state / … | 决定 oracle，见第 5 节 |
 | `summary` | 一句话：什么条件下会怎样，附位置 | 给人看 |
 | `witness_hint` | 触发点、对照点和各名字的含义，见第 4 节 | 构造测试输入 |
-| `scope_status` | 是否在论文声明的范围内；目前几乎都是 unknown（论文侧参数映射很少） | out_of_scope 的不计入主结果 |
+| `scope_status` | 是否在论文声明的范围内；目前几乎都是 unknown（Paper side参数映射很少） | out_of_scope 的不计入主结果 |
 | `review` / `review_note` | worth_testing / real_but_minor / wrong / unreviewed，以及是谁审的、理由 | wrong 的可以跳过 |
 | `rationale` | 分类依据、合并了谁、priority 的理由，以及判为“相关但不同”的其他 Finding | 查原因 |
 | `limitation_ids` / `limitations` | 背后的完整 Limitation 记录（两侧都可能有） | 看原始条件、论文原文和代码位置 |
-| `verification_ids` / `verifications` | 代码侧的 3b 结果：在哪里找到了说明、原文 | 判断“文档到底怎么写的” |
+| `verification_ids` / `verifications` | Code side的 3b 结果：在哪里找到了说明、原文 | 判断“文档到底怎么写的” |
 | `confidence` | 目前全部是 llm_assisted | — |
-| `process_confidence` | 代码侧的静态证据：8 项检查的状态、重复测量、预测的测试档位上限、重要性数字（没有自己的档位），见第 6 节；纯论文侧的 Finding 为 null | 作为你定档的输入；不是测试结论 |
+| `process_confidence` | Code side的静态证据：8 项检查的状态、重复测量、预测的测试档位上限、重要性数字（没有自己的档位），见第 6 节；纯Paper side的 Finding 为 null | 作为你定档的输入；不是测试结论 |
 
-注意：论文侧原始记录的 `effect_text` 有一部分写的是“同上……”，指的是 3a 同一条记录的 local_entry 描述。Finding 的 `summary` 已经展开，`limitations` 里保留原样。
+注意：Paper side原始记录的 `effect_text` 有一部分写的是“同上……”，指的是 3a 同一条记录的 local_entry 描述。Finding 的 `summary` 已经展开，`limitations` 里保留原样。
 
 ## 4. witness_hint 怎么读
 
@@ -118,9 +119,9 @@
 | solved | 两个点都有 | 直接用 trigger / contrast |
 | solved_contrast_outside_scope | contrast 只能取在论文 scope 外 | 同上，注意 contrast 不在论文范围内 |
 | trigger_only | 条件在路径上总是成立，没有对照点 | 只用 trigger |
-| always | 论文侧：每次走到引用代码都会出现 | 任意走到 `code_locations` 的输入 |
+| always | Paper side：每次走到引用代码都会出现 | 任意走到 `code_locations` 的输入 |
 | infeasible | 条件和路径前缀矛盾，从入口走不到。`infeasible_because: call_chain` 表示是把被调函数的名字换成入口函数的名字之后才矛盾的（见下面“调用链”） | 已降为 p3，不用花预算 |
-| no_condition | 论文侧：没有可用条件 | 读 `note` 和 summary，人工判断 |
+| no_condition | Paper side：没有可用条件 | 读 `note` 和 summary，人工判断 |
 | untranslatable / unknown | 条件翻译不了 / 求解超时 | 读 condition 原文 |
 
 调用链（`call_chain_status`）：
@@ -139,23 +140,23 @@
 已知不足：
 - 没有调用链（not_found）时，`path_prefix` 仍混着各层函数的条件，同一个名字在调用者和被调用者里可能不是同一个东西。这时别名只在单层时参与求解，其余只列在 `aliases_not_applied` 里。
 - 多行语句的 `snippet` 是 `ast.unparse` 后的第一行：并成一行、去掉 assert 消息、去掉多余括号，最多 200 字符。请按解析后的条件比较，不要逐字比较。
-- 论文侧条件由 LLM 写出，只核对过“名字都出现在引用的代码里”，**语义不一定对**，要当提示用。
+- Paper side条件由 LLM 写出，只核对过“名字都出现在引用的代码里”，**语义不一定对**，要当提示用。
 - 所有值都没有实际执行验证过。
 
 ## 5. 按 effect 选 oracle（建议）
 
 | effect_type | 意思 | 建议的 oracle |
 |---|---|---|
-| reject | 抛异常 / 断言失败 | trigger 上断言抛出指定异常，contrast 上不抛 |
-| path_change | 换了一条执行路径（回退、换 kernel、换策略） | path hook：在两条路径的入口打桩，trigger 走限制分支、contrast 不走 |
-| accuracy | 结果精度变差 | differential：和参考实现比，trigger 上误差超过阈值 |
-| state | 依赖前几次调用留下的状态 | event_sequence：先按顺序调用把状态弄成 trigger，再检查 |
-| resource / performance | 内存 / 时间 | resource：测量，对比 contrast |
-| other（论文侧几乎全是） | 实现和论文描述不同，没有确定的运行时后果 | witness 为 always 时：走到引用代码的任一输入，和论文公式 / 描述做 differential 或 metamorphic 对比；3a 只做了静态判断，后果未证实 |
+| reject | Raises an exception / fails an assertion | Assert that trigger raises the specified exception and contrast does not |
+| path_change | Changes execution path (fallback, kernel, or strategy) | path hook: instrument both path entries; trigger takes the limited branch and contrast does not |
+| accuracy | Reduced result accuracy | differential: compare with a reference implementation; trigger error exceeds the threshold |
+| state | Depends on state left by previous calls | event_sequence: call in order to establish the trigger state, then check |
+| resource / performance | Memory / time | resource: measure and compare with contrast |
+| other (almost all paper-side findings) | The implementation differs from the paper, with no established runtime consequence | When witness is always: use any input that reaches the cited code and compare with the paper formula / description using differential or metamorphic tests; 3a made only a static judgment; the consequence is unconfirmed |
 
-## 6. 代码侧的静态证据（未校准，没有自己的档位）
+## 6. Code side的静态证据（未校准，没有自己的档位）
 
-每条有代码侧记录的 Finding 带一个 `process_confidence` 块（格式 `process-confidence-v2`，规则见 `docs/11_process_confidence.md`）。它是对你的档位的补充：**代码侧不定档，档位只由你的测试证据决定**。不执行代码、不调模型，同样的输入得到同样的结果。块里有四部分。
+每条有Code side记录的 Finding 带一个 `process_confidence` 块（格式 `process-confidence-v2`，规则见 `docs/11_process_confidence.md`）。它是对你的档位的补充：**Code side不定档，档位只由你的测试证据决定**。不执行代码、不调模型，同样的输入得到同样的结果。块里有四部分。
 
 **1. `checks`：核对表。** 词汇和你的 defeater 表一样：`eliminated`（工具核对过）、`residual`（只有论证或模型判断）、`open`（没评估）、`refuted`（核对失败）。
 
@@ -188,13 +189,13 @@
 
 - `path.decision_on`：`main` 每次调用都会求值这个判定；`side` 判定在某个 `if` / `except` / `case` 里面（自己函数里的见 `enclosing_conditions`，调用链上的见 `conditional_call_sites`）；`unknown` 没有调用链，看不到调用者。
 - `impact`：判定管住多少语句（分支体，或 assert / raise 之后函数里剩下的语句）、函数共多少语句、从入口来的调用链条数、仓库里解析到这个函数的调用点数。
-- `coverage`：目标函数里有多少个判定（if / while / assert）、代码侧列出了几个、入口能否静态到达这个函数。这是**分析的覆盖**，不是执行覆盖；执行覆盖在你的 `execution_report.json` 里。
+- `coverage`：目标函数里有多少个判定（if / while / assert）、Code side列出了几个、入口能否静态到达这个函数。这是**分析的覆盖**，不是执行覆盖；执行覆盖在你的 `execution_report.json` 里。
 
 **建议的用法**：测之前按 `ceiling` 分配预算（`测不了` 的不测，`L1` 的少花时间）；测之后把 `limited_by` 放在档位旁边，说明是这句本身测不到更高还是测得不够；没测的 Finding 把 `checks` 和 `repeats` 作为确定性的证据并排列出；`importance` 只用于排序，不进档位。
 
 预测的测试档位上限：
 
-| 论文 | 测不了 | L1 | L2 | L3 | 没测量 | 合计 |
+| 论文 | 测不了 | L1 | L2 | L3 | 没测量 | Total |
 |---|---|---|---|---|---|---|
 | flexposit | 10 | 10 | 1 | 1 | 0 | 22 |
 | flexprefill | 17 | 14 | 4 | 11 | 0 | 46 |
@@ -206,7 +207,7 @@
 
 判定在主路径还是侧路径：
 
-| 论文 | main | side | unknown | 合计 |
+| 论文 | main | side | unknown | Total |
 |---|---|---|---|---|
 | flexposit | 7 | 7 | 8 | 22 |
 | flexprefill | 10 | 24 | 12 | 46 |
@@ -218,9 +219,9 @@
 
 ## 7. 典型例子
 
-每个例子是一条 Finding 的精简版，长字段已截断；完整内容在 json 里。例子是按规则自动挑的第一条，不是挑好看的。“论文侧 · LLM 写出条件”那条正好说明了它的局限：条件在形式上能解，但不一定抓住了论文差异的本质，所以论文侧条件只当提示用。
+每个例子是一条 Finding 的精简版，长字段已截断；完整内容在 json 里。例子是按规则自动挑的第一条，不是挑好看的。“Paper side · LLM 写出条件”那条正好说明了它的局限：条件在形式上能解，但不一定抓住了论文差异的本质，所以Paper side条件只当提示用。
 
-### 代码侧 · undisclosed · p1 · 有别名：`flexprefill-F015`
+### Code side · undisclosed · p1 · 有别名：`flexprefill-F015`
 
 ```json
 {
@@ -317,7 +318,7 @@
 }
 ```
 
-### 代码侧 · stated_differently（文档说得比代码弱）：`flexprefill-F027`
+### Code side · stated_differently（文档说得比代码弱）：`flexprefill-F027`
 
 ```json
 {
@@ -398,7 +399,7 @@
 }
 ```
 
-### 代码侧 · docs_only（README / docstring 写了，论文没写）：`flexposit-F027`
+### Code side · docs_only（README / docstring 写了，论文没写）：`flexposit-F027`
 
 ```json
 {
@@ -491,7 +492,7 @@
 }
 ```
 
-### 代码侧 · state（事件序列）：`flexprefill-F012`
+### Code side · state（事件序列）：`flexprefill-F012`
 
 ```json
 {
@@ -602,7 +603,7 @@
 }
 ```
 
-### 代码侧 · infeasible（多半走不到，p3）：`qoserve-F038`
+### Code side · infeasible（多半走不到，p3）：`qoserve-F038`
 
 ```json
 {
@@ -645,7 +646,7 @@
 }
 ```
 
-### 两侧合并：`flexposit-F004`
+### Merged：`flexposit-F004`
 
 ```json
 {
@@ -736,7 +737,7 @@
 }
 ```
 
-### 论文侧 · impl_deviates · always：`flexposit-F010`
+### Paper side · impl_deviates · always：`flexposit-F010`
 
 ```json
 {
@@ -826,7 +827,7 @@
 }
 ```
 
-### 论文侧 · LLM 写出条件并求解：`flexposit-F018`
+### Paper side · LLM 写出条件并求解：`flexposit-F018`
 
 ```json
 {
@@ -894,7 +895,7 @@
 }
 ```
 
-### 论文侧 · not_implemented：`flexposit-F038`
+### Paper side · not_implemented：`flexposit-F038`
 
 ```json
 {
@@ -934,7 +935,7 @@
 }
 ```
 
-### 论文侧 · no_condition：`flexposit-F011`
+### Paper side · no_condition：`flexposit-F011`
 
 ```json
 {
@@ -980,7 +981,7 @@
 
 ## 8. 全部 Finding 索引
 
-每篇按 priority 排序。列的含义：侧 = 代/论/合（代码侧 / 论文侧 / 两侧合并）；审 = 审阅状态（✓ worth_testing，~ real_but_minor，✗ wrong，空 = 未审）；过程 = 过程置信度档位和判定所在路径（第 6 节；论文侧为空）。
+每篇按 priority 排序。列的含义：侧 = 代/论/合（Code side / Paper side / Merged）；审 = 审阅状态（✓ worth_testing，~ real_but_minor，✗ wrong，空 = 未审）；过程 = 过程置信度档位和判定所在路径（第 6 节；Paper side为空）。
 
 ### flexposit（41 条）
 
