@@ -292,6 +292,8 @@ def main(argv=None):
     sha = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=ROOT, env=env, capture_output=True, text=True, check=True).stdout.strip()
     gen_model = os.environ.get('LIMITSET_GEN_MODEL') or env.get('PIPELINE_MODEL', 'x-test-2')  # generator-only override; the judge never uses it
     gen_port = int(os.environ.get('LIMITSET_GEN_RELAY_PORT') or 0) or None
+    if gen_model.startswith('claude'):
+        os.environ['LIMITSET_GEN_OMIT_SAMPLING'] = '1'  # Claude models reject temperature / response_format json_object
     manifest = {'git_sha': sha, 'model_id': gen_model, 'gen_relay_port': gen_port, 'split': a.split, 'dataset': a.dataset, 'generator': a.generator, 'mechanism_version': a.mechanism_version, 'mech_no_filter': a.mech_no_filter, 'mechanism_examples': str(a.mechanism_examples) if a.mechanism_examples else None, 'repeats': a.repeats, 'started_at': now(), 'pdf_hashes': {c['case_id']: c['pdf_sha256'] for c in selected}}
     from pipeline.limitset_enrich import PROMPT_VERSION
     manifest['enrichment'] = {'enabled': not a.no_enrich, 'model_id': manifest['model_id'], 'prompt_version': PROMPT_VERSION}

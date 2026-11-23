@@ -113,6 +113,8 @@ def main(argv=None):
     gen_port = int(os.environ.get('LIMITSET_GEN_RELAY_PORT') or 0) or None
     if gen_model != env.get('PIPELINE_MODEL', 'x-test-2'):
         env['PIPELINE_MODEL'] = gen_model
+    if gen_model.startswith('claude'):
+        env['LIMITSET_GEN_OMIT_SAMPLING'] = '1'  # Claude models reject temperature
     identity = {'method': args.method, 'model_id': gen_model, 'gen_relay_port': gen_port,
                 'git_sha': sha, 'dataset': args.dataset, 'temperature': 0, 'split': args.split}
     manifest_path = out / 'run_manifest.json'
