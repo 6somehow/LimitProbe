@@ -1,0 +1,126 @@
+[
+  {
+    "headline": "Page-group size in bytes does not imply or guarantee a fixed token block size; token block size depends on model dimensions and tensor parallelism",
+    "claim": "Author boundary: the paper reports Table 8 as a conversion from page-group size to tokens per page-group; it does not claim a byte size is universally equivalent to vLLM's 16-32 token block size. Inferred consequence: comparing page-group bytes to token block size requires normalization by model and TP configuration.",
+    "paper_fact": "Table 8 shows the block size i.e., number of tokens per physical page-group. Smaller page-groups enable fine-grained allocation, approaching vLLM’s recommended block size of 16–32",
+    "premise": "KV cache bytes per token per layer is H*D*P; tensor parallelism splits KV heads; page-group bytes divided by per-token bytes gives tokens per page-group.",
+    "inference": "Therefore, a page-group size in bytes is not a token block size; the same byte size maps to different token counts across models and TP degrees.",
+    "conditional_consequence": "If comparing fragmentation granularity to vLLM's 16-32 token block size, convert using H, D, P, and TP; otherwise the comparison is not apples-to-apples.",
+    "critical_link": "The conversion from bytes to tokens is the link between allocation granularity and fragmentation granularity; without it, page-group size cannot be compared to block size.",
+    "necessary_conditions": [
+      "model H, D, and P are known",
+      "tensor-parallel degree is known",
+      "page-group size is specified in bytes",
+      "per-token footprint calculation is valid for the layout",
+      "no tensor slicing or multi-layer page-group changes the layout"
+    ],
+    "defeaters": [
+      "tensor slicing across layers changes effective block size",
+      "a page-group spans multiple layers",
+      "different KV cache layout or precision",
+      "kernel block size differs from allocation granularity",
+      "TP changes the number of KV heads per worker"
+    ],
+    "do_not_infer": [
+      "64KB equals 16 tokens",
+      "page-group size alone determines block size",
+      "Table 8 values are universal across models and TP degrees",
+      "vLLM block size is directly comparable to bytes"
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L3",
+    "quotes": [
+      {
+        "source": "paper",
+        "locator": "p. 13, Table 8 caption",
+        "quote": "Table 8. KV cache block size as a function of page-group size and degree of tensor parallelism."
+      },
+      {
+        "source": "paper",
+        "locator": "p. 13, §7.6.3",
+        "quote": "Table 8 shows the block size i.e., number of tokens per physical page-group. Smaller page-groups enable fine-grained allocation, approaching vLLM’s recommended block size of 16–32"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 4,
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p. 13, Table 8 caption",
+        "support_description": "Table 8. KV cache block size as a function of page-group size and degree of tensor parallelism."
+      },
+      {
+        "source_id": "paper",
+        "location": "p. 13, §7.6.3",
+        "support_description": "Table 8 shows the block size i.e., number of tokens per physical page-group. Smaller page-groups enable fine-grained allocation, approaching vLLM’s recommended block size of 16–32"
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "KV cache bytes per token per layer is H*D*P; tensor parallelism splits KV heads; page-group bytes divided by per-token bytes gives tokens per page-group. Therefore, a page-group size in bytes is not a token block size; the same byte size maps to different token counts across models and TP degrees."
+  },
+  {
+    "headline": "Reducing fragmentation to 1/N does not imply proportional end-to-end memory or batch-size benefit",
+    "claim": "The reported 1/N fragmentation reduction is relative to the prior per-layer 2MB-page design, not a guarantee that total GPU memory use or batch size improves by a factor of N.",
+    "paper_fact": "This reduces fragmentation to 1/𝑁of the prior design as shown in Table 10.",
+    "premise": "Fragmentation is only one component of GPU memory use; total memory also includes model weights, activations, allocator overhead, and other allocations, and batch size depends on the total.",
+    "inference": "Inferred consequence: a 1/N reduction in per-request page waste does not by itself establish a 1/N reduction in total memory or a 1/N increase in batch size.",
+    "toy_example": "Toy example (not a measurement): if N=32 and per-layer 2MB-page waste is 1MB per request, slicing reduces that waste to about 32KB per request; this does not mean total GPU memory falls by 32x because weights and other allocations remain.",
+    "conditional_consequence": "If fragmentation is the dominant memory constraint and N is large, the slicing benefit can approach the reported 1/N page-waste reduction; if other memory dominates or N is small, the end-to-end benefit is limited.",
+    "critical_link": "The share of total GPU memory and batch-size limits attributable to per-layer 2MB-page fragmentation.",
+    "necessary_conditions": [
+      "fragmentation is a dominant share of total GPU memory",
+      "N is large enough that 1/N page waste is small",
+      "page waste per request is significant",
+      "batch size is limited by KV-cache fragmentation rather than other memory"
+    ],
+    "defeaters": [
+      "other memory dominates",
+      "N is small",
+      "small pages are already used",
+      "request lengths align with page boundaries"
+    ],
+    "do_not_infer": [
+      "Do not infer total memory or batch size scales by N; the paper's 1/N is fragmentation relative to the prior per-layer 2MB design.",
+      "Do not infer the authors measured an end-to-end 1/N gain; Table 10 reports block sizes.",
+      "Do not infer slicing removes all fragmentation; it reduces the prior design's fragmentation to 1/N."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L3",
+    "quotes": [
+      {
+        "source": "paper §8.2",
+        "locator": "p.13",
+        "quote": "This reduces fragmentation to 1/𝑁of the prior design as shown in Table 10."
+      },
+      {
+        "source": "paper §8.2",
+        "locator": "p.13",
+        "quote": "In this method, we use a single 2MB page to store the KV cache tokens of all layers for a given request."
+      },
+      {
+        "source": "paper §8.2",
+        "locator": "p.13",
+        "quote": "This can be done by allocating one virtual tensor of shape [𝐵, 𝐿, 𝑁, 𝐻, 𝐷] for K cache (and one for V cache) and slicing it across all layers, instead of allocating 2×𝑁virtual tensors of shape [𝐵, 𝐿, 𝐻, 𝐷]."
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "author_boundaries": "Authors report 1/N fragmentation relative to the prior design and Table 10 block sizes; they do not report a 1/N end-to-end memory or batch-size gain.",
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p.13",
+        "support_description": "In this method, we use a single 2MB page to store the KV cache tokens of all layers for a given request."
+      },
+      {
+        "source_id": "paper",
+        "location": "p.13",
+        "support_description": "This can be done by allocating one virtual tensor of shape [𝐵, 𝐿, 𝑁, 𝐻, 𝐷] for K cache (and one for V cache) and slicing it across all layers, instead of allocating 2×𝑁virtual tensors of shape [𝐵, 𝐿, 𝐻, 𝐷]."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Fragmentation is only one component of GPU memory use; total memory also includes model weights, activations, allocator overhead, and other allocations, and batch size depends on the total. Inferred consequence: a 1/N reduction in per-request page waste does not by itself establish a 1/N reduction in total memory or a 1/N increase in batch size."
+  }
+]

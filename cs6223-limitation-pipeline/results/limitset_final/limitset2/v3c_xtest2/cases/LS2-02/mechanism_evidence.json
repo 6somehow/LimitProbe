@@ -1,0 +1,998 @@
+{
+  "candidates": [
+    {
+      "headline": "Posit's channel-wise accuracy gain does not guarantee net energy or throughput benefit without the bit-serial co-design.",
+      "claim": "The accuracy advantage of Posit under channel-wise quantization does not by itself guarantee end-to-end energy or throughput gains; those gains depend on FlexPosit's decoder and 4-way bit-serial MAC co-design.",
+      "paper_fact": "To offset the throughput loss inherent to bit-serial execution, FlexPosit groups four PEs into a 4-way MAC cluster, as shown in Fig. 6(a).",
+      "premise": "A numeric format's accuracy advantage is separate from its hardware cost; decoding, conversion, and bit-serial utilization determine net energy and throughput.",
+      "inference": "The paper's efficiency results rely on a specific bit-serial architecture and 4-way clustering, so the format alone does not guarantee the same net benefit in another accelerator.",
+      "toy_example": "Not a measurement: a Posit decoder with high per-weight conversion cost could erase the accuracy-driven energy gain; this is a hypothetical hardware-cost case.",
+      "conditional_consequence": "If decoder overhead or PE underutilization is higher than in FlexPosit, the net energy/throughput advantage may disappear even if Posit improves accuracy.",
+      "critical_link": "The link is the co-design coupling between Posit decoding and the bit-serial systolic array.",
+      "necessary_conditions": [
+        "Hardware synthesis and cycle-level simulation of the full datapath",
+        "Iso-area and iso-PPL comparison",
+        "Decoder and PE utilization measured"
+      ],
+      "defeaters": [
+        "Posit decode overhead is negligible in another design",
+        "Bit-serial utilization is high without 4-way clustering"
+      ],
+      "do_not_infer": [
+        "Do not infer Posit is inefficient",
+        "Do not infer the paper's measured gains are wrong",
+        "Do not infer accuracy gains are irrelevant"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "format accuracy vs hardware co-design cost",
+      "quotes": [
+        {
+          "source": "paper p.7 §V-B",
+          "locator": "first paragraph",
+          "text": "To offset the throughput loss inherent to bit-serial execution, FlexPosit groups four PEs into a 4-way MAC cluster, as shown in Fig. 6(a)."
+        },
+        {
+          "source": "paper p.8 §V-C",
+          "locator": "paragraph 'SerialPosit Design'",
+          "text": "The trade-off is losing encoded-domain operations such as direct comparison and negation, which are unnecessary in this work since Posits are used only for weight storage and are decoded into the FP-domain datapath before any arithmetic."
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A numeric format's accuracy advantage is separate from its hardware cost; decoding, conversion, and bit-serial utilization determine net energy and throughput. The paper's efficiency results rely on a specific bit-serial architecture and 4-way clustering, so the format alone does not guarantee the same net benefit in another accelerator."
+    },
+    {
+      "headline": "Power-of-two per-channel scaling does not guarantee alignment for channels with mixed outlier structure.",
+      "claim": "A single per-channel power-of-two scale selected by SQNR sweep does not guarantee that all weight subpopulations in a channel align well with Posit's tapered precision.",
+      "paper_fact": "A per-channel power-of-two scale further shifts each weight distribution to better align with the Posit profile.",
+      "premise": "Power-of-two scaling only shifts by exponent offsets; it cannot adjust the shape or fine granularity of the distribution, and a channel can contain multiple magnitude clusters.",
+      "inference": "The SQNR sweep chooses the best candidate power-of-two shift, but if the channel has mixed outlier structure, no single power-of-two shift may align all clusters; residual local error can remain.",
+      "toy_example": "Toy example (not a measurement): a channel with many weights near 1 and a few outliers near 3 may not have both clusters optimally placed by one power-of-two shift.",
+      "conditional_consequence": "If a channel's outliers are not aligned to the selected power-of-two shift, the local SQNR may be lower than with a real-valued scale, and end-to-end accuracy may depend on how many such channels exist.",
+      "critical_link": "The critical link is that one power-of-two exponent shift is sufficient to align the channel's full weight distribution to the Posit precision profile.",
+      "necessary_conditions": [
+        "Channel distributions are approximately unimodal or dominated by one magnitude cluster",
+        "es is fixed and chosen appropriately",
+        "candidate scale set includes a shift that aligns the relevant mass",
+        "SQNR captures the relevant error"
+      ],
+      "defeaters": [
+        "Paper reports Posit per-channel quantization recovers most of the gap to per-group",
+        "Power-of-two scale is hardware-aligned and avoids FP multipliers",
+        "Evaluated models show strong accuracy at sub-5-bit"
+      ],
+      "do_not_infer": [
+        "Do not infer power-of-two scaling is ineffective",
+        "Do not infer paper claims real-valued-scale equivalence",
+        "Do not infer all channels have mixed outlier structure"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L5: power-of-two exponent shift may be too coarse for mixed outlier structure",
+      "quotes": [
+        {
+          "source": "paper",
+          "locator": "p.5 §IV-A",
+          "text": "A per-channel power-of-two scale further shifts each weight distribution to better align with the Posit profile."
+        },
+        {
+          "source": "paper",
+          "locator": "p.5 §IV-A",
+          "text": "Power-of-two scales are applied as exponent offsets, avoiding FP multipliers, and a compact 4 b index stores the selected per-channel scale with low metadata overhead."
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "author_boundary": "Authors present power-of-two scaling as a hardware-aligned alignment mechanism and report empirical accuracy; they do not claim it matches real-valued scales for every channel distribution.",
+      "inferred_consequence": "The mechanism's benefit is conditional on the channel distribution being well served by one exponent shift, not guaranteed by the SQNR sweep alone.",
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Power-of-two scaling only shifts by exponent offsets; it cannot adjust the shape or fine granularity of the distribution, and a channel can contain multiple magnitude clusters. The SQNR sweep chooses the best candidate power-of-two shift, but if the channel has mixed outlier structure, no single power-of-two shift may align all clusters; residual local error can remain."
+    },
+    {
+      "headline": "Boundary-only reconfiguration does not guarantee bubble-free precision transitions",
+      "claim": "The paper's boundary-only precision-change rule is not sufficient by itself to guarantee a bubble-free transition when P changes between adjacent channel windows; it also needs an explicit drain/barrier or equivalent FIFO/FSM synchronization at the boundary.",
+      "paper_fact": "Precision changes occur only at channel-window boundaries, where the GPCU propagates updated timing semantics with the same one-cycle row skew, ensuring reconfiguration aligns with the systolic wavefront without pipeline bubbles.",
+      "premise": "In a systolic array with one-cycle row skew and per-column FIFOs, changing the number of cycles P changes when cycP occurs and when decoders push decoded terms; in-flight terms from the old P-window can overlap the new window unless the pipeline is drained or the boundary is otherwise synchronized.",
+      "inference": "The quoted no-bubble statement is a design intent/claim about alignment, not a proof that all in-flight state is empty at the boundary; the missing critical link is a drain/barrier or flush protocol.",
+      "toy_example": "Not a measurement: adjacent windows P=4 then P=5; if a P=4 term is still in a column FIFO when the P=5 cycP marker is issued, decoder push and PE phase timing can refer to different windows.",
+      "conditional_consequence": "If no drain/barrier exists and P changes with in-flight terms, the first weights of the new window can be misaligned, dropped, or accumulated with stale terms, producing bubbles or incorrect partial sums.",
+      "critical_link": "Atomic boundary transition: all PEs/decoders/FIFOs must be at a defined empty or synchronized state before the new P-cycle window's markers take effect.",
+      "necessary_conditions": [
+        "P changes only at channel-window boundaries",
+        "GPCU markers update atomically for all rows/columns",
+        "one-cycle row skew is preserved across the boundary",
+        "in-flight old-P terms are drained or provably cannot overlap new-P terms"
+      ],
+      "defeaters": [
+        "Paper or code specifies a drain/barrier/flush at each precision boundary",
+        "P is changed only at kernel start after full drain, not between windows inside a kernel",
+        "FIFO/FSM design proves no old-P term can remain at boundary"
+      ],
+      "do_not_infer": [
+        "Do not infer that measured bubbles or performance loss occur",
+        "Do not infer the mechanism is incorrect in all cases",
+        "Do not infer the authors did not implement a drain/barrier; the paper excerpt does not show it"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "systolic timing and boundary drain semantics",
+      "quotes": [
+        {
+          "source": "paper p.6 §V-A",
+          "text": "Precision changes occur only at channel-window boundaries, where the GPCU propagates updated timing semantics with the same one-cycle row skew, ensuring reconfiguration aligns with the systolic wavefront without pipeline bubbles."
+        },
+        {
+          "source": "paper p.6 §V-A",
+          "text": "Within each window, activations advance once while weights propagate bit-serially, one full weight (four terms) per precision window."
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "author_boundary": "Authors report boundary-only reconfiguration and claim no bubbles; they do not report a drain/barrier protocol or measured transition-bubble counts in the excerpt.",
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "In a systolic array with one-cycle row skew and per-column FIFOs, changing the number of cycles P changes when cycP occurs and when decoders push decoded terms; in-flight terms from the old P-window can overlap the new window unless the pipeline is drained or the boundary is otherwise synchronized. The quoted no-bubble statement is a design intent/claim about alignment, not a proof that all in-flight state is empty at the boundary; the missing critical link is a drain/barrier or flush protocol."
+    },
+    {
+      "headline": "A P-cycle precision window does not imply continuous fractional precision within a channel window",
+      "claim": "The GPCU's P-cycle window is an integer bit-serial depth per channel window; FlexPosit's fractional precision is a virtual average obtained by mixing integer-precision windows, not a guarantee that a single window can run at an arbitrary fractional P.",
+      "paper_fact": "All weights in a channel window share the same precision within the 4–8 bit range.",
+      "premise": "A bit-serial iteration count P is an integer number of cycles; a fractional mean bit-width can be realized by assigning different integer precisions to different windows and averaging.",
+      "inference": "The paper's 'fractional precision' knob is a schedule-level average (bvirt), while the GPCU's per-window P is integer; an artifact that sets a non-integer P inside one window would differ from the described mechanism.",
+      "toy_example": "Not a measurement: ten windows at 4 b and one window at 5 b give an average of about 4.09 b, but no single window executes 4.09 cycles per weight.",
+      "conditional_consequence": "If an implementation claims per-window fractional P, its timing semantics and decoder/PE phase counts would not match the paper's integer P-cycle window; if it claims only average fractional precision, it is consistent.",
+      "critical_link": "Distinguishing per-window integer P from model-level virtual precision bvirt.",
+      "necessary_conditions": [
+        "channel-window schedule maps each window to an integer P",
+        "weighted average of P over windows equals the reported virtual precision",
+        "GPCU receives P per channel window, not a fractional cycle count"
+      ],
+      "defeaters": [
+        "Paper or code implements fractional P by duty-cycling within a window",
+        "The term 'fractional precision' is explicitly defined as per-window non-integer P",
+        "Averaging is not how bvirt is computed"
+      ],
+      "do_not_infer": [
+        "Do not infer that FlexPosit lacks fractional precision tuning",
+        "Do not infer that average fractional precision is invalid",
+        "Do not infer that P cannot vary between windows"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "precision semantics: per-window integer P vs virtual average",
+      "quotes": [
+        {
+          "source": "paper p.5 §IV-B",
+          "text": "All weights in a channel window share the same precision within the 4–8 bit range."
+        },
+        {
+          "source": "paper p.6 §IV-B",
+          "text": "Here, bvirt serves as the virtual precision, a fractional mean bit-width that characterizes the model’s effective average precision."
+        },
+        {
+          "source": "paper p.6 §V-A",
+          "text": "At the start of each GEMM kernel, the GPCU receives the target precision P determined by the channel-window-level precision adaptation, defining a precision window of P cycles representing one complete bit-serial iteration."
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "author_boundary": "Authors describe integer per-window precision and a fractional mean bvirt; they do not claim a single window can execute a non-integer P.",
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A bit-serial iteration count P is an integer number of cycles; a fractional mean bit-width can be realized by assigning different integer precisions to different windows and averaging. The paper's 'fractional precision' knob is a schedule-level average (bvirt), while the GPCU's per-window P is integer; an artifact that sets a non-integer P inside one window would differ from the described mechanism."
+    },
+    {
+      "headline": "A shared decoded weight term does not imply four independent MAC lanes",
+      "claim": "The 4-way cluster processes four activations against one decoded weight term; it does not provide four independent weight lanes or general per-lane weight parallelism.",
+      "paper_fact": "all PEs operate on the same decoded weight term each cycle while processing four distinct FP16 activations",
+      "premise": "A MAC lane that shares a weight operand computes products for multiple activations with the same weight; independent weights require separate operand streams or cycles.",
+      "inference": "The effective four-MAC behavior is a weight-reuse mapping, not four arbitrary independent MACs.",
+      "toy_example": "Toy example (not a measurement): four activations times one weight is four products; four activations times four different weights would need four weight terms, not one.",
+      "conditional_consequence": "If four activations can share a weight term, the cluster can sustain four products per weight; if each lane needs a distinct weight, the dataflow must serialize or use more clusters.",
+      "critical_link": "The critical link is weight reuse across four activations; without that reuse, the shared-weight cluster cannot act as four independent lanes.",
+      "necessary_conditions": [
+        "four activations share the same decoded weight term",
+        "weight term is reused across four lanes",
+        "activation parallelism of at least four",
+        "dataflow maps four activations to one weight"
+      ],
+      "defeaters": [
+        "workload needs distinct weights per lane",
+        "batch/activation parallelism less than four",
+        "weight reuse not available"
+      ],
+      "do_not_infer": [
+        "Do not infer the cluster cannot do four MACs.",
+        "Do not infer lower peak throughput for all GEMMs.",
+        "Do not infer independent weight lanes exist."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "weight-reuse dataflow vs independent-lane generality",
+      "quotes": [
+        {
+          "source": "paper p.7 §V-B",
+          "text": "all PEs operate on the same decoded weight term each cycle while processing four distinct FP16 activations"
+        },
+        {
+          "source": "paper p.7 §V-B",
+          "text": "effectively performing four parallel MACs per weight"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "author_boundaries": [
+        "Paper claims four activations share one decoded weight term; it does not claim four independent weight lanes or general per-lane weight parallelism."
+      ],
+      "inferred_consequences": [
+        "Mapping requires weight reuse across four activations; independent-weight workloads need different dataflow or multiple cycles."
+      ],
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A MAC lane that shares a weight operand computes products for multiple activations with the same weight; independent weights require separate operand streams or cycles. The effective four-MAC behavior is a weight-reuse mapping, not four arbitrary independent MACs."
+    },
+    {
+      "headline": "Channel-window sensitivity ranking does not imply or guarantee stable allocation across models, datasets, or systolic array geometries.",
+      "claim": "The sensitivity map and hardware-aligned window grouping are specific to the evaluated model, calibration data, baseline/probe precisions, and array column count; they are not guaranteed to transfer unchanged.",
+      "paper_fact": "FlexPosit sets the precision granularity to an integer multiple of the number of columns in the systolic array, partitioning each layer into channel windows—fixed groups of channels matching this size.",
+      "premise": "Sensitivity rankings and hardware alignment depend on model weights, calibration data, and array geometry; changing any of these changes the grouping and ranking.",
+      "inference": "A ranking from one model or array configuration may not preserve accuracy or regularity when ported to another model, dataset, or systolic array dimension.",
+      "toy_example": "Not a measurement: changing the array from 32 to 64 columns changes the channel-window grouping and thus the allocation.",
+      "conditional_consequence": "If array dimensions or window size change, then the same bvirt allocation may not preserve systolic regularity or accuracy.",
+      "critical_link": "The critical link is that window grouping must match systolic columns and that sensitivity must remain stable across the deployment configuration.",
+      "necessary_conditions": [
+        "Same systolic array column count",
+        "Same channel-window size",
+        "Same calibration dataset and baseline/probe precisions",
+        "Stable model and weight distribution"
+      ],
+      "defeaters": [
+        "Paper evaluates multiple models and two window sizes",
+        "Fig. 10 shows sensitivity-guided trend on Qwen2.5-14B",
+        "If deployment matches the evaluated 32-column array and window size"
+      ],
+      "do_not_infer": [
+        "Do not infer channel windows are arbitrary",
+        "Do not infer the paper claims cross-array universality",
+        "Do not infer sensitivity ranking is random"
+      ],
+      "author_boundaries": [
+        "Authors align windows to their 32-column array",
+        "Authors evaluate 256-channel windows by default and 1024 for Qwen models",
+        "Authors do not claim portability to arbitrary array geometries"
+      ],
+      "inferred_consequences": [
+        "Porting to a different array requires re-alignment and re-profiling",
+        "A ranking from one model may not transfer to another model"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L4/L5: coupling and regularity",
+      "quotes": [
+        {
+          "source": "paper p.5 §IV-B",
+          "text": "FlexPosit sets the precision granularity to an integer multiple of the number of columns in the systolic array, partitioning each layer into channel windows—fixed groups of channels matching this size."
+        },
+        {
+          "source": "paper p.9 §VI-A",
+          "text": "Mixed-precision adaptation is applied at the channel-window granularity (256 channels by default and 1024 channels for the Qwen models), aligned to an integer multiple of the number of columns in the systolic array."
+        },
+        {
+          "source": "paper p.6 Fig. 5",
+          "text": "The non-uniform distribution across attention and MLP submodules shows strong intra-layer heterogeneity."
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Sensitivity rankings and hardware alignment depend on model weights, calibration data, and array geometry; changing any of these changes the grouping and ranking. A ranking from one model or array configuration may not preserve accuracy or regularity when ported to another model, dataset, or systolic array dimension."
+    },
+    {
+      "headline": "Channel-wise quantization with per-column rescale does not guarantee low-bit accuracy without a distribution-aware numeric format.",
+      "claim": "The paper's per-column rescale mechanism is a hardware-regularity choice; its reported accuracy depends on Posit and sensitivity-guided MPQ, so channel-wise per-column rescale alone is not an accuracy guarantee.",
+      "paper_fact": "per-channel INT4 exhibits significant accuracy loss compared to INT4 with finer per-group scaling using a group size of 128.",
+      "premise": "Coarser quantization granularity reduces metadata and control but cannot capture intra-channel variation; low-bit accuracy depends on numeric format and precision allocation.",
+      "inference": "The artifact's per-column rescale should not be credited with accuracy recovery; if the artifact omits Posit/MPQ or uses a weak format, low-bit accuracy may fall short of group-wise baselines.",
+      "toy_example": "Toy example (not a measurement): a 4-bit channel-wise INT4 tensor with one scale per output channel can lose small intra-channel variations that a 128-weight group scale would capture.",
+      "conditional_consequence": "If the artifact uses channel-wise per-column rescale with INT4/E2M1 and no MPQ, expect accuracy degradation relative to group-wise; if it includes Posit and MPQ, the paper's accuracy claim may hold.",
+      "critical_link": "Accuracy recovery is attributed to Posit tapered precision and sensitivity-guided channel-window MPQ, not to per-column rescale itself.",
+      "necessary_conditions": [
+        "Posit(4,1) or equivalent distribution-aware format",
+        "per-channel power-of-two scale",
+        "channel-window MPQ aligned to array columns",
+        "FP16 activations",
+        "evaluated LLMs"
+      ],
+      "defeaters": [
+        "Artifact includes Posit and MPQ",
+        "Artifact uses group-wise quantization",
+        "Artifact evaluates different models or formats"
+      ],
+      "do_not_infer": [
+        "Do not infer per-column rescale causes accuracy loss",
+        "Do not infer group-wise is always necessary",
+        "Do not infer channel-wise cannot be accurate with other formats"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "granularity-accuracy trade-off",
+      "quotes": [
+        {
+          "source": "paper p.2 §III-A",
+          "locator": "p.2 §III-A",
+          "text": "Channel-wise quantization offers the opposite trade-off: it maintains hardware regularity by using a single scale factor per output channel, which can be efficiently handled by column-shared rescale units (Fig. 1)."
+        },
+        {
+          "source": "paper p.4 §III-B",
+          "locator": "p.4 §III-B",
+          "text": "per-channel INT4 exhibits significant accuracy loss compared to INT4 with finer per-group scaling using a group size of 128."
+        },
+        {
+          "source": "paper p.3 §III-A",
+          "locator": "p.3 §III-A",
+          "text": "This disparity motivates the search for quantization methods that achieve group-wise accuracy while preserving the hardware efficiency of channel-wise granularity."
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Coarser quantization granularity reduces metadata and control but cannot capture intra-channel variation; low-bit accuracy depends on numeric format and precision allocation. The artifact's per-column rescale should not be credited with accuracy recovery; if the artifact omits Posit/MPQ or uses a weak format, low-bit accuracy may fall short of group-wise baselines."
+    },
+    {
+      "headline": "Channel-aligned weight streams do not guarantee systolic regularity when mixed precision or group-wise layouts are introduced.",
+      "claim": "The mechanism relies on channel-aligned streams and one scale per column; mixed precision at channel-window granularity must align to array columns, and group-wise or outlier layouts break alignment.",
+      "paper_fact": "This alignment ensures that each GEMM tile runs at a uniform precision, maintaining consistent bit-serial timing in the array and eliminating per-channel precision control overhead.",
+      "premise": "Systolic regularity depends on uniform tiling and synchronized execution; finer granularity or per-PE rescale introduces misalignment.",
+      "inference": "The artifact's per-column rescale regularity is conditional on channel-window precision alignment and no group-wise/outlier layouts; if the artifact uses per-channel mixed precision or group-wise scales, regularity may break.",
+      "toy_example": "Toy example (not a measurement): a per-channel precision change inside a column would require multiple bit-serial timings in one tile, breaking uniform timing.",
+      "conditional_consequence": "If the artifact introduces per-channel precision or group-wise scales, per-column rescale may not preserve regularity; if it uses channel-window MPQ aligned to columns, the paper's regularity claim may hold.",
+      "critical_link": "Regularity comes from column-aligned streams and uniform precision per tile, not from channel-wise quantization alone.",
+      "necessary_conditions": [
+        "Output-stationary systolic array with columns mapping to output channels",
+        "channel-aligned weight streams",
+        "precision changes only at channel-window boundaries",
+        "no per-PE rescale or outlier layouts"
+      ],
+      "defeaters": [
+        "Per-channel mixed precision",
+        "Group-wise scales",
+        "Outlier separation",
+        "Non-column-aligned layouts"
+      ],
+      "do_not_infer": [
+        "Do not infer channel-wise quantization alone guarantees regularity",
+        "Do not infer mixed precision is impossible",
+        "Do not infer per-column rescale works for all dataflows"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "systolic-alignment condition",
+      "quotes": [
+        {
+          "source": "paper p.5 §IV-B",
+          "locator": "p.5 §IV-B",
+          "text": "This alignment ensures that each GEMM tile runs at a uniform precision, maintaining consistent bit-serial timing in the array and eliminating per-channel precision control overhead."
+        },
+        {
+          "source": "paper p.2 Fig. 1 caption",
+          "locator": "p.2 Fig. 1 caption",
+          "text": "Channel-wise quantization assigns one scale per channel, yielding column-aligned weight streams and requiring only one rescale unit per column."
+        },
+        {
+          "source": "paper p.2 §III-A",
+          "locator": "p.2 §III-A",
+          "text": "When these per-group quantized weights are streamed column-wise into an output-stationary systolic array (where each column corresponds to an output channel), the group boundaries generally do not align with the size of these columns."
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Systolic regularity depends on uniform tiling and synchronized execution; finer granularity or per-PE rescale introduces misalignment. The artifact's per-column rescale regularity is conditional on channel-window precision alignment and no group-wise/outlier layouts; if the artifact uses per-channel mixed precision or group-wise scales, regularity may break."
+    },
+    {
+      "headline": "Fixing es=1 does not guarantee optimal Posit range–precision balance for every LLM weight distribution.",
+      "claim": "The paper's fixed es=1 setting is validated on its evaluated models, but it does not establish that es=1 is optimal or robust for unseen LLMs with different tail and outlier statistics.",
+      "paper_fact": "For the low-bit regime evaluated, es = 1 provides the strongest accuracy and robustness across the evaluated models (Sec. VI), and we adopt it as the fixed setting in this work.",
+      "premise": "In Posit(n,es), es trades dynamic range against fraction precision; the best es depends on the weight distribution and bit-width, so a fixed es is a design choice rather than a universal optimum.",
+      "inference": "Because es controls range–precision balance and the paper fixes es=1 after evaluating a specific model set, the choice may not generalize to models with different heavy-tail profiles.",
+      "toy_example": "Not a measurement: a model with a wider outlier tail might prefer es=2 at 4 bits even if es=1 wins on the paper's models; this is a hypothetical distribution-shift case.",
+      "conditional_consequence": "If a target model has heavier tails or a different scale distribution, fixed es=1 may lose accuracy relative to per-model es selection or other formats.",
+      "critical_link": "The link is the assumption that es=1's evaluated robustness generalizes to unseen weight distributions.",
+      "necessary_conditions": [
+        "es ablation across multiple es values and model families",
+        "Weight distribution statistics for target models",
+        "Matched bit-width and scale-selection protocol"
+      ],
+      "defeaters": [
+        "es=1 remains best across diverse unseen models",
+        "Per-model es search yields no meaningful gain"
+      ],
+      "do_not_infer": [
+        "Do not infer es=1 is invalid for evaluated models",
+        "Do not infer per-model es search is always worth hardware cost",
+        "Do not infer Posit requires variable es"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "fixed exponent size vs distribution shift",
+      "quotes": [
+        {
+          "source": "paper p.5 §IV-A",
+          "locator": "paragraph after Algorithm 1",
+          "text": "For the low-bit regime evaluated, es = 1 provides the strongest accuracy and robustness across the evaluated models (Sec. VI), and we adopt it as the fixed setting in this work."
+        },
+        {
+          "source": "paper p.5 §IV-A",
+          "locator": "paragraph beginning 'As shown in Fig. 4'",
+          "text": "smaller es concentrates precision near the distribution center, while larger es expands dynamic range for outliers."
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "In Posit(n,es), es trades dynamic range against fraction precision; the best es depends on the weight distribution and bit-width, so a fixed es is a design choice rather than a universal optimum. Because es controls range–precision balance and the paper fixes es=1 after evaluating a specific model set, the choice may not generalize to models with different heavy-tail profiles."
+    },
+    {
+      "headline": "Maximizing per-channel SQNR does not imply or guarantee model-level PPL or task accuracy.",
+      "claim": "Maximizing per-channel SQNR over power-of-two scales does not guarantee model-level PPL or downstream task accuracy.",
+      "paper_fact": "FlexPosit selects this scale by sweeping candidate powers of two, quantizing/dequantizing the channel weights, and choosing the scale with the highest SQNR, as summarized in Algorithm 1.",
+      "premise": "SQNR measures local reconstruction error; model-level perplexity and task accuracy depend on error propagation, activation distributions, and layer sensitivity.",
+      "inference": "The algorithm's highest-SQNR choice is a local reconstruction criterion; it does not by itself establish that the chosen scale maximizes model-level PPL or task accuracy.",
+      "toy_example": "Toy example (not a measurement): two channels can have equal post-quantization SQNR but different downstream PPL impact because one feeds a more sensitive layer.",
+      "conditional_consequence": "If SQNR ranking diverges from PPL sensitivity for a channel, the selected scale can be locally SQNR-optimal but globally suboptimal, so reported PPL gains would depend on empirical correlation rather than the selection rule alone.",
+      "critical_link": "The critical link is that per-channel SQNR ranking must be sufficiently correlated with end-to-end PPL impact for the selected scale to be globally optimal.",
+      "necessary_conditions": [
+        "SQNR is a valid proxy for the target model metric across channels and models",
+        "candidate power-of-two scales include the scale that would be selected by a model-level objective",
+        "activations remain FP16 or activation quantization does not change the ranking",
+        "the channel is the right granularity for scale sharing"
+      ],
+      "defeaters": [
+        "Paper reports PPL and downstream accuracy improvements from the same scale-selection pipeline",
+        "Ablations show SQNR-selected scales outperform random or real-valued alternatives",
+        "The paper explicitly limits claims to evaluated models and low-bit regime"
+      ],
+      "do_not_infer": [
+        "Do not infer that Algorithm 1 is invalid or that SQNR is uncorrelated with PPL",
+        "Do not infer the paper claims a formal guarantee",
+        "Do not infer that per-channel power-of-two scaling cannot improve accuracy"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1: SQNR proxy vs model-level PPL",
+      "quotes": [
+        {
+          "source": "paper",
+          "locator": "p.5 §IV-A",
+          "text": "FlexPosit selects this scale by sweeping candidate powers of two, quantizing/dequantizing the channel weights, and choosing the scale with the highest SQNR, as summarized in Algorithm 1."
+        },
+        {
+          "source": "paper",
+          "locator": "p.5 §IV-A",
+          "text": "Power-of-two scales are applied as exponent offsets, avoiding FP multipliers, and a compact 4 b index stores the selected per-channel scale with low metadata overhead."
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "author_boundary": "Authors report Algorithm 1 as SQNR-maximizing scale selection and separately report PPL/downstream results; they do not claim SQNR is a formal guarantee of PPL.",
+      "inferred_consequence": "The reported PPL gains are empirical evidence for the pipeline, not a proof that SQNR maximization alone guarantees accuracy.",
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "SQNR measures local reconstruction error; model-level perplexity and task accuracy depend on error propagation, activation distributions, and layer sensitivity. The algorithm's highest-SQNR choice is a local reconstruction criterion; it does not by itself establish that the chosen scale maximizes model-level PPL or task accuracy."
+    },
+    {
+      "headline": "Fixing es=1 does not guarantee optimal range-precision balance outside the evaluated low-bit regime.",
+      "claim": "The SQNR-based per-channel scale selection under a fixed es=1 does not guarantee optimal Posit range-precision balance for other bit-widths, model families, or weight distributions.",
+      "paper_fact": "For the low-bit regime evaluated, es = 1 provides the strongest accuracy and robustness across the evaluated models (Sec. VI), and we adopt it as the fixed setting in this work.",
+      "premise": "es controls Posit's range-precision tradeoff; optimal es depends on weight distribution and bit-width.",
+      "inference": "Because es is fixed before scale sweep, the sweep cannot compensate for a suboptimal es; the paper's es=1 choice is empirical for evaluated low-bit models.",
+      "conditional_consequence": "Outside the evaluated low-bit regime, es=1 may constrain SQNR and accuracy; scale selection may be locally optimal under a suboptimal format setting.",
+      "critical_link": "The critical link is that es=1 must be optimal or near-optimal for the target regime.",
+      "necessary_conditions": [
+        "Target is the low-bit regime",
+        "evaluated models are representative",
+        "es is fixed by design",
+        "SQNR proxy is valid"
+      ],
+      "defeaters": [
+        "Paper evaluates multiple models and reports es=1 strongest among evaluated 4-bit Posit configurations",
+        "Paper explicitly scopes to the low-bit regime evaluated"
+      ],
+      "do_not_infer": [
+        "Do not infer es=1 is universally optimal",
+        "Do not infer paper claims universal optimality",
+        "Do not infer mechanism fails outside scope"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L4: scale search coupled to fixed es and channel granularity",
+      "quotes": [
+        {
+          "source": "paper",
+          "locator": "p.5 §IV-A",
+          "text": "For the low-bit regime evaluated, es = 1 provides the strongest accuracy and robustness across the evaluated models (Sec. VI), and we adopt it as the fixed setting in this work."
+        },
+        {
+          "source": "paper",
+          "locator": "p.5 §IV-A",
+          "text": "As shown in Fig. 4, the exponent size es controls Posit’s range–precision balance: smaller es concentrates precision near the distribution center, while larger es expands dynamic range for outliers."
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "author_boundary": "Authors state es=1 is adopted for the low-bit regime evaluated; they do not claim it is optimal for all regimes.",
+      "inferred_consequence": "The scale-selection mechanism is conditional on the fixed es choice, so its reported accuracy is evidence for the evaluated regime rather than a universal guarantee.",
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "es controls Posit's range-precision tradeoff; optimal es depends on weight distribution and bit-width. Because es is fixed before scale sweep, the sweep cannot compensate for a suboptimal es; the paper's es=1 choice is empirical for evaluated low-bit models."
+    },
+    {
+      "headline": "Sign-magnitude SerialPosit does not guarantee zero buffering or zero decode latency; it only removes two’s-complement inversion and wide regime detectors.",
+      "claim": "SerialPosit’s sign-magnitude encoding enables continuous bit-serial field identification, but the decoder still buffers decoded terms in a per-column FIFO and finalizes exponent, mantissa, and zero at cycP, so the encoding alone does not eliminate buffering or full-window latency.",
+      "paper_fact": "At completion, the decoder pushes the exponent, mantissa, and zero flag into the per-column FIFO together, forming one decoded weight.",
+      "premise": "A decoder that accumulates mantissa bits over a multi-cycle precision window must hold partial state and deliver a complete decoded term at the end; a FIFO may be needed to align decoded terms with PE consumption.",
+      "inference": "SerialPosit’s reported benefit is avoiding two’s-complement inversion and wide leading-one/zero detectors, not eliminating decoder buffering or full-window latency; FIFO and FSM costs remain part of the mechanism.",
+      "conditional_consequence": "If FIFO depth and cycP finalization are counted, SerialPosit’s advantage over parallel decode is limited to inversion and detector savings; if they are ignored, the streaming benefit may be overstated.",
+      "critical_link": "The FIFO and cycP finalization are necessary to form a complete decoded weight; sign-magnitude alone does not remove them.",
+      "necessary_conditions": [
+        "Posit used only for weight storage",
+        "GPCU provides cyc0, cyc1, cyc2, and cycP markers",
+        "decoder accumulates mantissa until cycP",
+        "per-column FIFO buffers decoded terms"
+      ],
+      "defeaters": [
+        "If the decoder can emit all fields without final buffering",
+        "If the FIFO is only for cross-PE alignment and not decode latency",
+        "If the paper’s “continuous” explicitly excludes full-word wait but still allows buffering"
+      ],
+      "do_not_infer": [
+        "Do not infer SerialPosit is slower than parallel decode",
+        "Do not infer FIFO dominates area or power; the paper reports the decoder under 2% area and power",
+        "Do not infer the authors claim zero buffering"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "decoder buffering and latency versus streaming claim",
+      "quotes": [
+        {
+          "source": "paper p.8 §V-C",
+          "locator": "p.8 §V-C",
+          "text": "At completion, the decoder pushes the exponent, mantissa, and zero flag into the per-column FIFO together, forming one decoded weight."
+        },
+        {
+          "source": "paper p.6 §V-A",
+          "locator": "p.6 §V-A",
+          "text": "Weights stream bit-serially, are decoded by the SerialPosit decoders (Section V-C) into four 5-bit terms per weight, buffered in a per-column FIFO, and consumed by PEs at the same bit-serial rate."
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A decoder that accumulates mantissa bits over a multi-cycle precision window must hold partial state and deliver a complete decoded term at the end; a FIFO may be needed to align decoded terms with PE consumption. SerialPosit’s reported benefit is avoiding two’s-complement inversion and wide leading-one/zero detectors, not eliminating decoder buffering or full-window latency; FIFO and FSM costs remain part of the mechanism."
+    },
+    {
+      "headline": "XOR-based regime termination does not guarantee valid Posit decoding under arbitrary bitstreams; it assumes an intact regime run and a bounded precision window.",
+      "claim": "The XOR of consecutive bits detects a transition, but it does not validate that the transition is a legal regime terminator or that the regime fits the P-cycle window; correctness depends on the encoded bitstream and GPCU timing.",
+      "paper_fact": "At cyc1, it transitions to the REGIME state, where an XOR of consecutive bits detects the bit flip that terminates the run of identical regime bits.",
+      "premise": "XOR detects any transition between consecutive bits; it cannot by itself distinguish a legal regime-ending flip from a malformed or out-of-window transition.",
+      "inference": "The XOR regime detector is correct only for well-formed SerialPosit words whose regime run terminates within the synchronized P-cycle window; it is not a general error-detecting or arbitrary-stream decoder.",
+      "conditional_consequence": "If bitstreams are well-formed and GPCU-synchronized, XOR is sufficient; if not, early or late regime termination can corrupt decode.",
+      "critical_link": "The regime field must be a run of identical bits terminated by exactly one flip within the precision window.",
+      "necessary_conditions": [
+        "well-formed SerialPosit encoding",
+        "regime run terminates by a single bit flip",
+        "regime length fits the P-cycle window",
+        "GPCU cycle markers synchronize the FSM"
+      ],
+      "defeaters": [
+        "If additional validation logic detects malformed regimes",
+        "If the P-cycle window always bounds regime length by construction",
+        "If the target setting is error-free weight storage only"
+      ],
+      "do_not_infer": [
+        "Do not infer the paper evaluated bit errors or fault tolerance",
+        "Do not infer XOR is unreliable in the intended error-free setting",
+        "Do not infer the decoder lacks all validation beyond XOR"
+      ],
+      "disclosure": "inferred",
+      "category_code": "method_shortcoming",
+      "lens": "regime detection validity and synchronization",
+      "quotes": [
+        {
+          "source": "paper p.8 §V-C",
+          "locator": "p.8 §V-C",
+          "text": "At cyc1, it transitions to the REGIME state, where an XOR of consecutive bits detects the bit flip that terminates the run of identical regime bits."
+        },
+        {
+          "source": "paper p.8 §V-C",
+          "locator": "p.8 §V-C",
+          "text": "a bit-serial pipeline resolves the regime as bits stream in via a simple XOR of consecutive bits"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "XOR detects any transition between consecutive bits; it cannot by itself distinguish a legal regime-ending flip from a malformed or out-of-window transition. The XOR regime detector is correct only for well-formed SerialPosit words whose regime run terminates within the synchronized P-cycle window; it is not a general error-detecting or arbitrary-stream decoder."
+    },
+    {
+      "headline": "A shared FP16 accumulator does not guarantee stall-free four-way utilization",
+      "claim": "Sharing one FP16 accumulator across four PEs is stall-free only under the paper’s round-robin timing assumption, not as an unconditional property of sharing.",
+      "paper_fact": "since each bit-serial multiplication spans multiple cycles, each PE completes its accumulation in turn without stalls",
+      "premise": "A time-multiplexed shared resource is stall-free only if request timing is non-overlapping and service latency fits the schedule.",
+      "inference": "The no-stall property is a scheduling/timing consequence, not an unconditional property of sharing one accumulator.",
+      "toy_example": "Toy example (not a measurement): four lanes each need the accumulator for one cycle every four cycles; if one operation takes five cycles, round-robin overlaps and stalls.",
+      "conditional_consequence": "If round-robin timing holds and each multiply spans at least four cycles, sharing can avoid stalls and save accumulator area; if timing overlaps, stalls or serialization can occur.",
+      "critical_link": "The critical link is the round-robin schedule and bit-serial multiply latency matching the accumulator service interval.",
+      "necessary_conditions": [
+        "P in 4–8",
+        "round-robin PE scheduling",
+        "each bit-serial multiply spans multiple cycles",
+        "accumulator service fits the interleaving window"
+      ],
+      "defeaters": [
+        "P below 4 or unsupported precision",
+        "pipeline hazard or variable-latency operation",
+        "two lanes needing the accumulator in the same cycle",
+        "scheduling not round-robin"
+      ],
+      "do_not_infer": [
+        "Do not infer that sharing always stalls.",
+        "Do not infer that area savings are zero.",
+        "Do not infer that the paper measured stalls."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "resource sharing vs scheduling",
+      "quotes": [
+        {
+          "source": "paper p.7 §V-B",
+          "text": "the four PEs within a cluster share a single FP16 accumulator time-multiplexed across lanes"
+        },
+        {
+          "source": "paper p.7 §V-B",
+          "text": "since each bit-serial multiplication spans multiple cycles, each PE completes its accumulation in turn without stalls"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "author_boundaries": [
+        "Paper claims no stalls under its bit-serial timing and round-robin schedule; it does not claim stall-free operation for arbitrary precision or pipeline timing."
+      ],
+      "inferred_consequences": [
+        "Accumulator-sharing benefit is conditional on scheduling; timing hazards could erode utilization."
+      ],
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A time-multiplexed shared resource is stall-free only if request timing is non-overlapping and service latency fits the schedule. The no-stall property is a scheduling/timing consequence, not an unconditional property of sharing one accumulator."
+    },
+    {
+      "headline": "A fixed sign/exponent/mantissa phase schedule does not imply or guarantee adaptive arithmetic precision.",
+      "claim": "The cyc0/cyc1/cyc2 phase order is a time-multiplexing schedule for one adder; it does not itself adapt numerical precision. Precision changes are set by P and the GPCU at channel-window boundaries, while the arithmetic phase order remains fixed.",
+      "paper_fact": "At cyc0, the sign is computed using XOR; at cyc1, the adder accumulates weight and activation exponents; at cyc2, mantissa multiplication begins using bit-serial shift-and-add.",
+      "premise": "A fixed sequence of operations can reuse hardware but does not change the number of bits or the numerical format unless the schedule length or decoded terms change.",
+      "inference": "The mechanism's fractional precision comes from varying P and the SerialPosit/MPQ configuration, not from the sign/exponent/mantissa phase order itself; the schedule alone cannot guarantee accuracy or precision adaptivity.",
+      "toy_example": "Not a measurement: a 3-step schedule run for 4 cycles or 8 cycles uses the same field order; only the window length changes the bit-serial depth.",
+      "conditional consequence": "If P is fixed, the schedule provides no precision tuning; if P changes only at channel-window boundaries, precision is coarse in time even if fractional in average bit-width.",
+      "critical_link": "The GPCU and decoder must vary P and weight terms; the phase order must remain compatible across P.",
+      "necessary_conditions": [
+        "P is variable and synchronized by GPCU",
+        "Decoder supplies terms for the selected precision",
+        "MPQ allocation sets channel-window precision"
+      ],
+      "defeaters": [
+        "Paper explicitly says GPCU adjusts bit-serial depth dynamically",
+        "The phase schedule is not claimed to be the precision mechanism",
+        "Accuracy is reported from quantization experiments, not from schedule alone"
+      ],
+      "do_not_infer": [
+        "Do not infer there is no precision tuning",
+        "Do not infer the phase schedule is irrelevant to bit-serial execution",
+        "Do not attribute to authors a claim that phase order alone yields accuracy"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "precision control versus arithmetic schedule",
+      "quotes": [
+        {
+          "source": "paper p.7 §V-B",
+          "text": "At cyc0, the sign is computed using XOR; at cyc1, the adder accumulates weight and activation exponents; at cyc2, mantissa multiplication begins using bit-serial shift-and-add."
+        },
+        {
+          "source": "paper p.6 §V-A",
+          "text": "Precision changes occur only at channel-window boundaries, where the GPCU propagates updated timing semantics with the same one-cycle row skew, ensuring reconfiguration aligns with the systolic wavefront without pipeline bubbles."
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A fixed sequence of operations can reuse hardware but does not change the number of bits or the numerical format unless the schedule length or decoded terms change. The mechanism's fractional precision comes from varying P and the SerialPosit/MPQ configuration, not from the sign/exponent/mantissa phase order itself; the schedule alone cannot guarantee accuracy or precision adaptivity."
+    },
+    {
+      "headline": "A single shared adder does not imply or guarantee one MAC per cycle; throughput depends on 4-way cluster interleaving and P.",
+      "claim": "The shared adder serializes sign, exponent, and mantissa work, so per-PE throughput is one product per P-cycle window. The paper's one-product-per-cycle cluster rate depends on four PEs interleaving around a shared accumulator, not on adder reuse alone.",
+      "paper_fact": "Under 4 b operation, each PE produces one multiplication every four cycles. By interleaving four PEs in a round-robin manner, the cluster sustains one product per cycle in steady state, keeping the shared accumulator continuously utilized.",
+      "premise": "A time-multiplexed arithmetic unit cannot by itself sustain one operation per cycle; parallel lanes or interleaving are needed to hide serial latency.",
+      "inference": "The mechanism trades per-PE area for serial latency; cluster-level throughput is a separate architectural condition. From shared-adder reuse alone one cannot infer one MAC/cycle or the reported 4/P rate.",
+      "toy_example": "Not a measurement: one PE with P=4 produces 0.25 product/cycle; four interleaved PEs produce 1 product/cycle if no stalls.",
+      "conditional consequence": "If fewer than four PEs share the accumulator or P>4, effective throughput falls below one MAC/cycle; if P=4 and four PEs interleave, the cluster can match one FP16 MAC/cycle.",
+      "critical_link": "Four PEs per MAC cluster, round-robin scheduling, and a shared accumulator with no stalls.",
+      "necessary_conditions": [
+        "Four PEs per cluster",
+        "P between 4 and 8",
+        "Round-robin interleaving avoids accumulator conflicts"
+      ],
+      "defeaters": [
+        "Paper reports a 4-way MAC cluster and measured latency",
+        "The claim is about cluster throughput, not per-PE throughput",
+        "Stalls or pipeline bubbles could reduce the ideal 4/P rate"
+      ],
+      "do_not_infer": [
+        "Do not infer the shared adder alone gives one MAC/cycle",
+        "Do not infer the design lacks throughput benefits",
+        "Do not attribute to authors a claim that per-PE throughput is one MAC/cycle"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "throughput accounting and serialization",
+      "quotes": [
+        {
+          "source": "paper p.7 §V-B",
+          "text": "Under 4 b operation, each PE produces one multiplication every four cycles. By interleaving four PEs in a round-robin manner, the cluster sustains one product per cycle in steady state, keeping the shared accumulator continuously utilized."
+        },
+        {
+          "source": "paper p.7 §V-B",
+          "text": "each cluster achieves an effective throughput of 4/P MACs per cycle for any supported precision configuration (4 ≤P ≤8), matching the rate of a conventional FP16 MAC at the minimum 4 b precision while retaining the precision-tunable flexibility of bit-serial computation."
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A time-multiplexed arithmetic unit cannot by itself sustain one operation per cycle; parallel lanes or interleaving are needed to hide serial latency. The mechanism trades per-PE area for serial latency; cluster-level throughput is a separate architectural condition. From shared-adder reuse alone one cannot infer one MAC/cycle or the reported 4/P rate."
+    },
+    {
+      "headline": "Column-aligned channel-window granularity does not guarantee that the window is the best accuracy granularity.",
+      "claim": "FlexPosit's hardware-aligned channel windows optimize uniform tile timing and control regularity; they do not establish that a 256/1024-channel window boundary matches the model's sensitivity boundary. The paper's sensitivity profiling ranks windows, not channels within a window, so within-window heterogeneity is not represented in the allocation.",
+      "paper_fact": "FlexPosit sets the precision granularity to an integer multiple of the number of columns in the systolic array, partitioning each layer into channel windows—fixed groups of channels matching this size.",
+      "premise": "Quantization sensitivity can vary at finer granularity than a fixed channel window; coarser grouping can average away sensitive channels and allocate precision to insensitive ones.",
+      "inference": "The mechanism's accuracy benefit depends on window-level ΔPPL ranking being a sufficient proxy for all channels in the window. If within-window sensitivity variance is high, the hardware-aligned boundary is a regularity constraint, not an accuracy-optimal partition.",
+      "toy_example": "Toy example, not a measurement: a 256-channel window containing one highly sensitive channel and 255 insensitive channels receives one shared precision; a finer scheme could upgrade only the sensitive channel.",
+      "conditional_consequence": "If within-window sensitivity variance is high, then at a fixed average bit budget FlexPosit's window-level allocation can underperform finer-grained MPQ; if within-window sensitivity is homogeneous, the concern is moot.",
+      "critical_link": "The claimed accuracy benefit depends on window-level sensitivity ranking being representative of all channels in the window.",
+      "necessary_conditions": [
+        "Window size is an integer multiple of array columns.",
+        "Sensitivity profiling is performed at channel-window granularity.",
+        "All weights in a window share one precision.",
+        "Within-window heterogeneity is not separately modeled."
+      ],
+      "defeaters": [
+        "An ablation showing window-level ranking matches finer-grained ranking.",
+        "Evidence that within-window sensitivity is homogeneous for the evaluated models.",
+        "A demonstration that finer granularity is infeasible on the target systolic array."
+      ],
+      "do_not_infer": [
+        "Do not infer FlexPosit is less accurate than BitMoD overall.",
+        "Do not infer per-channel MPQ is hardware-feasible on this array.",
+        "Do not infer the authors claim the window is accuracy-optimal; they claim hardware-aligned uniformity."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1/L2: proxy vs objective; hardware-aligned uniformity vs sensitivity boundary",
+      "quotes": [
+        {
+          "source": "paper p.5 §IV-B",
+          "text": "FlexPosit sets the precision granularity to an integer multiple of the number of columns in the systolic array, partitioning each layer into channel windows—fixed groups of channels matching this size."
+        },
+        {
+          "source": "paper p.5 §IV-B",
+          "text": "This alignment ensures that each GEMM tile runs at a uniform precision, maintaining consistent bit-serial timing in the array and eliminating per-channel precision control overhead."
+        },
+        {
+          "source": "paper p.6 §IV-B",
+          "text": "Layer-wise analysis is too coarse and misses local variations, while channel-wise or group-wise mixed precision is impractical on conventional systolic arrays because it would require multiple bit-widths to coexist simultaneously within a single tile, disrupting its uniform dataflow and hardware regularity."
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Quantization sensitivity can vary at finer granularity than a fixed channel window; coarser grouping can average away sensitive channels and allocate precision to insensitive ones. The mechanism's accuracy benefit depends on window-level ΔPPL ranking being a sufficient proxy for all channels in the window. If within-window sensitivity variance is high, the hardware-aligned boundary is a regularity constraint, not an accuracy-optimal partition."
+    },
+    {
+      "headline": "Integer-multiple alignment does not guarantee that 256 or 1024 channels is the justified window size.",
+      "claim": "The paper reports 256 channels by default and 1024 for Qwen models, aligned to an integer multiple of array columns. Alignment enforces divisibility; it does not by itself explain why those sizes were chosen or that they are optimal for the accuracy/control trade-off.",
+      "paper_fact": "Mixed-precision adaptation is applied at the channel-window granularity (256 channels by default and 1024 channels for the Qwen models), aligned to an integer multiple of the number of columns in the systolic array.",
+      "premise": "Window size trades accuracy against control/metadata overhead; a divisibility constraint is not an objective and does not select a unique window size.",
+      "inference": "From the shown text, the origin of 256/1024 is unclear beyond alignment; no window-size ablation is shown. The mechanism's benefit threshold depends on this choice.",
+      "toy_example": "Toy example, not a measurement: with 16 array columns, both 128 and 256 channels are integer multiples; divisibility alone does not pick 256.",
+      "conditional_consequence": "If 256/1024 are suboptimal, the accuracy/control trade-off may shift; if they are forced by array dimensions or model channel counts, the concern is weaker.",
+      "critical_link": "Need evidence that 256/1024 were selected by sensitivity or hardware constraints beyond divisibility.",
+      "necessary_conditions": [
+        "Window size is an integer multiple of array columns.",
+        "Model channel counts permit the chosen window.",
+        "Window size affects MPQ granularity and control overhead."
+      ],
+      "defeaters": [
+        "A window-size ablation in the paper (not shown here).",
+        "Evidence that 256/1024 are forced by the 32×16 array and model dimensions.",
+        "Sensitivity results showing accuracy is insensitive to window size."
+      ],
+      "do_not_infer": [
+        "Do not infer 256/1024 are wrong.",
+        "Do not infer any integer multiple works equally.",
+        "Do not infer alignment alone optimizes accuracy; the authors present alignment as a regularity mechanism."
+      ],
+      "disclosure": "inferred",
+      "category_code": "mechanism_origin_unclear",
+      "lens": "L3/L6: unit granularity and benefit threshold",
+      "quotes": [
+        {
+          "source": "paper p.9 §VI-A",
+          "text": "Mixed-precision adaptation is applied at the channel-window granularity (256 channels by default and 1024 channels for the Qwen models), aligned to an integer multiple of the number of columns in the systolic array."
+        },
+        {
+          "source": "paper p.5 §IV-B",
+          "text": "All weights in a channel window share the same precision within the 4–8 bit range."
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Window size trades accuracy against control/metadata overhead; a divisibility constraint is not an objective and does not select a unique window size. From the shown text, the origin of 256/1024 is unclear beyond alignment; no window-size ablation is shown. The mechanism's benefit threshold depends on this choice."
+    },
+    {
+      "headline": "Weight-only quantization does not imply or guarantee full-system low-bit savings.",
+      "claim": "FlexPosit's weight-only path leaves FP16 activations and the FP16 datapath in place, so weight-side memory/compute savings do not by themselves guarantee end-to-end low-bit efficiency.",
+      "paper_fact": "In this work, only the weights are quantized while activations remain in FP16.",
+      "premise": "If activations remain FP16, activation memory traffic, activation bandwidth, and the FP16 activation datapath remain; total system cost is the sum of weight-side and activation-side costs.",
+      "inference": "The reported weight savings can be diluted or dominated by activation cost, especially when batch size or sequence length increases activation traffic.",
+      "toy_example": "Not a measurement: if activation traffic were half of total memory traffic, halving weight bits would reduce total memory traffic by at most about one quarter.",
+      "conditional_consequence": "If a deployment is activation-traffic-bound or uses long sequences/large batches, FlexPosit's weight-only savings may not translate into proportional end-to-end latency or energy gains.",
+      "critical_link": "The missing link is a workload-level accounting showing that remaining FP16 activation bandwidth/energy is small relative to the weight savings for the claimed edge setting.",
+      "necessary_conditions": [
+        "Activation traffic and FP16 datapath cost are non-negligible in the target workload.",
+        "End-to-end efficiency is the claimed consequence, not only weight-side PPL or weight storage.",
+        "The workload is not purely weight-bandwidth-bound."
+      ],
+      "defeaters": [
+        "The target workload is strongly weight-bound and activation traffic is negligible.",
+        "The hardware can avoid or compress FP16 activation traffic without changing the main path.",
+        "The paper's claim is explicitly limited to weight-side savings rather than full-system low-bit efficiency."
+      ],
+      "do_not_infer": [
+        "Do not infer that FlexPosit claims full activation quantization.",
+        "Do not infer that weight-only savings are zero.",
+        "Do not infer that FP16 activations are always the dominant cost."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L6: benefit threshold is where weight savings exceed remaining FP16 activation bandwidth/energy.",
+      "quotes": [
+        {
+          "source": "paper",
+          "locator": "p.5 §IV-A",
+          "text": "In this work, only the weights are quantized while activations remain in FP16."
+        },
+        {
+          "source": "paper",
+          "locator": "p.1 §I",
+          "text": "weight-only quantization is particularly attractive as weights dominate memory and compute in edge inference and can be quantized offline, while activations are sequence-dependent and more sensitive to quantization"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "If activations remain FP16, activation memory traffic, activation bandwidth, and the FP16 activation datapath remain; total system cost is the sum of weight-side and activation-side costs. The reported weight savings can be diluted or dominated by activation cost, especially when batch size or sequence length increases activation traffic."
+    },
+    {
+      "headline": "SerialPosit’s storage-only assumption does not guarantee sign-magnitude is suitable for general Posit arithmetic.",
+      "claim": "The sign-magnitude trade-off is acceptable only because Posits are weight storage and are decoded to FP before arithmetic; it does not establish that SerialPosit supports encoded-domain comparison or negation or general Posit compute.",
+      "paper_fact": "The trade-off is losing encoded-domain operations such as direct comparison and negation, which are unnecessary in this work since Posits are used only for weight storage and are decoded into the FP-domain datapath before any arithmetic.",
+      "premise": "Sign-magnitude encoding changes ordering and negation semantics relative to two’s-complement Posit; encoded-domain comparison or negation would require extra logic or conversion.",
+      "inference": "The sign-magnitude trade-off is acceptable only under the storage-only assumption; it does not establish suitability for general Posit arithmetic or encoded-domain operations.",
+      "conditional_consequence": "If a workload needs encoded-domain compare or negate, SerialPosit’s simplicity benefit may not hold; if all Posits are decoded to FP before use, the trade-off is acceptable.",
+      "critical_link": "The claim that encoded-domain operations are unnecessary depends on Posits being used only for weight storage and decoded before arithmetic.",
+      "necessary_conditions": [
+        "Posits are used only for weight storage",
+        "all arithmetic is in the FP domain after decode",
+        "no encoded-domain comparison or negation is required"
+      ],
+      "defeaters": [
+        "If encoded-domain comparison or negation can be added cheaply",
+        "If sign-magnitude still supports the needed encoded-domain operations",
+        "If the paper’s scope explicitly excludes general Posit arithmetic"
+      ],
+      "do_not_infer": [
+        "Do not infer SerialPosit cannot represent the same values; the paper says it preserves the same represented value set",
+        "Do not infer the paper evaluated general Posit arithmetic",
+        "Do not infer sign-magnitude is invalid for storage-only use"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "storage-only scope of sign-magnitude",
+      "quotes": [
+        {
+          "source": "paper p.8 §V-C",
+          "locator": "p.8 §V-C",
+          "text": "The trade-off is losing encoded-domain operations such as direct comparison and negation, which are unnecessary in this work since Posits are used only for weight storage and are decoded into the FP-domain datapath before any arithmetic."
+        },
+        {
+          "source": "paper p.8 §V-C",
+          "locator": "p.8 §V-C",
+          "text": "This preserves the same represented value set as Posit(n, es), leaving quantization behavior unchanged."
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 2,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Sign-magnitude encoding changes ordering and negation semantics relative to two’s-complement Posit; encoded-domain comparison or negation would require extra logic or conversion. The sign-magnitude trade-off is acceptable only under the storage-only assumption; it does not establish suitability for general Posit arithmetic or encoded-domain operations."
+    }
+  ],
+  "dropped_for_unverified_quotes": 0,
+  "chunk_count": 11,
+  "chunk_failures": 0,
+  "chunk_timings": [
+    {
+      "seconds": 137.87064219196327,
+      "attempts": 1
+    },
+    {
+      "seconds": 124.83624601294287,
+      "attempts": 1
+    },
+    {
+      "seconds": 156.12505872291513,
+      "attempts": 1
+    },
+    {
+      "seconds": 409.58662032103166,
+      "attempts": 2
+    },
+    {
+      "seconds": 189.17347941198386,
+      "attempts": 1
+    },
+    {
+      "seconds": 176.23221840988845,
+      "attempts": 1
+    },
+    {
+      "seconds": 120.98407993512228,
+      "attempts": 1
+    },
+    {
+      "seconds": 197.5999833960086,
+      "attempts": 1
+    },
+    {
+      "seconds": 230.82204754208215,
+      "attempts": 1
+    },
+    {
+      "seconds": 169.01907912804745,
+      "attempts": 1
+    },
+    {
+      "seconds": 167.74544180906378,
+      "attempts": 1
+    }
+  ],
+  "inventory_seconds": 496.1854705000296,
+  "chunks_seconds": 702.1748940909747,
+  "merged_candidates": 0,
+  "unverified_kept": 33
+}

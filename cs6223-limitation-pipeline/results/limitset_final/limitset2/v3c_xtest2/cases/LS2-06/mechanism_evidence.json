@@ -1,0 +1,1213 @@
+{
+  "candidates": [
+    {
+      "id": "C2",
+      "headline": "A chunk size near the reported prefill saturation point does not guarantee efficient chunking across deployments.",
+      "claim": "The paper's saturation around 512 tokens is measured for specific model/hardware; chunk size efficiency depends on tensor-parallel degree, hardware, tile quantization, and batch composition.",
+      "paper_fact": "prefill throughput starts saturating around sequence length of 512 tokens.",
+      "premise": "GPU prefill saturation and tile quantization depend on matrix dimensions, tensor-parallel degree, kernel implementation, and hardware; a saturation point measured on one configuration is not universal.",
+      "inference": "Therefore, a fixed chunk size such as 512 may be inefficient or overhead-heavy when TP degree, hardware, or tile alignment changes; retuning is required.",
+      "toy_example": "Not a measurement: a chunk size of 257 versus 256 on a tile-aligned GPU can change prefill time even though both are near the same token count.",
+      "conditional_consequence": "If TP degree or hardware shifts the saturation point or tile alignment, a 512-token chunk may increase prefill time or reduce capacity; retuning chunk size is needed.",
+      "critical_link": "The link is the assumption that the measured saturation point and tile alignment transfer to the deployment.",
+      "necessary_conditions": [
+        "Same model, kernel, hardware, and TP degree as the measurement",
+        "Chunk size aligned to GPU tile sizes",
+        "Prompt long enough to chunk",
+        "Batch composition similar to evaluated hybrid batches"
+      ],
+      "defeaters": [
+        "Paper reports at most ~25% overhead at chunk 512 and negligible at 2048 in its evaluated Yi-34B setting",
+        "Paper uses token budgets 512/2048 and reports capacity gains",
+        "If deployment matches evaluated configuration, 512 may be acceptable"
+      ],
+      "do_not_infer": [
+        "Do not infer that 512-token chunks are always bad",
+        "Do not infer that the reported saturation measurement is wrong",
+        "Do not infer that chunking has no benefit"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L5_origin_change_regularity",
+      "quotes": [
+        {
+          "quote": "prefill throughput starts saturating around sequence length of 512 tokens.",
+          "source": "Sarathi-Serve paper",
+          "locator": "p.8"
+        },
+        {
+          "quote": "using chunk size of 257 can increase prefill time by 32% compared to that with chunk size 256.",
+          "source": "Sarathi-Serve paper",
+          "locator": "p.9"
+        },
+        {
+          "quote": "in practice we observe that it happens at ∼500-600 tokens for higher tensor parallel dimensions due to fixed overheads.",
+          "source": "Sarathi-Serve paper",
+          "locator": "p.6"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "author_boundary": "Authors report saturation around 512 tokens for their setup and note dependence on TP/hardware; they do not claim 512 is universally optimal.",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p.8",
+          "support_description": "prefill throughput starts saturating around sequence length of 512 tokens."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.9",
+          "support_description": "using chunk size of 257 can increase prefill time by 32% compared to that with chunk size 256."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.6",
+          "support_description": "in practice we observe that it happens at ∼500-600 tokens for higher tensor parallel dimensions due to fixed overheads."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "GPU prefill saturation and tile quantization depend on matrix dimensions, tensor-parallel degree, kernel implementation, and hardware; a saturation point measured on one configuration is not universal. Therefore, a fixed chunk size such as 512 may be inefficient or overhead-heavy when TP degree, hardware, or tile alignment changes; retuning is required."
+    },
+    {
+      "headline": "Stall-free batching does not imply or guarantee throughput gains when decode batches become compute-bound.",
+      "claim": "Stall-free batching's throughput benefit depends on decode memory-bound slack; when decode batches become compute-bound, the mechanism does not guarantee the same throughput gain and may require a smaller token budget.",
+      "paper_fact": "When the number of tokens is small, execution time is dictated by the cost of fetching weights from HBM memory. Hence, execution time is largely stagnant in the 128-512 tokens range, especially for higher tensor parallel degrees. Once the number of tokens in the batch cross a critical threshold, the operation become compute bound and the runtime increases linearly with number of tokens.",
+      "premise": "Packing extra tokens into a batch only has low marginal latency while the batch is memory-bound; once compute-bound, added tokens increase iteration time roughly linearly.",
+      "inference": "Because the paper shows linear-layer time is flat only up to a token threshold and then linear, the stall-free slack is workload- and scale-dependent; at high batch/context the mechanism's net throughput benefit can shrink.",
+      "toy_example": "Toy example (not a measurement): at batch size 64 and long context, the decode batch crosses the compute-bound threshold; adding a prefill chunk increases iteration time roughly linearly, so the same token budget yields less TBT headroom.",
+      "conditional_consequence": "If context lengths grow or batch sizes rise until decodes become compute-bound, the token budget must shrink or TBT SLOs will be violated, reducing the throughput advantage.",
+      "critical_link": "Decode memory-bound slack -> ability to co-run prefill chunks with little TBT impact; if decode becomes compute-bound, that link weakens.",
+      "necessary_conditions": [
+        "Decode batches remain in the memory-bound regime.",
+        "Token budget stays below the compute-bound threshold for the model/hardware/parallelism.",
+        "Prefill chunks can fill leftover budget without pushing iteration latency past SLO."
+      ],
+      "defeaters": [
+        "Hardware/software changes that increase the compute-bound threshold or memory bandwidth.",
+        "Smaller batch sizes or shorter contexts that preserve decode slack.",
+        "Disaggregated prefill/decode that avoids co-running interference."
+      ],
+      "do_not_infer": [
+        "Do not infer stall-free batching has no throughput benefit at scale.",
+        "Do not infer the paper ignores compute-bound behavior; it reports the threshold.",
+        "Do not infer all workloads become compute-bound."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L7_bottleneck_over_scale_time",
+      "quotes": [
+        {
+          "quote": "When the number of tokens is small, execution time is dictated by the cost of fetching weights from HBM memory. Hence, execution time is largely stagnant in the 128-512 tokens range, especially for higher tensor parallel degrees. Once the number of tokens in the batch cross a critical threshold, the operation become compute bound and the runtime increases linearly with number of tokens.",
+          "source": "paper",
+          "locator": "p.6, Figure 6 caption"
+        },
+        {
+          "quote": "Decode batches operate in memory-bound regime leaving compute underutilized. This implies that more tokens can be processed along with a decode batch without significantly increasing its latency.",
+          "source": "paper",
+          "locator": "p.6, Takeaway-2"
+        },
+        {
+          "quote": "This problem is aggravated with increase in prompt lengths and batch size, due to longer and more frequent prefill iterations respectively.",
+          "source": "paper",
+          "locator": "p.7, §3.3"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "author_boundaries": "Paper reports gains on tested models/hardware and notes the compute-bound threshold; it does not claim gains persist when decode slack vanishes.",
+      "inferred_consequences": [
+        "Throughput advantage may shrink as context length or batch size pushes decodes compute-bound.",
+        "Token budget may need to shrink, increasing chunking overhead."
+      ],
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p.6, Figure 6 caption",
+          "support_description": "When the number of tokens is small, execution time is dictated by the cost of fetching weights from HBM memory. Hence, execution time is largely stagnant in the 128-512 tokens range, especially for higher tensor parallel degrees. Once the number of tokens in the batch cross a critical threshold, the operation become compute bound and the runtime increases linearly with number of tokens."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.6, Takeaway-2",
+          "support_description": "Decode batches operate in memory-bound regime leaving compute underutilized. This implies that more tokens can be processed along with a decode batch without significantly increasing its latency."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.7, §3.3",
+          "support_description": "This problem is aggravated with increase in prompt lengths and batch size, due to longer and more frequent prefill iterations respectively."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Packing extra tokens into a batch only has low marginal latency while the batch is memory-bound; once compute-bound, added tokens increase iteration time roughly linearly. Because the paper shows linear-layer time is flat only up to a token threshold and then linear, the stall-free slack is workload- and scale-dependent; at high batch/context the mechanism's net throughput benefit can shrink."
+    },
+    {
+      "headline": "A TBT-optimal token budget does not imply or guarantee minimal pipeline bubbles at scale.",
+      "claim": "A token budget chosen mainly from TBT SLO and chunking overhead is not necessarily the pipeline-parallelism-optimal budget; larger chunks can increase inter-batch runtime variation and pipeline bubbles.",
+      "paper_fact": "We use token budget of 2048 and 512 for all models under the relaxed and strict settings, respectively, except for the LLaMA2-70B relaxed configuration where we use token budget of 1536 to reduce the impact of pipeline bubbles.",
+      "premise": "Pipeline bubbles depend on inter-batch runtime variance; larger chunks can increase variance across micro-batches.",
+      "inference": "A budget selected only from TBT and chunking considerations may be too large for a given PP deployment, so the paper manually reduces it for one configuration.",
+      "toy_example": "Toy example, not a measurement: a 2-stage PP deployment alternating 2048-token prefill chunks with decode-only batches could have more inter-stage idle time than a 1536-token budget.",
+      "conditional_consequence": "If pipeline parallelism, network, or model configuration changes, a static 2048-token budget may cause bubbles and lower capacity even if it was TBT-feasible in another configuration.",
+      "critical_link": "The critical link is coupling between token budget and pipeline-parallel runtime variance; TBT feasibility alone does not capture bubble cost.",
+      "necessary_conditions": [
+        "Pipeline parallelism is used",
+        "Inter-batch runtime variance affects pipeline bubbles",
+        "Token budget is static for the deployment"
+      ],
+      "defeaters": [
+        "Uniform-compute hybrid batches that reduce variance",
+        "Dynamic token-budget selection",
+        "PP configuration with negligible bubble sensitivity"
+      ],
+      "do_not_infer": [
+        "Do not infer the paper claims 1536 is universally optimal for PP; it is a specific LLaMA2-70B relaxed configuration choice.",
+        "Do not infer the paper measured all PP configurations or dynamic budget policies."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L7",
+      "quotes": [
+        {
+          "quote": "We use token budget of 2048 and 512 for all models under the relaxed and strict settings, respectively, except for the LLaMA2-70B relaxed configuration where we use token budget of 1536 to reduce the impact of pipeline bubbles.",
+          "source": "paper",
+          "locator": "p.11, §5.1"
+        },
+        {
+          "quote": "Larger chunks lead to higher inter-batch runtime variations that result in pipeline bubbles which results in lower overall system throughput.",
+          "source": "paper",
+          "locator": "p.9, §4.3"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p.11, §5.1",
+          "support_description": "We use token budget of 2048 and 512 for all models under the relaxed and strict settings, respectively, except for the LLaMA2-70B relaxed configuration where we use token budget of 1536 to reduce the impact of pipeline bubbles."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.9, §4.3",
+          "support_description": "Larger chunks lead to higher inter-batch runtime variations that result in pipeline bubbles which results in lower overall system throughput."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Pipeline bubbles depend on inter-batch runtime variance; larger chunks can increase variance across micro-batches. A budget selected only from TBT and chunking considerations may be too large for a given PP deployment, so the paper manually reduces it for one configuration."
+    },
+    {
+      "headline": "Iteration-level batching does not imply or guarantee uniform per-iteration compute or pipeline-bubble-free execution.",
+      "claim": "Dynamic request membership per iteration does not guarantee uniform batch execution times; mixed prefill/decode and variable prompt lengths can create pipeline bubbles under pipeline parallelism.",
+      "paper_fact": "However, our experiments show that even with iteration-level scheduling, pipeline bubbles can waste significant GPU cycles with PP (§5.3).",
+      "premise": "Pipeline parallelism needs balanced micro-batches; dynamic membership does not equal uniform compute.",
+      "inference": "Iteration-level batching alone does not eliminate pipeline bubbles; bounding prefill tokens or chunking is needed to make micro-batches uniform.",
+      "toy_example": "Toy example (not a measurement): a 4k-token prefill micro-batch followed by a 32-request decode micro-batch creates a long stage imbalance, so a pipeline stage waits.",
+      "conditional_consequence": "If pipeline parallelism is used with variable prefill lengths, bubbles can waste GPU cycles; if chunked prefills with a token budget are used, bubbles are reduced.",
+      "critical_link": "Per-iteration compute depends on token composition, and the mechanism does not bound prefill tokens or equalize micro-batch runtimes.",
+      "necessary_conditions": [
+        "Pipeline parallelism is deployed",
+        "Requests have variable prompt lengths",
+        "Prefill and decode are mixed across iterations",
+        "Micro-batching is used"
+      ],
+      "defeaters": [
+        "No pipeline parallelism",
+        "Uniform request lengths",
+        "Decode-only workload",
+        "Chunked prefills with a token budget"
+      ],
+      "do_not_infer": [
+        "Do not infer iteration-level batching eliminates pipeline bubbles",
+        "Do not infer Orca's claim holds in all deployments",
+        "Do not infer Sarathi-Serve's chunking is inherent to iteration-level batching"
+      ],
+      "author_boundaries": [
+        "Paper says Orca suggests iteration-level scheduling eliminates bubbles, but their experiments show bubbles remain with PP",
+        "Paper does not claim iteration-level batching alone solves pipeline bubbles"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L4_coupling_choices",
+      "quotes": [
+        {
+          "quote": "However, our experiments show that even with iteration-level scheduling, pipeline bubbles can waste significant GPU cycles with PP (§5.3).",
+          "source": "Sarathi-Serve paper",
+          "locator": "p.7"
+        },
+        {
+          "quote": "Each micro-batch (or iteration) in LLM inference can require a different amount of compute (and consequently has varying execution time), depending on the composition of prefill and decode tokens in the micro-batch (see Figure 8).",
+          "source": "Sarathi-Serve paper",
+          "locator": "p.7"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p.7",
+          "support_description": "However, our experiments show that even with iteration-level scheduling, pipeline bubbles can waste significant GPU cycles with PP (§5.3)."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.7",
+          "support_description": "Each micro-batch (or iteration) in LLM inference can require a different amount of compute (and consequently has varying execution time), depending on the composition of prefill and decode tokens in the micro-batch (see Figure 8)."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Pipeline parallelism needs balanced micro-batches; dynamic membership does not equal uniform compute. Iteration-level batching alone does not eliminate pipeline bubbles; bounding prefill tokens or chunking is needed to make micro-batches uniform."
+    },
+    {
+      "headline": "Tile-aligned chunk sizing on one GPU does not imply or guarantee efficiency on another GPU or model.",
+      "claim": "A chunk size aligned to one GPU's matmul tile dimensions may not be efficient on another GPU or model because tile sizes and compute/memory balance change.",
+      "paper_fact": "Therefore, selecting a suitable token budget is a complex decision which depends on the desired TBT SLO, parallelism configuration, and specific hardware properties.",
+      "premise": "GPU tile/thread-block dimensions vary by architecture and kernel; matmul shapes depend on model hidden dimensions, tensor parallelism, and batch composition.",
+      "inference": "Tile-aware chunk sizing is hardware- and model-specific; a chunk size that avoids quantization on one deployment may be misaligned or differently costly on another, so profiling is required.",
+      "toy_example": "Not a measurement: a chunk size aligned on A100 may not align on a GPU with different tile dimensions; illustrative only.",
+      "conditional_consequence": "If deployed on a different GPU or model, a previously aligned chunk may be misaligned or may shift the bottleneck, requiring re-profiling of the token budget.",
+      "critical_link": "The link from tile alignment to efficiency depends on the actual kernel tile size and the mapping from token chunk size to matmul dimensions in that deployment.",
+      "necessary_conditions": [
+        "known hardware tile sizes",
+        "stable model and kernel implementation",
+        "chunk size maps predictably to matmul dimensions",
+        "profiling or simulator available",
+        "deployment parallelism known"
+      ],
+      "defeaters": [
+        "kernels handle arbitrary sizes efficiently",
+        "dynamic tile selection adapts to shape",
+        "workload is memory-bound",
+        "model dimensions change tile mapping",
+        "hardware has different tile granularity"
+      ],
+      "do_not_infer": [
+        "do not infer 256 is universal",
+        "do not infer alignment transfers across GPUs",
+        "do not infer one model's optimal chunk is another's"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L5_origin_change_regularity",
+      "quotes": [
+        {
+          "quote": "Therefore, selecting a suitable token budget is a complex decision which depends on the desired TBT SLO, parallelism configuration, and specific hardware properties.",
+          "source": "paper",
+          "locator": "p.9, §4.3"
+        },
+        {
+          "quote": "We observe that tile-quantization can dramatically increase prefill computation time e.g., in some cases, using chunk size of 257 can increase prefill time by 32% compared to that with chunk size 256.",
+          "source": "paper",
+          "locator": "p.9, §4.3"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "author_boundaries": "Authors state token-budget choice depends on SLO, parallelism, and hardware and use Vidur profiling; they do not claim a chunk size transfers across GPUs/models.",
+      "inferred_consequences": [
+        "Need re-profile per GPU/model.",
+        "A previously optimal chunk may be misaligned or inefficient."
+      ],
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p.9, §4.3",
+          "support_description": "Therefore, selecting a suitable token budget is a complex decision which depends on the desired TBT SLO, parallelism configuration, and specific hardware properties."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.9, §4.3",
+          "support_description": "We observe that tile-quantization can dramatically increase prefill computation time e.g., in some cases, using chunk size of 257 can increase prefill time by 32% compared to that with chunk size 256."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "GPU tile/thread-block dimensions vary by architecture and kernel; matmul shapes depend on model hidden dimensions, tensor parallelism, and batch composition. Tile-aware chunk sizing is hardware- and model-specific; a chunk size that avoids quantization on one deployment may be misaligned or differently costly on another, so profiling is required."
+    },
+    {
+      "id": "C3",
+      "headline": "Chunked-prefills alone does not imply or guarantee improved TTFT; it can conflict with TTFT.",
+      "claim": "Chunking a prefill into multiple iterations can increase time-to-first-token because chunks are less efficient and the first token waits for all chunks; the paper's ablation shows chunked-prefills-only increases TTFT.",
+      "paper_fact": "chunked-prefills-only increases TTFT as prefill chunks are slightly inefficient whereas hybrid-batching-only increases TBT because long prefills can still create generation stalls.",
+      "premise": "TTFT includes the entire prefill before the first output token; splitting prefill into serial chunks adds per-chunk overhead and can delay first-token completion unless overlapped or offset by other batching effects.",
+      "inference": "Therefore, chunked-prefills is a TBT-oriented tradeoff and can worsen TTFT when used alone; the paper's combined stall-free batching is needed to improve both dimensions in its evaluation.",
+      "toy_example": "Not a measurement: a 4k-token prompt split into eight 512-token chunks must finish all chunks before the first token, so added chunk overhead can delay TTFT relative to one full prefill.",
+      "conditional_consequence": "If TTFT is a strict SLO, chunked-prefills alone may violate it; larger chunks, combined stall-free batching, or disaggregation may be required.",
+      "critical_link": "The link is the serialization and per-chunk overhead from splitting prefill before the first token.",
+      "necessary_conditions": [
+        "Prefill is split into multiple serial iterations",
+        "Chunk overhead is non-negligible",
+        "No sufficient overlap or stall-free batching to hide the added prefill time",
+        "TTFT measured from request arrival through full prefill"
+      ],
+      "defeaters": [
+        "Table 4 shows combined Sarathi-Serve lowers both TTFT and TBT versus hybrid-only in evaluated settings",
+        "Paper explicitly says the two techniques work best together",
+        "Chunked-prefills-only TTFT increase is reported for specific 128-request Yi-34B setup"
+      ],
+      "do_not_infer": [
+        "Do not infer that Sarathi-Serve overall worsens TTFT",
+        "Do not infer that chunked-prefills never helps TTFT",
+        "Do not infer that disaggregation is always better without accounting for KV migration and memory underutilization"
+      ],
+      "disclosure": "reported",
+      "category_code": "method_shortcoming",
+      "lens": "L6_shifted_cost_net_benefit",
+      "quotes": [
+        {
+          "quote": "chunked-prefills-only increases TTFT as prefill chunks are slightly inefficient whereas hybrid-batching-only increases TBT because long prefills can still create generation stalls.",
+          "source": "Sarathi-Serve paper",
+          "locator": "p.13"
+        },
+        {
+          "quote": "disaggregated approaches can execute prefills with maximum efficiency (and therefore yield better TTFT) unlike chunked prefills that are somewhat slower than full prefills.",
+          "source": "Sarathi-Serve paper",
+          "locator": "p.13"
+        },
+        {
+          "quote": "When used together, Sarathi-Serve improves performance along both dimensions.",
+          "source": "Sarathi-Serve paper",
+          "locator": "p.13"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "author_boundary": "Authors report chunked-prefills-only increases TTFT and that combined techniques improve both dimensions in their evaluation; they do not claim chunking alone improves TTFT.",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p.13",
+          "support_description": "chunked-prefills-only increases TTFT as prefill chunks are slightly inefficient whereas hybrid-batching-only increases TBT because long prefills can still create generation stalls."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.13",
+          "support_description": "disaggregated approaches can execute prefills with maximum efficiency (and therefore yield better TTFT) unlike chunked prefills that are somewhat slower than full prefills."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.13",
+          "support_description": "When used together, Sarathi-Serve improves performance along both dimensions."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "TTFT includes the entire prefill before the first output token; splitting prefill into serial chunks adds per-chunk overhead and can delay first-token completion unless overlapped or offset by other batching effects. Therefore, chunked-prefills is a TBT-oriented tradeoff and can worsen TTFT when used alone; the paper's combined stall-free batching is needed to improve both dimensions in its evaluation."
+    },
+    {
+      "headline": "Stall-free batching does not imply or guarantee lower TTFT; it can trade TTFT for TBT by delaying new-request prefill.",
+      "claim": "Stall-free batching prioritizes ongoing decodes and admits new requests only after running requests are accommodated; this does not guarantee lower TTFT and can shift cost to TTFT via delayed new-request prefill and chunking overhead.",
+      "paper_fact": "chunked-prefills-only increases TTFT as prefill chunks are slightly inefficient whereas hybrid-batching-only increases TBT because long prefills can still create generation stalls. When used together, Sarathi-Serve improves performance along both dimensions.",
+      "premise": "Admission order and chunking overhead affect time-to-first-token; protecting ongoing decodes can delay newly admitted prefills.",
+      "inference": "Because Algorithm 3 packs decodes first and only then admits new requests, and Table 4 shows chunked-prefills-only increases TTFT, stall-free batching can trade TTFT for TBT; the paper's combined result does not imply TTFT always improves.",
+      "toy_example": "Toy example (not a measurement): a short prompt arrives while many decodes are running; decodes are packed first, so the new prefill waits for leftover budget, increasing TTFT even though TBT is protected.",
+      "conditional_consequence": "If the workload is TTFT-sensitive or prompts are short, stall-free batching may worsen first-token latency; net benefit depends on TBT SLO tightness and decode slack.",
+      "critical_link": "Decode-first packing -> ongoing decodes protected; new-request prefill waits for leftover budget -> TTFT can increase.",
+      "necessary_conditions": [
+        "Ongoing decodes consume the token budget before new requests are admitted.",
+        "New-request prefill is chunked and may wait for leftover budget.",
+        "TTFT is measured from arrival and includes admission delay."
+      ],
+      "defeaters": [
+        "No backlog of ongoing decodes, so new prefill is admitted immediately.",
+        "Large token budget or disaggregated prefill that avoids waiting.",
+        "Workload with long prompts where TTFT is dominated by prefill compute rather than admission order."
+      ],
+      "do_not_infer": [
+        "Do not infer stall-free batching always worsens TTFT.",
+        "Do not infer the paper claims TTFT is unaffected.",
+        "Do not infer combined Sarathi-Serve does not improve TTFT in the reported setup."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L6_shifted_cost_net_benefit",
+      "quotes": [
+        {
+          "quote": "In every scheduling iteration, we first pack all the running decodes in the next batch (lines 6-8 in Algorithm 3). After that, we include any partially completed prefill (lines 9-12). Only after all the running requests have been accommodated, we admit new requests (lines 13-20).",
+          "source": "paper",
+          "locator": "p.8, §4.2"
+        },
+        {
+          "quote": "chunked-prefills-only increases TTFT as prefill chunks are slightly inefficient whereas hybrid-batching-only increases TBT because long prefills can still create generation stalls. When used together, Sarathi-Serve improves performance along both dimensions.",
+          "source": "paper",
+          "locator": "p.13, Table 4 discussion"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "author_boundaries": "Paper reports combined Sarathi-Serve improves both TTFT and TBT in the Table 4 setup; it does not claim stall-free batching always lowers TTFT.",
+      "inferred_consequences": [
+        "TTFT-sensitive workloads may see worse first-token latency.",
+        "Net benefit depends on TBT SLO tightness and decode slack."
+      ],
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p.8, §4.2",
+          "support_description": "In every scheduling iteration, we first pack all the running decodes in the next batch (lines 6-8 in Algorithm 3). After that, we include any partially completed prefill (lines 9-12). Only after all the running requests have been accommodated, we admit new requests (lines 13-20)."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.13, Table 4 discussion",
+          "support_description": "chunked-prefills-only increases TTFT as prefill chunks are slightly inefficient whereas hybrid-batching-only increases TBT because long prefills can still create generation stalls. When used together, Sarathi-Serve improves performance along both dimensions."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Admission order and chunking overhead affect time-to-first-token; protecting ongoing decodes can delay newly admitted prefills. Because Algorithm 3 packs decodes first and only then admits new requests, and Table 4 shows chunked-prefills-only increases TTFT, stall-free batching can trade TTFT for TBT; the paper's combined result does not imply TTFT always improves."
+    },
+    {
+      "headline": "A one-time profiled token budget does not imply or guarantee TBT SLO compliance under workload shift.",
+      "claim": "The token budget selected by one-time profiling is a proxy for TBT under the profiled deployment, not a guarantee that P99 TBT remains within SLO when prompt-length mix, arrival pattern, or batch composition changes.",
+      "paper_fact": "This can be handled with a one-time profiling of batches with different number of tokens and setting the token budget to maximum number of tokens that can be packed in a batch without violating TBT SLO.",
+      "premise": "Profiling maps token counts to latency only for the measured workload, hardware, and parallelism; tail latency depends on workload distribution and interference.",
+      "inference": "If production workload differs from the profiling workload, the same static token budget may violate the TBT SLO or leave capacity unused.",
+      "toy_example": "Toy example, not a measurement: profiling with median 1.7k-token prompts but serving 7k-token prompts could make a 2048-token budget produce different P99 TBT.",
+      "conditional_consequence": "If prompt lengths or arrival bursts shift after profiling, a static budget chosen from the old profile may no longer be the capacity-maximizing or SLO-safe choice.",
+      "critical_link": "The critical link is representativeness of one-time profiling; the token-to-latency mapping is conditional on deployment and workload.",
+      "necessary_conditions": [
+        "TBT SLO is known and fixed",
+        "Profiling workload is representative of production",
+        "No dynamic token-budget adjustment is used"
+      ],
+      "defeaters": [
+        "Dynamic token-budget variation based on workload characteristics",
+        "Conservative SLO margin",
+        "Admission control that limits load before TBT violations"
+      ],
+      "do_not_infer": [
+        "Do not infer the authors claim a static budget guarantees arbitrary-workload SLO compliance; they explicitly leave dynamic variation for future work.",
+        "Do not infer the paper measured workload-shift degradation for the static budget."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L5",
+      "quotes": [
+        {
+          "quote": "This can be handled with a one-time profiling of batches with different number of tokens and setting the token budget to maximum number of tokens that can be packed in a batch without violating TBT SLO.",
+          "source": "paper",
+          "locator": "p.9, §4.3"
+        },
+        {
+          "quote": "The system performance can be further enhanced by dynamically varying the token budget based on workload characteristics. We leave this exploration for future work.",
+          "source": "paper",
+          "locator": "p.11, §5.1"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p.9, §4.3",
+          "support_description": "This can be handled with a one-time profiling of batches with different number of tokens and setting the token budget to maximum number of tokens that can be packed in a batch without violating TBT SLO."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.11, §5.1",
+          "support_description": "The system performance can be further enhanced by dynamically varying the token budget based on workload characteristics. We leave this exploration for future work."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Profiling maps token counts to latency only for the measured workload, hardware, and parallelism; tail latency depends on workload distribution and interference. If production workload differs from the profiling workload, the same static token budget may violate the TBT SLO or leave capacity unused."
+    },
+    {
+      "headline": "Near-uniform hybrid batches do not imply or guarantee elimination of pipeline bubbles",
+      "claim": "Sarathi-Serve's near-uniform compute hybrid batches reduce pipeline bubbles, but they do not guarantee bubble-free pipeline-parallel serving; bubble behavior depends on token budget, chunk size, context length, and parallelism.",
+      "paper_fact": "hybrid batches (consisting of prefill and decode tokens) constructed by Sarathi-Serve have a near-uniform compute requirement. With pipeline-parallelism, this allows us to create balanced micro-batching based schedules that significantly reduce pipeline bubbles and improve GPU utilization",
+      "premise": "Pipeline bubbles depend on variance in stage runtimes; near-uniform batches reduce but do not eliminate variance from attention/KV-cache and decode context lengths.",
+      "inference": "Near-uniform hybrid batches are a mitigation, not a guarantee of bubble-free PP; token budget and workload must be tuned.",
+      "conditional_consequence": "If chunks are too large or context lengths vary, inter-batch runtime variation and bubbles remain; if token budget is tuned, bubbles can be reduced.",
+      "critical_link": "Uniformity reduces variance but does not bound all stage runtimes; attention cost and KV-cache length still vary.",
+      "necessary_conditions": [
+        "Token budget tuned for PP",
+        "Chunk sizes uniform",
+        "Similar decode context lengths",
+        "Balanced micro-batches"
+      ],
+      "defeaters": [
+        "Measured zero bubbles",
+        "Dynamic token budget",
+        "Workloads with uniform context lengths",
+        "No PP deployment"
+      ],
+      "do_not_infer": [
+        "Sarathi-Serve eliminates all pipeline bubbles",
+        "PP is always viable",
+        "Uniform batches guarantee capacity gains"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L7",
+      "quotes": [
+        {
+          "quote": "hybrid batches (consisting of prefill and decode tokens) constructed by Sarathi-Serve have a near-uniform compute requirement. With pipeline-parallelism, this allows us to create balanced micro-batching based schedules that significantly reduce pipeline bubbles and improve GPU utilization",
+          "source": "paper",
+          "locator": "p.3"
+        },
+        {
+          "quote": "when using pipeline parallelism the effect of token budget on pipeline bubbles should also be taken into account. Larger chunks lead to higher inter-batch runtime variations that result in pipeline bubbles which results in lower overall system throughput.",
+          "source": "paper",
+          "locator": "p.9"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "author_boundaries": [
+        "Paper reports reduced pipeline bubbles with near-uniform batches; it does not claim all bubbles are eliminated under all PP settings."
+      ],
+      "inferred_consequence": "Pipeline-parallel gains from near-uniform hybrid batches are conditional on token-budget and workload tuning, not guaranteed by batch uniformity alone.",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p.3",
+          "support_description": "hybrid batches (consisting of prefill and decode tokens) constructed by Sarathi-Serve have a near-uniform compute requirement. With pipeline-parallelism, this allows us to create balanced micro-batching based schedules that significantly reduce pipeline bubbles and improve GPU utilization"
+        },
+        {
+          "source_id": "paper",
+          "location": "p.9",
+          "support_description": "when using pipeline parallelism the effect of token budget on pipeline bubbles should also be taken into account. Larger chunks lead to higher inter-batch runtime variations that result in pipeline bubbles which results in lower overall system throughput."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Pipeline bubbles depend on variance in stage runtimes; near-uniform batches reduce but do not eliminate variance from attention/KV-cache and decode context lengths. Near-uniform hybrid batches are a mitigation, not a guarantee of bubble-free PP; token budget and workload must be tuned."
+    },
+    {
+      "headline": "Iteration-level batching does not imply or guarantee low TBT latency.",
+      "claim": "Iteration-level batching improves throughput by dynamic per-iteration request membership, but it does not by itself guarantee low time-between-tokens latency.",
+      "paper_fact": "Iteration-level batching improves system throughput but we show that it comes at the cost of high TBT latency due to a phenomenon we call generation stalls.",
+      "premise": "Dynamic batching changes batch membership; latency is determined by per-iteration work and scheduling policy, not by membership granularity alone.",
+      "inference": "The reported throughput benefit is not a latency guarantee; TBT can spike when prefills are eagerly admitted and interfere with ongoing decodes.",
+      "toy_example": "Toy example (not a measurement): two decodes and one long prefill are admitted eagerly; the prefill iteration delays the next decode token, so TBT spikes even though batch membership is dynamic.",
+      "conditional_consequence": "If prefill admission is eager and prompts are long, iteration-level batching can improve throughput while worsening TBT; if prefill tokens are throttled or chunked, the TBT impact is bounded.",
+      "critical_link": "The mechanism controls when requests enter or exit a batch, not how many prefill tokens execute in an iteration; TBT is set by per-iteration compute and prefill/decode interference.",
+      "necessary_conditions": [
+        "Scheduler can add or remove requests per iteration",
+        "KV-cache paging is available",
+        "Requests have variable lengths",
+        "Prefill and decode share iterations or admission policy"
+      ],
+      "defeaters": [
+        "Decode-only workload",
+        "Disaggregated prefill and decode",
+        "Strict prefill throttling",
+        "Very short prompts",
+        "No latency SLO"
+      ],
+      "do_not_infer": [
+        "Do not infer iteration-level batching always causes generation stalls",
+        "Do not infer Sarathi-Serve's chunked prefills are part of Orca",
+        "Do not infer a throughput gain implies a TBT SLO is met"
+      ],
+      "author_boundaries": [
+        "Paper attributes iteration-level batching to Orca and says vLLM and Orca use prefill-prioritizing schedules",
+        "Paper does not claim iteration-level batching alone meets TBT SLOs"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1_proxy_guarantee",
+      "quotes": [
+        {
+          "quote": "Orca [75] introduced iteration-level batching wherein requests can dynamically enter or exit a batch at the granularity of individual iterations.",
+          "source": "Sarathi-Serve paper",
+          "locator": "p.2"
+        },
+        {
+          "quote": "Iteration-level batching improves system throughput but we show that it comes at the cost of high TBT latency due to a phenomenon we call generation stalls.",
+          "source": "Sarathi-Serve paper",
+          "locator": "p.6"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p.2",
+          "support_description": "Orca [75] introduced iteration-level batching wherein requests can dynamically enter or exit a batch at the granularity of individual iterations."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.6",
+          "support_description": "Iteration-level batching improves system throughput but we show that it comes at the cost of high TBT latency due to a phenomenon we call generation stalls."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Dynamic batching changes batch membership; latency is determined by per-iteration work and scheduling policy, not by membership granularity alone. The reported throughput benefit is not a latency guarantee; TBT can spike when prefills are eagerly admitted and interfere with ongoing decodes."
+    },
+    {
+      "headline": "Prefill-prioritizing eager admission does not guarantee throughput benefit under a strict TBT SLO",
+      "claim": "The throughput benefit of prefill-prioritizing eager admission is conditional on the TBT SLO being loose enough to absorb prefill-induced stalls; under a strict SLO, eager admission can cap capacity before larger decode batches help.",
+      "paper_fact": "Prioritizing prefills can improve throughput because it increases the batch size of subsequent decode iterations.",
+      "premise": "Throughput and tail latency are distinct objectives; a policy that raises future decode batch size does not by itself satisfy a P99 TBT SLO.",
+      "inference": "The reported throughput benefit is conditional on the TBT SLO being loose enough to tolerate generation stalls; under a strict SLO, eager admission can limit capacity before the larger decode batch yields net benefit.",
+      "toy_example": "Toy example (not a measurement): if a 2 s prefill is admitted between 10 ms decode iterations, the TBT gap is dominated by the prefill; this illustrates the mechanism, not a measured result.",
+      "conditional_consequence": "If the TBT SLO is loose, eager prefill can raise throughput; if the TBT SLO is strict, the same policy can cap capacity.",
+      "critical_link": "The TBT SLO threshold relative to the duration of eagerly admitted prefills.",
+      "necessary_conditions": [
+        "TBT SLO is enforced on P99",
+        "prefill is scheduled as a whole",
+        "ongoing decodes share the batch",
+        "prefill duration can exceed SLO slack"
+      ],
+      "defeaters": [
+        "chunked prefills",
+        "bounded prompt lengths",
+        "disaggregated prefill",
+        "SLO not enforced"
+      ],
+      "do_not_infer": [
+        "Do not infer eager admission always lowers throughput",
+        "Do not infer eager admission never improves throughput",
+        "Do not infer the paper measured every SLO/model combination"
+      ],
+      "author_boundaries": [
+        "Paper reports vLLM/Orca as prefill-prioritizing baselines and evaluates capacity under selected SLOs; it does not claim eager admission is universally optimal or universally harmful."
+      ],
+      "inferred_consequences": [
+        "Strict-SLO capacity can be limited by generation stalls",
+        "Loose-SLO throughput can benefit"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L6_shifted_cost_net_benefit",
+      "quotes": [
+        {
+          "quote": "Prioritizing prefills can improve throughput because it increases the batch size of subsequent decode iterations.",
+          "source": "paper",
+          "locator": "p.5"
+        },
+        {
+          "quote": "prioritizing prefills leads to high latency because it interferes with ongoing decodes.",
+          "source": "paper",
+          "locator": "p.2"
+        },
+        {
+          "quote": "State-of-the-art systems today use prefill-prioritizing schedules that trade TBT latency for high throughput.",
+          "source": "paper",
+          "locator": "p.7"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p.5",
+          "support_description": "Prioritizing prefills can improve throughput because it increases the batch size of subsequent decode iterations."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.2",
+          "support_description": "prioritizing prefills leads to high latency because it interferes with ongoing decodes."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.7",
+          "support_description": "State-of-the-art systems today use prefill-prioritizing schedules that trade TBT latency for high throughput."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Throughput and tail latency are distinct objectives; a policy that raises future decode batch size does not by itself satisfy a P99 TBT SLO. The reported throughput benefit is conditional on the TBT SLO being loose enough to tolerate generation stalls; under a strict SLO, eager admission can limit capacity before the larger decode batch yields net benefit."
+    },
+    {
+      "headline": "PagedAttention does not imply or guarantee higher serving capacity under strict TBT SLOs",
+      "claim": "PagedAttention's KV-cache paging can increase the maximum batch size, but it does not by itself guarantee higher serving capacity when capacity is defined by meeting a strict tail-latency SLO.",
+      "paper_fact": "Notably, the capacity of vLLM remains largely identical for all the three batch size settings. This implies that even though PagedAttention enables large batch sizes with efficient memory management – in practical situations with latency constraints, vLLM cannot leverage the large batch size due to the steep latency-throughput tradeoff made by it’s prefill-prioritizing scheduler.",
+      "premise": "Serving capacity is the maximum request load a system can sustain while meeting latency targets; memory capacity only bounds batch size and does not determine tail latency.",
+      "inference": "If a paging-enabled system still has scheduler-induced prefill/decode interference, then larger feasible batches may not translate into higher SLO-constrained capacity.",
+      "toy_example": "Not a measurement: a paged server with a prefill-prioritizing scheduler can have lower capacity under a 100 ms P99 TBT SLO than an unpaged server with stall-free scheduling, if long prefills dominate tail latency.",
+      "conditional_consequence": "If strict TBT SLOs are enforced and prefill interference remains, then PagedAttention alone may leave capacity capped despite lower KV-cache fragmentation.",
+      "critical_link": "The critical link is that paging changes KV-cache memory allocation, while SLO capacity is set by scheduler-induced prefill/decode interference and tail latency.",
+      "necessary_conditions": [
+        "Capacity is defined by meeting a strict TBT or tail-latency SLO.",
+        "The scheduler still allows long prefills to interfere with ongoing decodes.",
+        "KV-cache memory is not the only binding constraint on sustained load."
+      ],
+      "defeaters": [
+        "A stall-free or chunked-prefill scheduler removes prefill/decode interference.",
+        "The latency SLO is relaxed enough that larger batches can be used.",
+        "The workload is decode-only or has short prefills, so generation stalls are negligible."
+      ],
+      "do_not_infer": [
+        "Do not infer that PagedAttention has no throughput benefit.",
+        "Do not infer that PagedAttention causes lower capacity.",
+        "Do not infer that memory fragmentation is irrelevant."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L2_objective_stopping_vs_goal",
+      "quotes": [
+        {
+          "quote": "Notably, the capacity of vLLM remains largely identical for all the three batch size settings. This implies that even though PagedAttention enables large batch sizes with efficient memory management – in practical situations with latency constraints, vLLM cannot leverage the large batch size due to the steep latency-throughput tradeoff made by it’s prefill-prioritizing scheduler.",
+          "source": "paper",
+          "locator": "p.12"
+        },
+        {
+          "quote": "PagedAttention [53], which allows more requests to concurrently execute, eliminating fragmentation in KV-cache.",
+          "source": "paper",
+          "locator": "p.3"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "author_boundaries": [
+        "The paper compares vLLM, which couples PagedAttention with a prefill-prioritizing scheduler, against Sarathi-Serve; it does not isolate PagedAttention from scheduler effects."
+      ],
+      "inferred_consequences": [
+        "Paging is necessary but not sufficient for SLO-constrained capacity; latency-aware scheduling is also required."
+      ],
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p.12",
+          "support_description": "Notably, the capacity of vLLM remains largely identical for all the three batch size settings. This implies that even though PagedAttention enables large batch sizes with efficient memory management – in practical situations with latency constraints, vLLM cannot leverage the large batch size due to the steep latency-throughput tradeoff made by it’s prefill-prioritizing scheduler."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.3",
+          "support_description": "PagedAttention [53], which allows more requests to concurrently execute, eliminating fragmentation in KV-cache."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Serving capacity is the maximum request load a system can sustain while meeting latency targets; memory capacity only bounds batch size and does not determine tail latency. If a paging-enabled system still has scheduler-induced prefill/decode interference, then larger feasible batches may not translate into higher SLO-constrained capacity."
+    },
+    {
+      "headline": "PagedAttention does not imply or guarantee low TBT latency under prefill-prioritizing scheduling",
+      "claim": "PagedAttention manages KV-cache memory, but it does not guarantee low time-between-tokens latency when the scheduler eagerly inserts long prefills between decode iterations.",
+      "paper_fact": "Figure 1b shows that increasing load can significantly increase tail latency in a state-of-the-art LLM serving system vLLM [53].",
+      "premise": "Paging changes KV-cache allocation; it does not change the scheduler's decision to run prefills ahead of ongoing decodes.",
+      "inference": "If a paging-enabled system uses prefill-prioritizing scheduling, then long prefills can still create generation stalls and high TBT even though KV-cache fragmentation is reduced.",
+      "toy_example": "Not a measurement: paging reduces KV fragmentation, but a 4k-token prefill inserted between decodes can still create a multi-second TBT spike.",
+      "conditional_consequence": "If prefill-prioritizing scheduling and long prompts coexist, then PagedAttention alone will not prevent TBT tail-latency spikes.",
+      "critical_link": "The critical link is scheduler policy: paging affects memory, while TBT is affected by whether prefills pause ongoing decodes.",
+      "necessary_conditions": [
+        "The scheduler prioritizes prefills and admits them eagerly.",
+        "Prompts are long enough that prefill execution time is significant.",
+        "The system is under load with ongoing decodes."
+      ],
+      "defeaters": [
+        "Chunked prefills or stall-free batching bound per-iteration prefill work.",
+        "Decode-prioritizing scheduling avoids prefill interference.",
+        "Disaggregated prefill and decode eliminate interference."
+      ],
+      "do_not_infer": [
+        "Do not infer that PagedAttention causes generation stalls.",
+        "Do not infer that PagedAttention worsens TBT.",
+        "Do not infer that paging is unnecessary for latency-sensitive serving."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1_proxy_guarantee",
+      "quotes": [
+        {
+          "quote": "Figure 1b shows that increasing load can significantly increase tail latency in a state-of-the-art LLM serving system vLLM [53].",
+          "source": "paper",
+          "locator": "p.1-2"
+        },
+        {
+          "quote": "vLLM induces generation stalls by scheduling as many prefills as possible before resuming ongoing decodes.",
+          "source": "paper",
+          "locator": "p.6"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "author_boundaries": [
+        "The paper's vLLM baseline couples PagedAttention with prefill-prioritizing scheduling; the tail-latency evidence is not a paging-only measurement."
+      ],
+      "inferred_consequences": [
+        "Paging must be paired with latency-aware scheduling to protect TBT under load."
+      ],
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p.6",
+          "support_description": "vLLM induces generation stalls by scheduling as many prefills as possible before resuming ongoing decodes."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Paging changes KV-cache allocation; it does not change the scheduler's decision to run prefills ahead of ongoing decodes. If a paging-enabled system uses prefill-prioritizing scheduling, then long prefills can still create generation stalls and high TBT even though KV-cache fragmentation is reduced."
+    },
+    {
+      "headline": "PagedAttention does not imply or guarantee capacity gains for long-prompt workloads under latency SLOs",
+      "claim": "PagedAttention reduces KV-cache fragmentation, but it does not guarantee higher serving capacity for long-prompt workloads when prefill processing time dominates latency-SLO violations.",
+      "paper_fact": "Finally, note that the capacity of each system is higher for openchat_sharegpt4 dataset compared to the arxiv_summarization dataset. This is expected because prompts in the arxiv_summarization datasets are much longer - 7059 vs 1730 median tokens as shown in Table 2. The larger prompts makes Orca and vLLM more susceptible to latency violations due to higher processing time of these longer prefills.",
+      "premise": "Long prompts increase prefill compute time and can increase interference with decode latency; paging reduces KV-cache fragmentation but does not reduce prefill compute.",
+      "inference": "If long-prompt prefill time is the dominant cause of SLO violations, then paging-enabled memory efficiency may not translate into proportional capacity gains.",
+      "toy_example": "Not a measurement: two long-prompt workloads have the same KV memory; paging helps fragmentation, but prefill compute still sets the TBT SLO and capacity.",
+      "conditional_consequence": "If prompts are long and latency SLOs are strict, then PagedAttention's memory benefit may be outweighed by prefill-time effects unless scheduling also bounds prefill interference.",
+      "critical_link": "The critical link is whether prefill processing time, rather than KV-cache capacity, is the binding constraint on SLO-constrained capacity.",
+      "necessary_conditions": [
+        "Prompts are long enough that prefill time is significant.",
+        "Latency SLOs are strict enough that prefill interference matters.",
+        "The scheduler does not fully bound prefill work per iteration."
+      ],
+      "defeaters": [
+        "Chunked prefills or stall-free batching bound prefill interference.",
+        "Disaggregated prefill and decode remove interference.",
+        "The SLO is relaxed or prompts are short, so prefill time is not dominant."
+      ],
+      "do_not_infer": [
+        "Do not infer that PagedAttention is irrelevant for long-context serving.",
+        "Do not infer that paging cannot help KV-cache capacity at long context.",
+        "Do not infer that long prompts always eliminate paging benefits."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L7_bottleneck_over_scale_time",
+      "quotes": [
+        {
+          "quote": "Finally, note that the capacity of each system is higher for openchat_sharegpt4 dataset compared to the arxiv_summarization dataset. This is expected because prompts in the arxiv_summarization datasets are much longer - 7059 vs 1730 median tokens as shown in Table 2. The larger prompts makes Orca and vLLM more susceptible to latency violations due to higher processing time of these longer prefills.",
+          "source": "paper",
+          "locator": "p.11"
+        },
+        {
+          "quote": "vLLM supports a much larger batch size compared to Orca. The lower batch size in Orca is due to the lack of PagedAttention and the large activation memory footprint associated with processing batches with excessively large number of tokens.",
+          "source": "paper",
+          "locator": "p.11"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "author_boundaries": [
+        "The paper's long-prompt comparison is across full serving systems; it does not isolate paging from prefill compute and scheduling effects."
+      ],
+      "inferred_consequences": [
+        "Paging gains are workload-dependent and may be smaller when prefill time, not KV-cache capacity, dominates the SLO."
+      ],
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p.11",
+          "support_description": "Finally, note that the capacity of each system is higher for openchat_sharegpt4 dataset compared to the arxiv_summarization dataset. This is expected because prompts in the arxiv_summarization datasets are much longer - 7059 vs 1730 median tokens as shown in Table 2. The larger prompts makes Orca and vLLM more susceptible to latency violations due to higher processing time of these longer prefills."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.11",
+          "support_description": "vLLM supports a much larger batch size compared to Orca. The lower batch size in Orca is due to the lack of PagedAttention and the large activation memory footprint associated with processing batches with excessively large number of tokens."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Long prompts increase prefill compute time and can increase interference with decode latency; paging reduces KV-cache fragmentation but does not reduce prefill compute. If long-prompt prefill time is the dominant cause of SLO violations, then paging-enabled memory efficiency may not translate into proportional capacity gains."
+    },
+    {
+      "headline": "Pipeline parallelism does not guarantee higher serving capacity than tensor parallelism.",
+      "claim": "Sarathi-Serve's PP micro-batching gains are conditional on cross-node/commodity-network deployment; with high-bandwidth intra-node interconnects, TP may be preferable and PP's bubble-reduction advantage may not translate to higher capacity.",
+      "paper_fact": "PP is more efficient than TP when high-bandwidth interconnects are unavailable e.g., in cross-node deployments.",
+      "premise": "Parallelism choice depends on communication topology and model size; PP introduces bubbles and pipeline fill/drain, TP introduces all-reduce communication.",
+      "inference": "The mechanism's benefit is not universal; it addresses PP bubbles, but PP itself is chosen because TP is costly across nodes.",
+      "toy_example": "Toy example (not a measurement): a model that fits in 8 GPUs on NVLink may run TP-8 with no PP bubbles, so PP's bubble-reduction mechanism has no target.",
+      "conditional_consequence": "If NVLink TP fits the model and batch, TP may avoid PP bubbles; if cross-node Ethernet, PP with uniform batches can win.",
+      "critical_link": "The paper's PP evaluation uses Falcon-180B over 100 Gbps Ethernet and compares to TP-8; the advantage is tied to that topology.",
+      "necessary_conditions": [
+        "model too large for intra-node TP",
+        "cross-node commodity network",
+        "PP configured",
+        "uniform batches"
+      ],
+      "defeaters": [
+        "model fits on one node with NVLink",
+        "communication overhead is low",
+        "PP bubbles are already small"
+      ],
+      "do_not_infer": [
+        "do not infer PP always beats TP",
+        "do not infer Sarathi-Serve makes PP universally best",
+        "do not infer bubble reduction alone explains all capacity gains"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L7",
+      "quotes": [
+        {
+          "quote": "TP is preferred only within a single node where GPUs are connected via high bandwidth interconnects like NVLink.",
+          "source": "paper",
+          "locator": "p.4"
+        },
+        {
+          "quote": "PP is more efficient than TP when high-bandwidth interconnects are unavailable e.g., in cross-node deployments.",
+          "source": "paper",
+          "locator": "p.4"
+        },
+        {
+          "quote": "TP scales poorly across nodes.",
+          "source": "paper",
+          "locator": "p.12"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "author_boundaries": "Authors state PP is more efficient when high-bandwidth interconnects are unavailable; they evaluate a specific Falcon-180B topology.",
+      "inferred_consequences": [
+        "On NVLink-rich clusters, TP or hybrid choices may dominate."
+      ],
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p.4",
+          "support_description": "TP is preferred only within a single node where GPUs are connected via high bandwidth interconnects like NVLink."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.4",
+          "support_description": "PP is more efficient than TP when high-bandwidth interconnects are unavailable e.g., in cross-node deployments."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.12",
+          "support_description": "TP scales poorly across nodes."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Parallelism choice depends on communication topology and model size; PP introduces bubbles and pipeline fill/drain, TP introduces all-reduce communication. The mechanism's benefit is not universal; it addresses PP bubbles, but PP itself is chosen because TP is costly across nodes."
+    },
+    {
+      "headline": "Paged chunk-prefill kernel support does not imply or guarantee end-to-end serving-capacity gains.",
+      "claim": "The paper reports adding paged chunk-prefill kernels, but kernel-level attention support is only an implementation enabler; end-to-end capacity depends on scheduler behavior, token budget, chunking overhead, model, workload, and SLO.",
+      "paper_fact": "We added support for paged chunk prefill using FlashAttention v2 [38] and FlashInfer [74] kernels.",
+      "premise": "Kernel-level optimizations are components of end-to-end performance; scheduler, batching, chunk size, and workload determine net benefit.",
+      "inference": "Because the paper reports kernel support, not a kernel-only causal ablation, the support statement alone does not establish end-to-end capacity gains.",
+      "toy_example": "Not a measurement: a fast attention kernel can still lose end-to-end if chunking overhead or scheduling dominates.",
+      "conditional_consequence": "If attention is not a dominant cost or chunking overhead is high, then paged chunk-prefill kernel support need not translate into end-to-end capacity gains.",
+      "critical_link": "The link is the proxy relation: kernel-level efficiency is not identical to end-to-end serving capacity.",
+      "necessary_conditions": [
+        "Attention cost is material in end-to-end runtime",
+        "Chunking overhead is bounded",
+        "Token budget and SLO are tuned",
+        "Scheduler and batching effects are included"
+      ],
+      "defeaters": [
+        "End-to-end ablation isolates kernel benefit",
+        "Workload is attention-dominated",
+        "Overhead is negligible at chosen chunk size"
+      ],
+      "do_not_infer": [
+        "Kernel support alone causes reported gains",
+        "All workloads benefit equally",
+        "Kernel optimization is useless"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1_proxy_guarantee",
+      "quotes": [
+        {
+          "quote": "We added support for paged chunk prefill using FlashAttention v2 [38] and FlashInfer [74] kernels.",
+          "source": "paper",
+          "locator": "p.9"
+        },
+        {
+          "quote": "We use FlashAttention backend for all the evaluations in this paper due to its support for wider set of models.",
+          "source": "paper",
+          "locator": "p.9"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "author_boundaries": [
+        "Authors report kernel support and end-to-end evaluations; they do not claim kernel support alone guarantees end-to-end gains."
+      ],
+      "inferred_consequences": [
+        "Kernel-level support is an enabler, not a standalone performance guarantee",
+        "End-to-end benefit depends on scheduler and workload"
+      ],
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p.9",
+          "support_description": "We added support for paged chunk prefill using FlashAttention v2 [38] and FlashInfer [74] kernels."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.9",
+          "support_description": "We use FlashAttention backend for all the evaluations in this paper due to its support for wider set of models."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Kernel-level optimizations are components of end-to-end performance; scheduler, batching, chunk size, and workload determine net benefit. Because the paper reports kernel support, not a kernel-only causal ablation, the support statement alone does not establish end-to-end capacity gains."
+    },
+    {
+      "headline": "Hybrid batching does not imply or guarantee stall-free decoding",
+      "claim": "Combining decodes and prefills in one batch does not by itself eliminate generation stalls; naive hybrid batching can inflate TBT up to 28.3x, and Sarathi-Serve's stall-free property depends on chunked prefills and a token budget.",
+      "paper_fact": "Naive hybrid batching leads to dramatic increase of up to 28.3× in the TBT latency compared to a decode-only batch. In contrast, Sarathi-Serve provides a much tighter bound on latency with chunking.",
+      "premise": "Coalescing prefill with decode only uses spare memory-bound slack; if prefill work exceeds that slack, iteration time grows and decodes wait.",
+      "inference": "Hybrid batching alone is not stall-free; the stall-free property depends on chunked prefills and a token budget.",
+      "conditional_consequence": "If the prefill chunk fits decode slack, hybrid batching is nearly free; if not, TBT spikes and generation stalls appear.",
+      "critical_link": "Chunking bounds per-iteration prefill compute; without it, prefill length controls iteration latency.",
+      "necessary_conditions": [
+        "Chunked prefills",
+        "Token budget",
+        "Decodes packed first",
+        "New requests admitted only within leftover budget"
+      ],
+      "defeaters": [
+        "Full prefill small enough to fit slack",
+        "Relaxed SLO",
+        "Hardware with large memory slack",
+        "Measured no TBT increase"
+      ],
+      "do_not_infer": [
+        "Any hybrid batch is stall-free",
+        "Chunking has zero overhead",
+        "Hybrid batching alone guarantees throughput"
+      ],
+      "toy_example": "Toy example (not a measurement): a decode batch with 10 tokens and a 1,000-token prefill chunk may exceed a 100 ms TBT SLO, while splitting the prefill into 100-token chunks may fit.",
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L6",
+      "quotes": [
+        {
+          "quote": "Naive hybrid batching leads to dramatic increase of up to 28.3× in the TBT latency compared to a decode-only batch. In contrast, Sarathi-Serve provides a much tighter bound on latency with chunking.",
+          "source": "paper",
+          "locator": "p.8"
+        },
+        {
+          "quote": "Stall-free scheduling allows new requests to join a running batch without pausing ongoing decodes. This involves constructing a batch by coalescing all the on-going decodes with one (or more) prefill chunks from new requests such that each batch reaches the pre-configured chunk size.",
+          "source": "paper",
+          "locator": "p.2"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 2,
+      "author_boundaries": [
+        "Paper reports naive hybrid batching TBT inflation and chunking benefit; it does not claim hybrid batching alone is stall-free."
+      ],
+      "inferred_consequence": "Hybrid batching is beneficial only when prefill work is chunked to fit within decode slack and the token budget.",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p.8",
+          "support_description": "Naive hybrid batching leads to dramatic increase of up to 28.3× in the TBT latency compared to a decode-only batch. In contrast, Sarathi-Serve provides a much tighter bound on latency with chunking."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.2",
+          "support_description": "Stall-free scheduling allows new requests to join a running batch without pausing ongoing decodes. This involves constructing a batch by coalescing all the on-going decodes with one (or more) prefill chunks from new requests such that each batch reaches the pre-configured chunk size."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Coalescing prefill with decode only uses spare memory-bound slack; if prefill work exceeds that slack, iteration time grows and decodes wait. Hybrid batching alone is not stall-free; the stall-free property depends on chunked prefills and a token budget."
+    },
+    {
+      "headline": "Decode-prioritizing request-level batching does not guarantee low TBT under all loads or workloads",
+      "claim": "FasterTransformer-style decode-prioritizing scheduling is designed to optimize TBT by preventing prefill interference, but it does not by itself guarantee low TBT, SLO satisfaction, or good serving capacity when load, queueing, or batch-completion effects dominate.",
+      "paper_fact": "\"This strategy optimizes inference for latency metric time-between-tokens or TBT\"",
+      "premise": "TBT is the interval between consecutive output tokens for a request; it can be affected by scheduling, but system load, admission delay, and batch completion also affect user-visible latency and capacity.",
+      "inference": "The paper's TBT benefit is conditional on admitted decodes not being interrupted by prefills. It is not a guarantee that TBT remains low for all requests or that the system meets latency SLOs under high load or length variance.",
+      "toy_example": "Toy example (not a measurement): a long batch keeps decoding after short requests finish; admitted decodes may avoid prefill stalls, but queued requests wait and effective batch size shrinks.",
+      "conditional_consequence": "If load is low and TBT is the strict objective, decode-prioritizing can be safe; if load rises or request lengths vary, throughput loss and queueing can dominate and TBT alone does not ensure SLO satisfaction.",
+      "critical_link": "The mechanism removes prefill interference for ongoing decodes, but TBT optimization is a proxy for one latency metric, not a guarantee of end-to-end latency or capacity.",
+      "necessary_conditions": [
+        "request-level batching with whole-batch completion",
+        "new requests admitted only when no decodes remain",
+        "TBT is the target metric",
+        "load and queueing are low enough that admission delay does not dominate"
+      ],
+      "defeaters": [
+        "high load or large pending queue",
+        "high request-length variance",
+        "strict capacity or TTFT SLO",
+        "iteration-level or disaggregated scheduling alternatives"
+      ],
+      "do_not_infer": [
+        "Author boundary: the paper does not claim decode-prioritizing guarantees all latency metrics or capacity.",
+        "Do not infer that TBT is always low for every request under all loads.",
+        "Do not infer that decode-prioritizing is always worse than prefill-prioritizing for every objective."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L1_proxy_guarantee",
+      "quotes": [
+        {
+          "quote": "\"Traditional request-level batching systems such as FasterTransformer [7] employ decode-prioritizing scheduling.\"",
+          "source": "Sarathi-Serve paper",
+          "locator": "p.2"
+        },
+        {
+          "quote": "\"This strategy optimizes inference for latency metric time-between-tokens or TBT\"",
+          "source": "Sarathi-Serve paper",
+          "locator": "p.2"
+        },
+        {
+          "quote": "\"decode-prioritizing schedulers severely compromise on throughput because even if some requests in a batch finish early, the execution continues with reduced batch size until the completion of the last request.\"",
+          "source": "Sarathi-Serve paper",
+          "locator": "p.2"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 2,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p.2",
+          "support_description": "\"Traditional request-level batching systems such as FasterTransformer [7] employ decode-prioritizing scheduling.\""
+        },
+        {
+          "source_id": "paper",
+          "location": "p.2",
+          "support_description": "\"This strategy optimizes inference for latency metric time-between-tokens or TBT\""
+        },
+        {
+          "source_id": "paper",
+          "location": "p.2",
+          "support_description": "\"decode-prioritizing schedulers severely compromise on throughput because even if some requests in a batch finish early, the execution continues with reduced batch size until the completion of the last request.\""
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "TBT is the interval between consecutive output tokens for a request; it can be affected by scheduling, but system load, admission delay, and batch completion also affect user-visible latency and capacity. The paper's TBT benefit is conditional on admitted decodes not being interrupted by prefills. It is not a guarantee that TBT remains low for all requests or that the system meets latency SLOs under high load or length variance."
+    }
+  ],
+  "dropped_for_unverified_quotes": 0,
+  "chunk_count": 12,
+  "chunk_failures": 0,
+  "chunk_timings": [
+    {
+      "seconds": 155.37210289388895,
+      "attempts": 1
+    },
+    {
+      "seconds": 153.43299359595403,
+      "attempts": 1
+    },
+    {
+      "seconds": 127.04174229106866,
+      "attempts": 1
+    },
+    {
+      "seconds": 182.42513200780377,
+      "attempts": 1
+    },
+    {
+      "seconds": 342.14832103904337,
+      "attempts": 1
+    },
+    {
+      "seconds": 195.04908383614384,
+      "attempts": 1
+    },
+    {
+      "seconds": 453.2259293580428,
+      "attempts": 1
+    },
+    {
+      "seconds": 309.7878604112193,
+      "attempts": 1
+    },
+    {
+      "seconds": 134.55350146791898,
+      "attempts": 1
+    },
+    {
+      "seconds": 138.75334568903781,
+      "attempts": 1
+    },
+    {
+      "seconds": 163.66388873802498,
+      "attempts": 1
+    },
+    {
+      "seconds": 83.51104183890857,
+      "attempts": 1
+    }
+  ],
+  "inventory_seconds": 524.2589263638947,
+  "chunks_seconds": 846.206640358083,
+  "merged_candidates": 7,
+  "unverified_kept": 0
+}

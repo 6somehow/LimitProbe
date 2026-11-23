@@ -1,0 +1,786 @@
+[
+  {
+    "headline": "Dynamic budget beating fixed budget does not imply or guarantee that online pattern adaptation causes the gain",
+    "claim": "FlexPrefill's reported advantage of dynamic settings over fixed budget does not isolate the effect of per-input sparse-pattern search from the effect of per-head budget allocation.",
+    "paper_fact": "Results in Figure 4 show that dynamic settings lead to improved performance and a better balance between inference speed and model effectiveness compared to static budget allocation.",
+    "premise": "Dynamic settings in the ablation change budget allocation; pattern search and budget allocation are coupled in the method, so a dynamic-vs-fixed-budget comparison does not by itself identify which component causes the gain.",
+    "inference": "The comparison supports dynamic budget allocation but not necessarily the online pattern-selection component as the cause of the improvement.",
+    "conditional_consequence": "If a fixed pattern with the same dynamic budget matches the gain, the online pattern search may add overhead without a necessary accuracy benefit.",
+    "critical_link": "A controlled ablation holding budget allocation constant while toggling online pattern search is needed to attribute the gain to pattern adaptation.",
+    "necessary_conditions": [
+      "Budget allocation is held constant when comparing pattern search on/off",
+      "The fixed-budget baseline differs only in budget, not pattern",
+      "Performance and latency are measured under matched sparsity"
+    ],
+    "defeaters": [
+      "A separate ablation shows Query-Aware pattern improves performance at matched budget",
+      "The dynamic-vs-fixed comparison is explicitly described as isolating pattern adaptation",
+      "The gain disappears when pattern search is disabled at the same budget"
+    ],
+    "do_not_infer": [
+      "Do not infer dynamic budget allocation is ineffective",
+      "Do not infer online pattern search has no effect",
+      "Do not infer the paper claims causal isolation"
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L4",
+    "quotes": [
+      {
+        "quote": "Results in Figure 4 show that dynamic settings lead to improved performance and a better balance between inference speed and model effectiveness compared to static budget allocation.",
+        "source": "paper",
+        "locator": "p.9"
+      },
+      {
+        "quote": "We experiment with fixed and dynamic budget allocations. Fixed budget uses the same computational budget for all attention heads across all layers.",
+        "source": "paper",
+        "locator": "p.9"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 4,
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p.9",
+        "support_description": "Results in Figure 4 show that dynamic settings lead to improved performance and a better balance between inference speed and model effectiveness compared to static budget allocation."
+      },
+      {
+        "source_id": "paper",
+        "location": "p.9",
+        "support_description": "We experiment with fixed and dynamic budget allocations. Fixed budget uses the same computational budget for all attention heads across all layers."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Dynamic settings in the ablation change budget allocation; pattern search and budget allocation are coupled in the method, so a dynamic-vs-fixed-budget comparison does not by itself identify which component causes the gain. The comparison supports dynamic budget allocation but not necessarily the online pattern-selection component as the cause of the improvement."
+  },
+  {
+    "headline": "Dynamic per-input/per-head sparse prefill does not imply or guarantee lower latency at all context lengths",
+    "claim": "FlexPrefill's adaptive sparse prefill adds representative-attention, pattern-search, and index-construction work; this does not guarantee a net latency reduction at every sequence length, especially when dense attention is already cheap.",
+    "paper_fact": "At shorter input lengths, non-attention computation overheads are higher. As input length increases, index search construction time grows, but its percentage gradually decreases.",
+    "premise": "Sparse selection requires extra passes, sorting, and index construction; at short sequence lengths dense attention is relatively cheap, so fixed overhead can dominate.",
+    "inference": "Net latency benefit is conditional on context length and workload; reported long-context speedups do not establish speedup at short contexts.",
+    "conditional_consequence": "If deployed at 4k-8k contexts, the dynamic search overhead may erase or reverse the sparse-compute savings.",
+    "critical_link": "The link from asymptotic overhead terms to measured latency at a given sequence length.",
+    "necessary_conditions": [
+      "Sequence length large enough that sparse compute savings exceed O(n log n)+O(bnd)",
+      "Implementation overhead measured on target hardware",
+      "Dense baseline not already optimized enough to erase the gap"
+    ],
+    "defeaters": [
+      "Table 3 reports lower average latency across 4k-128k for several models",
+      "The paper calls the overhead modest and offset by sparsity",
+      "Hardware and kernel optimizations may hide the overhead"
+    ],
+    "do_not_infer": [
+      "Do not infer that FlexPrefill is slower at all short lengths",
+      "Do not infer no speedup at long lengths",
+      "Do not infer measured latency from asymptotic terms alone"
+    ],
+    "author_boundaries": [
+      "Authors report a latency breakdown and note higher non-attention overhead at short lengths, but do not claim uniform speedup at every length"
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "applicability_limitation",
+    "lens": "L6/L7",
+    "quotes": [
+      {
+        "quote": "At shorter input lengths, non-attention computation overheads are higher. As input length increases, index search construction time grows, but its percentage gradually decreases.",
+        "source": "paper",
+        "locator": "p.25"
+      },
+      {
+        "quote": "FlexPrefill introduces a modest overhead (approximately O(αn2d) + O(n log n) + O(bnd)), which is significantly offset by the computational savings achieved through sparsity.",
+        "source": "paper",
+        "locator": "p.25"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p.25",
+        "support_description": "At shorter input lengths, non-attention computation overheads are higher. As input length increases, index search construction time grows, but its percentage gradually decreases."
+      },
+      {
+        "source_id": "paper",
+        "location": "p.25",
+        "support_description": "FlexPrefill introduces a modest overhead (approximately O(αn2d) + O(n log n) + O(bnd)), which is significantly offset by the computational savings achieved through sparsity."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Sparse selection requires extra passes, sorting, and index construction; at short sequence lengths dense attention is relatively cheap, so fixed overhead can dominate. Net latency benefit is conditional on context length and workload; reported long-context speedups do not establish speedup at short contexts."
+  },
+  {
+    "headline": "Reported average preservation does not imply or guarantee uniform model-level benefit",
+    "claim": "FlexPrefill's reported average gains do not guarantee consistent preservation across models; the paper's own Table 1 shows Yi's average below full attention, consistent with model-specific attention compatibility affecting sparse approximation.",
+    "paper_fact": "our method consistently preserves various models’ performance across multiple context lengths.",
+    "premise": "Sparse approximation quality depends on model-specific attention patterns; aggregate benchmark averages can hide per-model or per-task regressions.",
+    "inference": "The reported average gains do not establish uniform preservation; Yi's lower average is consistent with model-specific incompatibility, though not proof of cause.",
+    "conditional_consequence": "If a model's attention is less compatible with the fixed τ/γ and pattern choices, dynamic sparse prefill may yield no average gain or a regression.",
+    "critical_link": "The link from model-specific attention compatibility to benchmark average preservation.",
+    "necessary_conditions": [
+      "Model's attention sparsity matches FlexPrefill assumptions",
+      "τ and γ tuned per model",
+      "Benchmark tasks representative",
+      "Variance not dominating the reported average"
+    ],
+    "defeaters": [
+      "Yi difference is small and could be noise",
+      "Other models improve over full attention",
+      "Authors report consistent preservation",
+      "No causal test of attention compatibility is provided"
+    ],
+    "do_not_infer": [
+      "Do not infer that the mechanism generally degrades models",
+      "Do not infer Yi's result is caused by attention incompatibility",
+      "Do not infer uniform task-level behavior from one benchmark average"
+    ],
+    "author_boundaries": [
+      "Authors claim consistent preservation, but Table 1 reports Yi average below full attention; they do not provide a causal model-specific compatibility analysis"
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "applicability_limitation",
+    "lens": "L5/L1",
+    "quotes": [
+      {
+        "quote": "our method consistently preserves various models’ performance across multiple context lengths.",
+        "source": "paper",
+        "locator": "p.7"
+      },
+      {
+        "quote": "Yi Full-attn 92.79 86.06 85.34 76.93 69.47 66.35 79.49",
+        "source": "paper Table 1",
+        "locator": "p.8"
+      },
+      {
+        "quote": "Ours 93.27 86.78 83.89 72.36 64.66 56.97 76.32",
+        "source": "paper Table 1",
+        "locator": "p.8"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p.7",
+        "support_description": "our method consistently preserves various models’ performance across multiple context lengths."
+      },
+      {
+        "source_id": "paper",
+        "location": "p.8",
+        "support_description": "Yi Full-attn 92.79 86.06 85.34 76.93 69.47 66.35 79.49"
+      },
+      {
+        "source_id": "paper",
+        "location": "p.8",
+        "support_description": "Ours 93.27 86.78 83.89 72.36 64.66 56.97 76.32"
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Sparse approximation quality depends on model-specific attention patterns; aggregate benchmark averages can hide per-model or per-task regressions. The reported average gains do not establish uniform preservation; Yi's lower average is consistent with model-specific incompatibility, though not proof of cause."
+  },
+  {
+    "headline": "The reported long-context speedup does not imply or guarantee a net benefit at short contexts or when classifier overhead and fallback dominate.",
+    "claim": "FlexPrefill's JS classifier overhead and fallback can erase the sparse-attention benefit outside the long-context regime where the paper reports gains.",
+    "paper_fact": "At shorter input lengths, non-attention computation overheads are higher. As input length increases, index search construction time grows, but its percentage gradually decreases.",
+    "premise": "Sparse attention saves work proportional to skipped attention; classifier adds representative attention, pattern search, JS computation, and index construction, so net speedup depends on context length and sparsity.",
+    "inference": "At short or medium contexts, the fixed overhead can be a larger fraction of total latency; if the classifier misroutes and falls back, the method pays search cost without the query-aware benefit. The paper reports aggregate latency and a breakdown, not a per-context net-benefit guarantee.",
+    "toy_example": "Not a measurement: at 4k tokens, representative attention and pattern search are a larger fraction of total attention time than at 128k, so a fixed overhead can dominate.",
+    "conditional_consequence": "If deployed at short contexts or on heads where fallback is frequent, latency may not improve and accuracy may be unchanged or worse; the paper's long-context benchmarks do not establish short-context net benefit.",
+    "critical_link": "Need per-context, per-classification-outcome latency and accuracy accounting that includes pattern search, JS, index construction, and fallback.",
+    "necessary_conditions": [
+      "Classifier overhead is non-negligible relative to sparse-attention savings.",
+      "Sparse savings are small at short contexts.",
+      "Fallback can occur after pattern search.",
+      "Target workload includes short or medium contexts."
+    ],
+    "defeaters": [
+      "Measured net speedup at short contexts.",
+      "Overhead is amortized or negligible.",
+      "Fallback is rare and accuracy is preserved.",
+      "Workload is restricted to long contexts."
+    ],
+    "do_not_infer": [
+      "Do not infer FlexPrefill is slower at all short contexts.",
+      "Do not infer no long-context benefit.",
+      "Do not infer fallback always dominates."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "applicability_limitation",
+    "lens": "L6/L7",
+    "quotes": [
+      {
+        "quote": "At shorter input lengths, non-attention computation overheads are higher. As input length increases, index search construction time grows, but its percentage gradually decreases.",
+        "source": "paper p.25",
+        "locator": "Appendix G, Latency Breakdown"
+      },
+      {
+        "quote": "FlexPrefill introduces a modest overhead (approximately O(αn2d) + O(n log n) + O(bnd)), which is significantly offset by the computational savings achieved through sparsity.",
+        "source": "paper p.25",
+        "locator": "Appendix G, Latency Breakdown"
+      },
+      {
+        "quote": "if τ is set too large, some attention heads with inaccurate attention estimation are recognized as Query-Aware heads, potentially degrading model performance.",
+        "source": "paper p.9",
+        "locator": "Section 4.3, Query-Aware head threshold"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "author_boundaries": [
+      "Paper reports long-context latency and a component breakdown; it does not report a short-context net-benefit guarantee or per-fallback latency/accuracy accounting."
+    ],
+    "inferred_consequences": [
+      "Short-context deployment may see overhead outweigh savings; fallback may waste search."
+    ],
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "Appendix G, Latency Breakdown",
+        "support_description": "At shorter input lengths, non-attention computation overheads are higher. As input length increases, index search construction time grows, but its percentage gradually decreases."
+      },
+      {
+        "source_id": "paper",
+        "location": "Appendix G, Latency Breakdown",
+        "support_description": "FlexPrefill introduces a modest overhead (approximately O(αn2d) + O(n log n) + O(bnd)), which is significantly offset by the computational savings achieved through sparsity."
+      },
+      {
+        "source_id": "paper",
+        "location": "Section 4.3, Query-Aware head threshold",
+        "support_description": "if τ is set too large, some attention heads with inaccurate attention estimation are recognized as Query-Aware heads, potentially degrading model performance."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Sparse attention saves work proportional to skipped attention; classifier adds representative attention, pattern search, JS computation, and index construction, so net speedup depends on context length and sparsity. At short or medium contexts, the fixed overhead can be a larger fraction of total latency; if the classifier misroutes and falls back, the method pays search cost without the query-aware benefit. The paper reports aggregate latency and a breakdown, not a per-context net-benefit guarantee."
+  },
+  {
+    "headline": "Causal recency of the last query block does not guarantee representativeness of the whole prompt as context length grows.",
+    "claim": "The fixed last-block Qhat is justified by causal attention and structured-pattern consistency, but causal recency alone does not ensure that the last block captures middle-context evidence needed for all long-context tasks.",
+    "paper_fact": "We select the last block_size query vectors, denoted as ˆQ, as a representative subset for subsequent estimation. (p.4)",
+    "premise": "In causal attention, later queries can see the full context, but their attention distribution is not guaranteed to summarize what earlier or middle queries need; longer contexts increase opportunities for task-relevant evidence to sit outside the last block's focus.",
+    "inference": "If a task requires middle-context retrieval or reasoning, the last-block proxy may omit keys that earlier queries would attend to, so the sparse pattern/index estimated from Qhat can be biased even though the mechanism is causal.",
+    "toy_example": "Not a measurement: a needle placed mid-prompt may be attended by an early query but not by the final block, so a last-block-only estimate could skip its key line.",
+    "conditional_consequence": "If middle-context evidence is important and the last block does not attend to it, using only the last block may become more harmful as context length grows.",
+    "critical_link": "Qhat determines both the estimated attention distribution and the selected sparse indices; if Qhat's attention misses middle evidence, the resulting sparse computation omits it.",
+    "necessary_conditions": [
+      "Task requires middle/early-context evidence",
+      "Last-block queries do not attend to that evidence",
+      "Sparse index selection depends on Qhat rather than full attention"
+    ],
+    "defeaters": [
+      "Tasks dominated by recency/local context",
+      "Last-block queries attend to the same evidence as earlier queries",
+      "Pattern determination is coarse enough to tolerate missing middle evidence"
+    ],
+    "do_not_infer": [
+      "Do not infer that the paper measured a middle-context failure across all tasks",
+      "Do not infer that causal attention makes last-block Qhat invalid in general",
+      "Do not infer that longer context always worsens last-block representativeness"
+    ],
+    "author_boundaries": [
+      "Authors evaluate RULER and InfiniteBench on selected models; they do not claim last-block Qhat is representative for every long-context task."
+    ],
+    "disclosure": "inferred",
+    "category_code": "applicability_limitation",
+    "lens": "L5/L7",
+    "quotes": [
+      {
+        "quote": "We select the last block_size query vectors, denoted as ˆQ, as a representative subset for subsequent estimation.",
+        "source": "paper",
+        "locator": "p.4"
+      },
+      {
+        "quote": "We choose the last block_size query vector as the representative query set ˆQ for both sparse pattern determination and Vertical-Slash sparse index selection, which allows the representative attention score to be computed only once and reused in both attention pattern determination and sparse index selection.",
+        "source": "paper",
+        "locator": "p.7"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p.4",
+        "support_description": "We select the last block_size query vectors, denoted as ˆQ, as a representative subset for subsequent estimation."
+      },
+      {
+        "source_id": "paper",
+        "location": "p.7",
+        "support_description": "We choose the last block_size query vector as the representative query set ˆQ for both sparse pattern determination and Vertical-Slash sparse index selection, which allows the representative attention score to be computed only once and reused in both attention pattern determination and sparse index selection."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "In causal attention, later queries can see the full context, but their attention distribution is not guaranteed to summarize what earlier or middle queries need; longer contexts increase opportunities for task-relevant evidence to sit outside the last block's focus. If a task requires middle-context retrieval or reasoning, the last-block proxy may omit keys that earlier queries would attend to, so the sparse pattern/index estimated from Qhat can be biased even though the mechanism is causal."
+  },
+  {
+    "headline": "Block-size insensitivity on RULER does not imply or guarantee block-size insensitivity for all tasks, models, or rare-token attention.",
+    "claim": "The paper's 64-vs-128 block-size ablation on RULER supports flexible block-size choice in tested settings, but it does not establish that pooling granularity is harmless for every model, task, context length, or rare-token retrieval case.",
+    "paper_fact": "the block size of sparse attention does not significantly impact model effectiveness",
+    "premise": "An ablation over a finite set of models, tasks, and two block sizes cannot by itself establish universal invariance; changing block size changes pooling units, JS comparison, and gamma-based block selection together.",
+    "inference": "Thus the reported block-size insensitivity is evidence for the tested RULER configurations, not a guarantee that any hardware-selected block size preserves accuracy or that rare token-level attention survives coarser pooling.",
+    "toy_example": "Toy example, not a measurement: a 128-token block may contain one critical token whose individual attention mass is diluted by 127 filler tokens; a 64-token split could isolate it, so block-size effects can be task-dependent even if average RULER scores look flat.",
+    "conditional_consequence": "If practitioners change block size for hardware reasons outside the tested 64/128 RULER settings, then accuracy on rare-token or high-dependency tasks may change even though the paper reports no significant average effect.",
+    "critical_link": "The ablation compares only block sizes 64 and 128 on RULER for GLM, Yi, and Qwen (Table 7); it does not test LLaMA in that table, does not stress rare-token retrieval, and does not provide a formal pooling-invariance guarantee.",
+    "necessary_conditions": [
+      "same or comparable models and RULER task mix",
+      "block sizes within the tested 64-128 range",
+      "same tau/gamma/min-budget settings",
+      "average-score metric rather than worst-case rare-token retrieval"
+    ],
+    "defeaters": [
+      "a broader block-size sweep across models, tasks, and rare-token probes showing no accuracy change",
+      "a formal argument that pooled block mass is invariant enough for the selection rule",
+      "end-to-end results showing hardware-selected block sizes preserve worst-case retrieval"
+    ],
+    "do_not_infer": [
+      "do not infer that block size always matters",
+      "do not infer that block size never matters",
+      "do not infer that the paper claims universal block-size invariance",
+      "do not infer a specific cause for Qwen's 128k weakness"
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "applicability_limitation",
+    "lens": "L3, L4",
+    "quotes": [
+      {
+        "quote": "the block size of sparse attention does not significantly impact model effectiveness",
+        "source": "paper",
+        "locator": "p.9"
+      },
+      {
+        "quote": "block size does not have a significant effect on the performance of the model, so different block sizes can be flexibly selected according to different hardware.",
+        "source": "paper",
+        "locator": "p.22"
+      },
+      {
+        "quote": "We explore the impact of adjusting Triton block sizes, specifically comparing block sizes of 64 and 128.",
+        "source": "paper",
+        "locator": "p.22"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "author_boundaries": [
+      "Authors report no significant average block-size effect in their RULER ablation.",
+      "Authors do not claim a formal guarantee of block-size invariance across all tasks or models."
+    ],
+    "inferred_consequences": [
+      "Hardware-driven block-size changes may have task-specific accuracy effects not captured by average RULER scores."
+    ],
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p.9",
+        "support_description": "the block size of sparse attention does not significantly impact model effectiveness"
+      },
+      {
+        "source_id": "paper",
+        "location": "p.22",
+        "support_description": "block size does not have a significant effect on the performance of the model, so different block sizes can be flexibly selected according to different hardware."
+      },
+      {
+        "source_id": "paper",
+        "location": "p.22",
+        "support_description": "We explore the impact of adjusting Triton block sizes, specifically comparing block sizes of 64 and 128."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "An ablation over a finite set of models, tasks, and two block sizes cannot by itself establish universal invariance; changing block size changes pooling units, JS comparison, and gamma-based block selection together. Thus the reported block-size insensitivity is evidence for the tested RULER configurations, not a guarantee that any hardware-selected block size preserves accuracy or that rare token-level attention survives coarser pooling."
+  },
+  {
+    "headline": "A per-model gamma setting does not guarantee comparable sparsity or accuracy across models and tasks.",
+    "claim": "Because gamma is set to 0.9 for Yi/Qwen and 0.95 for other models, the same gamma value is not a universal budget; cross-model or cross-task comparisons at one gamma are not apples-to-apples.",
+    "paper_fact": "We set γ = 0.9 for Yi-9B-200k and Qwen2-7B-Instruct model, and 0.95 for the other models.",
+    "premise": "Attention distributions and heavy-tailedness vary by model, head, layer, input, and task; a cumulative-mass threshold selects different numbers of blocks or lines under different distributions.",
+    "inference": "A fixed gamma does not fix selected mass or compute; it only fixes a target mass, so an artifact using a different gamma than the paper may change both speed and accuracy.",
+    "toy_example": "Toy example (not a measurement): two models both set gamma=0.9; one selects 8 blocks and the other selects 40 blocks because their attention distributions differ.",
+    "conditional_consequence": "If an artifact applies gamma=0.9 uniformly, LLaMA/GLM may lose accuracy relative to the paper's 0.95; if gamma=0.95 uniformly, Yi/Qwen may lose speed.",
+    "critical_link": "Gamma maps to selected block/line count only through the model/task attention distribution; model-specific tuning is evidence of that coupling.",
+    "necessary_conditions": [
+      "Attention distributions differ enough to change selected set size.",
+      "Gamma is the only changed budget parameter.",
+      "Min/max budgets and block size are held constant."
+    ],
+    "defeaters": [
+      "Distributions are similar across models/tasks.",
+      "The minimum budget dominates selection.",
+      "Other parameters compensate for gamma changes."
+    ],
+    "do_not_infer": [
+      "Do not infer gamma=0.9 is universally better or worse.",
+      "Do not infer the paper's per-model gamma is optimal.",
+      "Do not infer the same gamma yields the same sparsity."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "applicability_limitation",
+    "lens": "L4",
+    "quotes": [
+      {
+        "quote": "We set γ = 0.9 for Yi-9B-200k and Qwen2-7B-Instruct model, and 0.95 for the other models.",
+        "source": "paper",
+        "locator": "p.7"
+      },
+      {
+        "quote": "Tuning the γ parameter balances model efficacy and output latency: decreasing γ accelerates processing while increasing γ preserves model quality.",
+        "source": "paper",
+        "locator": "p.8"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "author_boundaries": [
+      "Authors report per-model gamma choices and a general gamma/latency trade-off; they do not claim one gamma is universal across models or tasks."
+    ],
+    "inferred_consequences": [
+      "Cross-model comparisons at a single gamma may confound model differences with budget differences."
+    ],
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p.7",
+        "support_description": "We set γ = 0.9 for Yi-9B-200k and Qwen2-7B-Instruct model, and 0.95 for the other models."
+      },
+      {
+        "source_id": "paper",
+        "location": "p.8",
+        "support_description": "Tuning the γ parameter balances model efficacy and output latency: decreasing γ accelerates processing while increasing γ preserves model quality."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Attention distributions and heavy-tailedness vary by model, head, layer, input, and task; a cumulative-mass threshold selects different numbers of blocks or lines under different distributions. A fixed gamma does not fix selected mass or compute; it only fixes a target mass, so an artifact using a different gamma than the paper may change both speed and accuracy."
+  },
+  {
+    "headline": "Cumulative-attention index selection does not guarantee net latency reduction at all context lengths.",
+    "claim": "The gamma index selection adds sorting/selection and min-budget compute; net speedup requires sparse attention savings to dominate, which may not hold at shorter contexts.",
+    "paper_fact": "At shorter input lengths, non-attention computation overheads are higher.",
+    "premise": "Sparse attention compute scales with selected fraction times n^2, while sorting/selection scales n log n and fixed min budgets add work; at small n overhead can dominate.",
+    "inference": "Meeting gamma does not imply speedup; an artifact may be slower than dense attention at short or medium lengths, or when the minimum budget forces 1024 tokens per head.",
+    "toy_example": "Toy example (not a measurement): at 4k context, sorting 4k scores and enforcing a 1024-token minimum budget can cost more than dense attention on a fast kernel.",
+    "conditional_consequence": "If context is short or gamma is high, FlexPrefill may not beat full attention despite sparse selection.",
+    "critical_link": "Net latency is sparse compute plus index/pattern/representative overhead; gamma affects both selected compute and selection cost.",
+    "necessary_conditions": [
+      "Context is long enough for sparse compute savings to dominate.",
+      "Selected sparsity is low enough.",
+      "Min/max budgets do not force large compute."
+    ],
+    "defeaters": [
+      "Sparse compute dominates at long context.",
+      "Hardware/implementation makes sorting cheap.",
+      "The minimum budget is small relative to n."
+    ],
+    "do_not_infer": [
+      "Do not infer FlexPrefill is always faster than full attention.",
+      "Do not infer gamma alone determines latency.",
+      "Do not infer speedup at 4k/8k from 128k results."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "applicability_limitation",
+    "lens": "L6",
+    "quotes": [
+      {
+        "quote": "At shorter input lengths, non-attention computation overheads are higher.",
+        "source": "paper",
+        "locator": "p.25"
+      },
+      {
+        "quote": "Sparse Index Construction: approximately O(n log n), required for sorting the representative attention scores and constructing the sparse attention indices.",
+        "source": "paper",
+        "locator": "p.25"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "author_boundaries": [
+      "Authors report higher non-attention overhead at shorter lengths and long-context speedups; they do not claim speedup at all lengths."
+    ],
+    "inferred_consequences": [
+      "A deployment may need a context-length threshold before enabling FlexPrefill for latency benefit."
+    ],
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p.25",
+        "support_description": "At shorter input lengths, non-attention computation overheads are higher."
+      },
+      {
+        "source_id": "paper",
+        "location": "p.25",
+        "support_description": "Sparse Index Construction: approximately O(n log n), required for sorting the representative attention scores and constructing the sparse attention indices."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Sparse attention compute scales with selected fraction times n^2, while sorting/selection scales n log n and fixed min budgets add work; at small n overhead can dominate. Meeting gamma does not imply speedup; an artifact may be slower than dense attention at short or medium lengths, or when the minimum budget forces 1024 tokens per head."
+  },
+  {
+    "headline": "Triton block-size ablation on RULER does not guarantee hardware-independent block choice.",
+    "claim": "The paper's finding that Triton block sizes 64 and 128 have similar RULER accuracy does not guarantee similar latency or accuracy across other GPUs, context lengths, models, or workloads; the hardware-flexibility claim is conditional.",
+    "paper_fact": "We explore the impact of adjusting Triton block sizes, specifically comparing block sizes of 64 and 128. The results in Table 7 show that the block size does not have a significant effect on the performance of the model, so different block sizes can be flexibly selected according to different hardware.",
+    "premise": "Triton block size affects memory coalescing, occupancy, kernel launch behavior, and arithmetic intensity; these effects depend on GPU architecture, sequence length, and kernel implementation.",
+    "inference": "Accuracy parity on RULER for three models under one A100 setup does not establish latency parity or accuracy parity on other hardware and workloads; 'flexibly selected' is an engineering heuristic, not a measured guarantee.",
+    "toy_example": "Not a measurement: on a GPU with different SRAM and occupancy limits, 64 versus 128 Triton blocks could change latency even if RULER accuracy is unchanged.",
+    "conditional_consequence": "If the target hardware or context length differs, block-size choice may trade latency and efficiency; if only accuracy on the tested RULER setup matters, the observed effect was not significant.",
+    "critical_link": "The inference depends on measured accuracy parity being sufficient evidence for hardware-portable block-size selection.",
+    "necessary_conditions": [
+      "The target GPU has similar memory and occupancy behavior to the tested A100",
+      "The target workload has similar attention sparsity and context lengths",
+      "Latency and throughput are not the primary constraints",
+      "The same kernel implementation and hyperparameters are used"
+    ],
+    "defeaters": [
+      "Table 7 shows similar average RULER scores for block sizes 64 and 128 on GLM, Yi, and Qwen",
+      "The paper explicitly limits the claim to performance, not latency",
+      "Both 64 and 128 are standard Triton block sizes supported on the tested hardware"
+    ],
+    "do_not_infer": [
+      "Do not infer block size has no effect on latency or throughput",
+      "Do not infer the result holds for all GPUs or all context lengths",
+      "Do not infer the paper measured hardware-portable latency parity"
+    ],
+    "author_boundary": "The paper reports an accuracy ablation on RULER for block sizes 64 and 128 and suggests flexible selection by hardware; it does not report a latency sweep across GPUs.",
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "applicability_limitation",
+    "lens": "L6/L7",
+    "quotes": [
+      {
+        "quote": "We explore the impact of adjusting Triton block sizes, specifically comparing block sizes of 64 and 128. The results in Table 7 show that the block size does not have a significant effect on the performance of the model, so different block sizes can be flexibly selected according to different hardware.",
+        "source": "paper",
+        "locator": "p.22"
+      },
+      {
+        "quote": "uses a block_size = 128 in all experiments.",
+        "source": "paper",
+        "locator": "p.7"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p.22",
+        "support_description": "We explore the impact of adjusting Triton block sizes, specifically comparing block sizes of 64 and 128. The results in Table 7 show that the block size does not have a significant effect on the performance of the model, so different block sizes can be flexibly selected according to different hardware."
+      },
+      {
+        "source_id": "paper",
+        "location": "p.7",
+        "support_description": "uses a block_size = 128 in all experiments."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Triton block size affects memory coalescing, occupancy, kernel launch behavior, and arithmetic intensity; these effects depend on GPU architecture, sequence length, and kernel implementation. Accuracy parity on RULER for three models under one A100 setup does not establish latency parity or accuracy parity on other hardware and workloads; 'flexibly selected' is an engineering heuristic, not a measured guarantee."
+  },
+  {
+    "headline": "τ=0.1 being used for all models does not imply it is optimal for every model or task",
+    "claim": "The global choice τ=0.1 does not guarantee per-model optimality; the paper's τ ablation reports at least one model (GLM) with a higher average at τ=0.2, so the fixed setting is a global default rather than a demonstrated per-model optimum.",
+    "paper_fact": "The sparse pattern threshold τ is set to 0.1 for all models. (p.7)",
+    "premise": "Hyperparameters selected globally can be suboptimal for individual models or tasks when their distributions differ; an ablation can reveal model-specific optima.",
+    "inference": "If a deployment model resembles GLM in the reported ablation, τ=0.1 may leave some accuracy on the table relative to τ=0.2; conversely, other models may prefer 0.1. The paper's main experiments still use 0.1 for all models.",
+    "toy_example": "Toy example, not a measurement: a model whose DJS distribution is shifted upward may benefit from a larger τ, while a model shifted downward may prefer a smaller τ.",
+    "conditional_consequence": "If per-model calibration is allowed and the deployment model's τ optimum differs from 0.1, the fixed global τ may be a suboptimal accuracy/latency operating point.",
+    "critical_link": "The paper fixes τ=0.1 for all models, but its own Table 6 shows model-specific average scores vary with τ; a global default is not the same as a per-model optimum.",
+    "necessary_conditions": [
+      "Model-specific τ optima differ",
+      "The main experiments use a single τ=0.1",
+      "The ablation differences are not purely noise"
+    ],
+    "defeaters": [
+      "The τ differences are within evaluation noise",
+      "The global default is chosen for simplicity or robustness and per-model tuning is out of scope",
+      "Other hyperparameters or constraints dominate the operating point"
+    ],
+    "do_not_infer": [
+      "Do not infer that τ=0.2 is universally better",
+      "Do not infer that τ=0.1 is a failure",
+      "Do not infer that per-model tuning would improve all models"
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L2+L5",
+    "quotes": [
+      {
+        "quote": "The sparse pattern threshold τ is set to 0.1 for all models.",
+        "source": "paper",
+        "locator": "p.7"
+      },
+      {
+        "quote": "Figure 5 demonstrates that enabling Query-Aware attention head at an appropriate τ strengthens the model without increasing computation.",
+        "source": "paper",
+        "locator": "p.9"
+      },
+      {
+        "quote": "0.2 93.99 92.31 90.38 91.11 86.78 83.66 89.70",
+        "source": "paper",
+        "locator": "Table 6, GLM row, p.23"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "author_boundaries": [
+      "The authors report a τ ablation and then set τ=0.1 for all models in the main experiments; they do not claim τ=0.1 is the per-model optimum.",
+      "The authors state that an appropriate τ strengthens the model; they do not claim one τ is appropriate for every model."
+    ],
+    "inferred_consequences": [
+      "A fixed global τ may be a deliberate simplicity/robustness choice rather than an accuracy-maximizing choice.",
+      "Per-model τ calibration could change the reported accuracy/latency trade-off, but the evidence does not quantify by how much."
+    ],
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p.7",
+        "support_description": "The sparse pattern threshold τ is set to 0.1 for all models."
+      },
+      {
+        "source_id": "paper",
+        "location": "p.9",
+        "support_description": "Figure 5 demonstrates that enabling Query-Aware attention head at an appropriate τ strengthens the model without increasing computation."
+      },
+      {
+        "source_id": "paper",
+        "location": "Table 6, GLM row, p.23",
+        "support_description": "0.2 93.99 92.31 90.38 91.11 86.78 83.66 89.70"
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Hyperparameters selected globally can be suboptimal for individual models or tasks when their distributions differ; an ablation can reveal model-specific optima. If a deployment model resembles GLM in the reported ablation, τ=0.1 may leave some accuracy on the table relative to τ=0.2; conversely, other models may prefer 0.1. The paper's main experiments still use 0.1 for all models."
+  },
+  {
+    "headline": "Per-model gamma settings do not imply a universal gamma or transferable quality",
+    "claim": "The paper's per-model gamma choices do not guarantee that a fixed gamma transfers across models or tasks; they are empirical defaults tied to specific models and benchmarks.",
+    "paper_fact": "We set γ = 0.9 for Yi-9B-200k and Qwen2-7B-Instruct model, and 0.95 for the other models.",
+    "premise": "Attention sparsity and long-context behavior vary by model architecture, training, and task; a threshold calibrated on one model or benchmark may not preserve quality on another.",
+    "inference": "The paper's gamma=0.9/0.95 choices are empirical defaults for four models on RULER and InfiniteBench; they do not establish that a new model or deployment can use the same gamma without re-tuning.",
+    "toy_example": "Not a measurement: applying Qwen's gamma=0.9 to a model that needs 0.95 could lose long-range accuracy, while applying 0.95 to Qwen could sacrifice speed; only a target-model sweep would show the trade-off.",
+    "conditional_consequence": "If a deployment applies a fixed gamma across models or tasks, it may miss the intended speed-accuracy balance and either lose accuracy or leave speedup on the table.",
+    "critical_link": "The paper reports per-model gamma values and a gamma sweep for Llama, but not a cross-model transfer guarantee; the mapping from gamma to quality is model- and task-dependent.",
+    "necessary_conditions": [
+      "Same model family and benchmark/task distribution as the paper.",
+      "Same min-budget rule, block_size=128, and implementation are used.",
+      "Gamma is re-tuned or validated on the target model and workload."
+    ],
+    "defeaters": [
+      "If a new model has similar attention patterns and is validated on the target workload, transfer may work.",
+      "The paper's per-model settings are empirical defaults, not claims of universality."
+    ],
+    "do_not_infer": [
+      "Gamma=0.95 is universally better.",
+      "Gamma=0.9 is universally faster.",
+      "The paper's per-model gamma settings are optimal for all deployments."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "applicability_limitation",
+    "lens": "L2/L4",
+    "quotes": [
+      {
+        "quote": "We set γ = 0.9 for Yi-9B-200k and Qwen2-7B-Instruct model, and 0.95 for the other models.",
+        "source": "paper",
+        "locator": "p.7"
+      },
+      {
+        "quote": "Tuning the γ parameter balances model efficacy and output latency: decreasing γ accelerates processing while increasing γ preserves model quality.",
+        "source": "paper",
+        "locator": "p.8"
+      },
+      {
+        "quote": "In practice, γ can be flexibly adjusted to meet specific performance or speed requirements.",
+        "source": "paper",
+        "locator": "p.22"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "author_boundaries": [
+      "Authors report per-model gamma defaults and a gamma sweep for Llama; they do not claim a universal gamma or cross-model transfer guarantee."
+    ],
+    "inferred_consequences": [
+      "Deployment should re-tune gamma for a new model or task rather than assuming the paper's per-model values transfer."
+    ],
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p.7",
+        "support_description": "We set γ = 0.9 for Yi-9B-200k and Qwen2-7B-Instruct model, and 0.95 for the other models."
+      },
+      {
+        "source_id": "paper",
+        "location": "p.8",
+        "support_description": "Tuning the γ parameter balances model efficacy and output latency: decreasing γ accelerates processing while increasing γ preserves model quality."
+      },
+      {
+        "source_id": "paper",
+        "location": "p.22",
+        "support_description": "In practice, γ can be flexibly adjusted to meet specific performance or speed requirements."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Attention sparsity and long-context behavior vary by model architecture, training, and task; a threshold calibrated on one model or benchmark may not preserve quality on another. The paper's gamma=0.9/0.95 choices are empirical defaults for four models on RULER and InfiniteBench; they do not establish that a new model or deployment can use the same gamma without re-tuning."
+  },
+  {
+    "headline": "Meeting a per-query cumulative-attention threshold does not guarantee model-level output fidelity across heads and layers.",
+    "claim": "The cumulative-attention objective is local to each query/head; satisfying gamma does not ensure that compounded attention errors across heads and layers preserve task performance.",
+    "paper_fact": "The general objective for all query positions, as shown in Equation (3), can be obtained by aggregating the objectives for individual query positions (Equation (8)) across all i ∈[n]",
+    "premise": "Attention heads and layers interact nonlinearly; local per-head error bounds do not automatically compose into a global model-output bound.",
+    "inference": "A per-head gamma can preserve selected mass while still allowing correlated errors that degrade long-context task accuracy, especially at high sparsity or long sequences.",
+    "toy_example": "Toy example (not a measurement): two heads each meet gamma but their output errors point in the same direction, so the combined error is larger than either local error.",
+    "conditional_consequence": "If head errors are correlated or downstream layers amplify them, gamma tuning may not predict model accuracy; if errors are independent or small, local mass may suffice.",
+    "critical_link": "The critical link is aggregation from per-query/per-head objectives to the model's final output and benchmark score.",
+    "necessary_conditions": [
+      "Per-head/per-query errors compose with bounded amplification through layers.",
+      "Attention heads and layers are approximately independent or errors cancel.",
+      "The benchmark metric is smooth in attention-output perturbations."
+    ],
+    "defeaters": [
+      "RULER and InfiniteBench results show preserved performance for tested models.",
+      "Minimum budget and retained first/last key blocks mitigate head collapse.",
+      "Dynamic per-head budgets improve over fixed budgets in the paper's ablations."
+    ],
+    "do_not_infer": [
+      "Do not infer the paper claims a global model-output guarantee.",
+      "Do not infer per-query thresholds are useless.",
+      "Do not infer head coupling is always harmful."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L4/L7: per-query aggregation and scaling to model-level fidelity",
+    "quotes": [
+      {
+        "quote": "The general objective for all query positions, as shown in Equation (3), can be obtained by aggregating the objectives for individual query positions (Equation (8)) across all i ∈[n]",
+        "source": "paper",
+        "locator": "p.20"
+      },
+      {
+        "quote": "This component dynamically selects query-key indexes to be computed based on different attention patterns, ensuring the sum of attention scores meets a predefined threshold.",
+        "source": "paper",
+        "locator": "p.1"
+      },
+      {
+        "quote": "By doing so, we balance computational efficiency with attention accuracy, ensuring that we focus computation on the most relevant token interactions while maintaining a predefined level of cumulative attention scores.",
+        "source": "paper",
+        "locator": "p.5"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "evidence": [
+      {
+        "source_id": "paper",
+        "location": "p.20",
+        "support_description": "The general objective for all query positions, as shown in Equation (3), can be obtained by aggregating the objectives for individual query positions (Equation (8)) across all i ∈[n]"
+      },
+      {
+        "source_id": "paper",
+        "location": "p.1",
+        "support_description": "This component dynamically selects query-key indexes to be computed based on different attention patterns, ensuring the sum of attention scores meets a predefined threshold."
+      },
+      {
+        "source_id": "paper",
+        "location": "p.5",
+        "support_description": "By doing so, we balance computational efficiency with attention accuracy, ensuring that we focus computation on the most relevant token interactions while maintaining a predefined level of cumulative attention scores."
+      }
+    ],
+    "quote_verified": true,
+    "mechanism": "Attention heads and layers interact nonlinearly; local per-head error bounds do not automatically compose into a global model-output bound. A per-head gamma can preserve selected mass while still allowing correlated errors that degrade long-context task accuracy, especially at high sparsity or long sequences."
+  }
+]

@@ -1,0 +1,584 @@
+{
+  "candidates": [
+    {
+      "headline": "A larger p* for larger models does not imply that heavier weight tails cause the extra precision need",
+      "claim": "The paper explains why larger models need a higher virtual precision p* to match BitMoD ('larger, more heavy-tailed'). It shows no tail statistics for those models, and p* is not monotone in size. The explanation is asserted, not isolated.",
+      "paper_fact": "p⋆generally shifts to higher precision for larger models, reflecting that larger, more heavy-tailed LLMs require slightly higher precision to close the accuracy gap.",
+      "premise": "In general, a ratio-to-baseline metric such as p* (the precision at which method A matches baseline B's PPL) changes with both A's weakness and B's strength. Without tail measurements, size, architecture, training recipe and baseline strength are confounded.",
+      "inference": "p* is defined against BitMoD's per-model PPL, so a model where BitMoD is unusually strong yields a large p* regardless of tails. The reported values are Mistral-7B 4.6 b vs Qwen2.5-7B 4.4 b, Phi-2 (about 2.7B) 4.5 b vs GPT2-XL 4.1 b, and Qwen2.5-14B 5.0 b. Same-size models differ, and Fig. 4 shows tails only for GPT-2 Large. The heavy-tail attribution is therefore a hypothesis, not a result.",
+      "toy_example": "Not a measurement: suppose two 7B models have identical tail shape, but BitMoD's group scales fit one much better. That model's BitMoD PPL target is lower, so p* rises even though the tails did not change.",
+      "conditional_consequence": "If p* is driven partly by baseline strength or architecture, extrapolating 'bigger model, higher p*' to unseen models is unreliable. The sub-5-bit claim may not carry over to larger or differently trained models.",
+      "critical_link": "Whether per-model tail heaviness (e.g., kurtosis or outlier fraction per channel) correlates with p* once BitMoD's per-model strength is controlled.",
+      "necessary_conditions": [
+        "p* depends on a per-model BitMoD target.",
+        "The nine models differ in architecture and training as well as size.",
+        "No per-model tail statistic is reported."
+      ],
+      "defeaters": [
+        "A tail-statistic analysis shows p* tracks tail heaviness.",
+        "The authors' word 'generally' is deliberately hedged and may be read as a loose trend only."
+      ],
+      "do_not_infer": [
+        "Do not infer that larger models are not harder.",
+        "Do not infer that the tails are not heavier in larger models.",
+        "Do not infer that Qwen2.5-14B's 5.0 b is erroneous."
+      ],
+      "disclosure": "inferred",
+      "category_code": "mechanism_origin_unclear",
+      "lens": "L7+L5",
+      "quotes": [
+        {
+          "text": "larger, more heavy-tailed LLMs require slightly higher precision to close the accuracy gap",
+          "source": "paper",
+          "locator": "Sec. VI-B, Precision scalability trends, p. 10"
+        },
+        {
+          "text": "Distribution of log2(|w|) for representative submodules",
+          "source": "paper",
+          "locator": "Fig. 4 caption, p. 4"
+        },
+        {
+          "text": "PEB: minimum precision p∗achieving iso-PPL with BitMoD’s 4 b PPL.",
+          "source": "paper",
+          "locator": "Table II footnote, p. 9"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "In general, a ratio-to-baseline metric such as p* (the precision at which method A matches baseline B's PPL) changes with both A's weakness and B's strength. Without tail measurements, size, architecture, training recipe and baseline strength are confounded. p* is defined against BitMoD's per-model PPL, so a model where BitMoD is unusually strong yields a large p* regardless of tails. The reported values are Mistral-7B 4.6 b vs Qwen2.5-7B 4.4 b, Phi-2 (about 2.7B) 4.5 b vs GPT2-XL 4.1 b, and Qwen2.5-14B 5.0 b. Same-size models differ, and Fig. 4 shows tails only for GPT-2 Large. The heavy-tail attribution is therefore a hypothesis, not a result."
+    },
+    {
+      "headline": "Highest weight-domain SQNR does not imply or guarantee lowest model perplexity",
+      "claim": "Algorithm 1 picks each channel's power-of-two scale by maximizing SQNR between the original and the Posit-quantized weights. The paper does not show that this scale also minimizes model loss or output error.",
+      "paper_fact": "choosing the scale with the highest SQNR",
+      "premise": "SQNR on weights weights every element's reconstruction error equally. Output error depends on how each weight interacts with activations and downstream layers. A scale that lowers average weight error can still give up accuracy on a few high-sensitivity weights.",
+      "inference": "The SQNR-best of the 16 candidates may differ from the perplexity-best candidate, especially for channels with outliers or sensitive weights. The paper uses perplexity for precision allocation (Algorithm 2) but SQNR for scale selection, and does not test whether the two agree.",
+      "toy_example": "Illustration only, not a measurement: a channel has one large weight that matters a lot for the output. Scale A gives slightly better average SQNR but clips that weight heavily. Scale B gives slightly lower SQNR but preserves it. Algorithm 1 picks A.",
+      "conditional_consequence": "If SQNR-optimal and loss-optimal scales diverge on some channels, part of the gap between Posit(4,1) channel-wise and group-wise PTQ could be recovered by an output-error-based scale search at the same 4-bit metadata cost.",
+      "critical_link": "Whether weight-domain SQNR ranks the 16 candidate scales in the same order as perplexity or output error for the channels that matter most.",
+      "necessary_conditions": [
+        "Some channels have weights whose importance is very uneven (outliers or activation-sensitive weights).",
+        "The SQNR-best and loss-best candidates differ for those channels.",
+        "The loss difference is larger than the noise in the perplexity measurement."
+      ],
+      "defeaters": [
+        "For most channels the SQNR-best and loss-best scales coincide.",
+        "The tapered Posit profile makes loss insensitive to the choice among near-optimal scales.",
+        "An ablation shows that perplexity-based scale selection gives no gain."
+      ],
+      "do_not_infer": [
+        "Do not infer that Algorithm 1 is inferior to the group-wise baselines because of the scale criterion alone.",
+        "Do not infer that the reported perplexity results are wrong.",
+        "Do not infer a specific size for the loss from the SQNR criterion."
+      ],
+      "disclosure": "inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1+L2: selection proxy (weight SQNR) versus the evaluation objective (perplexity)",
+      "quotes": [
+        {
+          "text": "choosing the scale with the highest SQNR",
+          "source": "paper",
+          "locator": "Sec. IV-A, page 5"
+        },
+        {
+          "text": "score ←SQNR(w, q)",
+          "source": "paper",
+          "locator": "Algorithm 1, line 4, page 5"
+        },
+        {
+          "text": "Precision allocation is driven by measuring how much each channel window affects the overall model perplexity (PPL).",
+          "source": "paper",
+          "locator": "Sec. IV-B, page 5"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "SQNR on weights weights every element's reconstruction error equally. Output error depends on how each weight interacts with activations and downstream layers. A scale that lowers average weight error can still give up accuracy on a few high-sensitivity weights. The SQNR-best of the 16 candidates may differ from the perplexity-best candidate, especially for channels with outliers or sensitive weights. The paper uses perplexity for precision allocation (Algorithm 2) but SQNR for scale selection, and does not test whether the two agree."
+    },
+    {
+      "headline": "A 4-bit scale index chosen at one bit-width does not imply or guarantee the right scale after a window is upgraded",
+      "claim": "Algorithm 1 takes the bit-width n and a candidate set S as inputs, so the SQNR-best scale generally depends on n. Algorithm 2 upgrades channel windows from 4 to 5 bits. The paper does not say whether the scale is re-searched after an upgrade, nor what range the 16 candidates cover.",
+      "paper_fact": "a compact 4 b index stores the selected per-channel scale with low metadata overhead",
+      "premise": "Changing the Posit bit-width changes the number of fraction bits and the regime reach at each magnitude, so the SQNR-maximizing shift can move. Four index bits give 16 candidates, but the paper does not define S or its range.",
+      "inference": "If the scale selected at 4 b is reused for upgraded windows, those windows may be misaligned at 5 b. If it is re-searched, the ΔPPL in Algorithm 2 mixes the effect of extra bits with the effect of a new scale. Either way the stored 4-bit metadata is tied to one (channel, bit-width) pair. Separately, a fixed 16-candidate window may not reach the useful shift for every channel.",
+      "toy_example": "Illustration only, not a measurement: at 4 b the best shift for a channel is index 6. At 5 b the best shift is index 7. Reusing index 6 for the upgraded window leaves it slightly off.",
+      "conditional_consequence": "If scales are not re-searched per precision, sensitivity rankings and the accuracy of upgraded windows are affected by scale staleness. If they are re-searched, the profiling cost and the stored metadata change from what is described.",
+      "critical_link": "Whether the scale index used at inference for an upgraded window is the output of Algorithm 1 run at the upgraded bit-width.",
+      "necessary_conditions": [
+        "The SQNR-best scale differs between 4 b and 5 b for a meaningful fraction of channels.",
+        "The pipeline reuses the 4 b scale or does not re-run Algorithm 1 after upgrade.",
+        "Or the candidate set S does not cover the channel's best shift."
+      ],
+      "defeaters": [
+        "The paper's code re-runs Algorithm 1 at each probe and final bit-width.",
+        "The SQNR-best scale is nearly invariant to the bit-width.",
+        "S is centered per layer or channel so coverage is never limiting."
+      ],
+      "do_not_infer": [
+        "Do not infer that the reported 4.1 b to 5.0 b results use a stale scale.",
+        "Do not infer that the 4-bit metadata cost is wrong.",
+        "Do not infer anything about the code, which is not shown here."
+      ],
+      "disclosure": "inferred",
+      "category_code": "mechanism_origin_unclear",
+      "lens": "L3+L4: scale search per bit-width and coupling with mixed-precision upgrades",
+      "quotes": [
+        {
+          "text": "a compact 4 b index stores the selected per-channel scale with low metadata overhead",
+          "source": "paper",
+          "locator": "Sec. IV-A, page 5"
+        },
+        {
+          "text": "Require: Weights w, bit-width n, exponent size es, candidate scales S",
+          "source": "paper",
+          "locator": "Algorithm 1, page 5"
+        },
+        {
+          "text": "Mw ←SET_PRECISION(Mbase, w, bhigh)",
+          "source": "paper",
+          "locator": "Algorithm 2, line 5, page 6"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Changing the Posit bit-width changes the number of fraction bits and the regime reach at each magnitude, so the SQNR-maximizing shift can move. Four index bits give 16 candidates, but the paper does not define S or its range. If the scale selected at 4 b is reused for upgraded windows, those windows may be misaligned at 5 b. If it is re-searched, the ΔPPL in Algorithm 2 mixes the effect of extra bits with the effect of a new scale. Either way the stored 4-bit metadata is tied to one (channel, bit-width) pair. Separately, a fixed 16-candidate window may not reach the useful shift for every channel."
+    },
+    {
+      "headline": "Uniform per-tile precision does not guarantee that windows capture the sensitive weights",
+      "claim": "Windowing makes one precision per tile feasible in hardware. It does not show that sensitivity is concentrated at window scale, so sensitive channels spread inside a window would be diluted. The paper's evidence for heterogeneity shows variation across windows, not how sensitivity is distributed inside one.",
+      "paper_fact": "the GPT-2 Large sensitivity heatmap exhibits strong within-layer heterogeneity with no consistent trend across layers or submodules.",
+      "premise": "A window's measured ΔPPL is an aggregate over all its channels. A window receives one precision, so a few highly sensitive channels in an otherwise insensitive window can only be upgraded together with their neighbours.",
+      "inference": "Fig. 5 is built from window-level cells. It supports profiling at window level over layer level, but it cannot show how much sensitivity is lost to within-window dilution. Table IV compares window-level MPQ only against layer-wise MPQ. The paper rejects finer-grained MPQ as impractical rather than measuring its accuracy, so the accuracy cost of the window constraint is not quantified.",
+      "toy_example": "Illustration only, not a measurement: if 8 of 256 channels in a window carry nearly all of its sensitivity, upgrading the window to 5 b spends the budget on 248 channels that gain little.",
+      "conditional_consequence": "If sensitivity is scattered at finer-than-window scale, the same average bit budget would buy less PPL recovery under window-level allocation than under channel-level allocation. The p* values in Table II would then partly reflect the window constraint.",
+      "critical_link": "Whether within-window sensitivity is homogeneous enough that one precision per window loses little accuracy.",
+      "necessary_conditions": [
+        "Sensitive channels are not co-located within windows.",
+        "A finer-grained oracle would reach a lower PPL at the same average bits."
+      ],
+      "defeaters": [
+        "Sensitivity may in fact cluster at the 256-channel scale in these models.",
+        "Table IV shows window-level beating layer-wise, so the practical gain is already real, whatever it leaves on the table."
+      ],
+      "do_not_infer": [
+        "Do not infer that windowing is worse than layer-wise MPQ; Table IV shows otherwise.",
+        "Do not infer that channel-level MPQ is feasible on this hardware; the paper says it is not on conventional arrays.",
+        "Do not infer a particular amount of lost accuracy."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L5",
+      "quotes": [
+        {
+          "text": "the GPT-2 Large sensitivity heatmap exhibits strong within-layer heterogeneity with no consistent trend across layers or submodules.",
+          "source": "paper, Sec. IV-B",
+          "locator": "Perplexity-Driven Sensitivity Profiling paragraph"
+        },
+        {
+          "text": "it would require multiple bit-widths to coexist simultaneously within a single tile",
+          "source": "paper, Sec. IV-B",
+          "locator": "after Algorithm 2"
+        },
+        {
+          "text": "showing the gain comes not from the PPL signal alone but from applying it at FlexPosit's finer, systolic-aligned channel-window granularity.",
+          "source": "paper, Sec. VI-B",
+          "locator": "Granularity ablation paragraph"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A window's measured ΔPPL is an aggregate over all its channels. A window receives one precision, so a few highly sensitive channels in an otherwise insensitive window can only be upgraded together with their neighbours. Fig. 5 is built from window-level cells. It supports profiling at window level over layer level, but it cannot show how much sensitivity is lost to within-window dilution. Table IV compares window-level MPQ only against layer-wise MPQ. The paper rejects finer-grained MPQ as impractical rather than measuring its accuracy, so the accuracy cost of the window constraint is not quantified."
+    },
+    {
+      "headline": "Hardware-aligned windows do not guarantee that profiling cost stays low as models or windows change",
+      "claim": "Aligning windows to array columns removes per-channel control cost in hardware. Under Algorithm 2 the profiling work grows with the number of windows, which depends on window size and layer width. The paper reports no profiling cost, and it does not say whether the larger Qwen window was chosen to limit that cost.",
+      "paper_fact": "one channel window at a time is upgraded to a higher precision (e.g., 5 b) while the rest remain at baseline, and the overall model perplexity is re-evaluated.",
+      "premise": "Each ΔPPL measurement needs a model-level evaluation. The number of such evaluations equals the number of windows. For fixed window size, that number grows with total output channels, and for a fixed model it grows as the window shrinks.",
+      "inference": "Window granularity therefore moves cost from per-channel hardware control to offline profiling. Smaller windows give finer allocation but more evaluations, so a given window size trades off resolution against profiling time. The paper does not report profiling time or the number of windows per model, so this trade-off is not quantified.",
+      "toy_example": "Illustration only, not a measurement: a model with 100,000 total output channels needs about 391 PPL evaluations at 256-channel windows and about 98 at 1024-channel windows.",
+      "conditional_consequence": "If the window size were halved to refine allocation, profiling cost would roughly double, so any gain in accuracy would come at an offline cost the paper does not report.",
+      "critical_link": "Number of windows, and so profiling evaluations, scales inversely with window size.",
+      "necessary_conditions": [
+        "Each window requires its own full perplexity evaluation, as in Algorithm 2.",
+        "The reported PPL results depend on windows being profiled individually."
+      ],
+      "defeaters": [
+        "Profiling is offline and one-time, so its cost may be acceptable in practice.",
+        "Fisher-ranked allocation is offered as a cheaper proxy within the same framework, partly mitigating the cost."
+      ],
+      "do_not_infer": [
+        "Do not infer that the 1024 window for Qwen was chosen to save profiling time; the paper does not say.",
+        "Do not infer that profiling is impractical.",
+        "Do not infer anything about inference-time latency or energy."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L7",
+      "quotes": [
+        {
+          "text": "one channel window at a time is upgraded to a higher precision (e.g., 5 b) while the rest remain at baseline, and the overall model perplexity is re-evaluated.",
+          "source": "paper, Sec. IV-B",
+          "locator": "Perplexity-Driven Sensitivity Profiling paragraph"
+        },
+        {
+          "text": "Fisher-ranked allocation follows the same trend and outperforms random and location-based ordering, making it a useful low-cost proxy within the same channel-window allocation framework.",
+          "source": "paper, Sec. VI-B",
+          "locator": "Accuracy-efficiency trade-off discussion of Fig. 10"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Each ΔPPL measurement needs a model-level evaluation. The number of such evaluations equals the number of windows. For fixed window size, that number grows with total output channels, and for a fixed model it grows as the window shrinks. Window granularity therefore moves cost from per-channel hardware control to offline profiling. Smaller windows give finer allocation but more evaluations, so a given window size trades off resolution against profiling time. The paper does not report profiling time or the number of windows per model, so this trade-off is not quantified."
+    },
+    {
+      "headline": "Isolated single-window 4→5 b ΔPPL does not imply additive benefit when the top-k windows are upgraded together",
+      "claim": "The ranking measures each window's gain when it alone is upgraded from the baseline. The allocation then upgrades many windows at once, so the isolated scores need not predict the combined gain or the best top-k set.",
+      "paper_fact": "one channel window at a time is upgraded to a higher precision (e.g., 5 b) while the rest remain at baseline, and the overall model perplexity is re-evaluated",
+      "premise": "In a deep network, errors from quantizing different layers interact through the residual stream and later layers. A sensitivity measured with every other window at baseline is therefore a first-order, marginal estimate. It need not add up across windows that are upgraded together.",
+      "inference": "Taking the top k% of windows from this ranking silently assumes the isolated scores are close to additive and stable. If neighboring windows share the same error, the top-ranked windows may be redundant. The ranking is also computed only at the 4 b baseline and is not recomputed as upgrades accumulate.",
+      "toy_example": "Toy example, not a measurement: windows A and B each remove the same dominant error in a layer. Each shows a large ΔPPL alone, but upgrading both gives little more than upgrading one. A greedy top-2 pick would then spend budget on A and B, while a lower-ranked window C could add more.",
+      "conditional_consequence": "If interactions between windows are strong, the realized PPL at a given virtual precision would be worse than the sum of the isolated gains suggests. A re-profiling or marginal-gain greedy scheme could then beat the one-shot ranking at the same average bits.",
+      "critical_link": "The one-shot ranking, computed with all other windows at baseline, is used as a proxy for the marginal value of each window inside a large upgraded set.",
+      "necessary_conditions": [
+        "Window effects on PPL interact non-additively, for example through shared residual paths or adjacent layers.",
+        "The upgraded set is large enough for overlap among its members to matter."
+      ],
+      "defeaters": [
+        "Sensitivity mass is concentrated in a few nearly independent windows. The paper's steep early curve in Fig. 10 is consistent with this.",
+        "The reported margins over Fisher, random and location ordering show the one-shot ranking is already empirically good in the tested cases."
+      ],
+      "do_not_infer": [
+        "Do not infer that the ΔPPL ranking performs worse than Fisher, random or location ordering. The paper reports that it performs better.",
+        "Do not infer a specific size for the sub-optimality. The paper provides no marginal-gain or re-profiling comparison.",
+        "Do not claim the authors assume additivity. That assumption is an inference from the mechanism."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L4",
+      "quotes": [
+        {
+          "text": "one channel window at a time is upgraded to a higher precision (e.g., 5 b) while the rest remain at baseline, and the overall model perplexity is re-evaluated",
+          "source": "paper",
+          "locator": "Sec. IV-B, Perplexity-Driven Sensitivity Profiling"
+        },
+        {
+          "text": "a virtual precision of 4.05 b corresponds to upgrading the top 5 % of channel windows in the ranked ∆PPL list to 5-bit precision",
+          "source": "paper",
+          "locator": "Sec. IV-B, Sensitivity-Guided Mixed-Precision Allocation"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "In a deep network, errors from quantizing different layers interact through the residual stream and later layers. A sensitivity measured with every other window at baseline is therefore a first-order, marginal estimate. It need not add up across windows that are upgraded together. Taking the top k% of windows from this ranking silently assumes the isolated scores are close to additive and stable. If neighboring windows share the same error, the top-ranked windows may be redundant. The ranking is also computed only at the 4 b baseline and is not recomputed as upgrades accumulate."
+    },
+    {
+      "headline": "A 4→5 b ΔPPL probe and a 4–5 b sweep do not guarantee the permitted 4–8 b allocations are well ranked or accuracy-validated",
+      "claim": "Windows are ranked by their gain from a 4→5 b upgrade, while the allocator and hardware permit precisions from 4 to 8 b. The accuracy evidence only spans the 4–5 b range, so the ranking and the 6–8 b range are not tested together.",
+      "paper_fact": "All weights in a channel window share the same precision within the 4–8 bit range.",
+      "premise": "Quantization error falls roughly geometrically with bits, so the ordering of windows by sensitivity at one bit step need not match the ordering for a larger step. The marginal value of a bit also diminishes.",
+      "inference": "The ranking is built from a single 4→5 b step. The reported experiments sweep only to about 5 b, so use of 6–8 b windows is neither validated nor ranked by any measurement. The Table I claim of fine-grained 4–8 b tunability is therefore backed by accuracy results only in the 4–5 b subrange.",
+      "toy_example": "Toy example, not a measurement: window A gains a lot from 4→5 b but little afterward, while window B gains little at first but keeps improving up to 7 b. Ranking by the 4→5 b probe would favor A even when the budget allows going beyond 5 b.",
+      "conditional_consequence": "If a deployment uses average precision well above 5 b, the 4→5 b ranking may be a poor guide for choosing which windows to take to 6–8 b. The quality of such allocations is not established by the paper's evidence.",
+      "critical_link": "The ordering of windows at the 4→5 b step is assumed to be the right ordering for all larger upgrades the 4–8 b hardware range allows.",
+      "necessary_conditions": [
+        "A use case needs an average precision above roughly 5 b or per-window precisions above 5 b.",
+        "Per-window sensitivity ordering changes across bit steps."
+      ],
+      "defeaters": [
+        "Ordering is stable across bit steps, so the 4→5 b ranking remains near-optimal.",
+        "The target regime is sub-5-bit. The paper's headline claim is sub-5-bit weights, so the sweep and claim coincide."
+      ],
+      "do_not_infer": [
+        "Do not infer that the sub-5-bit results are invalid. They are measured in the tested range.",
+        "Do not infer that 6–8 b allocation performs badly. It is untested, not shown to be poor.",
+        "Do not claim the authors say the ranking holds beyond 5 b. The paper is silent on this."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L3",
+      "quotes": [
+        {
+          "text": "All weights in a channel window share the same precision within the 4–8 bit range.",
+          "source": "paper",
+          "locator": "Sec. IV-B, Hardware-Aligned Precision Granularity"
+        },
+        {
+          "text": "Starting from uniform 4 b weights, channel windows are progressively upgraded to 5 b using:",
+          "source": "paper",
+          "locator": "Sec. VI-B, Precision scalability trends (Fig. 10 discussion)"
+        },
+        {
+          "text": "sweeping the virtual precision toward the 5 b range",
+          "source": "paper",
+          "locator": "Sec. VI-A, Quantization Setup"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Quantization error falls roughly geometrically with bits, so the ordering of windows by sensitivity at one bit step need not match the ordering for a larger step. The marginal value of a bit also diminishes. The ranking is built from a single 4→5 b step. The reported experiments sweep only to about 5 b, so use of 6–8 b windows is neither validated nor ranked by any measurement. The Table I claim of fine-grained 4–8 b tunability is therefore backed by accuracy results only in the 4–5 b subrange."
+    },
+    {
+      "headline": "Near-linear latency in mean bit-width at B=1, L=256 does not guarantee the same proportional benefit at larger batch or sequence length",
+      "claim": "Latency is almost exactly proportional to virtual precision in the default setting. This suggests a compute-dominated, zero-intercept regime. Table X shows the advantage shrinking as B and L grow, and the paper does not explain why.",
+      "paper_fact": "Latency increases nearly linearly with precision, consistent with the proportional timing behavior of the bit-serial architecture.",
+      "premise": "End-to-end latency is the sum of P-proportional bit-serial weight compute and terms that do not scale with weight bits, such as activation traffic, attention, KV-cache access, and FP16 rescale or accumulation. The share of the non-P terms depends on batch size and sequence length.",
+      "inference": "From the Fig. 11a PEB values, 0.225 at 4.1 b and 0.274 at 5.0 b give a slope of about 0.054 per bit and an intercept of about 0.002. These points come from different models, so this is only suggestive. The default setting looks nearly purely P-proportional. Table X then shows speedup over BitMoD falling from 1.8x to 1.6x and over FP16 from 4.1x to 3.4x as (B, L) grow to (8, 8192). So the fractional-bit payoff is regime-dependent, and that regime dependence is not shown or explained.",
+      "toy_example": "Illustrative only, not a measurement: if latency = a + 0.054·P with a fixed non-weight term a=0.1, then going from 5.0 b to 4.1 b gives 0.370→0.321, a ratio of 0.87. Pure proportionality would give 0.82.",
+      "conditional_consequence": "If the non-P latency share grows at larger B or L, fractional steps like 4.1 b versus 4.6 b buy less than the iso-PPL headline speedups suggest. They would also matter less for ranking operating points.",
+      "critical_link": "Whether the non-weight part of latency scales with B and L faster than the P-proportional part.",
+      "necessary_conditions": [
+        "The latency model has a P-independent component",
+        "That component grows with B and L, or P-proportional compute is amortized differently"
+      ],
+      "defeaters": [
+        "Speedup over BitMoD may fall because BitMoD benefits more at large B and L, not because FlexPosit's fractional benefit changes",
+        "Fig. 11a points come from different models at different p*, so the slope fit is confounded",
+        "The paper reports that the advantage persists across all workloads"
+      ],
+      "do_not_infer": [
+        "Do not infer that fractional precision gives no benefit at large batch; Table X still shows 1.6x over BitMoD",
+        "Do not infer that the cause is memory-boundedness; the paper does not say"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L7+L1",
+      "quotes": [
+        {
+          "source": "Paper, Sec. VI-B",
+          "locator": "Precision scalability trends",
+          "quote": "Latency increases nearly linearly with precision"
+        },
+        {
+          "source": "Paper, Sec. VI-A",
+          "locator": "Hardware Implementation",
+          "quote": "Unless otherwise stated, hardware evaluations use batch size 1 and an input sequence length of 256 tokens."
+        },
+        {
+          "source": "Paper, Sec. VI-C",
+          "locator": "Workload sensitivity",
+          "quote": "the original latency-sensitive setting (B=1, L=256)"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "Precision scalability trends",
+          "support_description": "Latency increases nearly linearly with precision"
+        },
+        {
+          "source_id": "paper",
+          "location": "Hardware Implementation",
+          "support_description": "Unless otherwise stated, hardware evaluations use batch size 1 and an input sequence length of 256 tokens."
+        },
+        {
+          "source_id": "paper",
+          "location": "Workload sensitivity",
+          "support_description": "the original latency-sensitive setting (B=1, L=256)"
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "End-to-end latency is the sum of P-proportional bit-serial weight compute and terms that do not scale with weight bits, such as activation traffic, attention, KV-cache access, and FP16 rescale or accumulation. The share of the non-P terms depends on batch size and sequence length. From the Fig. 11a PEB values, 0.225 at 4.1 b and 0.274 at 5.0 b give a slope of about 0.054 per bit and an intercept of about 0.002. These points come from different models, so this is only suggestive. The default setting looks nearly purely P-proportional. Table X then shows speedup over BitMoD falling from 1.8x to 1.6x and over FP16 from 4.1x to 3.4x as (B, L) grow to (8, 8192). So the fractional-bit payoff is regime-dependent, and that regime dependence is not shown or explained."
+    },
+    {
+      "headline": "Power-of-two-only scale restriction conflicts with calibrated real-valued scaling",
+      "claim": "FlexPosit gives up the calibrated real-valued scale used by conventional group-wise dequantization and allows only powers of two. The scale grid therefore has octave resolution, and any fractional-octave mismatch between a channel and the Posit profile cannot be corrected.",
+      "paper_fact": "Unlike conventional group-wise dequantization with calibrated real-valued scales, FlexPosit restricts the scale factor to a power of two.",
+      "premise": "A real-valued optimal scale generally falls between two adjacent powers of two. Rounding to the nearest power of two leaves a residual misalignment of up to about half an octave in log2 terms. A residual that large can matter when only 4 to 5 bits are available.",
+      "inference": "For channels whose best real scale is far from a power of two, the quantization error is higher than with a real-valued scale. The hardware saving (exponent-add rescale, 0.4% area per Table IX) is paid for with this loss of scale resolution. How large the loss is depends on how much the tapered Posit profile tolerates the mismatch.",
+      "toy_example": "Illustration only, not a measurement: a channel's best real scale is 1.41. The only choices are 1 or 2, so the distribution is about half an octave off the best alignment either way.",
+      "conditional_consequence": "If the mismatch is not absorbed by Posit's tapered precision, some of the extra bits FlexPosit needs (4.6 to 5.0 b for several models in Table II) may be paying for the lost scale resolution. The paper's results cannot separate this from other causes.",
+      "critical_link": "Whether the quantization error added by rounding the scale to a power of two is small compared with the error of the 4-bit Posit itself.",
+      "necessary_conditions": [
+        "Per-channel optimal real-valued scales are spread across fractional octaves rather than clustered near powers of two.",
+        "Posit(n,1) quantization error is sensitive to a half-octave shift of the distribution.",
+        "The low-bit regime leaves little precision margin."
+      ],
+      "defeaters": [
+        "Posit's wide dynamic range and tapered precision make half-octave shifts nearly harmless.",
+        "An ablation with real-valued per-channel scales shows no meaningful gain.",
+        "The gap to BitMoD is dominated by group-wise granularity, not scale resolution."
+      ],
+      "do_not_infer": [
+        "Do not infer that power-of-two scaling explains the 0.64 versus 0.40 mean ΔPPL difference from BitMoD.",
+        "Do not infer that real-valued per-channel scales would be cheap in hardware.",
+        "Do not infer that the 0.4% rescale area figure is wrong."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L7: accuracy cost of coarse power-of-two scale rounding",
+      "quotes": [
+        {
+          "text": "Unlike conventional group-wise dequantization with calibrated real-valued scales, FlexPosit restricts the scale factor to a power of two.",
+          "source": "paper",
+          "locator": "Sec. V-A, Rescale Units, page 6-7"
+        },
+        {
+          "text": "Power-of-two scales are applied as exponent offsets, avoiding FP multipliers",
+          "source": "paper",
+          "locator": "Sec. IV-A, page 5"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 2,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A real-valued optimal scale generally falls between two adjacent powers of two. Rounding to the nearest power of two leaves a residual misalignment of up to about half an octave in log2 terms. A residual that large can matter when only 4 to 5 bits are available. For channels whose best real scale is far from a power of two, the quantization error is higher than with a real-valued scale. The hardware saving (exponent-add rescale, 0.4% area per Table IX) is paid for with this loss of scale resolution. How large the loss is depends on how much the tapered Posit profile tolerates the mismatch."
+    },
+    {
+      "headline": "Reporting memory as 'Aligned' for 4/5-bit window mixtures does not imply that nominal bvirt equals effective weight traffic",
+      "claim": "The accounting for storage and fetch of mixed-width windows is not shown. Energy and latency results use the nominal mean bit-width as the cost proxy, while real traffic depends on the packed layout, padding at window boundaries and precision metadata.",
+      "paper_fact": "All weights in a channel window share the same precision within the 4–8 bit range.",
+      "premise": "Off-chip memory is accessed in fixed-size bursts and words. Compact storage of mixed 4-bit and 5-bit streams needs a layout and address map that tracks where each window's payload starts. Effective bytes moved equal payload bits plus padding and metadata.",
+      "inference": "Fractional precision is realized as a time average over windows with integer P. The paper tags the layout 'Aligned' (Table I) and reports a 4 b per-channel scale index. It gives no figure for padding or window-boundary effects, and no cycle or traffic count at precision transitions. Since the stated saving from 4.1 b rather than 5.0 b is small, any unreported overhead of this kind is non-negligible relative to the benefit.",
+      "toy_example": "Illustrative only, not a measurement: if each window boundary wastes 32 B of alignment padding and a layer has 100 windows, that adds 3.2 KB per layer. The effect is then negligible only if windows are large relative to a burst.",
+      "conditional_consequence": "If windows are small, or the layout interleaves columns with different P, effective traffic exceeds the nominal bvirt. The off-chip energy term and any memory-bound layers would then be underestimated relative to the reported FlexPosit numbers.",
+      "critical_link": "How per-window bit-serial weight streams are laid out in DRAM and buffers so that they can be fetched without padding or additional metadata.",
+      "necessary_conditions": [
+        "Window payload size is not a multiple of the memory access granularity",
+        "Precision metadata or alignment padding is stored beyond the stated bits"
+      ],
+      "defeaters": [
+        "Windows are 256 or 1024 channels, so payloads are large and padding is likely small",
+        "The 4 b per-channel scale index is amortized over many weights",
+        "The paper's energy figures may already include the actual packed traffic"
+      ],
+      "do_not_infer": [
+        "Do not infer that the reported energy is wrong; the paper does not show the packing cost either way",
+        "Do not infer that mixed-width packing is infeasible"
+      ],
+      "disclosure": "inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L3+L6",
+      "quotes": [
+        {
+          "source": "Paper, Sec. IV-B",
+          "locator": "Hardware-Aligned Precision Granularity",
+          "quote": "All weights in a channel window share the same precision within the 4–8 bit range."
+        },
+        {
+          "source": "Paper, Sec. IV-A",
+          "locator": "Distribution-Aware Per-Channel Posit Quantization",
+          "quote": "a compact 4 b index stores the selected per-channel scale with low metadata overhead"
+        },
+        {
+          "source": "Paper, Sec. III-C",
+          "locator": "Architectural limitation",
+          "quote": "preserving memory and systolic regularity for LLM edge inference"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 2,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "Hardware-Aligned Precision Granularity",
+          "support_description": "All weights in a channel window share the same precision within the 4–8 bit range."
+        },
+        {
+          "source_id": "paper",
+          "location": "Distribution-Aware Per-Channel Posit Quantization",
+          "support_description": "a compact 4 b index stores the selected per-channel scale with low metadata overhead"
+        },
+        {
+          "source_id": "paper",
+          "location": "Architectural limitation",
+          "support_description": "preserving memory and systolic regularity for LLM edge inference"
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Off-chip memory is accessed in fixed-size bursts and words. Compact storage of mixed 4-bit and 5-bit streams needs a layout and address map that tracks where each window's payload starts. Effective bytes moved equal payload bits plus padding and metadata. Fractional precision is realized as a time average over windows with integer P. The paper tags the layout 'Aligned' (Table I) and reports a 4 b per-channel scale index. It gives no figure for padding or window-boundary effects, and no cycle or traffic count at precision transitions. Since the stated saving from 4.1 b rather than 5.0 b is small, any unreported overhead of this kind is non-negligible relative to the benefit."
+    },
+    {
+      "headline": "A P-cycle precision window does not guarantee a continuously utilized shared accumulator at P above 4",
+      "claim": "The shared-accumulator argument for the 4-way MAC cluster holds exactly at the minimum precision P=4. At P>4 each PE finishes a product every P cycles, so the shared accumulator is busy only 4/P of cycles. The text's 'continuously utilized' wording therefore describes only the 4 b point.",
+      "paper_fact": "By interleaving four PEs in a round-robin manner, the cluster sustains one product per cycle in steady state, keeping the shared accumulator continuously utilized.",
+      "premise": "A bit-serial PE emits one product every P cycles. Four PEs sharing one accumulator then deliver 4 products per P cycles, so the accumulator receives an input in 4 of every P cycles. Beyond P=4 the remaining cycles are idle. This is the same 4/P throughput the paper states for a cluster.",
+      "inference": "Cluster throughput scales as 4/P, and the shared accumulator's idle fraction grows from 0 at P=4 to 50% at P=8. Under iso-PPL operation, models need an average of about 4.1 to 5.0 b, so most FlexPosit windows run at P above 4. The fractional-precision benefit therefore comes with a decline in accumulator utilization that the 'continuously utilized' wording does not convey.",
+      "toy_example": "Illustration only, not a measurement: at P=5 the accumulator is used in 4 of 5 cycles (80%), and at P=8 in 4 of 8 cycles (50%).",
+      "conditional_consequence": "If the shared accumulator is sized and clocked for the 4 b rate, the extra precision cycles at higher P are paid for in throughput and not in accumulator area. Per-window energy and latency should be read as time-traded, not hardware-traded.",
+      "critical_link": "The one-product-per-cycle steady state requires four PEs finishing out of phase every P=4 cycles. This does not carry over to P>4, where the paper's own 4/P throughput applies.",
+      "necessary_conditions": [
+        "P>4 for a given window.",
+        "The four PEs of a cluster still share one accumulator."
+      ],
+      "defeaters": [
+        "The accumulator's idle cycles cost negligible energy, so lower utilization has no practical effect.",
+        "Windows near P=4 dominate real allocations, so the average utilization loss is small."
+      ],
+      "do_not_infer": [
+        "That the design stalls or produces wrong results at P>4.",
+        "That the paper hides the 4/P throughput scaling, since it states it explicitly.",
+        "That the shared accumulator limits throughput below what the paper reports."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L4+L7",
+      "quotes": [
+        {
+          "text": "By interleaving four PEs in a round-robin manner, the cluster sustains one product per cycle in steady state, keeping the shared accumulator continuously utilized.",
+          "source": "paper, Sec. V-B Processing Element",
+          "locator": "page 7"
+        },
+        {
+          "text": "each cluster achieves an effective throughput of 4/P MACs per cycle for any supported precision configuration (4 ≤P ≤8)",
+          "source": "paper, Sec. V-B 4-Way MAC Clusters",
+          "locator": "page 7"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 2,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A bit-serial PE emits one product every P cycles. Four PEs sharing one accumulator then deliver 4 products per P cycles, so the accumulator receives an input in 4 of every P cycles. Beyond P=4 the remaining cycles are idle. This is the same 4/P throughput the paper states for a cluster. Cluster throughput scales as 4/P, and the shared accumulator's idle fraction grows from 0 at P=4 to 50% at P=8. Under iso-PPL operation, models need an average of about 4.1 to 5.0 b, so most FlexPosit windows run at P above 4. The fractional-precision benefit therefore comes with a decline in accumulator utilization that the 'continuously utilized' wording does not convey."
+    }
+  ],
+  "dropped_for_unverified_quotes": 0,
+  "chunk_count": 6,
+  "chunk_failures": 0,
+  "chunk_timings": [
+    {
+      "seconds": 46.59999731904827,
+      "attempts": 1
+    },
+    {
+      "seconds": 47.06283703818917,
+      "attempts": 1
+    },
+    {
+      "seconds": 39.68595828698017,
+      "attempts": 1
+    },
+    {
+      "seconds": 36.32327847182751,
+      "attempts": 1
+    },
+    {
+      "seconds": 69.35661058989353,
+      "attempts": 1
+    },
+    {
+      "seconds": 44.866131147835404,
+      "attempts": 1
+    }
+  ],
+  "inventory_seconds": 144.50533892214298,
+  "chunks_seconds": 115.95801380695775,
+  "merged_candidates": 0,
+  "unverified_kept": 15
+}

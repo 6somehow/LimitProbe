@@ -1,0 +1,529 @@
+{
+  "candidates": [
+    {
+      "category_code": "applicability_limitation",
+      "claim": "The speculation relies on high similarity between consecutive attention-layer inputs due to outliers and LayerNorm; if a model lacks this property, the previous-layer rehearsal is a poor predictor.",
+      "mechanism": "Paper uses Layer i-1 attention input to speculate Layer i -> premise: consecutive attention inputs are highly similar -> if similarity is low, the partial rehearsal ranks tokens differently from the actual next-layer attention.",
+      "conditions": "Consecutive attention inputs must be highly similar and outlier channels must be present.",
+      "consequence": "Wrong KV entries may be prefetched, causing accuracy loss.",
+      "defeaters": "The limitation is irrelevant if the target model empirically preserves high consecutive-layer input similarity.",
+      "disclosure": "reported_in_paper",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "There are two major reasons behind this. The first is the existence of outliers in LLMs, as discussed in Section 2.3, and the second is due to layer normalization (LayerNorm).",
+          "locator": "page 7 Section 4.2"
+        },
+        {
+          "source": "paper",
+          "quote": "Tblock_in gradually changes across the layers; the inputs to distant layers are distinct.",
+          "locator": "page 8 Section 4.2"
+        }
+      ],
+      "locator": "page 7 Section 4.2; page 8 Section 4.2",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "page 7 Section 4.2",
+          "support_description": "There are two major reasons behind this. The first is the existence of outliers in LLMs, as discussed in Section 2.3, and the second is due to layer normalization (LayerNorm)."
+        },
+        {
+          "source_id": "paper",
+          "location": "page 8 Section 4.2",
+          "support_description": "Tblock_in gradually changes across the layers; the inputs to distant layers are distinct."
+        }
+      ]
+    },
+    {
+      "category_code": "applicability_limitation",
+      "claim": "The method assumes attention is sparse enough that dropping low-score tokens preserves accuracy; tasks with diffuse attention may violate this assumption.",
+      "mechanism": "Paper says skipping less critical tokens does not significantly degrade accuracy if selection is appropriate -> premise: a few tokens dominate attention -> if attention is diffuse, many tokens are jointly important and selection becomes lossy.",
+      "conditions": "Attention weights must be concentrated on a small subset of tokens.",
+      "consequence": "Accuracy may drop on tasks requiring broad or diffuse attention.",
+      "defeaters": "The limitation is irrelevant if the target workload has strongly sparse attention.",
+      "disclosure": "reported_in_paper",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "skipping attention computation for some less critical tokens does not significantly degrade the model accuracy, provided the token selection is appropriate.",
+          "locator": "page 5 Section 3.2"
+        }
+      ],
+      "locator": "page 5 Section 3.2",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "page 5 Section 3.2",
+          "support_description": "skipping attention computation for some less critical tokens does not significantly degrade the model accuracy, provided the token selection is appropriate."
+        }
+      ]
+    },
+    {
+      "category_code": "applicability_limitation",
+      "claim": "The method requires offline access to model weights and a representative sample input to compute SVD-based skewing; black-box or dynamically changing models cannot use it directly.",
+      "mechanism": "Paper runs a forward pass once with a sample input and modifies weight matrices -> premise: full model weights are accessible and stable -> API-only models or models with runtime weight changes cannot be skewed in this way.",
+      "conditions": "Full model weights must be accessible and stable enough for one-time offline modification.",
+      "consequence": "InfiniGen cannot be applied to proprietary API models or models whose weights change at runtime.",
+      "defeaters": "The limitation is irrelevant if the deployment can modify weights or if skewing is omitted with acceptable accuracy.",
+      "disclosure": "reported_in_paper",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "InfiniGen first runs the forward pass of the model once with a sample input.",
+          "locator": "page 9 Section 4.3"
+        },
+        {
+          "source": "paper",
+          "quote": "we modify the weight matrices that are invariant at runtime",
+          "locator": "page 9 Section 4.3"
+        }
+      ],
+      "locator": "page 9 Section 4.3",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "page 9 Section 4.3",
+          "support_description": "InfiniGen first runs the forward pass of the model once with a sample input."
+        },
+        {
+          "source_id": "paper",
+          "location": "page 9 Section 4.3",
+          "support_description": "we modify the weight matrices that are invariant at runtime"
+        }
+      ]
+    },
+    {
+      "category_code": "applicability_limitation",
+      "claim": "The provided implementation assumes standard multi-head attention with equal Q, K, and V head counts; it reshapes K with n_head and head_dim derived from the hidden size.",
+      "mechanism": "Code computes head_dim = h // n_head and reshapes k to (b, s, n_head, head_dim) -> premise: K must have the same number of heads as Q -> grouped-query or multi-query attention with fewer KV heads cannot be represented without code changes.",
+      "conditions": "The model must use standard MHA or an adapted implementation where K/V head counts match Q.",
+      "consequence": "The method cannot be applied directly to GQA/MQA models or would mis-shape tensors.",
+      "defeaters": "The limitation is irrelevant if the target model uses standard MHA or the code is adapted for GQA/MQA.",
+      "disclosure": "inferred",
+      "quotes": [
+        {
+          "source": "code",
+          "quote": "head_dim = h // n_head",
+          "locator": "speedup/flexgen/infinigen/pytorch_backend.py"
+        },
+        {
+          "source": "code",
+          "quote": "k = F.linear(new_h, w_k.data, bias=None)",
+          "locator": "speedup/flexgen/infinigen/pytorch_backend.py"
+        },
+        {
+          "source": "code",
+          "quote": "k = k.view(b, s, n_head, head_dim)",
+          "locator": "speedup/flexgen/infinigen/pytorch_backend.py"
+        }
+      ],
+      "locator": "speedup/flexgen/infinigen/pytorch_backend.py",
+      "evidence": [
+        {
+          "source_id": "code",
+          "location": "speedup/flexgen/infinigen/pytorch_backend.py",
+          "support_description": "head_dim = h // n_head"
+        },
+        {
+          "source_id": "code",
+          "location": "speedup/flexgen/infinigen/pytorch_backend.py",
+          "support_description": "k = F.linear(new_h, w_k.data, bias=None)"
+        },
+        {
+          "source_id": "code",
+          "location": "speedup/flexgen/infinigen/pytorch_backend.py",
+          "support_description": "k = k.view(b, s, n_head, head_dim)"
+        }
+      ]
+    },
+    {
+      "category_code": "method_shortcoming",
+      "claim": "Alpha and the partial weight ratio are fixed per model after a sensitivity study, so they do not adapt to layer, query, or workload shifts.",
+      "mechanism": "Paper sets the partial weight ratio to 0.3 and alpha to 4 for OPT and 5 for Llama-2 -> these values are chosen by sensitivity study -> a distribution shift can make the fixed values suboptimal for accuracy or latency.",
+      "conditions": "The workload must match the tuning distribution for the fixed values to remain near-optimal.",
+      "consequence": "Accuracy or transfer overhead may degrade on shifted workloads.",
+      "defeaters": "The limitation is irrelevant if the fixed values are empirically robust across the target workloads.",
+      "disclosure": "reported_in_paper",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "The partial weight ratio is set to 0.3. We set alpha to 4 for OPT and 5 for Llama-2",
+          "locator": "page 10 Section 5.1"
+        },
+        {
+          "source": "paper",
+          "quote": "The partial weight ratio and alpha are determined based on a sensitivity study for each model",
+          "locator": "page 11 Section 5.1"
+        }
+      ],
+      "locator": "page 10 Section 5.1; page 11 Section 5.1",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "page 10 Section 5.1",
+          "support_description": "The partial weight ratio is set to 0.3. We set alpha to 4 for OPT and 5 for Llama-2"
+        },
+        {
+          "source_id": "paper",
+          "location": "page 11 Section 5.1",
+          "support_description": "The partial weight ratio and alpha are determined based on a sensitivity study for each model"
+        }
+      ]
+    },
+    {
+      "category_code": "method_shortcoming",
+      "claim": "Speculation uses only the previous-layer attention input and partial Q/K of the next layer, ignoring the current layer's actual Q/K/V, so it can misrank tokens when the next layer's attention differs.",
+      "mechanism": "Paper uses Layer i-1 input and partial Layer i Q/K -> premise: the next layer is predictable from the previous layer -> if actual current Q/K/V select different tokens, the prefetched set misses important KV entries.",
+      "conditions": "The next-layer attention pattern must be well predicted by the previous-layer rehearsal.",
+      "consequence": "Important KV entries may be omitted, reducing accuracy.",
+      "defeaters": "The limitation is irrelevant if the prediction is accurate for the target model and workload.",
+      "disclosure": "inferred",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "At Layer i−1, we use the partial query weight matrix and key cache of Layer i, which are identified in the prefill stage, along with the attention input of Layer i−1.",
+          "locator": "page 9 Section 4.3"
+        },
+        {
+          "source": "paper",
+          "quote": "speculates on the attention pattern of the next layer",
+          "locator": "page 9 Section 4.3"
+        }
+      ],
+      "locator": "page 9 Section 4.3",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "page 9 Section 4.3",
+          "support_description": "At Layer i−1, we use the partial query weight matrix and key cache of Layer i, which are identified in the prefill stage, along with the attention input of Layer i−1."
+        },
+        {
+          "source_id": "paper",
+          "location": "page 9 Section 4.3",
+          "support_description": "speculates on the attention pattern of the next layer"
+        }
+      ]
+    },
+    {
+      "category_code": "method_shortcoming",
+      "claim": "The alpha threshold uses an absolute score difference from the maximum, so its effect depends on score scale and distribution; a fixed alpha can select too few or too many tokens.",
+      "mechanism": "Paper selects scores greater than max minus alpha -> softmax converts the score difference into a ratio -> if score scale varies across layers or models, the same alpha changes the selected set size and accuracy.",
+      "conditions": "The score scale must be stable enough for a fixed alpha to be meaningful.",
+      "consequence": "The method may overfetch or underfetch KV entries, trading accuracy for bandwidth poorly.",
+      "defeaters": "The limitation is irrelevant if alpha is calibrated per layer/model or score scales are stable.",
+      "disclosure": "inferred",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "We select only the tokens with an attention score greater than the maximum score subtracted by alpha.",
+          "locator": "page 9 Section 4.3"
+        },
+        {
+          "source": "paper",
+          "quote": "subtraction from the attention score results in division after softmax",
+          "locator": "page 9 Section 4.3"
+        }
+      ],
+      "locator": "page 9 Section 4.3",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "page 9 Section 4.3",
+          "support_description": "We select only the tokens with an attention score greater than the maximum score subtracted by alpha."
+        },
+        {
+          "source_id": "paper",
+          "location": "page 9 Section 4.3",
+          "support_description": "subtraction from the attention score results in division after softmax"
+        }
+      ]
+    },
+    {
+      "category_code": "method_shortcoming",
+      "claim": "The paper enforces the same number of prefetched tokens across heads by averaging, and the code averages across all heads and batch elements, so heterogeneous attention sparsity is flattened.",
+      "mechanism": "Paper says each head fetches the same number of tokens -> code computes mean = torch.mean(torch.sum(count, dim=-1)).item() -> a head or request needing many tokens is underfetched while another needing few is overfetched.",
+      "conditions": "Heads or batch requests must have different attention sparsity for the averaging to hurt.",
+      "consequence": "Accuracy loss or wasted PCIe bandwidth.",
+      "defeaters": "The limitation is irrelevant if sparsity is homogeneous or the max_num_kv cap dominates.",
+      "disclosure": "inferred",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "we ensure that each head in the same layer fetches the same number of tokens by averaging the number of tokens between the maximum score and the threshold across the heads.",
+          "locator": "page 10 Section 4.3"
+        },
+        {
+          "source": "code",
+          "quote": "mean = torch.mean(torch.sum(count, dim=-1)).item()",
+          "locator": "speedup/infinigen/infinigen/kv_selection_controller.py"
+        }
+      ],
+      "locator": "page 10 Section 4.3; speedup/infinigen/infinigen/kv_selection_controller.py",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "page 10 Section 4.3",
+          "support_description": "we ensure that each head in the same layer fetches the same number of tokens by averaging the number of tokens between the maximum score and the threshold across the heads."
+        },
+        {
+          "source_id": "code",
+          "location": "speedup/infinigen/infinigen/kv_selection_controller.py",
+          "support_description": "mean = torch.mean(torch.sum(count, dim=-1)).item()"
+        }
+      ]
+    },
+    {
+      "category_code": "method_shortcoming",
+      "claim": "The per-layer cap of 20% of total KV cache can truncate important tokens in broad-attention layers.",
+      "mechanism": "Paper allows up to 20% of total KV cache per layer -> if the candidate set exceeds this cap -> top-k truncation drops some tokens that the speculation marked important.",
+      "conditions": "The important token set must exceed 20% of the total KV cache for a layer.",
+      "consequence": "Accuracy may drop in layers with broad attention.",
+      "defeaters": "The limitation is irrelevant if important sets always remain below the cap.",
+      "disclosure": "reported_in_paper",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "For each layer, we allow sending up to 20% of the total KV cache to the GPU if it contains more candidates.",
+          "locator": "page 10 Section 5.1"
+        }
+      ],
+      "locator": "page 10 Section 5.1",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "page 10 Section 5.1",
+          "support_description": "For each layer, we allow sending up to 20% of the total KV cache to the GPU if it contains more candidates."
+        }
+      ]
+    },
+    {
+      "category_code": "method_shortcoming",
+      "claim": "Under a CPU memory limit, the counter-based eviction can permanently remove KV entries that are temporarily unimportant but later become important.",
+      "mechanism": "Paper selects a victim with the smallest count -> counters increment on prefetch and halve on saturation -> a token not recently prefetched can be evicted even if future attention would need it.",
+      "conditions": "The CPU memory limit must be reached and attention importance must change over iterations.",
+      "consequence": "Permanent context loss and accuracy drop under memory pressure.",
+      "defeaters": "The limitation is irrelevant if no memory limit is used or the counter policy preserves all future-important tokens.",
+      "disclosure": "inferred",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "selects a victim with the smallest count in the KV cache pool",
+          "locator": "page 10 Section 4.4"
+        },
+        {
+          "source": "paper",
+          "quote": "If any counter becomes saturated, all the counter values are reduced by half.",
+          "locator": "page 10 Section 4.4"
+        },
+        {
+          "source": "paper",
+          "quote": "keeping the temporarily unimportant KV entries for potential future use",
+          "locator": "page 15 Section 6.3"
+        }
+      ],
+      "locator": "page 10 Section 4.4; page 15 Section 6.3",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "page 10 Section 4.4",
+          "support_description": "selects a victim with the smallest count in the KV cache pool"
+        },
+        {
+          "source_id": "paper",
+          "location": "page 10 Section 4.4",
+          "support_description": "If any counter becomes saturated, all the counter values are reduced by half."
+        },
+        {
+          "source_id": "paper",
+          "location": "page 15 Section 6.3",
+          "support_description": "keeping the temporarily unimportant KV entries for potential future use"
+        }
+      ]
+    },
+    {
+      "category_code": "method_shortcoming",
+      "claim": "Partial query weight and partial key cache are stored on GPU, consuming memory that could otherwise hold KV cache or larger batches.",
+      "mechanism": "Paper stores 2.5% of model parameters and 15% of total KV cache on GPU -> premise: GPU memory is scarce -> this overhead reduces available capacity for KV cache or batch size.",
+      "conditions": "GPU memory must be constrained enough for the overhead to matter.",
+      "consequence": "Lower maximum batch size or sequence length, or extra management complexity.",
+      "defeaters": "The limitation is irrelevant if the overhead is moved off-GPU or is negligible for the deployment.",
+      "disclosure": "reported_in_paper",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "the sizes of the partial query weight and key cache are only 2.5% and 15% of the total model parameters and total KV cache, respectively.",
+          "locator": "page 14 Section 6.2"
+        },
+        {
+          "source": "paper",
+          "quote": "While we simply store them in the GPU during our experiments",
+          "locator": "page 14 Section 6.2"
+        }
+      ],
+      "locator": "page 14 Section 6.2",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "page 14 Section 6.2",
+          "support_description": "the sizes of the partial query weight and key cache are only 2.5% and 15% of the total model parameters and total KV cache, respectively."
+        },
+        {
+          "source_id": "paper",
+          "location": "page 14 Section 6.2",
+          "support_description": "While we simply store them in the GPU during our experiments"
+        }
+      ]
+    },
+    {
+      "category_code": "method_shortcoming",
+      "claim": "Speculation only targets the next layer and starts at Layer 1, so Layer 0 and deeper prefetch overlap are not covered.",
+      "mechanism": "Paper speculates the next layer -> starts from Layer 1 because outliers emerge in Layer 0 -> Layer 0 cannot hide transfer and only one-layer lookahead limits overlap.",
+      "conditions": "Layer 0 transfer must be significant or deeper lookahead must be needed for full overlap.",
+      "consequence": "Lower speedup than a design that prefetches multiple layers ahead or handles Layer 0.",
+      "defeaters": "The limitation is irrelevant if Layer 0 is small or one-layer overlap is sufficient.",
+      "disclosure": "inferred",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "InfiniGen initiates speculation and prefetching from Layer 1 because the outliers, which are essential for exploiting input similarity, emerge during the computation in Layer 0.",
+          "locator": "page 10 Section 4.3"
+        },
+        {
+          "source": "paper",
+          "quote": "speculates on the attention pattern of the next layer",
+          "locator": "page 9 Section 4.3"
+        }
+      ],
+      "locator": "page 9 Section 4.3; page 10 Section 4.3",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "page 10 Section 4.3",
+          "support_description": "InfiniGen initiates speculation and prefetching from Layer 1 because the outliers, which are essential for exploiting input similarity, emerge during the computation in Layer 0."
+        },
+        {
+          "source_id": "paper",
+          "location": "page 9 Section 4.3",
+          "support_description": "speculates on the attention pattern of the next layer"
+        }
+      ]
+    },
+    {
+      "category_code": "method_shortcoming",
+      "claim": "The provided implementation defines the attention scaling factor but computes attention scores without applying it, so the speculated scores and alpha threshold operate on an unscaled score scale.",
+      "mechanism": "Code sets scaling = head_dim ** -0.5 -> attn_weights = torch.bmm(q, k) does not multiply by scaling -> alpha calibrated for scaled scores may select the wrong tokens.",
+      "conditions": "This code path must be used and the weights must not be pre-scaled elsewhere.",
+      "consequence": "Token selection and model accuracy may degrade due to miscalibrated attention scores.",
+      "defeaters": "The limitation is irrelevant if scaling is applied elsewhere or the weights are pre-scaled.",
+      "disclosure": "inferred",
+      "quotes": [
+        {
+          "source": "code",
+          "quote": "scaling = head_dim ** -0.5",
+          "locator": "speedup/flexgen/infinigen/pytorch_backend.py"
+        },
+        {
+          "source": "code",
+          "quote": "attn_weights = torch.bmm(q, k)",
+          "locator": "speedup/flexgen/infinigen/pytorch_backend.py"
+        }
+      ],
+      "locator": "speedup/flexgen/infinigen/pytorch_backend.py",
+      "evidence": [
+        {
+          "source_id": "code",
+          "location": "speedup/flexgen/infinigen/pytorch_backend.py",
+          "support_description": "scaling = head_dim ** -0.5"
+        },
+        {
+          "source_id": "code",
+          "location": "speedup/flexgen/infinigen/pytorch_backend.py",
+          "support_description": "attn_weights = torch.bmm(q, k)"
+        }
+      ]
+    },
+    {
+      "category_code": "mechanism_origin_unclear",
+      "claim": "The paper attributes consecutive-layer input similarity to outliers and LayerNorm but does not fully explain why it remains high across layers/models or how it degrades.",
+      "mechanism": "Paper reports high cosine similarity -> attributes it to outliers and LayerNorm -> without a predictive model, one cannot know when the speculation assumption will fail.",
+      "conditions": "The target model must have similar normalization and outlier behavior for the explanation to transfer.",
+      "consequence": "Speculation may misrank tokens on models where the unexplained similarity assumption breaks.",
+      "defeaters": "The limitation is irrelevant if the similarity is empirically robust across all target models.",
+      "disclosure": "inferred",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "Highly similar inputs between consecutive Transformer blocks lead to similar inputs across the attention layers",
+          "locator": "page 8 Section 4.2"
+        },
+        {
+          "source": "paper",
+          "quote": "Tblock_in gradually changes across the layers; the inputs to distant layers are distinct.",
+          "locator": "page 8 Section 4.2"
+        }
+      ],
+      "locator": "page 8 Section 4.2",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "page 8 Section 4.2",
+          "support_description": "Highly similar inputs between consecutive Transformer blocks lead to similar inputs across the attention layers"
+        },
+        {
+          "source_id": "paper",
+          "location": "page 8 Section 4.2",
+          "support_description": "Tblock_in gradually changes across the layers; the inputs to distant layers are distinct."
+        }
+      ]
+    },
+    {
+      "category_code": "mechanism_origin_unclear",
+      "claim": "The paper observes that skewing is critical for OPT-6.7B but only slightly helpful for Llama-2, without explaining the model-dependent cause.",
+      "mechanism": "Figure 13 shows a large OPT drop without skewing and a small Llama-2 drop -> the paper does not characterize why -> one cannot predict which new models need skewing.",
+      "conditions": "The target model must differ in intrinsic query/key column patterns or training distribution.",
+      "consequence": "Skewing may be unnecessary for some models or insufficient for others.",
+      "defeaters": "The limitation is irrelevant if model-specific sensitivity is characterized elsewhere.",
+      "disclosure": "inferred",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "We observe that several language models (e.g., Llama-2) show a small drop in accuracy without skewing. For some models such as OPT-6.7B, however, we see a large accuracy drop if we do not apply the skewing method as shown in Figure 13.",
+          "locator": "page 12 Section 5.2"
+        }
+      ],
+      "locator": "page 12 Section 5.2",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "page 12 Section 5.2",
+          "support_description": "We observe that several language models (e.g., Llama-2) show a small drop in accuracy without skewing. For some models such as OPT-6.7B, however, we see a large accuracy drop if we do not apply the skewing method as shown in Figure 13."
+        }
+      ]
+    },
+    {
+      "category_code": "mechanism_origin_unclear",
+      "claim": "The occasional accuracy improvement over the full-cache baseline is explained only as a likely focus on critical tokens, not established.",
+      "mechanism": "Paper reports better accuracy in some cases -> offers a likely explanation -> without a controlled study, one cannot rely on this as a general accuracy guarantee.",
+      "conditions": "The task or model must be sensitive to dropping low-score tokens for the effect to appear.",
+      "consequence": "Accuracy parity with full cache may not hold across workloads.",
+      "defeaters": "The limitation is irrelevant if a controlled study confirms the regularization effect.",
+      "disclosure": "inferred",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "In some cases, InfiniGen even shows slightly better accuracy than the full-cache baseline. This is likely because reducing the amount of the KV cache participating in the attention computation can help the model focus more on critical tokens.",
+          "locator": "page 11 Section 5.2"
+        }
+      ],
+      "locator": "page 11 Section 5.2",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "page 11 Section 5.2",
+          "support_description": "In some cases, InfiniGen even shows slightly better accuracy than the full-cache baseline. This is likely because reducing the amount of the KV cache participating in the attention computation can help the model focus more on critical tokens."
+        }
+      ]
+    }
+  ],
+  "dropped_for_unverified_quotes": 4
+}

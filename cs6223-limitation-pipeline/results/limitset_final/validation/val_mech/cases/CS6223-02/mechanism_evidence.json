@@ -1,0 +1,517 @@
+{
+  "candidates": [
+    {
+      "category_code": "applicability_limitation",
+      "claim": "MInference is designed to accelerate only the pre-filling stage, so it does not reduce the cost of decoding or generation after the first token.",
+      "mechanism": "Paper fact: the method is presented as pre-filling acceleration -> premise: decoding remains dense or outside the sparse pre-fill path -> inference: workloads dominated by decoding will see little or no end-to-end benefit.",
+      "conditions": "The workload must be dominated by long-prompt pre-filling rather than autoregressive decoding.",
+      "consequence": "End-to-end latency and cost may remain high for long-output or decoding-heavy applications.",
+      "defeaters": "The limitation is irrelevant if the deployment bottleneck is pre-filling, or if MInference is combined with separate decoding optimizations.",
+      "disclosure": "reported_in_paper",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "We propose MInference, a method that accelerates the pre-filling stage by leveraging dynamic sparse attention with spatial aggregation patterns.",
+          "locator": "Section 6"
+        },
+        {
+          "source": "paper",
+          "quote": "accelerate pre-filling of long-sequence processing",
+          "locator": "Abstract"
+        }
+      ],
+      "locator": "Abstract; Section 6",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "Section 6",
+          "support_description": "We propose MInference, a method that accelerates the pre-filling stage by leveraging dynamic sparse attention with spatial aggregation patterns."
+        },
+        {
+          "source_id": "paper",
+          "location": "Abstract",
+          "support_description": "accelerate pre-filling of long-sequence processing"
+        }
+      ]
+    },
+    {
+      "category_code": "applicability_limitation",
+      "claim": "The speedup is context-length dependent: at short contexts the dynamic index-building overhead becomes a large fraction of latency and can make MInference approach FlashAttention latency.",
+      "mechanism": "Paper fact: index-building time is more significant as attention computation time decreases -> premise: short contexts reduce dense attention time but not necessarily index overhead -> inference: the relative overhead grows and can erase the speedup.",
+      "conditions": "The prompt length must be long enough for sparse attention savings to dominate index-building overhead.",
+      "consequence": "For short or moderate contexts, MInference may provide little or no latency benefit.",
+      "defeaters": "The limitation is irrelevant for sufficiently long prompts where index overhead is amortized.",
+      "disclosure": "reported_in_paper",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "As the context length decreases, the time required to build the dynamic index becomes more significant as attention computation time decreases.",
+          "locator": "Appendix A"
+        },
+        {
+          "source": "paper",
+          "quote": "with a 10k context, the time spent on building the index increases from 5% to 30%, resulting in overall end-to-end latency approaching that of FlashAttention.",
+          "locator": "Appendix A"
+        }
+      ],
+      "locator": "Appendix A",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "Appendix A",
+          "support_description": "As the context length decreases, the time required to build the dynamic index becomes more significant as attention computation time decreases."
+        },
+        {
+          "source_id": "paper",
+          "location": "Appendix A",
+          "support_description": "with a 10k context, the time spent on building the index increases from 5% to 30%, resulting in overall end-to-end latency approaching that of FlashAttention."
+        }
+      ]
+    },
+    {
+      "category_code": "applicability_limitation",
+      "claim": "Using a higher sparsity rate can noticeably degrade model performance, so the method is not uniformly safe across sparsity settings.",
+      "mechanism": "Paper fact: higher sparsity may noticeably decline performance -> premise: sparse masks drop attention weights that may be important for some inputs -> inference: aggressive sparsity can remove task-critical attention and reduce accuracy.",
+      "conditions": "The chosen sparsity rate must remain moderate enough for the task and model.",
+      "consequence": "Accuracy may drop on tasks that require attention to many or unpredictable tokens.",
+      "defeaters": "The limitation is less relevant if the task is robust to high sparsity or if sparsity is tuned per workload.",
+      "disclosure": "reported_in_paper",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "Additionally, when using a higher sparsity rate, the model performance may noticeably decline.",
+          "locator": "Appendix A"
+        }
+      ],
+      "locator": "Appendix A",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "Appendix A",
+          "support_description": "Additionally, when using a higher sparsity rate, the model performance may noticeably decline."
+        }
+      ]
+    },
+    {
+      "category_code": "method_shortcoming",
+      "claim": "The offline pattern search uses only one synthetic KV-retrieval sample at 30k tokens, so the selected per-head patterns may be suboptimal for other tasks, lengths, or domains.",
+      "mechanism": "Paper fact: one sample is used as the validation set -> premise: pattern assignment depends on the reference sample -> inference: heads may be assigned patterns that fit that sample but not other inputs.",
+      "conditions": "The selected patterns must generalize from the single reference sample to the deployment distribution.",
+      "consequence": "MInference may lose recall or accuracy on tasks unlike the search sample.",
+      "defeaters": "The limitation is false if the optimal head patterns are highly stable across tasks and lengths, as the paper claims.",
+      "disclosure": "inferred",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "we use only one sample as our validation set from KV retrieval synthetic data with 30k token inputs, which exhibits strong generalization and stability across different lengths and domains.",
+          "locator": "Appendix C.2"
+        }
+      ],
+      "locator": "Appendix C.2",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "Appendix C.2",
+          "support_description": "we use only one sample as our validation set from KV retrieval synthetic data with 30k token inputs, which exhibits strong generalization and stability across different lengths and domains."
+        }
+      ]
+    },
+    {
+      "category_code": "method_shortcoming",
+      "claim": "The same optimal sparse pattern configuration is reused for LLaMA-3-8B-Instruct-262K and LLaMA-3-8B-Instruct-1M, which may not be optimal for each model variant.",
+      "mechanism": "Paper fact: one configuration is shared across two model versions -> premise: different context-window training or model variants can have different attention patterns -> inference: at least one model may use a suboptimal pattern assignment.",
+      "conditions": "The two model variants must have sufficiently similar attention-head behavior for the shared configuration to be near-optimal.",
+      "consequence": "Potential accuracy or efficiency loss on one of the model variants.",
+      "defeaters": "The limitation is irrelevant if the two variants indeed share nearly identical optimal patterns.",
+      "disclosure": "inferred",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "we use the same optimal sparse pattern configuration for both the LLaMA-3-8B-Instruct-262K model and the LLaMA-3-8B-Instruct-1M model.",
+          "locator": "Appendix C.2"
+        }
+      ],
+      "locator": "Appendix C.2",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "Appendix C.2",
+          "support_description": "we use the same optimal sparse pattern configuration for both the LLaMA-3-8B-Instruct-262K model and the LLaMA-3-8B-Instruct-1M model."
+        }
+      ]
+    },
+    {
+      "category_code": "method_shortcoming",
+      "claim": "The Vertical-Slash index approximation uses only the last 64 queries to estimate vertical and slash lines globally, so it may miss important indices for earlier queries.",
+      "mechanism": "Paper fact: the estimate uses Q[-last_q:] with last_q=64 -> premise: earlier queries may attend to different vertical or slash positions -> inference: the global index can omit attention weights needed by earlier tokens.",
+      "conditions": "The last 64 queries must be representative of all query rows for the approximation to be reliable.",
+      "consequence": "Attention recall and downstream accuracy may drop when query-specific patterns vary across the sequence.",
+      "defeaters": "The limitation is false if vertical and slash positions are stable across query rows.",
+      "disclosure": "inferred",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "Approximate vertical and slash pattern (last_q = 64)",
+          "locator": "Algorithm 2"
+        },
+        {
+          "source": "paper",
+          "quote": "we matmul the last query vector Q[−last_q:] and key vector K to produce the estimated attention matrix",
+          "locator": "Section 3.2"
+        }
+      ],
+      "locator": "Algorithm 2; Section 3.2",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "Algorithm 2",
+          "support_description": "Approximate vertical and slash pattern (last_q = 64)"
+        },
+        {
+          "source_id": "paper",
+          "location": "Section 3.2",
+          "support_description": "we matmul the last query vector Q[−last_q:] and key vector K to produce the estimated attention matrix"
+        }
+      ]
+    },
+    {
+      "category_code": "method_shortcoming",
+      "claim": "The Block-Sparse approximation mean-pools queries and keys in 64-token blocks, which can blur fine-grained token-level attention and miss isolated important tokens.",
+      "mechanism": "Paper fact: block-level attention is estimated by mean pooling Q and K -> premise: pooling averages out token-level variation within a block -> inference: a block with one important token may be underweighted or a block with diffuse attention may be over-selected.",
+      "conditions": "Important attention must be sufficiently clustered at the block level for mean pooling to preserve it.",
+      "consequence": "Block-Sparse heads may lose recall on tasks requiring precise token retrieval.",
+      "defeaters": "The limitation is less relevant if important tokens cluster densely within blocks or if block size is tuned.",
+      "disclosure": "inferred",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "MeanPooling(Q, block_size)",
+          "locator": "Algorithm 3"
+        },
+        {
+          "source": "paper",
+          "quote": "block_size = 64",
+          "locator": "Algorithm 3"
+        }
+      ],
+      "locator": "Algorithm 3",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "Algorithm 3",
+          "support_description": "MeanPooling(Q, block_size)"
+        },
+        {
+          "source_id": "paper",
+          "location": "Algorithm 3",
+          "support_description": "block_size = 64"
+        }
+      ]
+    },
+    {
+      "category_code": "method_shortcoming",
+      "claim": "The fixed block granularity, 1x64 for Vertical-Slash and 64x64 for other patterns, creates a coarse accuracy-efficiency trade-off and may overcompute or miss attention.",
+      "mechanism": "Paper fact: GPU kernels use fixed block sizes -> premise: block coverage rounds sparse attention up to block boundaries -> inference: small useful regions may be missed or unnecessary regions may be computed.",
+      "conditions": "The chosen block sizes must match the spatial scale of important attention.",
+      "consequence": "The method may be less accurate for fine-grained patterns or less efficient for very sparse patterns.",
+      "defeaters": "The limitation is irrelevant if the block sizes are well matched to the model and task.",
+      "disclosure": "inferred",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "Here, a 1x64 block size is used for the Vertical-Slash pattern, and a 64x64 block size is used for others on GPUs.",
+          "locator": "Figure 3 caption"
+        }
+      ],
+      "locator": "Figure 3 caption",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "Figure 3 caption",
+          "support_description": "Here, a 1x64 block size is used for the Vertical-Slash pattern, and a 64x64 block size is used for others on GPUs."
+        }
+      ]
+    },
+    {
+      "category_code": "method_shortcoming",
+      "claim": "The Vertical-Slash kernel requires at least one vertical and one slash line, so the implementation cannot represent pure vertical-only or slash-only heads without forced extra computation.",
+      "mechanism": "Paper fact: kernel limitations require retaining at least one vertical and one slash -> premise: some heads may naturally need only one component -> inference: the kernel forces extra indices and may not match the ideal sparse pattern.",
+      "conditions": "The head is processed by the Vertical-Slash kernel.",
+      "consequence": "Ablation and deployment are constrained, and some heads may compute unnecessary attention.",
+      "defeaters": "The limitation is irrelevant if every VS head benefits from at least one vertical and one slash line.",
+      "disclosure": "reported_in_paper",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "due to kernel limitations, we must retain at least one vertical and one slash.",
+          "locator": "Appendix D.3"
+        }
+      ],
+      "locator": "Appendix D.3",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "Appendix D.3",
+          "support_description": "due to kernel limitations, we must retain at least one vertical and one slash."
+        }
+      ]
+    },
+    {
+      "category_code": "method_shortcoming",
+      "claim": "A-shape heads use a static sparse mask with no dynamic index, so they cannot adapt when important tokens fall outside the fixed global tokens and local windows.",
+      "mechanism": "Paper fact: the sparse mask is static for A-shape heads -> premise: static masks cannot follow input-dependent attention shifts -> inference: A-shape heads may miss dynamically important tokens outside the fixed pattern.",
+      "conditions": "The A-shape head must truly have stable attention concentrated on initial tokens and local windows.",
+      "consequence": "Accuracy may drop on inputs where A-shape heads need nonlocal dynamic attention.",
+      "defeaters": "The limitation is false if A-shape heads are consistently static across the deployment distribution.",
+      "disclosure": "inferred",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "the sparse mask is static for A-shape heads, so there is no overhead in building the dynamic masks, and only sparse calculation is required.",
+          "locator": "Section 3.2"
+        }
+      ],
+      "locator": "Section 3.2",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "Section 3.2",
+          "support_description": "the sparse mask is static for A-shape heads, so there is no overhead in building the dynamic masks, and only sparse calculation is required."
+        }
+      ]
+    },
+    {
+      "category_code": "method_shortcoming",
+      "claim": "The offline search optimizes recall of the attention output on a reference example rather than downstream task accuracy, so it may select patterns that preserve attention recall but not task performance.",
+      "mechanism": "Paper fact: recall of attention output is the search objective -> premise: attention-output recall is only a proxy for task accuracy -> inference: a pattern can have high recall yet still lose task-critical information.",
+      "conditions": "Attention-output recall must correlate strongly with downstream accuracy for the target tasks.",
+      "consequence": "The selected pattern may be suboptimal for tasks whose accuracy depends on specific attention details.",
+      "defeaters": "The limitation is false if recall is a consistently strong proxy across the evaluated tasks.",
+      "disclosure": "inferred",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "we use recall of the attention output as the objective criterion when searching for the best pattern.",
+          "locator": "Section 3.2"
+        }
+      ],
+      "locator": "Section 3.2",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "Section 3.2",
+          "support_description": "we use recall of the attention output as the objective criterion when searching for the best pattern."
+        }
+      ]
+    },
+    {
+      "category_code": "method_shortcoming",
+      "claim": "The target FLOPs and A-shape budget are fixed to 1k global tokens and 4k local windows, which may not be optimal across models, tasks, or context lengths.",
+      "mechanism": "Paper fact: a fixed target FLOPs is used for search and A-shape -> premise: optimal sparsity budgets can vary by workload -> inference: a fixed budget may overcompute for easy inputs or undercompute for hard inputs.",
+      "conditions": "The fixed budget must be near-optimal for the deployment distribution.",
+      "consequence": "Suboptimal accuracy-efficiency trade-offs on workloads that need different sparsity budgets.",
+      "defeaters": "The limitation is irrelevant if the fixed budget is robust across the target models and tasks.",
+      "disclosure": "inferred",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "We set the target FLOPs t to 1k global tokens and 4k local windows in the A-shape pattern.",
+          "locator": "Section 4"
+        }
+      ],
+      "locator": "Section 4",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "Section 4",
+          "support_description": "We set the target FLOPs t to 1k global tokens and 4k local windows in the A-shape pattern."
+        }
+      ]
+    },
+    {
+      "category_code": "method_shortcoming",
+      "claim": "Dynamic index building adds non-negligible overhead, especially for Block-Sparse heads, which reduces the achievable speedup.",
+      "mechanism": "Paper fact: index building accounts for about 5%-20% of overhead and about 25% for Block-Sparse -> premise: this overhead is not part of the sparse attention calculation -> inference: end-to-end speedup is lower than the sparse kernel speedup alone.",
+      "conditions": "The dynamic index must be built online for each input.",
+      "consequence": "Latency savings are reduced, and short-context or low-sparsity workloads may not benefit.",
+      "defeaters": "The limitation is less relevant if index overhead is amortized over very long contexts or optimized further.",
+      "disclosure": "reported_in_paper",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "about 5%-20% of the overhead is spent on dynamic sparse index building",
+          "locator": "Section 4"
+        },
+        {
+          "source": "paper",
+          "quote": "The estimation and index-building time for the dynamic sparse pattern accounts for approximately 5%-15% and 25% of the total time for Vertical-Slash and Block-Sparse patterns, respectively.",
+          "locator": "Appendix D.2"
+        }
+      ],
+      "locator": "Section 4; Appendix D.2",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "Section 4",
+          "support_description": "about 5%-20% of the overhead is spent on dynamic sparse index building"
+        },
+        {
+          "source_id": "paper",
+          "location": "Appendix D.2",
+          "support_description": "The estimation and index-building time for the dynamic sparse pattern accounts for approximately 5%-15% and 25% of the total time for Vertical-Slash and Block-Sparse patterns, respectively."
+        }
+      ]
+    },
+    {
+      "category_code": "applicability_limitation",
+      "claim": "The empirical evaluation lacks error bars and uses greedy decoding, so the reported accuracy and latency comparisons may not capture statistical variability.",
+      "mechanism": "Paper fact: tests are run without error bars and with greedy decoding -> premise: single deterministic runs may hide variance across prompts or sampling settings -> inference: robustness of the reported gains is uncertain.",
+      "conditions": "The claims require statistical confidence across inputs and decoding settings.",
+      "consequence": "The practical reliability of small accuracy differences or speedups may be overstated.",
+      "defeaters": "The limitation is less relevant if the benchmarks are deterministic and the differences are large.",
+      "disclosure": "reported_in_paper",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "without including error bars or similar information.",
+          "locator": "NeurIPS Paper Checklist item 7"
+        },
+        {
+          "source": "paper",
+          "quote": "To guarantee stable results, we use greedy decoding in all experiments.",
+          "locator": "Section 4"
+        }
+      ],
+      "locator": "NeurIPS Paper Checklist item 7; Section 4",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "NeurIPS Paper Checklist item 7",
+          "support_description": "without including error bars or similar information."
+        },
+        {
+          "source_id": "paper",
+          "location": "Section 4",
+          "support_description": "To guarantee stable results, we use greedy decoding in all experiments."
+        }
+      ]
+    },
+    {
+      "category_code": "applicability_limitation",
+      "claim": "MInference relies on the existence of sparse attention in pre-trained long-context LLMs, so it may not apply to models or layers whose attention is dense or not well approximated by the three patterns.",
+      "mechanism": "Paper fact: the method exploits documented attention sparsity -> premise: if attention is dense or lacks spatial clustering, sparse masks drop important weights -> inference: the method can lose accuracy or fail to provide speedup.",
+      "conditions": "The target model must exhibit sufficiently sparse and structured attention in long-context pre-filling.",
+      "consequence": "On dense-attention models or atypical layers, MInference may be inaccurate or ineffective.",
+      "defeaters": "The limitation is irrelevant if the target model is known to have the same sparse patterns.",
+      "disclosure": "inferred",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "The sparsity of attention weights in pre-trained LLMs, especially in long-context scenarios, has been well-documented",
+          "locator": "Section 2.1"
+        },
+        {
+          "source": "paper",
+          "quote": "each token is attending to a limit number of tokens despite the long sequence it is processing.",
+          "locator": "Section 2.1"
+        }
+      ],
+      "locator": "Section 2.1",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "Section 2.1",
+          "support_description": "The sparsity of attention weights in pre-trained LLMs, especially in long-context scenarios, has been well-documented"
+        },
+        {
+          "source_id": "paper",
+          "location": "Section 2.1",
+          "support_description": "each token is attending to a limit number of tokens despite the long sequence it is processing."
+        }
+      ]
+    },
+    {
+      "category_code": "mechanism_origin_unclear",
+      "claim": "The paper reports that MInference can outperform full attention on RULER beyond 32K, but it does not explain why sparse attention would improve over dense attention.",
+      "mechanism": "Paper fact: MInference outperforms full attention at some lengths -> premise: sparse attention normally approximates dense attention and should not systematically improve it -> inference: the cause may be benchmark-specific, regularization-like, or noise, so the robustness of the gain is unclear.",
+      "conditions": "The improvement must be reproducible and not an artifact of the benchmark or evaluation setup.",
+      "consequence": "Users may overestimate the method's accuracy benefits on other tasks.",
+      "defeaters": "The limitation is false if the paper provides a validated explanation or if the gain is consistently reproduced.",
+      "disclosure": "inferred",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "It even outperforms the original full attention for testing lengths beyond 32K",
+          "locator": "Section 4; Table 3"
+        }
+      ],
+      "locator": "Section 4; Table 3",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "Section 4; Table 3",
+          "support_description": "It even outperforms the original full attention for testing lengths beyond 32K"
+        }
+      ]
+    },
+    {
+      "category_code": "mechanism_origin_unclear",
+      "claim": "The paper observes that combining MInference with SnapKV can slightly increase the average score, but it does not explain the mechanism behind this interaction.",
+      "mechanism": "Paper fact: MInference plus SnapKV shows a slight average increase -> premise: two compression methods could interact in non-obvious ways -> inference: the cause may be task-specific or noise, so the compatibility benefit is not fully understood.",
+      "conditions": "The interaction must be stable across tasks and KV-compression methods.",
+      "consequence": "The claimed compatibility may not generalize to other KV-cache compression methods.",
+      "defeaters": "The limitation is irrelevant if the interaction is later explained and shown to be robust.",
+      "disclosure": "inferred",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "with the average score even showing a slight increase",
+          "locator": "Section 4"
+        },
+        {
+          "source": "paper",
+          "quote": "This phenomenon is also observed in other works, such as ShadowKV",
+          "locator": "Section 4"
+        }
+      ],
+      "locator": "Section 4",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "Section 4",
+          "support_description": "with the average score even showing a slight increase"
+        },
+        {
+          "source_id": "paper",
+          "location": "Section 4",
+          "support_description": "This phenomenon is also observed in other works, such as ShadowKV"
+        }
+      ]
+    },
+    {
+      "category_code": "method_shortcoming",
+      "claim": "The single-A100 implementation computes LM-head logits only for the last prompt token, so it is not a general pre-filling implementation for tasks that require all-token logits.",
+      "mechanism": "Paper fact: only last-token logits are retained in the implementation -> premise: some tasks or analyses need logits for every prompt position -> inference: the implementation cannot directly support those use cases.",
+      "conditions": "The use case must need only the last prompt token's logits for generation.",
+      "consequence": "The implementation is unsuitable for tasks requiring full-sequence logits during pre-filling.",
+      "defeaters": "The limitation is irrelevant if the deployment only needs next-token generation after the prompt.",
+      "disclosure": "reported_in_paper",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "only the logits corresponding to the last token in the prompt phase are meaningful. Thus, we only retain the computation of the LM Head Linear layer for the last token.",
+          "locator": "Appendix C.3"
+        }
+      ],
+      "locator": "Appendix C.3",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "Appendix C.3",
+          "support_description": "only the logits corresponding to the last token in the prompt phase are meaningful. Thus, we only retain the computation of the LM Head Linear layer for the last token."
+        }
+      ]
+    }
+  ],
+  "dropped_for_unverified_quotes": 2
+}
