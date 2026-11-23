@@ -20,3 +20,12 @@ non_goals: [reading data/limitset2/labels.jsonl or REVIEW.md (FORBIDDEN), runner
 Rules: CLAUDE.md; never read /home/somehow6/LLM_API_KEY/.
 ## Checks
 - /home/somehow6/miniconda3/envs/findlimit/bin/python -m pytest -q -> all pass
+
+STATUS: DONE
+COMMITS: pending controller commit
+EXECUTOR: codex; requested medium -> actual model id unavailable; effort unavailable
+SUMMARY: Multi-label judging requires confidence and assigns predictions deterministically across chunks; labels retain their categories, unavailable labels are excluded independently, and the limitset2 CLI accepts its English label shape. Legacy single-label scoring remains on its existing path.
+CHECKS: conda run -n findlimit python -m pytest -q --basetemp=/tmp/codex-LS-22c-1/pass; PASS (265 passed, 3 skipped, one dependency deprecation warning). git status; PASS. git diff --check; PASS. An earlier full run failed due to a fixture missing confidence, then passed after correction.
+GPU: none
+SELF-REVIEW: Synthetic tests cover confidence ordering, category aggregation, chunk assignment, unavailable labels, relay prompt, and CLI input; existing tests cover shared predictions and legacy scoring. No GPU or model calls used. The held-out leakage test skipped because labels were unavailable.
+RISKS: Existing changes to pipeline/limitset.py, pipeline/limitset_baselines.py, and development/tasks/LS-22.md predate this task and remain for controller review. Actual model and effort identifiers were not exposed.

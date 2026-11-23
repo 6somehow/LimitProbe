@@ -81,7 +81,8 @@ def analyze(name, score_dir, pred_dir, split):
             "fraction": sum(r["found"] is True for r in known) / len(known) if known else None,
             "excluded_repeats": len(repeats) - len(known)},
             "mean_findings": sum(counts) / len(counts) if counts else None}
-    return {"name": name, "overall": coverage(rows), "categories": {c: coverage([r for r in rows if r.get("category") == c]) for c in CATEGORIES},
+    label_rows = [dict(label, case_id="{}:{}".format(row["case_id"], label.get("label_id", "label"))) for row in rows for label in row.get("labels", [row])]
+    return {"name": name, "label_coverage": coverage(label_rows), "label_categories": {c: coverage([r for r in label_rows if r.get("category") == c]) for c in CATEGORIES}, "overall": coverage(rows), "categories": {c: coverage([r for r in rows if r.get("category") == c]) for c in CATEGORIES},
             "cases": cases, "evidence_tier_available": tiers, "confidence_band_available": bands, "cost": metrics}
 
 
@@ -99,9 +100,17 @@ def render(report):
     for s in report["systems"]:
         c = s["overall"]
         lines.append(f'| {s["name"]} | {cov(c)} | {len(c["judge_unavailable"])}: {", ".join(c["judge_unavailable"]) or "none"} | {", ".join(c["unknown"]) or "none"} |')
+    lines += ['', '## Label coverage', '', '| System | Found / available labels | Unavailable |', '|---|---|---|']
+    for s in report['systems']:
+        c = s['label_coverage']
+        lines.append(f'| {s["name"]} | {cov(c)} | {len(c["judge_unavailable"])} |')
     lines += ['', '## Coverage by category', '', '| System | Category | Coverage (Wilson 95% CI) | Unavailable |', '|---|---|---|---|']
     for s in report['systems']:
         for category, c in s['categories'].items():
+            lines.append(f'| {s["name"]} | {category} | {cov(c)} | {len(c["judge_unavailable"])} |')
+    lines += ['', '## Label coverage by category', '', '| System | Category | Found / available labels | Unavailable |', '|---|---|---|---|']
+    for s in report['systems']:
+        for category, c in s['label_categories'].items():
             lines.append(f'| {s["name"]} | {category} | {cov(c)} | {len(c["judge_unavailable"])} |')
     lines += ['', '## Per-case comparison', '', 'Win/loss/tie compares found status across available systems; unavailable and unknown are not ranked. Fields are those marked covered.', '', '| Case | System | Result | Found | Fields covered | Mean findings / repeat | Stability (found / available repeats) |', '|---|---|---|---|---|---|---|']
     for cid in sorted({cid for s in report['systems'] for cid in s['cases']}):

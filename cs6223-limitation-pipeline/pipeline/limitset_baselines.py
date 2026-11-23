@@ -10,7 +10,7 @@ import subprocess
 import sys
 import time
 
-from pipeline.limitset import (ROOT, RAW, RunnerRelay, failure_record, now, read,
+from pipeline.limitset import (ROOT, RAW, RAW2, dataset_cases, dataset_schema, RunnerRelay, failure_record, now, read,
                                run_generator, safe_path, validate)
 from limitset_baselines.common import write_json
 
@@ -21,7 +21,7 @@ def execute(method, case, inp, run, env, repeat):
     write_json(run / 'result.json', result)
 
 
-def worker(job, method, out, raw, timeout, env, schema):
+def worker(job, method, out, raw, timeout, env, schema, cases_path=None):
     case, repeat = job
     run = out / 'runs' / case['case_id'] / f'r{repeat}'
     done = run / 'prediction.json'
@@ -39,7 +39,7 @@ def worker(job, method, out, raw, timeout, env, schema):
         if not pdf.is_relative_to(raw):
             raise ValueError('PDF outside raw root')
         subprocess.run([sys.executable, str(ROOT / 'scripts/limitset/make_case_dir.py'), case['case_id'],
-                        '--out', str(inp), '--raw', str(raw)], check=True, env=env,
+                        '--out', str(inp), '--raw', str(raw), '--cases', str(cases_path or ROOT / 'data/limitset/cases.jsonl')], check=True, env=env,
                        timeout=timeout, capture_output=True)
         if {p.name for p in inp.iterdir()} != {'paper.pdf', 'case.json'}:
             raise ValueError('unexpected files in isolated case input')
@@ -67,6 +67,7 @@ def worker(job, method, out, raw, timeout, env, schema):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(prog='python -m pipeline limitset baseline')
+    parser.add_argument('--dataset', choices=['limitset', 'limitset2'], default='limitset')
     parser.add_argument('--method', required=True, choices=['b1', 'b2'])
     parser.add_argument('--split', required=True, choices=['validation', 'test'])
     parser.add_argument('--case')
@@ -74,17 +75,16 @@ def main(argv=None):
     parser.add_argument('--workers', type=int, default=3)
     parser.add_argument('--timeout', type=int, default=3600)
     parser.add_argument('--out', type=Path, default=ROOT / 'out/limitset_baselines')
-    parser.add_argument('--raw', type=Path, default=RAW)
+    parser.add_argument('--raw', type=Path)
     parser.add_argument('--dry-run', action='store_true')
     args = parser.parse_args(argv)
     if min(args.repeats, args.workers, args.timeout) < 1:
         parser.error('repeats, workers and timeout must be positive')
-    ids = read(ROOT / 'data/limitset/splits.json')[args.split]
+    cases_path, cases, ids = dataset_cases(args.dataset, args.split)
     if args.case and args.case not in ids:
         parser.error('case is not in the selected split')
-    cases = [json.loads(line) for line in (ROOT / 'data/limitset/cases.jsonl').read_text().splitlines() if line.strip()]
     selected = [c for c in cases if c['case_id'] in ids and (not args.case or args.case == c['case_id'])]
-    raw, out = safe_path(args.raw).resolve(), safe_path(args.out).resolve()
+    raw, out = safe_path(args.raw or (RAW2 if args.dataset == 'limitset2' else RAW)).resolve(), safe_path(args.out).resolve()
     env = dict(os.environ)
     env['PYTHONPATH'] = os.pathsep.join(filter(None, [str(ROOT), env.get('PYTHONPATH')]))
     jobs = [(c, n) for c in selected for n in range(1, args.repeats + 1)]
@@ -95,7 +95,7 @@ def main(argv=None):
                 shutil.rmtree(inp)
             inp.parent.mkdir(parents=True, exist_ok=True)
             subprocess.run([sys.executable, str(ROOT / 'scripts/limitset/make_case_dir.py'), c['case_id'],
-                            '--out', str(inp), '--raw', str(raw)], check=True, env=env)
+                            '--out', str(inp), '--raw', str(raw), '--cases', str(cases_path or ROOT / 'data/limitset/cases.jsonl')], check=True, env=env)
             if {p.name for p in inp.iterdir()} != {'paper.pdf', 'case.json'}:
                 raise ValueError('unexpected files in isolated case input')
             print(f"{args.method} {c['case_id']} r{n}: {inp}")
@@ -106,11 +106,11 @@ def main(argv=None):
         if exc.name == 'limitset_baselines.' + args.method:
             parser.error(f'{args.method} baseline is not installed')
         raise
-    schema = read(raw / 'schemas/prediction.schema.json')
+    schema = dataset_schema(args.dataset, raw)
     out.mkdir(parents=True, exist_ok=True)
     sha = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=ROOT, env=env, capture_output=True, text=True, check=True).stdout.strip()
     identity = {'method': args.method, 'model_id': env.get('PIPELINE_MODEL', 'x-test-2'),
-                'git_sha': sha, 'temperature': 0, 'split': args.split}
+                'git_sha': sha, 'dataset': args.dataset, 'temperature': 0, 'split': args.split}
     manifest_path = out / 'run_manifest.json'
     if manifest_path.exists():
         previous = read(manifest_path)
@@ -123,7 +123,7 @@ def main(argv=None):
                  (out / 'runs' / c['case_id'] / f'r{n}' / 'cost.json').is_file() for c, n in jobs)
     try:
         if cached:
-            rows = [worker(job, args.method, out, raw, args.timeout, env, schema) for job in jobs]
+            rows = [worker(job, args.method, out, raw, args.timeout, env, schema, cases_path) for job in jobs]
         else:
             from pipeline import e2e, run as pipeline_run
             relay_env = dict(os.environ)
@@ -131,7 +131,7 @@ def main(argv=None):
                 env['SOCLAAS_API_KEY'] = 'relay'
                 env['SOCLAAS_BASE_URL'] = e2e.RELAY_URL
                 with ThreadPoolExecutor(max_workers=args.workers) as pool:
-                    rows = list(pool.map(lambda job: worker(job, args.method, out, raw, args.timeout, env, schema), jobs))
+                    rows = list(pool.map(lambda job: worker(job, args.method, out, raw, args.timeout, env, schema, cases_path), jobs))
     except Exception as exc:
         rows = []
         for c, n in jobs:

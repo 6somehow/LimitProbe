@@ -15,3 +15,12 @@ Scorer `python -m scorer_limitset`: `--dataset limitset|limitset2`, `--labels PA
 Rules: CLAUDE.md; never read /home/somehow6/LLM_API_KEY/.
 ## Checks
 - /home/somehow6/miniconda3/envs/findlimit/bin/python -m pytest -q -> all pass
+
+STATUS: PARTIAL
+COMMITS: pending controller commit
+EXECUTOR: codex; requested medium -> actual model id unavailable; effort unavailable
+SUMMARY: Added dataset selection, multi-label scoring with greedy assignment, label and case coverage, comparison output, synthetic assignment coverage, documentation, and a held-out prompt leakage test. Legacy scorer path remains unchanged. The multi-label implementation is incomplete: relay prompts do not request confidence, category comparison uses the case's first category, and per-case-repeat judging retains legacy chunking and fallback calls.
+CHECKS: conda run -n findlimit python -m pytest -q --basetemp=/tmp/codex-LS-22b-1/final; PASS (261 passed, 3 skipped; leakage skipped because labels absent). Initial full run INVALID_RUN: scratch parent missing. git status --short PASS; git diff --check PASS.
+GPU: none
+SELF-REVIEW: Synthetic fixture checks a shared prediction is assigned once and both denominators; existing suite checks legacy scoring and comparison. Leakage check is present but skipped. Confidence ordering, mixed-category cases, unavailable behavior, and CLI multi-label schema need stronger tests and fixes; no independent review requested.
+RISKS: Do not integrate as complete until the listed multi-label gaps are fixed. Existing changes to runner and LS-22 package predate this task. Actual model and effort identifiers were not exposed.
