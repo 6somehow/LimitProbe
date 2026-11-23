@@ -14,11 +14,28 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 RAW = Path('/home/somehow6/lesson/CS6223/CS6223_Limitation_Testset')
-FORBIDDEN = {'labels', 'reference_material', 'evaluator_evidence', 'reference'}
+FORBIDDEN = {'labels', 'labels.jsonl', 'review.md', 'reference_material', 'evaluator_evidence', 'reference'}
+RAW2 = Path('/home/somehow6/lesson/CS6223/limitset2-raw')
+
+def dataset_cases(dataset, split):
+    if dataset == 'limitset2' and split != 'test':
+        raise ValueError('limitset2 only has the test split')
+    path = ROOT / 'data' / dataset / 'cases.jsonl'
+    cases = [json.loads(line) for line in safe_path(path).read_text().splitlines() if line.strip()]
+    ids = [c['case_id'] for c in cases] if dataset == 'limitset2' else read(ROOT / 'data/limitset/splits.json')[split]
+    return path, cases, ids
+
+def dataset_schema(dataset, raw):
+    import copy
+    schema = read((RAW if dataset == 'limitset2' else raw) / 'schemas/prediction.schema.json')
+    if dataset == 'limitset2':
+        schema = copy.deepcopy(schema)
+        schema['properties']['case_id']['pattern'] = '^LS2-[0-9]{2}$'
+    return schema
 
 
 def safe_path(path):
-    assert not (FORBIDDEN & set(Path(path).resolve().parts)), 'blindness violation'
+    assert not (FORBIDDEN & {part.lower() for part in Path(path).resolve().parts}), 'blindness violation'
     return Path(path)
 
 
@@ -94,7 +111,7 @@ def run_generator(cmd, *, env, timeout, log):
         raise subprocess.CalledProcessError(code, cmd)
 
 
-def worker(case, repeat, out, raw, timeout, env, schema, swarm_template=None, enrich_llm=None, model=None, generator="paper-only", mechanism_version="paper-only-mech-v2", examples_path=None, mech_no_filter=False):
+def worker(case, repeat, out, raw, timeout, env, schema, swarm_template=None, enrich_llm=None, model=None, generator="paper-only", mechanism_version="paper-only-mech-v2", examples_path=None, mech_no_filter=False, cases_path=None):
     run = out / 'runs' / case['case_id'] / f'r{repeat}'
     done = run / 'prediction.json'
     if done.is_file():
@@ -108,7 +125,7 @@ def worker(case, repeat, out, raw, timeout, env, schema, swarm_template=None, en
             shutil.rmtree(case_dir)
         pdf = safe_path(raw / case['pdf_path'])
         assert pdf.resolve().is_relative_to(raw.resolve()), 'PDF outside raw root'
-        cmd = [sys.executable, str(ROOT / 'scripts/limitset/make_case_dir.py'), case['case_id'], '--out', str(case_dir), '--raw', str(raw)]
+        cmd = [sys.executable, str(ROOT / 'scripts/limitset/make_case_dir.py'), case['case_id'], '--out', str(case_dir), '--raw', str(raw), '--cases', str(cases_path or ROOT / 'data/limitset/cases.jsonl')]
         subprocess.run(cmd, check=True, env=env, timeout=timeout, capture_output=True, text=True)
         assert {p.name for p in case_dir.iterdir()} == {'paper.pdf', 'case.json'}
         if generator == 'swarm':
@@ -244,13 +261,14 @@ def main(argv=None):
     p = argparse.ArgumentParser(prog='python -m pipeline limitset')
     sub = p.add_subparsers(dest='cmd', required=True)
     r = sub.add_parser('run')
+    r.add_argument('--dataset', choices=['limitset', 'limitset2'], default='limitset')
     r.add_argument('--split', choices=['validation', 'test'], required=True)
     r.add_argument('--case')
     r.add_argument('--repeats', type=int, default=1)
     r.add_argument('--workers', type=int, default=3)
     r.add_argument('--timeout', type=int, default=3600)
     r.add_argument('--out', type=Path, default=ROOT / 'out/limitset')
-    r.add_argument('--raw', type=Path, default=RAW)
+    r.add_argument('--raw', type=Path)
     r.add_argument('--dry-run', action='store_true')
     r.add_argument('--no-enrich', action='store_true')
     r.add_argument('--generator', choices=['paper-only', 'swarm', 'mechanism'], default='paper-only')
@@ -262,18 +280,17 @@ def main(argv=None):
     if min(a.repeats, a.workers, a.timeout) < 1:
         p.error('repeats, workers and timeout must be positive')
     a.mechanism_version = 'paper-only-mech-' + a.mech_version
-    raw, out = safe_path(a.raw).resolve(), safe_path(a.out).resolve()
-    cases = [json.loads(line) for line in (ROOT / 'data/limitset/cases.jsonl').read_text().splitlines() if line.strip()]
-    ids = read(ROOT / 'data/limitset/splits.json')[a.split]
+    raw, out = safe_path(a.raw or (RAW2 if a.dataset == 'limitset2' else RAW)).resolve(), safe_path(a.out).resolve()
+    cases_path, cases, ids = dataset_cases(a.dataset, a.split)
     selected = [c for c in cases if c['case_id'] in ids and (not a.case or c['case_id'] == a.case)]
     if a.case and not selected:
         p.error('case is not in the selected split')
-    schema = read(raw / 'schemas/prediction.schema.json')
+    schema = dataset_schema(a.dataset, raw)
     out.mkdir(parents=True, exist_ok=True)
     env = dict(os.environ)
     env['PYTHONPATH'] = os.pathsep.join(filter(None, [str(ROOT), env.get('PYTHONPATH')]))
     sha = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=ROOT, env=env, capture_output=True, text=True, check=True).stdout.strip()
-    manifest = {'git_sha': sha, 'model_id': env.get('PIPELINE_MODEL', 'x-test-2'), 'split': a.split, 'generator': a.generator, 'mechanism_version': a.mechanism_version, 'mech_no_filter': a.mech_no_filter, 'mechanism_examples': str(a.mechanism_examples) if a.mechanism_examples else None, 'repeats': a.repeats, 'started_at': now(), 'pdf_hashes': {c['case_id']: c['pdf_sha256'] for c in selected}}
+    manifest = {'git_sha': sha, 'model_id': env.get('PIPELINE_MODEL', 'x-test-2'), 'split': a.split, 'dataset': a.dataset, 'generator': a.generator, 'mechanism_version': a.mechanism_version, 'mech_no_filter': a.mech_no_filter, 'mechanism_examples': str(a.mechanism_examples) if a.mechanism_examples else None, 'repeats': a.repeats, 'started_at': now(), 'pdf_hashes': {c['case_id']: c['pdf_sha256'] for c in selected}}
     from pipeline.limitset_enrich import PROMPT_VERSION
     manifest['enrichment'] = {'enabled': not a.no_enrich, 'model_id': manifest['model_id'], 'prompt_version': PROMPT_VERSION}
     manifest_path = out / 'run_manifest.json'
@@ -292,7 +309,7 @@ def main(argv=None):
             safe_path(raw / c['pdf_path'])
             if not inp.exists():
                 run.mkdir(parents=True, exist_ok=True)
-                subprocess.run([sys.executable, str(ROOT / 'scripts/limitset/make_case_dir.py'), c['case_id'], '--out', str(inp), '--raw', str(raw)], env=env, check=True)
+                subprocess.run([sys.executable, str(ROOT / 'scripts/limitset/make_case_dir.py'), c['case_id'], '--out', str(inp), '--raw', str(raw), '--cases', str(cases_path or ROOT / 'data/limitset/cases.jsonl')], env=env, check=True)
             assert {x.name for x in inp.iterdir()} == {'paper.pdf', 'case.json'}
             print(f"{c['case_id']} r{n}: {inp}")
     else:
@@ -311,7 +328,7 @@ def main(argv=None):
                     from pipeline.limitset_enrich import RelayLLM
                     llm = None if a.no_enrich and a.generator != 'mechanism' else RelayLLM(manifest['model_id'], e2e.RELAY_PORT, timeout=900 if a.generator == 'mechanism' else 60)
                     with ThreadPoolExecutor(max_workers=a.workers) as pool:
-                        records = list(pool.map(lambda job: worker(*job, out, raw, a.timeout, env, schema, a.swarm_report, llm, manifest['model_id'], a.generator, a.mechanism_version, a.mechanism_examples, a.mech_no_filter), jobs))
+                        records = list(pool.map(lambda job: worker(*job, out, raw, a.timeout, env, schema, a.swarm_report, llm, manifest['model_id'], a.generator, a.mechanism_version, a.mechanism_examples, a.mech_no_filter, cases_path), jobs))
         except Exception as exc:
             reason = f'Relay startup failed: {type(exc).__name__}: {exc}'
             for c, n in jobs:

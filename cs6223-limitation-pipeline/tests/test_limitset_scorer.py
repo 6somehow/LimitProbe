@@ -195,3 +195,89 @@ def test_translated_labels_are_scorer_only():
             if 'scratch' in path.parts or 'node_modules' in path.parts:
                 continue
             assert 'labels_en.jsonl' not in path.read_text(encoding='utf-8', errors='ignore'), str(path)
+
+
+def test_multilabel_greedy_assignment_and_denominators():
+    label, finding = fixture()
+    labels = [dict(label, label_id="one"), dict(label, label_id="two")]
+    decision = {"matched": True, "confidence": 0.5, "coverage": {f: True for f in FIELDS}}
+    result = score(labels, [{"case_id": label["case_id"], "findings": [finding]}],
+                   {"validation": [], "test": [label["case_id"]]}, FakeJudge([decision, decision]), workers=1)
+    case = result["cases"][0]
+    assert [x["found"] for x in case["labels"]] == [True, False]
+    assert case["found"] is True
+    group = result["aggregate"]["split"]["test"]
+    assert (group["labels"]["covered"], group["labels"]["total"]) == (1, 2)
+    assert (group["cases"]["covered"], group["cases"]["total"]) == (1, 1)
+    assert result["judge"]["calls"] == 2
+
+
+def test_limitset2_cli_synthetic(tmp_path):
+    import os
+    import subprocess
+    import sys
+    root = tmp_path / 'root'
+    (root / 'schemas').mkdir(parents=True)
+    for name in ('label', 'prediction'):
+        (root / 'schemas' / f'{name}.schema.json').write_text(json.dumps({'type': 'object'}))
+    (root / 'schemas' / 'label.schema.json').write_text(json.dumps({'type': 'object', 'required': ['legacy_field']}))
+    labels = tmp_path / 'labels.jsonl'
+    labels.write_text(json.dumps({'case_id': 'LS2-01', 'label_id': 'L1', 'category_code': 'method_shortcoming',
+                                  'critical_link_zh': 'cache', 'necessary_conditions_zh': ['large input']}) + '\n')
+    predictions = tmp_path / 'pred.jsonl'
+    predictions.write_text(json.dumps({'case_id': 'LS2-01', 'findings': [
+        {'mechanism': 'cache', 'conditions': ['large input']} ]}) + '\n')
+    out = tmp_path / 'out'
+    subprocess.run([sys.executable, '-m', 'scorer_limitset', '--dataset', 'limitset2', '--labels', str(labels),
+                    '--pred', str(predictions), '--root', str(root), '--out', str(out), '--judge', 'fake'],
+                   check=True, env=dict(os.environ))
+    result = json.loads((out / 'score.json').read_text())
+    assert result['cases'][0]['labels'][0]['found'] is True
+    assert result['aggregate']['split']['test']['labels']['total'] == 1
+
+
+def test_multilabel_confidence_categories_and_chunks():
+    label, finding = fixture()
+    labels = [dict(label, label_id='a', category_code='first'), dict(label, label_id='b', category_code='second')]
+    class Judge(FakeJudge):
+        def judge_batch(self, ref, findings, sigs):
+            self.calls += 1
+            return [{'matched': True, 'confidence': 0.9 if ref['label_id'] == 'b' else 0.2,
+                     'coverage': {f: True for f in FIELDS}} for _ in findings]
+    result = score(labels, [{'case_id': label['case_id'], 'findings': [finding] * 31}],
+                   {'validation': [], 'test': [label['case_id']]}, Judge(), workers=1)
+    rows = result['cases'][0]['labels']
+    assert [r['category'] for r in rows] == ['first', 'second']
+    assert [r['repeats'][0]['matched_prediction_index'] for r in rows] == [1, 0]
+    assert result['judge']['calls'] == 4
+    assert result['aggregate']['category']['second']['labels']['covered'] == 1
+
+
+def test_multilabel_unavailable_does_not_exclude_other_label():
+    from scorer_limitset.scoring import JudgeUnavailable
+    label, finding = fixture()
+    labels = [dict(label, label_id='a'), dict(label, label_id='b')]
+    class Judge(FakeJudge):
+        def judge_batch(self, ref, findings, sigs):
+            self.calls += 1
+            if ref['label_id'] == 'a':
+                raise JudgeUnavailable()
+            return [{'matched': True, 'confidence': 0.8, 'coverage': {f: True for f in FIELDS}}]
+    result = score(labels, [{'case_id': label['case_id'], 'findings': [finding]}],
+                   {'validation': [], 'test': [label['case_id']]}, Judge(), workers=1)
+    group = result['aggregate']['split']['test']
+    assert (group['labels']['covered'], group['labels']['total'], group['judge_unavailable_labels']) == (1, 1, 1)
+    assert (group['cases']['covered'], group['cases']['total']) == (1, 1)
+    assert not result['cases'][0]['judge_unavailable']
+
+
+def test_multilabel_relay_requires_confidence(tmp_path, monkeypatch):
+    from scorer_limitset.scoring import RelayJudge
+    label, finding = fixture()
+    label['label_id'] = 'a'
+    prompts = []
+    judge = RelayJudge(tmp_path, 'test')
+    monkeypatch.setattr(judge, '_request', lambda prompt: prompts.append(prompt) or {
+        'matches': [{'index': 0, 'matched': True, 'confidence': 0.7, 'coverage': {f: True for f in FIELDS}}]})
+    assert judge.judge_batch(label, [finding], [{}])[0]['confidence'] == 0.7
+    assert 'confidence' in prompts[0] and '[0,1]' in prompts[0]
