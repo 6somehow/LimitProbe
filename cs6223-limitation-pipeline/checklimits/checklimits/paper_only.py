@@ -272,3 +272,65 @@ def _write_paper_report(artifact_id, pdf, title, venue, results_root, sha, recs,
     (tdir / "index.json").write_text(json.dumps(index, indent=1) + "\n")
     return {"artifact": artifact_id, "mode": "paper_only", "n_records": len(recs), "dropped": dropped,
             "counts": counts(recs), "report": str(rdir / "LIMITATIONS.md"), "exit_code": 0}
+
+
+MECH_V1 = "paper-only-mech-v1"
+MECH_TASK = """Analyze the paper in English. Produce 15-20 method limitations as JSON {{"candidates": [...]}}.
+Use only these categories: applicability_limitation: where or when the method does not apply
+(scope, assumptions, settings), with explicit necessary conditions; mechanism_origin_unclear: the paper
+observes an effect or limit whose cause is not explained or only partly explained; method_shortcoming:
+a design choice, objective, or mechanism of the method whose consequence limits it.
+Each candidate must contain category_code, claim (1-2 sentences), mechanism (a short reasoning chain:
+paper fact -> premise -> inference explaining why it can fail), conditions (necessary conditions),
+consequence, defeaters (what makes it false or irrelevant), disclosure (reported_in_paper or inferred),
+quotes (1-3 exact quotations), and locator. Every field must be in English.
+For quotes use objects with source paper or code, quote, and locator (code locator is the file path).
+If code is supplied, identify design-level trade-offs visible in code, not only branches or assertions.
+PAPER TEXT
+{text}
+CODE EXCERPTS
+{code}"""
+
+
+def mechanism_candidates(text, code_files, ask):
+    """Generate and verify candidates; return mechanisms, critiques and dropped count."""
+    code = "\n\n".join(f"FILE {path}\n{content}" for path, content in code_files.items())
+    response = ask(MECH_TASK.format(text=text[:MAX_TEXT_CHARS], code=code))
+    match = re.search(r"\{.*\}", response, re.S)
+    if not match:
+        raise ValueError("no JSON object in the answer")
+    candidates = json.loads(match.group()).get("candidates")
+    if not isinstance(candidates, list):
+        raise ValueError("no candidates list")
+    mechanisms, critiques, dropped = [], [], 0
+    for c in candidates[:20]:
+        if not isinstance(c, dict):
+            continue
+        quotes = c.get("quotes")
+        if not isinstance(quotes, list) or not 1 <= len(quotes) <= 3:
+            dropped += 1
+            continue
+        evidence = []
+        for q in quotes:
+            if isinstance(q, str):
+                q = {"source": "paper", "quote": q, "locator": c.get("locator", "")}
+            if not isinstance(q, dict):
+                break
+            source, quote, locator = q.get("source"), q.get("quote"), q.get("locator", "")
+            if not isinstance(quote, str):
+                break
+            valid = (quote_in_text(quote, _flat(text)) if source == "paper" else
+                     source == "code" and locator in code_files and quote in code_files[locator])
+            if not valid:
+                break
+            evidence.append({"source_id": source, "location": str(locator), "support_description": quote})
+        if len(evidence) != len(quotes):
+            dropped += 1
+            continue
+        item = {**c, "evidence": evidence}
+        if c.get("category_code") in MECHANISM_KINDS:
+            mechanisms.append(item)
+        else:
+            item["kind"] = "evaluation_critique"
+            critiques.append(item)
+    return mechanisms, critiques, dropped
