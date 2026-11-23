@@ -1,8 +1,8 @@
 # Limitations report: SparTA: Deep-Learning Model Sparsity via Tensor-with-Sparsity-Attribute
 
 - artifact: `sparta` (OSDI 2022), repository https://github.com/microsoft/SparTA at `1f61a363b1`
-- input: `results/step4/sparta/limitations_for_tests.json` (sha256 `af8cad7c4e91`), 82 Findings
-- generated: 2026-11-18T12:53:44+08:00 by `checklimits test` (contract `checklimits-test-report/1`)
+- input: `results/step4/sparta/limitations_for_tests.json` (sha256 `31a983c91d42`), 82 Findings
+- generated: 2026-11-23T11:22:10+08:00 by `checklimits test` (contract `checklimits-test-report/1`)
 - environment: **ok**
 
 ## How to read this
@@ -25,6 +25,8 @@
 | levels | L1 1, L2 1 |
 | analysis only (not tests) | A0 11, A1 20, A2 49 |
 | not tested, by reason | `no_code_location` 79, `outcome_unsupported` 1 |
+
+Code side's predicted ceiling vs measured level (both uncalibrated; 2 tested Findings have both): equal 2, measured below ceiling 0, measured above ceiling 0.
 
 | Finding | category | effect | location | result |
 |---|---|---|---|---|
@@ -124,6 +126,8 @@
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L2 (measured: L2).
+
 **Level L2, uncalibrated.** supported: fatal checks, mutation, repeat runs and clean-checkout replay passed; some checks are residual.
 
 - trigger run: branch taken at sparta/transformation/weighted_block_cover.py:77
@@ -148,6 +152,8 @@
 
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L1 (measured: L1).
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
