@@ -289,7 +289,10 @@ def main(argv=None):
     out.mkdir(parents=True, exist_ok=True)
     env = dict(os.environ)
     env['PYTHONPATH'] = os.pathsep.join(filter(None, [str(ROOT), env.get('PYTHONPATH')]))
-    sha = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=ROOT, env=env, capture_output=True, text=True, check=True).stdout.strip()
+    try:
+        sha = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=ROOT, env=env, capture_output=True, text=True, check=True).stdout.strip()
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        sha = 'unknown (not a git checkout)'  # e.g. the project was unpacked from a ZIP archive
     gen_model = os.environ.get('LIMITSET_GEN_MODEL') or env.get('PIPELINE_MODEL', 'x-test-2')  # generator-only override; the judge never uses it
     gen_port = int(os.environ.get('LIMITSET_GEN_RELAY_PORT') or 0) or None
     if gen_model.startswith('claude'):
