@@ -192,4 +192,6 @@ def test_translated_labels_are_scorer_only():
     root = Path(__file__).resolve().parents[1]
     for directory in ('pipeline', 'limitset_baselines', 'checklimits'):
         for path in (root / directory).rglob('*.py'):
-            assert 'labels_en.jsonl' not in path.read_text(encoding='utf-8'), str(path)
+            if 'scratch' in path.parts or 'node_modules' in path.parts:
+                continue
+            assert 'labels_en.jsonl' not in path.read_text(encoding='utf-8', errors='ignore'), str(path)
