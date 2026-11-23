@@ -17,7 +17,7 @@ In the completed four-paper A–D Dev comparison, A, C, and D scored zero core a
 
 ## Setup and run
 
-Run these commands from `cs6223-limitation-pipeline/paperside/`. The study needs Git, curl, Python with `pypdf` and `pymupdf`, Node.js 20 or later, and approved access to the original AgentSwarm-Serve repository and the SoCLaaS model route.
+Run these commands from `cs6223-limitation-pipeline/paperside/` on macOS or Linux (including WSL). The study needs Git, curl, Python with `pypdf` and `pymupdf`, and Node.js 22.19 or later. The team checkout includes the CS6223 [AgentSwarm-Serve runtime](runtime-source/source.json). Live experiments use each teammate's authorized SoCLaaS access.
 
 ```sh
 python3 -m venv .venv
@@ -25,12 +25,21 @@ python3 -m venv .venv
 npm ci --prefix tools/method-limitations --ignore-scripts
 .venv/bin/python tools/method-limitations/prepare_study_inputs.py runs/study-originals
 .venv/bin/python tools/method-limitations/swarm_study.py prepare runs/study-dev \
-  --previous-runs runs/study-originals --swarm-source /path/to/sglang-swarm --policy mechanism
+  --previous-runs runs/study-originals --policy mechanism
 .venv/bin/python tools/method-limitations/swarm_study.py run runs/study-dev \
   --split dev --conditions evidence_gap_swarm plain_swarm api_once single_agent
 ```
 
-The input builder checks publisher PDF hashes, author commits, and exact excerpt hashes. If a download is interrupted, use `--resume` to reuse the inputs already verified. The runtime is rebuilt from AgentSwarm-Serve commit `6e46093badbbc109c5be7296c24fe2f09efb00ae`. The renderer and extractor can differ across library versions, so use the frozen paper text and page images to replay an existing run exactly. The runner reads `SOCLAAS_API_KEY` and optional `SOCLAAS_BASE_URL` from `~/.config/soclaas/soclaas.env`. Each run directory archives the exact inputs, model requests, responses, source reads and usage. Store these outputs outside version control.
+For a one-paper smoke experiment, use `--split dev --papers nnsmith --conditions evidence_gap_swarm`.
+
+The input builder checks publisher PDF hashes, author commits, and exact excerpt hashes. If a download is interrupted, use `--resume` to reuse the inputs already verified. Preparation verifies the five bundled AgentSwarm-Serve source files at commit `6e46093` and writes an adapted copy inside the run archive. The renderer and extractor can differ across library versions, so use the frozen paper text and page images to replay an existing run exactly. Set `SOCLAAS_API_KEY` in your shell or use `~/.config/soclaas/soclaas.env`. Both accept optional `SOCLAAS_BASE_URL`. Each run directory archives the exact inputs, model requests, responses, source reads and usage. Store these outputs outside version control.
+
+After preparing `runs/study-originals`, run the offline Pi SDK tests with:
+
+```sh
+CS6223_STUDY_INPUTS="$PWD/runs/study-originals" \
+  .venv/bin/python -m unittest discover -s tools/method-limitations -p test_swarm_study.py -v
+```
 
 When a Pi session grows, Pi automatically checks its context between turns and can continue with a summary and recent messages. B, C and D share this policy and have up to eight task replies plus two native summary requests per condition. The experiment uses a local 131,072-token window, a 40,960-token reserve, and a 32,768-token task output cap. The separate summary cap is at most 12,288. These values are frozen alongside each run.
 
@@ -64,7 +73,7 @@ The Dev-only targeted review pilot runs one lead session per paper. The lead fol
 
 ```sh
 .venv/bin/python tools/method-limitations/targeted_review.py prepare runs/targeted-dev \
-  --previous-runs runs/study-originals --swarm-source /path/to/sglang-swarm
+  --previous-runs runs/study-originals
 .venv/bin/python tools/method-limitations/targeted_review.py run runs/targeted-dev
 .venv/bin/python tools/method-limitations/swarm_evaluation.py packet runs/targeted-dev /path/to/review-packet /path/to/reference.json --split dev
 .venv/bin/python tools/method-limitations/swarm_evaluation.py summarize /path/to/review-packet /path/to/grades /path/to/targeted-dev-metrics.json
