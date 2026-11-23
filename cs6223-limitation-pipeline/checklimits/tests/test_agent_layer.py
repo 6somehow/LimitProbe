@@ -268,7 +268,7 @@ def test_task_text_for_a_real_finding_has_the_chain_section():
 def test_archived_results_are_hidden_from_the_agent():
     cmd = " ".join(agent_loop.sandbox_cmd(Path("/tmp/run"), ["x"]))
     assert f"--tmpfs {agent_loop.PROJECT_ROOT / 'agent_results'}" in cmd
-    assert f"--ro-bind /dev/null {agent_loop.PROJECT_ROOT / 'BATCH_RESULTS.md'}" in cmd
+    assert f"--ro-bind /dev/null {agent_loop.PROJECT_ROOT / 'ENV.md'}" in cmd
     # the rule documents and the harness source stay readable unless the run is blind
     assert "CONFIDENCE_SPEC.md" not in cmd and "blind_pkg" not in cmd
 
