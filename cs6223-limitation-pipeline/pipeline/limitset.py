@@ -84,7 +84,7 @@ def run_generator(cmd, *, env, timeout, log):
         raise subprocess.CalledProcessError(code, cmd)
 
 
-def worker(case, repeat, out, raw, timeout, env, schema, swarm_template=None):
+def worker(case, repeat, out, raw, timeout, env, schema, swarm_template=None, enrich_llm=None, model=None):
     run = out / 'runs' / case['case_id'] / f'r{repeat}'
     done = run / 'prediction.json'
     if done.is_file():
@@ -120,6 +120,17 @@ def worker(case, repeat, out, raw, timeout, env, schema, swarm_template=None):
         if case['case_id'] == 'CS6223-03' and code.is_file():
             findings.extend({**mapping(f), 'origin': source} for f in read(code)['findings'])
             sources.append('results/step4/infinigen')
+        if enrich_llm is not None:
+            from pipeline.limitset_enrich import enrich
+            errors = []
+            enriched = []
+            for i, finding in enumerate(findings):
+                result, error = enrich(finding, out / 'enrich_cache', enrich_llm, model)
+                enriched.append(result)
+                if error:
+                    errors.append({'finding_index': i, 'enrich_error': error})
+            findings = enriched
+            (run / 'enrichment.json').write_text(json.dumps({'errors': errors}, indent=2) + '\n')
         record = {'case_id': case['case_id'], 'repeat': repeat, 'findings': findings, 'sources': sources}
         validate(record, schema)
         done.write_text(json.dumps(record, ensure_ascii=False, indent=2) + '\n')
@@ -175,6 +186,7 @@ def main(argv=None):
     r.add_argument('--out', type=Path, default=ROOT / 'out/limitset')
     r.add_argument('--raw', type=Path, default=RAW)
     r.add_argument('--dry-run', action='store_true')
+    r.add_argument('--no-enrich', action='store_true')
     r.add_argument('--swarm-report', help='report path template containing {case}')
     a = p.parse_args(argv)
     if min(a.repeats, a.workers, a.timeout) < 1:
@@ -191,6 +203,8 @@ def main(argv=None):
     env['PYTHONPATH'] = os.pathsep.join(filter(None, [str(ROOT), env.get('PYTHONPATH')]))
     sha = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=ROOT, env=env, capture_output=True, text=True, check=True).stdout.strip()
     manifest = {'git_sha': sha, 'model_id': env.get('PIPELINE_MODEL', 'x-test-2'), 'split': a.split, 'repeats': a.repeats, 'started_at': now(), 'pdf_hashes': {c['case_id']: c['pdf_sha256'] for c in selected}}
+    from pipeline.limitset_enrich import PROMPT_VERSION
+    manifest['enrichment'] = {'enabled': not a.no_enrich, 'model_id': manifest['model_id'], 'prompt_version': PROMPT_VERSION}
     (out / 'run_manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
     jobs = [(c, n) for c in selected for n in range(1, a.repeats + 1)]
     cached = {(c['case_id'], n) for c, n in jobs
@@ -218,8 +232,10 @@ def main(argv=None):
                 env.update(e)
                 # Relay's standard log paths are shared; keep this runner's logs in out.
                 with RunnerRelay(e2e, pipeline_run, e, out):
+                    from pipeline.limitset_enrich import RelayLLM
+                    llm = None if a.no_enrich else RelayLLM(manifest['model_id'], e2e.RELAY_PORT)
                     with ThreadPoolExecutor(max_workers=a.workers) as pool:
-                        records = list(pool.map(lambda job: worker(*job, out, raw, a.timeout, env, schema, a.swarm_report), jobs))
+                        records = list(pool.map(lambda job: worker(*job, out, raw, a.timeout, env, schema, a.swarm_report, llm, manifest['model_id']), jobs))
         except Exception as exc:
             reason = f'Relay startup failed: {type(exc).__name__}: {exc}'
             for c, n in jobs:
