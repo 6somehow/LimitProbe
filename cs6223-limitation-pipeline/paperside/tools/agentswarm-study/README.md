@@ -73,6 +73,9 @@ scored 0 core and 2 partial versus A's 1 core and 2 partial under conservative
 grading. The portable runner gives B the same investigation task with a self-review
 instruction. The historical archived B grades refer to its original prompt.
 
-AgentSwarm-Serve is a separate team-developed implementation used by the Pi experiments.
 This handoff includes the study runner and its offline tests, so the commands above work
-without access to that checkout or to the DeepSeek Harness desktop app.
+from the team repository. For an exact replay of the separate Pi experiments, request
+read access from Zhaopeng for the team-developed [AgentSwarm-Serve repository](https://github.com/fzp0424/sglang-swarm).
+Clone the repository, then pass its path as `--swarm-source` to the
+[Pi study runner](../method-limitations/README.md). It reads the runtime at commit
+`6e46093badbbc109c5be7296c24fe2f09efb00ae`.

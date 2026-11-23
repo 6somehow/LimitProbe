@@ -96,6 +96,7 @@
 | `limitation_ids` / `limitations` | 背后的完整 Limitation 记录（两侧都可能有） | 看原始条件、论文原文和代码位置 |
 | `verification_ids` / `verifications` | 代码侧的 3b 结果：在哪里找到了说明、原文 | 判断“文档到底怎么写的” |
 | `confidence` | 目前全部是 llm_assisted | — |
+| `process_confidence` | 代码侧的静态证据：8 项检查的状态、重复测量、预测的测试档位上限、重要性数字（没有自己的档位），见第 6 节；纯论文侧的 Finding 为 null | 作为你定档的输入；不是测试结论 |
 
 注意：论文侧原始记录的 `effect_text` 有一部分写的是“同上……”，指的是 3a 同一条记录的 local_entry 描述。Finding 的 `summary` 已经展开，`limitations` 里保留原样。
 
@@ -146,7 +147,58 @@
 | resource / performance | 内存 / 时间 | resource：测量，对比 contrast |
 | other（论文侧几乎全是） | 实现和论文描述不同，没有确定的运行时后果 | witness 为 always 时：走到引用代码的任一输入，和论文公式 / 描述做 differential 或 metamorphic 对比；3a 只做了静态判断，后果未证实 |
 
-## 6. 典型例子
+## 6. 代码侧的静态证据（未校准，没有自己的档位）
+
+每条有代码侧记录的 Finding 带一个 `process_confidence` 块（格式 `process-confidence-v2`，规则见 `docs/11_process_confidence.md`）。它是对你的档位的补充：**代码侧不定档，档位只由你的测试证据决定**。不执行代码、不调模型，同样的输入得到同样的结果。块里有四部分。
+
+**1. `checks`：核对表。** 词汇和你的 defeater 表一样：`eliminated`（工具核对过）、`residual`（只有论证或模型判断）、`open`（没评估）、`refuted`（核对失败）。
+
+| 检查 | 对应的测试概念 | 对应你的 | `eliminated` 的条件 |
+|---|---|---|---|
+| C1 location | 输入有效性 | D12 | 固定 commit 下该行的语句就是记录的 snippet |
+| C2 condition | 语句的判定（decision） | D2 | 条件就是该语句的判定表达式或它的取反 |
+| C3 reachability | 可达性（RIPR 的 R） | D1、D14 | 从官方入口到目标有静态调用链，且没有靠猜的步骤 |
+| C4 feasibility | 不可行路径 | witness | z3 在完整路径前缀下找到触发点和对照点 |
+| C5 extraction | 分析的可重复性 | D8 | 静态路线找到，或 LLM 路线在全部抽取运行里都找到（同一文件同一行） |
+| C6 effect_label | oracle 与语句相符 | D4、效果类型 | 标注的效果能在该语句上判定（reject 要能抛异常，path_change 要是 if / while） |
+| C7 documentation | 缺失性断言，只作说明 | — | 3b 找到了原文；not_found 无法证明，为 residual；3 次重复不一致也为 residual |
+| C8 review | 审查（inspection） | — | 人工审过；LLM 盲审为 residual，没审为 open |
+
+**2. `repeats`：重复测量。** `extraction_runs`：这个位置在几次抽取运行里出现（`found_in` / `of`）；`documentation_check`：3b 重复几次、结果的一致率；`routes`：哪条路线找到的（`ast` 静态、`llm`）。
+
+**3. `testability`：预测你这边能测到哪一档。** 按你的规则推出来的上限，不是预报，实际可以更低。
+
+| 字段 | 含义 |
+|---|---|
+| `testable: false` + `expect_not_run` | C4 为 refuted 预计 `witness_unusable`；效果是 `other` 预计 `outcome_unsupported` |
+| `mutants` / `mutants_needed` | 用你的 `mutate.generate` 在目标行能造出几个变异体；少于 `n_min`（4）时 D3 消不掉 |
+| `ceiling` | `L1`：变异体不够；`L2`：没有调用链，D14 最多 residual；`L3`：静态上没有限制 |
+| `limited_by` | 卡在哪个 defeater，原因是什么 |
+| `condition_has_calls`、`integer_boundary` | 条件里有没有函数调用（影响 D2 能否直接求值）；边界变量是否都是整数（影响 D5 的邻点） |
+
+和已有测试报告对照（7 篇里测过的 130 条）：**没有一条的实际档位超过预测上限**，98 条正好等于上限；预计 `outcome_unsupported` 的 48 条、`witness_unusable` 的 12 条全部对上。这是在同一批数据上看的，不是独立验证。
+
+**4. `importance`：重要性，和把握分开。**
+
+- `path.decision_on`：`main` 每次调用都会求值这个判定；`side` 判定在某个 `if` / `except` / `case` 里面（自己函数里的见 `enclosing_conditions`，调用链上的见 `conditional_call_sites`）；`unknown` 没有调用链，看不到调用者。
+- `impact`：判定管住多少语句（分支体，或 assert / raise 之后函数里剩下的语句）、函数共多少语句、从入口来的调用链条数、仓库里解析到这个函数的调用点数。
+- `coverage`：目标函数里有多少个判定（if / while / assert）、代码侧列出了几个、入口能否静态到达这个函数。这是**分析的覆盖**，不是执行覆盖；执行覆盖在你的 `execution_report.json` 里。
+
+**建议的用法**：测之前按 `ceiling` 分配预算（`测不了` 的不测，`L1` 的少花时间）；测之后把 `limited_by` 放在档位旁边，说明是这句本身测不到更高还是测得不够；没测的 Finding 把 `checks` 和 `repeats` 作为确定性的证据并排列出；`importance` 只用于排序，不进档位。
+
+预测的测试档位上限：
+
+| 论文 | 测不了 | L1 | L2 | L3 | 没测量 | 合计 |
+|---|---|---|---|---|---|---|
+| flexprefill | 17 | 14 | 4 | 11 | 0 | 46 |
+
+判定在主路径还是侧路径：
+
+| 论文 | main | side | unknown | 合计 |
+|---|---|---|---|---|
+| flexprefill | 10 | 24 | 12 | 46 |
+
+## 7. 典型例子
 
 每个例子是一条 Finding 的精简版，长字段已截断；完整内容在 json 里。例子是按规则自动挑的第一条，不是挑好看的。“论文侧 · LLM 写出条件”那条正好说明了它的局限：条件在形式上能解，但不一定抓住了论文差异的本质，所以论文侧条件只当提示用。
 
@@ -222,7 +274,28 @@
    "quote": null
   }
  ],
- "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it"
+ "rationale": "3b: not_found; priority 1: undisclosed, reject effect, witness reaches it",
+ "process_confidence": {
+  "checks": {
+   "C1": "eliminated",
+   "C2": "eliminated",
+   "C3": "open",
+   "C4": "eliminated",
+   "C5": "eliminated",
+   "C6": "eliminated",
+   "C7": "residual",
+   "C8": "residual"
+  },
+  "found_in_runs": 3,
+  "ceiling": "L1",
+  "limited_by": [
+   "D3: 2 mutant(s) of the target line, fewer than n_min=4; it cannot be eliminated",
+   "D14: no call chain from an official entry; a test has to call a deeper function, at most residual"
+  ],
+  "decision_on": "unknown",
+  "guarded_statements": 18,
+  "note": "... evidence per check and the full numbers are in the json"
+ }
 }
 ```
 
@@ -282,7 +355,28 @@
    "quote": "Note: The current version only supports inference with a batch size of 1 and has only been tested with bfloat16 precisi…"
   }
  ],
- "rationale": "3b: weaker in readme; 3b weaker; priority 2: stated_differently"
+ "rationale": "3b: weaker in readme; 3b weaker; priority 2: stated_differently",
+ "process_confidence": {
+  "checks": {
+   "C1": "eliminated",
+   "C2": "eliminated",
+   "C3": "open",
+   "C4": "eliminated",
+   "C5": "eliminated",
+   "C6": "eliminated",
+   "C7": "eliminated",
+   "C8": "residual"
+  },
+  "found_in_runs": 3,
+  "ceiling": "L1",
+  "limited_by": [
+   "D3: 2 mutant(s) of the target line, fewer than n_min=4; it cannot be eliminated",
+   "D14: no call chain from an official entry; a test has to call a deeper function, at most residual"
+  ],
+  "decision_on": "unknown",
+  "guarded_statements": 19,
+  "note": "... evidence per check and the full numbers are in the json"
+ }
 }
 ```
 
@@ -342,7 +436,28 @@
    "quote": "- 'default': Default attention mechanism with no additional configuration."
   }
  ],
- "rationale": "3b: found in docstring; priority 3: docs_only, path_change effect"
+ "rationale": "3b: found in docstring; priority 3: docs_only, path_change effect",
+ "process_confidence": {
+  "checks": {
+   "C1": "eliminated",
+   "C2": "eliminated",
+   "C3": "open",
+   "C4": "eliminated",
+   "C5": "residual",
+   "C6": "eliminated",
+   "C7": "eliminated",
+   "C8": "residual"
+  },
+  "found_in_runs": 2,
+  "ceiling": "L1",
+  "limited_by": [
+   "D3: 1 mutant(s) of the target line, fewer than n_min=4; it cannot be eliminated",
+   "D14: no call chain from an official entry; a test has to call a deeper function, at most residual"
+  ],
+  "decision_on": "unknown",
+  "guarded_statements": 1,
+  "note": "... evidence per check and the full numbers are in the json"
+ }
 }
 ```
 
@@ -433,7 +548,27 @@
    "quote": null
   }
  ],
- "rationale": "3b: not_found; priority 1: undisclosed, state effect, witness reaches it; related (candidate pair, judged different): flexprefill-F031, flexprefill-F032, flexprefill-F033, flexprefill-F034"
+ "rationale": "3b: not_found; priority 1: undisclosed, state effect, witness reaches it; related (candidate pair, judged different): flexprefill-F031, flexprefill-F032, flexprefill-F033, flexprefill-F034",
+ "process_confidence": {
+  "checks": {
+   "C1": "eliminated",
+   "C2": "eliminated",
+   "C3": "eliminated",
+   "C4": "eliminated",
+   "C5": "eliminated",
+   "C6": "eliminated",
+   "C7": "residual",
+   "C8": "open"
+  },
+  "found_in_runs": 3,
+  "ceiling": "L1",
+  "limited_by": [
+   "D3: 1 mutant(s) of the target line, fewer than n_min=4; it cannot be eliminated"
+  ],
+  "decision_on": "main",
+  "guarded_statements": 3,
+  "note": "... evidence per check and the full numbers are in the json"
+ }
 }
 ```
 
@@ -503,7 +638,25 @@
    "quote": null
   }
  ],
- "rationale": "3b: not_found; priority 3: unreachable: condition contradicts its path prefix"
+ "rationale": "3b: not_found; priority 3: unreachable: condition contradicts its path prefix",
+ "process_confidence": {
+  "checks": {
+   "C1": "eliminated",
+   "C2": "eliminated",
+   "C3": "eliminated",
+   "C4": "refuted",
+   "C5": "eliminated",
+   "C6": "eliminated",
+   "C7": "residual",
+   "C8": "open"
+  },
+  "found_in_runs": 3,
+  "ceiling": "witness_unusable",
+  "limited_by": null,
+  "decision_on": "side",
+  "guarded_statements": 18,
+  "note": "... evidence per check and the full numbers are in the json"
+ }
 }
 ```
 
@@ -681,76 +834,76 @@
 }
 ```
 
-## 7. 全部 Finding 索引
+## 8. 全部 Finding 索引
 
-每篇按 priority 排序。列的含义：侧 = 代/论/合（代码侧 / 论文侧 / 两侧合并）；审 = 审阅状态（✓ worth_testing，~ real_but_minor，✗ wrong，空 = 未审）。
+每篇按 priority 排序。列的含义：侧 = 代/论/合（代码侧 / 论文侧 / 两侧合并）；审 = 审阅状态（✓ worth_testing，~ real_but_minor，✗ wrong，空 = 未审）；过程 = 过程置信度档位和判定所在路径（第 6 节；论文侧为空）。
 
 ### flexprefill（65 条）
 
-| ID | 侧 | 类别 | P | effect | witness | 审 | 位置 | 内容 |
-|---|---|---|---|---|---|---|---|---|
-| F001 | 代 | undisclosed | 1 | reject | solved | ✓ | `flex_prefill/modules/patch.py:123` | When not isinstance(model, LlamaForCausalLM): Patching a non-LlamaForCausalLM model with a non-defa… |
-| F002 | 代 | undisclosed | 1 | reject | solved |  | `flex_prefill/modules/patch.py:241` | When not isinstance(model, Qwen2ForCausalLM): Patching a non-Qwen2ForCausalLM model with a non-defa… |
-| F003 | 代 | undisclosed | 1 | reject | solved | ~ | `flex_prefill/ops/flex_prefill_attention.py:247` | When num_q_heads % num_kv_heads != 0: GQA requires the number of query heads to be a multiple of KV… |
-| F006 | 代 | undisclosed | 1 | reject | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1240-1244` | When not (isinstance(block_idx, list) and isinstance(block_idx[0], list) and isinstance(block_idx[0… |
-| F007 | 代 | undisclosed | 1 | reject | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1245` | When not (len(block_idx) == batch_size and len(block_idx[0]) == num_q_heads): AssertionError |
-| F008 | 代 | undisclosed | 1 | reject | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1256` | When not (num_block <= total_q_blocks * (total_q_blocks + 1) // 2): AssertionError |
-| F009 | 代 | undisclosed | 1 | reject | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1258` | When not (num_q_heads % num_kv_heads == 0): AssertionError |
-| F012 | 代 | undisclosed | 1 | state | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1695-1698` | When causal_mask is None # first call only: module-level cache initialised on first call and reused |
-| F013 | 代 | undisclosed | 1 | reject | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1836` | When not (q.shape[1] == k.shape[1]): AssertionError |
-| F014 | 代 | undisclosed | 1 | reject | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1837` | When not (head_dim in {16, 32, 64, 128}): AssertionError |
-| F015 | 代 | undisclosed | 1 | reject | solved | ~ | `flex_prefill/ops/vertical_slash_attention.py:265` | When q_len != k_len: Rejects inputs where query and key sequence lengths differ, so no cross-length… |
-| F016 | 代 | undisclosed | 1 | reject | solved | ~ | `flex_prefill/ops/vertical_slash_attention.py:552` | When head_dim not in {16, 32, 64, 128}: Caller-supplied head_dim outside the fixed set aborts execu… |
-| F017 | 代 | undisclosed | 2 | path_change | solved | ~ | `flex_prefill/modules/patch.py:69` | When pattern == "minfer": For minfer, the config is loaded from a hard-coded JSON file chosen by cf… |
-| F018 | 代 | undisclosed | 2 | path_change | solved | ✓ | `flex_prefill/modules/patch.py:313` | When "llama" in model_name.lower(): Model class name selects which patch_*_attention implementation… |
-| F019 | 代 | stated_differently | 2 | reject | solved | ✓ | `flex_prefill/modules/patch.py:320` | When not ("llama" in model_name.lower() or "glm" in model_name.lower() or "qwen2" in model_name.low… |
-| F020 | 代 | undisclosed | 2 | path_change | solved | ✓ | `flex_prefill/modules/patch.py:424` | When kv_cache is None or prefill_meta.block_tables is None or prefill_meta.block_tables.numel() == … |
-| F021 | 代 | undisclosed | 2 | path_change | solved | ~ | `flex_prefill/modules/patch.py:501` | When "attention" in type(m).__name__.lower() and hasattr(m, "impl"): Only modules whose class name … |
-| F022 | 代 | stated_differently | 2 | reject | solved | ✓ | `flex_prefill/ops/flex_prefill_attention.py:672` | When q.dtype != torch.bfloat16: triton_flash_attention rejects non-bfloat16 queries before dispatch… |
-| F023 | 代 | stated_differently | 2 | reject | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1218` | When not (q.dtype == torch.bfloat16): AssertionError |
-| F024 | 代 | stated_differently | 2 | reject | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1222-1226` | When not (block_size in {32, 64, 128}): 'only support block size in {32, 64, 128} if head_dim <= 12… |
-| F026 | 代 | undisclosed | 2 | path_change | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1842-1854` | When q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size): returns via fla… |
-| F027 | 代 | stated_differently | 2 | reject | solved | ~ | `flex_prefill/ops/vertical_slash_attention.py:264` | When q.dtype != torch.bfloat16: Rejects any query tensor not in bfloat16, so callers using fp16/fp3… |
-| F028 | 代 | undisclosed | 2 | path_change | solved | ~ | `flex_prefill/ops/vertical_slash_attention.py:557` | When seq_len <= min(vertical_size, slash_size) * block_size: For short sequences the sparse vertica… |
-| F029 | 代 | undisclosed | 2 | path_change | solved | ~ | `flex_prefill/ops/vertical_slash_attention.py:570` | When seq_len <= 16 * 1024: Sequence length selects between the vertical/slash Triton kernel (<=16k)… |
-| F030 | 论 | impl_deviates | 2 | other | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1588-1591` | 论文要求最小 k 使累计≥γ；代码取累计>γ 的最小 k（累计恰等于 γ 时多选一条），且 //128+1 放大、min/max_budget 覆盖，K_v 不再是论文定义的最小前缀（artifac… |
-| F031 | 论 | impl_deviates | 2 | other | always |  | `flex_prefill/ops/flex_prefill_attention.py:1661-1779` | 论文要求先除以 Σ¯A 再展平；代码未归一化，改以放大阈值补偿 |
-| F032 | 论 | impl_deviates | 2 | other | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1661-1779` | 论文取累计和 ≥γ 的最小前缀长度 K；代码保留累计和 ≤γ*num_blocks 的项，边界条件与阈值尺度均不同，且未显式求 K |
-| F033 | 论 | impl_deviates | 2 | other | always |  | `flex_prefill/ops/flex_prefill_attention.py:1661-1779` | 论文要求 S 为 Ia 前 K 项；代码把 query-aware 前缀与 vertical/slash 索引取并集，S 不是纯 Ia[1:K] |
-| F034 | 论 | impl_deviates | 2 | other | always |  | `flex_prefill/ops/flex_prefill_attention.py:1676-1706` | 论文要求 pool(Q̂)（块池化，保留每块一个向量）与 pool(K) 相乘；代码把 Q̂ 的 block_size 行压成单一均值向量，得到 1×num_blocks 的分布，而非 num_bl… |
-| F035 | 论 | impl_deviates | 2 | other | always |  | `flex_prefill/ops/flex_prefill_attention.py:1705-1716` | 池化内核无法表达论文二维 sumpool(softmax 矩阵)，实际 â 为列和向量 |
-| F036 | 论 | impl_deviates | 2 | other | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1707-1713` | 实验配置的 1024 预算未转化为每 head 最终激活 token 数下限，Query-Aware 头无下限 |
-| F037 | 论 | impl_deviates | 2 | other | always |  | `flex_prefill/ops/flex_prefill_attention.py:1718-1729` | ā 角色正确；â 角色由 vertical 承担，但 vertical 非论文 sumpool(softmax(Q̂Kᵀ/√d)) 块和，真实分布操作数被替换（artifact 范围：â 操作数非论… |
-| F038 | 论 | impl_deviates | 2 | other | always |  | `flex_prefill/ops/flex_prefill_attention.py:1718-1729` | 论文 Algorithm 2 以 JSD<τ 返回 pattern(query_specific/vertical_slash)；代码不返回模式，而用同一阈值改写预算并继续 vertical/sla… |
-| F039 | 代 | docs_only | 3 | path_change | solved | ~ | `flex_prefill/modules/patch.py:114` | When pattern == "default": For the default pattern, patch_llama_attention returns without patching,… |
-| F040 | 代 | undisclosed | 3 | other | solved |  | `flex_prefill/ops/flex_prefill_attention.py:88-96` | When not ('h100' in gpu_name) and not ('a100' in gpu_name) and not ('4090' in gpu_name): if head_la… |
-| F004 | 代 | undisclosed | 3 | reject | infeasible |  | `flex_prefill/ops/flex_prefill_attention.py:865` | When not (q_len == 1): AssertionError |
-| F041 | 代 | stated_differently | 3 | reject | infeasible |  | `flex_prefill/ops/flex_prefill_attention.py:868` | When not (q.dtype == torch.bfloat16): AssertionError |
-| F042 | 代 | undisclosed | 3 | reject | infeasible |  | `flex_prefill/ops/flex_prefill_attention.py:869` | When not (head_dim in {16, 32, 64, 128}): 'only support head_dim in {16, 32, 64, 128}' |
-| F043 | 代 | docs_only | 3 | reject | infeasible |  | `flex_prefill/ops/flex_prefill_attention.py:870-875` | When not (block_size in {16, 32, 64, 128}): 'only support block size in {16, 32, 64, 128}' |
-| F044 | 代 | undisclosed | 3 | reject | infeasible |  | `flex_prefill/ops/flex_prefill_attention.py:876` | When not (num_blocks <= triton.cdiv(k_len, block_size)): AssertionError |
-| F045 | 代 | undisclosed | 3 | reject | infeasible |  | `flex_prefill/ops/flex_prefill_attention.py:878` | When not (num_q_heads % num_kv_heads == 0): AssertionError |
-| F005 | 代 | undisclosed | 3 | reject | infeasible |  | `flex_prefill/ops/flex_prefill_attention.py:1219` | When not (q_len == k_len): AssertionError |
-| F046 | 代 | undisclosed | 3 | reject | infeasible |  | `flex_prefill/ops/flex_prefill_attention.py:1220` | When not (head_dim <= 256): 'only support head_dim <= 256' |
-| F047 | 代 | undisclosed | 3 | other | solved | ✗ | `flex_prefill/ops/flex_prefill_attention.py:1221` | When head_dim <= 128: For head_dim <= 128 only block_size in {32,64,128} is allowed; otherwise (128… |
-| F048 | 代 | undisclosed | 3 | reject | infeasible |  | `flex_prefill/ops/flex_prefill_attention.py:1228-1231` | When not (block_size in {32, 64}): 'only support block size in {32, 64} if 128 < head_dim <= 256' |
-| F049 | 代 | undisclosed | 3 | other | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1270-1272` | When not (int(triton.__version__.split('.')[0]) >= 3): warnings.warn('triton version greater than 3… |
-| F010 | 代 | undisclosed | 3 | reject | infeasible |  | `flex_prefill/ops/flex_prefill_attention.py:1450` | When not (d in {16, 32, 64, 128}): AssertionError |
-| F011 | 代 | undisclosed | 3 | reject | infeasible |  | `flex_prefill/ops/flex_prefill_attention.py:1451` | When not (kernel_size in {16, 32, 64, 128, 256, 512}): AssertionError |
-| F050 | 代 | undisclosed | 3 | other | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1708` | When block_size != 128: hard-coded 128 in `score_cover_topk(vertical, gamma) // 128` while paramete… |
-| F025 | 代 | undisclosed | 3 | other | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1727` | When kl_div < tau: per-element branch stored in block_sparse_mask |
-| F051 | 代 | undisclosed | 3 | other | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1787` | When not (is_flash_attn_2_available()): flash_attn_func = triton_flash_attention |
-| F052 | 代 | docs_only | 3 | reject | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1824` | When not (batch_size == 1): 'only support batch size 1 for now' |
-| F053 | 代 | docs_only | 3 | path_change | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1825-1835` | When q_len == 1: returns via flash_attn_func, triton_flash_attention |
-| F054 | 代 | docs_only | 3 | reject | solved |  | `flex_prefill/ops/flex_prefill_attention.py:1838` | When not (block_size in {16, 32, 64, 128}): AssertionError |
-| F055 | 代 | docs_only | 3 | reject | solved | ~ | `flex_prefill/ops/vertical_slash_attention.py:553` | When block_size not in {16, 32, 64, 128}: Caller-supplied block_size outside the fixed set aborts e… |
-| F056 | 论 | not_implemented | 3 | other | no_condition |  | `experiments/scripts/flex_prefill/ruler.sh:16-45` | 论文要求单卡 A100 80GB；脚本未固定设备数量或型号，accelerate 可多进程运行 |
-| F057 | 论 | not_implemented | 3 | other | always |  | `experiments/scripts/flex_prefill/ruler.sh:21-29` | 论文要求的上界推导在实验路径无对应实现或检验 |
-| F058 | 论 | not_implemented | 3 | other | always |  | `experiments/scripts/flex_prefill/ruler.sh:21-29` | 论文要求显式连续松弛步骤；代码无该步骤 |
-| F059 | 论 | not_implemented | 3 | other | always |  | `experiments/scripts/flex_prefill/ruler.sh:21-29` | 论文要求构造 Lagrangian；代码无 |
-| F060 | 论 | not_implemented | 3 | other | always |  | `experiments/scripts/flex_prefill/ruler.sh:21-29` | 论文要求 KKT 条件；代码无 |
-| F061 | 论 | not_implemented | 3 | other | always |  | `experiments/scripts/flex_prefill/ruler.sh:21-29` | 论文要求该代数表达；代码无 |
-| F062 | 论 | not_implemented | 3 | other | always |  | `experiments/scripts/flex_prefill/ruler.sh:21-29` | 论文要求陈述该约束问题；代码无对应形式化 |
-| F063 | 论 | not_implemented | 3 | other | always |  | `experiments/scripts/flex_prefill/ruler.sh:21-29` | 论文要求二值变量重写；代码无 |
-| F064 | 论 | not_implemented | 3 | other | always |  | `experiments/scripts/flex_prefill/ruler.sh:21-29` | 论文要求平稳性条件；代码无 |
-| F065 | 论 | not_implemented | 3 | other | always |  | `experiments/scripts/flex_prefill/ruler.sh:21-29` | 论文要求互补松弛；代码无 |
+| ID | 侧 | 类别 | P | effect | witness | 审 | 上限 路径 | 位置 | 内容 |
+|---|---|---|---|---|---|---|---|---|---|
+| F001 | 代 | undisclosed | 1 | reject | solved | ✓ | L1 unknown | `flex_prefill/modules/patch.py:123` | When not isinstance(model, LlamaForCausalLM): Patching a non-LlamaForCausalLM model with a non-defa… |
+| F002 | 代 | undisclosed | 1 | reject | solved |  | L1 unknown | `flex_prefill/modules/patch.py:241` | When not isinstance(model, Qwen2ForCausalLM): Patching a non-Qwen2ForCausalLM model with a non-defa… |
+| F003 | 代 | undisclosed | 1 | reject | solved | ~ | L3 side | `flex_prefill/ops/flex_prefill_attention.py:247` | When num_q_heads % num_kv_heads != 0: GQA requires the number of query heads to be a multiple of KV… |
+| F006 | 代 | undisclosed | 1 | reject | solved |  | L3 side | `flex_prefill/ops/flex_prefill_attention.py:1240-1244` | When not (isinstance(block_idx, list) and isinstance(block_idx[0], list) and isinstance(block_idx[0… |
+| F007 | 代 | undisclosed | 1 | reject | solved |  | L3 side | `flex_prefill/ops/flex_prefill_attention.py:1245` | When not (len(block_idx) == batch_size and len(block_idx[0]) == num_q_heads): AssertionError |
+| F008 | 代 | undisclosed | 1 | reject | solved |  | L3 side | `flex_prefill/ops/flex_prefill_attention.py:1256` | When not (num_block <= total_q_blocks * (total_q_blocks + 1) // 2): AssertionError |
+| F009 | 代 | undisclosed | 1 | reject | solved |  | L3 side | `flex_prefill/ops/flex_prefill_attention.py:1258` | When not (num_q_heads % num_kv_heads == 0): AssertionError |
+| F012 | 代 | undisclosed | 1 | state | solved |  | L1 main | `flex_prefill/ops/flex_prefill_attention.py:1695-1698` | When causal_mask is None # first call only: module-level cache initialised on first call and reused |
+| F013 | 代 | undisclosed | 1 | reject | solved |  | L3 main | `flex_prefill/ops/flex_prefill_attention.py:1836` | When not (q.shape[1] == k.shape[1]): AssertionError |
+| F014 | 代 | undisclosed | 1 | reject | solved |  | L3 main | `flex_prefill/ops/flex_prefill_attention.py:1837` | When not (head_dim in {16, 32, 64, 128}): AssertionError |
+| F015 | 代 | undisclosed | 1 | reject | solved | ~ | L1 unknown | `flex_prefill/ops/vertical_slash_attention.py:265` | When q_len != k_len: Rejects inputs where query and key sequence lengths differ, so no cross-length… |
+| F016 | 代 | undisclosed | 1 | reject | solved | ~ | L2 unknown | `flex_prefill/ops/vertical_slash_attention.py:552` | When head_dim not in {16, 32, 64, 128}: Caller-supplied head_dim outside the fixed set aborts execu… |
+| F017 | 代 | undisclosed | 2 | path_change | solved | ~ | L1 unknown | `flex_prefill/modules/patch.py:69` | When pattern == "minfer": For minfer, the config is loaded from a hard-coded JSON file chosen by cf… |
+| F018 | 代 | undisclosed | 2 | path_change | solved | ✓ | L1 unknown | `flex_prefill/modules/patch.py:313` | When "llama" in model_name.lower(): Model class name selects which patch_*_attention implementation… |
+| F019 | 代 | stated_differently | 2 | reject | solved | ✓ | L1 side | `flex_prefill/modules/patch.py:320` | When not ("llama" in model_name.lower() or "glm" in model_name.lower() or "qwen2" in model_name.low… |
+| F020 | 代 | undisclosed | 2 | path_change | solved | ✓ | L2 side | `flex_prefill/modules/patch.py:424` | When kv_cache is None or prefill_meta.block_tables is None or prefill_meta.block_tables.numel() == … |
+| F021 | 代 | undisclosed | 2 | path_change | solved | ~ | L1 unknown | `flex_prefill/modules/patch.py:501` | When "attention" in type(m).__name__.lower() and hasattr(m, "impl"): Only modules whose class name … |
+| F022 | 代 | stated_differently | 2 | reject | solved | ✓ | L1 side | `flex_prefill/ops/flex_prefill_attention.py:672` | When q.dtype != torch.bfloat16: triton_flash_attention rejects non-bfloat16 queries before dispatch… |
+| F023 | 代 | stated_differently | 2 | reject | solved |  | L1 side | `flex_prefill/ops/flex_prefill_attention.py:1218` | When not (q.dtype == torch.bfloat16): AssertionError |
+| F024 | 代 | stated_differently | 2 | reject | solved |  | L3 side | `flex_prefill/ops/flex_prefill_attention.py:1222-1226` | When not (block_size in {32, 64, 128}): 'only support block size in {32, 64, 128} if head_dim <= 12… |
+| F026 | 代 | undisclosed | 2 | path_change | solved |  | L3 main | `flex_prefill/ops/flex_prefill_attention.py:1842-1854` | When q_len <= max(2 * block_size, math.ceil(min_budget / block_size) * block_size): returns via fla… |
+| F027 | 代 | stated_differently | 2 | reject | solved | ~ | L1 unknown | `flex_prefill/ops/vertical_slash_attention.py:264` | When q.dtype != torch.bfloat16: Rejects any query tensor not in bfloat16, so callers using fp16/fp3… |
+| F028 | 代 | undisclosed | 2 | path_change | solved | ~ | L1 unknown | `flex_prefill/ops/vertical_slash_attention.py:557` | When seq_len <= min(vertical_size, slash_size) * block_size: For short sequences the sparse vertica… |
+| F029 | 代 | undisclosed | 2 | path_change | solved | ~ | L2 unknown | `flex_prefill/ops/vertical_slash_attention.py:570` | When seq_len <= 16 * 1024: Sequence length selects between the vertical/slash Triton kernel (<=16k)… |
+| F030 | 论 | impl_deviates | 2 | other | solved |  |  | `flex_prefill/ops/flex_prefill_attention.py:1588-1591` | 论文要求最小 k 使累计≥γ；代码取累计>γ 的最小 k（累计恰等于 γ 时多选一条），且 //128+1 放大、min/max_budget 覆盖，K_v 不再是论文定义的最小前缀（artifac… |
+| F031 | 论 | impl_deviates | 2 | other | always |  |  | `flex_prefill/ops/flex_prefill_attention.py:1661-1779` | 论文要求先除以 Σ¯A 再展平；代码未归一化，改以放大阈值补偿 |
+| F032 | 论 | impl_deviates | 2 | other | solved |  |  | `flex_prefill/ops/flex_prefill_attention.py:1661-1779` | 论文取累计和 ≥γ 的最小前缀长度 K；代码保留累计和 ≤γ*num_blocks 的项，边界条件与阈值尺度均不同，且未显式求 K |
+| F033 | 论 | impl_deviates | 2 | other | always |  |  | `flex_prefill/ops/flex_prefill_attention.py:1661-1779` | 论文要求 S 为 Ia 前 K 项；代码把 query-aware 前缀与 vertical/slash 索引取并集，S 不是纯 Ia[1:K] |
+| F034 | 论 | impl_deviates | 2 | other | always |  |  | `flex_prefill/ops/flex_prefill_attention.py:1676-1706` | 论文要求 pool(Q̂)（块池化，保留每块一个向量）与 pool(K) 相乘；代码把 Q̂ 的 block_size 行压成单一均值向量，得到 1×num_blocks 的分布，而非 num_bl… |
+| F035 | 论 | impl_deviates | 2 | other | always |  |  | `flex_prefill/ops/flex_prefill_attention.py:1705-1716` | 池化内核无法表达论文二维 sumpool(softmax 矩阵)，实际 â 为列和向量 |
+| F036 | 论 | impl_deviates | 2 | other | solved |  |  | `flex_prefill/ops/flex_prefill_attention.py:1707-1713` | 实验配置的 1024 预算未转化为每 head 最终激活 token 数下限，Query-Aware 头无下限 |
+| F037 | 论 | impl_deviates | 2 | other | always |  |  | `flex_prefill/ops/flex_prefill_attention.py:1718-1729` | ā 角色正确；â 角色由 vertical 承担，但 vertical 非论文 sumpool(softmax(Q̂Kᵀ/√d)) 块和，真实分布操作数被替换（artifact 范围：â 操作数非论… |
+| F038 | 论 | impl_deviates | 2 | other | always |  |  | `flex_prefill/ops/flex_prefill_attention.py:1718-1729` | 论文 Algorithm 2 以 JSD<τ 返回 pattern(query_specific/vertical_slash)；代码不返回模式，而用同一阈值改写预算并继续 vertical/sla… |
+| F039 | 代 | docs_only | 3 | path_change | solved | ~ | L1 unknown | `flex_prefill/modules/patch.py:114` | When pattern == "default": For the default pattern, patch_llama_attention returns without patching,… |
+| F040 | 代 | undisclosed | 3 | other | solved |  | 测不了 side | `flex_prefill/ops/flex_prefill_attention.py:88-96` | When not ('h100' in gpu_name) and not ('a100' in gpu_name) and not ('4090' in gpu_name): if head_la… |
+| F004 | 代 | undisclosed | 3 | reject | infeasible |  | 测不了 side | `flex_prefill/ops/flex_prefill_attention.py:865` | When not (q_len == 1): AssertionError |
+| F041 | 代 | stated_differently | 3 | reject | infeasible |  | 测不了 side | `flex_prefill/ops/flex_prefill_attention.py:868` | When not (q.dtype == torch.bfloat16): AssertionError |
+| F042 | 代 | undisclosed | 3 | reject | infeasible |  | 测不了 side | `flex_prefill/ops/flex_prefill_attention.py:869` | When not (head_dim in {16, 32, 64, 128}): 'only support head_dim in {16, 32, 64, 128}' |
+| F043 | 代 | docs_only | 3 | reject | infeasible |  | 测不了 side | `flex_prefill/ops/flex_prefill_attention.py:870-875` | When not (block_size in {16, 32, 64, 128}): 'only support block size in {16, 32, 64, 128}' |
+| F044 | 代 | undisclosed | 3 | reject | infeasible |  | 测不了 side | `flex_prefill/ops/flex_prefill_attention.py:876` | When not (num_blocks <= triton.cdiv(k_len, block_size)): AssertionError |
+| F045 | 代 | undisclosed | 3 | reject | infeasible |  | 测不了 side | `flex_prefill/ops/flex_prefill_attention.py:878` | When not (num_q_heads % num_kv_heads == 0): AssertionError |
+| F005 | 代 | undisclosed | 3 | reject | infeasible |  | 测不了 side | `flex_prefill/ops/flex_prefill_attention.py:1219` | When not (q_len == k_len): AssertionError |
+| F046 | 代 | undisclosed | 3 | reject | infeasible |  | 测不了 side | `flex_prefill/ops/flex_prefill_attention.py:1220` | When not (head_dim <= 256): 'only support head_dim <= 256' |
+| F047 | 代 | undisclosed | 3 | other | solved | ✗ | 测不了 side | `flex_prefill/ops/flex_prefill_attention.py:1221` | When head_dim <= 128: For head_dim <= 128 only block_size in {32,64,128} is allowed; otherwise (128… |
+| F048 | 代 | undisclosed | 3 | reject | infeasible |  | 测不了 side | `flex_prefill/ops/flex_prefill_attention.py:1228-1231` | When not (block_size in {32, 64}): 'only support block size in {32, 64} if 128 < head_dim <= 256' |
+| F049 | 代 | undisclosed | 3 | other | solved |  | 测不了 side | `flex_prefill/ops/flex_prefill_attention.py:1270-1272` | When not (int(triton.__version__.split('.')[0]) >= 3): warnings.warn('triton version greater than 3… |
+| F010 | 代 | undisclosed | 3 | reject | infeasible |  | 测不了 side | `flex_prefill/ops/flex_prefill_attention.py:1450` | When not (d in {16, 32, 64, 128}): AssertionError |
+| F011 | 代 | undisclosed | 3 | reject | infeasible |  | 测不了 side | `flex_prefill/ops/flex_prefill_attention.py:1451` | When not (kernel_size in {16, 32, 64, 128, 256, 512}): AssertionError |
+| F050 | 代 | undisclosed | 3 | other | solved |  | 测不了 main | `flex_prefill/ops/flex_prefill_attention.py:1708` | When block_size != 128: hard-coded 128 in `score_cover_topk(vertical, gamma) // 128` while paramete… |
+| F025 | 代 | undisclosed | 3 | other | solved |  | 测不了 main | `flex_prefill/ops/flex_prefill_attention.py:1727` | When kl_div < tau: per-element branch stored in block_sparse_mask |
+| F051 | 代 | undisclosed | 3 | other | solved |  | 测不了 main | `flex_prefill/ops/flex_prefill_attention.py:1787` | When not (is_flash_attn_2_available()): flash_attn_func = triton_flash_attention |
+| F052 | 代 | docs_only | 3 | reject | solved |  | L3 main | `flex_prefill/ops/flex_prefill_attention.py:1824` | When not (batch_size == 1): 'only support batch size 1 for now' |
+| F053 | 代 | docs_only | 3 | path_change | solved |  | L1 main | `flex_prefill/ops/flex_prefill_attention.py:1825-1835` | When q_len == 1: returns via flash_attn_func, triton_flash_attention |
+| F054 | 代 | docs_only | 3 | reject | solved |  | L3 main | `flex_prefill/ops/flex_prefill_attention.py:1838` | When not (block_size in {16, 32, 64, 128}): AssertionError |
+| F055 | 代 | docs_only | 3 | reject | solved | ~ | L2 unknown | `flex_prefill/ops/vertical_slash_attention.py:553` | When block_size not in {16, 32, 64, 128}: Caller-supplied block_size outside the fixed set aborts e… |
+| F056 | 论 | not_implemented | 3 | other | no_condition |  |  | `experiments/scripts/flex_prefill/ruler.sh:16-45` | 论文要求单卡 A100 80GB；脚本未固定设备数量或型号，accelerate 可多进程运行 |
+| F057 | 论 | not_implemented | 3 | other | always |  |  | `experiments/scripts/flex_prefill/ruler.sh:21-29` | 论文要求的上界推导在实验路径无对应实现或检验 |
+| F058 | 论 | not_implemented | 3 | other | always |  |  | `experiments/scripts/flex_prefill/ruler.sh:21-29` | 论文要求显式连续松弛步骤；代码无该步骤 |
+| F059 | 论 | not_implemented | 3 | other | always |  |  | `experiments/scripts/flex_prefill/ruler.sh:21-29` | 论文要求构造 Lagrangian；代码无 |
+| F060 | 论 | not_implemented | 3 | other | always |  |  | `experiments/scripts/flex_prefill/ruler.sh:21-29` | 论文要求 KKT 条件；代码无 |
+| F061 | 论 | not_implemented | 3 | other | always |  |  | `experiments/scripts/flex_prefill/ruler.sh:21-29` | 论文要求该代数表达；代码无 |
+| F062 | 论 | not_implemented | 3 | other | always |  |  | `experiments/scripts/flex_prefill/ruler.sh:21-29` | 论文要求陈述该约束问题；代码无对应形式化 |
+| F063 | 论 | not_implemented | 3 | other | always |  |  | `experiments/scripts/flex_prefill/ruler.sh:21-29` | 论文要求二值变量重写；代码无 |
+| F064 | 论 | not_implemented | 3 | other | always |  |  | `experiments/scripts/flex_prefill/ruler.sh:21-29` | 论文要求平稳性条件；代码无 |
+| F065 | 论 | not_implemented | 3 | other | always |  |  | `experiments/scripts/flex_prefill/ruler.sh:21-29` | 论文要求互补松弛；代码无 |
