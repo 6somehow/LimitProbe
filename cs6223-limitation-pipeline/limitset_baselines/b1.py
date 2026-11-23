@@ -41,11 +41,19 @@ def pinned_code(case, paper, env):
 
 
 def request(payload):
-    req = urllib.request.Request('http://127.0.0.1:8787/v1/chat/completions',
+    import os, time, urllib.error
+    base = os.environ.get('SOCLAAS_BASE_URL', 'http://127.0.0.1:8787/v1').rstrip('/')  # the driver points this at the generator relay
+    req = urllib.request.Request(base + '/chat/completions',
         data=json.dumps(payload).encode(), headers={'Content-Type': 'application/json',
         'Authorization': 'Bearer relay'})
-    with urllib.request.urlopen(req, timeout=600) as response:
-        return json.load(response)
+    for attempt in range(8):  # rate limits (429) and brief 5xx are transient: back off and retry
+        try:
+            with urllib.request.urlopen(req, timeout=600) as response:
+                return json.load(response)
+        except urllib.error.HTTPError as exc:
+            if exc.code not in (429, 500, 502, 503, 504) or attempt == 7:
+                raise
+            time.sleep(20 * (attempt + 1))
 
 
 def run_case(case, input_dir, out_dir, env, repeat):
