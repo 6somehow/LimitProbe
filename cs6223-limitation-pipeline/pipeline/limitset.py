@@ -133,6 +133,35 @@ def worker(case, repeat, out, raw, timeout, env, schema, swarm_template=None, en
             done.write_text(json.dumps(record, ensure_ascii=False, indent=2) + '\n')
             (run / 'failure.json').unlink(missing_ok=True)
             return record
+        if generator == 'mechanism':
+            from checklimits.checklimits.paper_only import pdf_text, mechanism_candidates, MECH_V1
+            code_files = {}
+            if case['case_id'] == 'CS6223-03':
+                import ast
+                repo = Path('/home/somehow6/lesson/CS6223/cs6223-limitation-pipeline/third_party/InfiniGen')
+                artifact = read(ROOT / 'data/infinigen/artifact.json')
+                for entry in artifact['entry_points']:
+                    path, symbol = entry.split('::')
+                    content = (repo / path).read_text(encoding='utf-8')
+                    node = ast.parse(content)
+                    for part in symbol.split('.'):
+                        node = next(n for n in node.body if getattr(n, 'name', None) == part)
+                    lines = content.splitlines(keepends=True)
+                    excerpt = ''.join(lines[node.lineno - 1:node.end_lineno])[:12000]
+                    code_files[path] = code_files.get(path, '') + excerpt + '\n'
+            candidates, critiques, dropped = mechanism_candidates(pdf_text(case_dir / 'paper.pdf'), code_files, enrich_llm)
+            findings = []
+            for c in candidates:
+                findings.append({'claim': str(c.get('claim') or ''), 'category_code': c['category_code'],
+                                 'mechanism': str(c.get('mechanism') or ''), 'conditions': c.get('conditions') or [],
+                                 'evidence': c['evidence'], 'caveats': [], 'origin': MECH_V1})
+            (run / 'mechanism_evidence.json').write_text(json.dumps({'candidates': candidates, 'dropped_for_unverified_quotes': dropped}, ensure_ascii=False, indent=2) + '\n')
+            (run / 'evaluation_critiques.json').write_text(json.dumps(critiques, ensure_ascii=False, indent=2) + '\n')
+            record = {'case_id': case['case_id'], 'repeat': repeat, 'findings': findings, 'sources': [MECH_V1]}
+            validate(record, schema)
+            done.write_text(json.dumps(record, ensure_ascii=False, indent=2) + '\n')
+            (run / 'failure.json').unlink(missing_ok=True)
+            return record
         swarm = safe_path(Path(swarm_template.format(case=case['case_id']))).resolve() if swarm_template else None
         if swarm and not swarm.is_file():
             swarm = None
@@ -217,7 +246,7 @@ def main(argv=None):
     r.add_argument('--raw', type=Path, default=RAW)
     r.add_argument('--dry-run', action='store_true')
     r.add_argument('--no-enrich', action='store_true')
-    r.add_argument('--generator', choices=['paper-only', 'swarm'], default='paper-only')
+    r.add_argument('--generator', choices=['paper-only', 'swarm', 'mechanism'], default='paper-only')
     r.add_argument('--swarm-report', help='report path template containing {case}')
     a = p.parse_args(argv)
     if min(a.repeats, a.workers, a.timeout) < 1:
@@ -269,7 +298,7 @@ def main(argv=None):
                 # Relay's standard log paths are shared; keep this runner's logs in out.
                 with RunnerRelay(e2e, pipeline_run, e, out):
                     from pipeline.limitset_enrich import RelayLLM
-                    llm = None if a.no_enrich else RelayLLM(manifest['model_id'], e2e.RELAY_PORT)
+                    llm = None if a.no_enrich and a.generator != 'mechanism' else RelayLLM(manifest['model_id'], e2e.RELAY_PORT)
                     with ThreadPoolExecutor(max_workers=a.workers) as pool:
                         records = list(pool.map(lambda job: worker(*job, out, raw, a.timeout, env, schema, a.swarm_report, llm, manifest['model_id'], a.generator), jobs))
         except Exception as exc:
