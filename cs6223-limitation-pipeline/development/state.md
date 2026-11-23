@@ -5,3 +5,4 @@
 - Packages: LS-01 (normalize), LS-02 (swarm -> pipeline) dispatched next.
 - 2026-11-23 user deadline: 3h. Raw dataset canonical root: /home/somehow6/lesson/CS6223/CS6223_Limitation_Testset (user-extracted, validated); limitset-raw/ is a duplicate (outside git). LS-02 merged (minimal). Test repeats = 2. Full swarm utilization -> next round.
 - 2026-11-23 user decision: no separate review mechanism for this project (cross-family review dropped; controller checks tests/diff/key scan only).
+- 2026-11-23 user-confirmed backend of relay model alias x-test-2: DeepSeek V4.1 flash 1017 (not verifiable from the relay response; cite as user-confirmed in docs/13 and run manifests).
