@@ -13,7 +13,7 @@ the same repo, and emit a Region for each of these signals:
   parameter's default (e.g. `// 128`) -> suspicious
   end of the entry function           -> mechanism       (the default path)
 
-Known v0 gaps (see TASKS.md, milestone M2):
+Known v0 gaps (see docs/05_dataset.md, extractor gaps):
   * no path-feasibility pruning: callees are analysed on every branch, so
     infeasible branches (e.g. a decode kernel under a prefill prefix) add noise;
   * callee conditions are not rewritten into the caller's names;

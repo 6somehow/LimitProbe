@@ -51,7 +51,7 @@ There is no gold yet, so only coverage is considered here; recall is not calcula
 - **MInference**: `q_len == 1` uses dense (decode); configuration options `dense` / `dilated1` / `dilated2` / `streaming` bypass vertical-slash; the Triton kernel requires head_dim ∈ {16, 32, 64, 128}; `search_pattern` has a module-level cache `SEARCH_MASK`.
 - **InfiniGen**: In `mha`, skew runs only during `warmup`, and partial weight is enabled only outside warmup and when a ratio is set; `mha_gen` has 4 asserts.
 
-**Extractor gaps (added to TASKS.md M2):**
+**Extractor gaps:**
 
 1. **Mode switches without an early return are not recognized**: branches such as InfiniGen's `if warmup: skew(...)` change the mechanism executed but have no return, so v0 produces no region.
 2. **Two-branch dispatch**: NNSmith's `if self.differentiable: return GradSearch.search_one(...) else: return SamplingSearch.search_one(...)` and MInference's `dilated` / `streaming` both “switch to another implementation”, but v0 does not report them because the callee names are not in the fallback hint list. Suggest adding an outcome to the schema (e.g. `alternative`).

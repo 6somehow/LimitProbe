@@ -69,7 +69,7 @@ unmatched predictions: 10
 ```
 
 
-**Note: v0 rules were written against this pilot; recall 1.00 does not demonstrate generalization.** The second artifact is the real test (TASKS.md M3).
+**Note: v0 rules were written against this pilot; recall 1.00 does not demonstrate generalization.** The second artifact is the real test.
 
 ## Points to flag to Shanghao for CPU execution
 

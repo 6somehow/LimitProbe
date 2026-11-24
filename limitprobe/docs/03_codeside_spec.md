@@ -21,7 +21,7 @@
 
 Each Region records the original condition expression, the names it depends on, the **path prefix** (outer branch conditions, negated where applicable), file:line, call chain, and provenance.
 
-### 2.2 Known v0 gaps (TASKS.md M2)
+### 2.2 Known v0 gaps
 
 | Gap | Effect on pilot | Plan |
 |---|---|---|

@@ -65,6 +65,6 @@ FlexPrefill 的 tau 已核对正式参数、下传调用和使用。NNSmith 的�
 
 MInference 的两个机制使用保留 Pi 读取的非流式收尾；NNSmith 有一次 binding 结构修正，详情见 HANDOFF 与各包记录。28 条传输异常的未返回用量及远端状态仍未知；摘要中的 token 不是完整账单。
 
-Wanting 的 README、根 CLAUDE.md、codeside、schema 和共享测试均未修改。发布前检查本次文件未包含密钥、原始 API 日志、PDF、ZIP、node_modules 或大型 HTML。
+Wanting 的 README、codeside、schema 和共享测试均未修改。发布前检查本次文件未包含密钥、原始 API 日志、PDF、ZIP、node_modules 或大型 HTML。
 
 这些检查确认接口与证据可追溯，不构成人工语义真值、运行缺陷确认或准确率评测。

@@ -1,6 +1,6 @@
 # 论文侧交接操作说明
 
-所有命令从 `paperside/` 目录运行。当前结果状态见 [README](README.md)，agent 开发规则见 [CLAUDE.md](CLAUDE.md)。
+所有命令从 `paperside/` 目录运行。当前结果状态见 [README](README.md)。
 
 ## Z3怎样交给Shanghao
 
@@ -100,7 +100,7 @@ SoCLaaS 使用 `x-test-2` 路由，实际模型标识以每次响应记录为准
 
 仓库保存代码、测试、配置、版本清单、PNG 流程图及已发布的轻量交接包。原 PDF、完整目标仓库、原始 API 日志、ZIP、大型 HTML 和 `node_modules` 不入库。密钥不属于交接包。
 
-每包 `source-distribution.json` 列出保留和省略的文件。后三篇另附 `archive-acceptance.json`：记录完整本地包的原论文、固定 Git 源码、冻结 ID 和 ZIP 检查结果；轻量验收只校验这里保留的快照，不能替代原始资产检查。归档绝对路径是原始运行位置，不能当作另一台机器上的有效路径。当前维护者本地工作区和剩余任务见 [CLAUDE.md](CLAUDE.md#下一步)。
+每包 `source-distribution.json` 列出保留和省略的文件。后三篇另附 `archive-acceptance.json`：记录完整本地包的原论文、固定 Git 源码、冻结 ID 和 ZIP 检查结果；轻量验收只校验这里保留的快照，不能替代原始资产检查。归档绝对路径是原始运行位置，不能当作另一台机器上的有效路径。
 
 ## 本轮交付的恢复记录
 

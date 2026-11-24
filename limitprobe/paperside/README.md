@@ -2,7 +2,7 @@
 
 **从论文出发，检查作者说会做的事情，代码是否实现。** 我负责论文语义拆解（步骤 1）和论文 → 代码静态核验（步骤 3a），不运行目标系统。
 
-交接时先看本页；后续 agent 看 [`CLAUDE.md`](CLAUDE.md)；安装、复跑和接口细节看 [`HANDOFF.md`](HANDOFF.md)。
+交接时先看本页；安装、复跑和接口细节看 [`HANDOFF.md`](HANDOFF.md)。
 
 ## 方法限制实验
 
@@ -93,4 +93,4 @@
 
 1. 使用已入库的 SparTA 或 FlexPrefill，按 [HANDOFF.md](HANDOFF.md) 做离线检查。
 2. Wanting 接收 `paper_side.json`，结合 `conformance.json` 和 `limitations.json` 整合候选。
-3. 若继续开发，先读 [CLAUDE.md 的下一步](CLAUDE.md#下一步)，从已有候选的审阅、去重和待办处理开始；五篇无需重新跑一遍。
+3. 若继续开发，从已有候选的审阅、去重和待办处理开始；五篇无需重新跑一遍。
