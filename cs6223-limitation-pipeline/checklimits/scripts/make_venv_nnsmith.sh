@@ -3,7 +3,7 @@
 # Lives in checklimits/scratch/ (git-ignored), safe to delete. Usage: PYTHON311=/path/to/python3.11 bash scripts/make_venv_nnsmith.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
-PY="${PYTHON311:-<python>}"   # only used to create the venv; never modified
+PY="${PYTHON311:-$(command -v python3.11 || command -v python3)}"   # only used to create the venv; never modified
 "$PY" --version | grep -q "3\.11" || { echo "need Python 3.11, got: $("$PY" --version)"; exit 1; }
 [ -d scratch/venv_nnsmith ] || "$PY" -m venv scratch/venv_nnsmith
 V=scratch/venv_nnsmith/bin/python

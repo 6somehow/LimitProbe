@@ -1,7 +1,7 @@
 #!/bin/sh
 # A2/A4 (c2), S5a repeats (r2, r3) and S5b blind (bl) on the same findings. Sequential batches, 3 workers each.
-PY=<python>
-cd <project-root>/checklimits
+PY="${PY:-python}"   # the Python of the findlimit environment
+cd "$(dirname "$0")/.."
 only() { for f in "$@"; do printf -- '--only %s ' "$f"; done; }
 NN_ALL="nnsmith-F001 nnsmith-F018 nnsmith-F003 nnsmith-F035 nnsmith-F034 nnsmith-F036 nnsmith-F012 nnsmith-F004"
 NN_S5="nnsmith-F004 nnsmith-F035 nnsmith-F036"

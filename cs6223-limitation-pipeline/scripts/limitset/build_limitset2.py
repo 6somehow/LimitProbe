@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build data/limitset2 (held-out set v2) from papers in RAW and draft labels.
 
-RAW (outside git): <limitset2-raw>/{papers/<id>/paper.pdf,paper.txt, draft_labels/<id>.json}
+RAW (outside git, env LIMITSET2_RAW; default: ../limitset2-raw next to the project): {papers/<id>/paper.pdf,paper.txt, draft_labels/<id>.json}
 Writes: data/limitset2/{cases.jsonl, labels.jsonl, splits.json, manifest.json, REVIEW.md}
 Labels are scorer-only; generators must never read them.
 """
@@ -12,7 +12,8 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-RAW = Path('<limitset2-raw>')
+import os
+RAW = Path(os.environ.get('LIMITSET2_RAW') or ROOT.parent / 'limitset2-raw')  # outside git
 CATS = {'applicability_limitation', 'mechanism_origin_unclear', 'method_shortcoming'}
 DISC = {'explicit_boundary_reported', 'mechanism_reported_consequence_inferred', 'mixed_reported_and_inferred', 'inferred'}
 REQ = ['case_id', 'paper_id', 'category_code', 'headline', 'claim', 'reasoning_chain', 'mechanism_insight',

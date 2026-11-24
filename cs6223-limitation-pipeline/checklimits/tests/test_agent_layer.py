@@ -181,7 +181,8 @@ def test_sandbox_command_hides_solutions_and_credentials_and_binds_only_the_run_
     assert j.count("--bind ") == 1                        # the run directory is the only writable mount
     for hidden in ("attempts", "results", "locks", "tests", "scratch"):
         assert f"--tmpfs {agent_loop.PROJECT_ROOT / hidden}" in j
-    assert f"--tmpfs {agent_loop.PIPELINE_ROOT.parent / '.git'}" in j
+    if (agent_loop.PIPELINE_ROOT.parent / '.git').is_dir():     # absent in a ZIP export, where there is no history to hide
+        assert f"--tmpfs {agent_loop.PIPELINE_ROOT.parent / '.git'}" in j
     assert f"--tmpfs {agent_loop.PIPELINE_ROOT / 'results'}" not in j     # step 4 inputs stay readable
     assert cmd[-2:] == ["opencode", "run"]
 

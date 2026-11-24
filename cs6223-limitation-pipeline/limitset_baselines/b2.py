@@ -11,7 +11,7 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-MAIN = Path('<project-root>')
+MAIN = ROOT  # opencode is installed under checklimits/scratch (not in git); see docs/12_limitset_b2.md
 DEFAULT_OPENCODE = MAIN / 'checklimits/scratch/opencode/node_modules/opencode-linux-x64/bin/opencode'
 HOME_TEMPLATE = MAIN / 'checklimits/scratch/oc_home_template'
 PROMPT = ('Find the limitations of this method. Write your findings to findings.md. '

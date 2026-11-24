@@ -7,7 +7,8 @@ from pathlib import Path
 from normalize import digest, read_jsonl, safe_pdf
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_RAW = Path('<limitset-raw>/CS6223_Limitation_Testset')
+import os
+DEFAULT_RAW = Path(os.environ.get('LIMITSET_RAW') or ROOT.parent / 'CS6223_Limitation_Testset')  # dataset root, outside git
 
 
 def build(case_id, out, cases_path, raw):

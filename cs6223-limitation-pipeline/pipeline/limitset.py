@@ -13,9 +13,10 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-RAW = Path('<limitset-raw>')
+# The datasets are not in git. Set LIMITSET_RAW / LIMITSET2_RAW, or place them next to the project directory.
+RAW = Path(os.environ.get('LIMITSET_RAW') or ROOT.parent / 'CS6223_Limitation_Testset')
 FORBIDDEN = {'labels', 'labels.jsonl', 'review.md', 'reference_material', 'evaluator_evidence', 'reference'}
-RAW2 = Path('<limitset2-raw>')
+RAW2 = Path(os.environ.get('LIMITSET2_RAW') or ROOT.parent / 'limitset2-raw')
 
 def dataset_cases(dataset, split):
     if dataset == 'limitset2' and split != 'test':
@@ -161,7 +162,7 @@ def worker(case, repeat, out, raw, timeout, env, schema, swarm_template=None, en
             code_files = {}
             if case['case_id'] == 'CS6223-03':
                 import ast
-                repo = Path('<project-root>/third_party/InfiniGen')
+                repo = ROOT / 'third_party' / 'InfiniGen'
                 artifact = read(ROOT / 'data/infinigen/artifact.json')
                 for entry in artifact['entry_points']:
                     path, symbol = entry.split('::')

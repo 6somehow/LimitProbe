@@ -8,7 +8,8 @@ import argparse
 import re
 from pathlib import Path
 
-SOURCE = Path('<project-root>')
+import os
+SOURCE = Path(os.environ.get('LIMITSET_OUT_ROOT') or Path(__file__).resolve().parents[2])  # directory that holds out/ with the raw run outputs
 SYSTEMS = [
  ('limitset2','b1','limitset2/b1/predictions.jsonl','limitset2/g_b1','limitset2/b1'),
  ('limitset2','b1x2','limitset2/b1x2.jsonl','limitset2/g_b1x2',None),

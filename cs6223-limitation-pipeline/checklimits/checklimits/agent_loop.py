@@ -1,6 +1,6 @@
 """Run the code agent (opencode) on one finding and close the loop with the harness (PLAN.md P2).
 
-Trust model. The agent is an LLM that may be sloppy or may try to raise its own score, but it is not
+Trust model. The agent is an LLM that may make mistakes or may try to raise its own score, but it is not
 assumed to attack the sandbox. What is enforced:
 
   * Credentials. The real SoCLaaS key exists only in the relay process. The agent's environment holds
@@ -25,6 +25,7 @@ import os
 import shutil
 import signal
 import subprocess
+import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -113,7 +114,7 @@ def sandbox_cmd(run_dir: Path, inner: list[str], blind: bool = False) -> list[st
 def agent_env(run_dir: Path, blind: bool = False) -> dict[str, str]:
     home = run_dir / "home"
     return {**({"CL_SOCKET": "/tmp/cl/sock"} if blind else {}),
-        "PATH": "/usr/bin:/bin:/usr/local/bin", "HOME": str(home), "LANG": "C.UTF-8", "TERM": "dumb",
+        "PATH": "/usr/bin:/bin:/usr/local/bin", "HOME": str(home), "LANG": "C.UTF-8", "TERM": "dumb", "CL_PYTHON": sys.executable,
         "XDG_CONFIG_HOME": str(home / ".config"), "XDG_DATA_HOME": str(home / ".local/share"),
         "XDG_CACHE_HOME": str(home / ".cache"), "XDG_STATE_HOME": str(home / ".local/state"),
         "OPENCODE_CONFIG": str(OC_CONFIG), "OPENCODE_DISABLE_AUTOUPDATE": "1", "OPENCODE_DISABLE_MODELS_FETCH": "1",
