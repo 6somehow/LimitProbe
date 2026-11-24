@@ -1,0 +1,117 @@
+{
+  "test_id": "T07",
+  "finding_id": "F07",
+  "strategy": "S1",
+  "design": {
+    "witness_source": "witness_hint",
+    "free_parameters": [
+      {
+        "name": "num_heads",
+        "value": 2,
+        "why": "witness_hint does not give a head count; the target assert runs before any head-dependent code, so the smallest value that keeps tensors small is used"
+      },
+      {
+        "name": "head_dim",
+        "value": 128,
+        "why": "witness_hint does not give head_dim; 128 is in the accepted set {16,32,64,128} so the later assert at :1837 cannot interfere"
+      },
+      {
+        "name": "dtype",
+        "value": "bfloat16",
+        "why": "README says the sparse path was tested with bfloat16"
+      },
+      {
+        "name": "gamma",
+        "value": 0.9,
+        "why": "required positional argument; 0.9 is the value in the module's __main__ example"
+      },
+      {
+        "name": "tau",
+        "value": 0.1,
+        "why": "same example"
+      },
+      {
+        "name": "seed",
+        "value": 0,
+        "why": "T6: fixed random seed"
+      },
+      {
+        "name": "block_size",
+        "value": 128,
+        "why": "the function's own default; the witness_hint does not give it"
+      }
+    ],
+    "positive_input": {
+      "batch_size": 2,
+      "q_len": 512
+    },
+    "negative_input": {
+      "batch_size": 1,
+      "q_len": 512
+    },
+    "boundary_variable": "batch_size",
+    "condition_predicate_file": null,
+    "oracle": {
+      "tier": "O4",
+      "type": "exception",
+      "spec": "AssertionError raised at flex_prefill/ops/flex_prefill_attention.py:1824",
+      "signal_location": "flex_prefill/ops/flex_prefill_attention.py:1824"
+    },
+    "expected": {
+      "positive": "AssertionError at flex_prefill/ops/flex_prefill_attention.py:1824",
+      "negative": "no exception at flex_prefill/ops/flex_prefill_attention.py:1824"
+    },
+    "scale": {
+      "factor": 0.125,
+      "scaled": [
+        "q_len"
+      ],
+      "reason": "no GPU: the downstream kernels are simulated on CPU, so the run is shrunk; only the control flow is judged, not the numerics",
+      "invariance_argument": "the target is a guard at the top of flex_prefill_attention that reads only batch_size and the q/k shapes; its truth value depends on batch_size != 1, not on how large the sequence is"
+    }
+  },
+  "execution": {
+    "entry_called": "flex_prefill/ops/flex_prefill_attention.py::flex_prefill_attention",
+    "call_chain_index": 0,
+    "repo_files_modified": [],
+    "mocks": [
+      {
+        "symbol": "flex_prefill.ops.flex_prefill_attention.triton_bnhd_pool",
+        "kind": "patch",
+        "behavior": "sim",
+        "impl": "sim.py::bnhd_pool",
+        "sim_class": "independent_native",
+        "reason": "Triton kernel used by get_active_blocks (after the target); no GPU. Plain-torch avg pool."
+      },
+      {
+        "symbol": "flex_prefill.ops.flex_prefill_attention.triton_block_wise_attention",
+        "kind": "patch",
+        "behavior": "sim",
+        "impl": "sim.py::block_wise_attention",
+        "sim_class": "repo_reference",
+        "reason": "Triton kernel launcher (after the target); no GPU. Calls the repository's own torch_block_wise_attention."
+      }
+    ],
+    "hooks": [],
+    "replay_commands": [
+      "cd limitprobe/checklimits && bash scripts/make_venv311.sh",
+      "cd limitprobe/checklimits && python -m checklimits run --attempt attempts/flexprefill/F07"
+    ]
+  },
+  "claims": {
+    "target_reached": true,
+    "decision_outcomes_seen": [
+      "false",
+      "true"
+    ],
+    "condition_true_on_positive": true,
+    "condition_false_on_negative": true,
+    "positive_observed": "AssertionError at flex_prefill/ops/flex_prefill_attention.py:1824",
+    "negative_observed": "no exception at flex_prefill/ops/flex_prefill_attention.py:1824"
+  },
+  "evidence": {
+    "trace_file": "runs/flexprefill/T07.raw.json",
+    "stdout_file": null,
+    "diff_file": null
+  }
+}
