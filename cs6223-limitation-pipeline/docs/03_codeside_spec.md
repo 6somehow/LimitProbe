@@ -1,84 +1,84 @@
-# 代码侧方法规格：步骤 2、3b、4
+# Code-side method specification: steps 2, 3b, and 4
 
-## 步骤 2：代码侧找 limitation（区域表）
+## Step 2: Find code-side limitations (region table)
 
-> 步骤 2 有两条路线：本节描述路线 A（静态分析）；路线 B（LLM 抽取）和对比协议见 `docs/06_two_routes.md`。两条路线的输出格式和校验规则相同。
+> Step 2 has two routes: this section describes route A (static analysis); for route B (LLM extraction) and the comparison protocol, see `docs/06_two_routes.md`. Both routes use the same output format and validation rules.
 
-**输入**：Artifact（仓库 + commit）、Binding（机制入口、参数映射）。
-**输出**：Region 列表；再转换成 Limitation(origin=code)。
+**Input**: Artifact (repository + commit), Binding (mechanism entry point, parameter mapping).
+**Output**: A list of Regions, then converted to Limitation(origin=code).
 
-### 2.1 抽取信号（v0 已实现，见 `codeside/extractor.py`）
+### 2.1 Extraction signals (implemented in v0; see `codeside/extractor.py`)
 
-| 信号 | Outcome | 例子（FlexPrefill） |
+| Signal | Outcome | Example (FlexPrefill) |
 |---|---|---|
-| `assert` / `raise` 涉及参数或其派生变量 | reject | `assert batch_size == 1` |
-| 早返回分支，且调用了 baseline（名字命中 hint 列表） | fallback | `if q_len <= max(...): return flash_attn_func(...)` |
-| `global X` + `if X is None:` | state_dependent | `causal_mask` 模块级缓存 |
-| 依赖版本 / 包是否安装 / GPU 型号的分支（取默认分支） | env_dependent | `triton.__version__ < 3` |
-| `mask = <与参数比较>`（张量逐元素分支） | mechanism_variant | `block_sparse_mask = kl_div < tau` |
-| 算术中出现的字面量等于入口参数的默认值，且该参数在作用域内 | suspicious | `// 128`，而 `block_size` 可配置 |
-| 入口函数的默认路径 | mechanism | 所有 guard 通过后 |
+| `assert` / `raise` involving a parameter or a variable derived from it | reject | `assert batch_size == 1` |
+| Early-return branch that calls a baseline (name matches the hint list) | fallback | `if q_len <= max(...): return flash_attn_func(...)` |
+| `global X` + `if X is None:` | state_dependent | `causal_mask` module-level cache |
+| Branch depending on dependency version, package installation, or GPU model (take the default branch) | env_dependent | `triton.__version__ < 3` |
+| `mask = <comparison with parameter>` (element-wise tensor branch) | mechanism_variant | `block_sparse_mask = kl_div < tau` |
+| A literal in arithmetic equals the default value of an entry parameter, and that parameter is in scope | suspicious | `// 128`, while `block_size` is configurable |
+| Default path of the entry function | mechanism | After all guards pass |
 
-每个 Region 记录：原始条件表达式、所依赖的名字、**路径前缀**（外层分支条件，已取反）、file:line、调用链、provenance。
+Each Region records the original condition expression, the names it depends on, the **path prefix** (outer branch conditions, negated where applicable), file:line, call chain, and provenance.
 
-### 2.2 v0 的已知缺口（TASKS.md M2）
+### 2.2 Known v0 gaps (TASKS.md M2)
 
-| 缺口 | pilot 上的表现 | 计划 |
+| Gap | Effect on pilot | Plan |
 |---|---|---|
-| 不做路径可行性剪枝 | 在 prefill 前缀下仍分析了 decode kernel，产生 6 条噪声 | 调用时把被调函数参数绑定到调用方表达式，用 z3 检查前缀与条件是否矛盾 |
-| 不判断冗余 | `triton_bnhd_pool` 的两个 assert 已被入口 assert 覆盖 | 前缀蕴含该条件时标为 subsumed |
-| 不区分内部不变量 | `isinstance(block_idx, list)` 这类断言并非输入限制 | 条件只涉及内部计算值、与入口参数无数据依赖时降级 |
-| 调用解析只支持同文件和简单 `from x import f` | — | 补包级导入、方法调用；动态分发交给 LLM（`docs/prompts/dispatch_resolution.md`） |
-| 配置键未接入 | `flex_prefill_min_budget` 经 `modules/patch.py` 传入 | 从 Binding 读配置键 → 参数映射 |
+| No path feasibility pruning | The decode kernel is still analyzed under the prefill prefix, producing 6 noisy predictions | Bind callee parameters to caller expressions at calls; use z3 to check whether the prefix and condition conflict |
+| No redundancy detection | Two asserts in `triton_bnhd_pool` are already covered by entry asserts | Mark as subsumed when the prefix implies the condition |
+| No distinction for internal invariants | Assertions such as `isinstance(block_idx, list)` are not input limitations | Downgrade conditions involving only internally computed values with no data dependency on entry parameters |
+| Call resolution only supports the same file and simple `from x import f` | — | Add package-level imports and method calls; leave dynamic dispatch to the LLM (`docs/prompts/dispatch_resolution.md`) |
+| Configuration keys are not connected | `flex_prefill_min_budget` is passed through `modules/patch.py` | Read configuration key → parameter mappings from Binding |
 
 ### 2.3 Region → Limitation
 
-`python -m codeside.cli to-limitations` 把 reject / fallback / env / state / suspicious 区域转为
-Limitation（effect_type：reject→reject，fallback→path_change，state→state，其余→other）。
-mechanism 和 mechanism_variant 不是 limitation，但保留在区域表里供 scope 和评测覆盖判断使用。
+`python -m codeside.cli to-limitations` converts reject / fallback / env / state / suspicious regions to
+Limitations (effect_type: reject→reject, fallback→path_change, state→state, the rest→other).
+mechanism and mechanism_variant are not limitations, but remain in the region table for scope and evaluation coverage judgments.
 
-## 步骤 3b：代码 → 论文验证
+## Step 3b: Code → paper verification
 
-> 已实现，实现细节和结果见 `docs/06_3b_eval.md`。
+> Implemented; see `docs/06_3b_eval.md` for details and results.
 
-对每条代码侧 Limitation 回答三个**独立**的问题：
+Answer three **independent** questions for each code-side Limitation:
 
-| 问题 | 方法 | 结果字段 |
+| Question | Method | Result field |
 |---|---|---|
-| ① 文档里有没有写？ | 检索候选段落（论文正文、附录、README、docstring、注释），关键词 = 条件里的名字 + Binding 对应的论文术语 + 条件里的数值；再交给 LLM 判断（`docs/prompts/3b_code_to_paper.md`）。**quote 必须逐字出现在来源中**，否则作废 | result、documented_in、matching_evidence |
-| ② 在不在论文声明的 scope 内？ | 用 Binding 把区域条件里的代码名字换成论文参数，与 ScopeItem 求交（区间 / 集合运算，必要时 z3）。交集非空 → in_scope；只与 `explicit=False` 的范围或论文显式假设相交 → scope_edge；交集为空 → out_of_scope；没有可用的 Binding → unknown | scope_status |
-| ③ 有没有被评测过？ | 是否存在某个 EvalPoint 满足区域条件 | evaluated_in_paper |
+| ① Is it documented? | Retrieve candidate passages (paper body, appendix, README, docstrings, comments) using names in the condition, corresponding paper terms from Binding, and numeric values in the condition as keywords; then ask the LLM to judge (`docs/prompts/3b_code_to_paper.md`). **The quote must appear verbatim in the source** or it is invalid | result、documented_in、matching_evidence |
+| ② Is it within the scope claimed by the paper? | Use Binding to replace code names in the region condition with paper parameters and intersect with ScopeItem (interval / set operations, z3 if needed). Nonempty intersection → in_scope; intersection only with `explicit=False` ranges or explicit paper assumptions → scope_edge; empty intersection → out_of_scope; no usable Binding → unknown | scope_status |
+| ③ Was it evaluated? | Whether an EvalPoint satisfies the region condition | evaluated_in_paper |
 
-MatchResult：found（写了，边界一致）、boundary_mismatch、weaker（写了但比代码行为弱，如"只测过"对"必须"）、not_found、contradicted（文档说法与代码相反，如 docstring 说支持 16，kernel 拒绝 16）。
+MatchResult: found (documented, with matching boundaries), boundary_mismatch, weaker (documented but weaker than code behavior, e.g. “only tested” versus “required”), not_found, contradicted (documentation contradicts the code, e.g. a docstring says 16 is supported but the kernel rejects 16).
 
-## 步骤 4：整合
+## Step 4: Integration
 
-### 4.1 去重与合并
+### 4.1 Deduplication and merging
 
-- 论文侧 Limitation 经 3a 找到代码对应、代码侧 Limitation 经 3b 找到论文对应、两者 code_evidence 指向同一 Region（或条件等价）→ 合并为一条 Finding。
-- 同一函数内条件相同的多条代码侧 Limitation 合并。
+- A paper-side Limitation has a code match through 3a, a code-side Limitation has a paper match through 3b, and both code_evidence entries point to the same Region (or equivalent conditions) → merge into one Finding.
+- Merge multiple code-side Limitations with the same condition within the same function.
 
-### 4.2 分类决策表
+### 4.2 Classification decision table
 
-| 论文侧 | 代码侧 | 3a | 3b | 类别 |
+| Paper side | Code side | 3a | 3b | Category |
 |---|---|---|---|---|
-| 有 | 有 | found | found | confirmed |
-| 有 | 有 | boundary_mismatch | 任意 | boundary_mismatch |
-| 有 | 无 | not_found | — | paper_only（性能 / 算法类，或论文过时） |
-| 无 | 有 | — | not_found | **undocumented** |
-| 无 | 有 | — | found / weaker，且只在 README / docstring / 注释 | documented_elsewhere |
-| 无 | 有 | — | contradicted | undocumented（rationale 注明"文档与代码矛盾"） |
+| Present | Present | found | found | confirmed |
+| Present | Present | boundary_mismatch | Any | boundary_mismatch |
+| Present | Absent | not_found | — | paper_only (performance / algorithm, or outdated paper) |
+| Absent | Present | — | not_found | **undocumented** |
+| Absent | Present | — | found / weaker, and only in README / docstring / comments | documented_elsewhere |
+| Absent | Present | — | contradicted | undocumented (rationale notes “documentation contradicts code”) |
 
-scope_status = out_of_scope 的 finding 保留在记录里，但不计入主结果。
+Findings with scope_status = out_of_scope remain in the records but are excluded from the main results.
 
-### 4.3 优先级与置信度
+### 4.3 Priority and confidence
 
-- priority 1：undocumented，scope 为 in_scope / scope_edge，effect ∈ {reject, accuracy, state}
-- priority 2：undocumented 的 path_change；documented_elsewhere 且 weaker
-- priority 3：其余
-- confidence：Region 来自 ast、Binding certain、quote 已逐字校验 → mechanical；任一环节依赖 LLM → llm_assisted
+- priority 1: undocumented, scope is in_scope / scope_edge, effect ∈ {reject, accuracy, state}
+- priority 2: undocumented path_change; documented_elsewhere and weaker
+- priority 3: all others
+- confidence: Region from ast, Binding certain, quote verified verbatim → mechanical; any step relies on an LLM → llm_assisted
 
 ### 4.4 witness_hint
 
-在"scope ∩ 区域条件"里取具体值（区间端点、边界两侧各一个点），用 z3 或手写区间运算求解，
-写入 Finding.witness_hint，交给 Shanghao 生成测试。scope 没有约束的维度取论文 EvalPoint 的值。
+Select concrete values within “scope ∩ region condition” (interval endpoints and one point on each side of a boundary), using z3 or hand-written interval operations to solve,
+write them to Finding.witness_hint, and pass them to Shanghao for test generation. For dimensions unconstrained by scope, use the paper's EvalPoint values.

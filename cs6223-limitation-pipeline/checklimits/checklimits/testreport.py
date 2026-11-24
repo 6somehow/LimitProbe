@@ -96,7 +96,8 @@ def finding_block(raw: dict[str, Any]) -> tuple[dict[str, Any], dict[str, list[d
     location = wh.get("location")
     if not location and code and code[0].get("file"):
         location = f"{code[0]['file']}:{code[0].get('line_start')}"
-    fin = {"category": raw.get("category"), "step4_level": raw.get("level"), "effect_type": raw.get("effect_type"),
+    fin = {"category": raw.get("category"), "origin": raw.get("origin", "v1"),
+           "step4_level": raw.get("level"), "effect_type": raw.get("effect_type"),
            "priority": raw.get("priority"), "summary": raw.get("summary"), "review": raw.get("review"),
            "review_note": raw.get("review_note"), "scope_status": raw.get("scope_status"),
            "witness_status": wh.get("status"), "location": location, "function": wh.get("function"),
@@ -198,6 +199,13 @@ _LEVEL_TEXT = {
 }
 
 
+def _ceiling(f: dict[str, Any]) -> Optional[str]:
+    """Code side's predicted highest level (step 4 `process_confidence.testability.ceiling`), None if not measured."""
+    pc = f.get("process_confidence") or {}
+    t = pc.get("testability") or {}
+    return t.get("ceiling") if t.get("measured") else None
+
+
 def _anchor(fid: str) -> str:
     return fid.lower().replace(".", "")
 
@@ -264,6 +272,15 @@ def render_markdown(artifact: dict[str, Any], records: list[TestRecord], env: Op
         A("| analysis only (not tests) | " + ", ".join(f"{k} {v}" for k, v in sorted(cs["analysis_tiers"].items())) + " |")
     if cs["not_run_by_code"]:
         A("| not tested, by reason | " + ", ".join(f"`{k}` {v}" for k, v in sorted(cs["not_run_by_code"].items())) + " |")
+    pairs = [(_ceiling(r.finding), r.level) for r in records if r.status == "tested" and _ceiling(r.finding)]
+    if pairs:
+        rank = {"L0": 0, "L1": 1, "L2": 2, "L3": 3}
+        ok = [(c, l) for c, l in pairs if l in rank and c in rank]
+        over = sum(1 for c, l in ok if rank[l] > rank[c])
+        same = sum(1 for c, l in ok if rank[l] == rank[c])
+        A("")
+        A(f"Code side's predicted ceiling vs measured level (both uncalibrated; {len(ok)} tested Findings have both): "
+          f"equal {same}, measured below ceiling {len(ok) - same - over}, measured above ceiling {over}.")
     A("")
     A("| Finding | category | effect | location | result |")
     A("|---|---|---|---|---|")
@@ -305,6 +322,9 @@ def render_markdown(artifact: dict[str, Any], records: list[TestRecord], env: Op
         if r.verdict_reason:
             A(f"  {_cut(r.verdict_reason, 400)}")
         A("")
+        if _ceiling(r.finding):
+            A(f"Code side predicted ceiling before the test: {_ceiling(r.finding)} (measured: {r.level}).")
+            A("")
         A(f"**Level {r.level}, uncalibrated.** {_LEVEL_TEXT.get(r.level or '', '')}. {_cut(r.level_note, 300)}".rstrip())
         A("")
         A(f"- trigger run: {r.observed.get('positive') or 'n/a'}")

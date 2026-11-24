@@ -1,0 +1,1222 @@
+{
+  "candidates": [
+    {
+      "headline": "Independent-microbatch overlap regularity conflicts with correlated infrastructure jitter.",
+      "claim": "Inter-microbatch overlap assumes different microbatches provide independent communication and computation windows, but correlated network jitter across ranks and iterations can align stalls and weaken the hideable overlap.",
+      "paper_fact": "Network congestion and switch contention cause stochastic variation in pipeline communication latency, both across iterations and across ranks.",
+      "premise": "Overlap hiding relies on one stream's communication being able to proceed while another stream computes; shared network congestion can correlate stalls and break that independence.",
+      "inference": "Therefore, the mechanism's benefit can degrade under correlated jitter, and static pair profiles may misestimate production behavior when jitter is correlated.",
+      "toy_example": "Toy example (not a measurement): if both overlapped streams wait on the same congested switch, their communication windows align and no compute hides the other.",
+      "conditional_consequence": "If jitter correlation is high, pair makespan profiles from a reference device group may not represent production, and runtime adaptation such as the DBO jitter extension becomes necessary.",
+      "critical_link": "The critical link is the independence assumption across microbatches; correlated jitter violates the regularity that creates hideable windows.",
+      "necessary_conditions": [
+        "Microbatches' communication and compute windows remain independent",
+        "Network jitter is uncorrelated across ranks and iterations",
+        "Reference profiling captures production jitter",
+        "DBO or runtime adaptation handles correlated stalls"
+      ],
+      "defeaters": [
+        "Jitter is uncorrelated or short-term correlation is absorbed by DBO",
+        "Paper reports production stability after DBO activation",
+        "The jitter extension is future work, not deployed"
+      ],
+      "do_not_infer": [
+        "Do not infer jitter always correlates",
+        "Do not infer the mechanism fails under all production jitter",
+        "Do not infer the DBO jitter extension has been systematically validated"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L5_origin_change_regularity",
+      "quotes": [
+        {
+          "quote": "Network congestion and switch contention cause stochastic variation in pipeline communication latency, both across iterations and across ranks.",
+          "source": "Tessera paper",
+          "locator": "p. 10"
+        },
+        {
+          "quote": "Leveraging the observation that jitter often exhibits short-term temporal correlation, a history-based predictor (moving average of the last 10 iterations) estimates upcoming bubble sizes, and per-rank injection fills these transient gaps with locally pooled movable tasks.",
+          "source": "Tessera paper",
+          "locator": "p. 10"
+        },
+        {
+          "quote": "Systematic validation of this extension under controlled jitter conditions remains future work.",
+          "source": "Tessera paper",
+          "locator": "p. 10"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "author_boundaries": [
+        "Authors state the jitter extension is architecturally feasible",
+        "Authors state systematic validation under controlled jitter remains future work",
+        "Authors do not claim the jitter extension is deployed or validated"
+      ],
+      "inferred_consequences": [
+        "Correlated jitter can reduce the independence that inter-microbatch overlap relies on",
+        "Static pair profiling may need runtime correction under correlated jitter"
+      ],
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p. 10",
+          "support_description": "Network congestion and switch contention cause stochastic variation in pipeline communication latency, both across iterations and across ranks."
+        },
+        {
+          "source_id": "paper",
+          "location": "p. 10",
+          "support_description": "Leveraging the observation that jitter often exhibits short-term temporal correlation, a history-based predictor (moving average of the last 10 iterations) estimates upcoming bubble sizes, and per-rank injection fills these transient gaps with locally pooled movable tasks."
+        },
+        {
+          "source_id": "paper",
+          "location": "p. 10",
+          "support_description": "Systematic validation of this extension under controlled jitter conditions remains future work."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Overlap hiding relies on one stream's communication being able to proceed while another stream computes; shared network congestion can correlate stalls and break that independence. Therefore, the mechanism's benefit can degrade under correlated jitter, and static pair profiles may misestimate production behavior when jitter is correlated."
+    },
+    {
+      "headline": "A two-resource task abstraction does not guarantee that a task occupies only its declared resource.",
+      "claim": "Modeling each task with one resource type does not guarantee exclusive occupancy, because a coarse task can contain kernels of the other resource type and cause cross-resource interference.",
+      "paper_fact": "Each task is an atomic scheduling unit with a duration, resource type, and dependency constraints.",
+      "premise": "Resource-constrained scheduling assumes each task's declared resource type captures its occupancy; a task containing both communication and compute kernels can consume both resources or cause cross-resource interference.",
+      "inference": "If a task bundles kernels of different resource types, then the scheduler may place it as if it uses only Comp or only Comm, overestimating the parallelism available to other tasks.",
+      "toy_example": "Not a measurement: a 'Comm' task with an embedded compute kernel could be co-scheduled with a 'Comp' task, and the embedded kernel contends for SMs.",
+      "conditional_consequence": "If tasks mix resource types, then the two-resource DAG model can overestimate achievable overlap and the measured post-overlap cost can exceed the model's expectation.",
+      "critical_link": "The link is the gap between the declared resource type and the actual kernels inside a coarse task; the scheduler's Comp/Comm model has no field for mixed occupancy.",
+      "necessary_conditions": [
+        "A task bundles kernels of more than one resource type",
+        "The scheduler models only Comp and Comm as resources",
+        "The bundled kernels can overlap or contend with other tasks"
+      ],
+      "defeaters": [
+        "Tasks are resource-homogeneous",
+        "The execution engine serializes intra-task kernels so the declared resource is accurate",
+        "Profiling captures the mixed-resource effect for partition selection"
+      ],
+      "do_not_infer": [
+        "Do not infer that the Comp/Comm model is invalid for all tasks",
+        "Do not infer that Tessera does not profile; it profiles chunk pairs on hardware",
+        "Do not infer that mixed tasks always serialize"
+      ],
+      "author_boundaries": [
+        "Authors explicitly say tasks are coarse and may contain small compute kernels; they do not claim each task is single-resource",
+        "Authors use measured post-overlap cost to correct the abstraction"
+      ],
+      "inferred_consequences": [
+        "The two-resource DAG is an approximation; mixed tasks can reduce achievable overlap",
+        "The scheduler should not assume declared resource type equals exclusive occupancy"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L3_compatibility_units",
+      "quotes": [
+        {
+          "quote": "Each task is an atomic scheduling unit with a duration, resource type, and dependency constraints.",
+          "source": "paper",
+          "locator": "p.7 §3.1.2"
+        },
+        {
+          "quote": "each task is a coarse scheduling unit rather than a single kernel (e.g., a communication-dominant task may contain small compute kernels)",
+          "source": "paper",
+          "locator": "p.10 §5 'Theoretical Overlap vs. Silicon Reality'"
+        },
+        {
+          "quote": "Tessera uses an event-driven list scheduler (Algorithm 1) to minimize the pair’s makespan on two resources (Comp, Comm).",
+          "source": "paper",
+          "locator": "p.7 §3.1.2"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p.7 §3.1.2",
+          "support_description": "Each task is an atomic scheduling unit with a duration, resource type, and dependency constraints."
+        },
+        {
+          "source_id": "paper",
+          "location": "p.10 §5 'Theoretical Overlap vs. Silicon Reality'",
+          "support_description": "each task is a coarse scheduling unit rather than a single kernel (e.g., a communication-dominant task may contain small compute kernels)"
+        },
+        {
+          "source_id": "paper",
+          "location": "p.7 §3.1.2",
+          "support_description": "Tessera uses an event-driven list scheduler (Algorithm 1) to minimize the pair’s makespan on two resources (Comp, Comm)."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Resource-constrained scheduling assumes each task's declared resource type captures its occupancy; a task containing both communication and compute kernels can consume both resources or cause cross-resource interference. If a task bundles kernels of different resource types, then the scheduler may place it as if it uses only Comp or only Comm, overestimating the parallelism available to other tasks."
+    },
+    {
+      "headline": "Contiguous layer-range candidates conflict with non-contiguous model shards or non-local layer reassignment.",
+      "claim": "Tessera's candidate representation assumes each virtual-stage candidate is a contiguous layer range; if a workload's best partition requires non-contiguous layer assignment, the search space cannot express it.",
+      "paper_fact": "A stage candidate c ∈Cs specifies one possible model chunk for virtual stage s: a contiguous layer range generated by perturbing boundaries around the baseline.",
+      "premise": "Some model architectures or parallelization schemes can benefit from assigning non-contiguous layer sets to a stage, for example to balance heterogeneous layer types or memory.",
+      "inference": "If a workload's best post-overlap partition requires a non-contiguous layer range, Tessera's candidate representation cannot express it, so the search may miss that partition.",
+      "conditional_consequence": "For architectures with non-contiguous shards, the contiguous-candidate assumption fails and the search space must change.",
+      "critical_link": "Contiguity is a representational assumption in candidate generation, not a proven property of all good partitions.",
+      "necessary_conditions": [
+        "Layer ranges assigned to a virtual stage are contiguous",
+        "Useful partitions are reachable by perturbing boundaries around the serial baseline",
+        "The host framework can execute the resulting contiguous virtual-stage chunks"
+      ],
+      "defeaters": [
+        "All practical partitions for the target model are contiguous",
+        "Non-contiguous assignments do not improve post-overlap bottleneck cost",
+        "The host framework cannot execute non-contiguous virtual-stage chunks anyway"
+      ],
+      "do_not_infer": [
+        "Do not infer Tessera cannot handle interleaved 1F1B virtual stages; the paper fixes a template and uses contiguous chunks per virtual stage",
+        "Do not infer non-contiguous partitions are always better",
+        "Do not infer the reported production gains are invalid"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L5_origin_change_regularity",
+      "quotes": [
+        {
+          "quote": "A stage candidate c ∈Cs specifies one possible model chunk for virtual stage s: a contiguous layer range generated by perturbing boundaries around the baseline.",
+          "source": "paper §3.1.1",
+          "locator": "p. 6"
+        },
+        {
+          "quote": "The full solver additionally enforces contiguous non-overlapping layer ranges, device-topology compatibility, and per-rank memory capacity constraints.",
+          "source": "paper §3.1.3",
+          "locator": "p. 7"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "author_boundaries": [
+        "Authors define stage candidates as contiguous layer ranges generated by perturbing boundaries around the baseline",
+        "Authors enforce contiguous non-overlapping layer ranges in the solver"
+      ],
+      "inferred_consequence": "The contiguous-candidate assumption limits applicability to models whose good partitions can be represented as contiguous layer ranges.",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p. 6",
+          "support_description": "A stage candidate c ∈Cs specifies one possible model chunk for virtual stage s: a contiguous layer range generated by perturbing boundaries around the baseline."
+        },
+        {
+          "source_id": "paper",
+          "location": "p. 7",
+          "support_description": "The full solver additionally enforces contiguous non-overlapping layer ranges, device-topology compatibility, and per-rank memory capacity constraints."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Some model architectures or parallelization schemes can benefit from assigning non-contiguous layer sets to a stage, for example to balance heterogeneous layer types or memory. If a workload's best post-overlap partition requires a non-contiguous layer range, Tessera's candidate representation cannot express it, so the search may miss that partition."
+    },
+    {
+      "headline": "MILP optimality for Tdom does not guarantee system-level throughput optimality.",
+      "claim": "The solver stops at optimality of Tdom under profiled costs and constraints; system goal includes warmup/cooldown, runtime bubbles, and DBO interactions.",
+      "paper_fact": "The Dynamic Bubble Optimizer may defer eligible movable tasks and dispatch them into predicted idle slots, recovering throughput that static planning leaves unexploited.",
+      "premise": "An optimal solution to a surrogate MILP is optimal only for the modeled objective and constraints; unmodeled runtime dynamics can change effective costs.",
+      "inference": "A Tdom-optimal partition may be suboptimal after DBO or under routing variation.",
+      "toy_example": "Not a measurement: a Tdom-optimal plan leaves movable Wgrad tasks that DBO can fill differently; another plan with slightly higher Tdom may interact better with DBO.",
+      "conditional_consequence": "If DBO substantially changes effective edge costs, then the static MILP objective may be stale and need runtime feedback.",
+      "critical_link": "Static planning uses profiled costs before runtime; DBO changes task placement and idle-slot filling after the MILP is solved.",
+      "necessary_conditions": [
+        "DBO's effect on effective edge costs is small or accounted for.",
+        "Routing distribution is stable enough for static profiles.",
+        "The fixed template remains the execution template."
+      ],
+      "defeaters": [
+        "DBO gains are independent of partition choice.",
+        "The static Tdom-optimal plan remains best under DBO.",
+        "Runtime feedback re-solves or corrects the static plan."
+      ],
+      "do_not_infer": [
+        "Do not infer MILP cannot be optimal for its modeled objective.",
+        "Do not infer DBO invalidates all static planning.",
+        "Do not attribute to authors a claim that static planning alone achieves final throughput."
+      ],
+      "author_boundaries": [
+        "Authors present DBO as runtime adaptation, not as part of the MILP objective.",
+        "Authors do not claim the static MILP anticipates routing stochasticity."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L2_objective_stopping_vs_goal",
+      "quotes": [
+        {
+          "quote": "The Dynamic Bubble Optimizer may defer eligible movable tasks and dispatch them into predicted idle slots, recovering throughput that static planning leaves unexploited.",
+          "source": "paper",
+          "locator": "p. 8, §3.2"
+        },
+        {
+          "quote": "At runtime, MoE routing variation changes task durations, shifting the size and location of idle slots in ways that no static plan can predict.",
+          "source": "paper",
+          "locator": "p. 8, §3.2"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p. 8, §3.2",
+          "support_description": "The Dynamic Bubble Optimizer may defer eligible movable tasks and dispatch them into predicted idle slots, recovering throughput that static planning leaves unexploited."
+        },
+        {
+          "source_id": "paper",
+          "location": "p. 8, §3.2",
+          "support_description": "At runtime, MoE routing variation changes task durations, shifting the size and location of idle slots in ways that no static plan can predict."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "An optimal solution to a surrogate MILP is optimal only for the modeled objective and constraints; unmodeled runtime dynamics can change effective costs. A Tdom-optimal partition may be suboptimal after DBO or under routing variation."
+    },
+    {
+      "headline": "Profiled post-overlap edge costs do not guarantee correct bottleneck selection under uneven profile error.",
+      "claim": "The MILP relies on relative cost comparisons; misestimated overlap pairs can change the selected bottleneck edge or partition boundary.",
+      "paper_fact": "This tail behavior is problematic for partition selection because the MILP relies on relative cost comparisons among candidate stage assignments; a few misestimated overlap pairs can change the selected bottleneck edge or partition boundary.",
+      "premise": "Optimization with noisy cost estimates can select a different optimum; relative errors matter when candidate cost gaps are small.",
+      "inference": "If profile error is uneven, the Tdom-minimizing partition may not be the true best partition.",
+      "toy_example": "Not a measurement: true costs A=10, B=11; profiled A=10.5, B=10.8 flips selection.",
+      "conditional_consequence": "If profile error exceeds candidate cost gaps, then the selected bottleneck edge or partition boundary may be wrong.",
+      "critical_link": "The MILP treats profiled Te,c,d as exact costs and compares candidates by relative cost.",
+      "necessary_conditions": [
+        "Profile errors are small relative to candidate cost gaps.",
+        "Errors are not systematically biased in a way that flips the bottleneck.",
+        "Chunk-pair profiling is used as the default."
+      ],
+      "defeaters": [
+        "Chunk-pair profiling is accurate enough that candidate ordering is stable.",
+        "Profile errors are uniform and cancel in relative comparisons.",
+        "Validation shows the selected partition is the true best."
+      ],
+      "do_not_infer": [
+        "Do not infer the paper uses primitive-level profiling as the default.",
+        "Do not infer all profiling is unreliable.",
+        "Do not attribute to authors a claim that profiled costs are exact."
+      ],
+      "author_boundaries": [
+        "Authors report primitive-level profiling tail error and choose chunk-pair profiling as default.",
+        "Authors do not claim profiled costs are exact."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L6_shifted_cost_net_benefit_threshold",
+      "quotes": [
+        {
+          "quote": "This tail behavior is problematic for partition selection because the MILP relies on relative cost comparisons among candidate stage assignments; a few misestimated overlap pairs can change the selected bottleneck edge or partition boundary.",
+          "source": "paper",
+          "locator": "p. 10, §5"
+        },
+        {
+          "quote": "We therefore use chunk-pair profiling as the default, while keeping primitive-level profiling as a lower-cost fallback.",
+          "source": "paper",
+          "locator": "p. 10, §5"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p. 10, §5",
+          "support_description": "This tail behavior is problematic for partition selection because the MILP relies on relative cost comparisons among candidate stage assignments; a few misestimated overlap pairs can change the selected bottleneck edge or partition boundary."
+        },
+        {
+          "source_id": "paper",
+          "location": "p. 10, §5",
+          "support_description": "We therefore use chunk-pair profiling as the default, while keeping primitive-level profiling as a lower-cost fallback."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Optimization with noisy cost estimates can select a different optimum; relative errors matter when candidate cost gaps are small. If profile error is uneven, the Tdom-minimizing partition may not be the true best partition."
+    },
+    {
+      "headline": "Profile-guided pruning does not guarantee preservation of all Tdom ≤ Tbase solutions when profiled costs are inaccurate.",
+      "claim": "The pruning rule discards a candidate pair when its profiled post-overlap cost exceeds Tbase. If profiling error makes a pair's measured cost exceed Tbase while its true cost is at or below Tbase, the pair is removed even though it could belong to a partition with Tdom ≤ Tbase. Thus the paper's safety claim is conditional on profiling accuracy, not guaranteed by the pruning rule alone.",
+      "paper_fact": "Tessera applies safe profile-guided pruning. The bottleneck post-overlap cost of the baseline partition, Tbase, serves as an upper bound on Tdom: any candidate pair whose profiled cost exceeds Tbase is discarded, since selecting it cannot improve upon the baseline.",
+      "premise": "Profiling is a measurement and can be biased by SM contention, cache state, host launch overhead, and other interference; a measured cost above a threshold does not logically imply the true cost is above that threshold.",
+      "inference": "Because the paper reports a theory-to-silicon gap and up to 15% tail error for primitive-level profiling, the pruning rule can misclassify borderline pairs. The claim 'preserving all solutions with Tdom ≤ Tbase' holds only if profiled costs are accurate enough that no true ≤ Tbase pair is measured > Tbase.",
+      "toy_example": "Not a measurement: suppose Tbase=100, a pair's true cost is 99, but profiling error measures 101; the rule discards it although it could be part of a Tdom≤100 solution.",
+      "conditional_consequence": "If profiling error is large near Tbase, then pruning may remove improving candidates and the selected partition may be worse than the best Tdom≤Tbase partition available without pruning.",
+      "critical_link": "The implication 'profiled cost > Tbase ⇒ true cost > Tbase' is the load-bearing step; without a bound on profiling error, the pruning rule is not provably safe.",
+      "necessary_conditions": [
+        "Profiled candidate-pair costs are accurate enough that no true cost ≤ Tbase is measured > Tbase.",
+        "Tbase is measured in the same units and on a representative device/topology.",
+        "The pruning comparison uses the same post-overlap cost definition as the MILP objective."
+      ],
+      "defeaters": [
+        "Chunk-pair profiling is the default and may have much lower error than the primitive-level fallback.",
+        "Pruning only removes pairs with profiled cost above Tbase; if errors are small relative to the margin, misclassification is rare.",
+        "The paper reports bitwise-equivalent training and production use, but that does not directly validate pruning safety under profile error."
+      ],
+      "do_not_infer": [
+        "Do not infer that pruning is unsafe in all cases or that the paper observed production failures from pruning.",
+        "Do not infer that Tbase is invalid or that all discarded pairs are good.",
+        "Do not infer that primitive-level profiling is the production default; the paper says chunk-pair profiling is default."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1",
+      "quotes": [
+        {
+          "quote": "Tessera applies safe profile-guided pruning. The bottleneck post-overlap cost of the baseline partition, Tbase, serves as an upper bound on Tdom: any candidate pair whose profiled cost exceeds Tbase is discarded, since selecting it cannot improve upon the baseline.",
+          "source": "paper",
+          "locator": "§3.1.3, p. 7"
+        },
+        {
+          "quote": "its residual error remains uneven across overlap pairs, reaching up to 15% in tail cases. This tail behavior is problematic for partition selection because the MILP relies on relative cost comparisons among candidate stage assignments; a few misestimated overlap pairs can change the selected bottleneck edge or partition boundary.",
+          "source": "paper",
+          "locator": "§5, p. 10"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§3.1.3, p. 7",
+          "support_description": "Tessera applies safe profile-guided pruning. The bottleneck post-overlap cost of the baseline partition, Tbase, serves as an upper bound on Tdom: any candidate pair whose profiled cost exceeds Tbase is discarded, since selecting it cannot improve upon the baseline."
+        },
+        {
+          "source_id": "paper",
+          "location": "§5, p. 10",
+          "support_description": "its residual error remains uneven across overlap pairs, reaching up to 15% in tail cases. This tail behavior is problematic for partition selection because the MILP relies on relative cost comparisons among candidate stage assignments; a few misestimated overlap pairs can change the selected bottleneck edge or partition boundary."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Profiling is a measurement and can be biased by SM contention, cache state, host launch overhead, and other interference; a measured cost above a threshold does not logically imply the true cost is above that threshold. Because the paper reports a theory-to-silicon gap and up to 15% tail error for primitive-level profiling, the pruning rule can misclassify borderline pairs. The claim 'preserving all solutions with Tdom ≤ Tbase' holds only if profiled costs are accurate enough that no true ≤ Tbase pair is measured > Tbase."
+    },
+    {
+      "headline": "A bounded movable-task pool does not guarantee memory safety under aggressive bubble filling.",
+      "claim": "Tessera's per-GPU pool cap and memory-headroom bound mitigate but do not guarantee that DBO avoids OOM; the paper reports OOM under aggressive filling and relies on configuring the cap from observed headroom.",
+      "paper_fact": "In our production runs, aggressive bubble filling occasionally triggered out-of-memory (OOM) errors on memory-constrained workloads.",
+      "premise": "Limiting the number of deferred tasks bounds one source of extra liveness, but total memory also depends on task tensor sizes, concurrent activations, allocator behavior, and headroom-estimate accuracy.",
+      "inference": "The bounded pool is a risk-control mechanism, not a proof of memory safety; safe deployment requires conservative cap/headroom and monitoring, and the throughput-memory trade-off remains.",
+      "toy_example": "Toy example (not a measurement): a pool cap of 8 deferred Wgrad tasks can still OOM if each deferred task keeps a large activation live and another component spikes memory.",
+      "conditional_consequence": "If memory headroom is overestimated or workload memory spikes, then even a bounded pool can OOM; if the cap is lowered, OOM risk falls but bubble-filling opportunity may shrink.",
+      "critical_link": "Deferring Wgrad prolongs activation/gradient liveness; the cap limits how many deferred tasks keep tensors live, but not all memory drivers.",
+      "necessary_conditions": [
+        "per-GPU cap configured below worst-case deferred liveness",
+        "accurate observed memory headroom",
+        "no concurrent memory spike from other components",
+        "deferred tasks' tensor liveness bounded"
+      ],
+      "defeaters": [
+        "cap set very low relative to headroom",
+        "memory-management operations offloaded/recomputed as movable tasks",
+        "workload has large headroom and stable memory"
+      ],
+      "do_not_infer": [
+        "Do not infer DBO is unsafe in all settings.",
+        "Do not infer the paper claims a formal no-OOM guarantee.",
+        "Do not infer OOM is caused by the pool bound alone.",
+        "Author boundary: the reported OOM is for aggressive bubble filling on memory-constrained production workloads, not a universal DBO result."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L6_shifted_cost_net_benefit_threshold",
+      "quotes": [
+        {
+          "quote": "In our production runs, aggressive bubble filling occasionally triggered out-of-memory (OOM) errors on memory-constrained workloads.",
+          "source": "paper",
+          "locator": "page 10, §5 Memory Pressure Trade-off"
+        },
+        {
+          "quote": "The pool is bounded by a configurable per-GPU capacity and the available memory headroom.",
+          "source": "paper",
+          "locator": "page 8, §3.2.2"
+        },
+        {
+          "quote": "delaying a Wgrad task prolongs the liveness of its associated activation and gradient tensors, increasing peak memory consumption.",
+          "source": "paper",
+          "locator": "page 10, §5"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "page 10, §5 Memory Pressure Trade-off",
+          "support_description": "In our production runs, aggressive bubble filling occasionally triggered out-of-memory (OOM) errors on memory-constrained workloads."
+        },
+        {
+          "source_id": "paper",
+          "location": "page 8, §3.2.2",
+          "support_description": "The pool is bounded by a configurable per-GPU capacity and the available memory headroom."
+        },
+        {
+          "source_id": "paper",
+          "location": "page 10, §5",
+          "support_description": "delaying a Wgrad task prolongs the liveness of its associated activation and gradient tensors, increasing peak memory consumption."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Limiting the number of deferred tasks bounds one source of extra liveness, but total memory also depends on task tensor sizes, concurrent activations, allocator behavior, and headroom-estimate accuracy. The bounded pool is a risk-control mechanism, not a proof of memory safety; safe deployment requires conservative cap/headroom and monitoring, and the throughput-memory trade-off remains."
+    },
+    {
+      "headline": "Wgrad accumulating off the critical path does not guarantee DBO throughput gains across workloads.",
+      "claim": "The mechanism's assumption that Wgrad tasks naturally accumulate off the critical path is a production observation, not a guarantee; DBO benefit depends on movable-work availability, bubble opportunity, memory headroom, and workload compute-to-communication ratio.",
+      "paper_fact": "We observe that this pool is typically well-provisioned in production, as Wgrad tasks naturally accumulate off the critical path during load imbalance events.",
+      "premise": "Off-critical-path work availability is workload- and schedule-dependent; if Wgrad becomes critical or the pool is empty, a bubble-filling scheduler has nothing to move.",
+      "inference": "DBO is conditional: it can recover throughput when movable tasks and predicted slots coexist, but it does not guarantee gains for every model, partition, or memory regime.",
+      "toy_example": "Toy example (not a measurement): a workload with no routing-induced idle slots and Wgrad on the critical path gives DBO no safe deferral opportunity, so its gain can be near zero.",
+      "conditional_consequence": "If compute-to-communication ratio is low or Wgrad is critical, then DBO may yield little gain; if imbalance creates slack Wgrad and slots, DBO can fill them.",
+      "critical_link": "DBO fills predicted slots from the movable-task pool; without positive-slack tasks or materialized slots, the fill path has no candidate.",
+      "necessary_conditions": [
+        "Wgrad or other movable tasks have positive slack",
+        "routing-induced or pipeline idle slots materialize",
+        "memory headroom permits deferral",
+        "static plan leaves fillable bubbles"
+      ],
+      "defeaters": [
+        "pool empty",
+        "no predicted slots",
+        "static plan already balanced",
+        "Wgrad on critical path"
+      ],
+      "do_not_infer": [
+        "Do not infer DBO always improves throughput.",
+        "Do not infer Wgrad is always off the critical path.",
+        "Author boundary: the paper reports production observations and measured gains on specific Qwen workloads; it does not claim universal DBO benefit."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L5_origin_change_regularity",
+      "quotes": [
+        {
+          "quote": "We observe that this pool is typically well-provisioned in production, as Wgrad tasks naturally accumulate off the critical path during load imbalance events.",
+          "source": "paper",
+          "locator": "page 8, §3.2.2"
+        },
+        {
+          "quote": "This contrast shows that Tessera’s overlap gains scale with the workload’s compute-to-communication ratio.",
+          "source": "paper",
+          "locator": "page 12, §6.2"
+        },
+        {
+          "quote": "DBO cuts iteration time by 5.4% on Baseline and 4.4% on Overlap-Aware.",
+          "source": "paper",
+          "locator": "page 14, §6.6"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "page 8, §3.2.2",
+          "support_description": "We observe that this pool is typically well-provisioned in production, as Wgrad tasks naturally accumulate off the critical path during load imbalance events."
+        },
+        {
+          "source_id": "paper",
+          "location": "page 12, §6.2",
+          "support_description": "This contrast shows that Tessera’s overlap gains scale with the workload’s compute-to-communication ratio."
+        },
+        {
+          "source_id": "paper",
+          "location": "page 14, §6.6",
+          "support_description": "DBO cuts iteration time by 5.4% on Baseline and 4.4% on Overlap-Aware."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Off-critical-path work availability is workload- and schedule-dependent; if Wgrad becomes critical or the pool is empty, a bubble-filling scheduler has nothing to move. DBO is conditional: it can recover throughput when movable tasks and predicted slots coexist, but it does not guarantee gains for every model, partition, or memory regime."
+    },
+    {
+      "headline": "Lightweight execution probes do not guarantee that arbitrary host code can be sliced into plan-compatible tasks",
+      "claim": "Lightweight execution probes do not guarantee that arbitrary host code can be sliced into plan-compatible tasks.",
+      "paper_fact": "Tessera exposes task boundaries through lightweight execution probes inserted in the existing forward and backward code.",
+      "premise": "Probes can only expose boundaries where they are inserted; they cannot split a monolithic kernel or operation without code changes or kernel support.",
+      "inference": "If host code has coarse or unprobed operations, task boundaries will not match the plan, and intended overlap may serialize or fail.",
+      "toy_example": "Toy example (not a measurement): a host forward function containing one monolithic fused MoE kernel with no advance() inside cannot be split into Dispatch/MLP/Combine tasks by probes alone.",
+      "conditional_consequence": "If probes are placed at all needed boundaries and operations can pause/resume there, the plan can be executed; if probe placement misses a dependency or boundary, the plan may violate dependencies or fail to overlap.",
+      "critical_link": "The link between probe insertion and plan-compatible execution is complete boundary coverage and safe pause/resume semantics in the host code.",
+      "necessary_conditions": [
+        "Probes are inserted at all boundaries needed by the plan.",
+        "Host operations can pause and resume at those probes without hidden state.",
+        "Task dependencies are preserved across probe points.",
+        "Probe overhead is small relative to the sliced task."
+      ],
+      "defeaters": [
+        "Host code is already decomposed into schedulable task functions.",
+        "Probes cover every boundary the plan needs.",
+        "Measured probe overhead is negligible."
+      ],
+      "do_not_infer": [
+        "Do not infer that probes are zero-cost.",
+        "Do not infer that all host operations can be sliced at arbitrary points.",
+        "Do not infer that a task name corresponds to a single hardware kernel."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L3_compatibility_units",
+      "quotes": [
+        {
+          "quote": "Tessera exposes task boundaries through lightweight execution probes inserted in the existing forward and backward code.",
+          "source": "paper",
+          "locator": "§4 Implementation, p. 9"
+        },
+        {
+          "quote": "The advance(TaskName) API marks host-side probe points where the execution engine may block or release the current forward/backward execution thread, slicing the continuous execution into named tasks without moving tensor computation out of the host framework.",
+          "source": "paper",
+          "locator": "§4 Implementation, p. 9"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§4 Implementation, p. 9",
+          "support_description": "Tessera exposes task boundaries through lightweight execution probes inserted in the existing forward and backward code."
+        },
+        {
+          "source_id": "paper",
+          "location": "§4 Implementation, p. 9",
+          "support_description": "The advance(TaskName) API marks host-side probe points where the execution engine may block or release the current forward/backward execution thread, slicing the continuous execution into named tasks without moving tensor computation out of the host framework."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Probes can only expose boundaries where they are inserted; they cannot split a monolithic kernel or operation without code changes or kernel support. If host code has coarse or unprobed operations, task boundaries will not match the plan, and intended overlap may serialize or fail."
+    },
+    {
+      "headline": "Repeated model structure does not guarantee bounded profiling cost for arbitrary heterogeneous MoE models or frequent architecture changes.",
+      "claim": "Tessera's one-hour profiling bound relies on repeated model structure and a bounded candidate neighborhood; models with many unique chunk specifications or frequent architecture changes can increase distinct overlap pairs and invalidate amortization.",
+      "paper_fact": "profiling completes within one hour because repeated model structure bounds the number of distinct overlap pairs.",
+      "premise": "Profiling cost scales with the number of distinct overlap pairs; repeated structure is a workload property, not a universal guarantee for all MoE architectures or deployment cadences.",
+      "inference": "If distinct pairs grow, profiling time and cache invalidation risk grow; the net benefit of chunk-pair profiling may not hold, and the primitive-level fallback has up to 15% tail error.",
+      "conditional_consequence": "If architecture changes frequently or chunks are mostly unique, then profiling may dominate planning and a lower-cost fallback may be preferable despite its residual error.",
+      "critical_link": "The bound depends on repeated model structure and bounded candidate generation; the paper does not claim a universal one-hour bound for arbitrary models.",
+      "necessary_conditions": [
+        "repeated model structure bounds distinct overlap pairs",
+        "candidate neighborhood remains bounded around the baseline",
+        "model architecture is stable across profiling and deployment",
+        "profiling hardware is available for the reference group"
+      ],
+      "defeaters": [
+        "candidate pruning reduces distinct pairs",
+        "profiling is parallelized or amortized across many runs",
+        "model structure is highly repeated",
+        "architecture changes are infrequent"
+      ],
+      "do_not_infer": [
+        "do not infer the paper claims a universal one-hour profiling bound",
+        "do not infer chunk-pair profiling is always too expensive",
+        "do not infer primitive-level profiling is equally accurate",
+        "do not infer the reported production gains are invalid"
+      ],
+      "author_boundaries": [
+        "Paper reports one-hour profiling for its production workloads and bounded candidate neighborhood; it does not claim a universal bound for all MoE architectures."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L6_shifted_cost_net_benefit_threshold",
+      "quotes": [
+        {
+          "quote": "profiling completes within one hour because repeated model structure bounds the number of distinct overlap pairs.",
+          "source": "Tessera paper",
+          "locator": "§5, p. 10"
+        },
+        {
+          "quote": "Tessera restricts candidates to a bounded neighborhood around the baseline to keep overlap scheduling and profiling tractable.",
+          "source": "Tessera paper",
+          "locator": "§3.1.1, p. 6"
+        },
+        {
+          "quote": "Measured profiling time grows with sequence length and peaks at about 3,050 seconds at 128K for the trillion-scale PP8-C2 case, still below one hour.",
+          "source": "Tessera paper",
+          "locator": "§6.7, p. 15"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§5, p. 10",
+          "support_description": "profiling completes within one hour because repeated model structure bounds the number of distinct overlap pairs."
+        },
+        {
+          "source_id": "paper",
+          "location": "§3.1.1, p. 6",
+          "support_description": "Tessera restricts candidates to a bounded neighborhood around the baseline to keep overlap scheduling and profiling tractable."
+        },
+        {
+          "source_id": "paper",
+          "location": "§6.7, p. 15",
+          "support_description": "Measured profiling time grows with sequence length and peaks at about 3,050 seconds at 128K for the trillion-scale PP8-C2 case, still below one hour."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Profiling cost scales with the number of distinct overlap pairs; repeated structure is a workload property, not a universal guarantee for all MoE architectures or deployment cadences. If distinct pairs grow, profiling time and cache invalidation risk grow; the net benefit of chunk-pair profiling may not hold, and the primitive-level fallback has up to 15% tail error."
+    },
+    {
+      "headline": "Minimizing maximum selected post-overlap edge cost does not guarantee end-to-end iteration throughput.",
+      "claim": "Tessera's MILP objective is a surrogate for steady-state overlap stragglers, not a formal bound on full iteration time; warmup/cooldown and non-edge costs can dominate.",
+      "paper_fact": "Tessera therefore uses the maximum selected post-overlap edge cost as a surrogate objective for partition selection.",
+      "premise": "A bottleneck surrogate over selected overlap edges is not identical to end-to-end throughput; warmup/cooldown, host bubbles, DP/TP communication, and non-overlap work also contribute.",
+      "inference": "A partition minimizing Tdom can still have lower throughput than another partition if its warmup/cooldown or non-edge costs are worse.",
+      "toy_example": "Not a measurement: two partitions have Tdom 10 and 11, but the 11 partition has much shorter warmup/cooldown; end-to-end could favor 11.",
+      "conditional_consequence": "If warmup/cooldown or non-edge costs dominate, then the MILP-selected partition may not maximize throughput.",
+      "critical_link": "The MILP objective includes only selected overlap-edge costs; end-to-end throughput includes unmodeled phases and non-edge work.",
+      "necessary_conditions": [
+        "Steady-state overlap edges dominate iteration time.",
+        "Profiled edge costs are representative of runtime.",
+        "The fixed pipeline template is appropriate."
+      ],
+      "defeaters": [
+        "Measured end-to-end throughput tracks Tdom across candidate partitions.",
+        "Warmup/cooldown and non-edge costs are negligible or equal across candidates.",
+        "The paper's production gains are shown to be driven by Tdom selection."
+      ],
+      "do_not_infer": [
+        "Do not infer the MILP is useless or that the paper claims a formal throughput bound.",
+        "Do not infer the reported 20%-33% gains are invalid.",
+        "Do not attribute to authors a claim that Tdom equals end-to-end iteration time."
+      ],
+      "author_boundaries": [
+        "Authors present Tdom as a surrogate, not a formal end-to-end bound.",
+        "Authors report production gains but do not claim Tdom optimality guarantees throughput optimality."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1_proxy_guarantee",
+      "quotes": [
+        {
+          "quote": "Tessera therefore uses the maximum selected post-overlap edge cost as a surrogate objective for partition selection.",
+          "source": "paper",
+          "locator": "p. 7, §3.1.3"
+        },
+        {
+          "quote": "Pipeline iteration time depends on the full critical path through the fixed schedule.",
+          "source": "paper",
+          "locator": "p. 7, §3.1.3"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "p. 7, §3.1.3",
+          "support_description": "Tessera therefore uses the maximum selected post-overlap edge cost as a surrogate objective for partition selection."
+        },
+        {
+          "source_id": "paper",
+          "location": "p. 7, §3.1.3",
+          "support_description": "Pipeline iteration time depends on the full critical path through the fixed schedule."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "A bottleneck surrogate over selected overlap edges is not identical to end-to-end throughput; warmup/cooldown, host bubbles, DP/TP communication, and non-overlap work also contribute. A partition minimizing Tdom can still have lower throughput than another partition if its warmup/cooldown or non-edge costs are worse."
+    },
+    {
+      "headline": "Token-count-based slot prediction does not imply or guarantee that a predicted idle slot materializes or is fillable.",
+      "claim": "DBO's token-count-based slot sizing is a proxy; the paper says slot materialization and size are runtime-determined, so predicted slots are not guaranteed.",
+      "paper_fact": "Whether a slot materializes, and how large it is, is determined at runtime.",
+      "premise": "Token counts are not time; converting counts to slot duration requires a stable offline profile and ignores hardware interference, queueing, and coarse task granularity.",
+      "inference": "Therefore a predicted slot is a proxy, not a guarantee; DBO may skip a real bubble or mis-size a fill.",
+      "toy_example": "Not a measurement: if a profile says a slot is 100 µs but SM contention stretches the neighboring MLP by 20%, a 90 µs task may not fit.",
+      "conditional_consequence": "If the token-count-to-duration mapping drifts or hardware interference changes, then DBO may inject into a slot shorter than estimated or leave a real bubble unfilled.",
+      "critical_link": "The critical link is the offline profile mapping token counts to slot duration and the runtime materialization of pre-annotated slots.",
+      "necessary_conditions": [
+        "Per-expert token counts are available before dispatch.",
+        "Offline profile maps token counts to slot duration stably.",
+        "Pre-annotated target slot aligns with actual idle window.",
+        "Movable task duration fits bβ and deadline."
+      ],
+      "defeaters": [
+        "Paper reports DBO cuts iteration time by 5.4% on Baseline and 4.4% on Overlap-Aware.",
+        "Measured CDFs closely follow analytical predictions with offset consistent with theory-to-silicon gap.",
+        "Always-keep overhead is about 1%."
+      ],
+      "do_not_infer": [
+        "Do not infer DBO is ineffective or that predicted slots never materialize.",
+        "Do not infer the paper claims exact slot prediction.",
+        "Do not infer measured deviations invalidate DBO gains."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1_proxy_guarantee",
+      "quotes": [
+        {
+          "quote": "Whether a slot materializes, and how large it is, is determined at runtime.",
+          "source": "Tessera paper",
+          "locator": "§3.2.1, p. 8"
+        },
+        {
+          "quote": "Using the observed token distribution and the offline-profiled static schedule, Tessera estimates the fillable idle window bβ at each pre-annotated target slot β. Non-positive windows are skipped.",
+          "source": "Tessera paper",
+          "locator": "§3.2.1, p. 8"
+        },
+        {
+          "quote": "the theoretical cost underestimates measured overlapped execution in most cases, with an average deviation of around 5%",
+          "source": "Tessera paper",
+          "locator": "§5, p. 10"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "author_boundaries": "Authors report DBO gains and measured deviations; they do not claim slot prediction is exact or guaranteed.",
+      "inferred_consequences": [
+        "Predicted slots may be skipped or mis-sized.",
+        "DBO benefit depends on profile stability."
+      ],
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§3.2.1, p. 8",
+          "support_description": "Whether a slot materializes, and how large it is, is determined at runtime."
+        },
+        {
+          "source_id": "paper",
+          "location": "§3.2.1, p. 8",
+          "support_description": "Using the observed token distribution and the offline-profiled static schedule, Tessera estimates the fillable idle window bβ at each pre-annotated target slot β. Non-positive windows are skipped."
+        },
+        {
+          "source_id": "paper",
+          "location": "§5, p. 10",
+          "support_description": "the theoretical cost underestimates measured overlapped execution in most cases, with an average deviation of around 5%"
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Token counts are not time; converting counts to slot duration requires a stable offline profile and ignores hardware interference, queueing, and coarse task granularity. Therefore a predicted slot is a proxy, not a guarantee; DBO may skip a real bubble or mis-size a fill."
+    },
+    {
+      "headline": "Bubble filling does not imply or guarantee net throughput gain when memory headroom is tight.",
+      "claim": "DBO's throughput benefit is conditional on memory headroom and pool capacity; aggressive filling can raise peak memory and cause OOM, so net gain is not guaranteed.",
+      "paper_fact": "DBO increases peak memory by 2–4 percentage points of the per-GPU memory budget, since deferred movable tasks prolong the liveness of their input activations and gradients.",
+      "premise": "Deferring work extends tensor liveness; memory is finite; OOM or pool caps can reduce scheduling freedom.",
+      "inference": "Therefore in tight memory DBO may need a lower pool cap, reducing fill opportunities, and an OOM can dominate any throughput gain.",
+      "toy_example": "Not a measurement: if headroom is 1% and DBO needs 2–4 pp, the pool cap must shrink, so fewer tasks fill bubbles.",
+      "conditional_consequence": "If memory headroom is below the 2–4 pp DBO overhead or the pool cap is lowered, then DBO's fill opportunities and net throughput gain shrink; an OOM would dominate.",
+      "critical_link": "The critical link is memory headroom and the bounded movable-task pool cap.",
+      "necessary_conditions": [
+        "Enough per-GPU memory headroom for deferred tensor liveness.",
+        "Movable-task pool cap is set from observed headroom.",
+        "Deferred tasks have positive deadline slack.",
+        "Bubbles are large enough to offset scheduling and memory cost."
+      ],
+      "defeaters": [
+        "Paper reports DBO gains with only 2–4 pp peak-memory increase.",
+        "Bounded pool limits deferred tasks.",
+        "Tessera can represent offload/recompute as movable tasks."
+      ],
+      "do_not_infer": [
+        "Do not infer DBO always causes OOM.",
+        "Do not infer memory cost exceeds throughput benefit in all workloads.",
+        "Do not infer the paper ignores memory trade-offs."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L6_shifted_cost_net_benefit_threshold",
+      "quotes": [
+        {
+          "quote": "DBO increases peak memory by 2–4 percentage points of the per-GPU memory budget, since deferred movable tasks prolong the liveness of their input activations and gradients.",
+          "source": "Tessera paper",
+          "locator": "§6.6, p. 14"
+        },
+        {
+          "quote": "aggressive bubble filling occasionally triggered out-of-memory (OOM) errors on memory-constrained workloads.",
+          "source": "Tessera paper",
+          "locator": "§5, p. 10"
+        },
+        {
+          "quote": "The capacity can be raised for more bubble-filling, or lowered to reduce peak memory.",
+          "source": "Tessera paper",
+          "locator": "§6.6, p. 14"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "author_boundaries": "Authors report 2–4 pp memory increase and a bounded pool; they do not claim DBO is memory-neutral or always beneficial under tight memory.",
+      "inferred_consequences": [
+        "Tight memory can force a lower pool cap or OOM.",
+        "DBO gain can shrink or be negated under memory pressure."
+      ],
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§6.6, p. 14",
+          "support_description": "DBO increases peak memory by 2–4 percentage points of the per-GPU memory budget, since deferred movable tasks prolong the liveness of their input activations and gradients."
+        },
+        {
+          "source_id": "paper",
+          "location": "§5, p. 10",
+          "support_description": "aggressive bubble filling occasionally triggered out-of-memory (OOM) errors on memory-constrained workloads."
+        },
+        {
+          "source_id": "paper",
+          "location": "§6.6, p. 14",
+          "support_description": "The capacity can be raised for more bubble-filling, or lowered to reduce peak memory."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Deferring work extends tensor liveness; memory is finite; OOM or pool caps can reduce scheduling freedom. Therefore in tight memory DBO may need a lower pool cap, reducing fill opportunities, and an OOM can dominate any throughput gain."
+    },
+    {
+      "headline": "Positive deadline slack does not guarantee a movable task will be placed into a bubble.",
+      "claim": "Admission to the movable-task pool by positive deadline slack and priority ordering does not ensure a task finds a target slot; the greedy policy can leave slots empty, and guaranteed execution only injects near deadline.",
+      "paper_fact": "If no suitable task is found, the slot remains empty.",
+      "premise": "Positive slack means a task can be delayed without missing its deadline, not that a slot of sufficient duration, resource, and rank readiness exists.",
+      "inference": "Deadline slack is a necessary but not sufficient condition for bubble filling; DBO's throughput benefit depends on slot fit and pool composition, while correctness fallback is separate.",
+      "toy_example": "Toy example (not a measurement): a 50 µs slot and a 200 µs movable task with positive slack do not fit, so the slot stays empty and the task waits for injection.",
+      "conditional_consequence": "If slot sizes are small or task durations mismatch, then many eligible tasks remain deferred until injection and DBO gain shrinks; if durations fit, filling can proceed.",
+      "critical_link": "Algorithm 2 requires σ.duration ≤ bβ and tstart + σ.duration ≤ σ.deadline; if no candidate satisfies these, C is empty and the slot remains empty.",
+      "necessary_conditions": [
+        "target slot materializes",
+        "estimated bubble size positive",
+        "task ready on target rank",
+        "task duration fits window",
+        "deadline not violated"
+      ],
+      "defeaters": [
+        "large residual slots",
+        "pool contains tasks with matching durations",
+        "deadline slack large enough for later injection"
+      ],
+      "do_not_infer": [
+        "Do not infer positive slack guarantees placement.",
+        "Do not infer guaranteed execution is an optimization success; it prioritizes correctness.",
+        "Author boundary: the paper describes a greedy heuristic and fallback, not a schedulability proof for all movable tasks."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1_proxy_guarantee",
+      "quotes": [
+        {
+          "quote": "If no suitable task is found, the slot remains empty.",
+          "source": "paper",
+          "locator": "page 8, §3.2.2"
+        },
+        {
+          "quote": "If a movable task’s deadline slack approaches zero without a suitable target slot being found, the runtime preemptively injects it into the main stream, prioritizing correctness over optimization.",
+          "source": "paper",
+          "locator": "page 8, §3.2.2"
+        },
+        {
+          "quote": "Tessera fills predicted slots from a pool of movable tasks whose deadline slack (the margin between readiness and deadline minus execution time) is positive.",
+          "source": "paper",
+          "locator": "page 8, §3.2.2"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "page 8, §3.2.2",
+          "support_description": "If no suitable task is found, the slot remains empty."
+        },
+        {
+          "source_id": "paper",
+          "location": "page 8, §3.2.2",
+          "support_description": "If a movable task’s deadline slack approaches zero without a suitable target slot being found, the runtime preemptively injects it into the main stream, prioritizing correctness over optimization."
+        },
+        {
+          "source_id": "paper",
+          "location": "page 8, §3.2.2",
+          "support_description": "Tessera fills predicted slots from a pool of movable tasks whose deadline slack (the margin between readiness and deadline minus execution time) is positive."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Positive slack means a task can be delayed without missing its deadline, not that a slot of sufficient duration, resource, and rank readiness exists. Deadline slack is a necessary but not sufficient condition for bubble filling; DBO's throughput benefit depends on slot fit and pool composition, while correctness fallback is separate."
+    },
+    {
+      "headline": "A plan-agnostic execution engine does not imply or guarantee performance gains or correctness for arbitrary plans",
+      "claim": "The plan-agnostic execution engine does not imply or guarantee that interpreting a static plan yields performance gains or correctness for arbitrary plans.",
+      "paper_fact": "This engine decouples schedule definition from execution by interpreting the static plan as a specification rather than hard-coded control flow.",
+      "premise": "Interpreting a plan as a specification defines control semantics; it does not by itself ensure the plan is optimal, that host operations map cleanly to tasks, or that synchronization overhead is low.",
+      "inference": "The engine's benefit and correctness depend on probe placement, FSM correctness, and host-code compatibility; the abstraction alone is not a performance or correctness guarantee.",
+      "conditional_consequence": "If host code can yield at probes and FSM overhead is low, the engine can execute diverse plans without hard-coded control flow; if not, the abstraction adds engineering complexity without guaranteed throughput.",
+      "critical_link": "The link from plan-agnostic execution to benefit is correct task-boundary exposure and low-overhead FSM coordination, not the act of interpreting a plan.",
+      "necessary_conditions": [
+        "Host code can yield at designated probes.",
+        "The FSM correctly enforces plan dependencies.",
+        "Probe and synchronization overhead is small relative to task duration.",
+        "The static plan is valid for the host task graph."
+      ],
+      "defeaters": [
+        "Measured engine overhead is negligible and many diverse plans are required.",
+        "Host code already has clean task boundaries.",
+        "FSM coordination is validated for the plan patterns used."
+      ],
+      "do_not_infer": [
+        "Do not infer that plan-agnostic execution alone causes the reported 20%-33% throughput gains.",
+        "Do not infer that any static plan is correct or optimal for arbitrary host code.",
+        "Do not infer that decoupling schedule definition from execution removes the need for probe placement or FSM correctness."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1_proxy_guarantee",
+      "quotes": [
+        {
+          "quote": "This engine decouples schedule definition from execution by interpreting the static plan as a specification rather than hard-coded control flow.",
+          "source": "paper",
+          "locator": "§4 Implementation, p. 9"
+        },
+        {
+          "quote": "This architecture enables the runtime to execute diverse pipeline execution plans generated by the static planner without relying on hard-coded pipeline schedule control flow.",
+          "source": "paper",
+          "locator": "§4 Implementation, p. 9"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§4 Implementation, p. 9",
+          "support_description": "This engine decouples schedule definition from execution by interpreting the static plan as a specification rather than hard-coded control flow."
+        },
+        {
+          "source_id": "paper",
+          "location": "§4 Implementation, p. 9",
+          "support_description": "This architecture enables the runtime to execute diverse pipeline execution plans generated by the static planner without relying on hard-coded pipeline schedule control flow."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Interpreting a plan as a specification defines control semantics; it does not by itself ensure the plan is optimal, that host operations map cleanly to tasks, or that synchronization overhead is low. The engine's benefit and correctness depend on probe placement, FSM correctness, and host-code compatibility; the abstraction alone is not a performance or correctness guarantee."
+    },
+    {
+      "headline": "A lock-free FSM does not imply or guarantee negligible coordination overhead at scale",
+      "claim": "A lock-free FSM does not imply or guarantee negligible coordination overhead at scale.",
+      "paper_fact": "It coordinates execution via a lock-free finite-state machine (FSM).",
+      "premise": "Lock-free coordination avoids blocking locks but not cache-line contention, memory-ordering fences, spin/wait costs, or cross-thread synchronization overhead.",
+      "inference": "At fine task granularity or high thread counts, FSM synchronization may become visible and erode overlap gains; lock-free does not guarantee negligible overhead.",
+      "conditional_consequence": "If task granularity is coarse enough and contention is low, FSM overhead may be amortized; if yield points are frequent or contention is high, coordination cost may dominate.",
+      "critical_link": "The link between lock-free FSM and scalable execution is low contention and infrequent enough synchronization relative to task duration.",
+      "necessary_conditions": [
+        "Contention on FSM state is low.",
+        "Yield points are not so frequent that synchronization dominates.",
+        "Memory-ordering and progress guarantees are correctly implemented.",
+        "Background movable-task coordination is bounded."
+      ],
+      "defeaters": [
+        "Measured FSM overhead is negligible at target task granularity.",
+        "Contention remains low at production thread counts.",
+        "Coordination frequency is coarse enough to amortize."
+      ],
+      "do_not_infer": [
+        "Do not infer that lock-free means wait-free.",
+        "Do not infer that lock-free coordination has no synchronization cost.",
+        "Do not infer scalability to arbitrary thread counts or task granularities."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L7_bottleneck_over_scale_time",
+      "quotes": [
+        {
+          "quote": "It coordinates execution via a lock-free finite-state machine (FSM).",
+          "source": "paper",
+          "locator": "§4 Implementation, p. 9"
+        },
+        {
+          "quote": "The main Forward and Backward Torch threads drive their respective tasks, pausing at designated yield points to synchronize with the engine’s global state and achieve the planned inter-microbatch overlap.",
+          "source": "paper",
+          "locator": "§4 Implementation, p. 9"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§4 Implementation, p. 9",
+          "support_description": "It coordinates execution via a lock-free finite-state machine (FSM)."
+        },
+        {
+          "source_id": "paper",
+          "location": "§4 Implementation, p. 9",
+          "support_description": "The main Forward and Backward Torch threads drive their respective tasks, pausing at designated yield points to synchronize with the engine’s global state and achieve the planned inter-microbatch overlap."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Lock-free coordination avoids blocking locks but not cache-line contention, memory-ordering fences, spin/wait costs, or cross-thread synchronization overhead. At fine task granularity or high thread counts, FSM synchronization may become visible and erode overlap gains; lock-free does not guarantee negligible overhead."
+    },
+    {
+      "headline": "A reported ~0.5% padding overhead does not guarantee negligible overhead as padding fraction or pipeline parallel size grows.",
+      "claim": "The paper's ~0.5% overhead for shadow-action padding is an empirical observation on production workloads, not a general bound; overhead can increase with the number of null microbatches and pipeline communication steps.",
+      "paper_fact": "Empirically, this mechanism introduces negligible overhead (∼0.5%) while maximizing configuration flexibility.",
+      "premise": "Null operations still perform pipeline communication and occupy microbatch slots; their count depends on how many shadow actions are needed to make M divisible by K.",
+      "inference": "If M%K is large or K is large, more shadow actions and extra pipeline communication may be injected, so overhead could exceed 0.5% and reduce net benefit.",
+      "toy_example": "Not a measurement: for K=8, M=9 requires 7 shadow actions to reach 16, while M=15 requires 1; overhead may differ.",
+      "conditional_consequence": "If padding fraction is small, overhead is likely small; if padding fraction is large, the 0.5% figure may not hold and the quality benefit from exact batch size must outweigh extra communication.",
+      "critical_link": "Overhead scales with the number of shadow actions and communication volume, not just with the mechanism's existence.",
+      "necessary_conditions": [
+        "The workload uses interleaved 1F1B with M not divisible by K.",
+        "Shadow actions perform real pipeline communication.",
+        "Overhead is measured across varying M%K and K."
+      ],
+      "defeaters": [
+        "Production workloads have small padding fractions.",
+        "Null communication is cheap relative to computation.",
+        "The paper's 0.5% includes worst observed padding cases."
+      ],
+      "do_not_infer": [
+        "Do not infer that padding overhead is always 0.5%.",
+        "Do not infer that padding is free at all scales.",
+        "Do not infer that the paper measured overhead across all M%K."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L7_bottleneck_over_scale_time",
+      "quotes": [
+        {
+          "quote": "Empirically, this mechanism introduces negligible overhead (∼0.5%) while maximizing configuration flexibility.",
+          "source": "paper",
+          "locator": "§5, page 10, Decoupling System Constraints via Padding"
+        },
+        {
+          "quote": "The standard interleaved 1F1B schedule [22] theoretically mandates that the number of microbatches (M) per iteration must be perfectly divisible by the pipeline parallel size (K).",
+          "source": "paper",
+          "locator": "§5, page 10"
+        },
+        {
+          "quote": "We inject shadow actions, null operations that skip computation but perform necessary pipeline communication (sending pseudo-tensors), to satisfy structural dependencies without altering the mathematical equivalence of the batch.",
+          "source": "paper",
+          "locator": "§5, page 10"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§5, page 10, Decoupling System Constraints via Padding",
+          "support_description": "Empirically, this mechanism introduces negligible overhead (∼0.5%) while maximizing configuration flexibility."
+        },
+        {
+          "source_id": "paper",
+          "location": "§5, page 10",
+          "support_description": "The standard interleaved 1F1B schedule [22] theoretically mandates that the number of microbatches (M) per iteration must be perfectly divisible by the pipeline parallel size (K)."
+        },
+        {
+          "source_id": "paper",
+          "location": "§5, page 10",
+          "support_description": "We inject shadow actions, null operations that skip computation but perform necessary pipeline communication (sending pseudo-tensors), to satisfy structural dependencies without altering the mathematical equivalence of the batch."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Null operations still perform pipeline communication and occupy microbatch slots; their count depends on how many shadow actions are needed to make M divisible by K. If M%K is large or K is large, more shadow actions and extra pipeline communication may be injected, so overhead could exceed 0.5% and reduce net benefit."
+    },
+    {
+      "headline": "Bit-identical loss under deterministic mode does not guarantee bitwise equivalence under non-deterministic kernels.",
+      "claim": "The paper's bitwise-equivalence verification under deterministic mode should not be read as a guarantee for non-deterministic kernels.",
+      "paper_fact": "We verify this empirically on a trillion-scale Qwen3-Next workload by comparing runs with and without Tessera’s optimizations under deterministic mode. The two runs produce bit-identical loss trajectories.",
+      "premise": "Deterministic mode typically fixes or disables non-deterministic GPU operations; non-deterministic kernels can produce different results when execution timing or order changes.",
+      "inference": "The reported bit-identical loss is evidence only for the deterministic-mode configuration tested; it does not establish bitwise equivalence if production uses non-deterministic kernels whose reduction order can be affected by scheduling.",
+      "toy_example": "Toy example (not a measurement): two runs compute the same sums, but one uses atomic accumulation; changing overlap timing can change the order of atomic additions and thus the bits.",
+      "conditional_consequence": "If non-deterministic kernels are used, then bitwise verification may not hold even when semantics are unchanged.",
+      "critical_link": "The empirical check's scope is the deterministic mode; the guarantee's applicability to non-deterministic kernels depends on whether deterministic mode covers every kernel whose order could change.",
+      "necessary_conditions": [
+        "Non-deterministic kernels are present in the production configuration.",
+        "Schedule changes can affect their execution order or timing.",
+        "Deterministic mode does not cover those kernels."
+      ],
+      "defeaters": [
+        "Deterministic mode covers all relevant kernels and communication.",
+        "Reduction order is invariant even under non-deterministic kernels.",
+        "No atomics or non-deterministic reductions are used."
+      ],
+      "do_not_infer": [
+        "Do not infer that Tessera is numerically unsafe in the reported deterministic-mode run.",
+        "Do not infer that the production runs used non-deterministic kernels.",
+        "Do not infer that bitwise equivalence is impossible under non-deterministic kernels."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L1_proxy_guarantee",
+      "quotes": [
+        {
+          "quote": "We verify this empirically on a trillion-scale Qwen3-Next workload by comparing runs with and without Tessera’s optimizations under deterministic mode. The two runs produce bit-identical loss trajectories.",
+          "source": "paper",
+          "locator": "§6.2 'Bitwise Equivalence', p. 12"
+        },
+        {
+          "quote": "Tessera modifies only when and where tasks execute on the device timeline; the computation graph, operator semantics, and reduction order are unchanged.",
+          "source": "paper",
+          "locator": "§6.2 'Bitwise Equivalence', p. 12"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "author_boundaries": "Authors claim construction-based equivalence and report bit-identical loss under deterministic mode on a trillion-scale Qwen3-Next workload; they do not report verification under non-deterministic kernels.",
+      "inferred_consequences": [
+        "If non-deterministic kernels are enabled, schedule-induced timing changes could break bitwise equivalence.",
+        "A separate deterministic-mode or construction check would be needed for that configuration."
+      ],
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§6.2 'Bitwise Equivalence', p. 12",
+          "support_description": "We verify this empirically on a trillion-scale Qwen3-Next workload by comparing runs with and without Tessera’s optimizations under deterministic mode. The two runs produce bit-identical loss trajectories."
+        },
+        {
+          "source_id": "paper",
+          "location": "§6.2 'Bitwise Equivalence', p. 12",
+          "support_description": "Tessera modifies only when and where tasks execute on the device timeline; the computation graph, operator semantics, and reduction order are unchanged."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Deterministic mode typically fixes or disables non-deterministic GPU operations; non-deterministic kernels can produce different results when execution timing or order changes. The reported bit-identical loss is evidence only for the deterministic-mode configuration tested; it does not establish bitwise equivalence if production uses non-deterministic kernels whose reduction order can be affected by scheduling."
+    }
+  ],
+  "dropped_for_unverified_quotes": 0,
+  "chunk_count": 12,
+  "chunk_failures": 0,
+  "chunk_timings": [
+    {
+      "seconds": 150.72408427018672,
+      "attempts": 1
+    },
+    {
+      "seconds": 149.0784812818747,
+      "attempts": 1
+    },
+    {
+      "seconds": 163.0254569610115,
+      "attempts": 1
+    },
+    {
+      "seconds": 140.2579364499543,
+      "attempts": 1
+    },
+    {
+      "seconds": 182.222384135006,
+      "attempts": 1
+    },
+    {
+      "seconds": 185.43507263506763,
+      "attempts": 1
+    },
+    {
+      "seconds": 217.1674492121674,
+      "attempts": 1
+    },
+    {
+      "seconds": 233.90497603290714,
+      "attempts": 1
+    },
+    {
+      "seconds": 227.89958273991942,
+      "attempts": 1
+    },
+    {
+      "seconds": 146.23868522117846,
+      "attempts": 1
+    },
+    {
+      "seconds": 188.0347756370902,
+      "attempts": 1
+    },
+    {
+      "seconds": 175.83185455715284,
+      "attempts": 1
+    }
+  ],
+  "inventory_seconds": 501.0486810610164,
+  "chunks_seconds": 754.8875997378491,
+  "merged_candidates": 10,
+  "unverified_kept": 0
+}

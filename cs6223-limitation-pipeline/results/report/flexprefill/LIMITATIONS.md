@@ -1,8 +1,8 @@
 # Limitations report: FlexPrefill: A Context-Aware Sparse Attention Mechanism for Efficient Long-Sequence Inference
 
 - artifact: `flexprefill` (ICLR 2025 (Oral)), repository https://github.com/bytedance/FlexPrefill at `a24b27bf11`
-- input: `results/step4/flexprefill/limitations_for_tests.json` (sha256 `0b8539b75ec0`), 65 Findings
-- generated: 2026-11-18T17:55:09+08:00 by `checklimits test` (contract `checklimits-test-report/1`)
+- input: `results/step4/flexprefill/limitations_for_tests.json` (sha256 `deb4fa886e4c`), 65 Findings
+- generated: 2026-11-23T11:22:09+08:00 by `checklimits test` (contract `checklimits-test-report/1`)
 - environment: **ok**
 
 ## How to read this
@@ -25,6 +25,8 @@
 | levels | L1 16, L2 7, L3 6 |
 | analysis only (not tests) | A0 3, A1 18, A2 15 |
 | not tested, by reason | `no_code_location` 19, `outcome_unsupported` 6, `witness_unusable` 11 |
+
+Code side's predicted ceiling vs measured level (both uncalibrated; 29 tested Findings have both): equal 24, measured below ceiling 5, measured above ceiling 0.
 
 | Finding | category | effect | location | result |
 |---|---|---|---|---|
@@ -107,6 +109,8 @@
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: AssertionError at flex_prefill/modules/patch.py:123
@@ -130,6 +134,8 @@
 
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L1 (measured: L1).
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
@@ -155,6 +161,8 @@
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L3 (measured: L3).
+
 **Level L3, uncalibrated.** established: every defeater was measured and ruled out.
 
 - trigger run: AssertionError at flex_prefill/ops/flex_prefill_attention.py:247
@@ -174,6 +182,8 @@
 
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L3 (measured: L1).
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
@@ -198,6 +208,8 @@
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L3 (measured: L2).
+
 **Level L2, uncalibrated.** supported: fatal checks, mutation, repeat runs and clean-checkout replay passed; some checks are residual.
 
 - trigger run: AssertionError at flex_prefill/ops/flex_prefill_attention.py:1245
@@ -219,6 +231,8 @@
 
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L3 (measured: L2).
 
 **Level L2, uncalibrated.** supported: fatal checks, mutation, repeat runs and clean-checkout replay passed; some checks are residual.
 
@@ -242,6 +256,8 @@
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L3 (measured: L2).
+
 **Level L2, uncalibrated.** supported: fatal checks, mutation, repeat runs and clean-checkout replay passed; some checks are residual.
 
 - trigger run: AssertionError at flex_prefill/ops/flex_prefill_attention.py:1258
@@ -263,6 +279,8 @@
 
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L1 (measured: L1).
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
@@ -288,6 +306,8 @@
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L3 (measured: L3).
+
 **Level L3, uncalibrated.** established: every defeater was measured and ruled out.
 
 - trigger run: AssertionError at flex_prefill/ops/flex_prefill_attention.py:1836
@@ -307,6 +327,8 @@
 
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L3 (measured: L3).
 
 **Level L3, uncalibrated.** established: every defeater was measured and ruled out.
 
@@ -328,6 +350,8 @@
 
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L1 (measured: L1).
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
@@ -353,6 +377,8 @@
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L2 (measured: L2).
+
 **Level L2, uncalibrated.** supported: fatal checks, mutation, repeat runs and clean-checkout replay passed; some checks are residual.
 
 - trigger run: AssertionError at flex_prefill/ops/vertical_slash_attention.py:552
@@ -375,6 +401,8 @@
 
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L1 (measured: L1).
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
@@ -400,6 +428,8 @@
 
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L1 (measured: L1).
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
@@ -427,6 +457,8 @@
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: ValueError at flex_prefill/modules/patch.py:320
@@ -452,6 +484,8 @@
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L2 (measured: L2).
+
 **Level L2, uncalibrated.** supported: fatal checks, mutation, repeat runs and clean-checkout replay passed; some checks are residual.
 
 - trigger run: branch taken at flex_prefill/modules/patch.py:424 (later AttributeError at flex_prefill/ops/flex_prefill_attention.py:49)
@@ -475,6 +509,8 @@
 
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L1 (measured: L1).
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
@@ -502,6 +538,8 @@
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: AssertionError at flex_prefill/ops/flex_prefill_attention.py:672
@@ -525,6 +563,8 @@
 
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L1 (measured: L1).
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
@@ -551,6 +591,8 @@
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L3 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: AssertionError at flex_prefill/ops/flex_prefill_attention.py:1222
@@ -574,6 +616,8 @@
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L3 (measured: L3).
+
 **Level L3, uncalibrated.** established: every defeater was measured and ruled out.
 
 - trigger run: branch taken at flex_prefill/ops/flex_prefill_attention.py:1842
@@ -595,6 +639,8 @@
 
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L1 (measured: L1).
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
@@ -622,6 +668,8 @@
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: branch taken at flex_prefill/ops/vertical_slash_attention.py:557
@@ -648,6 +696,8 @@
 
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L2 (measured: L2).
 
 **Level L2, uncalibrated.** supported: fatal checks, mutation, repeat runs and clean-checkout replay passed; some checks are residual.
 
@@ -855,6 +905,8 @@
 
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L1 (measured: L1).
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
@@ -1199,6 +1251,8 @@
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L3 (measured: L3).
+
 **Level L3, uncalibrated.** established: every defeater was measured and ruled out.
 
 - trigger run: AssertionError at flex_prefill/ops/flex_prefill_attention.py:1824
@@ -1219,6 +1273,8 @@
 
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L1 (measured: L1).
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
@@ -1243,6 +1299,8 @@
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L3 (measured: L3).
+
 **Level L3, uncalibrated.** established: every defeater was measured and ruled out.
 
 - trigger run: AssertionError at flex_prefill/ops/flex_prefill_attention.py:1838
@@ -1264,6 +1322,8 @@
 
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L2 (measured: L2).
 
 **Level L2, uncalibrated.** supported: fatal checks, mutation, repeat runs and clean-checkout replay passed; some checks are residual.
 

@@ -1,8 +1,8 @@
 # Limitations report: NNSmith: Generating Diverse and Valid Test Cases for Deep Learning Compilers
 
 - artifact: `nnsmith` (ASPLOS 2023), repository https://github.com/ise-uiuc/nnsmith at `a8307f2b80`
-- input: `results/step4/nnsmith/limitations_for_tests.json` (sha256 `3ec725e87dbd`), 38 Findings
-- generated: 2026-11-18T17:57:47+08:00 by `checklimits test` (contract `checklimits-test-report/1`)
+- input: `results/step4/nnsmith/limitations_for_tests.json` (sha256 `36d40c452598`), 38 Findings
+- generated: 2026-11-23T11:22:09+08:00 by `checklimits test` (contract `checklimits-test-report/1`)
 - environment: **ok**
 
 ## How to read this
@@ -25,6 +25,8 @@
 | levels | L1 19, L2 1, invalid 2 |
 | analysis only (not tests) | A0 3, A1 8, A2 5 |
 | not tested, by reason | `no_code_location` 3, `outcome_unsupported` 13 |
+
+Code side's predicted ceiling vs measured level (both uncalibrated; 20 tested Findings have both): equal 18, measured below ceiling 2, measured above ceiling 0.
 
 | Finding | category | effect | location | result |
 |---|---|---|---|---|
@@ -80,6 +82,8 @@
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: ValueError at nnsmith/abstract/op.py:1563
@@ -102,6 +106,8 @@
 
 **Verdict `inconclusive`**: no verdict: the test was invalid or could not separate the cases.
   no effect on either input
+
+Code side predicted ceiling before the test: L1 (measured: invalid).
 
 **Level invalid, uncalibrated.** a fatal defeater was refuted (for example the target line was not reached): no verdict is drawn. refuted fatal defeaters: D2
 
@@ -130,6 +136,8 @@
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: AssertionError at nnsmith/graph_gen.py:260
@@ -152,6 +160,8 @@
 
 **Verdict `inconclusive`**: no verdict: the test was invalid or could not separate the cases.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L1 (measured: invalid).
 
 **Level invalid, uncalibrated.** a fatal defeater was refuted (for example the target line was not reached): no verdict is drawn. refuted fatal defeaters: D2
 
@@ -179,6 +189,8 @@
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: branch taken at nnsmith/abstract/arith.py:79
@@ -201,6 +213,8 @@
 
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L1 (measured: L1).
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
@@ -226,6 +240,8 @@
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: branch taken at nnsmith/abstract/op.py:910
@@ -250,6 +266,8 @@
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: branch taken at nnsmith/abstract/op.py:1587
@@ -273,6 +291,8 @@
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: branch taken at nnsmith/cli/fuzz.py:60 (later ValueError at nnsmith/cli/fuzz.py:90)
@@ -295,6 +315,8 @@
 
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L1 (measured: L1).
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
@@ -320,6 +342,8 @@
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: branch taken at nnsmith/graph_gen.py:256
@@ -342,6 +366,8 @@
 
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L1 (measured: L1).
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
@@ -369,6 +395,8 @@
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L3 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: branch taken at nnsmith/graph_gen.py:556
@@ -390,6 +418,8 @@
 
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L1 (measured: L1).
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
@@ -416,6 +446,8 @@
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: branch taken at nnsmith/materialize/torch/__init__.py:47
@@ -439,6 +471,8 @@
 
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L1 (measured: L1).
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
@@ -508,6 +542,8 @@
 
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L1 (measured: L1).
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
@@ -714,6 +750,8 @@
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: branch taken at nnsmith/graph_gen.py:1016
@@ -737,6 +775,8 @@
 
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L3 (measured: L2).
 
 **Level L2, uncalibrated.** supported: fatal checks, mutation, repeat runs and clean-checkout replay passed; some checks are residual.
 
@@ -763,6 +803,8 @@
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: branch taken at nnsmith/graph_gen.py:1052
@@ -786,6 +828,8 @@
 
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L1 (measured: L1).
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
@@ -850,6 +894,8 @@
 
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L1 (measured: L1).
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 

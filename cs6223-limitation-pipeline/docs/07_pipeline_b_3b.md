@@ -1,23 +1,22 @@
-# 步骤 2（最终的 B）→ 步骤 3b：端到端运行（2026-11-06）
+# Step 2 (final B) → Step 3b: End-to-end run (2026-11-06)
 
 ```bash
-python scripts/run_pipeline.py --model x-test-2 --repeats 3 --parallel 1 --workers 3   # 结果在 out/pipeline/<id>/
-python scripts/summarize_pipeline.py [--labels <盲审标签 JSON>]                       # 汇总 + out/pipeline/candidates.json
+python scripts/run_pipeline.py --model x-test-2 --repeats 3 --parallel 1 --workers 3   # Results in out/pipeline/<id>/
+python scripts/summarize_pipeline.py [--labels <blind-review labels JSON>]                       # Summary + out/pipeline/candidates.json
 ```
 
-- 输入：`out/routes_merged/<id>/merged_run1.json`（A + 复核后的 sweep 和 agent，去重，见 `06_two_routes.md`）。
-- `to-limitations --include-variants`：B 的 `mechanism_variant` 也导出，`effect_type` 记为 `path_change`（schema 不变；默认仍跳过）。A 自己的 `mechanism` 区域不导出。
-- 3b：`consensus`，3 轮，`3b-v3`，`x-test-2`（实际 `deepseek-v4.1-flash-1017`）。只有 FlexPrefill 有论文侧 stub，其余四篇的 scope 都是 unknown。
-- 并发要低（`--parallel 1 --workers 3`），否则会被限流（429）；3b 遇到调用失败会报错退出，不会当成“没写”，缓存保证重跑不重复付费。
+- Input: `out/routes_merged/<id>/merged_run1.json` (A plus reviewed sweep and agent results, deduplicated; see `06_two_routes.md`).
+- `to-limitations --include-variants`: also exports B's `mechanism_variant` with `effect_type` set to `path_change` (the schema is unchanged; the default still skips these). A's own `mechanism` regions are not exported.
+- 3b: `consensus`, 3 rounds, `3b-v3`, `x-test-2` (actual model `deepseek-v4.1-flash-1017`). Only FlexPrefill has a paper-side stub; scope is unknown for the other four papers.
+- Keep concurrency low (`--parallel 1 --workers 3`) to avoid rate limiting (429). A failed 3b call raises an error and exits; it is not treated as “not found”. The cache prevents repeat charges on reruns.
 
-## 修掉的问题
+## Fix
 
-`scope_check.py` 遇到非布尔条件会让 z3 抛异常，整篇论文的 3b 直接失败（B 的条件写法比 A 多样，比如 `not gqa_interleave`、path_prefix 里的单个整数名字）。
-现在 z3 的异常统一转成 Untranslatable → scope 为 unknown，加了回归测试。
+When `scope_check.py` encountered a non-Boolean condition, z3 raised an exception and 3b failed for the entire paper. B uses a wider variety of conditions than A, such as `not gqa_interleave` and a single integer name in `path_prefix`. z3 exceptions are now converted to Untranslatable, making scope unknown; a regression test was added.
 
-## 结果
+## Results
 
-| 论文 | 来源 | 限制数 | 论文和文档都没写 | 写在某处 | 需人工复核 |
+| Paper | Source | Limitations | Not stated in paper or docs | Stated somewhere | Needs manual review |
 |---|---|---|---|---|---|
 | FlexPrefill | A | 29 | 22 | 7 | 2 |
 | FlexPrefill | B | 17 | 11 | 6 | 1 |
@@ -28,16 +27,14 @@ python scripts/summarize_pipeline.py [--labels <盲审标签 JSON>]             
 | NNSmith | B | 36 | 30 | 6 | 2 |
 | SparTA | B | 3 | 2 | 1 | 0 |
 
-共 155 条：not_found 134、found 12、weaker 5、boundary_mismatch 3、contradicted 1。
+There are 155 in total: not_found 134, found 12, weaker 5, boundary_mismatch 3, contradicted 1.
 
-和盲审标签对照（B 的新增里有标签的 83 条）：有用 29 条，其中 24 条 3b 判为没写，是目前最强的候选，
-列表在 `out/pipeline/candidates.json`（`label == "useful"` 且 `result == "not_found"`）。
+Among the 83 labeled additions from B, blind review marked 29 useful, of which 3b marked 24 not found. These are currently the strongest candidates, listed in `out/pipeline/candidates.json` (`label == "useful"` and `result == "not_found"`).
 
-FlexPrefill 的 scope（基于 stub）：in_scope 且没写 2 条（`kl_div < tau`、`seq_len <= min(vertical_size, slash_size) * block_size`），
-scope_edge 且没写 3 条（`q_len != k_len` 两处、`q_len != 1`），其余大多 unknown。
+FlexPrefill scope (based on the stub): 2 are in_scope and not found (`kl_div < tau`, `seq_len <= min(vertical_size, slash_size) * block_size`); 3 are scope_edge and not found (`q_len != k_len` twice, `q_len != 1`). Most others are unknown.
 
-## 注意
+## Notes
 
-- **not_found 不等于 finding。** 有 35 条“真的但没用”和 12 条“错的”也被判为没写；3b 只回答“写没写”，不判断值不值得报。
-- 盲审标签只覆盖部分条目，每条只有一个 Claude 审稿人。
-- 四篇开发集没有论文侧数据，scope 全是 unknown，“在不在论文范围内”还没法判断。
+- **not_found does not mean a finding.** 35 “real but not useful” and 12 “wrong” entries were also marked not found. 3b only answers whether something is stated; it does not decide whether it is worth reporting.
+- Blind review labels cover only some entries, each reviewed by one Claude reviewer.
+- The four development-set papers have no paper-side data, so their scope is all unknown; whether they fall within the paper's scope cannot yet be determined.

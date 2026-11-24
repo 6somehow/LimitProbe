@@ -1,0 +1,597 @@
+[
+  {
+    "headline": "Linear KV cache scaling does not imply memory is the only bottleneck or that memory savings yield proportional speedup",
+    "claim": "Linear KV cache scaling with sequence length and batch size does not imply memory is the only bottleneck or that memory savings yield proportional speedup.",
+    "paper_fact": "scaling linearly with the sequence length and batch size.",
+    "premise": "Amdahl's law and memory-hierarchy effects mean reducing one resource need not yield proportional end-to-end speedup; bottlenecks can shift.",
+    "inference": "The paper's linear-scaling observation and memory savings are necessary but not sufficient for proportional throughput or latency gains; net benefit depends on batch, offload, hardware, and eviction overhead.",
+    "toy_example": "Toy example, not a measurement: a cache that shrinks from 100 to 20 entries but spends 10 units per step scoring evictions may save memory yet not improve tokens/s if compute-bound.",
+    "conditional_consequence": "If the workload is compute-bound or eviction scoring overhead dominates, memory savings may not translate into proportional throughput or latency improvement.",
+    "critical_link": "The link is the system's ability to convert freed memory into larger batch or avoided offload without adding compute or I/O overhead.",
+    "necessary_conditions": [
+      "Workload is memory-bound rather than compute-bound",
+      "Freed memory can be converted into larger batch or less offload",
+      "Eviction scoring overhead does not dominate",
+      "Hardware and system support the larger batch"
+    ],
+    "defeaters": [
+      "Paper reports up to 29×, 29×, and 3× throughput improvements",
+      "Paper reports up to 1.9× latency reduction",
+      "Paper includes prefill, generation, and cache construction time in speedups"
+    ],
+    "do_not_infer": [
+      "Do not infer linear KV scaling implies linear speedup",
+      "Do not infer memory is the only bottleneck",
+      "Do not infer authors claim proportional speedup from memory reduction"
+    ],
+    "author_boundaries": [
+      "Authors report measured speedups for H2O in tested systems; they do not claim memory savings alone guarantee proportional speedup."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "applicability_limitation",
+    "lens": "L6: cost shifts to eviction and score computation",
+    "quotes": [
+      {
+        "text": "scaling linearly with the sequence length and batch size.",
+        "source": "paper",
+        "locator": "p1"
+      },
+      {
+        "text": "the memory usage is reduced, which brings two advantages: 1) we can use a much larger batch size; 2) we can make a setting from requiring offloading to not requiring offloading.",
+        "source": "paper",
+        "locator": "p9"
+      },
+      {
+        "text": "With the same batch size, H2O can reduce the latency by up to 1.9×.",
+        "source": "paper",
+        "locator": "p1"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 4,
+    "evidence": [],
+    "quote_verified": false,
+    "mechanism": "Amdahl's law and memory-hierarchy effects mean reducing one resource need not yield proportional end-to-end speedup; bottlenecks can shift. The paper's linear-scaling observation and memory savings are necessary but not sufficient for proportional throughput or latency gains; net benefit depends on batch, offload, hardware, and eviction overhead."
+  },
+  {
+    "headline": "A low-cost greedy eviction policy does not imply or guarantee net throughput improvement.",
+    "claim": "The per-step argmax over k candidates can add score-computation and cache-replacement cost that offsets memory savings; end-to-end benefit is not guaranteed by the policy being called low-cost.",
+    "paper_fact": "we present a greedy but low-cost variant of H2 which is dynamically determined by the accumulated attention score at each decoding step",
+    "premise": "Argmax over k candidates per token per head/layer costs O(k) score evaluations; memory savings only improve throughput when memory bandwidth or capacity is the bottleneck.",
+    "inference": "The paper's throughput results are end-to-end and include cache construction, but they do not isolate the eviction-score cost, so net benefit depends on k, batch, hardware, and implementation.",
+    "toy_example": "Not a measurement: with k=4096, scanning all candidates per head per layer could cost more than the memory saved, but this is not measured here.",
+    "conditional_consequence": "If k is large or score computation is expensive, then per-step argmax cost may offset memory savings; the paper does not isolate this cost.",
+    "critical_link": "No per-step cost breakdown is shown; 'low-cost' is relative to alternatives, not a guarantee that eviction overhead is negligible.",
+    "necessary_conditions": [
+      "k is small enough that O(k) scoring is cheap",
+      "memory capacity/bandwidth is the dominant bottleneck",
+      "cache replacement is cheap relative to attention",
+      "batch size is large enough to amortize overhead"
+    ],
+    "defeaters": [
+      "Measured throughput improvement with isolated eviction cost negligible",
+      "k is small in all reported settings",
+      "Score computation is fused and free in implementation"
+    ],
+    "do_not_infer": [
+      "Do not infer H2O has no speedup",
+      "Do not infer eviction cost exceeds savings",
+      "Do not infer the paper failed to measure throughput"
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L6",
+    "quotes": [
+      {
+        "text": "we present a greedy but low-cost variant of H2 which is dynamically determined by the accumulated attention score at each decoding step",
+        "source": "paper p3",
+        "locator": "Section 1"
+      },
+      {
+        "text": "All the speedup results are tested in an end-to-end setting, including both the pre-filling and generation phases. And it includes the time for constructing the H2O KV cache.",
+        "source": "paper p9",
+        "locator": "Section 5.2 Setup"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 4,
+    "author_boundaries": "Authors report end-to-end throughput including cache construction; they do not isolate per-step eviction cost.",
+    "inferred_consequence": "Net throughput benefit depends on unisolated eviction overhead and workload parameters; it is not guaranteed by the policy's low-cost label.",
+    "evidence": [],
+    "quote_verified": false,
+    "mechanism": "Argmax over k candidates per token per head/layer costs O(k) score evaluations; memory savings only improve throughput when memory bandwidth or capacity is the bottleneck. The paper's throughput results are end-to-end and include cache construction, but they do not isolate the eviction-score cost, so net benefit depends on k, batch, hardware, and implementation."
+  },
+  {
+    "headline": "A fixed KV cache budget does not imply a target accuracy or latency",
+    "claim": "A fixed KV cache budget k does not imply a target accuracy or latency; the eviction policy, workload, and system overhead determine outcomes.",
+    "paper_fact": "Our goal is to find a KV cache eviction policy such that the output of the generative process is similar or comparable to the original one without limiting the cache size.",
+    "premise": "A cache budget is a capacity constraint; accuracy depends on which entries are kept and the task, while latency depends on compute, I/O, and eviction overhead.",
+    "inference": "The paper's 20% budget results and speedups are empirical for H2O and tested settings; they do not make k an accuracy or latency target.",
+    "toy_example": "Toy example, not a measurement: two eviction policies with the same k can retain different tokens and produce different accuracy.",
+    "conditional_consequence": "If eviction overhead grows with k or the task needs long-context information, a given k may not deliver the reported accuracy or speed.",
+    "critical_link": "The link is the mapping from budget k to retained information and from system overhead to wall-clock time; k alone fixes neither.",
+    "necessary_conditions": [
+      "Eviction policy selects tokens that preserve task-relevant information",
+      "System overhead of eviction is small relative to saved memory",
+      "Batch size or offload can be adjusted to exploit freed memory"
+    ],
+    "defeaters": [
+      "Paper reports 20% budget comparable on many tasks",
+      "Paper reports throughput and latency gains",
+      "Paper includes construction time in speedups"
+    ],
+    "do_not_infer": [
+      "Do not infer k is an accuracy target",
+      "Do not infer same k yields same accuracy across policies",
+      "Do not infer authors claim budget alone determines latency"
+    ],
+    "author_boundaries": [
+      "Authors report empirical results for H2O at selected budgets; they do not claim k alone sets accuracy or latency."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L2: budget is not an accuracy target",
+    "quotes": [
+      {
+        "text": "Let k denote the budget of space and k < n.",
+        "source": "paper",
+        "locator": "p4"
+      },
+      {
+        "text": "Our goal is to find a KV cache eviction policy such that the output of the generative process is similar or comparable to the original one without limiting the cache size.",
+        "source": "paper",
+        "locator": "p4"
+      },
+      {
+        "text": "With the same batch size, H2O can reduce the latency by up to 1.9×.",
+        "source": "paper",
+        "locator": "p1"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "evidence": [],
+    "quote_verified": false,
+    "mechanism": "A cache budget is a capacity constraint; accuracy depends on which entries are kept and the task, while latency depends on compute, I/O, and eviction overhead. The paper's 20% budget results and speedups are empirical for H2O and tested settings; they do not make k an accuracy or latency target."
+  },
+  {
+    "headline": "Per-step local greedy selection does not imply or guarantee globally optimal KV-cache eviction.",
+    "claim": "The low-cost local greedy H2 policy is not a global optimizer; the paper's guarantee is conditional on submodularity and mild assumptions.",
+    "paper_fact": "We formulate the KV cache eviction as a dynamic submodular problem and prove (under mild assumptions) a theoretical guarantee for our novel eviction algorithm",
+    "premise": "Greedy per-step selection is not global optimization; approximation guarantees require assumptions such as submodularity.",
+    "inference": "Without the stated assumptions or when future attention diverges from local scores, local greedy eviction has no general global-optimality guarantee.",
+    "conditional_consequence": "If the attention scheme is not submodular or future importance diverges, local greedy selection may be suboptimal even if it is low-cost.",
+    "critical_link": "The theorem's assumptions must hold for the guarantee to apply; empirical equal effectiveness is not a proof of global optimality.",
+    "necessary_conditions": [
+      "The attention scheme satisfies the paper's submodularity or mild assumptions.",
+      "The approximation parameters remain within the theorem's bounds.",
+      "Local accumulated scores remain predictive of future importance."
+    ],
+    "defeaters": [
+      "The paper reports empirical equal effectiveness of local and future-aware H2.",
+      "The paper provides a theoretical guarantee under mild assumptions.",
+      "H2O performs well across many reported benchmarks."
+    ],
+    "do_not_infer": [
+      "Do not infer that the paper claims global optimality without assumptions.",
+      "Do not infer that lack of a global guarantee means poor empirical performance.",
+      "Do not infer that greedy local selection is always suboptimal."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L2",
+    "quotes": [
+      {
+        "text": "We formulate the KV cache eviction as a dynamic submodular problem and prove (under mild assumptions) a theoretical guarantee for our novel eviction algorithm",
+        "source": "paper",
+        "locator": "p1"
+      },
+      {
+        "text": "Assuming the attention scheme is submodular, then greedily constructing the set Si (without cache size limitation) satisfies the near-optimal property in terms of submodular.",
+        "source": "paper",
+        "locator": "p5"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "author_boundaries": [
+      "Authors state the guarantee is under mild assumptions.",
+      "Authors present the greedy policy as low-cost and empirically effective.",
+      "Authors do not claim unconditional global optimality."
+    ],
+    "inferred_consequences": [
+      "The guarantee is conditional, not universal.",
+      "Deployment outside the assumed regime may lack the stated approximation bound."
+    ],
+    "evidence": [],
+    "quote_verified": false,
+    "mechanism": "Greedy per-step selection is not global optimization; approximation guarantees require assumptions such as submodularity. Without the stated assumptions or when future attention diverges from local scores, local greedy eviction has no general global-optimality guarantee."
+  },
+  {
+    "headline": "Lower streaming perplexity with H2O does not imply or guarantee better performance on all long-context tasks.",
+    "claim": "H2O plus StreamLLM's lower PG-19 perplexity at up to four million tokens is evidence of language-modeling fit, not a guarantee of downstream long-context QA, summarization, or retrieval success.",
+    "paper_fact": "better performance (lower perplexity) than the original StreamLLM method",
+    "premise": "Perplexity is a next-token likelihood metric on a text sample; it is not a task-specific accuracy metric.",
+    "inference": "The reported lower PG-19 perplexity supports a language-modeling proxy for streaming, not a guarantee of downstream long-context task success.",
+    "conditional_consequence": "If a downstream task requires retrieving a specific fact or summarizing dispersed content, then lower streaming perplexity alone cannot establish success; task-specific evaluation is needed.",
+    "critical_link": "The paper's 4M-token claim is tied to streaming perplexity on the first PG-19 sample, while the mechanism's eviction policy can still drop task-critical tokens.",
+    "necessary_conditions": [
+      "Task-specific long-context evaluation is performed.",
+      "The cache budget and H2 selection retain the information needed by the task.",
+      "Perplexity is not treated as a substitute for task accuracy."
+    ],
+    "defeaters": [
+      "Paper reports H2O better on multi-document QA and summarization than StreamLLM.",
+      "If the downstream task is language modeling on similar text, perplexity may be directly relevant.",
+      "If H2O matches full-cache performance on the task, the concern is reduced."
+    ],
+    "do_not_infer": [
+      "Do not infer H2O fails all long-context tasks.",
+      "Do not infer perplexity is irrelevant to language modeling.",
+      "Do not infer the 4M-token result is invalid."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L1",
+    "quotes": [
+      {
+        "text": "better performance (lower perplexity) than the original StreamLLM method",
+        "source": "paper",
+        "locator": "p10"
+      },
+      {
+        "text": "H2O can empower LLMs to tackle input with length up to four mil-\nlion tokens",
+        "source": "paper",
+        "locator": "p9"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "author_boundaries": [
+      "Authors claim 4M-token streaming and lower PG-19 perplexity than StreamLLM; they do not claim universal downstream long-context success.",
+      "Authors report H2O better on multi-document QA and summarization, but not an exhaustive all-task guarantee."
+    ],
+    "inferred_consequences": [
+      "Task-specific long-context tests are needed before treating lower streaming perplexity as general long-context competence."
+    ],
+    "evidence": [],
+    "quote_verified": false,
+    "mechanism": "Perplexity is a next-token likelihood metric on a text sample; it is not a task-specific accuracy metric. The reported lower PG-19 perplexity supports a language-modeling proxy for streaming, not a guarantee of downstream long-context task success."
+  },
+  {
+    "headline": "Lower Self-BLEU does not imply or guarantee increased creativity or quality",
+    "claim": "H2O's reported lower Self-BLEU and qualitative examples do not establish increased creativity or quality; they support at most a slight diversity/repetition change in the reported setup.",
+    "paper_fact": "The comparatively lower Self-BELU score of H2O indicates the slightly increased diversity of generated text.",
+    "premise": "Self-BLEU is an n-gram overlap diversity proxy; lower values can indicate more diversity but can also reflect degeneration or off-topic output. Creativity and quality require human or task-specific evaluation.",
+    "inference": "The paper's evidence supports a small Self-BLEU decrease on 100 XSUM prompts with LLaMA-7B and qualitative examples, not a general creativity or quality improvement.",
+    "conditional_consequence": "If a deployment treats H2O as a creativity or quality booster, it may overclaim; if diversity is desired, validate with human and task-specific metrics.",
+    "critical_link": "The link from Self-BLEU and qualitative repetition examples to creativity or quality is not established.",
+    "necessary_conditions": [
+      "Human evaluation of creativity/quality",
+      "Task-specific quality and faithfulness metrics",
+      "Multiple prompts and models",
+      "Same decoding settings across compared methods"
+    ],
+    "defeaters": [
+      "Human evaluation showing improved creativity without quality loss",
+      "Task metrics showing no quality tradeoff across diverse tasks"
+    ],
+    "do_not_infer": [
+      "H2O guarantees creativity",
+      "Lower Self-BLEU always means better text",
+      "Qualitative examples are a measurement of quality"
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L1",
+    "quotes": [
+      {
+        "text": "The comparatively lower Self-BELU score of H2O indicates the slightly increased diversity of generated text.",
+        "source": "paper p23 (Appendix C.1)",
+        "locator": "C.1, paragraph after Figure 7"
+      },
+      {
+        "text": "H2O can generate sentences with fewer repeated words and more creativity",
+        "source": "paper p10",
+        "locator": "Section 5.3 Q5/A5"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 3,
+    "author_boundaries": "Authors report a bonus effect and qualitative examples; they do not provide a human creativity/quality evaluation or a general creativity guarantee.",
+    "inferred_consequence": "The diversity bonus should be treated as a reported side effect, not as evidence of improved creativity or quality.",
+    "evidence": [],
+    "quote_verified": false,
+    "mechanism": "Self-BLEU is an n-gram overlap diversity proxy; lower values can indicate more diversity but can also reflect degeneration or off-topic output. Creativity and quality require human or task-specific evaluation. The paper's evidence supports a small Self-BLEU decrease on 100 XSUM prompts with LLaMA-7B and qualitative examples, not a general creativity or quality improvement."
+  },
+  {
+    "headline": "A 20% KV cache budget with H2O does not imply or guarantee comparable accuracy across all inference regimes.",
+    "claim": "The paper's 20% budget result is not universal; zero-shot and one-shot tasks may require a higher KV cache budget of 30-40%.",
+    "paper_fact": "However, unlike 5-shot, we also found that some tasks are more difficult, and the model requires more information to generate the correct content, resulting in a higher KV cache budget (30-40%).",
+    "premise": "The cache budget required for comparable accuracy depends on task difficulty, prompt length, and how much information must be retained.",
+    "inference": "The reported 20% budget success is conditional on the evaluation regime and task, not a guarantee for all settings.",
+    "toy_example": "Not a measurement: a short 0-shot prompt with a critical fact in the middle may need more than 20% cache to retain that fact.",
+    "conditional_consequence": "If a task is evaluated in a 0/1-shot regime with short prompts and needs more information, a 20% budget may underperform and require 30-40% instead.",
+    "critical_link": "The link is the paper's own 30-40% budget note for 0/1-shot tasks; without that, 20% could be misread as a universal budget.",
+    "necessary_conditions": [
+      "Evaluation regime is zero-shot or one-shot with short prompts.",
+      "The task requires more information than a 20% cache can retain.",
+      "Comparable accuracy to the full-cache model is the target."
+    ],
+    "defeaters": [
+      "Main 5-shot results show 20% comparable on many tasks.",
+      "The 30-40% note applies to some tasks, not all.",
+      "A higher budget may still be much less than full cache."
+    ],
+    "do_not_infer": [
+      "Do not infer 20% never works.",
+      "Do not infer H2O fails on all short prompts.",
+      "Do not infer the paper's main claim is false."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "applicability_limitation",
+    "lens": "L4",
+    "quotes": [
+      {
+        "text": "However, unlike 5-shot, we also found that some tasks are more difficult, and the model requires more information to generate the correct content, resulting in a higher KV cache budget (30-40%).",
+        "source": "paper",
+        "locator": "p25"
+      },
+      {
+        "text": "(2) Meanwhile, with less than 20% KV cache budget(i.e., more than 5× memory reduction), H2O achieves comparable performance as the model with full KV embeddings;",
+        "source": "paper",
+        "locator": "p8"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 2,
+    "evidence": [],
+    "quote_verified": false,
+    "mechanism": "The cache budget required for comparable accuracy depends on task difficulty, prompt length, and how much information must be retained. The reported 20% budget success is conditional on the evaluation regime and task, not a guarantee for all settings."
+  },
+  {
+    "headline": "A dynamic submodular approximation guarantee does not imply or guarantee runtime throughput or memory savings.",
+    "claim": "The theorem concerns a set-function value under assumptions, not wall-clock throughput, latency, or memory reduction; those are empirical system results.",
+    "paper_fact": "We formulate the KV cache eviction as a dynamic submodular problem and prove (under mild assumptions) a theoretical guarantee for our novel eviction algorithm which could help guide future work.",
+    "premise": "Theoretical approximation bounds are not measurements of wall-clock throughput, latency, or memory; system performance depends on implementation and hardware.",
+    "inference": "The submodular theorem does not establish the reported throughput or memory reductions; those claims rest on the system experiments.",
+    "toy_example": "Toy example (not a measurement): an algorithm with a better f-bound but large per-token overhead could be slower in wall-clock time.",
+    "conditional_consequence": "If implementation overhead or hardware differs, the theorem can hold while throughput gains shrink or vanish.",
+    "critical_link": "Separation between the theorem's set-function objective and measured system metrics.",
+    "necessary_conditions": [
+      "the theorem's assumptions hold",
+      "the implementation realizes the analyzed greedy eviction",
+      "throughput is measured under stated hardware, batch, and offload conditions"
+    ],
+    "defeaters": [
+      "direct end-to-end throughput/latency measurements",
+      "ablation isolating eviction overhead",
+      "the theorem is explicitly not claimed to prove system speedups"
+    ],
+    "do_not_infer": [
+      "do not infer the theorem proves no speedup",
+      "do not infer the reported speedups are invalid",
+      "do not infer theoretical guidance is useless"
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L6",
+    "quotes": [
+      {
+        "text": "We formulate the KV cache eviction as a dynamic submodular problem and prove (under mild assumptions) a theoretical guarantee for our novel eviction algorithm which could help guide future work.",
+        "source": "paper p1",
+        "locator": "Abstract"
+      },
+      {
+        "text": "The analysis shows that it results in a similar generative process as the one using the H2 eviction policy.",
+        "source": "paper p3",
+        "locator": "Section 3"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 2,
+    "author_boundaries": [
+      "Authors present the theorem as theoretical guidance and report throughput from system experiments.",
+      "Authors do not claim the theorem itself proves throughput or memory savings."
+    ],
+    "inferred_consequences": [
+      "The theorem and system speedup claims should be kept separate.",
+      "Throughput claims depend on benchmark conditions."
+    ],
+    "evidence": [],
+    "quote_verified": false,
+    "mechanism": "Theoretical approximation bounds are not measurements of wall-clock throughput, latency, or memory; system performance depends on implementation and hardware. The submodular theorem does not establish the reported throughput or memory reductions; those claims rest on the system experiments."
+  },
+  {
+    "headline": "A 20% KV-cache budget does not guarantee comparable accuracy across all tasks and sequence lengths",
+    "claim": "The 20% budget is an empirical main-result setting, not a universal accuracy guarantee; the paper reports some 0/1-shot tasks needing 30-40% and benchmarks long sequences for throughput/latency potential.",
+    "paper_fact": "H2O with 20% heavy hitters improves the throughput over three leading inference systems DeepSpeed Zero-Inference, Hugging Face Accelerate, and FlexGen by up to 29×, 29×, and 3×",
+    "premise": "Throughput and accuracy are distinct metrics; a budget fraction selected for throughput does not by itself establish accuracy parity.",
+    "inference": "Therefore, the reported 20% throughput gains do not guarantee comparable accuracy for every task or sequence length; the paper's accuracy claims are limited to tested settings and some tasks need 30-40%.",
+    "conditional_consequence": "If a task or sequence length is outside the tested distribution or is more difficult, then a fixed 20% budget may not preserve accuracy.",
+    "critical_link": "The paper reports both throughput at 20% and comparable accuracy on many tasks, but also reports higher budget needs for 0/1-shot; a universal accuracy guarantee is not established.",
+    "necessary_conditions": [
+      "Task and sequence length fall outside the tested distribution or are more difficult.",
+      "20% budget is held fixed.",
+      "Accuracy metric is sensitive to evicted KV.",
+      "No task-specific budget adjustment."
+    ],
+    "defeaters": [
+      "Task is within tested 5-shot set and 20% budget suffices.",
+      "Paper's comparable accuracy holds for the specific benchmark.",
+      "Longer sequence throughput tests are not accuracy tests.",
+      "Higher budget note is for 0/1-shot, not all tasks."
+    ],
+    "do_not_infer": [
+      "Do not infer the paper claims universal accuracy at 20%.",
+      "Do not infer throughput speedups imply accuracy.",
+      "Do not infer 20% fails on all tasks.",
+      "Do not infer long-sequence throughput results are accuracy results.",
+      "Author boundary: the paper's 20% main results and 30-40% 0/1-shot note are separate empirical settings."
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "applicability_limitation",
+    "lens": "L1",
+    "quotes": [
+      {
+        "text": "H2O with 20% heavy hitters improves the throughput over three leading inference systems DeepSpeed Zero-Inference, Hugging Face Accelerate, and FlexGen by up to 29×, 29×, and 3×",
+        "source": "paper",
+        "locator": "p1"
+      },
+      {
+        "text": "with less than 20% KV cache budget(i.e., more than 5× memory reduction), H2O achieves comparable performance as the model with full KV embeddings",
+        "source": "paper",
+        "locator": "p8"
+      },
+      {
+        "text": "unlike 5-shot, we also found that some tasks are more difficult, and the model requires more information to generate the correct content, resulting in a higher KV cache budget (30-40%).",
+        "source": "paper",
+        "locator": "p25"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 2,
+    "evidence": [],
+    "quote_verified": false,
+    "mechanism": "Throughput and accuracy are distinct metrics; a budget fraction selected for throughput does not by itself establish accuracy parity. Therefore, the reported 20% throughput gains do not guarantee comparable accuracy for every task or sequence length; the paper's accuracy claims are limited to tested settings and some tasks need 30-40%."
+  },
+  {
+    "headline": "A 20% KV-cache budget does not imply or guarantee throughput speedup proportional to the memory reduction.",
+    "claim": "The reported 5–10× KV-cache memory reduction and up to 3×/29×/29× throughput gains are separate system measurements; one does not imply the other.",
+    "paper_fact": "H2O with a 20% budget improves the generation throughput over FlexGen, DeepSpeed, and Accelerate by up to 3×, 29×, and 29×",
+    "premise": "Throughput speedup is not a linear function of memory footprint; it depends on baseline efficiency, hardware, batch size, offload, and eviction overhead.",
+    "inference": "The paper reports memory reduction and throughput gains as measured outcomes under specific baselines and hardware, not as a proportional law.",
+    "toy_example": "Toy example (not a measurement): halving cache size does not halve wall-clock if attention compute dominates.",
+    "conditional_consequence": "If the baseline is already optimized or the workload is compute-bound, then throughput gain can be much smaller than the memory reduction.",
+    "critical_link": "Memory savings must remove the actual bottleneck (KV capacity or offload) and not be offset by eviction or larger-batch compute.",
+    "necessary_conditions": [
+      "memory-bound or offload-bound baseline",
+      "batch or offload limit is active",
+      "eviction overhead is included and acceptable",
+      "hardware and model match the reported regime"
+    ],
+    "defeaters": [
+      "compute-bound workload",
+      "baseline already fits and is optimized",
+      "high eviction overhead",
+      "different hardware or sequence length"
+    ],
+    "do_not_infer": [
+      "Do not infer that a 20% budget means 5× throughput.",
+      "Do not infer that 5–10× memory reduction means 5–10× speedup."
+    ],
+    "disclosure": "inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L3",
+    "quotes": [
+      {
+        "text": "H2O with a 20% budget improves the generation throughput over FlexGen, DeepSpeed, and Accelerate by up to 3×, 29×, and 29×",
+        "source": "paper p9",
+        "locator": "Section 5.2 Results"
+      },
+      {
+        "text": "We demonstrate that H2O can reduce KV cache memory footprint by 5-10× while achieving comparable accuracy on a majority of tasks.",
+        "source": "paper p7",
+        "locator": "Section 5.1"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 2,
+    "author_boundary": "Authors report measured memory, throughput, and latency results on specified models and hardware; they do not claim proportional speedup from cache reduction.",
+    "inferred_consequence": "Speedup is a system-level outcome, not a direct unit conversion from memory savings.",
+    "evidence": [],
+    "quote_verified": false,
+    "mechanism": "Throughput speedup is not a linear function of memory footprint; it depends on baseline efficiency, hardware, batch size, offload, and eviction overhead. The paper reports memory reduction and throughput gains as measured outcomes under specific baselines and hardware, not as a proportional law."
+  },
+  {
+    "headline": "Accuracy parity on three OPT-30B tasks does not imply or guarantee general accuracy preservation.",
+    "claim": "The reported H2O plus 4-bit accuracy parity is scoped to a narrow model-task setting and is not a general guarantee.",
+    "paper_fact": "We use OPT-30B as our base model and COPA, OpenBookWA, and PiQA as evaluation tasks.",
+    "premise": "A three-task, single-model accuracy check is a narrow compatibility test; quantization and eviction errors can vary by task, model, and cache budget.",
+    "inference": "The reported parity supports compatibility for OPT-30B on those tasks, not a general guarantee across workloads.",
+    "conditional_consequence": "If the model, task set, cache budget, or 4-bit kernel changes, H2O+4-bit may not preserve full-model accuracy.",
+    "critical_link": "The paper does not report a broad sweep across models, tasks, and budgets for the 4-bit combination.",
+    "necessary_conditions": [
+      "OPT-30B base model",
+      "COPA, OpenBookQA, and PiQA tasks",
+      "FlexGen 4-bit quantization",
+      "reported cache budget and settings"
+    ],
+    "defeaters": [
+      "A broad multi-model, multi-task sweep showing parity",
+      "A different quantization method with similar results",
+      "Evidence that the three tasks are representative"
+    ],
+    "do_not_infer": [
+      "Do not infer H2O+4-bit fails generally",
+      "Do not infer accuracy is guaranteed for all tasks",
+      "Do not infer throughput from accuracy"
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "method_shortcoming",
+    "lens": "L1",
+    "quotes": [
+      {
+        "text": "We use OPT-30B as our base model and COPA, OpenBookWA, and PiQA as evaluation tasks.",
+        "source": "paper p10",
+        "locator": "Section 5.3 Q3"
+      },
+      {
+        "text": "H2O are capable of quantization and perverse the full model’s performance with even 4-bit quantization.",
+        "source": "paper p24",
+        "locator": "Appendix C.2"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 2,
+    "evidence": [],
+    "quote_verified": false,
+    "mechanism": "A three-task, single-model accuracy check is a narrow compatibility test; quantization and eviction errors can vary by task, model, and cache budget. The reported parity supports compatibility for OPT-30B on those tasks, not a general guarantee across workloads."
+  },
+  {
+    "headline": "One XSUM/LLaMA-7B Self-BLEU result does not imply or guarantee general reduced repetition across models and tasks",
+    "claim": "The reported reduced repetition and increased diversity are limited to qualitative examples and a 100-prompt XSUM Self-BLEU comparison with LLaMA-7B; they do not establish a general H2O bonus across models, tasks, or decoding settings.",
+    "paper_fact": "We randomly sample 100 instances from the XSUM dataset, as prompts. Subsequently, we employed the LLaMa-7B to generate text of equal length.",
+    "premise": "Diversity and repetition depend on model family, task, prompt length, decoding strategy, and cache budget; a single model/task/sample cannot establish a general effect.",
+    "inference": "The paper's quantitative diversity evidence is a single XSUM/LLaMA-7B setup, and the qualitative examples are illustrative; generalization to other H2O deployments is not guaranteed.",
+    "conditional_consequence": "For other models or tasks, H2O may not reduce repetition or increase diversity; users should evaluate the effect in their own setting before relying on it.",
+    "critical_link": "Generalization from one Self-BLEU setup and qualitative examples to a general reduced-repetition bonus.",
+    "necessary_conditions": [
+      "Replication across multiple models and tasks",
+      "Multiple prompt lengths and decoding settings",
+      "Statistical tests on diversity and repetition metrics",
+      "Consistent cache budgets and baselines"
+    ],
+    "defeaters": [
+      "Broad replication showing reduced repetition across models and tasks",
+      "Controlled studies showing the effect under varied decoding settings"
+    ],
+    "do_not_infer": [
+      "H2O always reduces repetition",
+      "The diversity bonus is universal across tasks",
+      "Qualitative examples generalize to all deployments"
+    ],
+    "disclosure": "mechanism_reported_consequence_inferred",
+    "category_code": "applicability_limitation",
+    "lens": "L5",
+    "quotes": [
+      {
+        "text": "We randomly sample 100 instances from the XSUM dataset, as prompts. Subsequently, we employed the LLaMa-7B to generate text of equal length.",
+        "source": "paper p23",
+        "locator": "Appendix C.1"
+      },
+      {
+        "text": "H2O can generate sentences with fewer repeated words and more creativity",
+        "source": "paper p10",
+        "locator": "Section 5.3 Q5/A5"
+      }
+    ],
+    "kind": "evaluation_critique",
+    "non_obviousness": 2,
+    "author_boundaries": "Authors report one Self-BLEU setup and qualitative examples; they do not claim universal repetition reduction across all models and tasks.",
+    "inferred_consequence": "The reduced-repetition bonus should be scoped to the reported setup unless broader replication is provided.",
+    "evidence": [],
+    "quote_verified": false,
+    "mechanism": "Diversity and repetition depend on model family, task, prompt length, decoding strategy, and cache budget; a single model/task/sample cannot establish a general effect. The paper's quantitative diversity evidence is a single XSUM/LLaMA-7B setup, and the qualitative examples are illustrative; generalization to other H2O deployments is not guaranteed."
+  }
+]

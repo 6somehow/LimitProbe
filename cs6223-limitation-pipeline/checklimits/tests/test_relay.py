@@ -45,3 +45,26 @@ def test_relay_swaps_key_and_retries_502(monkeypatch, tmp_path):
         up.shutdown()
     assert seen == ["Bearer REALKEY", "Bearer REALKEY"]          # first attempt 502, second 200
     assert "REALKEY" not in (tmp_path / "log").read_text()
+
+
+def _get(port):
+    req = urllib.request.Request(f"http://127.0.0.1:{port}/v1/models", headers={"Authorization": "Bearer placeholder"})
+    with urllib.request.urlopen(req, timeout=10) as r:
+        return r.status
+
+
+def test_relay_rotates_keys_and_moves_429_to_next_key(monkeypatch, tmp_path):
+    monkeypatch.setattr(relay.time, "sleep", lambda s: None)
+    up, seen = start_upstream([429, 200, 200])
+    cfg = relay.RelayConfig(f"http://127.0.0.1:{up.server_port}/v1", "KEYA,KEYB", iface="", log_path=str(tmp_path / "log"))
+    srv = relay.serve(cfg, "127.0.0.1", 0)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        assert _get(srv.server_port) == 200      # KEYA got 429, retried on KEYB
+        assert _get(srv.server_port) == 200      # round robin: next request starts on KEYB
+    finally:
+        srv.shutdown()
+        up.shutdown()
+    assert seen == ["Bearer KEYA", "Bearer KEYB", "Bearer KEYB"]
+    log = (tmp_path / "log").read_text()
+    assert "KEYA" not in log and "KEYB" not in log

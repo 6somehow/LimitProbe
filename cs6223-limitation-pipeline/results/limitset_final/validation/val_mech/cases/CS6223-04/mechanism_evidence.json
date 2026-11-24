@@ -1,0 +1,475 @@
+{
+  "candidates": [
+    {
+      "category_code": "applicability_limitation",
+      "claim": "Tensor Scrambling only applies when a dense operator is available and enough random samples can reveal always-zero elements; it is not suitable for stochastic or data-dependent black-box operators.",
+      "mechanism": "Paper says Tensor Scrambling handles black-box operators by random scrambling and assumes a dense operator -> if the operator has random or data-dependent zeros, always-zero elements may not correspond to pruned elements -> propagation can infer incorrect sparsity.",
+      "conditions": "Dense version of the operator is available; operator is deterministic enough; enough random samples are run.",
+      "consequence": "Sparsity propagation may be expensive or inaccurate for black-box, stochastic, or stateful operators.",
+      "defeaters": "If the operator is deterministic and a dense implementation exists with sufficient samples, the limitation is irrelevant.",
+      "disclosure": "inferred",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "handles black-box or complex operators, where the detailed computation logic is unavailable or unclear",
+          "locator": "§3.2, p.5"
+        },
+        {
+          "source": "paper",
+          "quote": "assuming at least the dense version of the operator is available",
+          "locator": "§3.2, p.5"
+        },
+        {
+          "source": "paper",
+          "quote": "256 randomly sampled tensors can identify sparsity correctly",
+          "locator": "§5.2, p.12"
+        }
+      ],
+      "locator": "§3.2 Tensor Scrambling, p.5",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§3.2, p.5",
+          "support_description": "handles black-box or complex operators, where the detailed computation logic is unavailable or unclear"
+        },
+        {
+          "source_id": "paper",
+          "location": "§3.2, p.5",
+          "support_description": "assuming at least the dense version of the operator is available"
+        },
+        {
+          "source_id": "paper",
+          "location": "§5.2, p.12",
+          "support_description": "256 randomly sampled tensors can identify sparsity correctly"
+        }
+      ]
+    },
+    {
+      "category_code": "method_shortcoming",
+      "claim": "SparTA's compilation overhead is high for large models, especially transformation and specialization, which limits rapid design-space exploration.",
+      "mechanism": "Paper reports BERT takes 3 minutes propagation, 2 hours transformation, and 1.5 hours specialization single-threaded -> iterative sparsity exploration requires repeated compilation -> high overhead slows exploration and may be impractical for larger models.",
+      "conditions": "Large model; single-threaded compilation; repeated exploration.",
+      "consequence": "Long compile times; reduced practicality for rapid iteration.",
+      "defeaters": "Parallelization, pre-tuned kernels, or prior knowledge could reduce overhead.",
+      "disclosure": "reported_in_paper",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "Taking BERT as an example, the propagation, transformation, and specialization take 3 minutes, 2 hours and 1.5 hours respectively using a single thread.",
+          "locator": "§5.1, p.11"
+        },
+        {
+          "source": "paper",
+          "quote": "It is possible to reduce the overhead by leveraging more prior knowledge in transformation policy and pre-tuned kernels. We leave it as future work.",
+          "locator": "§5.1, p.11"
+        }
+      ],
+      "locator": "§5.1 Compiling overhead, p.11",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§5.1, p.11",
+          "support_description": "Taking BERT as an example, the propagation, transformation, and specialization take 3 minutes, 2 hours and 1.5 hours respectively using a single thread."
+        },
+        {
+          "source_id": "paper",
+          "location": "§5.1, p.11",
+          "support_description": "It is possible to reduce the overhead by leveraging more prior knowledge in transformation policy and pre-tuned kernels. We leave it as future work."
+        }
+      ]
+    },
+    {
+      "category_code": "method_shortcoming",
+      "claim": "WeightedBlockCover uses a greedy heuristic and profiled block weights; for very sparse operators the weights can be inaccurate, and fallback enumeration can blow up combinatorially.",
+      "mechanism": "Paper uses greedy lowest-cost block cover and profiles block weights -> when operator is too sparse to saturate cores, weights are less accurate -> greedy choice may be suboptimal; enumerating all combinations can be expensive.",
+      "conditions": "Multiple block sizes; profiling-based weights; very sparse operator.",
+      "consequence": "Suboptimal block-size selection or high search cost.",
+      "defeaters": "If operator is dense enough or block-size options are few, the limitation is minor.",
+      "disclosure": "reported_in_paper",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "We use a simple greedy algorithm to pick the blocks with the lowest cost",
+          "locator": "§3.3, p.8"
+        },
+        {
+          "source": "paper",
+          "quote": "When an operator is too sparse to saturate available cores, the weights may become less accurate. In such cases, we enumerate all the combinations of block sizes to run the weighted block cover algorithm and pick the best one.",
+          "locator": "§4, p.9"
+        }
+      ],
+      "locator": "§3.3 WeightedBlockCover and §4, p.8-9",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§3.3, p.8",
+          "support_description": "We use a simple greedy algorithm to pick the blocks with the lowest cost"
+        },
+        {
+          "source_id": "paper",
+          "location": "§4, p.9",
+          "support_description": "When an operator is too sparse to saturate available cores, the weights may become less accurate. In such cases, we enumerate all the combinations of block sizes to run the weighted block cover algorithm and pick the best one."
+        }
+      ]
+    },
+    {
+      "category_code": "applicability_limitation",
+      "claim": "Attribute propagation's termination and correctness rely on monotonic, commutative, and associative propagation rules; non-monotonic or context-dependent sparsity rules are outside this guarantee.",
+      "mechanism": "Paper guarantees termination because each propagation monotonically increases sparsity and rules are commutative/associative -> if a new rule is non-monotonic or order-dependent, the fixed-point algorithm may not terminate or may produce order-dependent results -> extensibility is constrained.",
+      "conditions": "Propagation rules are monotonic, commutative, and associative.",
+      "consequence": "New sparsity semantics that violate these properties may not be safely supported.",
+      "defeaters": "If all registered rules satisfy the properties, the limitation does not apply.",
+      "disclosure": "reported_in_paper",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "As each propagation monotonically increases sparsity and both the propagations of pruning and quantization are commutative and associative, Algorithm 1 is guaranteed to terminate.",
+          "locator": "§3.2, p.5"
+        }
+      ],
+      "locator": "§3.2, p.5",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§3.2, p.5",
+          "support_description": "As each propagation monotonically increases sparsity and both the propagations of pruning and quantization are commutative and associative, Algorithm 1 is guaranteed to terminate."
+        }
+      ]
+    },
+    {
+      "category_code": "method_shortcoming",
+      "claim": "Tensor Scrambling's probabilistic zero detection can misclassify elements when random sampling is insufficient or when zeros arise from operator semantics rather than pruning.",
+      "mechanism": "Paper treats elements that always stay zero across random scrambles as pruned -> if sampling is too small, a truly nonzero element may never be observed nonzero; if operator produces structural zeros, they may be misread as pruning -> propagation can be wrong.",
+      "conditions": "Enough random samples; zeros correspond to pruning; operator semantics do not create incidental zeros.",
+      "consequence": "False pruning or missed pruning, leading to incorrect optimization or accuracy loss.",
+      "defeaters": "If enough samples are used and operator zeros are semantically pruned, the risk is low.",
+      "disclosure": "inferred",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "treats those elements that always stay zero as pruned elements in an output tensor",
+          "locator": "§3.2, p.5"
+        },
+        {
+          "source": "paper",
+          "quote": "By repeating this process enough times (see §5.2)",
+          "locator": "§3.2, p.5"
+        },
+        {
+          "source": "paper",
+          "quote": "256 randomly sampled tensors can identify sparsity correctly",
+          "locator": "§5.2, p.12"
+        }
+      ],
+      "locator": "§3.2 Tensor Scrambling, p.5",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§3.2, p.5",
+          "support_description": "treats those elements that always stay zero as pruned elements in an output tensor"
+        },
+        {
+          "source_id": "paper",
+          "location": "§3.2, p.5",
+          "support_description": "By repeating this process enough times (see §5.2)"
+        },
+        {
+          "source_id": "paper",
+          "location": "§5.2, p.12",
+          "support_description": "256 randomly sampled tensors can identify sparsity correctly"
+        }
+      ]
+    },
+    {
+      "category_code": "applicability_limitation",
+      "claim": "The evaluation covers only three models, four sparsity patterns, and three accelerators, so generalization to other model families, operators, and hardware is not established.",
+      "mechanism": "Paper evaluates BERT, MobileNet, and HuBERT on CUDA GPU, ROCm GPU, and Intel CPU -> these do not cover all DNN workloads or accelerators -> performance and applicability may differ on untested models and hardware.",
+      "conditions": "Target workload resembles evaluated models and hardware.",
+      "consequence": "Speedup and memory claims may not transfer to other settings.",
+      "defeaters": "Broader evaluation on the target workload would remove this limitation.",
+      "disclosure": "reported_in_paper",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "We extensively evaluate SparTA on three popular DNN models with four representative sparsity patterns on three accelerators",
+          "locator": "§5, p.9"
+        }
+      ],
+      "locator": "§5, p.9",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§5, p.9",
+          "support_description": "We extensively evaluate SparTA on three popular DNN models with four representative sparsity patterns on three accelerators"
+        }
+      ]
+    },
+    {
+      "category_code": "applicability_limitation",
+      "claim": "End-to-end results mostly use batch size 32, so latency and memory behavior for other batch sizes is only partially characterized.",
+      "mechanism": "Paper says batch size 32 except Figure 12 -> batch size affects parallelism, memory, and kernel efficiency -> results may not hold for small or very large batches.",
+      "conditions": "Deployment batch size differs from 32.",
+      "consequence": "Reported speedups may not generalize across batch sizes.",
+      "defeaters": "If target batch size is 32 or covered by Figure 12, the limitation is less relevant.",
+      "disclosure": "reported_in_paper",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "The batch size we used in the end-to-end experiments (except Figure 12) is 32.",
+          "locator": "§5.1, p.10"
+        }
+      ],
+      "locator": "§5.1, p.10",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§5.1, p.10",
+          "support_description": "The batch size we used in the end-to-end experiments (except Figure 12) is 32."
+        }
+      ]
+    },
+    {
+      "category_code": "method_shortcoming",
+      "claim": "SparTA does not guarantee accuracy; high sparsity can cause substantial accuracy drops, as shown for MobileNet unstructured sparsity.",
+      "mechanism": "Paper reports MobileNet unstructured 95% sparsity drops accuracy from 78.27 to 64.15 -> SparTA optimizes latency and memory for a given sparse model -> if the sparsity algorithm's accuracy loss is unacceptable, speedups are not usable.",
+      "conditions": "High sparsity; accuracy-sensitive application.",
+      "consequence": "Speedups may come at unacceptable accuracy cost.",
+      "defeaters": "If the application tolerates the accuracy drop or a better sparsity algorithm is used, the limitation is less relevant.",
+      "disclosure": "reported_in_paper",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "For MobileNet, unstructured sparsity has a higher accuracy drop, as its sparsity is high (i.e., 95%).",
+          "locator": "§5.1, p.10"
+        },
+        {
+          "source": "paper",
+          "quote": "78.27->64.15",
+          "locator": "Table 3, p.9"
+        }
+      ],
+      "locator": "Table 3, p.9; §5.1, p.10",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§5.1, p.10",
+          "support_description": "For MobileNet, unstructured sparsity has a higher accuracy drop, as its sparsity is high (i.e., 95%)."
+        },
+        {
+          "source_id": "paper",
+          "location": "Table 3, p.9",
+          "support_description": "78.27->64.15"
+        }
+      ]
+    },
+    {
+      "category_code": "mechanism_origin_unclear",
+      "claim": "The quantization propagation's acceptable accuracy drop is attributed to knowledge distillation and information bottleneck, but the paper does not fully explain why specific layers can be reduced without loss.",
+      "mechanism": "Paper uses calibration-based fine-tuning and cites information bottleneck -> it observes 18/28 layers reduce bit width with small accuracy drop -> the causal mechanism for which layers tolerate reduction is not fully characterized -> may not generalize.",
+      "conditions": "Calibration data and fine-tuning; model similar to MobileNet.",
+      "consequence": "Quantization propagation may be less predictable on other models.",
+      "defeaters": "A validated theory or broader experiments could explain and remove the uncertainty.",
+      "disclosure": "inferred",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "borrows the idea of knowledge distillation",
+          "locator": "§3.2, p.6"
+        },
+        {
+          "source": "paper",
+          "quote": "input may use fewer quantization bits with little impacts on output (i.e., information bottleneck [73])",
+          "locator": "§3.2, p.5"
+        },
+        {
+          "source": "paper",
+          "quote": "18 out of 28 layers reduces its bit width (from 7bit to around 4bit), while the model accuracy after propagation only drops slightly, from 64.6% to 64.2%.",
+          "locator": "§5.2, p.13"
+        }
+      ],
+      "locator": "§3.2 Quantization rule and §5.2, p.5-6, p.13",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§3.2, p.6",
+          "support_description": "borrows the idea of knowledge distillation"
+        },
+        {
+          "source_id": "paper",
+          "location": "§3.2, p.5",
+          "support_description": "input may use fewer quantization bits with little impacts on output (i.e., information bottleneck [73])"
+        },
+        {
+          "source_id": "paper",
+          "location": "§5.2, p.13",
+          "support_description": "18 out of 28 layers reduces its bit width (from 7bit to around 4bit), while the model accuracy after propagation only drops slightly, from 64.6% to 64.2%."
+        }
+      ]
+    },
+    {
+      "category_code": "applicability_limitation",
+      "claim": "Leveraging Sparse Tensor Cores requires a strict 1x2 sparsity pattern and decomposes the tensor into two sub-Matmuls, so benefit is limited when the pattern does not match.",
+      "mechanism": "Paper says Sparse Tensor Core requires one pruned element in a [1×2] tile -> generic unstructured sparsity must be split into a matching part and a remainder -> the remainder may be dense or low-sparsity, reducing gain and adding overhead.",
+      "conditions": "Hardware Sparse Tensor Core; sparsity pattern can be decomposed; remainder kernel efficient.",
+      "consequence": "Limited speedup or extra overhead for patterns not aligned with hardware.",
+      "defeaters": "If the sparsity pattern already matches the hardware requirement, the limitation is irrelevant.",
+      "disclosure": "reported_in_paper",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "Sparse Tensor Core has a strict requirement on tensor’s sparsity pattern, e.g., one element should be pruned in a [1×2] tile (50% sparsity ratio).",
+          "locator": "§5.3, p.13"
+        },
+        {
+          "source": "paper",
+          "quote": "decompose an unstructured sparse tensor into two",
+          "locator": "§5.3, p.13"
+        }
+      ],
+      "locator": "§5.3, p.13",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§5.3, p.13",
+          "support_description": "Sparse Tensor Core has a strict requirement on tensor’s sparsity pattern, e.g., one element should be pruned in a [1×2] tile (50% sparsity ratio)."
+        },
+        {
+          "source_id": "paper",
+          "location": "§5.3, p.13",
+          "support_description": "decompose an unstructured sparse tensor into two"
+        }
+      ]
+    },
+    {
+      "category_code": "applicability_limitation",
+      "claim": "Execution-plan transformation assumes sub-operators preserve the original computation logic, typically for operators expressible with Einstein summation; arbitrary operators with control flow or side effects are not covered.",
+      "mechanism": "Paper says sub-operator usually has same computation logic as original, e.g., einsum-expressible -> if an operator cannot be decomposed into such sub-operators, transformation cannot apply -> SparTA must fall back or fail.",
+      "conditions": "Operator is einsum-like or decomposable with same logic.",
+      "consequence": "Limited applicability to non-einsum, control-flow, or stateful operators.",
+      "defeaters": "If the target model uses only einsum-like operators, the limitation is irrelevant.",
+      "disclosure": "reported_in_paper",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "The sub-operator usually has the same computation logic as the original operator (e.g., the operators that can be expressed with Einstein summation [7])",
+          "locator": "§3.3, p.7"
+        }
+      ],
+      "locator": "§3.3, p.7",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§3.3, p.7",
+          "support_description": "The sub-operator usually has the same computation logic as the original operator (e.g., the operators that can be expressed with Einstein summation [7])"
+        }
+      ]
+    },
+    {
+      "category_code": "method_shortcoming",
+      "claim": "TeSA stores a two-byte attribute per tensor element during compilation, which can create significant compile-time memory overhead for very large models.",
+      "mechanism": "Paper says each TeSA element has a two-byte attribute and exists only at compile time -> for models with billions of elements, attribute tensors can be large -> compile memory and traversal cost may become limiting.",
+      "conditions": "Very large model; many tensors; compile-time memory constrained.",
+      "consequence": "Compilation may be memory-intensive or slow.",
+      "defeaters": "If model is small or compile memory is ample, the limitation is minor.",
+      "disclosure": "inferred",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "Each TeSA element has a two-byte attribute",
+          "locator": "§4, p.9"
+        },
+        {
+          "source": "paper",
+          "quote": "TeSA exists only during compile time and therefore incurs no runtime memory cost.",
+          "locator": "§4, p.9"
+        }
+      ],
+      "locator": "§4 Implementation, p.9",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§4, p.9",
+          "support_description": "Each TeSA element has a two-byte attribute"
+        },
+        {
+          "source_id": "paper",
+          "location": "§4, p.9",
+          "support_description": "TeSA exists only during compile time and therefore incurs no runtime memory cost."
+        }
+      ]
+    },
+    {
+      "category_code": "applicability_limitation",
+      "claim": "Sparsity propagation yields limited gains for unstructured sparsity at moderate sparsity ratios; obvious increases appear mainly at high sparsity.",
+      "mechanism": "Paper reports propagation ability on unstructured sparsity is lower and only high sparsity brings obvious increase -> for moderate unstructured sparsity, propagation may not expose much additional sparsity -> end-to-end speedup may be smaller.",
+      "conditions": "Unstructured sparsity; moderate sparsity ratio.",
+      "consequence": "Limited benefit from propagation for common moderate unstructured sparsity.",
+      "defeaters": "If sparsity is high or structured, the limitation is less relevant.",
+      "disclosure": "reported_in_paper",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "The propagation ability on unstructured sparsity is lower. Only high sparsity ratio could bring an obvious increase of sparsity ratio.",
+          "locator": "§5.2, p.12"
+        }
+      ],
+      "locator": "§5.2, p.12",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§5.2, p.12",
+          "support_description": "The propagation ability on unstructured sparsity is lower. Only high sparsity ratio could bring an obvious increase of sparsity ratio."
+        }
+      ]
+    },
+    {
+      "category_code": "applicability_limitation",
+      "claim": "Code specialization starts from a dense multi-level-loop implementation generated by a traditional DNN compiler, so operators without such a dense loop implementation cannot be specialized in the same way.",
+      "mechanism": "Paper says specialization starts from dense version implemented as multi-level loops -> if an operator lacks a dense loop implementation or is an opaque library call -> dismantle and loop specialization cannot be applied -> must use generic kernel.",
+      "conditions": "Dense loop implementation available from traditional compiler.",
+      "consequence": "Limited specialization for custom or opaque operators.",
+      "defeaters": "If a dense loop implementation exists, the limitation is irrelevant.",
+      "disclosure": "reported_in_paper",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "The specialization process starts from a dense version of the operator, implemented as multi-level loops generated by a traditional DNN compiler",
+          "locator": "§3.3, p.8"
+        }
+      ],
+      "locator": "§3.3 TeSA code specialization, p.8",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§3.3, p.8",
+          "support_description": "The specialization process starts from a dense version of the operator, implemented as multi-level loops generated by a traditional DNN compiler"
+        }
+      ]
+    },
+    {
+      "category_code": "applicability_limitation",
+      "claim": "Training acceleration is demonstrated only for NÜWA 3DNA and still relies on PyTorch for some intermediate tensor management, limiting memory and training generality.",
+      "mechanism": "Paper integrates SparTA-based 3DNA into PyTorch and notes reliance on PyTorch for intermediate tensors -> for other sparse training workloads, integration and memory behavior may differ -> training support is not fully general.",
+      "conditions": "Sparse training workload; PyTorch integration; intermediate tensor management.",
+      "consequence": "Memory usage may be higher and training applicability narrower than inference.",
+      "defeaters": "If the workload is inference or the same 3DNA pattern, the limitation is less relevant.",
+      "disclosure": "reported_in_paper",
+      "quotes": [
+        {
+          "source": "paper",
+          "quote": "As the SparTA-based version currently relies on PyTorch for the management of some intermediate tensor, it is possible to further improve the memory usage by moving it to the SparTA side.",
+          "locator": "§5.5, p.15"
+        }
+      ],
+      "locator": "§5.5, p.14-15",
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§5.5, p.15",
+          "support_description": "As the SparTA-based version currently relies on PyTorch for the management of some intermediate tensor, it is possible to further improve the memory usage by moving it to the SparTA side."
+        }
+      ]
+    }
+  ],
+  "dropped_for_unverified_quotes": 5
+}

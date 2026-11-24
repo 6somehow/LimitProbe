@@ -1,0 +1,1108 @@
+{
+  "candidates": [
+    {
+      "headline": "A 90% SLO-attainment threshold conflicts with controlling how badly the remaining requests miss under FCFS",
+      "claim": "The objective counts requests as binary pass or fail and optimizes the highest rate at which at least 90% pass. It is insensitive to the severity of failures among the other 10%. The system runs plain FCFS, which the authors acknowledge can produce a convoy effect, so some request classes can have very poor latency while goodput is reported as high.",
+      "paper_fact": "In DistServe, the FCFS policy can lead to a “convoy effect”, where longer requests block shorter ones in the prefill stage.",
+      "premise": "A threshold on the proportion of requests meeting an SLO constrains only how many requests violate, not by how much. Under FCFS with heterogeneous request lengths, the requests that wait behind a long job are a systematic subset and not a random one.",
+      "inference": "The 10% of violating requests can be concentrated in a particular class, such as short requests stuck behind long prefills, and can miss the SLO by large margins without lowering the measured goodput. The reported per-GPU goodput therefore does not bound tail or per-class user-visible quality.",
+      "toy_example": "Illustration only, not a measurement: if 9% of requests are long jobs, 90% attainment is met even when every short request queued behind a long one violates TTFT by 10x, as long as no more than 10% of requests violate.",
+      "conditional_consequence": "If tail violations are severe or concentrated in one request class, an operator relying on the 90%-attainment goodput number would overestimate service quality for that class.",
+      "critical_link": "A fraction-of-requests threshold is treated as adequate while the scheduler is FCFS and the paper reports no violation-severity or per-class metric.",
+      "necessary_conditions": [
+        "Request lengths are heterogeneous enough to cause convoy blocking",
+        "The violating 10% is not randomly spread",
+        "The deployment cares about tail severity"
+      ],
+      "defeaters": [
+        "Near-uniform request lengths",
+        "Low load, where queueing is negligible",
+        "Adding preemptive scheduling, which the authors say is feasible but left out"
+      ],
+      "do_not_infer": [
+        "Do not infer that DistServe's tails are worse than the baselines'",
+        "Do not infer that the authors hide tail latency, since the convoy effect is disclosed",
+        "Do not infer any measured tail magnitude"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1+L2",
+      "quotes": [
+        {
+          "quote": "DistServe operates with a simple FCFS scheduling policy.",
+          "source": "paper, Section 4.3 Online scheduling",
+          "locator": "page 8"
+        },
+        {
+          "quote": "In DistServe, the FCFS policy can lead to a “convoy effect”, where longer requests block shorter ones in the prefill stage.",
+          "source": "paper, Section 4.3 Preemption and fault tolerance",
+          "locator": "page 8"
+        },
+        {
+          "quote": "SLO attainment (the proportion of requests that meet the SLOs)",
+          "source": "paper, Section 1 Introduction",
+          "locator": "page 1"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "page 8",
+          "support_description": "DistServe operates with a simple FCFS scheduling policy."
+        },
+        {
+          "source_id": "paper",
+          "location": "page 8",
+          "support_description": "In DistServe, the FCFS policy can lead to a “convoy effect”, where longer requests block shorter ones in the prefill stage."
+        },
+        {
+          "source_id": "paper",
+          "location": "page 1",
+          "support_description": "SLO attainment (the proportion of requests that meet the SLOs)"
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "A threshold on the proportion of requests meeting an SLO constrains only how many requests violate, not by how much. Under FCFS with heterogeneous request lengths, the requests that wait behind a long job are a systematic subset and not a random one. The 10% of violating requests can be concentrated in a particular class, such as short requests stuck behind long prefills, and can miss the SLO by large margins without lowering the measured goodput. The reported per-GPU goodput therefore does not bound tail or per-class user-visible quality."
+    },
+    {
+      "headline": "A weights-only memory fit check does not guarantee the decode batch size the simulator assumes",
+      "claim": "Algorithm 1 admits a parallel config when the sharded weights fit in GPU memory. The paper says decode batch size is bounded by KV-cache memory. A config that passes the weights check can leave little KV room, so a decode goodput estimate that assumes a large batch could be optimistic. The excerpts do not show whether simu_decode enforces a KV-capacity limit.",
+      "paper_fact": "Post-disaggregation, the batch size for decoding may be constrained by GPU memory capacity, as it is necessary to maintain the KV caches for all active requests.",
+      "premise": "Decode throughput per GPU rises with batch size because decoding is memory-bandwidth-bound. Available KV space equals GPU memory minus weights and activations, so it shrinks as the per-GPU weight share grows.",
+      "inference": "If simu_decode does not cap the batch by KV space, small-GPU-count configs that barely fit the weights can look best on goodput per GPU, because the per-GPU denominator is small. Such configs would have a small real batch and lower real goodput.",
+      "conditional_consequence": "If the simulator ignores the KV bound, the decode config chosen by Algorithm 1 would be biased toward fewer GPUs per instance. Real decode goodput would fall short of the estimate and the n:m ratio would be under-provisioned for decode.",
+      "critical_link": "The feasibility predicate in Algorithm 1 (inter_op×intra_op < C) counts weights only, while the paper states that KV memory bounds the decode batch.",
+      "necessary_conditions": [
+        "simu_decode does not itself enforce KV-cache capacity.",
+        "The decode batch is memory-limited rather than latency-limited at the tested workloads."
+      ],
+      "defeaters": [
+        "The simulator or the latency model implicitly limits the batch by KV memory.",
+        "TPOT SLOs cap the batch before memory does.",
+        "GQA or PagedAttention reduce KV pressure enough that weights dominate."
+      ],
+      "do_not_infer": [
+        "Do not infer that the simulator is inaccurate. Table 2 shows less than 2% error for the configs tested, though not for Algorithm 1.",
+        "Do not infer that the chosen placements in Appendix B are infeasible. They ran on real hardware."
+      ],
+      "disclosure": "inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1 with L4",
+      "quotes": [
+        {
+          "quote": "inter_op×intra_op < C",
+          "source": "paper",
+          "locator": "Algorithm 1, feasibility check"
+        },
+        {
+          "quote": "Post-disaggregation, the batch size for decoding may be constrained by GPU memory capacity, as it is necessary to maintain the KV caches for all active requests.",
+          "source": "paper",
+          "locator": "Section 3.2, Parallelism plan"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "Algorithm 1, feasibility check",
+          "support_description": "inter_op×intra_op < C"
+        },
+        {
+          "source_id": "paper",
+          "location": "Section 3.2, Parallelism plan",
+          "support_description": "Post-disaggregation, the batch size for decoding may be constrained by GPU memory capacity, as it is necessary to maintain the KV caches for all active requests."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Decode throughput per GPU rises with batch size because decoding is memory-bandwidth-bound. Available KV space equals GPU memory minus weights and activations, so it shrinks as the per-GPU weight share grows. If simu_decode does not cap the batch by KV space, small-GPU-count configs that barely fit the weights can look best on goodput per GPU, because the per-GPU denominator is small. Such configs would have a small real batch and lower real goodput."
+    },
+    {
+      "headline": "A prefill-derived saturation length Lm does not imply a valid decode batch-size cap",
+      "claim": "The paper reuses Lm, a prefill token threshold, as the largest decode batch size without giving a derivation. The decode batch limit may instead be set by KV-cache memory or the TPOT SLO.",
+      "paper_fact": "For decoding instances, we set Lm as the largest batch size.",
+      "premise": "Lm is a number of tokens in one forward pass, set by where prefill becomes compute-bound. A decode batch size counts requests, each adding one token per step plus a growing KV cache. Decode limits come from memory capacity, bandwidth and latency targets.",
+      "inference": "The paper separately says decode batch size 'may be constrained by GPU memory capacity'. The Lm cap is therefore either not binding, when memory or TPOT limits bind first, or is an arbitrary ceiling, when they permit larger batches. The text does not say which case holds.",
+      "toy_example": "Illustrative, not a measurement: if KV memory only allows 200 concurrent requests and Lm = 512, the cap never binds. If memory allows 1000 requests, the cap truncates the batch at 512.",
+      "conditional_consequence": "If KV-memory or TPOT-limited batch sizes fall below Lm, the decode rule has no effect. If they exceed Lm, the rule may leave decode utilization on the table.",
+      "critical_link": "Whether the decode batch size allowed by KV memory and the TPOT SLO is below or above Lm for the deployed model and parallelism plan.",
+      "necessary_conditions": [
+        "Decode instances run with a configuration where memory or TPOT permits a batch size different from Lm.",
+        "Lm is applied as a hard cap on decode batch size."
+      ],
+      "defeaters": [
+        "Decode throughput saturates near the same value as prefill for these models, so Lm is a reasonable cap.",
+        "Memory and TPOT limits always bind first in the evaluated settings, so the cap is inert but harmless."
+      ],
+      "do_not_infer": [
+        "Do not infer that the cap hurts measured goodput; the paper reports no ablation of it.",
+        "Do not infer that the authors intended Lm as a memory bound.",
+        "Do not infer a specific decode limit for any model."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "mechanism_origin_unclear",
+      "lens": "L3+L4",
+      "quotes": [
+        {
+          "quote": "For decoding instances, we set Lm as the largest batch size.",
+          "source": "paper",
+          "locator": "§4.3 Reducing pipeline bubbles"
+        },
+        {
+          "quote": "the batch size for decoding may be constrained by GPU memory capacity, as it is necessary to maintain the KV caches for all active requests.",
+          "source": "paper",
+          "locator": "§3.2 Parallelism plan"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§4.3 Reducing pipeline bubbles",
+          "support_description": "For decoding instances, we set Lm as the largest batch size."
+        },
+        {
+          "source_id": "paper",
+          "location": "§3.2 Parallelism plan",
+          "support_description": "the batch size for decoding may be constrained by GPU memory capacity, as it is necessary to maintain the KV caches for all active requests."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Lm is a number of tokens in one forward pass, set by where prefill becomes compute-bound. A decode batch size counts requests, each adding one token per step plus a growing KV cache. Decode limits come from memory capacity, bandwidth and latency targets. The paper separately says decode batch size 'may be constrained by GPU memory capacity'. The Lm cap is therefore either not binding, when memory or TPOT limits bind first, or is an arbitrary ceiling, when they permit larger batches. The text does not say which case holds."
+    },
+    {
+      "headline": "Algorithm 2's single shared inter_op per candidate conflicts with the reported OPT-66B placement (prefill PP=1, decoding PP=2)",
+      "claim": "Algorithm 2 builds each candidate as (inter_op, Pp, Pd) from one inter_op value. Table 3 reports different pipeline depths for the two phases of OPT-66B. The paper does not say how Table 3's per-phase TP/PP values map onto Algorithm 2's segment units.",
+      "paper_fact": "By colocating prefill and decoding segments of the same stage within a single node, we force the transfer of intermediate states to occur only via NVLINK.",
+      "premise": "In pipeline parallelism, the number of stages is the number of inter-op groups. Prefill and decoding instances can only be paired 'stage by stage' if both have the same number of stages, or if some explicit many-to-one mapping between segments exists.",
+      "inference": "Algorithm 2 enumerates one inter_op and passes it to both phases via config <- (inter_op,Pp,Pd). Table 3 lists OPT-66B ShareGPT as prefill TP=4, PP=1 and decoding TP=2, PP=2 (Appendix B). Unless get_intra_node_configs returns configurations that themselves contain pipeline splits, or segments are defined differently from the text, the reported placement is not directly a point in the described search space. For OPT-175B the shared-stage reading fits, with PP=3 on both sides.",
+      "toy_example": "Illustrative only, not a measurement: if inter_op=2 and Pp=(TP4) and Pd=(TP2), the algorithm would label both phases as 2-stage. A prefill instance of 4 GPUs with 1 stage would then not match this label.",
+      "conditional_consequence": "If the Table 3 numbers come from a different or extended search than Algorithm 2 as printed, then the claim that Algorithm 2 produced the evaluated placements cannot be verified from the paper alone. The same-stage-in-one-node NVLINK argument would also need a stated mapping for the 66B case.",
+      "critical_link": "Whether get_intra_node_configs (not specified in the paper text) can return configs with internal PP differing between Pp and Pd, so that the shared inter_op is only an outer label.",
+      "necessary_conditions": [
+        "The Table 3 PP column counts pipeline stages in the same sense as inter_op in Algorithm 2.",
+        "get_intra_node_configs returns only TP-style intra-node configs, with no internal pipeline split.",
+        "Table 3 was produced by Algorithm 2 and not by a modified or manual search."
+      ],
+      "defeaters": [
+        "Segment definitions differ: for example, a decoding PP=2 pair is treated as one segment co-located with a prefill TP=4 segment.",
+        "The released code implements Algorithm 2 differently from the pseudocode.",
+        "The Table 3 PP values count something other than stages."
+      ],
+      "do_not_infer": [
+        "Do not infer that the reported placements are wrong or unachievable.",
+        "Do not infer that the 66B results were not produced by DistServe.",
+        "Do not infer any effect on goodput numbers."
+      ],
+      "disclosure": "inferred",
+      "category_code": "mechanism_origin_unclear",
+      "lens": "L3",
+      "quotes": [
+        {
+          "text": "config ←(inter_op,Pp,Pd)",
+          "source": "paper",
+          "locator": "Algorithm 2, page 7"
+        },
+        {
+          "text": "Table 3: The parallelism strategies chosen by DistServe in the end-to-end experiments.",
+          "source": "paper",
+          "locator": "Appendix B, Table 3, page 18"
+        },
+        {
+          "text": "By colocating prefill and decoding segments of the same stage within a single node, we force the transfer of intermediate states to occur only via NVLINK.",
+          "source": "paper",
+          "locator": "Section 4.2, page 8"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "In pipeline parallelism, the number of stages is the number of inter-op groups. Prefill and decoding instances can only be paired 'stage by stage' if both have the same number of stages, or if some explicit many-to-one mapping between segments exists. Algorithm 2 enumerates one inter_op and passes it to both phases via config <- (inter_op,Pp,Pd). Table 3 lists OPT-66B ShareGPT as prefill TP=4, PP=1 and decoding TP=2, PP=2 (Appendix B). Unless get_intra_node_configs returns configurations that themselves contain pipeline splits, or segments are defined differently from the text, the reported placement is not directly a point in the described search space. For OPT-175B the shared-stage reading fits, with PP=3 on both sides."
+    },
+    {
+      "headline": "Quadratic prefill growth does not guarantee that KV-transfer overhead shrinks in the long-context regimes the paper cites",
+      "claim": "The paper argues that for long contexts the relative cost of KV transfer decreases because prefill grows quadratically. Its own appendix model, however, has a linear GEMM term and a quadratic attention term. The transfer-to-prefill ratio falls only once the quadratic term dominates, and this was not measured.",
+      "paper_fact": "In such scenarios, the transmission overhead will increase as the size of the KV cache grows linearly with the prompt length. However, the prefill computation grows quadratically, so the relative duration of transmission and prefill job decreases.",
+      "premise": "A sum of a linear term and a quadratic term behaves approximately linearly until the quadratic part takes over. KV bytes also grow linearly with context. In that intermediate range the transfer-to-prefill ratio is roughly flat, not falling.",
+      "inference": "The appendix model for GEMM latency is proportional to the token count t, and the attention term is proportional to t squared with a small coefficient. Which term dominates depends on hidden size, block size b, and fitted constants C1 and C2. The paper does not report where the crossover lies, and evaluation used at most 2048 tokens due to OPT's positional embedding limit.",
+      "toy_example": "Illustration only, not a measurement: if prefill time were 100 units of linear cost plus 0.001 times t squared, then at t=1,000 the quadratic term is 1 unit and the transfer share is unchanged from t=500. The share starts to fall only when t is on the order of 100,000.",
+      "conditional_consequence": "For 10K to 100K contexts with MHA models, transfer could stay a roughly constant fraction of prefill, and in absolute terms could become large. The paper's 'remains promising' conclusion for long context would then rest on an unmeasured crossover.",
+      "critical_link": "The sign of the change in the transfer-to-prefill ratio depends on the unreported crossover point between linear and quadratic prefill cost.",
+      "necessary_conditions": [
+        "MHA-style KV size per token, not GQA or MQA.",
+        "Context lengths in the range where the linear GEMM term still dominates prefill.",
+        "Transfer not hidden by overlap or by NVLINK bandwidth headroom."
+      ],
+      "defeaters": [
+        "Attention cost reaches dominance at moderate context lengths for the model sizes of interest.",
+        "GQA or MQA reduces KV volume by a large factor.",
+        "NVLINK bandwidth (600GB/s) is high enough to make even large transfers small relative to prefill."
+      ],
+      "do_not_infer": [
+        "Do not infer that disaggregation is bad for long context.",
+        "Do not infer a specific crossover length.",
+        "Do not infer that the paper's measured ShareGPT result is affected."
+      ],
+      "disclosure": "inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L5: scaling of KV size vs context length (with L7)",
+      "quotes": [
+        {
+          "text": "In such scenarios, the transmission overhead will increase as the size of the KV cache grows linearly with the prompt length. However, the prefill computation grows quadratically, so the relative duration of transmission and prefill job decreases.",
+          "source": "paper",
+          "locator": "§7 Discussion, Long-context scenarios"
+        },
+        {
+          "text": "Therefore, we can model the latency of these operations according to the total FLOPs:",
+          "source": "paper",
+          "locator": "Appendix A.2 Prefill Phase Latency Modeling"
+        },
+        {
+          "text": "We capped the input lengths in LongBench because OPT’s absolute positional embedding only supports a maximum length of 2048.",
+          "source": "paper",
+          "locator": "§6.1 footnote 4"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A sum of a linear term and a quadratic term behaves approximately linearly until the quadratic part takes over. KV bytes also grow linearly with context. In that intermediate range the transfer-to-prefill ratio is roughly flat, not falling. The appendix model for GEMM latency is proportional to the token count t, and the attention term is proportional to t squared with a small coefficient. Which term dominates depends on hidden size, block size b, and fitted constants C1 and C2. The paper does not report where the crossover lies, and evaluation used at most 2048 tokens due to OPT's positional embedding limit."
+    },
+    {
+      "headline": "Per-instance goodput replication arithmetic does not guarantee balanced replica load under simple dispatch",
+      "claim": "The placement algorithms size replica counts n and m by dividing traffic rate by a single-instance goodput. This presumes the dispatcher spreads requests evenly. The paper itself states equal dispatch as an assumption in its queueing discussion, but shortest-queue / least-loaded dispatch is not shown to deliver it, and scaling beyond 4 nodes is not tested.",
+      "paper_fact": "substituting R with R/N assuming requests are equally dispatched to N replicas",
+      "premise": "Capacity-planning by n = ceil(R / goodput) is valid only if each replica sees about R/n of the load. Dispatch imbalance makes some replicas exceed their goodput while others sit idle, and a central controller's decisions per second grow with replica count.",
+      "inference": "If dispatch is imbalanced (for example, from the queue-count proxy or an undefined decode 'load'), provisioned replica counts can undershoot the SLO attainment target the simulator predicted for one instance. Agreement of simulator and real system in Table 2 does not by itself test this, because the algorithm simulates a single-instance configuration. The paper does not say whether Table 2 runs used multiple replicas or the same dispatch code.",
+      "toy_example": "NOT A MEASUREMENT: two prefill replicas each sustain 4 rps at 90% attainment, so n=2 is chosen for R=8. If dispatch sends 5 rps to one replica and 3 rps to the other, the first exceeds its goodput and overall attainment can fall below 90%.",
+      "conditional_consequence": "If dispatch imbalance is non-trivial at the evaluated rates, then attainment at the planned rate would be lower than the single-instance simulation suggests. If dispatch is near-balanced, replication arithmetic holds and the plan is sound.",
+      "critical_link": "The plan's validity depends on the dispatcher approximating equal split, which is assumed rather than measured.",
+      "necessary_conditions": [
+        "Deployment has multiple prefill or decode replicas",
+        "Dispatch imbalance is large enough to push some replicas above single-instance goodput",
+        "Operating point is near the 90% attainment boundary where small shifts matter"
+      ],
+      "defeaters": [
+        "Large replica pools with homogeneous lengths, where shortest-queue self-balances",
+        "Operating below the goodput boundary with headroom",
+        "Table 2 runs, if they already used multi-replica dispatch with matching simulator logic (not stated in the shown text)",
+        "Controller overhead is negligible at the tested 4-node scale"
+      ],
+      "do_not_infer": [
+        "That the reported 7.4x / 12.6x figures are wrong",
+        "That the simulator is inaccurate (the paper reports under 2% error in Table 2)",
+        "That the real system lacks balancing logic beyond what the paper describes (code not shown)"
+      ],
+      "disclosure": "inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L4+L7 (replica ratio assumes balanced dispatch; single controller at scale)",
+      "quotes": [
+        {
+          "text": "substituting R with R/N assuming requests are equally dispatched to N replicas",
+          "source": "paper",
+          "locator": "§3.2 Parallelism plan"
+        },
+        {
+          "text": "After determining the optimal parallel configurations for both prefill and decoding instances, we replicate them",
+          "source": "paper",
+          "locator": "§4.1"
+        },
+        {
+          "text": "The error is less than 2% in all cases, verifying the accuracy of our simulator.",
+          "source": "paper",
+          "locator": "§6.4 Simulator accuracy"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Capacity-planning by n = ceil(R / goodput) is valid only if each replica sees about R/n of the load. Dispatch imbalance makes some replicas exceed their goodput while others sit idle, and a central controller's decisions per second grow with replica count. If dispatch is imbalanced (for example, from the queue-count proxy or an undefined decode 'load'), provisioned replica counts can undershoot the SLO attainment target the simulator predicted for one instance. Agreement of simulator and real system in Table 2 does not by itself test this, because the algorithm simulates a single-instance configuration. The paper does not say whether Table 2 runs used multiple replicas or the same dispatch code."
+    },
+    {
+      "headline": "A phase-level 90% goodput target does not guarantee 90% joint TTFT-and-TPOT attainment, and the 2.1x Figure 1 figure is an idealization",
+      "claim": "Algorithm 1 and the Figure 1 arithmetic combine separately measured per-phase goodputs, each at 90% attainment. A request must satisfy both SLOs, and the combined system's joint attainment and transfer or queuing effects are not measured in that arithmetic.",
+      "paper_fact": "Ideally, by allocating 2 GPUs for prefill and 1 GPU for decoding, we can effectively serve the model with an overall goodput of 10 rps, or equally 3.3 rps per GPU, which is 2.1x higher than existing systems.",
+      "premise": "General knowledge: if a request needs both its TTFT and its TPOT to be within SLO, joint attainment is bounded by the per-phase attainments and can be lower than each of them. Combining separately measured goodputs also ignores the interaction between the two pools.",
+      "inference": "Algorithm 1 selects the prefill and decode configurations independently, using simu_prefill and simu_decode, and then replicates them. Each phase is therefore tuned to its own 90% target. The Figure 1 figure is stated as 'Ideally', and its inputs are separate per-phase curves for single GPUs. It is not a measurement of the combined 3-GPU system.",
+      "toy_example": "Illustrative only, not a measurement: if TTFT violations and TPOT violations were independent and each phase met exactly 90%, joint attainment would be 0.9 x 0.9 = 81%. In practice the two kinds of violation are likely correlated, so the real figure would lie somewhere between 81% and 90%.",
+      "conditional_consequence": "If joint attainment falls below the target at the per-phase goodput, the replicated deployment needs more GPUs than Algorithm 1 plans. The per-GPU goodput would then fall below the figure derived from the per-phase curves.",
+      "critical_link": "Whether independently tuned per-phase 90% attainment translates to 90% joint attainment for the composed system.",
+      "necessary_conditions": [
+        "Algorithm 1 (high node-affinity) is the one used.",
+        "Per-phase goodput is measured at a 90% target for each phase separately."
+      ],
+      "defeaters": [
+        "Algorithm 2 calls simulate over the joint prefill-decode pair, so the low node-affinity path does not rely on the per-phase composition.",
+        "The end-to-end experiments (Figures 8 and 9) measure SLO attainment for whole requests, so the headline end-to-end numbers do not depend on this composition.",
+        "The simulator matched real attainment within 2% in the setups the paper tested."
+      ],
+      "do_not_infer": [
+        "Do not infer that the 7.4x and 12.6x end-to-end numbers rely on the per-phase composition.",
+        "Do not infer that Algorithm 2 shares this limitation.",
+        "Do not infer that the authors present the 2.1x figure as measured. They say 'Ideally'."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L2, L3",
+      "quotes": [
+        {
+          "text": "Ideally, by allocating 2 GPUs for prefill and 1 GPU for decoding, we can effectively serve the model with an overall goodput of 10 rps, or equally 3.3 rps per GPU, which is 2.1x higher than existing systems.",
+          "source": "paper",
+          "locator": "Section 1, Figure 1 discussion"
+        },
+        {
+          "text": "to attain phase-level optimal per-gpu goodput",
+          "source": "paper",
+          "locator": "Section 4.1"
+        },
+        {
+          "text": "request rate that can be served adhering to the SLO attainment goal (say, 90%) for each GPU provisioned",
+          "source": "paper",
+          "locator": "Section 1, goodput definition"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "General knowledge: if a request needs both its TTFT and its TPOT to be within SLO, joint attainment is bounded by the per-phase attainments and can be lower than each of them. Combining separately measured goodputs also ignores the interaction between the two pools. Algorithm 1 selects the prefill and decode configurations independently, using simu_prefill and simu_decode, and then replicates them. Each phase is therefore tuned to its own 90% target. The Figure 1 figure is stated as 'Ideally', and its inputs are separate per-phase curves for single GPUs. It is not a measurement of the combined 3-GPU system."
+    },
+    {
+      "headline": "A small measured KV-transfer share does not imply disaggregation stays cheap on slow interconnects",
+      "claim": "The reported negligible transfer cost (<0.1% of latency) holds because the low node-affinity algorithm keeps KV transfer on intra-node NVLINK. The paper's own bandwidth arithmetic shows the 25Gbps cross-node link would be far too slow for the stated load.",
+      "paper_fact": "Assuming an average arrival rate of 10 rps, we need to transfer 11.3GB data per second—or equivalently 90Gbps bandwidth to render the overhead invisible.",
+      "premise": "General knowledge: network transfer cost scales with KV-cache bytes per request and with request rate, and falls back to the slowest link on the path if placement cannot confine it to a fast one.",
+      "inference": "The testbed's cross-node bandwidth is 25Gbps, below the 90Gbps the paper computes for 10 rps with OPT-66B. The low measured transfer share therefore depends on Algorithm 2 keeping prefill and decode segments of the same stage on one node. If a model, GPU count per node or memory budget prevents that colocation, KV traffic would cross the slow link. Savings from removing interference would then be offset by transfer delay.",
+      "toy_example": "Illustrative only, not a measurement: with an effective 25Gbps link, moving a 1.13GB KV cache takes roughly 0.36s. That is already above a 0.25s TTFT-scale SLO if it lands on the critical path.",
+      "conditional_consequence": "If placement cannot keep each stage's prefill and decode segments within a node, for example with fewer or smaller GPUs per node or a very large model, then the interference savings may be partly or fully offset by KV-transfer delay.",
+      "critical_link": "Whether the intra-node placement constraint of Algorithm 2 can be satisfied in the deployment, so that KV transfer avoids the slow cross-node link.",
+      "necessary_conditions": [
+        "The cluster has low cross-node bandwidth.",
+        "Prefill and decode segments of the same stage cannot all be placed on one node.",
+        "The KV size is large (MHA, long prompts) and the request rate is high."
+      ],
+      "defeaters": [
+        "The cluster has high-speed InfiniBand, and Algorithm 1 is then used.",
+        "The model uses GQA or MQA, which shrinks the KV cache; the paper states that this lowers transmission overhead.",
+        "Pull-based transfer and asynchronous copies may hide some of the delay."
+      ],
+      "do_not_infer": [
+        "Do not infer that the paper's measured <0.1% transfer share is wrong.",
+        "Do not infer that OPT-175B in the tested setup suffers from transfer cost.",
+        "Do not infer that disaggregation is a net loss on low-bandwidth clusters in general. This is a conditional risk."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L4, L6",
+      "quotes": [
+        {
+          "text": "Assuming an average arrival rate of 10 rps, we need to transfer 11.3GB data per second—or equivalently 90Gbps bandwidth to render the overhead invisible.",
+          "source": "paper",
+          "locator": "Section 3.3, Communication overhead"
+        },
+        {
+          "text": "The cross-node bandwidth is 25Gbps.",
+          "source": "paper",
+          "locator": "Section 6.1, Cluster testbed"
+        },
+        {
+          "text": "KV Cache transmission only accounts for less than 0.1% of the total latency",
+          "source": "paper",
+          "locator": "Section 6.3, Latency Breakdown"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "General knowledge: network transfer cost scales with KV-cache bytes per request and with request rate, and falls back to the slowest link on the path if placement cannot confine it to a fast one. The testbed's cross-node bandwidth is 25Gbps, below the 90Gbps the paper computes for 10 rps with OPT-66B. The low measured transfer share therefore depends on Algorithm 2 keeping prefill and decode segments of the same stage on one node. If a model, GPU count per node or memory budget prevents that colocation, KV traffic would cross the slow link. Savings from removing interference would then be offset by transfer delay."
+    },
+    {
+      "headline": "Higher per-GPU goodput at 90% attainment does not imply or guarantee proportionally lower cost per query or guaranteed SLO satisfaction",
+      "claim": "The paper uses per-GPU goodput at a 90% SLO-attainment target as a direct proxy for cost per query and states 'up to 7.4× lower cost per LLM query'. That conversion holds only if the number of provisioned GPUs is the sole cost. The 90% target also does not guarantee SLO satisfaction for every request.",
+      "paper_fact": "higher per-GPU goodput directly translates into lower cost per query",
+      "premise": "Serving cost in general includes other components such as heterogeneous GPU prices, idle capacity, networking and CPU. A rate-ratio improvement measured per GPU becomes a cost-ratio improvement of the same size only if cost is strictly proportional to GPU count.",
+      "inference": "The paper's cost claim depends on counting GPUs only. Disaggregation holds a separate copy of the weights for each phase and sizes replicas by rounding up, which can leave capacity idle. The cost-per-query ratio can therefore differ from the goodput ratio. Because 90% attainment is the target, 'guaranteed satisfaction of SLOs' can hold at most for the fraction of requests that meet the SLOs, not for all requests.",
+      "toy_example": "Illustration only, not a measurement: if the required rate is 10 rps and per-replica goodput is 4 rps, ceil(10/4)=3 replicas are provisioned (12 rps of capacity). Roughly a sixth of capacity is idle, so cost per query is higher than 'GPUs times goodput' suggests.",
+      "conditional_consequence": "If cost has components that do not scale with GPU count, or if replica rounding leaves capacity idle, the realized cost reduction at deployment is smaller than the reported goodput ratio.",
+      "critical_link": "Cost per query is proportional to provisioned GPU count and nothing else, and a 90% attainment threshold is an adequate stand-in for service quality.",
+      "necessary_conditions": [
+        "Cost is dominated by GPU count",
+        "GPUs are homogeneous",
+        "Replica rounding waste is small relative to the load",
+        "Meeting the SLO for 90% of requests is acceptable service quality"
+      ],
+      "defeaters": [
+        "Small deployments where ceil(R/goodput) wastes a large fraction of capacity",
+        "Heterogeneous GPU pricing",
+        "Network or CPU costs added by KV-cache transfer",
+        "Applications that require near-100% attainment"
+      ],
+      "do_not_infer": [
+        "Do not infer that DistServe is not cheaper than the baselines in general",
+        "Do not infer that the goodput measurements are wrong",
+        "Do not infer a specific actual cost ratio"
+      ],
+      "disclosure": "inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1",
+      "quotes": [
+        {
+          "quote": "higher per-GPU goodput directly translates into lower cost per query",
+          "source": "paper, Section 1 Introduction",
+          "locator": "page 2"
+        },
+        {
+          "quote": "resulting in up to 7.4× lower cost per LLM query with guaranteed satisfaction of SLOs",
+          "source": "paper, Section 9 Conclusion",
+          "locator": "page 13"
+        },
+        {
+          "quote": "each phase manages its copy of the model weights",
+          "source": "paper, Section 2.3 Opportunities",
+          "locator": "page 4"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "page 2",
+          "support_description": "higher per-GPU goodput directly translates into lower cost per query"
+        },
+        {
+          "source_id": "paper",
+          "location": "page 13",
+          "support_description": "resulting in up to 7.4× lower cost per LLM query with guaranteed satisfaction of SLOs"
+        },
+        {
+          "source_id": "paper",
+          "location": "page 4",
+          "support_description": "each phase manages its copy of the model weights"
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Serving cost in general includes other components such as heterogeneous GPU prices, idle capacity, networking and CPU. A rate-ratio improvement measured per GPU becomes a cost-ratio improvement of the same size only if cost is strictly proportional to GPU count. The paper's cost claim depends on counting GPUs only. Disaggregation holds a separate copy of the weights for each phase and sizes replicas by rounding up, which can leave capacity idle. The cost-per-query ratio can therefore differ from the goodput ratio. Because 90% attainment is the target, 'guaranteed satisfaction of SLOs' can hold at most for the fraction of requests that meet the SLOs, not for all requests."
+    },
+    {
+      "headline": "Per-phase 90% SLO attainment does not imply 90% joint attainment",
+      "claim": "Algorithm 1 sizes prefill and decode separately, each at the SLO attainment target in its own metric (TTFT or TPOT). Requests must meet both SLOs, so the replicated system's joint attainment can fall below the target. Adding headroom to restore it costs extra GPUs, which cuts into the per-GPU goodput the algorithm is meant to maximize.",
+      "paper_fact": "to attain phase-level optimal per-gpu goodput; then, we use replication to match the overall traffic rate.",
+      "premise": "If a request fails TTFT or fails TPOT, it fails the SLO. Joint attainment is therefore at least 1 minus the sum of the two per-phase violation rates (a union bound), and it equals the per-phase value only if the violations coincide perfectly.",
+      "inference": "Prefill at 90% TTFT attainment and decode at 90% TPOT attainment can give joint attainment anywhere from 80% to 90%. Which end applies depends on how the two violation sets overlap. Reaching 90% jointly would need stricter per-phase targets, hence more or larger instances.",
+      "toy_example": "Not a measurement: if 10% of requests miss TTFT and a different 10% miss TPOT, joint attainment is 80%. If the same 10% miss both, it is 90%.",
+      "conditional_consequence": "If violations in the two phases are weakly correlated, a placement chosen by Algorithm 1 would be reported as goodput-optimal at 90% but would deliver less than 90% joint attainment. Matching 90% would then require extra replicas.",
+      "critical_link": "Per-phase attainment is evaluated separately in simu_prefill and simu_decode, but the SLO requirement is joint.",
+      "necessary_conditions": [
+        "The prefill and decode violation sets do not coincide.",
+        "Algorithm 1 is the placement method used, so phases are simulated independently."
+      ],
+      "defeaters": [
+        "Violations are highly correlated, for example when both are driven by long requests.",
+        "The binary-search targets are set above 90% in practice.",
+        "The physical-testbed results use Algorithm 2, whose simulate() call is joint, and Fig. 8 and Fig. 9 measure joint attainment."
+      ],
+      "do_not_infer": [
+        "Do not infer that the reported end-to-end 90% attainment numbers are wrong. Those used Algorithm 2 and joint measurement.",
+        "Do not infer the size of the shortfall. It is workload-dependent and not measured in the paper."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1 with L2/L6",
+      "quotes": [
+        {
+          "quote": "The serving system must meet both SLOs while minimizing the cost associated with expensive GPUs.",
+          "source": "paper",
+          "locator": "Section 2, Background and Motivation"
+        },
+        {
+          "quote": "to attain phase-level optimal per-gpu goodput; then, we use replication to match the overall traffic rate.",
+          "source": "paper",
+          "locator": "Section 4.1"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "Section 2, Background and Motivation",
+          "support_description": "The serving system must meet both SLOs while minimizing the cost associated with expensive GPUs."
+        },
+        {
+          "source_id": "paper",
+          "location": "Section 4.1",
+          "support_description": "to attain phase-level optimal per-gpu goodput; then, we use replication to match the overall traffic rate."
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "If a request fails TTFT or fails TPOT, it fails the SLO. Joint attainment is therefore at least 1 minus the sum of the two per-phase violation rates (a union bound), and it equals the per-phase value only if the violations coincide perfectly. Prefill at 90% TTFT attainment and decode at 90% TPOT attainment can give joint attainment anywhere from 80% to 90%. Which end applies depends on how the two violation sets overlap. Reaching 90% jointly would need stricter per-phase targets, hence more or larger instances."
+    },
+    {
+      "headline": "The uniform-512-token M/D/1 crossover does not imply the same crossover under variable-length or time-varying workloads",
+      "claim": "The crossover between intra-op and inter-op depends on K, and K depends on input length and placement. The derivation also assumes a constant D from uniform lengths. A crossover rate computed under these assumptions may sit elsewhere for a real length distribution, or for a rate that differs from the one the plan was built for.",
+      "paper_fact": "The value of K depends on factors such as the input length, model architecture, communication bandwidth, and placement",
+      "premise": "With variable service times the queue is M/G/1, and queueing delay grows with the variance of service time. Pipeline stages with unequal per-request times also create bubbles. Both effects penalize inter-op more than the uniform case does.",
+      "inference": "The paper concedes only 'slight deviations' for variable lengths. It does not quantify how far the crossover moves for ShareGPT (average input 755.5 tokens, wide spread) or for load that changes between replans. Between replans, a plan tuned at one rate could sit on the other side of the crossover.",
+      "toy_example": "Not a measurement: if the plan was tuned at a low rate, where intra-op wins, and the rate later rises past the crossover, the fixed plan keeps using intra-op until the next replan.",
+      "conditional_consequence": "If real length spread or rate drift moves the crossover, then the plan picked from the uniform-512 analysis may be the worse one for part of the day.",
+      "critical_link": "Whether the K value and the crossover rate computed for uniform 512-token requests transfer to the deployed length distribution and rate, within the replanning interval.",
+      "necessary_conditions": [
+        "The deployed length distribution differs materially from uniform 512 tokens",
+        "Rate or pattern changes between replans, or the change is below the replanning trigger threshold",
+        "The tuned rate is near the crossover so that small shifts flip the preferred scheme"
+      ],
+      "defeaters": [
+        "Periodic replanning triggers quickly enough after a pattern shift",
+        "The placement is chosen by simulation on the real length distribution, not by the analytic crossover",
+        "Batching up to Lm and the length-balancing schedule reduce the bubble effect"
+      ],
+      "do_not_infer": [
+        "Do not infer that DistServe lacks replanning; the paper describes periodic replanning",
+        "Do not infer a large degradation, since the paper reports only slight deviations and the simulator matches real runs within 2%",
+        "Do not infer the crossover direction without a measurement"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L3/L5/L7: length variability, K coupling, and time-varying load",
+      "quotes": [
+        {
+          "text": "This results in slight deviations from the conclusions indicated by using the M/D/1 queue model.",
+          "source": "paper",
+          "locator": "§3.3 Variable prefill length"
+        },
+        {
+          "text": "The value of K depends on factors such as the input length, model architecture, communication bandwidth, and placement",
+          "source": "paper",
+          "locator": "§3.1"
+        },
+        {
+          "text": "The resource and parallelism plan in DistServe is optimized for a specific workload pattern, which may become suboptimal if the workload pattern changes over time.",
+          "source": "paper",
+          "locator": "§4.3 Replaning"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "With variable service times the queue is M/G/1, and queueing delay grows with the variance of service time. Pipeline stages with unequal per-request times also create bubbles. Both effects penalize inter-op more than the uniform case does. The paper concedes only 'slight deviations' for variable lengths. It does not quantify how far the crossover moves for ShareGPT (average input 755.5 tokens, wide spread) or for load that changes between replans. Between replans, a plan tuned at one rate could sit on the other side of the crossover."
+    },
+    {
+      "headline": "Equal total token count does not imply equal batch execution time",
+      "claim": "Balancing prefill batches to a total near Lm equalizes token counts. That need not equalize execution times, so pipeline bubbles from non-uniform prompts may only be partly removed.",
+      "paper_fact": "the number of new tokens in the batch is a reliable indicator of the batch’s real execution time",
+      "premise": "Attention cost in a request grows with the square of its length, while the linear GEMM cost grows with token count. Two batches with the same total tokens but different length mixes therefore have different quadratic terms.",
+      "inference": "The paper's own prefill latency model contains a term in t2, the squared sum of input lengths, in addition to the term in t. Batches with equal t but unequal t2 then differ in predicted time, so the token-count proxy is approximate. Its accuracy depends on how large the attention term is relative to the GEMM term.",
+      "toy_example": "Illustrative arithmetic, not a measurement: a batch of one 512-token request has t2 = 262,144. A batch of four 128-token requests has t2 = 65,536. Both have t = 512, yet the attention term differs by 4x.",
+      "conditional_consequence": "If the C2*t2 attention term is non-negligible at the batch lengths used, stage times in an inter-op pipeline will still differ across batches of near-Lm tokens, and some bubbles will remain.",
+      "critical_link": "Whether the t2 attention term is small enough relative to the t GEMM term at Lm-scale batches for token count to act as a proxy.",
+      "necessary_conditions": [
+        "Inter-op pipeline parallelism is used in the prefill instance.",
+        "Request lengths within near-Lm batches are heterogeneous.",
+        "The attention term C2*3h*t2/b is not negligible against the GEMM term."
+      ],
+      "defeaters": [
+        "Attention is a small share of prefill latency at lengths around 512 to 2048, so the proxy is accurate enough.",
+        "Most batches contain a single request, so there is no length mix.",
+        "Profiled C2 is small for the model and GPU used."
+      ],
+      "do_not_infer": [
+        "Do not infer that the rule fails to reduce bubbles; it may reduce them substantially.",
+        "Do not infer a measured size of the mismatch.",
+        "Do not infer that the authors consider the proxy exact; they call it a 'reliable indicator'."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1+L3",
+      "quotes": [
+        {
+          "quote": "the number of new tokens in the batch is a reliable indicator of the batch’s real execution time",
+          "source": "paper",
+          "locator": "§4.3 Reducing pipeline bubbles"
+        },
+        {
+          "quote": "t2: squared sum of the input lengths",
+          "source": "paper",
+          "locator": "Appendix A.1 Symbol Definition"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [
+        {
+          "source_id": "paper",
+          "location": "§4.3 Reducing pipeline bubbles",
+          "support_description": "the number of new tokens in the batch is a reliable indicator of the batch’s real execution time"
+        },
+        {
+          "source_id": "paper",
+          "location": "Appendix A.1 Symbol Definition",
+          "support_description": "t2: squared sum of the input lengths"
+        }
+      ],
+      "quote_verified": true,
+      "mechanism": "Attention cost in a request grows with the square of its length, while the linear GEMM cost grows with token count. Two batches with the same total tokens but different length mixes therefore have different quadratic terms. The paper's own prefill latency model contains a term in t2, the squared sum of input lengths, in addition to the term in t. Batches with equal t but unequal t2 then differ in predicted time, so the token-count proxy is approximate. Its accuracy depends on how large the attention term is relative to the GEMM term."
+    },
+    {
+      "headline": "The same-stage node-packing constraint conflicts with independent per-phase parallelism and resource allocation",
+      "claim": "Algorithm 2 only accepts pairs where prefill GPUs plus decoding GPUs per segment are at most M. This couples the two phases' sizing, even though the paper presents disaggregation as removing that coupling. The paper itself attributes DistServe-High's gain over DistServe-Low to this constraint.",
+      "paper_fact": "\"DistLLM-High\" can achieve further improvements over \"DistLLM-Low\" because it is not constrained by the deployment constraint that the prefill and decoding instance on one node should share the same model stage.",
+      "premise": "A hard per-node GPU budget shared by two phases can only be satisfied by combinations whose sum fits. A prefill/decoding ratio whose best sizes sum to less than M leaves GPUs unused, and one that does not divide evenly across nodes forces a suboptimal ratio.",
+      "inference": "The filter 'if Pp.num_gpus+Pd.num_gpus ≤M' removes configurations that Algorithm 1 would consider. The best Algorithm 1 phase configurations may not be representable under this filter. The cost therefore depends on how well the optimal prefill:decoding GPU ratio fits into M=8 per segment. Only the simulated OPT-66B ShareGPT experiment quantifies it, and the text states the gap qualitatively.",
+      "toy_example": "Illustrative only, not a measurement: if the best prefill segment for a stage used 3 GPUs and the best decoding segment used 6, the sum of 9 exceeds M=8. The search would have to shrink one phase or give up the pair, whichever Algorithm 2 scores best.",
+      "conditional_consequence": "If cross-node bandwidth were high enough for Algorithm 1 to apply, the constraint would cost goodput without a transfer benefit. On the stated 25 Gbps testbed the constraint is the enabler.",
+      "critical_link": "How far the unconstrained optimum (Algorithm 1) is from the constrained one (Algorithm 2) on a given model and workload. The paper reports this gap only in simulation for OPT-66B on ShareGPT.",
+      "necessary_conditions": [
+        "The cluster has low cross-node bandwidth, so the constraint is actually needed.",
+        "The optimal Algorithm 1 phase sizes do not satisfy Pp+Pd ≤ M per segment.",
+        "The idle or mismatched GPUs are not recovered by other replicas or packing."
+      ],
+      "defeaters": [
+        "Replication of the chosen config across nodes may absorb idle GPUs at the cluster level.",
+        "For OPT-175B the reported TP3/TP4 per stage sum to 7 of 8 GPUs, so the constraint may bind only slightly there.",
+        "Chosen configs may already coincide with the Algorithm 1 optimum for some workloads."
+      ],
+      "do_not_infer": [
+        "Do not infer a specific percentage loss, because the text reports none.",
+        "Do not infer that DistServe-Low is worse than vLLM.",
+        "Do not infer anything for clusters with fast cross-node links."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L4",
+      "quotes": [
+        {
+          "text": "if Pp.num_gpus+Pd.num_gpus ≤M then",
+          "source": "paper",
+          "locator": "Algorithm 2, page 7"
+        },
+        {
+          "text": "can achieve further improvements over \"DistLLM-Low\" because it is not constrained by the deployment constraint that the prefill and decoding instance on one node should share the same model stage",
+          "source": "paper",
+          "locator": "Section 6.4 Results, page 12"
+        },
+        {
+          "text": "Inside a node, we set the same parallelism and resource allocation for segments of the same instance.",
+          "source": "paper",
+          "locator": "Section 4.2, page 8"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A hard per-node GPU budget shared by two phases can only be satisfied by combinations whose sum fits. A prefill/decoding ratio whose best sizes sum to less than M leaves GPUs unused, and one that does not divide evenly across nodes forces a suboptimal ratio. The filter 'if Pp.num_gpus+Pd.num_gpus ≤M' removes configurations that Algorithm 1 would consider. The best Algorithm 1 phase configurations may not be representable under this filter. The cost therefore depends on how well the optimal prefill:decoding GPU ratio fits into M=8 per segment. Only the simulated OPT-66B ShareGPT experiment quantifies it, and the text states the gap qualitatively."
+    },
+    {
+      "headline": "Shortest-queue prefill dispatch does not imply shortest waiting time under variable prompt lengths",
+      "claim": "The controller picks the prefill instance with the fewest queued requests. With variable prompt lengths, request count is a weak proxy for queued work, so dispatch can send requests to instances that are actually slower to serve them. The paper does not evaluate this effect.",
+      "paper_fact": "dispatched to the prefill instance with the shortest queue for prefill processing",
+      "premise": "Prefill execution time grows with prompt length (superlinearly through attention), so queue time is roughly the sum of queued prompt work, not the number of queued requests.",
+      "inference": "Count-based shortest-queue dispatch can place a request behind a few very long prompts while an instance holding many short prompts looks busier. Prefill replicas then become unevenly loaded, raising TTFT tail and lowering SLO attainment on length-diverse workloads.",
+      "toy_example": "NOT A MEASUREMENT: instance A holds 3 queued prompts of 100 tokens each; instance B holds 2 prompts of 2000 tokens each. Count-based dispatch picks B (2 < 3), although B's remaining work is about 13x larger.",
+      "conditional_consequence": "If prompt lengths within a replica group have high variance and TTFT SLOs are tight relative to prefill time, count-based dispatch will produce more TTFT violations than work-aware dispatch. If lengths are near-uniform, the proxy is adequate.",
+      "critical_link": "Queue count approximates queued prefill work only when per-request prefill durations are similar.",
+      "necessary_conditions": [
+        "More than one prefill replica is deployed",
+        "Prompt lengths vary enough that queue counts and queue work diverge",
+        "TTFT SLO is tight enough that queue-time differences matter"
+      ],
+      "defeaters": [
+        "Near-uniform prompt lengths (e.g., the M/D/1 setting the paper analyzes)",
+        "Batching to a token budget near Lm makes per-batch durations similar, narrowing the count-vs-work gap",
+        "A single prefill replica, so no dispatch choice exists",
+        "LongBench inputs were capped at 2048 tokens, which bounds the length tail in the evaluated workload"
+      ],
+      "do_not_infer": [
+        "That DistServe's reported attainment is invalid",
+        "That shortest-queue is worse than other policies in the paper's tested settings",
+        "That the real code ignores token counts (code was not shown)"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1+L5 (queue count vs queue time; length variance)",
+      "quotes": [
+        {
+          "text": "dispatched to the prefill instance with the shortest queue for prefill processing",
+          "source": "paper",
+          "locator": "§4.3 Online scheduling"
+        },
+        {
+          "text": "The non-uniformity can cause pipeline bubbles [28,36] for prefill instances applying inter-op parallelism",
+          "source": "paper",
+          "locator": "§3.3 Variable prefill length"
+        },
+        {
+          "text": "We capped the input lengths in LongBench",
+          "source": "paper",
+          "locator": "§6.1 footnote 4"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Prefill execution time grows with prompt length (superlinearly through attention), so queue time is roughly the sum of queued prompt work, not the number of queued requests. Count-based shortest-queue dispatch can place a request behind a few very long prompts while an instance holding many short prompts looks busier. Prefill replicas then become unevenly loaded, raising TTFT tail and lowering SLO attainment on length-diverse workloads."
+    },
+    {
+      "headline": "Pull-based buffering in prefill GPU memory does not imply stability under sustained decode backlog",
+      "claim": "Moving the KV queue from the decode side to the prefill side protects decode instances from memory overload during short bursts. When the decode backlog lasts longer than the prefill-side spare HBM can hold, the failure moves from decode OOM to prefill stalls. The paper states no bound on the buffer and no admission or throttle rule.",
+      "paper_fact": "decoding instances fetch KV cache from prefill instances as needed, us-ing the GPU memory of prefill instances as a queuing buffer.",
+      "premise": "GPU HBM is finite. Per-request KV blocks that stay on the prefill GPU until fetched use the same memory that prefill needs for weights, activations and new requests' KV.",
+      "inference": "If the arrival rate stays above decode capacity for longer than the spare prefill HBM can absorb, retained KV grows until prefill cannot admit or finish new work. Prefill capacity then drops, and the pull design causes a different failure rather than removing one.",
+      "toy_example": "Illustrative arithmetic, NOT a measurement: if a prefill instance had 100 GB of spare HBM and each request retained 1.13 GB (the paper's OPT-66B 512-token figure), about 88 requests would fit. At 10 req/s of prefill output with a fully stalled decode side, that buffer would fill in roughly 9 s. The 100 GB figure is invented.",
+      "conditional_consequence": "If decode lag exceeds the buffer time, prefill throughput falls and TTFT rises. This is an inferred consequence, not a reported one.",
+      "critical_link": "Retained-KV bytes on the prefill GPU compete with prefill's own memory needs, and the paper gives no cap or backpressure rule.",
+      "necessary_conditions": [
+        "Decode-side backlog persists longer than the buffer time",
+        "Prefill instances have limited spare HBM after weights, activations and KV",
+        "KV is retained until the decode instance fetches it"
+      ],
+      "defeaters": [
+        "Ample spare prefill HBM relative to burst size",
+        "Bursts short compared with buffer time",
+        "GQA/MQA models with smaller KV per request (the paper notes these shrink KV size)",
+        "Undescribed implementation-level admission control or throttling"
+      ],
+      "do_not_infer": [
+        "That the pull design is worse than push",
+        "That DistServe fails in the paper's reported experiments",
+        "That the implementation lacks any buffer limit (the paper simply does not describe one)"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L5+L7 (regularity/burst length vs. higher-load behavior)",
+      "quotes": [
+        {
+          "text": "the GPU memory of prefill instances as a queuing buffer",
+          "source": "paper",
+          "locator": "Section 4.3, 'Combat busrtiness', p. 8"
+        },
+        {
+          "text": "by simply retaining the KV Cache in the GPU memory after processing the prompt",
+          "source": "paper",
+          "locator": "Section 4.3, 'Combat busrtiness', p. 8"
+        },
+        {
+          "text": "the KV cache size of a single 512-token request on OPT-66B is approximately 1.13GB",
+          "source": "paper",
+          "locator": "Section 3.3, 'Communication overhead', p. 6"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "GPU HBM is finite. Per-request KV blocks that stay on the prefill GPU until fetched use the same memory that prefill needs for weights, activations and new requests' KV. If the arrival rate stays above decode capacity for longer than the spare prefill HBM can absorb, retained KV grows until prefill cannot admit or finish new work. Prefill capacity then drops, and the pull design causes a different failure rather than removing one."
+    },
+    {
+      "headline": "Monitoring average lengths and arrival rate does not guarantee detecting shifts that change the best placement",
+      "claim": "The replanning trigger watches average input/output length and average arrival rate, but the placement is computed from the full fitted length and arrival distributions. A shift in variance, tail, or burstiness that leaves the means unchanged can make the current placement suboptimal without ever triggering a rerun.",
+      "paper_fact": "A workload profiler monitors key parameters such as the average input and output length of the requests, the average arrival rate, etc.",
+      "premise": "A mean is a lossy summary of a distribution. Queueing delay, pipeline bubbles, and SLO attainment at a percentile target depend on spread and tails, not only on means.",
+      "inference": "The placement search uses a simulator fed by a fitted distribution of lengths and arrivals, and the paper says non-uniform lengths cause pipeline bubbles that deviate from the uniform-length analysis. So two workloads with equal means but different dispersion can have different best (parallelism, replica) configurations. A mean-based trigger can miss this. The trailing 'etc.' leaves open that other statistics are also monitored, but none are named.",
+      "toy_example": "Illustration only, not a measurement: workload A has every prompt at 500 tokens. Workload B has half at 100 and half at 900. Both have mean 500 tokens and the same mean rate, so a mean-based trigger sees no change. B has non-uniform stage times and a heavier tail, which could shift the best prefill parallelism or the tail SLO attainment.",
+      "conditional_consequence": "If the drift is mainly in variance, tail, or burstiness, the system keeps serving with a stale placement and SLO attainment may fall below the 90% target without any replanning event.",
+      "critical_link": "Equality of the monitored means implies equality of the distribution features that determine the goodput-optimal placement.",
+      "necessary_conditions": [
+        "Workload drift includes changes in dispersion or tail with means held roughly constant",
+        "The goodput-optimal placement is sensitive to those distribution features",
+        "The profiler monitors only the named averages (the 'etc.' adds nothing relevant)"
+      ],
+      "defeaters": [
+        "The profiler's unlisted 'etc.' parameters include variance or percentile statistics",
+        "Real drift moves means and tails together, so the mean trigger fires anyway",
+        "The chosen placement is flat (insensitive) around the optimum, so a tail shift costs little"
+      ],
+      "do_not_infer": [
+        "That the profiler ignores all non-mean statistics",
+        "That the paper observed a missed trigger",
+        "That replanning is ineffective when it does fire"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1",
+      "quotes": [
+        {
+          "text": "A workload profiler monitors key parameters such as the average input and output length of the requests, the average arrival rate, etc.",
+          "source": "paper §4.3 Replaning",
+          "locator": "page 8"
+        },
+        {
+          "text": "DistServe fits a distribution from the history request traces and resamples new traces from the distribution as the input workload to the simulator to compute the SLO attainment.",
+          "source": "paper §4.1",
+          "locator": "page 7"
+        },
+        {
+          "text": "The non-uniformity can cause pipeline bubbles [28,36] for prefill instances applying inter-op parallelism",
+          "source": "paper §3.3 Variable prefill length",
+          "locator": "page 6"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A mean is a lossy summary of a distribution. Queueing delay, pipeline bubbles, and SLO attainment at a percentile target depend on spread and tails, not only on means. The placement search uses a simulator fed by a fitted distribution of lengths and arrivals, and the paper says non-uniform lengths cause pipeline bubbles that deviate from the uniform-length analysis. So two workloads with equal means but different dispersion can have different best (parallelism, replica) configurations. A mean-based trigger can miss this. The trailing 'etc.' leaves open that other statistics are also monitored, but none are named."
+    },
+    {
+      "headline": "Replanning being faster than hourly drift does not guarantee it is net-beneficial under faster shifts",
+      "claim": "The paper justifies replanning by comparing search and reload time with the hourly scale of workload change. It gives no shift threshold, hysteresis, or cost-benefit rule, and it does not quantify downtime against the gain from a new placement. If shifts are faster than reload-plus-search time, or the reload gain is small, replanning can chase the workload and spend more time reloading than serving.",
+      "paper_fact": "This process is expedient – the proposed algorithm runs in seconds (§6.5) and reloading LLM weights can be completed within minutes – far shorter than the hourly scale at which real-world workload variations tend to occur.",
+      "premise": "Net benefit of a reconfiguration is the gain in goodput over the period the new placement stays valid, minus the service disruption during weight reloading and re-provisioning. Without a stopping rule, a trigger that fires on every perturbation can pay the disruption cost repeatedly.",
+      "inference": "The 'significant pattern shift' trigger has no stated threshold, and no hysteresis or in-flight request handling is described. The paper's own timing is mixed: the text says 'seconds', while §4.1 says under 1.3 minutes in the largest setting and §6.5 says the execution time is 'in minutes'. Figure 12 shows search time growing with GPU count, and reload time plausibly grows with model size. For large models, large clusters, or flash-crowd regimes, the hourly-scale justification may no longer hold.",
+      "toy_example": "Illustration only, not a measurement: suppose search plus reload takes 5 minutes of degraded service and the workload oscillates every 8 minutes. Almost every window would be spent transitioning to a placement that is already stale.",
+      "conditional_consequence": "Under shifts that are not slow relative to reload-plus-search time, periodic replanning could lower effective goodput below that of a static placement. The paper does not bound this regime.",
+      "critical_link": "Search-plus-reload time being much smaller than the shift timescale is sufficient for replanning to be net-beneficial, and the hourly-scale assumption holds for the deployments of interest.",
+      "necessary_conditions": [
+        "Workload shifts occur on a timescale comparable to or shorter than reload-plus-search time",
+        "Reloading disrupts service (reload and re-provisioning interrupt serving)",
+        "The trigger lacks a cost-benefit or hysteresis guard"
+      ],
+      "defeaters": [
+        "Real workload variation is truly hourly or slower, as the authors assume",
+        "Reload can be overlapped with serving or done with rolling replacement (not described in the paper)",
+        "An undisclosed threshold or hysteresis exists in the implementation"
+      ],
+      "do_not_infer": [
+        "That the authors measured thrashing",
+        "That replanning is useless for hourly drift",
+        "That the 'seconds' and 'minutes' statements are a factual contradiction, since they may reflect different cluster sizes and CPU counts (96 cores for Figure 12)"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L5+L6 (with L2, L7)",
+      "quotes": [
+        {
+          "text": "This process is expedient – the proposed algorithm runs in seconds (§6.5) and reloading LLM weights can be completed within minutes – far shorter than the hourly scale at which real-world workload variations tend to occur.",
+          "source": "paper §4.3 Replaning",
+          "locator": "page 8"
+        },
+        {
+          "text": "The search space is manageable and the solving time is under 1.3 minutes in our largest setting, as demonstrated in §6.5.",
+          "source": "paper §4.1",
+          "locator": "page 7"
+        },
+        {
+          "text": "Even so, the execution time of the algorithm is in minutes, and since it only needs to be executed once before each redeployment, this overhead is acceptable.",
+          "source": "paper §6.5",
+          "locator": "page 12"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Net benefit of a reconfiguration is the gain in goodput over the period the new placement stays valid, minus the service disruption during weight reloading and re-provisioning. Without a stopping rule, a trigger that fires on every perturbation can pay the disruption cost repeatedly. The 'significant pattern shift' trigger has no stated threshold, and no hysteresis or in-flight request handling is described. The paper's own timing is mixed: the text says 'seconds', while §4.1 says under 1.3 minutes in the largest setting and §6.5 says the execution time is 'in minutes'. Figure 12 shows search time growing with GPU count, and reload time plausibly grows with model size. For large models, large clusters, or flash-crowd regimes, the hourly-scale justification may no longer hold."
+    },
+    {
+      "headline": "Simulator running time being independent of model size does not imply simulator accuracy is independent of model size",
+      "claim": "The analytic latency model is GEMM-dominated, with constants fit by profiling on one GPU type. The paper shows cost scaling independent of model size but gives no accuracy evidence outside the validated setting.",
+      "paper_fact": "This is because the simulator only simulates discrete events and the running time is the same no matter how big the model is.",
+      "premise": "Running time of a discrete-event simulator depends on the number of events, not on the latency values. Accuracy depends on whether the fitted latency formula captures the real bottlenecks, and those can change with scale and parallelism.",
+      "inference": "The scalability claim concerns only search cost. Accuracy for larger models with tensor- or pipeline-parallel communication, stragglers, or different kernels is not supported by the single Table 2 validation. The constants C1..C5 would need re-profiling per model, GPU and framework.",
+      "toy_example": "Illustration only, not a measurement: if cross-GPU all-reduce time grew faster than the GEMM-based term as tensor parallelism increased, the model would underpredict latency for large TP degrees while still running equally fast.",
+      "conditional_consequence": "If non-GEMM costs (communication, memory-bound attention at long context, kernel changes) dominate in a new setting, the simulated goodput could be off by more than the 2-point SLO margin, so the optimizer could pick a suboptimal placement.",
+      "critical_link": "Whether non-GEMM terms stay small relative to the GEMM and attention terms for other models, hardware and parallelism degrees.",
+      "necessary_conditions": [
+        "A different model, hardware or kernel makes non-GEMM latency a significant fraction of batch time.",
+        "The C1..C5 constants are reused without re-fitting for the new setting."
+      ],
+      "defeaters": [
+        "Re-profiling constants per deployment captures the new costs.",
+        "GEMM and attention remain dominant in the new setting."
+      ],
+      "do_not_infer": [
+        "That the simulator is inaccurate for other models.",
+        "That the end-to-end real-system measurements in Section 6.2 are unreliable."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L7+L3: scaling claim vs. fitted-constant model",
+      "quotes": [
+        {
+          "text": "DistServe scales well with the number of GPUs and is independent of the model size.",
+          "source": "paper, Section 6.5 Algorithm Running Time",
+          "locator": "page 12"
+        },
+        {
+          "text": "Thus the GEMMs dominate the overall latency and our analysis primarily focuses on them.",
+          "source": "paper, Appendix A",
+          "locator": "page 17"
+        },
+        {
+          "text": "Then we use profiling and interpolation to figure out the values of C1, C2, and C3.",
+          "source": "paper, Appendix A.2",
+          "locator": "page 17"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 2,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Running time of a discrete-event simulator depends on the number of events, not on the latency values. Accuracy depends on whether the fitted latency formula captures the real bottlenecks, and those can change with scale and parallelism. The scalability claim concerns only search cost. Accuracy for larger models with tensor- or pipeline-parallel communication, stragglers, or different kernels is not supported by the single Table 2 validation. The constants C1..C5 would need re-profiling per model, GPU and framework."
+    },
+    {
+      "headline": "The 90Gbps bandwidth requirement conflicts with the claim that transmission is negligible on the 25Gbps cross-node testbed link",
+      "claim": "The paper's own arithmetic says about 90Gbps is needed to render transfer invisible at 10 rps for a 512-token OPT-66B request. The testbed cross-node link is 25Gbps. The negligible-overhead result therefore holds because Algorithm 2 forces transfers onto NVLINK, and not because transmission is intrinsically cheap.",
+      "paper_fact": "we need to transfer 11.3GB data per second—or equivalently 90Gbps bandwidth to render the overhead invisible",
+      "premise": "A link whose bandwidth is below the offered transfer demand becomes a queue whose delay grows with load. Aggregate KV traffic scales linearly with request rate and prompt length.",
+      "inference": "At the paper's example rate, cross-node transfer on the 25Gbps link would not be invisible. The measured 'negligible' outcome depends on the placement constraint and on the intra-node NVLINK path. It is evidence about constrained placement, not about transmission cost in general.",
+      "toy_example": "Illustration only, not a measurement: with a demand of 90Gbps on a 25Gbps link, offered load is about 3.6 times capacity, so a queue would grow without bound at a sustained 10 rps.",
+      "conditional_consequence": "On clusters with low cross-node bandwidth, the system must give up placement freedom (the low node-affinity restriction) to keep transfer cheap. That limits the achievable goodput configurations, as the DistServe-High versus DistServe-Low comparison hints.",
+      "critical_link": "The 'negligible' conclusion is conditional on forcing prefill and decoding segments of the same stage onto one node.",
+      "necessary_conditions": [
+        "Cross-node bandwidth below the 90Gbps demand.",
+        "Placement unconstrained, meaning Algorithm 1 style placement on a low-bandwidth cluster.",
+        "Request rate and prompt length near the quoted example."
+      ],
+      "defeaters": [
+        "InfiniBand at around 800Gbps removes the issue, as the paper itself notes.",
+        "GQA or MQA shrinks KV size, as the paper expects.",
+        "Per-GPU-pair demand is split across many links, lowering the per-link requirement."
+      ],
+      "do_not_infer": [
+        "Do not infer that the measured sub-30ms transfers are wrong.",
+        "Do not infer that DistServe fails on a 25Gbps cluster.",
+        "Do not infer the exact queue behaviour on the 25Gbps link, because the paper did not measure it."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L6/L7: cost moved to a placement restriction",
+      "quotes": [
+        {
+          "text": "we need to transfer 11.3GB data per second—or equivalently 90Gbps bandwidth to render the overhead invisible",
+          "source": "paper",
+          "locator": "§3.3 Communication overhead"
+        },
+        {
+          "text": "The cross-node bandwidth is 25Gbps.",
+          "source": "paper",
+          "locator": "§6.1 Cluster testbed"
+        },
+        {
+          "text": "this requirement imposes additional constraints on the placement of prefill and decoding instances",
+          "source": "paper",
+          "locator": "§3.3 Communication overhead"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 2,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A link whose bandwidth is below the offered transfer demand becomes a queue whose delay grows with load. Aggregate KV traffic scales linearly with request rate and prompt length. At the paper's example rate, cross-node transfer on the 25Gbps link would not be invisible. The measured 'negligible' outcome depends on the placement constraint and on the intra-node NVLINK path. It is evidence about constrained placement, not about transmission cost in general."
+    },
+    {
+      "headline": "FCFS prefill scheduling conflicts with a per-request-deadline goodput objective",
+      "claim": "Goodput is defined by per-request SLO attainment, but the scheduler is plain FCFS with batching toward a saturation length. It uses neither deadlines nor request length to order work. The authors acknowledge the convoy effect and defer preemption.",
+      "paper_fact": "In DistServe, the FCFS policy can lead to a “convoy effect”, where longer requests block shorter ones in the prefill stage.",
+      "premise": "SLO attainment counts each request against its own deadline, whereas FCFS orders requests by arrival only, so it does not minimize the number of missed deadlines.",
+      "inference": "When long and short prompts mix, a long prompt at the head can push short prompts past a TTFT deadline they could have met if served first. Reported attainment then depends on the length mix and the TTFT SLO tightness.",
+      "toy_example": "NOT A MEASUREMENT: a 15 s prefill arrives just before ten 0.1 s prefills with a 1 s TTFT SLO. FCFS makes all ten miss; serving them first would meet all ten at a small cost to the long request.",
+      "conditional_consequence": "If a workload mixes very long and short prompts under a TTFT SLO comparable to a long prompt's execution time, FCFS attainment will drop below what a length- or deadline-aware order could reach. If the SLO is loose relative to the longest prefill (as for LongBench's 15 s TTFT), the effect is muted.",
+      "critical_link": "The convoy delay matters only when the TTFT deadline is shorter than the blocking prefill time.",
+      "necessary_conditions": [
+        "Heterogeneous prompt lengths within one queue",
+        "TTFT SLO not much larger than long-prompt prefill time",
+        "Queueing occurs (non-trivial load)"
+      ],
+      "defeaters": [
+        "Loose TTFT SLO relative to prefill time",
+        "Homogeneous request lengths",
+        "Low load where queues are short",
+        "Preemption, which the authors say is feasible but not implemented"
+      ],
+      "do_not_infer": [
+        "That the authors' headline speedups over vLLM or DeepSpeed-MII are due to or invalidated by FCFS",
+        "That baselines are better at this because they use different scheduling",
+        "A magnitude for the effect"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L2+L6 (deadline-agnostic ordering; cost shifted to short requests)",
+      "quotes": [
+        {
+          "text": "In DistServe, the FCFS policy can lead to a “convoy effect”, where longer requests block shorter ones in the prefill stage.",
+          "source": "paper",
+          "locator": "§4.3 Preemption and fault tolerance"
+        },
+        {
+          "text": "could enhance efficiency",
+          "source": "paper",
+          "locator": "§4.3 Preemption and fault tolerance"
+        },
+        {
+          "text": "We leave both as future work.",
+          "source": "paper",
+          "locator": "§4.3 Preemption and fault tolerance"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 2,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "SLO attainment counts each request against its own deadline, whereas FCFS orders requests by arrival only, so it does not minimize the number of missed deadlines. When long and short prompts mix, a long prompt at the head can push short prompts past a TTFT deadline they could have met if served first. Reported attainment then depends on the length mix and the TTFT SLO tightness."
+    }
+  ],
+  "dropped_for_unverified_quotes": 0,
+  "chunk_count": 11,
+  "chunk_failures": 0,
+  "chunk_timings": [
+    {
+      "seconds": 47.051465624943376,
+      "attempts": 1
+    },
+    {
+      "seconds": 41.56633824808523,
+      "attempts": 1
+    },
+    {
+      "seconds": 41.29167714412324,
+      "attempts": 1
+    },
+    {
+      "seconds": 38.935577244032174,
+      "attempts": 1
+    },
+    {
+      "seconds": 32.11390608898364,
+      "attempts": 1
+    },
+    {
+      "seconds": 41.39384909207001,
+      "attempts": 1
+    },
+    {
+      "seconds": 46.84798333910294,
+      "attempts": 1
+    },
+    {
+      "seconds": 44.563925221096724,
+      "attempts": 1
+    },
+    {
+      "seconds": 46.30025201383978,
+      "attempts": 1
+    },
+    {
+      "seconds": 38.64845729782246,
+      "attempts": 1
+    },
+    {
+      "seconds": 35.99665920296684,
+      "attempts": 1
+    }
+  ],
+  "inventory_seconds": 132.21393733890727,
+  "chunks_seconds": 160.79014164209366,
+  "merged_candidates": 0,
+  "unverified_kept": 24
+}

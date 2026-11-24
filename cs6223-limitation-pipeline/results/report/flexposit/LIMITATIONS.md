@@ -1,8 +1,8 @@
 # Limitations report: FlexPosit: Tunable Fractional Precision for LLM Inference Accelerators
 
 - artifact: `flexposit` (MICRO 2026), repository https://github.com/hplp/FlexPosit at `e42a2191a7`
-- input: `results/step4/flexposit/limitations_for_tests.json` (sha256 `90fcaf23c279`), 41 Findings
-- generated: 2026-11-18T11:19:37+08:00 by `checklimits test` (contract `checklimits-test-report/1`)
+- input: `results/step4/flexposit/limitations_for_tests.json` (sha256 `fed0c5005fa4`), 41 Findings
+- generated: 2026-11-23T11:22:10+08:00 by `checklimits test` (contract `checklimits-test-report/1`)
 - environment: **ok**
 
 ## How to read this
@@ -25,6 +25,8 @@
 | levels | L1 7, L2 1, invalid 4 |
 | analysis only (not tests) | A0 7, A1 3, A2 19 |
 | not tested, by reason | `no_code_location` 19, `outcome_unsupported` 10 |
+
+Code side's predicted ceiling vs measured level (both uncalibrated; 8 tested Findings have both): equal 7, measured below ceiling 1, measured above ceiling 0.
 
 | Finding | category | effect | location | result |
 |---|---|---|---|---|
@@ -82,6 +84,8 @@
 **Verdict `inconclusive`**: no verdict: the test was invalid or could not separate the cases.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: invalid).
+
 **Level invalid, uncalibrated.** a fatal defeater was refuted (for example the target line was not reached): no verdict is drawn. refuted fatal defeaters: D2
 
 - trigger run: FileNotFoundError at src/flexposit/api.py:120
@@ -106,6 +110,8 @@
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: ValueError at src/flexposit/api.py:190
@@ -128,6 +134,8 @@
 
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L1 (measured: L1).
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
@@ -154,6 +162,8 @@
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L2 (measured: L2).
+
 **Level L2, uncalibrated.** supported: fatal checks, mutation, repeat runs and clean-checkout replay passed; some checks are residual.
 
 - trigger run: ValueError at src/flexposit/export.py:136
@@ -177,6 +187,8 @@
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L3 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: ValueError at src/flexposit/formats.py:40
@@ -198,6 +210,8 @@
 
 **Verdict `inconclusive`**: no verdict: the test was invalid or could not separate the cases.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L1 (measured: invalid).
 
 **Level invalid, uncalibrated.** a fatal defeater was refuted (for example the target line was not reached): no verdict is drawn. refuted fatal defeaters: D2
 
@@ -226,6 +240,8 @@
 **Verdict `inconclusive`**: no verdict: the test was invalid or could not separate the cases.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: invalid).
+
 **Level invalid, uncalibrated.** a fatal defeater was refuted (for example the target line was not reached): no verdict is drawn. refuted fatal defeaters: D2
 
 - trigger run: ValueError at src/flexposit/formats.py:156
@@ -251,6 +267,8 @@
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: branch taken at src/flexposit/mpq/channel_window.py:283
@@ -274,6 +292,8 @@
 
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L1 (measured: L1).
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
@@ -633,6 +653,8 @@
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: branch taken at src/flexposit/api.py:181
@@ -655,6 +677,8 @@
 
 **Verdict `inconclusive`**: no verdict: the test was invalid or could not separate the cases.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L1 (measured: invalid).
 
 **Level invalid, uncalibrated.** a fatal defeater was refuted (for example the target line was not reached): no verdict is drawn. refuted fatal defeaters: D2, D12
 
@@ -720,6 +744,8 @@
 
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L1 (measured: L1).
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 

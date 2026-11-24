@@ -25,12 +25,12 @@ from codeside.effect_anchor import check_effects  # noqa: E402
 from codeside.integrate import Context, Rules, integrate  # noqa: E402
 from codeside.process_confidence import FORMAT as PC_FORMAT, NAMES as PC_CHECKS, ProcessContext, assess_all  # noqa: E402
 from codeside.scope_check import ScopeChecker  # noqa: E402
-from codeside.verify3b import load_paper_side  # noqa: E402
+from codeside.verify3b import load_paper_side, paper_side_origin  # noqa: E402
 from schema.models import SCHEMA_VERSION, Limitation, Verification  # noqa: E402
 
 PACKAGE_ROOTS = {"infinigen": ["speedup/infinigen", "speedup/flexgen"]}  # same as pipeline/run.py
 CATS = ["undisclosed", "contradicts_docs", "stated_differently", "docs_only", "paper_stated", "impl_deviates",
-        "not_implemented"]
+        "not_implemented", "paper_hypothesis"]
 
 
 def artifact_json(aid: str) -> Path:
@@ -60,7 +60,7 @@ def main() -> None:
         process_only(ROOT / a.out, a.only)
         return
     labels: dict = {}
-    if (ROOT / a.labels).is_file():
+    if a.labels and (ROOT / a.labels).is_file():
         for r in json.loads((ROOT / a.labels).read_text())["labels"]:
             labels.setdefault(r["artifact"], {})[(r["file"], r["line"])] = r
     load = lambda p, m: [m.model_validate(x) for x in json.loads(Path(p).read_text())]
@@ -73,7 +73,9 @@ def main() -> None:
         repo = ROOT / "third_party" / art["repo_url"].rstrip("/").split("/")[-1]
         pd = ROOT / a.paper_dir / aid
         checker, paper_lims, groups = None, [], []
+        origin = "v1"
         if (pd / "paper_side.json").is_file():
+            origin = paper_side_origin(pd / "paper_side.json")
             checker = ScopeChecker(*load_paper_side(str(pd / "paper_side.json")))
             paper_lims = load(pd / "limitations.json", Limitation) if (pd / "limitations.json").is_file() else []
         if (pd / "finding_candidates.json").is_file():
@@ -91,6 +93,7 @@ def main() -> None:
         roots = (json.loads(cfg.read_text()).get("package_roots") if cfg.is_file() else None) or PACKAGE_ROOTS.get(aid)
         graph = RepoCallGraph(repo, tuple(roots or (".",))) if repo.is_dir() else None
         ctx = Context(repo=repo if repo.is_dir() else None, judge=judge, paper_groups=groups, conformance=conformance,
+                      paper_origin=origin,
                       callgraph=graph, known_ids=known_ids(ROOT / a.out / aid / "findings.json"),
                       labels=labels.get(aid, {}), entry_points=[e if isinstance(e, str) else e.get("entry", "")
                                                                 for e in art.get("entry_points", [])])
@@ -99,7 +102,14 @@ def main() -> None:
         code_lims, effect_checks = check_effects(code_lims, ctx.repo)
         ctx.effect_moves = {r["limitation_id"]: r for r in effect_checks if r["action"] == "moved"}
         findings, report = integrate(aid, code_lims, code_vers, paper_lims, checker, rules, ctx)
+        report["origin"] = origin
         report["effect_checks"] = effect_checks
+        report["inputs"] = input_fingerprint(code, pd)
+        committed = ROOT / "results/pipeline" / aid
+        if committed.resolve() != code.resolve() and (committed / "limitations.json").is_file():
+            if _sha(committed / "limitations.json") != _sha(code / "limitations.json"):
+                print(f"WARNING {aid}: --code-dir {a.code_dir} differs from the committed results/pipeline/{aid} "
+                      f"(limitations.json hash); the Findings will not match the committed step 4 output", flush=True)
         records = report.pop("llm_records")
         if llm is not None:
             from codeside.step4_llm import PROMPT_VERSION as P4
@@ -117,7 +127,11 @@ def main() -> None:
             d["verifications"] = [vers[i].model_dump(mode="json") for i in f.verification_ids]
             records.append(d)
         # process confidence: static checks on how each code-side Finding was produced (no model call)
-        report["process_confidence"] = assess_all(records, process_context(aid, ctx.repo, roots, ctx.entry_points, graph))
+        detail = code / "3b.detail.json" if origin == "swarm" else None
+        if detail is not None:
+            report["process_3b_detail"] = str(detail)
+        report["process_confidence"] = assess_all(
+            records, process_context(aid, ctx.repo, roots, ctx.entry_points, graph, detail))
         (out / "findings.json").write_text(json.dumps([f.model_dump(mode="json") for f in findings], indent=1,
                                                       ensure_ascii=False))
         (out / "findings.report.json").write_text(json.dumps(report, indent=1, ensure_ascii=False))
@@ -127,11 +141,25 @@ def main() -> None:
     combine(ROOT / a.out, rules, usage)
 
 
-def process_context(aid: str, repo, roots, entries, graph=None) -> ProcessContext:
+def _sha(p: Path) -> str:
+    import hashlib
+    return hashlib.sha256(p.read_bytes()).hexdigest()[:16]
+
+
+def input_fingerprint(code: Path, paper: Path) -> dict:
+    """Hashes of the files step 4 read, so a different result can be traced to a different input."""
+    files = {"code_limitations": code / "limitations.json", "code_3b": code / "3b.json",
+             "paper_limitations": paper / "limitations.json", "paper_side": paper / "paper_side.json",
+             "finding_candidates": paper / "finding_candidates.json", "conformance": paper / "conformance.json"}
+    return {k: _sha(f) for k, f in files.items() if f.is_file()}
+
+
+def process_context(aid: str, repo, roots, entries, graph=None, detail=None) -> ProcessContext:
     """The repo plus the repeated measurements that exist for this artifact: the extraction runs of step 2
     (results/step2_merged/<id>/merged_run*.json) and the repeated 3b checks (results/pipeline/<id>/3b.detail.json)."""
     runs = [json.loads(f.read_text()) for f in sorted((ROOT / "results/step2_merged" / aid).glob("merged_run[0-9].json"))]
-    detail = ROOT / "results/pipeline" / aid / "3b.detail.json"
+    if detail is None:
+        detail = ROOT / "results/pipeline" / aid / "3b.detail.json"
     agreement = {i["limitation_id"]: i for i in json.loads(detail.read_text())["items"]} if detail.is_file() else {}
     return ProcessContext(repo, tuple(roots or (".",)), entries, graph, runs=runs, agreement=agreement)
 
@@ -149,9 +177,11 @@ def process_only(out: Path, only) -> None:
         roots = (json.loads(cfg.read_text()).get("package_roots") if cfg.is_file() else None) or PACKAGE_ROOTS.get(aid)
         entries = [e if isinstance(e, str) else e.get("entry", "") for e in art.get("entry_points", [])]
         data = json.loads((d / "limitations_for_tests.json").read_text())
-        summary = assess_all(data["findings"], process_context(aid, repo, roots, entries))
-        (d / "limitations_for_tests.json").write_text(json.dumps(data, indent=1, ensure_ascii=False))
         report = json.loads((d / "findings.report.json").read_text())
+        detail = report.get("process_3b_detail")
+        summary = assess_all(data["findings"],
+                             process_context(aid, repo, roots, entries, detail=Path(detail) if detail else None))
+        (d / "limitations_for_tests.json").write_text(json.dumps(data, indent=1, ensure_ascii=False))
         report["process_confidence"] = summary
         (d / "findings.report.json").write_text(json.dumps(report, indent=1, ensure_ascii=False))
         print(aid, json.dumps({k: summary[k] for k in ("assessed", "repo_available", "ceiling")}))

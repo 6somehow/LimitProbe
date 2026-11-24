@@ -187,8 +187,11 @@ def _prompt(raw: dict[str, Any], repo: Optional[Path]) -> tuple[str, set[str]]:
 
 def chat(prompt: str, model: str, base_url: str, key: str, timeout: int = 300, max_tokens: int = 6000,
          opener: Optional[Callable] = None) -> str:
-    body = json.dumps({"model": model, "temperature": 0, "max_tokens": max_tokens,
-                       "messages": [{"role": "system", "content": SYSTEM}, {"role": "user", "content": prompt}]}).encode()
+    payload = {"model": model, "temperature": 0, "max_tokens": max_tokens,
+               "messages": [{"role": "system", "content": SYSTEM}, {"role": "user", "content": prompt}]}
+    if os.environ.get("LIMITSET_GEN_OMIT_SAMPLING"):   # some models (e.g. Claude Sonnet 5.5) reject `temperature`
+        payload.pop("temperature")
+    body = json.dumps(payload).encode()
     req = urllib.request.Request(base_url.rstrip("/") + "/chat/completions", data=body, method="POST",
                                  headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
     try:

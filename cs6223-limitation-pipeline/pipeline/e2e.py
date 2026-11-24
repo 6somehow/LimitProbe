@@ -209,6 +209,8 @@ class Relay:
         RELAY_LOG.parent.mkdir(parents=True, exist_ok=True)
         renv = dict(os.environ)
         renv.update(SOCLAAS_API_KEY=self.e["SOCLAAS_API_KEY"], SOCLAAS_BASE_URL=self.e["SOCLAAS_BASE_URL"])
+        if self.e.get("SOCLAAS_EXTRA_KEYS"):
+            renv["SOCLAAS_EXTRA_KEYS"] = self.e["SOCLAAS_EXTRA_KEYS"]
         cmd = [sys.executable, "-m", "checklimits.relay", "--port", str(RELAY_PORT), "--log", str(RELAY_LOG),
                "--iface", self.e.get("SOCLAAS_IFACE", "eth0")]
         # cwd must be checklimits/ (from the pipeline root `-m checklimits` resolves to the directory)
@@ -239,6 +241,7 @@ def point_children_at_relay() -> None:
     """From here on, every process this one starts talks to the relay and holds only a placeholder key."""
     os.environ["SOCLAAS_BASE_URL"] = RELAY_URL
     os.environ["SOCLAAS_API_KEY"] = PLACEHOLDER_KEY
+    os.environ.pop("SOCLAAS_EXTRA_KEYS", None)   # extra real keys are for the relay only
     # P.env() reads .env with setdefault, so the real key in .env can no longer win
 
 
@@ -284,7 +287,8 @@ def e2e(a) -> None:
         a.provision = True
         a.analyze = not getattr(a, "no_analyze", False)
         out = P.test(a.artifact_id, a)
-    print(f"[done] {a.artifact_id}: {P._rel(P.Paths(a.artifact_id).report)}")
+    source = getattr(a, "paper_side_source", "v1")
+    print(f"[done] {a.artifact_id}: {P._rel(P.Paths(a.artifact_id, source).report)}")
     print(f"  tested {out['counts'].get('tested')} of {out.get('n_input')} Findings")
 
 
@@ -314,6 +318,18 @@ def analyze_cmd(a) -> None:
 def paper_only_cmd(a) -> None:
     """A paper with no public code: reading-based candidates (tier A1 at most), with the relay started for the call."""
     import subprocess
+    if getattr(a, "swarm_report", None):
+        cmd = [sys.executable, "-m", "checklimits", "paper-only", a.artifact_id, "--pdf", str(Path(a.pdf).absolute()),
+               "--swarm-report", str(a.swarm_report.absolute()), "--swarm-pdf-extractor", a.swarm_pdf_extractor,
+               "--results-root", str(P.ROOT / "results/swarm")]
+        for key in ("title", "venue"):
+            if getattr(a, key, None):
+                cmd += ["--" + key, getattr(a, key)]
+        child_env = dict(os.environ)
+        child_env["PYTHONPATH"] = os.pathsep.join(filter(None, (str(P.ROOT), child_env.get("PYTHONPATH"))))
+        if subprocess.run(cmd, cwd=P.CHECKLIMITS, env=child_env).returncode:
+            sys.exit("Swarm paper-only conversion failed")
+        return
     e = P.env()
     if not Path(a.pdf).is_file():
         sys.exit(f"stopped: no PDF at {a.pdf}")

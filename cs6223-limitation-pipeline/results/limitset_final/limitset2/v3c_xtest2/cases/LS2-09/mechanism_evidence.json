@@ -1,0 +1,904 @@
+{
+  "candidates": [
+    {
+      "headline": "Page-level upper-bound scoring does not guarantee token-level criticality recall.",
+      "claim": "Quest's page-level upper-bound estimate does not guarantee that Top-K pages contain every token that full attention would rank highly.",
+      "paper_fact": "We found that the upper bound attention weights within a page can be used to approximate the highest attention in the page.",
+      "premise": "An upper bound can be loose; ranking pages by a loose upper bound can admit pages whose actual attention is low and can exclude a page whose exact token attention is high if enough other pages have larger upper bounds.",
+      "inference": "The paper's use of an upper-bound proxy is an approximation, not an exact guarantee of token-level recall; page granularity can miss critical tokens.",
+      "toy_example": "Toy example, not a measurement: a page with a loose high upper bound can outrank a page whose exact token attention is higher.",
+      "conditional_consequence": "If the bound is loose or K is small, a critical token in a lower-ranked page may be omitted, causing accuracy loss despite high page-score ranking.",
+      "critical_link": "The proxy score's tightness and page granularity determine whether Top-K page selection preserves token-level criticality.",
+      "necessary_conditions": [
+        "Upper-bound scores rank all pages containing high-attention tokens within Top-K",
+        "Page size is small enough or K is large enough to limit approximation error",
+        "Metadata min/max capture relevant key variation"
+      ],
+      "defeaters": [
+        "Exact token-level selection",
+        "Tight bounds and sufficient K",
+        "Tasks where high-attention tokens cluster in top pages"
+      ],
+      "do_not_infer": [
+        "Do not infer the paper claims exact token-level attention",
+        "Do not infer page-level approximation always misses critical tokens",
+        "Do not infer the upper bound is invalid as a heuristic"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1_proxy_guarantee",
+      "quotes": [
+        {
+          "text": "We found that the upper bound attention weights within a page can be used to approximate the highest attention in the page.",
+          "source": "paper",
+          "locator": "p.4 §3.4"
+        },
+        {
+          "text": "Quest performs an approximate calculation of attention weights before the original attention operation",
+          "source": "paper",
+          "locator": "p.4 §3.4"
+        },
+        {
+          "text": "Our insight is that in order not to miss critical tokens, we should select pages containing the token with the highest attention weights.",
+          "source": "paper",
+          "locator": "p.4 §3.4"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "author_boundaries": [
+        "Paper describes the page score as an upper-bound approximation, not exact token-level attention.",
+        "Paper's insight is to avoid missing critical tokens, but the implementation remains page-granular."
+      ],
+      "inferred_consequences": [
+        "Loose upper bounds or small K can omit token-level critical pages.",
+        "Page granularity introduces approximation error."
+      ],
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "An upper bound can be loose; ranking pages by a loose upper bound can admit pages whose actual attention is low and can exclude a page whose exact token attention is high if enough other pages have larger upper bounds. The paper's use of an upper-bound proxy is an approximation, not an exact guarantee of token-level recall; page granularity can miss critical tokens."
+    },
+    {
+      "headline": "Reducing page size does not guarantee lower memory load or latency.",
+      "claim": "Quest's page-size choice trades metadata overhead against selection granularity; smaller pages can increase metadata and Top-K work, so a smaller page size is not a monotonic improvement in memory load or latency.",
+      "paper_fact": "The whole KV cache is 2M ∗L bytes, which indicates Quest loads 1/S + K ∗S/L of the total KV cache",
+      "premise": "Metadata per page scales with the number of pages L/S; for a fixed token budget B=K*S, the load fraction is 1/S + B/L, so changing S changes the metadata term and the page count.",
+      "inference": "Page size is a coupled tradeoff: reducing S improves selection granularity but can increase metadata and Top-K entries, so net memory-load reduction and latency are not guaranteed to improve.",
+      "toy_example": "Not a measurement: for fixed L and token budget B=K*S, the load fraction is 1/S + B/L; changing S changes the metadata term 1/S and the page count, so the net effect is not monotonic without fixing the budget.",
+      "conditional_consequence": "If S is reduced without increasing K, token budget shrinks; if K is increased to preserve token budget, metadata load grows; at short contexts metadata may dominate.",
+      "critical_link": "The paper's 8× example assumes a specific page size, context length, and Top-K page count; it is an illustrative configuration, not a universal page-size rule.",
+      "necessary_conditions": [
+        "Page metadata is cheap enough relative to KV loads.",
+        "Page size is balanced against Top-K budget and sequence length.",
+        "The workload is long enough for sparse attention to dominate metadata overhead."
+      ],
+      "defeaters": [
+        "Hardware or implementation where page metadata overhead is negligible.",
+        "A page-size reduction that preserves token budget without extra Top-K cost.",
+        "Evidence that the load fraction decreases monotonically for all page sizes under the same token budget."
+      ],
+      "do_not_infer": [
+        "Smaller pages are always worse.",
+        "The paper claims 8× memory-load reduction for all page sizes.",
+        "Page size has no effect on accuracy."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L3+L6",
+      "quotes": [
+        {
+          "text": "The whole KV cache is 2M ∗L bytes, which indicates Quest loads 1/S + K ∗S/L of the total KV cache",
+          "source": "paper",
+          "locator": "p.5 §3.5"
+        },
+        {
+          "text": "Assuming that we use 16 KV pairs per page, context length is 64K, and we choose the top 4K pages, Quest will reduce the memory load by 8×.",
+          "source": "paper",
+          "locator": "p.5 §3.5"
+        },
+        {
+          "text": "Note that techniques like quantization or larger page size can further reduce the additional memory usage.",
+          "source": "paper",
+          "locator": "p.7 §4.3.1"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "author_boundaries": [
+        "The authors present the memory-load formula and an illustrative 8× example under stated assumptions; they do not claim that every page-size reduction improves net memory load or latency."
+      ],
+      "inferred_consequences": [
+        "Page size must be tuned jointly with Top-K and token budget.",
+        "Metadata overhead can offset gains from finer page granularity, especially at shorter contexts."
+      ],
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Metadata per page scales with the number of pages L/S; for a fixed token budget B=K*S, the load fraction is 1/S + B/L, so changing S changes the metadata term and the page count. Page size is a coupled tradeoff: reducing S improves selection granularity but can increase metadata and Top-K entries, so net memory-load reduction and latency are not guaranteed to improve."
+    },
+    {
+      "headline": "Bounded per-page Key ranges do not guarantee that metadata selection remains the bottleneck as context grows.",
+      "claim": "Quest's min/max metadata assumes per-page Key ranges stay bounded; if Key ranges widen or pages mix heterogeneous tokens as context grows, the upper bound loosens and false-positive page loading can become the bottleneck rather than metadata load.",
+      "paper_fact": "For each page, Quest utilizes maximum and minimum values of each feature dimension of the Key vector as the metadata to represent token information.",
+      "premise": "Min/max interval width controls bound looseness; wider or more heterogeneous per-page Key ranges produce looser upper bounds and more false-positive pages.",
+      "inference": "Therefore, the metadata's selection quality and cost profile depend on the regularity of per-page Key ranges; the representation does not guarantee that metadata load remains the dominant selection cost at long context.",
+      "conditional_consequence": "If Key ranges widen with context length, then fixed page size and K may not preserve accuracy or speedup; the bottleneck may shift to loading false-positive pages.",
+      "critical_link": "The paper uses per-page extrema as the metadata and gives metadata load as 2M*L/S, but it does not analyze how interval width changes with context length or page heterogeneity.",
+      "necessary_conditions": [
+        "Per-page Key ranges remain bounded and homogeneous enough for extrema to be informative.",
+        "Page size is chosen so pages do not mix very different Key distributions.",
+        "K and page size are tuned to the context length and model."
+      ],
+      "defeaters": [
+        "The paper evaluates 100k passkey retrieval and 32k PG19 with good accuracy, suggesting the tested Key ranges were manageable.",
+        "The paper reports metadata load approaching 1/Page Size of FlashInfer as sequence length grows."
+      ],
+      "do_not_infer": [
+        "Do not infer that Key ranges always widen with context length or that Quest fails at long context.",
+        "Do not infer that metadata load always dominates; the paper reports measured speedups at 32K.",
+        "Author boundary: the paper reports measured speedups and accuracy on tested models/datasets; it does not claim metadata load is always negligible or that per-page Key ranges are stationary."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L5+L7",
+      "quotes": [
+        {
+          "text": "For each page, Quest utilizes maximum and minimum values of each feature dimension of the Key vector as the metadata to represent token information.",
+          "source": "paper",
+          "locator": "p.2 (intro)"
+        },
+        {
+          "text": "During criticality estimation, Quest will load maximal and minimal vectors of each page, which is approximately 2M ∗L/S bytes.",
+          "source": "paper",
+          "locator": "p.5 §3.5"
+        },
+        {
+          "text": "The upper bound of the attention weights can be calculated by the channel-wise minimal values (mi) and maximal values (Mi) of Key vectors.",
+          "source": "paper",
+          "locator": "p.4 §3.4"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Min/max interval width controls bound looseness; wider or more heterogeneous per-page Key ranges produce looser upper bounds and more false-positive pages. Therefore, the metadata's selection quality and cost profile depend on the regularity of per-page Key ranges; the representation does not guarantee that metadata load remains the dominant selection cost at long context."
+    },
+    {
+      "headline": "An upper bound on unnormalized channel contributions does not guarantee correct Top-K page selection under softmax attention.",
+      "claim": "Quest's sign-aware page score is an upper bound on per-token unnormalized dot-product contributions, but it does not guarantee that Top-K pages by this bound contain the tokens with the highest softmax attention.",
+      "paper_fact": "Note that Ui is always greater than any product of Qi with the Key value Ki for all tokens in this page regardless of the sign of Qi.",
+      "premise": "For a fixed query, softmax attention ranks tokens by unnormalized dot products, but a page-level upper bound can be loose; an upper bound on every token's dot product in a page does not imply the page's true maximum is close to that bound or that page ordering matches true token ordering.",
+      "inference": "Because Quest selects pages by summed per-channel maxima rather than exact token scores, loose bounds can cause false-positive and false-negative page selections; accuracy then depends on K and bound tightness, not on the bound alone.",
+      "toy_example": "Toy example (not a measurement): a page whose per-channel maxima sum to 100 while its best token dot product is 1 can outrank a page whose bound is 10 but whose best token is 9; Top-K by bound may miss the true critical token.",
+      "conditional_consequence": "If the bound is loose for a query/page distribution, then Top-K by bound may include low-attention pages and omit high-attention pages unless K is increased or an exact fallback is used.",
+      "critical_link": "The score is computed as sum_i max(q_i m_i, q_i M_i); it bounds each token's unnormalized dot product but is not the token's score and has no calibration to the true page maximum.",
+      "necessary_conditions": [
+        "The per-page min/max bound is tight enough that page ordering by bound approximates ordering by true maximum token attention.",
+        "K is large enough to absorb false-positive pages.",
+        "Attention is concentrated so a small number of pages suffices.",
+        "Page size and key distribution keep min/max ranges narrow."
+      ],
+      "defeaters": [
+        "Measured recall of top attention tokens remains near full attention at the chosen K.",
+        "The bound is tight for the workload because keys are homogeneous or queries align with extremes.",
+        "A larger K or exact fallback recovers missed tokens.",
+        "The claim is about guarantee, not observed average accuracy."
+      ],
+      "do_not_infer": [
+        "Do not infer that Quest empirically fails or loses accuracy on reported benchmarks.",
+        "Do not infer that the paper claims an exact softmax-probability bound.",
+        "Do not infer that no speedup or memory saving exists.",
+        "Do not infer that every loose bound causes a miss."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1+L2",
+      "quotes": [
+        {
+          "text": "Note that Ui is always greater than any product of Qi with the Key value Ki for all tokens in this page regardless of the sign of Qi.",
+          "source": "paper",
+          "locator": "p.4 §3.4"
+        },
+        {
+          "text": "Therefore, when we add up Ui, we get the upper bound of attention weights across all Key vectors on this page.",
+          "source": "paper",
+          "locator": "p.4 §3.4"
+        },
+        {
+          "text": "Our insight is that in order not to miss critical tokens, we should select pages containing the token with the highest attention weights.",
+          "source": "paper",
+          "locator": "p.4 §3.4"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "For a fixed query, softmax attention ranks tokens by unnormalized dot products, but a page-level upper bound can be loose; an upper bound on every token's dot product in a page does not imply the page's true maximum is close to that bound or that page ordering matches true token ordering. Because Quest selects pages by summed per-channel maxima rather than exact token scores, loose bounds can cause false-positive and false-negative page selections; accuracy then depends on K and bound tightness, not on the bound alone."
+    },
+    {
+      "headline": "Increasing page size does not guarantee lower net metadata cost without loosening the criticality bound.",
+      "claim": "Quest's page-size choice couples metadata-load reduction with bound tightness; larger pages can reduce metadata bytes but make per-page min/max looser and increase false-positive page loads, so net benefit is not guaranteed by the 1/S metadata term alone.",
+      "paper_fact": "During criticality estimation, Quest will load maximal and minimal vectors of each page, which is approximately 2M ∗L/S bytes.",
+      "premise": "The min/max over a larger set of keys spans at least as wide a range as over a smaller set; a wider range makes the sign-aware upper bound looser. Also, for fixed K pages, selected token budget grows with page size S.",
+      "inference": "Larger S reduces metadata fraction 1/S but can increase bound looseness and selected tokens K*S; net memory and accuracy tradeoff depends on K and key diversity.",
+      "toy_example": "Toy example (not a measurement): a 64-key page containing both -100 and +100 in a channel has a bound of 100|q|, while a 16-key page with keys near +1 has a bound near |q|; the larger page can look more critical despite no token near the extreme.",
+      "conditional_consequence": "If page size is increased without adjusting K or checking bound tightness, then metadata load may fall but false-positive page loads and selected token budget may rise, so net benefit is not guaranteed.",
+      "critical_link": "S appears in both metadata load (2M L/S) and selected attention load (2M K S); the same S also controls how many keys the min/max bound covers.",
+      "necessary_conditions": [
+        "Page size is small enough or K is adjusted to keep selected token budget controlled.",
+        "Keys within a page are homogeneous enough that min/max ranges stay narrow.",
+        "The bound remains tight enough for Top-K ranking.",
+        "The workload tolerates the resulting token budget."
+      ],
+      "defeaters": [
+        "If keys are homogeneous, larger pages may not loosen the bound much.",
+        "If K is reduced proportionally, token budget may stay fixed.",
+        "If metadata load dominates, larger pages may still win.",
+        "The claim is about net benefit, not a measured accuracy result."
+      ],
+      "do_not_infer": [
+        "Do not infer that the paper measured accuracy degradation with larger page size.",
+        "Do not infer that page size 16 is optimal.",
+        "Do not infer that larger page size is always worse.",
+        "Do not infer that no memory savings exist."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L4+L6",
+      "quotes": [
+        {
+          "text": "During criticality estimation, Quest will load maximal and minimal vectors of each page, which is approximately 2M ∗L/S bytes.",
+          "source": "paper",
+          "locator": "p.5 §3.5"
+        },
+        {
+          "text": "Note that techniques like quantization or larger page size can further reduce the additional memory usage.",
+          "source": "paper",
+          "locator": "p.7 §4.3.1"
+        },
+        {
+          "text": "Quest loads 1/S + K ∗S/L of the total KV cache",
+          "source": "paper",
+          "locator": "p.5 §3.5"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "The min/max over a larger set of keys spans at least as wide a range as over a smaller set; a wider range makes the sign-aware upper bound looser. Also, for fixed K pages, selected token budget grows with page size S. Larger S reduces metadata fraction 1/S but can increase bound looseness and selected tokens K*S; net memory and accuracy tradeoff depends on K and key diversity."
+    },
+    {
+      "headline": "A preset Top-K page budget does not guarantee that all critical tokens are included or that accuracy is lossless for every task, layer, or query.",
+      "claim": "Quest's fixed K/token budget is a heuristic selection rule; it cannot by itself guarantee lossless accuracy across tasks, layers, or queries because the needed critical set can exceed the preset budget.",
+      "paper_fact": "After deriving the upper bound attention weights, we choose the top K pages as critical, where K is an arbitrarily defined hyper-parameter.",
+      "premise": "Top-K selection is a heuristic; if the true critical set exceeds K, selected pages omit some high-attention tokens, changing the softmax output.",
+      "inference": "Therefore, a fixed K cannot by itself guarantee lossless accuracy; the guarantee is conditional on K covering the task/layer/query critical set.",
+      "toy_example": "Toy example (not a measurement): If a query needs 300 pages but K=128, the 172 omitted pages are not attended; this is a hypothetical illustration, not a measured result.",
+      "conditional consequence": "If a workload has critical tokens outside the selected Top-K pages, accuracy can degrade even though the mechanism and K are unchanged.",
+      "critical_link": "The link is the preset/arbitrary K and page-level upper-bound approximation versus the task-dependent critical set; there is no adaptive stopping based on attention mass or error.",
+      "necessary_conditions": [
+        "K is smaller than the number of pages containing critical tokens",
+        "the upper-bound estimate ranks those critical pages outside Top-K",
+        "no full-cache fallback or other layer compensates"
+      ],
+      "defeaters": [
+        "K is large enough to cover the critical set",
+        "critical pages are ranked in Top-K",
+        "first two layers remain full-cache",
+        "task accuracy tolerance is loose or task relies on local tokens"
+      ],
+      "do_not_infer": [
+        "Do not infer that Quest is never lossless; the paper reports lossless results on six datasets with specific budgets.",
+        "Do not infer that K=128 or 256 is universal across tasks, models, or layers.",
+        "Do not infer that the first two layers can be sparsified without any accuracy effect."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L2+L5",
+      "quotes": [
+        {
+          "text": "After deriving the upper bound attention weights, we choose the top K pages as critical, where K is an arbitrarily defined hyper-parameter.",
+          "source": "paper",
+          "locator": "p.4 §3.4"
+        },
+        {
+          "text": "After considering the full cache used in the first two layers, Quest can achieve lossless performance on Qasper, HotpotQA, GovReport, TriviaQA, NarrativeQA, and MultifieldQA with KV cache sparsity of 1/6, 1/6, 1/5, 1/10, 1/5, and 1/6, respectively.",
+          "source": "paper",
+          "locator": "p.6 §4.2.3"
+        },
+        {
+          "text": "For the first two layers, the sparsity is below 10%, while for the rest of the layers, the sparsity is larger than 90%, showing great potential for optimization.",
+          "source": "paper",
+          "locator": "p.3 Fig. 3 caption"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Top-K selection is a heuristic; if the true critical set exceeds K, selected pages omit some high-attention tokens, changing the softmax output. Therefore, a fixed K cannot by itself guarantee lossless accuracy; the guarantee is conditional on K covering the task/layer/query critical set."
+    },
+    {
+      "headline": "A page-level upper-bound estimate does not guarantee exact full-attention selection.",
+      "claim": "Quest's stage-1 page score is an approximate upper bound built from per-page min/max Key metadata; Top-K over that proxy can select pages whose actual attention is low and can exclude true high-attention pages when many bounds are loose, so sparse attention is approximate and accuracy loss is empirical, not guaranteed.",
+      "paper_fact": "Our insight is that in order not to miss critical tokens, we should select pages containing the token with the highest attention weights. However, for an efficient selection of pages, we should calculate an approximate attention score following this insight.",
+      "premise": "A page-level upper bound is a proxy; Top-K over proxies can select pages whose actual max attention is lower and can exclude true high-attention pages when many bounds are loose.",
+      "inference": "Quest's sparse attention is approximate; its accuracy depends on K, page size, and data, and the paper's benchmark results do not guarantee exact full-attention equivalence.",
+      "toy_example": "Toy example (not a measurement): a page has one key with a huge coordinate and many small keys; its min/max upper bound is high, so Top-K may select it even if its actual max dot product is low, while a page with a true high dot product but looser bound may be excluded when K is small.",
+      "conditional_consequence": "If within-page key variance is high or K is small, then selected pages may not contain the tokens that full attention would weight most, causing accuracy loss.",
+      "critical_link": "Proxy validity: page min/max upper bound must rank true critical pages well enough for Top-K.",
+      "necessary_conditions": [
+        "Page min/max metadata tightly bounds actual attention for critical tokens",
+        "Top-K large enough to include all pages with high actual attention",
+        "Page size small enough that page-level selection does not dilute critical tokens",
+        "Attention sparsity stable across layers and queries"
+      ],
+      "defeaters": [
+        "Recall close to full attention on target tasks",
+        "Accuracy loss negligible across benchmarks",
+        "Larger K or smaller page size removes proxy error",
+        "Exact fallback for layers with low sparsity"
+      ],
+      "do_not_infer": [
+        "Do not infer Quest is exact full attention; the paper calls it approximate.",
+        "Do not infer Quest always misses critical tokens; the paper reports high recall and negligible accuracy loss on its benchmarks.",
+        "Do not infer the upper bound is invalid; it is a bound, but Top-K over bounds is not an exact selection guarantee.",
+        "Do not infer accuracy loss on untested tasks without measurement."
+      ],
+      "author_boundaries": [
+        "Authors report approximate selection and benchmark accuracy; they do not claim exact attention equivalence.",
+        "Authors evaluate specific models and datasets."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1",
+      "quotes": [
+        {
+          "text": "Our insight is that in order not to miss critical tokens, we should select pages containing the token with the highest attention weights. However, for an efficient selection of pages, we should calculate an approximate attention score following this insight.",
+          "source": "paper",
+          "locator": "p.4 §3.4"
+        },
+        {
+          "text": "Quest gets the sum of the per-channel maximal value for each page as the page criticality estimation.",
+          "source": "paper",
+          "locator": "p.4 Figure 5 caption"
+        },
+        {
+          "text": "Quest performs normal self-attention only on selected pages, which greatly reduces memory movement.",
+          "source": "paper",
+          "locator": "p.4 §3.4"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A page-level upper bound is a proxy; Top-K over proxies can select pages whose actual max attention is lower and can exclude true high-attention pages when many bounds are loose. Quest's sparse attention is approximate; its accuracy depends on K, page size, and data, and the paper's benchmark results do not guarantee exact full-attention equivalence."
+    },
+    {
+      "headline": "A page-level upper-bound score does not imply or guarantee that top-K pages contain all tokens with highest attention.",
+      "claim": "Quest's min/max page metadata gives an upper bound for page criticality, but top-K by that bound is an approximation; it does not guarantee exact attention or no accuracy loss when the bound is loose or critical tokens are spread across pages.",
+      "paper_fact": "The upper bound of the attention weights can be calculated by the channel-wise minimal values (mi) and maximal values (Mi) of Key vectors.",
+      "premise": "An upper bound over a page can overestimate actual attention; top-K by upper bound is not top-K by actual attention; page granularity can miss token-level maxima.",
+      "inference": "Therefore page-level top-K selection can incur accuracy loss when the bound is loose or critical tokens are distributed across many pages, even though Quest closely aligns with the oracle on evaluated cases.",
+      "toy_example": "Toy example (not a measurement): a page with one large positive key and many negative keys can have a high min/max upper bound but low actual attention for a given query.",
+      "conditional_consequence": "If the upper bound is loose or critical tokens are spread across more than K pages, then Quest may need a larger token budget to preserve accuracy.",
+      "critical_link": "The critical link is approximation error from page-level min/max upper bounds and page-granularity selection.",
+      "necessary_conditions": [
+        "Page metadata are element-wise min and max Key values",
+        "Criticality score is sum of per-channel max(Q*min, Q*max)",
+        "Top-K pages are selected",
+        "Attention is computed only on selected pages"
+      ],
+      "defeaters": [
+        "Upper bound is tight for the query/key distribution",
+        "Critical tokens are concentrated in few pages",
+        "K is large enough to cover all high-attention pages"
+      ],
+      "do_not_infer": [
+        "Quest is exact attention",
+        "Quest always loses accuracy",
+        "Upper bound is always loose"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "approximation error and selection granularity",
+      "quotes": [
+        {
+          "text": "The upper bound of the attention weights can be calculated by the channel-wise minimal values (mi) and maximal values (Mi) of Key vectors.",
+          "source": "paper",
+          "locator": "p.4 §3.4"
+        },
+        {
+          "text": "Quest performs normal self-attention only on selected pages, which greatly reduces memory movement.",
+          "source": "paper",
+          "locator": "p.4 §3.4"
+        },
+        {
+          "text": "Quest closely aligns with the oracle.",
+          "source": "paper",
+          "locator": "p.3 Fig. 3 caption"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 4,
+      "author_boundaries": [
+        "Authors claim close alignment with the oracle and negligible accuracy loss on evaluated tasks; they do not claim exact attention or universal no-loss."
+      ],
+      "inferred_consequences": [
+        "Loose upper bounds or distributed critical tokens can require larger K; page size affects the accuracy/efficiency tradeoff."
+      ],
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "An upper bound over a page can overestimate actual attention; top-K by upper bound is not top-K by actual attention; page granularity can miss token-level maxima. Therefore page-level top-K selection can incur accuracy loss when the bound is loose or critical tokens are distributed across many pages, even though Quest closely aligns with the oracle on evaluated cases."
+    },
+    {
+      "headline": "Page-granular selection does not guarantee token-level criticality preservation.",
+      "claim": "Quest selects Top-K KV-cache pages using per-page min/max Key metadata, but page-level selection is only a proxy for token-level criticality and does not by itself guarantee that every critical token is selected or that selected pages contain only critical tokens.",
+      "paper_fact": "To manage the overhead, Quest adopts PageAttention (Kwon et al., 2023) and selects the KV cache pages at the granularity of pages.",
+      "premise": "A page can contain both critical and non-critical tokens; selecting a page based on a page-level bound can include non-critical tokens and can exclude a critical token if its page is not in the Top-K.",
+      "inference": "The paper's page-granular design does not by itself guarantee token-level criticality preservation; accuracy depends on page size, Top-K budget, and how critical tokens cluster within pages.",
+      "conditional_consequence": "If critical tokens are scattered across pages with many non-critical tokens, then a fixed Top-K page budget may need to increase or accuracy may degrade relative to full attention.",
+      "critical_link": "The link is the approximation from per-page min/max upper bounds to token criticality; the paper reports empirical accuracy, not a formal token-level guarantee.",
+      "necessary_conditions": [
+        "Critical tokens are clustered within selected pages or page size is small enough.",
+        "Top-K page budget is large enough to cover critical pages.",
+        "Per-page min/max metadata gives a sufficiently tight bound for the workload."
+      ],
+      "defeaters": [
+        "A formal token-level recall guarantee for page selection.",
+        "Evidence that critical tokens are uniformly distributed but page size is small enough to preserve them.",
+        "Top-K covers all pages containing critical tokens in the evaluated workloads."
+      ],
+      "do_not_infer": [
+        "Quest always misses critical tokens.",
+        "Page-granular selection is invalid.",
+        "The paper's reported accuracy results are false."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1+L4",
+      "quotes": [
+        {
+          "text": "To manage the overhead, Quest adopts PageAttention (Kwon et al., 2023) and selects the KV cache pages at the granularity of pages.",
+          "source": "paper",
+          "locator": "p.4 §3.4"
+        },
+        {
+          "text": "Quest manages KV cache at page granularity (Kwon et al., 2023).",
+          "source": "paper",
+          "locator": "p.2 §3.4"
+        },
+        {
+          "text": "The upper bound attention weights within a page can be used to approximate the highest attention in the page.",
+          "source": "paper",
+          "locator": "p.4 §3.4"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "author_boundaries": [
+        "The authors report empirical accuracy on PG19, passkey retrieval, and LongBench, and speedups on specified GPUs; they do not claim a formal token-level guarantee from page-granular selection."
+      ],
+      "inferred_consequences": [
+        "Page size and Top-K budget are accuracy-critical knobs.",
+        "Token-level criticality preservation is an empirical property of the evaluated workloads, not a consequence of page granularity alone."
+      ],
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "A page can contain both critical and non-critical tokens; selecting a page based on a page-level bound can include non-critical tokens and can exclude a critical token if its page is not in the Top-K. The paper's page-granular design does not by itself guarantee token-level criticality preservation; accuracy depends on page size, Top-K budget, and how critical tokens cluster within pages."
+    },
+    {
+      "headline": "Loose per-page min/max bounds do not guarantee the same memory-load benefit at a fixed Top-K.",
+      "claim": "Quest's per-page min/max metadata can overestimate page criticality; if the bounds are loose, preserving accuracy may require a larger Top-K, which increases approximate-attention loading and erodes the memory-load benefit.",
+      "paper_fact": "The whole KV cache is 2M ∗L bytes, which indicates Quest loads 1/S + K ∗S/L of the total KV cache",
+      "premise": "An upper bound that overestimates many pages creates false positives; with a fixed Top-K, preserving recall may require increasing K, and the load fraction includes K*S/L.",
+      "inference": "Therefore, the metadata's memory-load reduction is conditional on bound tightness and the chosen K; the min/max representation does not by itself guarantee the same speedup at a fixed K.",
+      "toy_example": "Toy example (not a measurement): two pages with one channel interval [-10,10] and query value 1 both get bound 10 even if actual dot products are 0 and 9; top-K by bound can misrank actual attention.",
+      "conditional_consequence": "If bounds are loose, then fixed K may miss critical pages or require larger K, reducing speedup; if K is increased, approximate-attention load grows.",
+      "critical_link": "The paper's load formula 1/S + K*S/L and preset K link bound looseness to memory movement; the paper does not prove bound tightness.",
+      "necessary_conditions": [
+        "Per-page min/max bounds are tight enough that top-K ordering tracks actual page criticality.",
+        "K is chosen large enough to include critical pages under the observed bound looseness.",
+        "Page size and page composition keep false-positive pages limited."
+      ],
+      "defeaters": [
+        "The paper reports near-oracle sparsity and 7.03x self-attention speedup at 32K with K=2048, suggesting bounds were useful in tested settings.",
+        "Empirical LongBench and passkey results show high accuracy at small budgets for the tested models."
+      ],
+      "do_not_infer": [
+        "Do not infer that Quest always needs a large K or that the paper claims loose bounds.",
+        "Do not infer that the reported speedups are invalid; they are measured under specific settings.",
+        "Author boundary: the authors report empirical accuracy and speedups on specified models/datasets; they do not claim a formal exactness guarantee for min/max bounds."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L1+L6",
+      "quotes": [
+        {
+          "text": "The whole KV cache is 2M ∗L bytes, which indicates Quest loads 1/S + K ∗S/L of the total KV cache",
+          "source": "paper",
+          "locator": "p.5 §3.5"
+        },
+        {
+          "text": "After deriving the upper bound attention weights, we choose the top K pages as critical, where K is an arbitrarily defined hyper-parameter.",
+          "source": "paper",
+          "locator": "p.4 §3.4"
+        },
+        {
+          "text": "During criticality estimation, Quest will load maximal and minimal vectors of each page, which is approximately 2M ∗L/S bytes.",
+          "source": "paper",
+          "locator": "p.5 §3.5"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "An upper bound that overestimates many pages creates false positives; with a fixed Top-K, preserving recall may require increasing K, and the load fraction includes K*S/L. Therefore, the metadata's memory-load reduction is conditional on bound tightness and the chosen K; the min/max representation does not by itself guarantee the same speedup at a fixed K."
+    },
+    {
+      "headline": "Page-level min/max upper bounds do not guarantee token-level criticality selection.",
+      "claim": "Quest's per-page min/max metadata and Top-K page selection are page-level approximations; they do not guarantee that the token with the highest actual attention is selected, because the bound can be loose and K is a preset hyper-parameter.",
+      "paper_fact": "We found that the upper bound attention weights within a page can be used to approximate the highest attention in the page.",
+      "premise": "An upper bound on a page's maximum possible attention is not the actual attention; top-K by upper bound is a heuristic and can misrank pages when bounds are loose.",
+      "inference": "Therefore, Quest's selection is approximate and its accuracy depends on bound tightness and K; the metadata does not provide an exact critical-token test.",
+      "conditional_consequence": "If K is small or bounds are loose, critical tokens may be omitted, causing accuracy loss; if K is large, more pages are loaded and speedup falls.",
+      "critical_link": "The paper describes the bound as an approximation and K as arbitrarily defined; it reports empirical alignment with oracle but no formal exactness guarantee.",
+      "necessary_conditions": [
+        "The page-level upper bound ranks the true critical page within top K.",
+        "K is large enough for the observed bound looseness.",
+        "Page size keeps token-level criticality from being diluted by page aggregation."
+      ],
+      "defeaters": [
+        "The paper reports near-perfect passkey retrieval and LongBench accuracy at small budgets for tested models.",
+        "Figure 3 reports Quest estimation closely aligns with oracle sparsity."
+      ],
+      "do_not_infer": [
+        "Do not infer that the paper claims exact critical-token selection; it describes approximate selection.",
+        "Do not infer that Quest is inaccurate in tested settings; the paper reports strong empirical results.",
+        "Author boundary: the authors report empirical alignment with oracle and benchmark accuracy; they do not claim a formal guarantee that all highest-attention tokens are selected."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L2+L3",
+      "quotes": [
+        {
+          "text": "We found that the upper bound attention weights within a page can be used to approximate the highest attention in the page.",
+          "source": "paper",
+          "locator": "p.4 §3.4"
+        },
+        {
+          "text": "After deriving the upper bound attention weights, we choose the top K pages as critical, where K is an arbitrarily defined hyper-parameter.",
+          "source": "paper",
+          "locator": "p.4 §3.4"
+        },
+        {
+          "text": "Note that Ui is always greater than any product of Qi with the Key value Ki for all tokens in this page regardless of the sign of Qi.",
+          "source": "paper",
+          "locator": "p.4 §3.4"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "An upper bound on a page's maximum possible attention is not the actual attention; top-K by upper bound is a heuristic and can misrank pages when bounds are loose. Therefore, Quest's selection is approximate and its accuracy depends on bound tightness and K; the metadata does not provide an exact critical-token test."
+    },
+    {
+      "headline": "Low Top-K filtering overhead does not guarantee constant end-to-end sparse-attention latency independent of K and page size.",
+      "claim": "Quest's low Top-K filtering overhead is not a guarantee that the full attention path has constant latency independent of K and page size; the token budget is K pages times page size, so changing either shifts sparse-attention cost.",
+      "paper_fact": "We define the number of tokens in selected pages as the “Token Budget”.",
+      "premise": "Sparse attention cost scales with selected tokens/pages; K pages times page size equals token budget, so page size and K jointly determine cost.",
+      "inference": "Therefore, a low 5-10 us Top-K filter does not by itself establish constant end-to-end sparse-attention latency; the constant-latency claim is at a fixed token budget, not at a fixed K across page sizes.",
+      "toy_example": "Toy example (not a measurement): With page size 16 and token budget 2048, K=128 pages; with page size 32, K=64 pages for the same token budget, changing Top-K filtering and page metadata cost.",
+      "conditional consequence": "If page size changes at fixed K, the token budget and approximate-attention cost change; if K changes at fixed page size, both Top-K and sparse-attention costs change.",
+      "critical_link": "The link is the unit conversion between K pages and token budget via page size; the paper's constant-latency statement is conditioned on a given token budget B.",
+      "necessary_conditions": [
+        "page size is fixed or accounted for when comparing K and token budget",
+        "K is small enough that sparse-attention cost is dominated by memory savings",
+        "sequence length is long enough for fixed K to be a small fraction of the cache"
+      ],
+      "defeaters": [
+        "page size and K are chosen to match the same token budget",
+        "Top-K overhead is negligible relative to attention",
+        "sequence length is long so fixed K yields speedup"
+      ],
+      "do_not_infer": [
+        "Do not infer that Top-K filtering overhead is the whole Quest latency.",
+        "Do not infer that K pages equals a fixed token budget independent of page size.",
+        "Do not infer that constant approximate-attention latency at fixed token budget means constant end-to-end latency at fixed K."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "method_shortcoming",
+      "lens": "L3+L6",
+      "quotes": [
+        {
+          "text": "Given all criticality scores of the pages, Quest chooses Top-K pages to perform approximate self-attention, where K is a preset constant (e.g. 128, 256).",
+          "source": "paper",
+          "locator": "p.2 §3.4"
+        },
+        {
+          "text": "We define the number of tokens in selected pages as the “Token Budget”.",
+          "source": "paper",
+          "locator": "p.4 §3.4"
+        },
+        {
+          "text": "At a given token budget B, the latency of Approximate attention is a constant regardless of the sequence length.",
+          "source": "paper",
+          "locator": "p.7 §4.3.1"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Sparse attention cost scales with selected tokens/pages; K pages times page size equals token budget, so page size and K jointly determine cost. Therefore, a low 5-10 us Top-K filter does not by itself establish constant end-to-end sparse-attention latency; the constant-latency claim is at a fixed token budget, not at a fixed K across page sizes."
+    },
+    {
+      "headline": "A cheap first-stage page estimate does not guarantee net end-to-end speedup.",
+      "claim": "Quest's two-stage design reduces KV-cache memory movement, but the extra criticality-estimation pass and Top-K filtering can dominate at short sequence lengths or small batches, so reported 32K-context speedups do not imply net speedup for all contexts.",
+      "paper_fact": "At short sequence length, the memory bandwidth utilization of estimation is smaller than that of FlashInfer, as the total memory load size is not enough to fully utilize GPU memory bandwidth.",
+      "premise": "GPU memory-bound kernels need enough work to amortize launch, Top-K, and estimation overhead; at small sizes fixed overheads can dominate.",
+      "inference": "Quest's reported 7.03x self-attention and 2.23x end-to-end speedups at 32K do not imply net speedup at short contexts or small batches; the extra estimation pass may not amortize.",
+      "toy_example": "Toy example (not a measurement): full attention loads 1 MB in 10 us; estimation plus Top-K costs 8 us and sparse attention loads 0.2 MB in 2 us, so net is 10 us, not a speedup; at smaller cache the fixed 8 us dominates.",
+      "conditional_consequence": "If sequence length is short or batch is small, then estimation and Top-K overhead can offset memory savings, yielding no net latency gain or a slowdown.",
+      "critical_link": "Net benefit threshold: the extra estimation pass must save more full-KV loading than it costs.",
+      "necessary_conditions": [
+        "Long enough context or large enough batch to saturate memory bandwidth",
+        "Estimation and Top-K overhead small relative to saved KV loading",
+        "Sparse attention kernel supports selected pages efficiently",
+        "K and page size chosen so saved bytes exceed extra pass cost"
+      ],
+      "defeaters": [
+        "Measured net speedup at short contexts",
+        "Fused estimation and attention kernel with negligible launch overhead",
+        "Large batch that saturates bandwidth even at short context",
+        "Paper's own short-context measurements showing no regression"
+      ],
+      "do_not_infer": [
+        "Do not infer Quest is slower at all short contexts; the paper reports speedups at 32K and the short-context case is an inferred boundary.",
+        "Do not infer the authors claim universal end-to-end speedup across all lengths and hardware.",
+        "Do not infer accuracy from latency; this candidate is about net speedup only.",
+        "Do not infer the extra pass is always wasteful; it may amortize at long context."
+      ],
+      "author_boundaries": [
+        "Authors report speedups at 32K sequence length and specific hardware; they do not claim short-context speedup.",
+        "Authors' efficiency analysis assumes memory-bound decode and excludes sampling."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L6+L7",
+      "quotes": [
+        {
+          "text": "At short sequence length, the memory bandwidth utilization of estimation is smaller than that of FlashInfer, as the total memory load size is not enough to fully utilize GPU memory bandwidth.",
+          "source": "paper",
+          "locator": "p.7 §4.3.1"
+        },
+        {
+          "text": "At sequence length 32K and token budget 2048, Quest boosts inference speed by 1.74× with FP16 weights and 2.23× with 4-bit quantized weight.",
+          "source": "paper",
+          "locator": "p.8 §4.3.2"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "GPU memory-bound kernels need enough work to amortize launch, Top-K, and estimation overhead; at small sizes fixed overheads can dominate. Quest's reported 7.03x self-attention and 2.23x end-to-end speedups at 32K do not imply net speedup at short contexts or small batches; the extra estimation pass may not amortize."
+    },
+    {
+      "headline": "Skipping Quest in the first two layers does not guarantee accuracy preservation on models whose early-layer sparsity differs from LongChat-7B.",
+      "claim": "The fixed two-layer exemption is an empirical, model-specific choice; it is not a general accuracy guarantee for other architectures or tasks.",
+      "paper_fact": "Due to the low sparsity ratio for the first two layers (as shown in Fig. 3), we only apply Quest and all baselines on later layers to better preserve model accuracy.",
+      "premise": "Layer-wise attention sparsity is an empirical property that can vary with model architecture, training data, task, and evaluation metric; a threshold validated on one model/dataset is not a universal guarantee.",
+      "inference": "The two-layer skip is a model-specific empirical rule, not a per-layer safety guarantee; on a model with dense attention beyond layer two, the same skip could leave important dense layers sparsified or exempt the wrong layers.",
+      "toy_example": "Toy example (not a measurement): a hypothetical model with dense attention in layers 1-4 would be only partially protected by a two-layer skip.",
+      "conditional consequence": "If a target model has dense attention in layer 3 or later, then applying Quest only after layer 2 may lose accuracy unless the exemption threshold is adapted or validated.",
+      "critical_link": "The paper's evidence for the threshold is a sparsity measurement on LongChat-7B with PG19 perplexity; it does not establish per-layer safety for other models or tasks.",
+      "necessary_conditions": [
+        "The target model's layer-wise sparsity must match the observed pattern.",
+        "The accuracy metric must be sensitive to the exempted layers.",
+        "The two-layer threshold must be validated on the target workload."
+      ],
+      "defeaters": [
+        "Replicated sparsity pattern across target models.",
+        "Later layers remain highly sparse.",
+        "Accuracy is unchanged by the fixed skip."
+      ],
+      "do_not_infer": [
+        "Do not infer that Quest's page-selection algorithm is invalid.",
+        "Do not infer a specific safe layer count for another model.",
+        "Do not infer measured accuracy loss from this analysis."
+      ],
+      "author_boundaries": [
+        "Authors report a two-layer skip for their evaluated LongChat/Yarn models and call it orthogonal to the selection algorithm; they do not claim a universal layer threshold."
+      ],
+      "inferred_consequences": [
+        "A deployment on a different architecture may need an adaptive or validated layer rule."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "L5+L2",
+      "quotes": [
+        {
+          "text": "For the first two layers, the sparsity is below 10%, while for the rest of the layers, the sparsity is larger than 90%, showing great potential for optimization.",
+          "source": "paper",
+          "locator": "p.3 Figure 3 caption"
+        },
+        {
+          "text": "Due to the low sparsity ratio for the first two layers (as shown in Fig. 3), we only apply Quest and all baselines on later layers to better preserve model accuracy.",
+          "source": "paper",
+          "locator": "p.4 §3.4"
+        },
+        {
+          "text": "Note that whether to skip the first two layers or not is orthogonal to the KV cache selection algorithm.",
+          "source": "paper",
+          "locator": "p.4 §3.4"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Layer-wise attention sparsity is an empirical property that can vary with model architecture, training data, task, and evaluation metric; a threshold validated on one model/dataset is not a universal guarantee. The two-layer skip is a model-specific empirical rule, not a per-layer safety guarantee; on a model with dense attention beyond layer two, the same skip could leave important dense layers sparsified or exempt the wrong layers."
+    },
+    {
+      "headline": "The observed layer-wise sparsity does not guarantee that the first two layers are the only dense layers across tasks or sequence lengths.",
+      "claim": "The layer exception is based on a sparsity measurement on LongChat-7B with a PG19 perplexity criterion; it is not a per-layer guarantee for other tasks, metrics, or context lengths.",
+      "paper_fact": "We measure the sparsity by eliminating KV cache tokens while making sure the perplexity on PG19 increases less than 0.01.",
+      "premise": "Sparsity depends on model, task, metric, and sequence length; a single measurement under one criterion does not guarantee the same layer-wise pattern elsewhere.",
+      "inference": "The fixed two-layer skip may be misaligned for tasks or models with different layer-wise sparsity; the origin and stability of the observed regularity are not established.",
+      "toy_example": "Toy example (not a measurement): a task whose answer requires attention in layer 3 could be harmed if layer 3 is sparsified under a two-layer rule.",
+      "conditional consequence": "If a task requires dense attention in later layers or if early layers become sparse, then the fixed two-layer rule may be suboptimal or accuracy-degrading unless revalidated.",
+      "critical_link": "The evidence is a sparsity profile on LongChat-7B using PG19 perplexity increase below 0.01; it does not establish that the first two layers are universally the only dense layers.",
+      "necessary_conditions": [
+        "Same model and task distribution.",
+        "Same sparsity criterion, such as PG19 perplexity increase below 0.01.",
+        "Same accuracy target.",
+        "Layer sparsity measured under the relevant context length."
+      ],
+      "defeaters": [
+        "Sparsity pattern replicated across tasks and models.",
+        "Early layers remain dense.",
+        "Later layers remain highly sparse."
+      ],
+      "do_not_infer": [
+        "Do not infer that all later layers are always sparse.",
+        "Do not infer exact sparsity ratios for other models.",
+        "Do not infer that the first two layers are universally dense."
+      ],
+      "author_boundaries": [
+        "Authors measure sparsity on LongChat-7B with PG19 perplexity and apply the skip in their evaluated models; they do not claim the pattern is universal."
+      ],
+      "inferred_consequences": [
+        "A fixed two-layer rule may be misaligned for tasks or models with different layer-wise sparsity."
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "mechanism_origin_unclear",
+      "lens": "L1",
+      "quotes": [
+        {
+          "text": "We measure the sparsity by eliminating KV cache tokens while making sure the perplexity on PG19 increases less than 0.01.",
+          "source": "paper",
+          "locator": "p.3 Figure 3 caption"
+        },
+        {
+          "text": "For the first two layers, the sparsity is below 10%, while for the rest of the layers, the sparsity is larger than 90%, showing great potential for optimization.",
+          "source": "paper",
+          "locator": "p.3 Figure 3 caption"
+        },
+        {
+          "text": "Due to the low sparsity ratio for the first two layers (as shown in Fig. 3), we only apply Quest and all baselines on later layers to better preserve model accuracy.",
+          "source": "paper",
+          "locator": "p.4 §3.4"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 3,
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "Sparsity depends on model, task, metric, and sequence length; a single measurement under one criterion does not guarantee the same layer-wise pattern elsewhere. The fixed two-layer skip may be misaligned for tasks or models with different layer-wise sparsity; the origin and stability of the observed regularity are not established."
+    },
+    {
+      "headline": "Retaining the full KV cache does not imply or guarantee reduced KV-cache memory capacity.",
+      "claim": "Quest's full-cache retention and per-query page selection reduce memory movement during decode, but they do not reduce the KV-cache storage footprint; capacity-bound deployments gain no capacity from Quest alone.",
+      "paper_fact": "Quest does not discard KV cache but instead uses a query-aware approach to identify critical tokens.",
+      "premise": "KV-cache size scales with sequence length and model dimensions; retaining all entries keeps the storage footprint; selecting pages changes bytes loaded per attention step, not bytes allocated.",
+      "inference": "Therefore Quest's reported speedup is a bandwidth/memory-movement benefit, not a capacity benefit, and it cannot by itself increase the maximum context length under a fixed memory budget.",
+      "toy_example": "Toy example (not a measurement): a 32K-token Llama-7B KV cache is about 16GB; selecting 2K tokens per query still requires storing the full 16GB cache.",
+      "conditional_consequence": "If a deployment is capacity-bound, then Quest alone will not fit longer contexts; additional eviction, quantization, or offloading is needed.",
+      "critical_link": "The critical link is that full retention and per-query selection alter what is loaded for attention, not what is stored in the KV cache.",
+      "necessary_conditions": [
+        "Full KV cache is stored for all tokens",
+        "Selection only chooses pages to load for attention",
+        "Metadata min/max per page is stored",
+        "Decode is bandwidth-bound rather than capacity-bound"
+      ],
+      "defeaters": [
+        "Implementation also evicts or compresses KV cache",
+        "Quest is combined with quantization or offloading that reduces capacity",
+        "Workload is compute-bound rather than bandwidth-bound"
+      ],
+      "do_not_infer": [
+        "Quest reduces KV-cache memory footprint",
+        "Quest alone enables longer context under fixed GPU memory",
+        "Quest eliminates the need for eviction or quantization"
+      ],
+      "disclosure": "mechanism_reported_consequence_inferred",
+      "category_code": "applicability_limitation",
+      "lens": "memory capacity versus memory bandwidth",
+      "quotes": [
+        {
+          "text": "Quest does not discard KV cache but instead uses a query-aware approach to identify critical tokens.",
+          "source": "paper",
+          "locator": "p.6 §4.2.2"
+        },
+        {
+          "text": "Instead of loading the whole KV cache, Quest only needs to load a fraction of the data, which leverages query-aware sparsity.",
+          "source": "paper",
+          "locator": "p.5 §3.5"
+        },
+        {
+          "text": "During criticality estimation, Quest will load maximal and minimal vectors of each page, which is approximately 2M ∗L/S bytes.",
+          "source": "paper",
+          "locator": "p.5 §3.5"
+        }
+      ],
+      "kind": "mechanism",
+      "non_obviousness": 2,
+      "author_boundaries": [
+        "Authors claim speedup from reduced memory movement, not reduced KV-cache allocation; they do not claim capacity savings."
+      ],
+      "inferred_consequences": [
+        "Capacity-bound deployments need additional memory reduction; Quest alone cannot increase max context under fixed memory."
+      ],
+      "evidence": [],
+      "quote_verified": false,
+      "mechanism": "KV-cache size scales with sequence length and model dimensions; retaining all entries keeps the storage footprint; selecting pages changes bytes loaded per attention step, not bytes allocated. Therefore Quest's reported speedup is a bandwidth/memory-movement benefit, not a capacity benefit, and it cannot by itself increase the maximum context length under a fixed memory budget."
+    }
+  ],
+  "dropped_for_unverified_quotes": 0,
+  "chunk_count": 8,
+  "chunk_failures": 0,
+  "chunk_timings": [
+    {
+      "seconds": 80.93842711811885,
+      "attempts": 1
+    },
+    {
+      "seconds": 92.9296480640769,
+      "attempts": 1
+    },
+    {
+      "seconds": 123.68490384402685,
+      "attempts": 1
+    },
+    {
+      "seconds": 91.82459077611566,
+      "attempts": 1
+    },
+    {
+      "seconds": 99.98745315195993,
+      "attempts": 1
+    },
+    {
+      "seconds": 97.39679445396177,
+      "attempts": 1
+    },
+    {
+      "seconds": 76.38866502605379,
+      "attempts": 1
+    },
+    {
+      "seconds": 86.81220804899931,
+      "attempts": 1
+    }
+  ],
+  "inventory_seconds": 202.07951282896101,
+  "chunks_seconds": 279.73160400101915,
+  "merged_candidates": 0,
+  "unverified_kept": 24
+}

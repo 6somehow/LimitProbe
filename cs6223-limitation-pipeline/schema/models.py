@@ -16,11 +16,13 @@ Pipeline step -> record types it produces
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-SCHEMA_VERSION = "0.2.0"
+SCHEMA_VERSION = "0.2.1"
+
+SwarmCategory = Literal["applicability_limitation", "mechanism_origin_unclear", "method_shortcoming"]
 
 
 class _Record(BaseModel):
@@ -244,6 +246,8 @@ class Limitation(_Record):
     region_ids: list[str] = Field(default_factory=list)
     provenance: Provenance
     notes: Optional[str] = None
+    swarm_category: Optional[SwarmCategory] = None
+    swarm_provenance: Optional[dict[str, Any]] = None
 
 
 # --------------------------------------------------------------------------- #
@@ -300,6 +304,7 @@ class FindingCategory(str, Enum):
     # paper side (from 3a)
     impl_deviates = "impl_deviates"  # the paper describes it, the code implements it differently
     not_implemented = "not_implemented"  # the paper describes it, the code has nothing for it
+    paper_hypothesis = "paper_hypothesis"  # a proposed limitation grounded in paper evidence
 
 
 class ReviewStatus(str, Enum):
@@ -313,6 +318,7 @@ class Finding(_Record):
     schema_version: str = SCHEMA_VERSION
     finding_id: str
     artifact_id: str
+    origin: Literal["v1", "swarm"] = "v1"
     category: FindingCategory
     level: Level
     limitation_ids: list[str]

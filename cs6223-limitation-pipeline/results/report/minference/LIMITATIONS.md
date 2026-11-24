@@ -1,8 +1,8 @@
 # Limitations report: MInference 1.0: Accelerating Pre-filling for Long-Context LLMs via Dynamic Sparse Attention
 
 - artifact: `minference` (NeurIPS 2024), repository https://github.com/microsoft/MInference at `427b1ddbd2`
-- input: `results/step4/minference/limitations_for_tests.json` (sha256 `6f02cbec16ce`), 73 Findings
-- generated: 2026-11-18T17:48:34+08:00 by `checklimits test` (contract `checklimits-test-report/1`)
+- input: `results/step4/minference/limitations_for_tests.json` (sha256 `7a53914ea144`), 73 Findings
+- generated: 2026-11-23T11:22:10+08:00 by `checklimits test` (contract `checklimits-test-report/1`)
 - environment: **ok**
 
 ## How to read this
@@ -25,6 +25,8 @@
 | levels | L1 19, L2 4, L3 4, invalid 1, n/a 9 |
 | analysis only (not tests) | A0 10, A1 9, A2 17 |
 | not tested, by reason | `no_code_location` 23, `outcome_unsupported` 13 |
+
+Code side's predicted ceiling vs measured level (both uncalibrated; 27 tested Findings have both): equal 24, measured below ceiling 3, measured above ceiling 0.
 
 | Finding | category | effect | location | result |
 |---|---|---|---|---|
@@ -114,6 +116,8 @@
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: AssertionError at minference/minference_configuration.py:57
@@ -137,6 +141,8 @@
 
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L1 (measured: L1).
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
@@ -162,6 +168,8 @@
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: branch taken at minference/modules/minference_forward.py:390
@@ -186,6 +194,8 @@
 **Verdict `inconclusive`**: no verdict: the test was invalid or could not separate the cases.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: invalid).
+
 **Level invalid, uncalibrated.** a fatal defeater was refuted (for example the target line was not reached): no verdict is drawn. refuted fatal defeaters: D2, D12
 
 - trigger run: ValueError at minference/modules/minference_forward.py:484
@@ -209,6 +219,8 @@
 
 **Verdict `inconclusive`**: no verdict: the test was invalid or could not separate the cases.
   positive run: AttributeError at nn/modules/module.py:1976 before the target was reached
+
+Code side predicted ceiling before the test: L1 (measured: n/a).
 
 **Level n/a, uncalibrated.** no verdict, so no level. verdict is inconclusive; no confidence is assigned to it
 
@@ -236,6 +248,8 @@
 
 **Verdict `inconclusive`**: no verdict: the test was invalid or could not separate the cases.
   positive run: NotImplementedError at workspace/attempt/driver.py:11 before the target was reached
+
+Code side predicted ceiling before the test: L3 (measured: n/a).
 
 **Level n/a, uncalibrated.** no verdict, so no level. verdict is inconclusive; no confidence is assigned to it
 
@@ -265,6 +279,8 @@
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L3 (measured: L3).
+
 **Level L3, uncalibrated.** established: every defeater was measured and ruled out.
 
 - trigger run: AssertionError at minference/ops/block_sparse_flash_attention.py:127
@@ -284,6 +300,8 @@
 
 **Verdict `inconclusive`**: no verdict: the test was invalid or could not separate the cases.
   positive run: run failed before a result: load_error
+
+Code side predicted ceiling before the test: L3 (measured: n/a).
 
 **Level n/a, uncalibrated.** no verdict, so no level. verdict is inconclusive; no confidence is assigned to it
 
@@ -312,6 +330,8 @@
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L3 (measured: L2).
+
 **Level L2, uncalibrated.** supported: fatal checks, mutation, repeat runs and clean-checkout replay passed; some checks are residual.
 
 - trigger run: AssertionError at minference/ops/pit_sparse_flash_attention_v2.py:150
@@ -335,6 +355,8 @@
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L3 (measured: L2).
+
 **Level L2, uncalibrated.** supported: fatal checks, mutation, repeat runs and clean-checkout replay passed; some checks are residual.
 
 - trigger run: AssertionError at minference/ops/streaming_kernel.py:414
@@ -357,6 +379,8 @@
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L3 (measured: L3).
+
 **Level L3, uncalibrated.** established: every defeater was measured and ruled out.
 
 - trigger run: AssertionError at minference/ops/streaming_kernel.py:605
@@ -377,6 +401,8 @@
 **Verdict `yes`**: with the trigger the exception is raised at the location and with the contrast it is not.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L3 (measured: L3).
+
 **Level L3, uncalibrated.** established: every defeater was measured and ruled out.
 
 - trigger run: AssertionError at minference/ops/streaming_kernel.py:606
@@ -396,6 +422,8 @@
 
 **Verdict `inconclusive`**: no verdict: the test was invalid or could not separate the cases.
   positive run: NotImplementedError at workspace/attempt/driver.py:11 before the target was reached
+
+Code side predicted ceiling before the test: L1 (measured: n/a).
 
 **Level n/a, uncalibrated.** no verdict, so no level. verdict is inconclusive; no confidence is assigned to it
 
@@ -426,6 +454,8 @@
 **Verdict `inconclusive`**: no verdict: the test was invalid or could not separate the cases.
   positive run: NotImplementedError at workspace/attempt/driver.py:11 before the target was reached
 
+Code side predicted ceiling before the test: L1 (measured: n/a).
+
 **Level n/a, uncalibrated.** no verdict, so no level. verdict is inconclusive; no confidence is assigned to it
 
 - trigger run: NotImplementedError at workspace/attempt/driver.py:11 before the target was reached
@@ -455,6 +485,8 @@
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: branch taken at minference/minference_configuration.py:52
@@ -478,6 +510,8 @@
 
 **Verdict `inconclusive`**: no verdict: the test was invalid or could not separate the cases.
   positive run: run failed before a result: load_error
+
+Code side predicted ceiling before the test: L3 (measured: n/a).
 
 **Level n/a, uncalibrated.** no verdict, so no level. verdict is inconclusive; no confidence is assigned to it
 
@@ -506,6 +540,8 @@
 **Verdict `inconclusive`**: no verdict: the test was invalid or could not separate the cases.
   positive run: NotImplementedError at workspace/attempt/driver.py:11 before the target was reached
 
+Code side predicted ceiling before the test: L1 (measured: n/a).
+
 **Level n/a, uncalibrated.** no verdict, so no level. verdict is inconclusive; no confidence is assigned to it
 
 - trigger run: NotImplementedError at workspace/attempt/driver.py:11 before the target was reached
@@ -533,6 +569,8 @@
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: branch taken at minference/modules/minference_forward.py:418 (later NameError at minference/modules/minference_forward.py:410)
@@ -555,6 +593,8 @@
 
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L1 (measured: L1).
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
@@ -579,6 +619,8 @@
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: branch taken at minference/modules/minference_forward.py:423
@@ -601,6 +643,8 @@
 
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L1 (measured: L1).
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
@@ -626,6 +670,8 @@
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: branch taken at minference/modules/minference_forward.py:427 (later AttributeError at minference/modules/minference_forward.py:428)
@@ -650,6 +696,8 @@
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: branch taken at minference/modules/minference_forward.py:432 (later RuntimeError at minference/modules/minference_forward.py:2)
@@ -672,6 +720,8 @@
 
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L1 (measured: L1).
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
@@ -697,6 +747,8 @@
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: branch taken at minference/modules/minference_forward.py:521
@@ -719,6 +771,8 @@
 
 **Verdict `inconclusive`**: no verdict: the test was invalid or could not separate the cases.
   positive run: NotImplementedError at workspace/attempt/driver.py:11 before the target was reached
+
+Code side predicted ceiling before the test: L1 (measured: n/a).
 
 **Level n/a, uncalibrated.** no verdict, so no level. verdict is inconclusive; no confidence is assigned to it
 
@@ -748,6 +802,8 @@
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: branch taken at minference/modules/minference_forward.py:756 (later NameError at minference/modules/minference_forward.py:749)
@@ -773,6 +829,8 @@
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L2 (measured: L2).
+
 **Level L2, uncalibrated.** supported: fatal checks, mutation, repeat runs and clean-checkout replay passed; some checks are residual.
 
 - trigger run: branch taken at minference/modules/minference_forward.py:864
@@ -797,6 +855,8 @@
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: branch taken at minference/modules/snap_kv.py:321
@@ -819,6 +879,8 @@
 
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L1 (measured: L1).
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
@@ -845,6 +907,8 @@
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L3 (measured: L3).
+
 **Level L3, uncalibrated.** established: every defeater was measured and ruled out.
 
 - trigger run: branch taken at minference/ops/streaming_kernel.py:609 (later RuntimeError at triton/runtime/driver.py:20)
@@ -865,6 +929,8 @@
 
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L1 (measured: L1).
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
@@ -890,6 +956,8 @@
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: branch taken at minference/ops/streaming_kernel.py:701 (later RuntimeError at triton/runtime/driver.py:20)
@@ -913,6 +981,8 @@
 
 **Verdict `inconclusive`**: no verdict: the test was invalid or could not separate the cases.
   positive run: NotImplementedError at workspace/attempt/driver.py:11 before the target was reached
+
+Code side predicted ceiling before the test: L1 (measured: n/a).
 
 **Level n/a, uncalibrated.** no verdict, so no level. verdict is inconclusive; no confidence is assigned to it
 
@@ -941,6 +1011,8 @@
 
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L1 (measured: L1).
 
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
@@ -1299,6 +1371,8 @@
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
 
+Code side predicted ceiling before the test: L1 (measured: L1).
+
 **Level L1, uncalibrated.** indicative: the fatal checks passed; some important checks are residual or open.
 
 - trigger run: branch taken at minference/modules/minference_forward.py:74
@@ -1528,6 +1602,8 @@
 
 **Verdict `yes`**: with the trigger the branch at the location is taken and with the contrast it is not; what the claim says happens after the branch was not checked.
   effect on positive input, none on negative input
+
+Code side predicted ceiling before the test: L3 (measured: L2).
 
 **Level L2, uncalibrated.** supported: fatal checks, mutation, repeat runs and clean-checkout replay passed; some checks are residual.
 
