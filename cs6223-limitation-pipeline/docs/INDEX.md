@@ -27,7 +27,5 @@ Entries marked historical record development snapshots and may not describe curr
 - [12 Testing course mapping](12_testing_course_mapping.md): testing course mapping.
 - [13 Results](13_limitset_results.md): experiment results and limitations.
 - [Artifact map](ARTIFACT.md): guide for graders.
-- [Harness workflow](harness/workflow.md): development workflow (repository only; not in the ZIP archive).
-- [Harness models](harness/models.md): executor model choices (repository only; not in the ZIP archive).
 - [3b prompt](prompts/3b_code_to_paper.md): code-to-paper prompt.
 - [Dynamic-dispatch resolution prompt](prompts/dispatch_resolution.md): documentation of the prompt that asks a model to resolve dynamic dispatch (which function an indirect call reaches) in the analyzed code.

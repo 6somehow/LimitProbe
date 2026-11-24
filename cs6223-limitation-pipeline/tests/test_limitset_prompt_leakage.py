@@ -9,7 +9,8 @@ from checklimits.checklimits.paper_only import V3_INVENTORY, V3_SWEEP, V3_WRITE,
 
 def test_v3_prompt_has_no_label_ngrams():
     english = Path('data/limitset/labels_en.jsonl')
-    chinese = Path('<limitset-raw>/labels/test_labels.jsonl')
+    import os
+    chinese = Path(os.environ.get('LIMITSET_RAW') or Path(__file__).resolve().parents[2] / 'CS6223_Limitation_Testset') / 'labels/test_labels.jsonl'
     if not english.is_file() or not chinese.is_file():
         pytest.skip('scorer labels unavailable')
     def strings(value):

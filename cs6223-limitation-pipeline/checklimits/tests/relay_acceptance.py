@@ -1,7 +1,7 @@
 """Manual acceptance check for the relay (needs network; not collected by pytest).
 
 Start the relay first:
-  set -a; . <key-dir> set +a
+  set -a; . /path/to/your/relay.env; set +a   # an env file that defines SOCLAAS_API_KEY and SOCLAAS_BASE_URL
   python -m checklimits.relay --port 8787 --log runs/relay.log &
 Then:  python tests/relay_acceptance.py [port] [log]
 Uses a fake key. Exits non-zero if any check fails.

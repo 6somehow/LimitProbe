@@ -19,10 +19,14 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Optional
 
+import os
+import shutil
+import sys
+
 from .models import PROJECT_ROOT
 
 CPU_INDEX = "https://download.pytorch.org/whl/cpu"
-DEFAULT_PYTHON = "<python>"      # 3.11; only used to create the venv
+DEFAULT_PYTHON = os.environ.get("CHECKLIMITS_PYTHON311") or shutil.which("python3.11") or sys.executable  # a Python 3.11 used only to create the venv
 
 
 # --------------------------------------------------------------------------- what the repository declares
