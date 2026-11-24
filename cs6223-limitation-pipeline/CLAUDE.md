@@ -1,4 +1,4 @@
-# CLAUDE.md — CS6223 limitation pipeline (code side)
+# CLAUDE.md — LimitProbe (code side)
 
 ## What the project is
 

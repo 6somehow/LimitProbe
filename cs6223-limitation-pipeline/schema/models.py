@@ -1,4 +1,4 @@
-"""Shared record schema (v0) for the CS6223 limitation pipeline.
+"""Shared record schema (v0) for LimitProbe (formerly the CS6223 limitation pipeline).
 
 Owner: Wanting (code side). Reviewers: Zhaopeng (paper side), Shanghao (tests & metrics).
 Every module reads and writes these records as JSON. Do not add fields silently:

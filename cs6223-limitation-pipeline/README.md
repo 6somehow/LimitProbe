@@ -1,10 +1,12 @@
-# CS6223 limitation pipeline
+# LimitProbe
+
+*Find the limitations of systems-research prototypes, then probe them with tests.*
 
 Find, cross-check and test the **limitations** of systems-research prototypes, starting from a paper and its code repository.
 
 A paper-side analysis and a code-side analysis each propose limitations. Each side checks the other side's claims against its own evidence, the results are integrated into *findings* with provenance and test hints, and a test side generates and runs tests to confirm them. A separate experiment harness (the *Limitation Testset* runner, baselines and a blind scorer) measures how many reference limitations each generator recovers.
 
-This repository started as a course project (NUS CS6223) by three teammates: the code side and integration, the paper side, and the test side.
+LimitProbe started as a course project (NUS CS6223) by three teammates, who built the code side and integration, the paper side, and the test side. It was formerly called `cs6223-limitation-pipeline`; the repository and its folder keep that name for now.
 
 > **Status: research prototype.** The measured results are small-sample and descriptive. Read [`docs/13_limitset_results.md`](docs/13_limitset_results.md) before drawing conclusions. A per-finding confidence band exists in code but is not demonstrated in the reported runs.
 

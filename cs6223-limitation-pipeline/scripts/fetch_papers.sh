@@ -6,7 +6,7 @@ cd "$(dirname "$0")/.."
 mkdir -p third_party/papers
 while read -r id url; do
   out="third_party/papers/$id.pdf"
-  [ -s "$out" ] || curl -fsSL --retry 2 -A "cs6223-limitation-pipeline/0.1" -o "$out" "$url"
+  [ -s "$out" ] || curl -fsSL --retry 2 -A "limitprobe/0.1" -o "$out" "$url"
   [ "$(head -c 4 "$out")" = "%PDF" ] || { echo "$id: not a PDF" >&2; rm -f "$out"; exit 1; }
   echo "$id $(sha256sum "$out" | cut -c1-16) $url"
 done <<'LIST'
